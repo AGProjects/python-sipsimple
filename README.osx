@@ -1,0 +1,12 @@
+To compile this module on Mac OS-X, perform the following steps;
+- Make sure you have the subversion client installed, e.g. through fink
+- Make sure you have Cython installed:
+    easy_install cython
+- Check out PJSIP from SVN in the directory this README is in:
+    svn co http://svn.pjsip.org/repos/pjproject/trunk
+- Go to the PJSIP directory and compile:
+    cd pjsip
+    CFLAGS="-arch i386 -arch ppc" ./configure
+    make
+- Go to the module directory and build the module:
+  ./build_inplace
