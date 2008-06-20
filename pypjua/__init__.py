@@ -2,7 +2,7 @@ __version__ = "0.1"
 
 try:
     from engine import Engine
-    from _pjsip import Credentials, Registration
+    from _pjsip import Credentials, Registration, Publication
 except ImportError:
     pass
 else:
