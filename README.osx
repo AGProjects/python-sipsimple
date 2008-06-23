@@ -3,7 +3,7 @@ To compile this module on Mac OS-X, perform the following steps;
 - Make sure you have Cython installed:
     easy_install cython
 - Check out PJSIP from SVN in the directory this README is in:
-    svn co http://svn.pjsip.org/repos/pjproject/trunk
+    svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 - Go to the PJSIP directory and compile:
     cd pjsip
     CFLAGS="-arch i386 -arch ppc" ./configure
