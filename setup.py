@@ -5,7 +5,7 @@ from distutils import sysconfig
 import sys
 import re
 
-from pypjua import __version__
+version = "0.1"
 
 title = "PyPJUA - A PJSIP based SIP UA"
 description = "A SIP UA implementation using PJSIP"
@@ -36,7 +36,7 @@ for left, right, lib in re_conditionals.findall(open(build_mak_file).read()):
         libs.append("%s-%s" % (lib, build_mak["TARGET_NAME"]))
 
 setup(name         = "pypjua",
-      version      = __version__,
+      version      = version,
       author       = "Ruud Klaver",
       author_email = "ruud@ag-projects.com",
       url          = "http://www.ag-projects.com/",
