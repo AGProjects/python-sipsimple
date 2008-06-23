@@ -682,12 +682,13 @@ cdef class Credentials:
     cdef readonly object username
     cdef readonly object domain
     cdef readonly object password
+    cdef readonly object display_name
     cdef PJSTR c_server_url
     cdef PJSTR c_aor_url
     cdef PJSTR c_contact_url
     cdef pjsip_cred_info c_cred
 
-    def __cinit__(self, username, domain, password):
+    def __cinit__(self, username, domain, password, display_name = None):
         global _ua
         cdef int status
         cdef PJSIPUA ua
@@ -697,9 +698,13 @@ cdef class Credentials:
         self.username = username
         self.domain = domain
         self.password = password
+        self.display_name = display_name
         self.c_server_url = PJSTR("sip:%s" % domain)
-        self.c_aor_url = PJSTR("sip:%s@%s" % (username, domain))
-        self.c_contact_url = PJSTR("sip:%s@%s:%d" % (username, pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host), ua.c_pjsip_endpoint.c_udp_transport.local_name.
+        if display_name is None:
+            self.c_aor_url = PJSTR("<sip:%s@%s>" % (username, domain))
+        else:
+            self.c_aor_url = PJSTR('"%s" <sip:%s@%s>' % (display_name, username, domain))
+        self.c_contact_url = PJSTR("<sip:%s@%s:%d>" % (username, pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host), ua.c_pjsip_endpoint.c_udp_transport.local_name.
 port))
         str_to_pj_str(domain, &self.c_cred.realm)
         scheme = "digest"
@@ -709,7 +714,7 @@ port))
         str_to_pj_str(password, &self.c_cred.data)
 
     def __repr__(self):
-        return '<Credentials for "%s@%s">' % (self.username, self.domain)
+        return "<Credentials for '%s'>" % self.c_aor_url.str
 
     property server_url:
 
