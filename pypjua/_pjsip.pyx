@@ -337,7 +337,7 @@ cdef class PJSIPEndpoint:
         if status != 0:
             raise RuntimeError("Could not initialize PJSIP endpoint: %s" % pj_status_to_str(status))
         self.c_pool = pjsip_endpt_create_pool(self.c_obj, "lifetime", 4096, 4096)
-        if not self.c_pool:
+        if self.c_pool == NULL:
             raise MemoryError("Could not allocate memory pool")
         status = pjsip_tsx_layer_init_module(self.c_obj)
         if status != 0:
@@ -370,7 +370,7 @@ cdef class PJSIPEndpoint:
         cdef pj_dns_resolver *c_resolver
         cdef int c_memsize = len(nameservers) * sizeof(pj_str_t)
         cdef pj_pool_t *c_pool = pjsip_endpt_create_pool(self.c_obj, "nameservers", c_memsize, c_memsize)
-        if not c_pool:
+        if c_pool == NULL:
             raise MemoryError("Could not allocate memory pool")
         try:
             c_servers_str = <pj_str_t *> pj_pool_alloc(c_pool, c_memsize)
@@ -392,7 +392,7 @@ cdef class PJSIPEndpoint:
             pjsip_endpt_release_pool(self.c_obj, c_pool)
 
     def __dealloc__(self):
-        if self.c_obj:
+        if self.c_obj != NULL:
             pjsip_endpt_destroy(self.c_obj)
 
 
@@ -406,7 +406,7 @@ cdef class PJMEDIAEndpoint:
             raise RuntimeError("Could not create PJMEDIA endpoint: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
-        if self.c_obj:
+        if self.c_obj != NULL:
             pjmedia_endpt_destroy(self.c_obj)
 
     def codec_g711_init(self):
@@ -475,7 +475,7 @@ cdef class PJMEDIAConferenceBridge:
         def __get__(self):
             return self._get_sound_devices(False)
 
-    cdef object _get_sound_devices(self, playback):
+    cdef object _get_sound_devices(self, bint playback):
         cdef int i
         cdef int c_count
         cdef pjmedia_snd_dev_info *c_info
@@ -513,7 +513,7 @@ cdef class PJMEDIAConferenceBridge:
             raise RuntimeError("Could not connect sound device: %s" % pj_status_to_str(status))
 
     cdef int _destroy_snd_port(self, int disconnect) except -1:
-        if self.c_snd:
+        if self.c_snd != NULL:
             if disconnect:
                 pjmedia_snd_port_disconnect(self.c_snd)
             pjmedia_snd_port_destroy(self.c_snd)
@@ -521,7 +521,7 @@ cdef class PJMEDIAConferenceBridge:
 
     def __dealloc__(self):
         self._destroy_snd_port(1)
-        if self.c_obj:
+        if self.c_obj != NULL:
             pjmedia_conf_destroy(self.c_obj)
 
 
@@ -556,7 +556,7 @@ cdef class PJSIPUA:
 
     def __cinit__(self, *args, **kwargs):
         global _ua
-        if _ua:
+        if _ua != NULL:
             raise RuntimeError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
         self.c_pj_objects = []
@@ -607,7 +607,7 @@ cdef class PJSIPUA:
             getattr(self.c_pjmedia_endpoint, "codec_%s_deinit" % codec)()
         self.conf_bridge = None
         self.c_pjmedia_endpoint = None
-        if _event_lock:
+        if _event_lock != NULL:
             pj_mutex_lock(_event_lock)
             pj_mutex_destroy(_event_lock)
         _event_lock = NULL
@@ -619,14 +619,14 @@ cdef class PJSIPUA:
 
     cdef int _poll_log(self) except -1:
         global _event_lock, _event_queue
-        if _event_lock:
+        if _event_lock != NULL:
             if pj_mutex_lock(_event_lock) != 0:
                 return 0
         if _event_queue:
             for event, kwargs in _event_queue:
                 self.c_event_handler(event, **kwargs)
             _event_queue = []
-        if _event_lock:
+        if _event_lock != NULL:
             if pj_mutex_unlock(_event_lock) != 0:
                 return 0
 
@@ -671,7 +671,7 @@ cdef class PJSIPUA:
 cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata):
     global _ua
     cdef PJSIPUA c_ua
-    if _ua:
+    if _ua != NULL:
         c_ua = <object> _ua
         return c_ua._rx_request(rdata)
     else:
@@ -691,7 +691,7 @@ cdef class Credentials:
         global _ua
         cdef int status
         cdef PJSIPUA ua
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
         self.username = username
@@ -739,7 +739,7 @@ cdef class Route:
         cdef PJSIPUA ua
         cdef object c_pool_name
         cdef pjsip_sip_uri *c_sip_uri
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
         self.c_host = PJSTR(host)
@@ -785,7 +785,7 @@ cdef class Registration:
         global _ua
         cdef int status
         cdef PJSIPUA ua
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
         self.state = "unregistered"
@@ -805,8 +805,8 @@ cdef class Registration:
 
     def __dealloc__(self):
         global _ua
-        if _ua:
-            if self.c_obj:
+        if _ua != NULL:
+            if self.c_obj != NULL:
                 pjsip_regc_destroy(self.c_obj)
 
     def __repr__(self):
@@ -855,7 +855,7 @@ cdef class Registration:
         cdef pj_time_val c_delay
         cdef bint c_success = 0
         cdef PJSIPUA ua
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
         if self.state == "registering":
@@ -924,7 +924,7 @@ cdef class Registration:
         global _ua
         cdef int status
         cdef PJSIPUA ua
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
         if register:
@@ -957,7 +957,7 @@ cdef void cb_Registration_cb_response(pjsip_regc_cbparam *param) with gil:
 
 cdef void cb_Registration_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef Registration c_reg
-    if entry.user_data:
+    if entry.user_data != NULL:
         c_reg = <object> entry.user_data
         c_reg._cb_expire()
 
@@ -980,7 +980,7 @@ cdef class Publication:
         cdef int status
         cdef PJSIPUA ua
         cdef pj_str_t c_event
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
         self.state = "unpublished"
@@ -1002,8 +1002,8 @@ cdef class Publication:
 
     def __dealloc__(self):
         global _ua
-        if _ua:
-            if self.c_obj:
+        if _ua != NULL:
+            if self.c_obj != NULL:
                 pjsip_publishc_destroy(self.c_obj)
 
     def __repr__(self):
@@ -1026,13 +1026,13 @@ cdef class Publication:
         cdef pj_time_val c_delay
         cdef bint c_success = 0
         cdef PJSIPUA ua
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
         if self.state == "publishing":
             if param.code / 100 == 2:
                 self.state = "published"
-                if self.c_timer.user_data:
+                if self.c_timer.user_data != NULL:
                     pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
                 pj_timer_entry_init(&self.c_timer, 0, <void *> self, cb_Publication_cb_expire)
                 c_delay.sec = max(1, min(int(param.expiration * random.uniform(0.75, 0.9)), param.expiration - 10))
@@ -1117,7 +1117,7 @@ cdef class Publication:
         cdef pjsip_msg_body *c_body
         cdef int status
         cdef PJSIPUA ua
-        if not _ua:
+        if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
         if body != NULL:
@@ -1153,17 +1153,17 @@ cdef void cb_Publication_cb_response(pjsip_publishc_cbparam *param) with gil:
 
 cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef Publication c_pub
-    if entry.user_data:
+    if entry.user_data != NULL:
         c_pub = <object> entry.user_data
         c_pub._cb_expire()
 
 cdef int c_event_queue_append(char *event, object kwargs) except -1:
     global _lock_lock, _event_queue
-    if _event_lock:
+    if _event_lock != NULL:
         if pj_mutex_lock(_event_lock) != 0:
             return 0
     _event_queue.append((event, kwargs))
-    if _event_lock:
+    if _event_lock != NULL:
         if pj_mutex_unlock(_event_lock) != 0:
             return 0
 
