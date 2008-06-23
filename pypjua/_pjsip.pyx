@@ -931,7 +931,7 @@ cdef class Publication:
         if status != 0:
             raise RuntimeError("Could not create publication: %s" % pj_status_to_str(status))
         str_to_pj_str(event, &c_event)
-        status = pjsip_publishc_init(self.c_obj, &c_event, &cred.c_server_url.pj_str, &cred.c_aor_url.pj_str, &cred.c_aor_url.pj_str, expires)
+        status = pjsip_publishc_init(self.c_obj, &c_event, &cred.c_aor_url.pj_str, &cred.c_aor_url.pj_str, &cred.c_aor_url.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init publication: %s" % pj_status_to_str(status))
         status = pjsip_publishc_set_credentials(self.c_obj, 1, &cred.c_cred)
