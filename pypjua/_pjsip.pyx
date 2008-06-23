@@ -65,7 +65,7 @@ cdef extern from "pjlib.h":
     struct pj_timer_heap_t
     struct pj_timer_entry:
         void *user_data
-    pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data, void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry))
+    pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data, void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
 
 cdef extern from "pjlib-util.h":
 
@@ -204,7 +204,7 @@ cdef extern from "pjsip_simple.h":
         pjsip_rx_data *rdata
         int expiration
     int pjsip_publishc_init_module(pjsip_endpoint *endpt)
-    int pjsip_publishc_create(pjsip_endpoint *endpt, int options, void *token, void cb(pjsip_publishc_cbparam *param), pjsip_publishc **p_pubc)
+    int pjsip_publishc_create(pjsip_endpoint *endpt, int options, void *token, void cb(pjsip_publishc_cbparam *param) with gil, pjsip_publishc **p_pubc)
     int pjsip_publishc_destroy(pjsip_publishc *pubc)
     int pjsip_publishc_init(pjsip_publishc *pubc, pj_str_t *event, pj_str_t *target_uri, pj_str_t *from_uri, pj_str_t *to_uri, int expires)
     int pjsip_publishc_set_credentials(pjsip_publishc *pubc, int count, pjsip_cred_info *c)
@@ -225,7 +225,7 @@ cdef extern from "pjsip_ua.h":
     struct pjsip_regc_info:
         int interval
         int next_reg
-    int pjsip_regc_create(pjsip_endpoint *endpt, void *token, void cb(pjsip_regc_cbparam *param), pjsip_regc **p_regc)
+    int pjsip_regc_create(pjsip_endpoint *endpt, void *token, void cb(pjsip_regc_cbparam *param) with gil, pjsip_regc **p_regc)
     int pjsip_regc_destroy(pjsip_regc *regc)
     int pjsip_regc_init(pjsip_regc *regc, pj_str_t *srv_url, pj_str_t *from_url, pj_str_t *to_url, int ccnt, pj_str_t *contact, int expires)
     int pjsip_regc_set_credentials(pjsip_regc *regc, int count, pjsip_cred_info *cred)
