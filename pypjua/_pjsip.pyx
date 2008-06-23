@@ -131,8 +131,18 @@ cdef extern from "pjmedia-codec.h":
 cdef extern from "pjsip.h":
 
     # messages
+    struct pjsip_uri
+    struct pjsip_sip_uri:
+        pj_str_t host
+        int port
+        int lr_param
+    struct pjsip_name_addr:
+        pjsip_uri *uri
     struct pjsip_hdr
     struct pjsip_generic_string_hdr
+    struct pjsip_routing_hdr:
+        pjsip_name_addr name_addr
+    ctypedef pjsip_routing_hdr pjsip_route_hdr
     struct pjsip_msg_body
     struct pjsip_msg:
         pjsip_msg_body *body
@@ -143,6 +153,8 @@ cdef extern from "pjsip.h":
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
+    pjsip_route_hdr *pjsip_route_hdr_create(pj_pool_t *pool)
+    pjsip_sip_uri *pjsip_sip_uri_create(pj_pool_t *pool, int secure)
 
     # module
     #struct pjsip_event
@@ -540,7 +552,7 @@ cdef class PJSIPUA:
     cdef PJMEDIAEndpoint c_pjmedia_endpoint
     cdef readonly PJMEDIAConferenceBridge conf_bridge
     cdef pjsip_module c_module
-    cdef pjsip_hdr *c_user_agent_hdr
+    cdef pjsip_generic_string_hdr *c_user_agent_hdr
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -579,7 +591,7 @@ cdef class PJSIPUA:
             if status != 0:
                 raise RuntimeError("Could not load application module: %s" % pj_status_to_str(status))
             c_ua_hval = PJSTR(kwargs["user_agent"])
-            self.c_user_agent_hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(self.c_pjsip_endpoint.c_pool, &c_ua_hname.pj_str, &c_ua_hval.pj_str)
+            self.c_user_agent_hdr = pjsip_generic_string_hdr_create(self.c_pjsip_endpoint.c_pool, &c_ua_hname.pj_str, &c_ua_hval.pj_str)
             if self.c_user_agent_hdr == NULL:
                 raise MemoryError()
         except:
@@ -715,16 +727,61 @@ port))
             return self.c_contact_url.str
 
 
+cdef class Route:
+    cdef pj_pool_t *c_pool
+    cdef pjsip_route_hdr *c_route_hdr
+    cdef PJSTR c_host
+    cdef int c_port
+    
+    def __cinit__(self, host, port=5060):
+        global _ua
+        cdef int status
+        cdef PJSIPUA ua
+        cdef object c_pool_name
+        cdef pjsip_sip_uri *c_sip_uri
+        if not _ua:
+            raise RuntimeError("PJSIPUA needs to be instanced first")
+        ua = <object> _ua
+        self.c_host = PJSTR(host)
+        self.c_port = port
+        c_pool_name = "Route_%d" % id(self)
+        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, c_pool_name, 4096, 4096)
+        if self.c_pool == NULL:
+            raise MemoryError()
+        self.c_route_hdr = pjsip_route_hdr_create(self.c_pool)
+        if self.c_route_hdr == NULL:
+            raise MemoryError()
+        c_sip_uri = pjsip_sip_uri_create(self.c_pool, 0)
+        if c_sip_uri == NULL:
+            raise MemoryError()
+        c_sip_uri.host = self.c_host.pj_str
+        c_sip_uri.port = port
+        c_sip_uri.lr_param = 1
+        self.c_route_hdr.name_addr.uri = <pjsip_uri *> c_sip_uri
+    
+    def __dealloc__(self):
+        global _ua
+        cdef PJSIPUA ua
+        if _ua != NULL:
+            ua = <object> _ua
+            if self.c_pool != NULL:
+                pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+    
+    def __repr__(self):
+        return '<Route to "%s:%d">' % (self.c_host.str, self.c_port)
+
+
 cdef class Registration:
     cdef pjsip_regc *c_obj
     cdef readonly object state
     cdef unsigned int c_expires
-    cdef Credentials cred
+    cdef readonly Credentials credentials
+    cdef readonly Route route
     cdef pjsip_tx_data *c_tx_data
     cdef bint c_want_register
     cdef pj_timer_entry c_timer
 
-    def __cinit__(self, Credentials cred, expires = 300):
+    def __cinit__(self, Credentials credentials, route = None, expires = 300):
         global _ua
         cdef int status
         cdef PJSIPUA ua
@@ -733,15 +790,16 @@ cdef class Registration:
         ua = <object> _ua
         self.state = "unregistered"
         self.c_expires = expires
-        self.cred = cred
+        self.credentials = credentials
+        self.route = route
         self.c_want_register = 0
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create client registration: %s" % pj_status_to_str(status))
-        status = pjsip_regc_init(self.c_obj, &cred.c_server_url.pj_str, &cred.c_aor_url.pj_str, &cred.c_aor_url.pj_str, 1, &cred.c_contact_url.pj_str, expires)
+        status = pjsip_regc_init(self.c_obj, &credentials.c_server_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &credentials.c_contact_url.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init registration: %s" % pj_status_to_str(status))
-        status = pjsip_regc_set_credentials(self.c_obj, 1, &cred.c_cred)
+        status = pjsip_regc_set_credentials(self.c_obj, 1, &credentials.c_cred)
         if status != 0:
             raise RuntimeError("Could not set registration credentials: %s" % pj_status_to_str(status))
 
@@ -752,7 +810,7 @@ cdef class Registration:
                 pjsip_regc_destroy(self.c_obj)
 
     def __repr__(self):
-        return '<Registration for "%s@%s">' % (self.cred.username, self.cred.domain)
+        return '<Registration for "%s@%s">' % (self.credentials.username, self.credentials.domain)
 
     property expires:
 
@@ -877,7 +935,9 @@ cdef class Registration:
             status = pjsip_regc_unregister(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise RuntimeError("Could not create unregistration request: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(self.c_tx_data.msg, ua.c_user_agent_hdr)
+        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
+        if self.route is not None:
+            pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> self.route.c_route_hdr)
     
     cdef int _send_reg(self, bint register) except -1:
         cdef int status
@@ -906,7 +966,8 @@ cdef class Publication:
     cdef readonly object state
     cdef readonly object event
     cdef unsigned int c_expires
-    cdef Credentials cred
+    cdef readonly Credentials credentials
+    cdef readonly Route route
     cdef pjsip_tx_data *c_tx_data
     cdef PJSTR c_content_type
     cdef PJSTR c_content_subtype
@@ -914,7 +975,7 @@ cdef class Publication:
     cdef bint c_new_publish
     cdef pj_timer_entry c_timer
 
-    def __cinit__(self, Credentials cred, event, expires = 300):
+    def __cinit__(self, Credentials credentials, event, route = None, expires = 300):
         global _ua
         cdef int status
         cdef PJSIPUA ua
@@ -924,17 +985,18 @@ cdef class Publication:
         ua = <object> _ua
         self.state = "unpublished"
         self.c_expires = expires
-        self.cred = cred
+        self.credentials = credentials
+        self.route = route
         self.event = event
         self.c_new_publish = 0
         status = pjsip_publishc_create(ua.c_pjsip_endpoint.c_obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create publication: %s" % pj_status_to_str(status))
         str_to_pj_str(event, &c_event)
-        status = pjsip_publishc_init(self.c_obj, &c_event, &cred.c_aor_url.pj_str, &cred.c_aor_url.pj_str, &cred.c_aor_url.pj_str, expires)
+        status = pjsip_publishc_init(self.c_obj, &c_event, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init publication: %s" % pj_status_to_str(status))
-        status = pjsip_publishc_set_credentials(self.c_obj, 1, &cred.c_cred)
+        status = pjsip_publishc_set_credentials(self.c_obj, 1, &credentials.c_cred)
         if status != 0:
             raise RuntimeError("Could not set publication credentials: %s" % pj_status_to_str(status))
 
@@ -945,7 +1007,7 @@ cdef class Publication:
                 pjsip_publishc_destroy(self.c_obj)
 
     def __repr__(self):
-        return '<Publication for "%s@%s">' % (self.cred.username, self.cred.domain)
+        return '<Publication for "%s@%s">' % (self.credentials.username, self.credentials.domain)
 
     property expires:
 
@@ -1070,7 +1132,9 @@ cdef class Publication:
             status = pjsip_publishc_unpublish(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise RuntimeError("Could not create PUBLISH request: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(self.c_tx_data.msg, ua.c_user_agent_hdr)
+        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
+        if self.route is not None:
+            pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> self.route.c_route_hdr)
     
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)
