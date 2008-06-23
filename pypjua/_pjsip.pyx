@@ -206,7 +206,7 @@ cdef extern from "pjsip.h":
         pj_str_t data
 
 cdef extern from "pjsip_simple.h":
-    
+
     # publish
     struct pjsip_publishc
     struct pjsip_publishc_cbparam:
@@ -404,7 +404,7 @@ cdef class PJMEDIAEndpoint:
         status = pjmedia_endpt_create(&caching_pool.c_obj.factory, pjsip_endpt_get_ioqueue(pjsip_endpoint.c_obj), 0, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create PJMEDIA endpoint: %s" % pj_status_to_str(status))
-    
+
     def __dealloc__(self):
         if self.c_obj:
             pjmedia_endpt_destroy(self.c_obj)
@@ -511,7 +511,7 @@ cdef class PJMEDIAConferenceBridge:
         if status != 0:
             self._destroy_snd_port(0)
             raise RuntimeError("Could not connect sound device: %s" % pj_status_to_str(status))
-    
+
     cdef int _destroy_snd_port(self, int disconnect) except -1:
         if self.c_snd:
             if disconnect:
@@ -732,7 +732,7 @@ cdef class Route:
     cdef pjsip_route_hdr *c_route_hdr
     cdef PJSTR c_host
     cdef int c_port
-    
+
     def __cinit__(self, host, port=5060):
         global _ua
         cdef int status
@@ -758,7 +758,7 @@ cdef class Route:
         c_sip_uri.port = port
         c_sip_uri.lr_param = 1
         self.c_route_hdr.name_addr.uri = <pjsip_uri *> c_sip_uri
-    
+
     def __dealloc__(self):
         global _ua
         cdef PJSIPUA ua
@@ -766,7 +766,7 @@ cdef class Route:
             ua = <object> _ua
             if self.c_pool != NULL:
                 pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-    
+
     def __repr__(self):
         return '<Route to "%s:%d">' % (self.c_host.str, self.c_port)
 
@@ -938,7 +938,7 @@ cdef class Registration:
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
         if self.route is not None:
             pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> self.route.c_route_hdr)
-    
+
     cdef int _send_reg(self, bint register) except -1:
         cdef int status
         status = pjsip_regc_send(self.c_obj, self.c_tx_data)
@@ -1135,7 +1135,7 @@ cdef class Publication:
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
         if self.route is not None:
             pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> self.route.c_route_hdr)
-    
+
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)
         if status != 0:
@@ -1169,7 +1169,7 @@ cdef int c_event_queue_append(char *event, object kwargs) except -1:
 
 cdef void cb_log(int level, char *data, int len):
     c_event_queue_append("log", dict(timestamp=datetime.now(), level=level, message=data))
-    
+
 cdef void *_ua = NULL
 cdef pj_mutex_t *_event_lock = NULL
 cdef object _event_queue = []
