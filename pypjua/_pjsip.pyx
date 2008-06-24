@@ -1102,7 +1102,9 @@ cdef class Publication:
         elif self.state == "published" or self.state == "publishing":
             if self.state == "published":
                 self._send_pub(1)
-            self.c_new_publish = 1
+                self.c_new_publish = 0
+            else:
+                self.c_new_publish = 1
         self.c_content_type = c_content_type
         self.c_content_subtype = c_content_subtype
         self.c_body = c_body   
