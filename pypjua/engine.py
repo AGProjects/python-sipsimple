@@ -35,7 +35,7 @@ class Engine(Thread):
     def start(self):
         if self._Thread__started:
             raise RuntimeError("Can only be started once")
-        self._ua = PJSIPUA(self.handle_event, **dict((key, getattr(self, key)) for key in Engine.ua_options.iterkeys()))
+        self._ua = PJSIPUA(self._handle_event, **dict((key, getattr(self, key)) for key in Engine.ua_options.iterkeys()))
         self.conf_bridge = weakref.proxy(self._ua.conf_bridge)
         self._stopping = False
         Thread.start(self)
@@ -45,7 +45,7 @@ class Engine(Thread):
         while not self._stopping:
             self._ua.poll()
 
-    def handle_event(self, event_name, **kwargs):
+    def _handle_event(self, event_name, **kwargs):
         print 'Received event "%s": %s' % (event_name, kwargs)
 
 
