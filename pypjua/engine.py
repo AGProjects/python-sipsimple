@@ -18,7 +18,11 @@ class Engine(Thread):
     def __init__(self, **kwargs):
         if not Engine._done_init:
             Thread.__init__(self)
-            self.__dict__.update(Engine.ua_options.copy())
+            options = Engine.ua_options.copy()
+            for key, value in kwargs.iteritems():
+                if key in options:
+                    options[key] = value
+            self.__dict__.update(options)
             Engine._done_init = True
 
     @classmethod
