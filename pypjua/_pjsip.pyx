@@ -543,7 +543,6 @@ cdef object c_retrieve_nameservers():
 cdef class PJSIPUA:
     cdef long c_thread_desc[64]
     cdef pj_thread_t *c_thread
-    cdef list c_pj_objects
     cdef object c_event_handler
     cdef list c_codecs
     cdef PJLIB c_pjlib
@@ -559,7 +558,6 @@ cdef class PJSIPUA:
         if _ua != NULL:
             raise RuntimeError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
-        self.c_pj_objects = []
         self.c_codecs = []
 
     def __init__(self, event_handler, *args, **kwargs):
