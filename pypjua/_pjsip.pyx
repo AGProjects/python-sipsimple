@@ -457,13 +457,20 @@ cdef class PJMEDIAConferenceBridge:
     cdef pjmedia_conf *c_obj
     cdef pj_pool_t *c_pool
     cdef pjmedia_snd_port *c_snd
+    cdef PJMEDIAEndpoint c_pjmedia_endpoint
+    cdef list c_codecs
 
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint):
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, codecs):
         cdef int status
         self.c_pool = pjsip_endpoint.c_pool
+        self.c_pjmedia_endpoint = pjmedia_endpoint
         status = pjmedia_conf_create(self.c_pool, 9, 32000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
+        self.c_codecs = []
+
+    def __init__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, codecs):
+        self.codecs = codecs
 
     property playback_devices:
 
@@ -522,7 +529,30 @@ cdef class PJMEDIAConferenceBridge:
     def __dealloc__(self):
         self._destroy_snd_port(1)
         if self.c_obj != NULL:
+            for codec in self.c_codecs:
+                getattr(self.c_pjmedia_endpoint, "codec_%s_deinit" % codec)()
             pjmedia_conf_destroy(self.c_obj)
+
+    property codecs:
+
+        def __get__(self):
+            return self.c_codecs[:]
+
+        def __set__(self, val):
+            if not isinstance(val, list):
+                raise TypeError("codecs attribute should be a list")
+            new_codecs = val[:]
+            if len(new_codecs) != len(set(new_codecs)):
+                raise ValueError("Duplicate codecs found in list")
+            for codec in new_codecs:
+                if not hasattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec):
+                    raise ValueError('Unknown codec "%s"' % codec)
+            for codec in self.c_codecs:
+                getattr(self.c_pjmedia_endpoint, "codec_%s_deinit" % codec)()
+            self.c_codecs = []
+            for codec in new_codecs:
+                getattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec)()
+            self.c_codecs = new_codecs
 
 
 cdef object c_retrieve_nameservers():
@@ -544,7 +574,6 @@ cdef class PJSIPUA:
     cdef long c_thread_desc[64]
     cdef pj_thread_t *c_thread
     cdef object c_event_handler
-    cdef list c_codecs
     cdef PJLIB c_pjlib
     cdef PJCachingPool c_caching_pool
     cdef PJSIPEndpoint c_pjsip_endpoint
@@ -558,7 +587,6 @@ cdef class PJSIPUA:
         if _ua != NULL:
             raise RuntimeError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
-        self.c_codecs = []
 
     def __init__(self, event_handler, *args, **kwargs):
         global _event_lock
@@ -578,10 +606,9 @@ cdef class PJSIPUA:
             if status != 0:
                 raise RuntimeError("Could not initialize logging mutex: %s" % pj_status_to_str(status))
             self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, self.c_pjsip_endpoint)
-            self.conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint)
+            self.conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["default_codecs"])
             if kwargs["auto_sound"]:
                 self.conf_bridge.auto_set_sound_devices()
-            self.codecs = kwargs["codecs"]
             str_to_pj_str(c_module_name, &self.c_module.name)
             self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
             self.c_module.on_rx_request = cb_PJSIPUA_rx_request
@@ -601,8 +628,6 @@ cdef class PJSIPUA:
 
     cdef int _do_dealloc(self) except -1:
         global _ua, _event_lock
-        for codec in self.c_codecs:
-            getattr(self.c_pjmedia_endpoint, "codec_%s_deinit" % codec)()
         self.conf_bridge = None
         self.c_pjmedia_endpoint = None
         if _event_lock != NULL:
@@ -640,27 +665,6 @@ cdef class PJSIPUA:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &c_max_timeout)
         if status != 0:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
-
-    property codecs:
-
-        def __get__(self):
-            return self.c_codecs[:]
-
-        def __set__(self, val):
-            if not isinstance(val, list):
-                raise TypeError("codecs attribute should be a list")
-            new_codecs = val[:]
-            if len(new_codecs) != len(set(new_codecs)):
-                raise ValueError("Duplicate codecs found in list")
-            for codec in new_codecs:
-                if not hasattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec):
-                    raise ValueError('Unknown codec "%s"' % codec)
-            for codec in self.c_codecs:
-                getattr(self.c_pjmedia_endpoint, "codec_%s_deinit" % codec)()
-            self.c_codecs = []
-            for codec in new_codecs:
-                getattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec)()
-            self.c_codecs = new_codecs
 
     cdef int _rx_request(self, pjsip_rx_data *rdata):
         return 0

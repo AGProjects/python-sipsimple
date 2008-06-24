@@ -13,7 +13,7 @@ class Engine(Thread):
                   "local_port": 5060,
                   "auto_sound": True,
                   "user_agent": "pypjua",
-                  "codecs": ["speex", "g711", "ilbc", "gsm", "g722"]}
+                  "default_codecs": ["speex", "g711", "ilbc", "gsm", "g722"]}
 
     def __init__(self, **kwargs):
         if not Engine._done_init:
