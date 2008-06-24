@@ -849,19 +849,6 @@ cdef class Registration:
                     raise RuntimeError('Could not get registration info: %s' % pj_status_to_str(status))
                 return c_info.interval
 
-    property expires_next:
-
-        def __get__(self):
-            cdef int status
-            cdef pjsip_regc_info c_info
-            if self.state != "registered":
-                return None
-            else:
-                status = pjsip_regc_get_info(self.c_obj, &c_info)
-                if status != 0:
-                    raise RuntimeError('Could not get registration info: %s' % pj_status_to_str(status))
-                return c_info.next_reg
-
     cdef int _cb_response(self, pjsip_regc_cbparam *param) except -1:
         global _ua
         cdef pj_time_val c_delay
