@@ -1078,7 +1078,7 @@ cdef class Publication:
         if self.c_body is not None:
             try:
                 self._create_pub(&self.c_content_type.pj_str, &self.c_content_subtype.pj_str, &self.c_body.pj_str)
-                self._send_reg(1)
+                self._send_pub(1)
             except:
                 self.c_content_type = None
                 self.c_content_subtype = None
