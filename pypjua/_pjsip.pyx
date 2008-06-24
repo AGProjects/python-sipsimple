@@ -146,10 +146,18 @@ cdef extern from "pjsip.h":
     struct pjsip_msg_body
     struct pjsip_msg:
         pjsip_msg_body *body
+    struct pjsip_buffer:
+        char *start
+        char *cur
     struct pjsip_tx_data:
         pjsip_msg *msg
         pj_pool_t *pool
-    struct pjsip_rx_data
+        pjsip_buffer buf
+    struct pjsip_rx_data_pkt_info:
+        char *packet
+        int len
+    struct pjsip_rx_data:
+        pjsip_rx_data_pkt_info pkt_info
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
@@ -162,8 +170,11 @@ cdef extern from "pjsip.h":
         PJSIP_MOD_PRIORITY_APPLICATION
     struct pjsip_module:
         pj_str_t name
-        pjsip_module_priority priority
+        int priority
         int on_rx_request(pjsip_rx_data *rdata)
+        int on_rx_response(pjsip_rx_data *rdata)
+        int on_tx_request(pjsip_tx_data *tdata)
+        int on_tx_response(pjsip_tx_data *tdata)
 
     # endpoint
     struct pjsip_endpoint
@@ -580,6 +591,10 @@ cdef class PJSIPUA:
     cdef PJMEDIAEndpoint c_pjmedia_endpoint
     cdef readonly PJMEDIAConferenceBridge conf_bridge
     cdef pjsip_module c_module
+    cdef PJSTR c_module_name
+    cdef pjsip_module c_wire_module
+    cdef PJSTR c_wire_module_name
+    cdef public bint c_do_wiretap
     cdef pjsip_generic_string_hdr *c_user_agent_hdr
 
     def __cinit__(self, *args, **kwargs):
@@ -591,7 +606,6 @@ cdef class PJSIPUA:
     def __init__(self, event_handler, *args, **kwargs):
         global _event_lock
         cdef int status
-        cdef object c_module_name = "mod-pypjua"
         cdef PJSTR c_ua_hname = PJSTR("User-Agent")
         cdef PJSTR c_ua_hval
         self.c_event_handler = event_handler
@@ -609,12 +623,24 @@ cdef class PJSIPUA:
             self.conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["default_codecs"])
             if kwargs["auto_sound"]:
                 self.conf_bridge.auto_set_sound_devices()
-            str_to_pj_str(c_module_name, &self.c_module.name)
+            self.c_module_name = PJSTR("mod-pypjua")
+            self.c_module.name = self.c_module_name.pj_str
             self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
             self.c_module.on_rx_request = cb_PJSIPUA_rx_request
             status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
             if status != 0:
                 raise RuntimeError("Could not load application module: %s" % pj_status_to_str(status))
+            self.c_do_wiretap = bool(kwargs["do_wiretap"])
+            self.c_wire_module_name = PJSTR("mod-pypjua-wiretap")
+            self.c_wire_module.name = self.c_wire_module_name.pj_str
+            self.c_wire_module.priority = 0
+            self.c_wire_module.on_rx_request = cb_wire_rx
+            self.c_wire_module.on_rx_response = cb_wire_rx
+            self.c_wire_module.on_tx_request = cb_wire_tx
+            self.c_wire_module.on_tx_response = cb_wire_tx
+            status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_wire_module)
+            if status != 0:
+                raise RuntimeError("Could not load wiretap module: %s" % pj_status_to_str(status))
             c_ua_hval = PJSTR(kwargs["user_agent"])
             self.c_user_agent_hdr = pjsip_generic_string_hdr_create(self.c_pjsip_endpoint.c_pool, &c_ua_hname.pj_str, &c_ua_hval.pj_str)
             if self.c_user_agent_hdr == NULL:
@@ -622,6 +648,14 @@ cdef class PJSIPUA:
         except:
             self._do_dealloc()
             raise
+
+    property do_wiretap:
+
+        def __get__(self):
+            return bool(self.c_do_wiretap)
+
+        def __set__(self, value):
+            self.c_do_wiretap = bool(value)
 
     def __dealloc__(self):
         self._do_dealloc()
@@ -679,6 +713,23 @@ cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata):
     else:
         return 0
 
+cdef int cb_wire_rx(pjsip_rx_data *rdata):
+    global _ua
+    cdef PJSIPUA c_ua
+    if _ua != NULL:
+        c_ua = <object> _ua
+        if c_ua.c_do_wiretap:
+            c_event_queue_append("wiretap-received", dict(data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len)))
+    return 0
+
+cdef int cb_wire_tx(pjsip_tx_data *tdata):
+    global _ua
+    cdef PJSIPUA c_ua
+    if _ua != NULL:
+        c_ua = <object> _ua
+        if c_ua.c_do_wiretap:
+            c_event_queue_append("wiretap-sent", dict(data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start)))
+    return 0
 
 cdef class Credentials:
     cdef readonly object username
