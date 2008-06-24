@@ -738,7 +738,7 @@ cdef class Route:
     cdef pj_pool_t *c_pool
     cdef pjsip_route_hdr *c_route_hdr
     cdef PJSTR c_host
-    cdef int c_port
+    cdef readonly int port
 
     def __cinit__(self, host, port=5060):
         global _ua
@@ -750,7 +750,7 @@ cdef class Route:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
         self.c_host = PJSTR(host)
-        self.c_port = port
+        self.port = port
         c_pool_name = "Route_%d" % id(self)
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, c_pool_name, 4096, 4096)
         if self.c_pool == NULL:
@@ -774,8 +774,13 @@ cdef class Route:
             if self.c_pool != NULL:
                 pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
 
+    property host:
+
+        def __get__(self):
+            return self.c_host.str
+
     def __repr__(self):
-        return '<Route to "%s:%d">' % (self.c_host.str, self.c_port)
+        return '<Route to "%s:%d">' % (self.c_host.str, self.port)
 
 
 cdef class Registration:
