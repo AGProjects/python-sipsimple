@@ -170,6 +170,7 @@ cdef extern from "pjsip.h":
         PJSIP_MOD_PRIORITY_APPLICATION
     struct pjsip_module:
         pj_str_t name
+        int id
         int priority
         int on_rx_request(pjsip_rx_data *rdata)
         int on_rx_response(pjsip_rx_data *rdata)
@@ -628,6 +629,7 @@ cdef class PJSIPUA:
                 self.conf_bridge.auto_set_sound_devices()
             self.c_module_name = PJSTR("mod-pypjua")
             self.c_module.name = self.c_module_name.pj_str
+            self.c_module.id = -1
             self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
             self.c_module.on_rx_request = cb_PJSIPUA_rx_request
             status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
@@ -636,6 +638,7 @@ cdef class PJSIPUA:
             self.c_do_sip_trace = bool(kwargs["do_sip_trace"])
             self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
             self.c_trace_module.name = self.c_trace_module_name.pj_str
+            self.c_trace_module.id = -1
             self.c_trace_module.priority = 0
             self.c_trace_module.on_rx_request = cb_trace_rx
             self.c_trace_module.on_rx_response = cb_trace_rx
