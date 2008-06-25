@@ -356,6 +356,9 @@ cdef class PJSIPEndpoint:
         status = pjsip_ua_init_module(self.c_obj, NULL) # TODO: handle forking
         if status != 0:
             raise RuntimeError("Could not initialize common dialog layer module: %s" % pj_status_to_str(status))
+        status = pjsip_publishc_init_module(self.c_obj)
+        if status != 0:
+            raise RuntimeError("Could not initialize publish client module: %s" % pj_status_to_str(status))
         self._start_udp_transport(local_ip, local_port)
         if nameservers:
             self._init_nameservers(nameservers)
