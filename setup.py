@@ -21,6 +21,7 @@ includes = filter_cmdline(build_mak["APP_CFLAGS"], "-I")
 lib_dirs = filter_cmdline(build_mak["APP_LDFLAGS"], "-L")
 macros = [tuple(define.split("=", 1)) for define in filter_cmdline(build_mak["APP_CFLAGS"], "-D")]
 libs = filter_cmdline(build_mak["APP_LDLIBS"], "-l")
+extras = sum((build_mak["APP_LDLIBS"].split()[index:index+2] for index, value in enumerate(build_mak["APP_LDLIBS"].split()) if value == "-framework"), [])
 
 re_conditionals = re.compile(r"ifneq \((.*),(.*)\)\nAPP_THIRD_PARTY_LIBS\s\+=\s-l(.*?)-\$\(TARGET_NAME\)")
 re_findstring = re.compile(r"\$\(findstring\s(.*),(.*)\)")
@@ -67,8 +68,6 @@ setup(name         = "pypjua",
                     library_dirs = lib_dirs,
                     define_macros = macros,
                     libraries = libs,
-                    extra_link_args=["-framework", "CoreAudio",
-                                     "-framework", "CoreFoundation",
-                                     "-framework", "AudioToolbox"])
+                    extra_link_args = extras)
       ]
 )
