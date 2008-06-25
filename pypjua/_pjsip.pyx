@@ -868,7 +868,11 @@ cdef class Registration:
 
     def __dealloc__(self):
         global _ua
+        cdef PJSIPUA ua
         if _ua != NULL:
+            ua = <object> _ua
+            if self.c_timer.user_data != NULL:
+                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
             if self.c_obj != NULL:
                 pjsip_regc_destroy(self.c_obj)
 
@@ -1052,7 +1056,11 @@ cdef class Publication:
 
     def __dealloc__(self):
         global _ua
+        cdef PJSIPUA ua
         if _ua != NULL:
+            ua = <object> _ua
+            if self.c_timer.user_data != NULL:
+                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
             if self.c_obj != NULL:
                 pjsip_publishc_destroy(self.c_obj)
 
