@@ -624,7 +624,7 @@ cdef class PJSIPUA:
             if status != 0:
                 raise RuntimeError("Could not initialize logging mutex: %s" % pj_status_to_str(status))
             self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, self.c_pjsip_endpoint)
-            self.conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["default_codecs"])
+            self.conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["initial_codecs"])
             if kwargs["auto_sound"]:
                 self.conf_bridge.auto_set_sound_devices()
             self.c_module_name = PJSTR("mod-pypjua")

@@ -14,7 +14,7 @@ class Engine(Thread):
                   "auto_sound": True,
                   "user_agent": "pypjua",
                   "do_sip_trace": False,
-                  "default_codecs": ["speex", "g711", "ilbc", "gsm", "g722"]}
+                  "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"]}
 
     def __init__(self, **kwargs):
         if not Engine._done_init:
