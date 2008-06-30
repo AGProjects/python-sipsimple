@@ -139,6 +139,7 @@ cdef extern from "pjmedia-codec.h":
 cdef extern from "pjsip.h":
 
     # messages
+    struct pjsip_transport
     struct pjsip_uri
     struct pjsip_sip_uri:
         pj_str_t host
@@ -157,15 +158,26 @@ cdef extern from "pjsip.h":
     struct pjsip_buffer:
         char *start
         char *cur
+    struct pjsip_tx_data_tp_info:
+        char *dst_name
+        int dst_port
+        pjsip_transport *transport
     struct pjsip_tx_data:
         pjsip_msg *msg
         pj_pool_t *pool
         pjsip_buffer buf
+        pjsip_tx_data_tp_info tp_info
+    struct pjsip_rx_data_tp_info:
+        pjsip_transport *transport
     struct pjsip_rx_data_pkt_info:
+        pj_time_val timestamp
         char *packet
         int len
+        char *src_name
+        int src_port
     struct pjsip_rx_data:
         pjsip_rx_data_pkt_info pkt_info
+        pjsip_rx_data_tp_info tp_info
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
@@ -733,7 +745,14 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata):
     if _ua != NULL:
         c_ua = <object> _ua
         if c_ua.c_do_sip_trace:
-            c_event_queue_append("sip-trace", dict(received=True, data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len)))
+            c_event_queue_append("sip-trace", dict(#timestamp=datetime.fromtimestamp(rdata.pkt_info.timestamp.sec + rdata.pkt_info.timestamp.msec / 1000.0),
+                                                   timestamp=datetime.now(),
+                                                   received=True,
+                                                   source_ip=rdata.pkt_info.src_name,
+                                                   source_port=rdata.pkt_info.src_port,
+                                                   destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                                   destination_port=rdata.tp_info.transport.local_name.port,
+                                                   data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len)))
     return 0
 
 cdef int cb_trace_tx(pjsip_tx_data *tdata):
@@ -742,7 +761,13 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata):
     if _ua != NULL:
         c_ua = <object> _ua
         if c_ua.c_do_sip_trace:
-            c_event_queue_append("sip-trace", dict(Received=False, data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start)))
+            c_event_queue_append("sip-trace", dict(timestamp=datetime.now(),
+                                                   received=False,
+                                                   source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
+                                                   source_port=tdata.tp_info.transport.local_name.port,
+                                                   destination_ip=tdata.tp_info.dst_name,
+                                                   destination_port=tdata.tp_info.dst_port,
+                                                   data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start)))
     return 0
 
 cdef class Credentials:
@@ -771,8 +796,7 @@ cdef class Credentials:
             self.c_aor_url = PJSTR("<sip:%s@%s>" % (username, domain))
         else:
             self.c_aor_url = PJSTR('"%s" <sip:%s@%s>' % (display_name, username, domain))
-        self.c_contact_url = PJSTR("<sip:%s@%s:%d>" % (username, pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host), ua.c_pjsip_endpoint.c_udp_transport.local_name.
-port))
+        self.c_contact_url = PJSTR("<sip:%s@%s:%d>" % (username, pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host), ua.c_pjsip_endpoint.c_udp_transport.local_name.port))
         str_to_pj_str(domain, &self.c_cred.realm)
         scheme = "digest"
         str_to_pj_str(scheme, &self.c_cred.scheme)
