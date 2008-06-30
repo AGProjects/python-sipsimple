@@ -36,6 +36,8 @@ for left, right, lib in re_conditionals.findall(open(build_mak_file).read()):
     if left != right:
         libs.append("%s-%s" % (lib, build_mak["TARGET_NAME"]))
 
+sysconfig._variable_rx = re.compile("([a-zA-Z][a-zA-Z0-9_]+)\s*=\s*(.*)")
+
 setup(name         = "pypjua",
       version      = version,
       author       = "Ruud Klaver",
