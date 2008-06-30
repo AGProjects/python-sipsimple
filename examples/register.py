@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import sys
+sys.path.append(".")
+sys.path.append("..")
 from thread import start_new_thread
 from Queue import Queue
 from pypjua import *
