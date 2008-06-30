@@ -16,7 +16,7 @@ class Engine(Thread):
                   "do_sip_trace": False,
                   "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"]}
 
-    def __init__(self, **kwargs):
+    def __init__(self, event_handler = None, **kwargs):
         if not Engine._done_init:
             Thread.__init__(self)
             options = Engine.ua_options.copy()
@@ -24,6 +24,10 @@ class Engine(Thread):
                 if key in options:
                     options[key] = value
             self.__dict__.update(options)
+            if event_handler is None:
+                self.event_handler = self._handle_event
+            else:
+                self.event_handler = event_handler
             Engine._done_init = True
 
     @classmethod
@@ -40,7 +44,7 @@ class Engine(Thread):
     def start(self):
         if self._Thread__started:
             raise RuntimeError("Can only be started once")
-        self._ua = PJSIPUA(self._handle_event, **dict((key, getattr(self, key)) for key in Engine.ua_options.iterkeys()))
+        self._ua = PJSIPUA(self.event_handler, **dict((key, getattr(self, key)) for key in Engine.ua_options.iterkeys()))
         self.conf_bridge = weakref.proxy(self._ua.conf_bridge)
         self._stopping = False
         Thread.start(self)
