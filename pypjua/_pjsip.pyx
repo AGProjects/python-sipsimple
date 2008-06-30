@@ -1,3 +1,8 @@
+# system imports
+
+cdef extern from "time.h":
+    unsigned int clock()
+
 # PJSIP imports
 
 cdef extern from "pjlib.h":
@@ -66,6 +71,9 @@ cdef extern from "pjlib.h":
     struct pj_timer_entry:
         void *user_data
     pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data, void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
+
+    # random
+    void pj_srand(unsigned int seed)
 
 cdef extern from "pjlib-util.h":
 
@@ -1239,3 +1247,5 @@ cdef void cb_log(int level, char *data, int len):
 cdef void *_ua = NULL
 cdef pj_mutex_t *_event_lock = NULL
 cdef object _event_queue = []
+
+pj_srand(clock())
