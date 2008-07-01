@@ -838,8 +838,7 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata):
     if _ua != NULL:
         c_ua = <object> _ua
         if c_ua.c_do_sip_trace:
-            c_event_queue_append("sip-trace", dict(#timestamp=datetime.fromtimestamp(rdata.pkt_info.timestamp.sec + rdata.pkt_info.timestamp.msec / 1000.0),
-                                                   timestamp=datetime.now(),
+            c_event_queue_append("sip-trace", dict(timestamp=datetime.now(),
                                                    received=True,
                                                    source_ip=rdata.pkt_info.src_name,
                                                    source_port=rdata.pkt_info.src_port,
