@@ -27,6 +27,8 @@ class Engine(Thread):
             if event_handler is None:
                 self.event_handler = self._handle_event
             else:
+                if not callable(event_handler):
+                    raise RuntimeError("event_handler argument should be callable")
                 self.event_handler = event_handler
             Engine._done_init = True
 
