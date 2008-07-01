@@ -157,7 +157,15 @@ cdef extern from "pjsip.h":
     struct pjsip_routing_hdr:
         pjsip_name_addr name_addr
     ctypedef pjsip_routing_hdr pjsip_route_hdr
-    struct pjsip_msg_body
+    enum:
+        PJSIP_MAX_ACCEPT_COUNT
+    struct pjsip_media_type:
+        pj_str_t type
+        pj_str_t subtype
+    struct pjsip_msg_body:
+        pjsip_media_type content_type
+        void *data
+        unsigned int len
     struct pjsip_msg:
         pjsip_msg_body *body
     struct pjsip_buffer:
@@ -180,9 +188,12 @@ cdef extern from "pjsip.h":
         int len
         char *src_name
         int src_port
+    struct pjsip_rx_data_msg_info:
+        pjsip_msg *msg
     struct pjsip_rx_data:
         pjsip_rx_data_pkt_info pkt_info
         pjsip_rx_data_tp_info tp_info
+        pjsip_rx_data_msg_info msg_info
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
@@ -190,9 +201,9 @@ cdef extern from "pjsip.h":
     pjsip_sip_uri *pjsip_sip_uri_create(pj_pool_t *pool, int secure)
 
     # module
-    #struct pjsip_event
     enum pjsip_module_priority:
         PJSIP_MOD_PRIORITY_APPLICATION
+        PJSIP_MOD_PRIORITY_DIALOG_USAGE
     struct pjsip_module:
         pj_str_t name
         int id
@@ -226,11 +237,28 @@ cdef extern from "pjsip.h":
     int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, void *a_name, int async_cnt, pjsip_transport **p_transport)
 
     # transaction layer
-    struct pjsip_transaction
+    enum pjsip_role_e:
+        PJSIP_ROLE_UAC
+    struct pjsip_transaction:
+        int status_code
+        pj_str_t status_text
+        pjsip_role_e role
     int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
 
-    # dialog layer
-    int pjsip_ua_init_module(pjsip_endpoint *endpt, void *prm)
+    # event
+    enum pjsip_event_id_e:
+        PJSIP_EVENT_TSX_STATE
+        PJSIP_EVENT_RX_MSG
+        PJSIP_EVENT_TRANSPORT_ERROR
+        PJSIP_EVENT_TIMER
+    struct pjsip_event_body_tsx_state:
+        pjsip_transaction *tsx
+        pjsip_event_id_e type
+    union pjsip_event_body:
+        pjsip_event_body_tsx_state tsx_state
+    struct pjsip_event:
+        pjsip_event_id_e type
+        pjsip_event_body body
 
     # auth
     enum pjsip_cred_data_type:
@@ -241,6 +269,20 @@ cdef extern from "pjsip.h":
         pj_str_t username
         pjsip_cred_data_type data_type
         pj_str_t data
+    struct pjsip_auth_clt_sess:
+        pass
+    int pjsip_auth_clt_set_credentials(pjsip_auth_clt_sess *sess, int cred_cnt, pjsip_cred_info *c)
+
+    # dialog layer
+    ctypedef pjsip_module pjsip_user_agent
+    struct pjsip_dialog:
+        pjsip_auth_clt_sess auth_sess
+    struct pjsip_ua_init_param:
+        pjsip_dialog *on_dlg_forked(pjsip_dialog *first_set, pjsip_rx_data *res)
+    int pjsip_ua_init_module(pjsip_endpoint *endpt, pjsip_ua_init_param *prm)
+    pjsip_user_agent *pjsip_ua_instance()
+    int pjsip_dlg_create_uac(pjsip_user_agent *ua, pj_str_t *local_uri, pj_str_t *local_contact_uri, pj_str_t *remote_uri, pj_str_t *target, pjsip_dialog **p_dlg)
+    int pjsip_dlg_set_route_set(pjsip_dialog *dlg, pjsip_route_hdr *route_set)
 
 cdef extern from "pjsip_simple.h":
 
@@ -262,6 +304,23 @@ cdef extern from "pjsip_simple.h":
     int pjsip_publishc_send(pjsip_publishc *pubc, pjsip_tx_data *tdata)
     int pjsip_publishc_update_expires(pjsip_publishc *pubc, unsigned int expires)
     int pjsip_publishc_set_route_set(pjsip_publishc *pubc, pjsip_route_hdr *rs)
+
+    # subscribe / notify
+    enum:
+        PJSIP_EVSUB_NO_EVENT_ID
+    struct pjsip_evsub
+    struct pjsip_evsub_user:
+        void on_evsub_state(pjsip_evsub *sub, pjsip_event *event) with gil
+        void on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+    int pjsip_evsub_init_module(pjsip_endpoint *endpt)
+    int pjsip_evsub_register_pkg(pjsip_module *pkg_mod, pj_str_t *event_name, unsigned int expires, unsigned int accept_cnt, pj_str_t *accept)
+    int pjsip_evsub_create_uac(pjsip_dialog *dlg, pjsip_evsub_user *user_cb, pj_str_t *event, int option, pjsip_evsub **p_evsub)
+    int pjsip_evsub_initiate(pjsip_evsub *sub, void *method, unsigned int expires, pjsip_tx_data **p_tdata)
+    int pjsip_evsub_send_request(pjsip_evsub *sub, pjsip_tx_data *tdata)
+    int pjsip_evsub_terminate(pjsip_evsub *sub, int notify)
+    char *pjsip_evsub_get_state_name(pjsip_evsub *sub)
+    void pjsip_evsub_set_mod_data(pjsip_evsub *sub, int mod_id, void *data)
+    void *pjsip_evsub_get_mod_data(pjsip_evsub *sub, int mod_id)
 
 cdef extern from "pjsip_ua.h":
 
@@ -387,6 +446,9 @@ cdef class PJSIPEndpoint:
         status = pjsip_publishc_init_module(self.c_obj)
         if status != 0:
             raise RuntimeError("Could not initialize publish client module: %s" % pj_status_to_str(status))
+        status = pjsip_evsub_init_module(self.c_obj)
+        if status != 0:
+            raise RuntimeError("Could not initialize event subscription module: %s" % pj_status_to_str(status))
         self._start_udp_transport(local_ip, local_port)
         if nameservers:
             self._init_nameservers(nameservers)
@@ -596,6 +658,7 @@ cdef class PJMEDIAConferenceBridge:
                 getattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec)()
             self.c_codecs = new_codecs
 
+cdef class EventPackage
 
 cdef object c_retrieve_nameservers():
     nameservers = []
@@ -625,14 +688,18 @@ cdef class PJSIPUA:
     cdef PJSTR c_module_name
     cdef pjsip_module c_trace_module
     cdef PJSTR c_trace_module_name
+    cdef pjsip_module c_event_module
+    cdef PJSTR c_event_module_name
     cdef public bint c_do_sip_trace
     cdef pjsip_generic_string_hdr *c_user_agent_hdr
+    cdef list c_events
 
     def __cinit__(self, *args, **kwargs):
         global _ua
         if _ua != NULL:
             raise RuntimeError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
+        self.c_events = []
 
     def __init__(self, event_handler, *args, **kwargs):
         global _event_lock
@@ -674,10 +741,19 @@ cdef class PJSIPUA:
             status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_trace_module)
             if status != 0:
                 raise RuntimeError("Could not load sip trace module: %s" % pj_status_to_str(status))
+            self.c_event_module_name = PJSTR("mod-pypjua-events")
+            self.c_event_module.name = self.c_event_module_name.pj_str
+            self.c_event_module.id = -1
+            self.c_event_module.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE
+            status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
+            if status != 0:
+                raise RuntimeError("Could not load events module: %s" % pj_status_to_str(status))
             c_ua_hval = PJSTR(kwargs["user_agent"])
             self.c_user_agent_hdr = pjsip_generic_string_hdr_create(self.c_pjsip_endpoint.c_pool, &c_ua_hname.pj_str, &c_ua_hval.pj_str)
             if self.c_user_agent_hdr == NULL:
                 raise MemoryError()
+            for event, accept_types in kwargs["initial_events"].iteritems():
+                self.add_event(event, accept_types)
         except:
             self._do_dealloc()
             raise
@@ -689,6 +765,16 @@ cdef class PJSIPUA:
 
         def __set__(self, value):
             self.c_do_sip_trace = bool(value)
+
+    property events:
+
+        def __get__(self):
+            return dict([(pkg.event, pkg.accept_types) for pkg in self.c_events])
+
+    def add_event(self, event, accept_types):
+        cdef EventPackage pkg
+        pkg = EventPackage(self, event, accept_types)
+        self.c_events.append(pkg)
 
     def __dealloc__(self):
         self._do_dealloc()
@@ -776,6 +862,34 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata):
                                                    destination_port=tdata.tp_info.dst_port,
                                                    data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start)))
     return 0
+
+cdef class EventPackage:
+    cdef readonly list accept_types
+    cdef PJSTR c_event
+
+    def __cinit__(self, PJSIPUA ua, event, list accept_types):
+        cdef int status
+        cdef pj_str_t c_accept[PJSIP_MAX_ACCEPT_COUNT]
+        cdef int c_index
+        cdef object c_accept_type
+        cdef int c_accept_cnt = len(accept_types)
+        if c_accept_cnt > PJSIP_MAX_ACCEPT_COUNT:
+            raise RuntimeError("Too many accept_types")
+        if c_accept_cnt == 0:
+            raise RuntimeError("Need at least one accept_types")
+        self.accept_types = accept_types
+        self.c_event = PJSTR(event)
+        for c_index, c_accept_type in enumerate(accept_types):
+            str_to_pj_str(c_accept_type, &c_accept[c_index])
+        status = pjsip_evsub_register_pkg(&ua.c_event_module, &self.c_event.pj_str, 300, c_accept_cnt, c_accept)
+        if status != 0:
+            raise RuntimeError("Could not register event package: %s" % pj_status_to_str(status))
+
+    property event:
+
+        def __get__(self):
+            return self.c_event.str
+
 
 cdef class Credentials:
     cdef readonly object username
@@ -1269,6 +1383,139 @@ cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *
         c_pub = <object> entry.user_data
         c_pub._cb_expire()
 
+cdef class Subscription:
+    cdef pjsip_evsub *c_obj
+    cdef pjsip_dialog *c_dlg
+    cdef readonly Credentials credentials
+    cdef readonly Route route
+    cdef readonly unsigned int expires
+    cdef PJSTR c_to_uri
+    cdef PJSTR c_event
+    cdef readonly object state
+
+    def __cinit__(self, Credentials credentials, event, to_uri, route = None, expires = 300):
+        global _ua
+        global _subs
+        global _subs_cb
+        cdef int status
+        cdef EventPackage pkg
+        cdef PJSIPUA ua
+        if _ua == NULL:
+            raise RuntimeError("PJSIPUA needs to be instanced first")
+        ua = <object> _ua
+        self.credentials = credentials
+        self.route = route
+        self.expires = expires
+        self.c_to_uri = PJSTR(to_uri)
+        self.c_event = PJSTR(event)
+        if event not in ua.events:
+            raise RuntimeError('Event "%s" is unknown' % event)
+        self.state = "TERMINATED"
+
+    def __dealloc__(self):
+        global _ua
+        cdef PJSIPUA ua
+        if _ua != NULL:
+            if self.c_obj != NULL:
+                if self.state != "TERMINATED":
+                    pjsip_evsub_terminate(self.c_obj, 0)
+
+    def __repr__(self):
+        return '<Subscription for "%s" of "%s">' % (self.c_event.str, self.c_to_uri.str)
+
+    property to_uri:
+
+        def __get__(self):
+            return self.c_to_uri.str
+
+    property event:
+
+        def __get__(self):
+            return self.c_event.str
+
+    cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
+        self.state = pjsip_evsub_get_state_name(self.c_obj)
+        if tsx == NULL:
+            c_event_queue_append("subscribe_state", dict(obj=self, state=self.state))
+        else:
+            c_event_queue_append("subscribe_state", dict(obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text)))
+
+    cdef int _cb_notify(self, pjsip_rx_data *rdata) except -1:
+        cdef pjsip_msg_body *c_body = rdata.msg_info.msg.body
+        if c_body != NULL:
+            c_event_queue_append("subscribe_notify", dict(obj=self,
+                                                          body=PyString_FromStringAndSize(<char *> c_body.data, c_body.len),
+                                                          content_type=pj_str_to_str(c_body.content_type.type),
+                                                          content_subtype=pj_str_to_str(c_body.content_type.subtype)))
+
+    def subscribe(self):
+        if self.state != "TERMINATED":
+            raise RuntimeError("A subscription is already active")
+        self._do_sub(1)
+
+    def unsubscribe(self):
+        if self.state == "TERMINATED":
+            raise RuntimeError("No subscribtion is active")
+        self._do_sub(0)
+
+    cdef int _do_sub(self, bint subscribe) except -1:
+        global _ua
+        cdef pjsip_tx_data *c_tdata
+        cdef int status
+        cdef int c_expires
+        cdef PJSIPUA ua
+        if _ua == NULL:
+            raise RuntimeError("PJSIPUA already dealloced")
+        ua = <object> _ua
+        if subscribe:
+            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &self.credentials.c_contact_url.pj_str, &self.c_to_uri.pj_str, &self.c_to_uri.pj_str, &self.c_dlg)
+            if status != 0:
+                raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
+            status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
+            if status != 0:
+                raise RuntimeError("Could not create SUBSCRIBE: %s" % pj_status_to_str(status))
+            status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.credentials.c_cred)
+            if status != 0:
+                raise RuntimeError("Could not set SUBSCRIBE credentials: %s" % pj_status_to_str(status))
+            if self.route is not None:
+                status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
+                if status != 0:
+                    raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
+            pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
+            c_expires = self.expires
+        else:
+            c_expires = 0
+        status = pjsip_evsub_initiate(self.c_obj, NULL, self.expires, &c_tdata)
+        if status != 0:
+            raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
+        pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
+        status = pjsip_evsub_send_request(self.c_obj, c_tdata)
+        if status != 0:
+            raise RuntimeError("Could not send SUBSCRIBE message: %s" % pj_status_to_str(status))
+
+
+cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
+    global _ua
+    cdef PJSIPUA ua
+    cdef Subscription subscription
+    cdef pjsip_transaction *tsx = NULL
+    if _ua != NULL:
+        ua = <object> _ua
+        subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+        if event != NULL:
+            if event.type == PJSIP_EVENT_TSX_STATE and event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
+                tsx = event.body.tsx_state.tsx
+        subscription._cb_state(tsx)
+
+cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
+    global _ua
+    cdef PJSIPUA ua
+    cdef Subscription subscription
+    if _ua != NULL:
+        ua = <object> _ua
+        subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+        subscription._cb_notify(rdata)
+
 cdef int c_event_queue_append(char *event, object kwargs) except -1:
     global _lock_lock, _event_queue
     if _event_lock != NULL:
@@ -1285,5 +1532,8 @@ cdef void cb_log(int level, char *data, int len):
 cdef void *_ua = NULL
 cdef pj_mutex_t *_event_lock = NULL
 cdef object _event_queue = []
+cdef pjsip_evsub_user _subs_cb
+_subs_cb.on_evsub_state = cb_Subscription_cb_state
+_subs_cb.on_rx_notify = cb_Subscription_cb_notify
 
 pj_srand(clock())
