@@ -7,6 +7,7 @@ import os
 import termios
 from thread import start_new_thread
 from Queue import Queue
+from threading import Event
 from pypjua import *
 
 # copied from http://snippets.dzone.com/posts/show/3084
@@ -57,6 +58,7 @@ def generate_presence_xml(username, domain, activity, note):
     return body
 
 queue = Queue()
+event = Event()
 
 def event_handler(event_name, **kwargs):
     if event_name == "publish_state":
@@ -65,6 +67,7 @@ def event_handler(event_name, **kwargs):
             queue.put("quit")
         elif kwargs["state"] == "published":
             print "PUBLISH done"
+            event.set()
     elif event_name == "sip-trace":
         if kwargs["received"]:
             print "RECEIVED:"
@@ -90,6 +93,8 @@ def user_input():
         elif ch == "q":
             queue.put("unpublish")
             break
+        event.wait()
+        event.clear()
 
 def do_publish(username, domain, password, proxy_ip, proxy_port):
     e = Engine(event_handler, auto_sound=False)
