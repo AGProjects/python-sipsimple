@@ -954,7 +954,7 @@ cdef class Registration:
             if param.code / 100 == 2:
                 self.state = "registered"
                 pj_timer_entry_init(&self.c_timer, 0, <void *> self, cb_Registration_cb_expire)
-                c_delay.sec = max(1, min(int(param.expiration * random.uniform(0.75, 0.9)), param.expiration - 10)) 
+                c_delay.sec = max(1, min(int(param.expiration * random.uniform(0.75, 0.9)), param.expiration - 10))
                 c_delay.msec = 0
                 pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer, &c_delay) # TODO: check return value?
                 c_success = 1
@@ -1198,7 +1198,7 @@ cdef class Publication:
                 self.c_new_publish = 1
         self.c_content_type = c_content_type
         self.c_content_subtype = c_content_subtype
-        self.c_body = c_body   
+        self.c_body = c_body
 
     def unpublish(self):
         if self.state == "published" or self.state == "publishing":
