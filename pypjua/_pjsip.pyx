@@ -72,6 +72,11 @@ cdef extern from "pjlib.h":
         void *user_data
     pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data, void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
 
+    # lists
+    struct pj_list_type
+    void pj_list_init(pj_list_type *node)
+    void pj_list_push_back(pj_list_type *list, pj_list_type *node)
+
     # random
     void pj_srand(unsigned int seed)
 
@@ -256,6 +261,7 @@ cdef extern from "pjsip_simple.h":
     int pjsip_publishc_unpublish(pjsip_publishc *pubc, pjsip_tx_data **p_tdata)
     int pjsip_publishc_send(pjsip_publishc *pubc, pjsip_tx_data *tdata)
     int pjsip_publishc_update_expires(pjsip_publishc *pubc, unsigned int expires)
+    int pjsip_publishc_set_route_set(pjsip_publishc *pubc, pjsip_route_hdr *rs)
 
 cdef extern from "pjsip_ua.h":
 
@@ -278,6 +284,7 @@ cdef extern from "pjsip_ua.h":
     int pjsip_regc_send(pjsip_regc *regc, pjsip_tx_data *tdata)
     int pjsip_regc_update_expires(pjsip_regc *regc, unsigned int expires)
     int pjsip_regc_get_info(pjsip_regc *regc, pjsip_regc_info *info)
+    int pjsip_regc_set_route_set(pjsip_regc *regc, pjsip_route_hdr *route_set)
 
     # invite sessions
     #struct pjsip_inv_session
@@ -825,6 +832,7 @@ cdef class Credentials:
 
 cdef class Route:
     cdef pj_pool_t *c_pool
+    cdef pjsip_route_hdr c_route_set
     cdef pjsip_route_hdr *c_route_hdr
     cdef PJSTR c_host
     cdef readonly int port
@@ -854,6 +862,8 @@ cdef class Route:
         c_sip_uri.port = port
         c_sip_uri.lr_param = 1
         self.c_route_hdr.name_addr.uri = <pjsip_uri *> c_sip_uri
+        pj_list_init(<pj_list_type *> &self.c_route_set)
+        pj_list_push_back(<pj_list_type *> &self.c_route_set, <pj_list_type *> self.c_route_hdr)
 
     def __dealloc__(self):
         global _ua
@@ -903,6 +913,10 @@ cdef class Registration:
         status = pjsip_regc_set_credentials(self.c_obj, 1, &credentials.c_cred)
         if status != 0:
             raise RuntimeError("Could not set registration credentials: %s" % pj_status_to_str(status))
+        if self.route is not None:
+            status = pjsip_regc_set_route_set(self.c_obj, &self.route.c_route_set)
+            if status != 0:
+                raise RuntimeError("Could not set route set on registration: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
         global _ua
@@ -1028,8 +1042,6 @@ cdef class Registration:
             if status != 0:
                 raise RuntimeError("Could not create unregistration request: %s" % pj_status_to_str(status))
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
-        if self.route is not None:
-            pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> self.route.c_route_hdr)
 
     cdef int _send_reg(self, bint register) except -1:
         cdef int status
@@ -1091,6 +1103,10 @@ cdef class Publication:
         status = pjsip_publishc_set_credentials(self.c_obj, 1, &credentials.c_cred)
         if status != 0:
             raise RuntimeError("Could not set publication credentials: %s" % pj_status_to_str(status))
+        if self.route is not None:
+            status = pjsip_publishc_set_route_set(self.c_obj, &self.route.c_route_set)
+            if status != 0:
+                raise RuntimeError("Could not set route set on publication: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
         global _ua
@@ -1231,8 +1247,6 @@ cdef class Publication:
             if status != 0:
                 raise RuntimeError("Could not create PUBLISH request: %s" % pj_status_to_str(status))
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
-        if self.route is not None:
-            pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> self.route.c_route_hdr)
 
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)
