@@ -92,7 +92,7 @@ def user_input():
             break
 
 def do_publish(username, domain, password, proxy_ip, proxy_port):
-    e = Engine(event_handler)
+    e = Engine(event_handler, auto_sound=False)
     e.start()
     if proxy_ip is None:
         route = None

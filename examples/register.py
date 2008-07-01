@@ -33,7 +33,7 @@ def user_input():
             break
 
 def do_register(username, domain, password, proxy_ip, proxy_port):
-    e = Engine(event_handler, do_sip_trace=True)
+    e = Engine(event_handler, do_sip_trace=True, auto_sound=False)
     e.start()
     if proxy_ip is None:
         route = None
