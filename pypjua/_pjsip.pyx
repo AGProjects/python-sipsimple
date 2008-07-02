@@ -1,5 +1,12 @@
 # system imports
 
+cdef extern from "stdlib.h":
+    void *malloc(int size)
+    void free(void *ptr)
+
+cdef extern from "string.h":
+    void *memcpy(void *s1, void *s2, int n)
+
 cdef extern from "time.h":
     unsigned int clock()
 
@@ -27,10 +34,15 @@ cdef extern from "pjlib.h":
     enum:
         PJ_LOG_MAX_LEVEL
     enum pj_log_decoration:
+        PJ_LOG_HAS_YEAR
+        PJ_LOG_HAS_MONTH
+        PJ_LOG_HAS_DAY_OF_MON
+        PJ_LOG_HAS_TIME
+        PJ_LOG_HAS_MICRO_SEC
         PJ_LOG_HAS_SENDER
     void pj_log_set_decor(int decor)
     void pj_log_set_level(int level)
-    void pj_log_set_log_func(void func(int level, char *data, int len) with gil)
+    void pj_log_set_log_func(void func(int level, char *data, int len))
 
     # memory management
     struct pj_pool_t
@@ -675,6 +687,11 @@ cdef object c_retrieve_nameservers():
         raise NotImplementedError("Nameserver lookup not yet implemented for windows")
     return nameservers
 
+cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)\s+(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)\.(?P<millisecond>\d+)\s(?P<sender>\S+)?\s+(?P<msg>.*)$")
+
+def _get_timestamp(item):
+    return item[1].get("timestamp")
+
 cdef class PJSIPUA:
     cdef long c_thread_desc[64]
     cdef pj_thread_t *c_thread
@@ -702,19 +719,19 @@ cdef class PJSIPUA:
         self.c_events = []
 
     def __init__(self, event_handler, *args, **kwargs):
-        global _event_lock
+        global _log_lock
         cdef int status
         cdef PJSTR c_ua_hname = PJSTR("User-Agent")
         cdef PJSTR c_ua_hval
         self.c_event_handler = event_handler
         pj_log_set_level(PJ_LOG_MAX_LEVEL)
-        pj_log_set_decor(PJ_LOG_HAS_SENDER)
+        pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
         pj_log_set_log_func(cb_log)
         try:
             self.c_pjlib = PJLIB()
             self.c_caching_pool = PJCachingPool()
             self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_port"])
-            status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "log_lock", &_event_lock)
+            status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "log_lock", &_log_lock)
             if status != 0:
                 raise RuntimeError("Could not initialize logging mutex: %s" % pj_status_to_str(status))
             self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, self.c_pjsip_endpoint)
@@ -780,13 +797,13 @@ cdef class PJSIPUA:
         self._do_dealloc()
 
     cdef int _do_dealloc(self) except -1:
-        global _ua, _event_lock
+        global _ua, _log_lock
         self.conf_bridge = None
         self.c_pjmedia_endpoint = None
-        if _event_lock != NULL:
-            pj_mutex_lock(_event_lock)
-            pj_mutex_destroy(_event_lock)
-        _event_lock = NULL
+        if _log_lock != NULL:
+            pj_mutex_lock(_log_lock)
+            pj_mutex_destroy(_log_lock)
+            _log_lock = NULL
         self.c_pjsip_endpoint = None
         self.c_caching_pool = None
         self.c_pjlib = None
@@ -794,30 +811,35 @@ cdef class PJSIPUA:
         _ua = NULL
 
     cdef int _poll_log(self) except -1:
-        global _event_lock, _event_queue
-        if _event_lock != NULL:
-            if pj_mutex_lock(_event_lock) != 0:
-                return 0
+        global _event_queue, _re_log
+        cdef list c_log_queue
+        cdef object c_log_match
+        cdef object c_log_datetime
+        c_log_queue = c_get_clear_log_queue()
+        for level, data in c_log_queue:
+            c_log_match = _re_log.match(data)
+            if c_log_match is None:
+                raise RuntimeError("Could not parse logging message: %s" % data)
+            c_log_datetime = datetime(*[int(arg) for arg in c_log_match.groups()[:6]] + [int(c_log_match.group("millisecond")) * 1000])
+            _event_queue.append(("log", dict(level=level, timestamp=c_log_datetime, sender=c_log_match.group("sender") or "", msg=c_log_match.group("msg"))))
         if _event_queue:
+            _event_queue.sort(key=_get_timestamp)
             for event, kwargs in _event_queue:
                 self.c_event_handler(event, **kwargs)
             _event_queue = []
-        if _event_lock != NULL:
-            if pj_mutex_unlock(_event_lock) != 0:
-                return 0
 
     def poll(self):
         cdef pj_time_val c_max_timeout
         cdef int status
         if not pj_thread_is_registered() and self.c_thread == NULL:
             pj_thread_register("python", self.c_thread_desc, &self.c_thread)
-        self._poll_log()
         c_max_timeout.sec = 0
         c_max_timeout.msec = 100
         with nogil:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &c_max_timeout)
         if status != 0:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
+        self._poll_log()
 
     cdef int _rx_request(self, pjsip_rx_data *rdata):
         return 0
@@ -833,33 +855,33 @@ cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil:
         return 0
 
 cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
-    global _ua
+    global _ua, _event_queue
     cdef PJSIPUA c_ua
     if _ua != NULL:
         c_ua = <object> _ua
         if c_ua.c_do_sip_trace:
-            c_event_queue_append("sip-trace", dict(timestamp=datetime.now(),
+            _event_queue.append(("sip-trace", dict(timestamp=datetime.now(),
                                                    received=True,
                                                    source_ip=rdata.pkt_info.src_name,
                                                    source_port=rdata.pkt_info.src_port,
                                                    destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                    destination_port=rdata.tp_info.transport.local_name.port,
-                                                   data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len)))
+                                                   data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len))))
     return 0
 
 cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
-    global _ua
+    global _ua, _event_queue
     cdef PJSIPUA c_ua
     if _ua != NULL:
         c_ua = <object> _ua
         if c_ua.c_do_sip_trace:
-            c_event_queue_append("sip-trace", dict(timestamp=datetime.now(),
+            _event_queue.append(("sip-trace", dict(timestamp=datetime.now(),
                                                    received=False,
                                                    source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
                                                    source_port=tdata.tp_info.transport.local_name.port,
                                                    destination_ip=tdata.tp_info.dst_name,
                                                    destination_port=tdata.tp_info.dst_port,
-                                                   data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start)))
+                                                   data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start))))
     return 0
 
 cdef class EventPackage:
@@ -1070,7 +1092,7 @@ cdef class Registration:
                 return c_info.interval
 
     cdef int _cb_response(self, pjsip_regc_cbparam *param) except -1:
-        global _ua
+        global _ua, _event_queue
         cdef pj_time_val c_delay
         cdef bint c_success = 0
         cdef PJSIPUA ua
@@ -1100,12 +1122,13 @@ cdef class Registration:
                     self.state = "registered"
         else:
             raise RuntimeError("Unexpected response callback in Registration")
-        c_event_queue_append("register_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
+        _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason))))
         if c_success:
             if (self.state == "unregistered" and self.c_want_register) or (self.state =="registered" and not self.c_want_register):
                 self._send_reg(self.c_want_register)
 
     cdef int _cb_expire(self) except -1:
+        global _event_queue
         cdef int status
         self.c_timer.user_data = NULL
         if self.state == "unregistering":
@@ -1119,11 +1142,11 @@ cdef class Registration:
                 self._send_reg(1)
             except:
                 self.state = "unregistered"
-                c_event_queue_append("register_state", dict(obj=self, state=self.state))
+                _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
                 raise
         else:
             self.state = "unregistered"
-            c_event_queue_append("register_state", dict(obj=self, state=self.state))
+            _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
     def register(self):
         if self.state == "unregistered" or self.state == "unregistering":
@@ -1157,6 +1180,7 @@ cdef class Registration:
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
 
     cdef int _send_reg(self, bint register) except -1:
+        global _event_queue
         cdef int status
         status = pjsip_regc_send(self.c_obj, self.c_tx_data)
         if status != 0:
@@ -1165,7 +1189,7 @@ cdef class Registration:
             self.state = "registering"
         else:
             self.state = "unregistering"
-        c_event_queue_append("register_state", dict(obj=self, state=self.state))
+        _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 
 cdef void cb_Registration_cb_response(pjsip_regc_cbparam *param) with gil:
@@ -1247,7 +1271,7 @@ cdef class Publication:
             self.c_expires = value
 
     cdef int _cb_response(self, pjsip_publishc_cbparam *param) except -1:
-        global _ua
+        global _ua, _event_queue
         cdef pj_time_val c_delay
         cdef bint c_success = 0
         cdef PJSIPUA ua
@@ -1279,7 +1303,7 @@ cdef class Publication:
                     self.state = "published"
         else:
             raise RuntimeError("Unexpected response callback in Publication")
-        c_event_queue_append("publish_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
+        _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason))))
         if self.c_new_publish:
             self.c_new_publish = 0
             self._send_pub(1)
@@ -1288,6 +1312,7 @@ cdef class Publication:
                 self._send_pub(self.c_body is not None)
 
     cdef int _cb_expire(self) except -1:
+        global _event_queue
         cdef int status
         self.c_timer.user_data = NULL
         if self.state == "unpublishing" or self.state =="publishing":
@@ -1304,11 +1329,11 @@ cdef class Publication:
                 self.c_content_subtype = None
                 self.c_body = None
                 self.state = "unpublished"
-                c_event_queue_append("publish_state", dict(obj=self, state=self.state))
+                _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
                 raise
         else:
             self.state = "unpublished"
-            c_event_queue_append("publish_state", dict(obj=self, state=self.state))
+            _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
     def publish(self, content_type, content_subtype, body):
         cdef PJSTR c_content_type = PJSTR(content_type)
@@ -1340,7 +1365,7 @@ cdef class Publication:
         self.c_body = None
 
     cdef int _create_pub(self, pj_str_t *content_type, pj_str_t *content_subtype, pj_str_t *body) except -1:
-        global _ua
+        global _ua, _event_queue
         cdef pjsip_msg_body *c_body
         cdef int status
         cdef PJSIPUA ua
@@ -1369,7 +1394,7 @@ cdef class Publication:
             self.state = "publishing"
         else:
             self.state = "unpublishing"
-        c_event_queue_append("publish_state", dict(obj=self, state=self.state))
+        _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 
 cdef void cb_Publication_cb_response(pjsip_publishc_cbparam *param) with gil:
@@ -1433,19 +1458,21 @@ cdef class Subscription:
             return self.c_event.str
 
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
+        global _event_queue
         self.state = pjsip_evsub_get_state_name(self.c_obj)
         if tsx == NULL:
-            c_event_queue_append("subscribe_state", dict(obj=self, state=self.state))
+            _event_queue.append(("subscribe_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
         else:
-            c_event_queue_append("subscribe_state", dict(obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text)))
+            _event_queue.append(("subscribe_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text))))
 
     cdef int _cb_notify(self, pjsip_rx_data *rdata) except -1:
         cdef pjsip_msg_body *c_body = rdata.msg_info.msg.body
         if c_body != NULL:
-            c_event_queue_append("subscribe_notify", dict(obj=self,
+            _event_queue.append(("subscribe_notify", dict(obj=self,
+                                                          timestamp=datetime.now(),
                                                           body=PyString_FromStringAndSize(<char *> c_body.data, c_body.len),
                                                           content_type=pj_str_to_str(c_body.content_type.type),
-                                                          content_subtype=pj_str_to_str(c_body.content_type.subtype)))
+                                                          content_subtype=pj_str_to_str(c_body.content_type.subtype))))
 
     def subscribe(self):
         if self.state != "TERMINATED":
@@ -1515,21 +1542,60 @@ cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int 
         subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
         subscription._cb_notify(rdata)
 
-cdef int c_event_queue_append(char *event, object kwargs) except -1:
-    global _lock_lock, _event_queue
-    if _event_lock != NULL:
-        if pj_mutex_lock(_event_lock) != 0:
-            return 0
-    _event_queue.append((event, kwargs))
-    if _event_lock != NULL:
-        if pj_mutex_unlock(_event_lock) != 0:
-            return 0
+cdef struct pypjua_log_msg:
+    pypjua_log_msg *prev
+    char *data
+    int len
+    int level
 
-cdef void cb_log(int level, char *data, int len) with gil:
-    c_event_queue_append("log", dict(timestamp=datetime.now(), level=level, message=data))
+cdef void cb_log(int level, char *data, int len):
+    global _log_queue, _log_lock
+    cdef pypjua_log_msg *msg
+    cdef int locked = 0
+    msg = <pypjua_log_msg *> malloc(sizeof(pypjua_log_msg))
+    if msg != NULL:
+        msg.data = <char *> malloc(len)
+        if msg.data == NULL:
+            free(msg)
+            return
+        memcpy(msg.data, data, len)
+        msg.len = len
+        msg.level = level
+        if _log_lock != NULL:
+            if pj_mutex_lock(_log_lock) != 0:
+                free(msg)
+                return
+            locked = 1
+        msg.prev = _log_queue
+        _log_queue = msg
+        if locked:
+            pj_mutex_unlock(_log_lock)
+
+cdef list c_get_clear_log_queue():
+    global _log_queue, _log_lock
+    cdef list messages = []
+    cdef pypjua_log_msg *msg, *old_msg
+    cdef int locked = 0
+    if _log_lock != NULL:
+        if pj_mutex_lock(_log_lock) != 0:
+            return messages
+        locked = 1
+    msg = _log_queue
+    while msg != NULL:
+        messages.append((msg.level, PyString_FromStringAndSize(msg.data, msg.len)))
+        old_msg = msg
+        msg = old_msg.prev
+        free(old_msg.data)
+        free(old_msg)
+    _log_queue = NULL
+    if locked:
+        pj_mutex_unlock(_log_lock)
+    messages.reverse()
+    return messages
 
 cdef void *_ua = NULL
-cdef pj_mutex_t *_event_lock = NULL
+cdef pj_mutex_t *_log_lock = NULL
+cdef pypjua_log_msg *_log_queue = NULL
 cdef object _event_queue = []
 cdef pjsip_evsub_user _subs_cb
 _subs_cb.on_evsub_state = cb_Subscription_cb_state
