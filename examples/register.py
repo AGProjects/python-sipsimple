@@ -8,8 +8,11 @@ from Queue import Queue
 from pypjua import *
 
 queue = Queue()
+packet_count = 0
+start_time = None
 
 def event_handler(event_name, **kwargs):
+    global start_time, packet_count
     if event_name == "register_state":
         if kwargs["state"] == "registered":
             print "REGISTER was succesfull!"
@@ -17,6 +20,10 @@ def event_handler(event_name, **kwargs):
             print "Unregistered: %(code)d %(reason)s" % kwargs
             queue.put("quit")
     elif event_name == "sip-trace":
+        if start_time is None:
+            start_time = kwargs["timestamp"]
+        packet_count += 1
+        print "Packet %d, +%s" % (packet_count, (kwargs["timestamp"] - start_time))
         if kwargs["received"]:
             print "RECEIVED:"
         else:
