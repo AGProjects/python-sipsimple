@@ -30,7 +30,7 @@ cdef extern from "pjlib.h":
         PJ_LOG_HAS_SENDER
     void pj_log_set_decor(int decor)
     void pj_log_set_level(int level)
-    void pj_log_set_log_func(void func(int level, char *data, int len))
+    void pj_log_set_log_func(void func(int level, char *data, int len) with gil)
 
     # memory management
     struct pj_pool_t
@@ -208,10 +208,10 @@ cdef extern from "pjsip.h":
         pj_str_t name
         int id
         int priority
-        int on_rx_request(pjsip_rx_data *rdata)
-        int on_rx_response(pjsip_rx_data *rdata)
-        int on_tx_request(pjsip_tx_data *tdata)
-        int on_tx_response(pjsip_tx_data *tdata)
+        int on_rx_request(pjsip_rx_data *rdata) with gil
+        int on_rx_response(pjsip_rx_data *rdata) with gil
+        int on_tx_request(pjsip_tx_data *tdata) with gil
+        int on_tx_response(pjsip_tx_data *tdata) with gil
 
     # endpoint
     struct pjsip_endpoint
@@ -823,7 +823,7 @@ cdef class PJSIPUA:
         return 0
 
 
-cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata):
+cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil:
     global _ua
     cdef PJSIPUA c_ua
     if _ua != NULL:
@@ -832,7 +832,7 @@ cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata):
     else:
         return 0
 
-cdef int cb_trace_rx(pjsip_rx_data *rdata):
+cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
     global _ua
     cdef PJSIPUA c_ua
     if _ua != NULL:
@@ -847,7 +847,7 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata):
                                                    data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len)))
     return 0
 
-cdef int cb_trace_tx(pjsip_tx_data *tdata):
+cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
     global _ua
     cdef PJSIPUA c_ua
     if _ua != NULL:
@@ -1525,7 +1525,7 @@ cdef int c_event_queue_append(char *event, object kwargs) except -1:
         if pj_mutex_unlock(_event_lock) != 0:
             return 0
 
-cdef void cb_log(int level, char *data, int len):
+cdef void cb_log(int level, char *data, int len) with gil:
     c_event_queue_append("log", dict(timestamp=datetime.now(), level=level, message=data))
 
 cdef void *_ua = NULL
