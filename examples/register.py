@@ -23,11 +23,11 @@ def event_handler(event_name, **kwargs):
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
-        print "Packet %d, +%s" % (packet_count, (kwargs["timestamp"] - start_time))
         if kwargs["received"]:
-            print "RECEIVED:"
+            direction = "RECEIVED"
         else:
-            print "SENDING:"
+            direction = "SENDING"
+        print "%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))
         print "%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs
         print kwargs["data"]
 
