@@ -77,7 +77,7 @@ def parse_proxy(option, opt_str, value, parser):
 def parse_options():
     retval = {}
     description = "This example script will register the provided SIP account and refresh it while the program is running. When CTRL+D is pressed it will unregister."
-    usage = "%prog [options] user@domain.com password"
+    usage = "%prog [options] user@domain.com password\n\nuse %prog --help for more information"
     default_options = dict(expires=300, proxy_ip=None, proxy_port=5060)
     parser = OptionParser(usage=usage, description=description)
     parser.set_defaults(**default_options)
