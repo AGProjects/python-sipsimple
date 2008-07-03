@@ -5,9 +5,11 @@ sys.path.append(".")
 sys.path.append("..")
 import os
 import termios
+import re
 from thread import start_new_thread
 from Queue import Queue
 from threading import Event
+from optparse import OptionParser, OptionValueError
 from pypjua import *
 
 # copied from http://snippets.dzone.com/posts/show/3084
@@ -103,14 +105,14 @@ def user_input():
             queue.put("unpublish")
             break
 
-def do_publish(username, domain, password, proxy_ip, proxy_port):
+def do_publish(username, domain, password, proxy_ip, proxy_port, expires):
     e = Engine(event_handler, auto_sound=False, do_sip_trace=True)
     e.start()
     if proxy_ip is None:
         route = None
     else:
         route = Route(proxy_ip, proxy_port)
-    pub = Publication(Credentials(username, domain, password), "presence", route=route)
+    pub = Publication(Credentials(username, domain, password), "presence", route=route, expires=expires)
     start_new_thread(user_input, ())
     while True:
         try:
@@ -126,24 +128,33 @@ def do_publish(username, domain, password, proxy_ip, proxy_port):
         except KeyboardInterrupt:
             pass
 
-def print_usage_exit():
-    print "Usage: %s user@domain.com password [proxy-ip:proxy-port]" % sys.argv[0]
-    sys.exit()
+re_ip_port = re.compile("^(?P<proxy_ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<proxy_port>\d+))?$")
+def parse_proxy(option, opt_str, value, parser):
+    match = re_ip_port.match(value)
+    if match is None:
+        raise OptionValueError("Could not parse supplied outbound proxy addrress")
+    for key, val in match.groupdict().iteritems():
+        if val is not None:
+            setattr(parser.values, key, val)
+
+def parse_options():
+    retval = {}
+    description = "This example script will publish the presence state of the specified SIP account as one of a set of predefined values, based on user input."
+    usage = "%prog [options] user@domain.com password"
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=5060)
+    parser = OptionParser(usage=usage, description=description)
+    parser.set_defaults(**default_options)
+    parser.add_option("-e", "--expires", type="int", dest="expires", help="Expires value to set in PUBLISH")
+    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use", metavar="IP[:PORT]")
+    try:
+        options, (username_domain, retval["password"]) = parser.parse_args()
+        retval["username"], retval["domain"] = username_domain.split("@")
+    except ValueError:
+        parser.print_usage()
+        sys.exit()
+    for attr in default_options:
+        retval[attr] = getattr(options, attr)
+    return retval
 
 if __name__ == "__main__":
-    if len(sys.argv) not in [3, 4]:
-        print_usage_exit()
-    try:
-        username, domain = sys.argv[1].split("@")
-    except:
-        print_usage_exit()
-    password = sys.argv[2]
-    if len(sys.argv) == 4:
-        try:
-            proxy_ip, proxy_port = sys.argv[3].split(":")
-            proxy_port = int(proxy_port)
-        except:
-            print_usage_exit()
-    else:
-        proxy_port, proxy_ip = None, None
-    do_publish(username, domain, password, proxy_ip, proxy_port)
+    do_publish(**parse_options())
