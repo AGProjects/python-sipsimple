@@ -44,12 +44,16 @@ def user_input():
 def do_register(username, domain, password, proxy_ip, proxy_port, expires):
     e = Engine(event_handler, do_sip_trace=True, auto_sound=False)
     e.start()
-    if proxy_ip is None:
-        route = None
-    else:
-        route = Route(proxy_ip, proxy_port)
-    reg = Registration(Credentials(username, domain, password), route=route, expires=expires)
-    reg.register()
+    try:
+        if proxy_ip is None:
+            route = None
+        else:
+            route = Route(proxy_ip, proxy_port)
+        reg = Registration(Credentials(username, domain, password), route=route, expires=expires)
+        reg.register()
+    except:
+        e.stop()
+        raise
     start_new_thread(user_input, ())
     while True:
         try:
