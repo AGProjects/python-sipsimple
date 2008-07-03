@@ -206,6 +206,7 @@ cdef extern from "pjsip.h":
         pjsip_rx_data_pkt_info pkt_info
         pjsip_rx_data_tp_info tp_info
         pjsip_rx_data_msg_info msg_info
+    void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
@@ -1177,7 +1178,7 @@ cdef class Registration:
             status = pjsip_regc_unregister(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise RuntimeError("Could not create unregistration request: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
+        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, ua.c_user_agent_hdr))
 
     cdef int _send_reg(self, bint register) except -1:
         global _event_queue
@@ -1384,7 +1385,7 @@ cdef class Publication:
             status = pjsip_publishc_unpublish(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise RuntimeError("Could not create PUBLISH request: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
+        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, ua.c_user_agent_hdr))
 
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)
@@ -1514,7 +1515,7 @@ cdef class Subscription:
         status = pjsip_evsub_initiate(self.c_obj, NULL, c_expires, &c_tdata)
         if status != 0:
             raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
+        pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
         status = pjsip_evsub_send_request(self.c_obj, c_tdata)
         if status != 0:
             raise RuntimeError("Could not send SUBSCRIBE message: %s" % pj_status_to_str(status))
