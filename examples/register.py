@@ -67,7 +67,8 @@ def parse_proxy(option, opt_str, value, parser):
     if match is None:
         raise OptionValueError("Could not parse supplied outbound proxy addrress")
     for key, val in match.groupdict().iteritems():
-        setattr(parser.values, key, val)
+        if val is not None:
+            setattr(parser.values, key, val)
 
 def parse_options():
     retval = {}
