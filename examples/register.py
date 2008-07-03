@@ -77,7 +77,7 @@ def parse_options():
     parser = OptionParser(usage=usage, description=description)
     parser.set_defaults(**default_options)
     parser.add_option("-e", "--expires", type="int", dest="expires", help="Expires value to set in REGISTER")
-    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use", metavar="IP")
+    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use", metavar="IP[:PORT]")
     try:
         options, (username_domain, retval["password"]) = parser.parse_args()
         retval["username"], retval["domain"] = username_domain.split("@")
