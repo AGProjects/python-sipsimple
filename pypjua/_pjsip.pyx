@@ -1511,7 +1511,7 @@ cdef class Subscription:
             c_expires = self.expires
         else:
             c_expires = 0
-        status = pjsip_evsub_initiate(self.c_obj, NULL, self.expires, &c_tdata)
+        status = pjsip_evsub_initiate(self.c_obj, NULL, c_expires, &c_tdata)
         if status != 0:
             raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
         pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> ua.c_user_agent_hdr)
