@@ -59,8 +59,11 @@ def generate_presence_xml(username, domain, activity, note):
 
 queue = Queue()
 event = Event()
+packet_count = 0
+start_time = None
 
 def event_handler(event_name, **kwargs):
+    global packet_count, start_time
     if event_name == "publish_state":
         if kwargs["state"] == "unpublished":
             print "Unpublished: %(code)d %(reason)s" % kwargs
@@ -69,10 +72,14 @@ def event_handler(event_name, **kwargs):
             print "PUBLISH done"
             event.set()
     elif event_name == "sip-trace":
+        if start_time is None:
+            start_time = kwargs["timestamp"]
+        packet_count += 1
         if kwargs["received"]:
-            print "RECEIVED:"
+            direction = "RECEIVED"
         else:
-            print "SENDING:"
+            direction = "SENDING"
+        print "%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))
         print "%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs
         print kwargs["data"]
 
@@ -97,7 +104,7 @@ def user_input():
         event.clear()
 
 def do_publish(username, domain, password, proxy_ip, proxy_port):
-    e = Engine(event_handler, auto_sound=False)
+    e = Engine(event_handler, auto_sound=False, do_sip_trace=True)
     e.start()
     if proxy_ip is None:
         route = None
