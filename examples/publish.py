@@ -97,11 +97,11 @@ def user_input():
         ch = getchar()
         if ch in key_commands:
             queue.put(key_commands[ch])
+            event.wait()
+            event.clear()
         elif ch == "q":
             queue.put("unpublish")
             break
-        event.wait()
-        event.clear()
 
 def do_publish(username, domain, password, proxy_ip, proxy_port):
     e = Engine(event_handler, auto_sound=False, do_sip_trace=True)
