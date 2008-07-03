@@ -164,7 +164,8 @@ cdef extern from "pjsip.h":
         int lr_param
     struct pjsip_name_addr:
         pjsip_uri *uri
-    struct pjsip_hdr
+    struct pjsip_hdr:
+        pass
     struct pjsip_generic_string_hdr
     struct pjsip_routing_hdr:
         pjsip_name_addr name_addr
@@ -178,7 +179,14 @@ cdef extern from "pjsip.h":
         pjsip_media_type content_type
         void *data
         unsigned int len
+    struct pjsip_method:
+        pj_str_t name
+    struct pjsip_request_line:
+        pjsip_method method
+    union pjsip_msg_line:
+        pjsip_request_line req
     struct pjsip_msg:
+        pjsip_msg_line line
         pjsip_msg_body *body
     struct pjsip_buffer:
         char *start
@@ -239,6 +247,12 @@ cdef extern from "pjsip.h":
     int pjsip_endpt_register_module(pjsip_endpoint *endpt, pjsip_module *module)
     int pjsip_endpt_schedule_timer(pjsip_endpoint *endpt, pj_timer_entry *entry, pj_time_val *delay)
     void pjsip_endpt_cancel_timer(pjsip_endpoint *endpt, pj_timer_entry *entry)
+    int pjsip_endpt_respond_stateless(pjsip_endpoint *endpt, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjsip_hdr *hdr_list, pjsip_msg_body *body)
+    enum:
+        PJSIP_H_ACCEPT
+        PJSIP_H_ALLOW
+        PJSIP_H_SUPPORTED
+    pjsip_hdr *pjsip_endpt_get_capability(pjsip_endpoint *endpt, int htype, pj_str_t *hname)
 
     # transports
     struct pjsip_host_port:
@@ -334,6 +348,7 @@ cdef extern from "pjsip_simple.h":
     char *pjsip_evsub_get_state_name(pjsip_evsub *sub)
     void pjsip_evsub_set_mod_data(pjsip_evsub *sub, int mod_id, void *data)
     void *pjsip_evsub_get_mod_data(pjsip_evsub *sub, int mod_id)
+    pjsip_hdr *pjsip_evsub_get_allow_events_hdr(pjsip_module *m)
 
 cdef extern from "pjsip_ua.h":
 
@@ -842,8 +857,33 @@ cdef class PJSIPUA:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
 
-    cdef int _rx_request(self, pjsip_rx_data *rdata):
-        return 0
+    cdef int _rx_request(self, pjsip_rx_data *rdata) except 0:
+        cdef int status
+        cdef pj_pool_t *hdr_pool
+        cdef pjsip_hdr hdr_list, *hdr_add
+        cdef object method_name = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
+        hdr_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint.c_obj, "rx_request", 4096, 4096)
+        if hdr_pool == NULL:
+            raise MemoryError()
+        try:
+            pj_list_init(<pj_list_type *> &hdr_list)
+            pj_list_push_back(<pj_list_type *> &hdr_list, <pj_list_type *> pjsip_hdr_clone(hdr_pool, self.c_user_agent_hdr))
+            if method_name == "OPTIONS":
+                for hdr_type in [PJSIP_H_ALLOW, PJSIP_H_ACCEPT, PJSIP_H_SUPPORTED]:
+                    hdr_add = pjsip_endpt_get_capability(self.c_pjsip_endpoint.c_obj, hdr_type, NULL)
+                    if hdr_add != NULL:
+                        pj_list_push_back(<pj_list_type *> &hdr_list, <pj_list_type *> pjsip_hdr_clone(hdr_pool, hdr_add))
+                hdr_add = pjsip_evsub_get_allow_events_hdr(NULL)
+                if hdr_add != NULL:
+                    pj_list_push_back(<pj_list_type *> &hdr_list, <pj_list_type *> pjsip_hdr_clone(hdr_pool, hdr_add))
+                status = pjsip_endpt_respond_stateless(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &hdr_list, NULL)
+            else:
+                status = pjsip_endpt_respond_stateless(self.c_pjsip_endpoint.c_obj, rdata, 405, NULL, &hdr_list, NULL)
+            if status != 0:
+                raise RuntimeError("Could not send stateless response: %s" % pj_status_to_str(status))
+        finally:
+            pjsip_endpt_release_pool(self.c_pjsip_endpoint.c_obj, hdr_pool)
+        return 1
 
 
 cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil:
