@@ -24,8 +24,6 @@ def event_handler(event_name, **kwargs):
             else:
                 print "Unsubscribed"
             queue.put("quit")
-    elif event_name == "subscribe_notify":
-        print "Received NOTIFY with Content-type: %(content_type)s/%(content_subtype)s:\n%(body)s" % kwargs
     elif event_name == "sip-trace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -47,7 +45,7 @@ def user_input():
             break
 
 def do_subscribe(username, domain, password, presentity, proxy_ip, proxy_port, expires):
-    e = Engine(event_handler, do_sip_trace=False, auto_sound=False)
+    e = Engine(event_handler, do_sip_trace=True, auto_sound=False)
     e.start()
     try:
         if proxy_ip is None:
