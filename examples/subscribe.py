@@ -44,15 +44,18 @@ def user_input():
             queue.put("unsubscribe")
             break
 
-def do_subscribe(username, domain, password, presentity, proxy_ip, proxy_port, expires):
-    e = Engine(event_handler, do_sip_trace=True, auto_sound=False)
+def do_subscribe(username, domain, password, presentity, proxy_ip, proxy_port, expires, event, content_type):
+    initial_events = Engine.ua_options["initial_events"]
+    if content_type is not None:
+        initial_events[event] = [content_type]
+    e = Engine(event_handler, do_sip_trace=True, auto_sound=False, initial_events=initial_events)
     e.start()
     try:
         if proxy_ip is None:
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        sub = Subscription(Credentials(username, domain, password), "presence", presentity, route=route, expires=expires)
+        sub = Subscription(Credentials(username, domain, password), event, presentity, route=route, expires=expires)
         sub.subscribe()
     except:
         e.stop()
@@ -81,12 +84,15 @@ def parse_options():
     retval = {}
     description = "This example script will use the specified SIP account to subscribe to the presence state of the specified presentity. The program will unsubscribe and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password presentity"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=None)
-    parser = OptionParser(usage=usage, description=description)
+    epilog = " ".join(["Known events:\n"] + ["%s:%s" % (event, ",".join(types)) for event, types in Engine.ua_options["initial_events"].iteritems()])
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, event="presence", content_type=None)
+    parser = OptionParser(usage=usage, description=description, epilog=epilog)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in SUBSCRIBE. Default is 300 seconds.')
     parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-v", "--event", type="string", dest="event", help='Event to subscribe to. Default is "presence".')
+    parser.add_option("-c", "--content-type", type="string", dest="content_type", help = '"Content-Type" the UA expects to receving in a NOTIFY for this subscription. For the known events this does not need to be specified, but may be overridden".')
     try:
         options, (username_domain, retval["password"], retval["presentity"]) = parser.parse_args()
         retval["username"], retval["domain"] = username_domain.split("@")
