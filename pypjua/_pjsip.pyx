@@ -873,9 +873,9 @@ cdef class PJSIPUA:
                     hdr_add = pjsip_endpt_get_capability(self.c_pjsip_endpoint.c_obj, hdr_type, NULL)
                     if hdr_add != NULL:
                         pj_list_push_back(<pj_list_type *> &hdr_list, <pj_list_type *> pjsip_hdr_clone(hdr_pool, hdr_add))
-                hdr_add = pjsip_evsub_get_allow_events_hdr(NULL)
-                if hdr_add != NULL:
-                    pj_list_push_back(<pj_list_type *> &hdr_list, <pj_list_type *> pjsip_hdr_clone(hdr_pool, hdr_add))
+                #hdr_add = pjsip_evsub_get_allow_events_hdr(NULL)
+                #if hdr_add != NULL:
+                #    pj_list_push_back(<pj_list_type *> &hdr_list, <pj_list_type *> pjsip_hdr_clone(hdr_pool, hdr_add))
                 status = pjsip_endpt_respond_stateless(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &hdr_list, NULL)
             else:
                 status = pjsip_endpt_respond_stateless(self.c_pjsip_endpoint.c_obj, rdata, 405, NULL, &hdr_list, NULL)
