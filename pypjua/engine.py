@@ -15,7 +15,9 @@ class Engine(Thread):
                   "user_agent": "pypjua",
                   "do_sip_trace": False,
                   "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"],
-                  "initial_events": {"presence": ["application/pidf+xml"]}}
+                  "initial_events": {"presence": ["application/pidf+xml"],
+                                     "message-summary": ["application/simple-message-summary"],
+                                     "presence.winfo": ["application/watcherinfo+xml"]}}
 
     def __init__(self, event_handler = None, **kwargs):
         if not Engine._done_init:
