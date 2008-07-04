@@ -481,7 +481,7 @@ cdef class PJSIPEndpoint:
         if nameservers:
             self._init_nameservers(nameservers)
 
-    cdef int _start_udp_transport(self, local_ip, local_port) except -1:
+    cdef int _start_udp_transport(self, object local_ip, object local_port) except -1:
         cdef int status
         cdef pj_str_t c_local_ip
         cdef pj_str_t *c_p_local_ip = NULL
@@ -489,7 +489,7 @@ cdef class PJSIPEndpoint:
         if local_ip is not None:
             c_p_local_ip = &c_local_ip
             str_to_pj_str(local_ip, c_p_local_ip)
-        status = pj_sockaddr_in_init(&c_local_addr, c_p_local_ip, local_port)
+        status = pj_sockaddr_in_init(&c_local_addr, c_p_local_ip, local_port or 0)
         if status != 0:
             raise RuntimeError("Could not create local address: %s" % pj_status_to_str(status))
         status = pjsip_udp_transport_start(self.c_obj, &c_local_addr, NULL, 1, &self.c_udp_transport)

@@ -10,7 +10,7 @@ class Engine(Thread):
     __metaclass__ = Singleton
     _done_init = False
     ua_options = {"local_ip": None, 
-                  "local_port": 5060,
+                  "local_port": None,
                   "auto_sound": True,
                   "user_agent": "pypjua",
                   "do_sip_trace": False,
