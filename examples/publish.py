@@ -149,8 +149,8 @@ def parse_options():
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
-    parser.add_option("-e", "--expires", type="int", dest="expires", help="Expires value to set in PUBLISH")
-    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use", metavar="IP[:PORT]")
+    parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in PUBLISH. Default is 300 seconds.')
+    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     try:
         options, (username_domain, retval["password"]) = parser.parse_args()
         retval["username"], retval["domain"] = username_domain.split("@")
