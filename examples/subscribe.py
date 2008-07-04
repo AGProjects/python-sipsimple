@@ -81,7 +81,7 @@ def parse_options():
     retval = {}
     description = "This example script will use the specified SIP account to subscribe to the presence state of the specified presentity. The program will unsubscribe and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password presentity"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=5060)
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)

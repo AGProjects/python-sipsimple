@@ -145,7 +145,7 @@ def parse_options():
     retval = {}
     description = "This example script will publish the presence state of the specified SIP account as one of a set of predefined values, based on user input."
     usage = "%prog [options] user@domain.com password"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=5060)
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
