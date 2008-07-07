@@ -387,7 +387,6 @@ cdef extern from "pjsip_ua.h":
 # Python C imports
 
 cdef extern from "Python.h":
-    void Py_DECREF(object obj)
     object PyString_FromStringAndSize(char *v, int len)
     char* PyString_AsString(object string)
 
