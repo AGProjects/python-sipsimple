@@ -77,6 +77,7 @@ cdef extern from "pjlib.h":
     struct pj_time_val:
         long sec
         long msec
+    void pj_gettimeofday(pj_time_val *tv)
 
     # timers
     struct pj_timer_heap_t
@@ -139,7 +140,50 @@ cdef extern from "pjmedia.h":
     pjmedia_port *pjmedia_conf_get_master_port(pjmedia_conf *conf)
 
     # sdp
-    struct pjmedia_sdp_session
+    enum:
+        PJMEDIA_MAX_SDP_FMT
+    enum:
+        PJMEDIA_MAX_SDP_ATTR
+    enum:
+        PJMEDIA_MAX_SDP_MEDIA
+    struct pjmedia_sdp_attr:
+        pj_str_t name
+        pj_str_t value
+    struct pjmedia_sdp_conn:
+        pj_str_t net_type
+        pj_str_t addr_type
+        pj_str_t addr
+    struct pjmedia_sdp_media_desc:
+        pj_str_t media
+        unsigned int port
+        unsigned int port_count
+        pj_str_t transport
+        unsigned int fmt_count
+        pj_str_t fmt[PJMEDIA_MAX_SDP_FMT]
+    struct pjmedia_sdp_media:
+        pjmedia_sdp_media_desc desc
+        pjmedia_sdp_conn *conn
+        unsigned int attr_count
+        pjmedia_sdp_attr *attr[PJMEDIA_MAX_SDP_ATTR]
+    struct pjmedia_sdp_session_origin:
+        pj_str_t user
+        unsigned int id
+        unsigned int version
+        pj_str_t net_type
+        pj_str_t addr_type
+        pj_str_t addr
+    struct pjmedia_sdp_session_time:
+        unsigned int start
+        unsigned int stop
+    struct pjmedia_sdp_session:
+        pjmedia_sdp_session_origin origin
+        pj_str_t name
+        pjmedia_sdp_conn *conn
+        pjmedia_sdp_session_time time
+        unsigned int attr_count
+        pjmedia_sdp_attr *attr[PJMEDIA_MAX_SDP_ATTR]
+        unsigned int media_count
+        pjmedia_sdp_media *media[PJMEDIA_MAX_SDP_MEDIA]
 
 cdef extern from "pjmedia-codec.h":
 
@@ -1581,6 +1625,216 @@ cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int 
         ua = <object> _ua
         subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
         subscription._cb_notify(rdata)
+
+cdef class SDPAttribute:
+    cdef pjmedia_sdp_attr c_obj
+    cdef readonly object name
+    cdef readonly object value
+
+    def __cinit__(self, name, value):
+        self.name = name
+        self.value = value
+        str_to_pj_str(self.name, &self.c_obj.name)
+        str_to_pj_str(self.value, &self.c_obj.value)
+
+    def __repr__(self):
+        return '<SDPAttribute "%s: %s">' % (self.name, self.value)
+
+
+cdef class SDPConnection:
+    cdef pjmedia_sdp_conn c_obj
+    cdef readonly object net_type
+    cdef readonly object address_type
+    cdef readonly object address
+
+    def __cinit__(self, address, net_type = "IN", address_type = "IP4"):
+        self.net_type = net_type
+        self.address_type = address_type
+        self.address = address
+        str_to_pj_str(self.net_type, &self.c_obj.net_type)
+        str_to_pj_str(self.address_type, &self.c_obj.addr_type)
+        str_to_pj_str(self.address, &self.c_obj.addr)
+
+    def __repr__(self):
+        return '<SDPConnection "%s %s %s">' % (self.net_type, self.address_type, self.address)
+
+
+cdef class SDPMedia:
+    cdef pjmedia_sdp_media c_obj
+    cdef readonly object media
+    cdef readonly object transport
+    cdef readonly list formats
+    cdef readonly SDPConnection connection
+    cdef readonly list attributes
+
+    def __cinit__(self, media, port, transport, port_count=1, formats=[], SDPConnection connection=None, attributes=[]):
+        cdef SDPAttribute c_attr
+        self.media = media
+        self.transport = transport
+        self.formats = formats
+        self.connection = connection
+        self.attributes = []
+        str_to_pj_str(self.media, &self.c_obj.desc.media)
+        self.c_obj.desc.port = port
+        self.c_obj.desc.port_count = port_count
+        str_to_pj_str(self.transport, &self.c_obj.desc.transport)
+        self.c_obj.desc.fmt_count = len(formats)
+        if self.c_obj.desc.fmt_count > PJMEDIA_MAX_SDP_FMT:
+            raise RuntimeError("Too many formats")
+        for index, format in enumerate(formats):
+            str_to_pj_str(format, &self.c_obj.desc.fmt[index])
+        if connection is None:
+            self.c_obj.conn = NULL
+        else:
+            self.c_obj.conn = &connection.c_obj
+        self.c_obj.attr_count = len(attributes)
+        if self.c_obj.attr_count > PJMEDIA_MAX_SDP_ATTR:
+            raise RuntimeError("Too many attributes")
+        for index, c_attr in enumerate(attributes):
+            self.c_obj.attr[index] = &c_attr.c_obj
+            self.attributes.append(c_attr)
+
+    property port:
+
+        def __get__(self):
+            return self.c_obj.desc.port
+
+    property port_count:
+
+        def __get__(self):
+            return self.c_obj.desc.port_count
+
+
+cdef class SDPSession:
+    cdef pjmedia_sdp_session c_obj
+    cdef readonly object user
+    cdef readonly object net_type
+    cdef readonly object address_type
+    cdef readonly object address
+    cdef readonly object name
+    cdef readonly SDPConnection connection
+    cdef readonly list attributes
+    cdef readonly list media
+
+    def __cinit__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ", SDPConnection connection=None, start_time=0, stop_time=0, attributes=[], media=[]):
+        cdef SDPAttribute c_attr
+        cdef SDPMedia c_media
+        cdef pj_time_val c_tv
+        cdef unsigned int c_version_id = 2208988800
+        self.user = user
+        self.net_type = net_type
+        self.address_type = address_type
+        self.address = address
+        self.name = name
+        self.connection = connection
+        self.attributes = []
+        self.media = []
+        pj_gettimeofday(&c_tv)
+        c_version_id += c_tv.sec
+        str_to_pj_str(user, &self.c_obj.origin.user)
+        if id is None:
+            self.c_obj.origin.id = c_version_id
+        else:
+            self.c_obj.origin.id = id
+        if version is None:
+            self.c_obj.origin.version = c_version_id
+        else:
+            self.c_obj.origin.version = version
+        str_to_pj_str(net_type, &self.c_obj.origin.net_type)
+        str_to_pj_str(address_type, &self.c_obj.origin.addr_type)
+        str_to_pj_str(address, &self.c_obj.origin.addr)
+        str_to_pj_str(name, &self.c_obj.name)
+        if connection is None:
+            self.c_obj.conn = NULL
+        else:
+            self.c_obj.conn = &connection.c_obj
+        self.c_obj.time.start = start_time
+        self.c_obj.time.stop = stop_time
+        self.c_obj.attr_count = len(attributes)
+        if self.c_obj.attr_count > PJMEDIA_MAX_SDP_ATTR:
+            raise RuntimeError("Too many attributes")
+        for index, c_attr in enumerate(attributes):
+            self.c_obj.attr[index] = &c_attr.c_obj
+            self.attributes.append(c_attr)
+        self.c_obj.media_count = len(media)
+        if self.c_obj.media_count > PJMEDIA_MAX_SDP_MEDIA:
+            raise RuntimeError("Too many media entries")
+        for index, c_media in enumerate(media):
+            self.c_obj.media[index] = &c_media.c_obj
+            self.media.append(c_media)
+
+    property id:
+
+        def __get__(self):
+            return self.c_obj.origin.id
+
+    property version:
+
+        def __get__(self):
+            return self.c_obj.origin.version
+
+    property start_time:
+
+        def __get__(self):
+            return self.c_obj.time.start
+
+    property stop_time:
+
+        def __get__(self):
+            return self.c_obj.time.stop
+
+
+cdef object copy_sdp_session(pjmedia_sdp_session *pj_session):
+    cdef SDPSession session
+    cdef SDPConnection connection
+    cdef SDPAttribute attribute
+    cdef list attribute_list
+    cdef pjmedia_sdp_media *pj_media
+    cdef SDPMedia media
+    cdef list media_list = []
+    cdef list format_list
+    cdef int i, j
+    for i from 0 <= i < pj_session.media_count:
+        attribute_list = []
+        format_list = []
+        connection = None
+        pj_media = pj_session.media[i]
+        for j from 0 <= j < pj_media.attr_count:
+            attribute_list.append(SDPAttribute(pj_str_to_str(pj_media.attr[j].name), pj_str_to_str(pj_media.attr[j].value)))
+        for j from 0 <= j < pj_media.desc.fmt_count:
+            format_list.append(pj_str_to_str(pj_media.desc.fmt[j]))
+        if pj_media.conn != NULL:
+            connection = SDPConnection(pj_str_to_str(pj_media.conn.addr),
+                                       pj_str_to_str(pj_media.conn.net_type),
+                                       pj_str_to_str(pj_media.conn.addr_type))
+        media_list.append(SDPMedia(pj_str_to_str(pj_media.desc.media),
+                                   pj_media.desc.port,
+                                   pj_str_to_str(pj_media.desc.transport),
+                                   port_count=pj_media.desc.port_count,
+                                   formats=format_list,
+                                   connection=connection,
+                                   attributes=attribute_list))
+    attribute_list = []
+    connection = None
+    for i from 0 <= i < pj_session.attr_count:
+        attribute_list.append(SDPAttribute(pj_str_to_str(pj_session.attr[i].name), pj_str_to_str(pj_session.attr[i].value)))
+    if pj_session.conn != NULL:
+        connection = SDPConnection(pj_str_to_str(pj_media.conn.addr),
+                                   pj_str_to_str(pj_media.conn.net_type),
+                                   pj_str_to_str(pj_media.conn.addr_type))
+    session = SDPSession(pj_str_to_str(pj_session.origin.addr),
+                         id=pj_session.origin.id,
+                         version=pj_session.origin.version,
+                         user=pj_str_to_str(pj_session.origin.user),
+                         net_type=pj_str_to_str(pj_session.origin.net_type),
+                         address_type=pj_str_to_str(pj_session.origin.addr_type),
+                         name=pj_str_to_str(pj_session.name),
+                         connection=connection,
+                         start_time=pj_session.time.start,
+                         stop_time=pj_session.time.stop,
+                         attributes=attribute_list,
+                         media=media_list)
+    return session
 
 cdef struct pypjua_log_msg:
     pypjua_log_msg *prev
