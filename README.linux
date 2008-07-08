@@ -1,0 +1,21 @@
+Tested on Debian unstable
+For other distributions, use the appropriate package manager.
+
+To compile this module on Linux, perform the following steps;
+- Make sure you have a subversion client installed
+  On Debian:
+    apt-get install subversion
+- Make sure you have Cython installed:
+  On Debian:
+    apt-get install cython
+- Make sure you have python-application installed:
+  On Debian:
+    apt-get install python-application
+- Check out PJSIP from SVN in the directory this README is in:
+    svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+- Go to the PJSIP directory and compile:
+    cd pjsip
+    ./configure
+    make
+- Go to the module directory and build the module:
+  ./build_inplace
