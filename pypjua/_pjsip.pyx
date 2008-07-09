@@ -1784,7 +1784,7 @@ cdef class SDPSession:
             return self.c_obj.time.stop
 
 
-cdef object copy_sdp_session(pjmedia_sdp_session *pj_session):
+cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
     cdef SDPSession session
     cdef SDPConnection connection
     cdef SDPAttribute attribute
