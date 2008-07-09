@@ -432,7 +432,7 @@ cdef extern from "pjsip_ua.h":
 
 cdef extern from "Python.h":
     object PyString_FromStringAndSize(char *v, int len)
-    char* PyString_AsString(object string)
+    char* PyString_AsString(object string) except NULL
 
 # Python imports
 
