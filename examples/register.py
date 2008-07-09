@@ -49,7 +49,7 @@ def do_register(username, domain, password, proxy_ip, proxy_port, expires):
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        reg = Registration(Credentials(username, domain, password), route=route, expires=expires)
+        reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route, expires=expires)
         reg.register()
     except:
         e.stop()

@@ -205,8 +205,10 @@ cdef extern from "pjsip.h":
     struct pjsip_sip_uri:
         pj_str_t host
         int port
+        pj_str_t user
         int lr_param
     struct pjsip_name_addr:
+        pj_str_t display
         pjsip_uri *uri
     struct pjsip_hdr:
         pass
@@ -996,57 +998,81 @@ cdef class EventPackage:
             return self.c_event.str
 
 
+cdef class SIPURI:
+    cdef readonly object host
+    cdef readonly object user
+    cdef readonly object display
+    cdef readonly object port
+
+    def __cinit__(self, host, user=None, port=None, display=None):
+        self.host = host
+        self.user = user
+        self.port = port
+        self.display = display
+
+    def __repr__(self):
+        return '<SIPURI "%s">' % self.as_str()
+
+    def as_str(self, in_req=False):
+        cdef object retval = self.host
+        if self.user:
+            retval = "@".join([self.user, retval])
+        retval = ":".join(["sip", retval])
+        if self.port:
+            retval = ":".join([retval, str(self.port)])
+        if in_req:
+            return retval
+        if self.display:
+            return '"%s" <%s>' % (self.display, retval)
+        else:
+            return "<%s>" % retval
+
+
+cdef SIPURI c_make_SIPURI(pjsip_name_addr *name_uri):
+    cdef object host, user, port, display
+    cdef pjsip_sip_uri *uri = <pjsip_sip_uri *> name_uri.uri
+    host = pj_str_to_str(uri.host)
+    user = pj_str_to_str(uri.user) or None
+    port = uri.port or None
+    display = pj_str_to_str(name_uri.display) or None
+    return SIPURI(host, user, port, display)
+
 cdef class Credentials:
-    cdef readonly object username
-    cdef readonly object domain
+    cdef readonly SIPURI uri
     cdef readonly object password
-    cdef readonly object display_name
-    cdef PJSTR c_server_url
+    cdef PJSTR c_domain_req_url
+    cdef PJSTR c_req_url
     cdef PJSTR c_aor_url
     cdef PJSTR c_contact_url
     cdef pjsip_cred_info c_cred
+    cdef PJSTR c_scheme
 
-    def __cinit__(self, username, domain, password, display_name = None):
+    def __cinit__(self, SIPURI uri, password):
         global _ua
         cdef int status
         cdef PJSIPUA ua
         if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
-        self.username = username
-        self.domain = domain
+        if uri.user is None:
+            raise RuntimeError("SIP URI paramater needs to have username set")
+        if uri.port is not None:
+            raise RuntimeError("SIP URI parameter has port set")
+        self.uri = uri
         self.password = password
-        self.display_name = display_name
-        self.c_server_url = PJSTR("sip:%s" % domain)
-        if display_name is None:
-            self.c_aor_url = PJSTR("<sip:%s@%s>" % (username, domain))
-        else:
-            self.c_aor_url = PJSTR('"%s" <sip:%s@%s>' % (display_name, username, domain))
-        self.c_contact_url = PJSTR("<sip:%s@%s:%d>" % (username, pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host), ua.c_pjsip_endpoint.c_udp_transport.local_name.port))
-        str_to_pj_str(domain, &self.c_cred.realm)
-        scheme = "digest"
-        str_to_pj_str(scheme, &self.c_cred.scheme)
-        str_to_pj_str(username, &self.c_cred.username)
+        self.c_scheme = PJSTR("digest")
+        self.c_domain_req_url = PJSTR(SIPURI(host=uri.host).as_str(True))
+        self.c_req_url = PJSTR(uri.as_str(True))
+        self.c_aor_url = PJSTR(uri.as_str())
+        self.c_contact_url = PJSTR(SIPURI(user=uri.user, host=pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host), port=ua.c_pjsip_endpoint.c_udp_transport.local_name.port).as_str())
+        str_to_pj_str(uri.host, &self.c_cred.realm)
+        self.c_cred.scheme = self.c_scheme.pj_str
+        str_to_pj_str(uri.user, &self.c_cred.username)
         self.c_cred.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
         str_to_pj_str(password, &self.c_cred.data)
 
     def __repr__(self):
         return "<Credentials for '%s'>" % self.c_aor_url.str
-
-    property server_url:
-
-        def __get__(self):
-            return self.c_server_url.str
-
-    property aor_url:
-
-        def __get__(self):
-            return self.c_aor_url.str
-
-    property contact_url:
-
-        def __get__(self):
-            return self.c_contact_url.str
 
 
 cdef class Route:
@@ -1126,7 +1152,7 @@ cdef class Registration:
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create client registration: %s" % pj_status_to_str(status))
-        status = pjsip_regc_init(self.c_obj, &credentials.c_server_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &credentials.c_contact_url.pj_str, expires)
+        status = pjsip_regc_init(self.c_obj, &credentials.c_domain_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &credentials.c_contact_url.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init registration: %s" % pj_status_to_str(status))
         status = pjsip_regc_set_credentials(self.c_obj, 1, &credentials.c_cred)
@@ -1148,7 +1174,7 @@ cdef class Registration:
                 pjsip_regc_destroy(self.c_obj)
 
     def __repr__(self):
-        return '<Registration for "%s@%s">' % (self.credentials.username, self.credentials.domain)
+        return "<Registration for '%s'>" % self.credentials.c_aor_url.str
 
     property expires:
 
@@ -1318,7 +1344,7 @@ cdef class Publication:
         if status != 0:
             raise RuntimeError("Could not create publication: %s" % pj_status_to_str(status))
         str_to_pj_str(event, &c_event)
-        status = pjsip_publishc_init(self.c_obj, &c_event, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, expires)
+        status = pjsip_publishc_init(self.c_obj, &c_event, &credentials.c_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init publication: %s" % pj_status_to_str(status))
         status = pjsip_publishc_set_credentials(self.c_obj, 1, &credentials.c_cred)
@@ -1340,7 +1366,7 @@ cdef class Publication:
                 pjsip_publishc_destroy(self.c_obj)
 
     def __repr__(self):
-        return '<Publication for "%s@%s">' % (self.credentials.username, self.credentials.domain)
+        return "<Publication for '%s'>" % self.credentials.c_aor_url.str
 
     property expires:
 
@@ -1497,11 +1523,11 @@ cdef class Subscription:
     cdef readonly Credentials credentials
     cdef readonly Route route
     cdef readonly unsigned int expires
-    cdef PJSTR c_to_uri
+    cdef readonly SIPURI to_uri
     cdef PJSTR c_event
     cdef readonly object state
 
-    def __cinit__(self, Credentials credentials, event, to_uri, route = None, expires = 300):
+    def __cinit__(self, Credentials credentials, event, SIPURI to_uri, route = None, expires = 300):
         global _ua
         global _subs
         global _subs_cb
@@ -1514,7 +1540,7 @@ cdef class Subscription:
         self.credentials = credentials
         self.route = route
         self.expires = expires
-        self.c_to_uri = PJSTR(to_uri)
+        self.to_uri = to_uri
         self.c_event = PJSTR(event)
         if event not in ua.events:
             raise RuntimeError('Event "%s" is unknown' % event)
@@ -1529,12 +1555,7 @@ cdef class Subscription:
                     pjsip_evsub_terminate(self.c_obj, 0)
 
     def __repr__(self):
-        return '<Subscription for "%s" of "%s">' % (self.c_event.str, self.c_to_uri.str)
-
-    property to_uri:
-
-        def __get__(self):
-            return self.c_to_uri.str
+        return "<Subscription for '%s' of '%s'>" % (self.c_event.str, self.to_uri.as_str())
 
     property event:
 
@@ -1573,12 +1594,15 @@ cdef class Subscription:
         cdef pjsip_tx_data *c_tdata
         cdef int status
         cdef int c_expires
+        cdef PJSTR c_to, c_to_req
         cdef PJSIPUA ua
         if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
         if subscribe:
-            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &self.credentials.c_contact_url.pj_str, &self.c_to_uri.pj_str, &self.c_to_uri.pj_str, &self.c_dlg)
+            c_to = PJSTR(self.to_uri.as_str())
+            c_to_req = PJSTR(self.to_uri.as_str(True))
+            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &self.credentials.c_contact_url.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
             if status != 0:
                 raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
             status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)

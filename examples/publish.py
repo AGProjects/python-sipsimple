@@ -113,7 +113,7 @@ def do_publish(username, domain, password, proxy_ip, proxy_port, expires):
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        pub = Publication(Credentials(username, domain, password), "presence", route=route, expires=expires)
+        pub = Publication(Credentials(SIPURI(user=username, host=domain), password), "presence", route=route, expires=expires)
     except:
         e.stop()
         raise

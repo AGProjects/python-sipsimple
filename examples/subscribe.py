@@ -44,7 +44,7 @@ def user_input():
             queue.put("unsubscribe")
             break
 
-def do_subscribe(username, domain, password, presentity, proxy_ip, proxy_port, expires, event, content_type):
+def do_subscribe(username, domain, password, presentity_username, presentity_domain, proxy_ip, proxy_port, expires, event, content_type):
     initial_events = Engine.ua_options["initial_events"]
     if content_type is not None:
         initial_events[event] = [content_type]
@@ -55,7 +55,7 @@ def do_subscribe(username, domain, password, presentity, proxy_ip, proxy_port, e
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        sub = Subscription(Credentials(username, domain, password), event, presentity, route=route, expires=expires)
+        sub = Subscription(Credentials(SIPURI(user=username, host=domain), password), event, SIPURI(user=presentity_username, host=presentity_domain), route=route, expires=expires)
         sub.subscribe()
     except:
         e.stop()
@@ -83,7 +83,7 @@ def parse_proxy(option, opt_str, value, parser):
 def parse_options():
     retval = {}
     description = "This example script will use the specified SIP account to subscribe to the presence state of the specified presentity. The program will unsubscribe and quit when CTRL+D is pressed."
-    usage = "%prog [options] user@domain.com password presentity"
+    usage = "%prog [options] user@domain.com password presentity@presentity-domain.com"
     epilog = " ".join(["Known events:\n"] + ["%s:%s" % (event, ",".join(types)) for event, types in Engine.ua_options["initial_events"].iteritems()])
     default_options = dict(expires=300, proxy_ip=None, proxy_port=None, event="presence", content_type=None)
     parser = OptionParser(usage=usage, description=description, epilog=epilog)
@@ -94,8 +94,9 @@ def parse_options():
     parser.add_option("-v", "--event", type="string", dest="event", help='Event to subscribe to. Default is "presence".')
     parser.add_option("-c", "--content-type", type="string", dest="content_type", help = '"Content-Type" the UA expects to receving in a NOTIFY for this subscription. For the known events this does not need to be specified, but may be overridden".')
     try:
-        options, (username_domain, retval["password"], retval["presentity"]) = parser.parse_args()
+        options, (username_domain, retval["password"], presentity) = parser.parse_args()
         retval["username"], retval["domain"] = username_domain.split("@")
+        retval["presentity_username"], retval["presentity_domain"] = presentity.split("@")
     except ValueError:
         parser.print_usage()
         sys.exit()
