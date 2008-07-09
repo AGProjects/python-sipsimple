@@ -55,7 +55,7 @@ def do_subscribe(username, domain, password, presentity_username, presentity_dom
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        sub = Subscription(Credentials(SIPURI(user=username, host=domain), password), event, SIPURI(user=presentity_username, host=presentity_domain), route=route, expires=expires)
+        sub = Subscription(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=presentity_username, host=presentity_domain), event, route=route, expires=expires)
         sub.subscribe()
     except:
         e.stop()

@@ -118,7 +118,7 @@ def do_publish(username, domain, password, proxy_ip, proxy_port, expires):
         uri = SIPURI(user=username, host=domain)
         cred = Credentials(uri, password)
         pub = Publication(cred, "presence", route=route, expires=expires)
-        sub = Subscription(cred, "presence.winfo", uri, route=route)
+        sub = Subscription(cred, uri, "presence.winfo", route=route)
         sub.subscribe()
     except:
         e.stop()

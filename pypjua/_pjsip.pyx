@@ -1527,7 +1527,7 @@ cdef class Subscription:
     cdef PJSTR c_event
     cdef readonly object state
 
-    def __cinit__(self, Credentials credentials, event, SIPURI to_uri, route = None, expires = 300):
+    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route = None, expires = 300):
         global _ua
         global _subs
         global _subs_cb
