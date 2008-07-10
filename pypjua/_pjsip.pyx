@@ -1054,8 +1054,10 @@ cdef class Credentials:
         if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
+        if uri is None:
+            raise RuntimeError("uri parameter cannot be None")
         if uri.user is None:
-            raise RuntimeError("SIP URI paramater needs to have username set")
+            raise RuntimeError("SIP URI parameter needs to have username set")
         if uri.port is not None:
             raise RuntimeError("SIP URI parameter has port set")
         self.uri = uri
@@ -1144,6 +1146,8 @@ cdef class Registration:
         if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
+        if credentials is None:
+            raise RuntimeError("credentials parameter cannot be None")
         self.state = "unregistered"
         self.c_expires = expires
         self.credentials = credentials
@@ -1334,6 +1338,8 @@ cdef class Publication:
         if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
+        if credentials is None:
+            raise RuntimeError("credentials parameter cannot be None")
         self.state = "unpublished"
         self.c_expires = expires
         self.credentials = credentials
@@ -1537,6 +1543,10 @@ cdef class Subscription:
         if _ua == NULL:
             raise RuntimeError("PJSIPUA needs to be instanced first")
         ua = <object> _ua
+        if credentials is None:
+            raise RuntimeError("credentials parameter cannot be None")
+        if to_uri is None:
+            raise RuntimeError("to_uri parameter cannot be None")
         self.credentials = credentials
         self.route = route
         self.expires = expires
