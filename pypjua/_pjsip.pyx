@@ -771,6 +771,7 @@ cdef class PJSIPUA:
     cdef public bint c_do_sip_trace
     cdef pjsip_generic_string_hdr *c_user_agent_hdr
     cdef list c_events
+    cdef PJSTR c_contact_url
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -832,6 +833,7 @@ cdef class PJSIPUA:
                 raise MemoryError()
             for event, accept_types in kwargs["initial_events"].iteritems():
                 self.add_event(event, accept_types)
+            self.c_contact_url = PJSTR(SIPURI(host=pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host), port=self.c_pjsip_endpoint.c_udp_transport.local_name.port).as_str())
         except:
             self._do_dealloc()
             raise
@@ -1043,7 +1045,6 @@ cdef class Credentials:
     cdef PJSTR c_domain_req_url
     cdef PJSTR c_req_url
     cdef PJSTR c_aor_url
-    cdef PJSTR c_contact_url
     cdef pjsip_cred_info c_cred
     cdef PJSTR c_scheme
 
@@ -1066,7 +1067,6 @@ cdef class Credentials:
         self.c_domain_req_url = PJSTR(SIPURI(host=uri.host).as_str(True))
         self.c_req_url = PJSTR(uri.as_str(True))
         self.c_aor_url = PJSTR(uri.as_str())
-        self.c_contact_url = PJSTR(SIPURI(user=uri.user, host=pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host), port=ua.c_pjsip_endpoint.c_udp_transport.local_name.port).as_str())
         str_to_pj_str(uri.host, &self.c_cred.realm)
         self.c_cred.scheme = self.c_scheme.pj_str
         str_to_pj_str(uri.user, &self.c_cred.username)
@@ -1156,7 +1156,7 @@ cdef class Registration:
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create client registration: %s" % pj_status_to_str(status))
-        status = pjsip_regc_init(self.c_obj, &credentials.c_domain_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &credentials.c_contact_url.pj_str, expires)
+        status = pjsip_regc_init(self.c_obj, &credentials.c_domain_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &ua.c_contact_url.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init registration: %s" % pj_status_to_str(status))
         status = pjsip_regc_set_credentials(self.c_obj, 1, &credentials.c_cred)
@@ -1612,7 +1612,7 @@ cdef class Subscription:
         if subscribe:
             c_to = PJSTR(self.to_uri.as_str())
             c_to_req = PJSTR(self.to_uri.as_str(True))
-            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &self.credentials.c_contact_url.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
+            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &ua.c_contact_url.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
             if status != 0:
                 raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
             status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
