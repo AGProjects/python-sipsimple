@@ -4,6 +4,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 import re
+import traceback
 from thread import start_new_thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
@@ -61,7 +62,11 @@ def do_register(username, domain, password, proxy_ip, proxy_port, expires):
             if command == "quit":
                 sys.exit()
             elif command == "unregister":
-                reg.unregister()
+                try:
+                    reg.unregister()
+                except:
+                    traceback.print_exc()
+                    sys.exit()
         except KeyboardInterrupt:
             pass
 

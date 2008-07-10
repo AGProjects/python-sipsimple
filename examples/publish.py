@@ -6,6 +6,7 @@ sys.path.append("..")
 import os
 import termios
 import re
+import traceback
 from thread import start_new_thread
 from Queue import Queue
 from threading import Event
@@ -126,9 +127,17 @@ def do_publish(username, domain, password, proxy_ip, proxy_port, expires):
             elif command == "unpublish":
                 if pub.state == "unpublished":
                     sys.exit()
-                pub.unpublish()
+                try:
+                    pub.unpublish()
+                except:
+                    traceback.print_exc()
+                    sys.exit()
             else:
-                pub.publish("application", "pidf+xml", generate_presence_xml(username, domain, command, "Set by pypjua!"))
+                try:
+                    pub.publish("application", "pidf+xml", generate_presence_xml(username, domain, command, "Set by pypjua!"))
+                except:
+                    traceback.print_exc()
+                    event.set()
         except KeyboardInterrupt:
             pass
 

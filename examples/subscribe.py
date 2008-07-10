@@ -4,6 +4,7 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 import re
+import traceback
 from thread import start_new_thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
@@ -67,7 +68,11 @@ def do_subscribe(username, domain, password, presentity_username, presentity_dom
             if command == "quit":
                 sys.exit()
             elif command == "unsubscribe":
-                sub.unsubscribe()
+                try:
+                    sub.unsubscribe()
+                except:
+                    traceback.print_exc()
+                    sys.exit()
         except KeyboardInterrupt:
             pass
 
