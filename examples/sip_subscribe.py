@@ -9,10 +9,15 @@ from thread import start_new_thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from pypjua import *
+from pypjua.applications import watcherinfo
 
 queue = Queue()
 packet_count = 0
 start_time = None
+winfo = None
+
+def handle_watcher(watcher, wlist):
+    print 'Watcher %s is %s in list of %s' % (str(watcher), watcher.status, wlist.resource)
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count
@@ -25,6 +30,11 @@ def event_handler(event_name, **kwargs):
             else:
                 print "Unsubscribed"
             queue.put("quit")
+    elif event_name == "subscribe_notify":
+        if winfo is not None and ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in winfo.accept_types:
+            for wlist, watchers in winfo.update(kwargs['body']).items():
+                for watcher in watchers:
+                    handle_watcher(watcher, wlist)
     elif event_name == "sip-trace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -51,6 +61,11 @@ def do_subscribe(username, domain, password, presentity_username, presentity_dom
     initial_events = Engine.ua_options["initial_events"]
     if content_type is not None:
         initial_events[event] = [content_type]
+
+    if event.endswith('.winfo'):
+        global winfo
+        winfo = watcherinfo.WatcherInfo()
+
     e = Engine(event_handler, do_sip_trace=True, auto_sound=False, initial_events=initial_events)
     e.start()
     try:
