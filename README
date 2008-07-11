@@ -1,0 +1,31 @@
+PyPjUA
+------
+
+Copyright (c) 2008 AG Projects
+http://ag-projects.com
+
+
+Description
+-----------
+
+PyPjUA is Python software library for PJSIP C SIP stack that together with
+an elegant middleware allows for easy development of SIP User agents that
+run on desktop computers running Mac OS X, Linux and Windows operating
+systems, portable Internet devices like Nokia 810, Apple iPone or Android
+mobile phones.
+
+
+License
+-------
+
+This software is licensed according to the GNU General Public License
+version 2.
+
+See LICENSE file for more details.
+
+
+Authors
+-------
+
+See Authors file.
+
