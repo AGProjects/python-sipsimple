@@ -107,6 +107,8 @@ def user_input():
             break
 
 def do_publish(username, domain, password, proxy_ip, proxy_port, expires):
+    if proxy_port is not None:
+        proxy_port = int(proxy_port)
     e = Engine(event_handler, auto_sound=False, do_sip_trace=True)
     e.start()
     try:

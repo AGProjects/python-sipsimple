@@ -43,6 +43,8 @@ def user_input():
             break
 
 def do_register(username, domain, password, proxy_ip, proxy_port, expires):
+    if proxy_port is not None:
+        proxy_port = int(proxy_port)
     e = Engine(event_handler, do_sip_trace=True, auto_sound=False)
     e.start()
     try:
