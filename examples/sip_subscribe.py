@@ -46,6 +46,7 @@ def user_input():
             break
 
 def do_subscribe(username, domain, password, presentity_username, presentity_domain, proxy_ip, proxy_port, expires, event, content_type):
+    proxy_port = int(proxy_port)
     initial_events = Engine.ua_options["initial_events"]
     if content_type is not None:
         initial_events[event] = [content_type]
