@@ -154,7 +154,7 @@ class WatcherInfo(XMLParser):
         if version <= self.version:
             return {}
         if state == 'partial' and version != self.version + 1:
-            raise NeedFullUpdateError()
+            raise NeedFullUpdateError("Cannot update with version %d since last version received is %d" % (version, self.version))
 
         self.version = version
 
