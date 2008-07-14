@@ -60,7 +60,10 @@ class Engine(Thread):
             self._ua.poll()
 
     def _handle_event(self, event_name, **kwargs):
-        print 'Received event "%s": %s' % (event_name, kwargs)
+        if event_name == "log":
+            print "%(timestamp)s (%(level)d) %(sender)14s: %(msg)s" % kwargs
+        else:
+            print 'Received event "%s": %s' % (event_name, kwargs)
 
 
 atexit.register(Engine._shutdown)
