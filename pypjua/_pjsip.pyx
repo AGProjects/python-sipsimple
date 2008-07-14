@@ -216,6 +216,8 @@ cdef extern from "pjsip.h":
     struct pjsip_routing_hdr:
         pjsip_name_addr name_addr
     ctypedef pjsip_routing_hdr pjsip_route_hdr
+    struct pjsip_fromto_hdr:
+        pjsip_uri *uri
     enum:
         PJSIP_MAX_ACCEPT_COUNT
     struct pjsip_media_type:
@@ -256,8 +258,8 @@ cdef extern from "pjsip.h":
         int src_port
     struct pjsip_rx_data_msg_info:
         pjsip_msg *msg
-        #pjsip_name_addr *from
-        pjsip_name_addr *to
+        pjsip_name_addr *from_hdr "from"
+        pjsip_fromto_hdr *to_hdr "to"
     struct pjsip_rx_data:
         pjsip_rx_data_pkt_info pkt_info
         pjsip_rx_data_tp_info tp_info
@@ -980,7 +982,8 @@ cdef class PJSIPUA:
             status = pjsip_inv_verify_request(rdata, &zero, NULL, NULL, self.c_pjsip_endpoint.c_obj, &tdata)
             if status == 0:
                 inv = Invitation()
-                #inv.callee_uri = c_make_SIPURI(rdata.msg_info.to)
+                inv.caller_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.from_hdr.uri)
+                inv.callee_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
                 status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &self.c_contact_url.pj_str, &inv.c_dlg)
                 if status != 0:
                     raise RuntimeError("Could not create dialog for new INTIVE session: %s" % pj_status_to_str(status))
