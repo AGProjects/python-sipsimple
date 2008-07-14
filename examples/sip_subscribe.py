@@ -21,7 +21,7 @@ def handle_watcher(watcher, wlist):
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count
-    if event_name == "subscribe_state":
+    if event_name == "Subscription_state":
         if kwargs["state"] == "ACTIVE":
             print "SUBSCRIBE was succesfull!"
         elif kwargs["state"] == "TERMINATED":
@@ -30,12 +30,12 @@ def event_handler(event_name, **kwargs):
             else:
                 print "Unsubscribed"
             queue.put("quit")
-    elif event_name == "subscribe_notify":
+    elif event_name == "Subscription_notify":
         if winfo is not None and ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in winfo.accept_types:
             for wlist, watchers in winfo.update(kwargs['body']).items():
                 for watcher in watchers:
                     handle_watcher(watcher, wlist)
-    elif event_name == "sip-trace":
+    elif event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
@@ -66,7 +66,7 @@ def do_subscribe(username, domain, password, presentity_username, presentity_dom
         global winfo
         winfo = watcherinfo.WatcherInfo()
 
-    e = Engine(event_handler, do_sip_trace=True, auto_sound=False, initial_events=initial_events)
+    e = Engine(event_handler, do_siptrace=True, auto_sound=False, initial_events=initial_events)
     e.start()
     try:
         if proxy_ip is None:

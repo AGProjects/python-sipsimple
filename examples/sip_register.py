@@ -16,13 +16,13 @@ start_time = None
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count
-    if event_name == "register_state":
+    if event_name == "Registration_state":
         if kwargs["state"] == "registered":
             print "REGISTER was succesfull!"
         elif kwargs["state"] == "unregistered":
             print "Unregistered: %(code)d %(reason)s" % kwargs
             queue.put("quit")
-    elif event_name == "sip-trace":
+    elif event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
@@ -45,7 +45,7 @@ def user_input():
 def do_register(username, domain, password, proxy_ip, proxy_port, expires):
     if proxy_port is not None:
         proxy_port = int(proxy_port)
-    e = Engine(event_handler, do_sip_trace=True, auto_sound=False)
+    e = Engine(event_handler, do_siptrace=True, auto_sound=False)
     e.start()
     try:
         if proxy_ip is None:

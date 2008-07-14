@@ -13,7 +13,7 @@ class Engine(Thread):
                   "local_port": None,
                   "auto_sound": True,
                   "user_agent": "pypjua",
-                  "do_sip_trace": False,
+                  "do_siptrace": False,
                   "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"],
                   "initial_events": {"presence": ["application/pidf+xml"],
                                      "message-summary": ["application/simple-message-summary"],

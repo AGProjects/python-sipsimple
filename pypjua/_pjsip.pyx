@@ -768,7 +768,7 @@ cdef class PJSIPUA:
     cdef PJSTR c_trace_module_name
     cdef pjsip_module c_event_module
     cdef PJSTR c_event_module_name
-    cdef public bint c_do_sip_trace
+    cdef public bint c_do_siptrace
     cdef pjsip_generic_string_hdr *c_user_agent_hdr
     cdef list c_events
     cdef PJSTR c_contact_url
@@ -808,7 +808,7 @@ cdef class PJSIPUA:
             status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
             if status != 0:
                 raise RuntimeError("Could not load application module: %s" % pj_status_to_str(status))
-            self.c_do_sip_trace = bool(kwargs["do_sip_trace"])
+            self.c_do_siptrace = bool(kwargs["do_siptrace"])
             self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
             self.c_trace_module.name = self.c_trace_module_name.pj_str
             self.c_trace_module.id = -1
@@ -838,13 +838,13 @@ cdef class PJSIPUA:
             self._do_dealloc()
             raise
 
-    property do_sip_trace:
+    property do_siptrace:
 
         def __get__(self):
-            return bool(self.c_do_sip_trace)
+            return bool(self.c_do_siptrace)
 
         def __set__(self, value):
-            self.c_do_sip_trace = bool(value)
+            self.c_do_siptrace = bool(value)
 
     property events:
 
@@ -947,8 +947,8 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
     cdef PJSIPUA c_ua
     if _ua != NULL:
         c_ua = <object> _ua
-        if c_ua.c_do_sip_trace:
-            _event_queue.append(("sip-trace", dict(timestamp=datetime.now(),
+        if c_ua.c_do_siptrace:
+            _event_queue.append(("siptrace", dict(timestamp=datetime.now(),
                                                    received=True,
                                                    source_ip=rdata.pkt_info.src_name,
                                                    source_port=rdata.pkt_info.src_port,
@@ -962,8 +962,8 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
     cdef PJSIPUA c_ua
     if _ua != NULL:
         c_ua = <object> _ua
-        if c_ua.c_do_sip_trace:
-            _event_queue.append(("sip-trace", dict(timestamp=datetime.now(),
+        if c_ua.c_do_siptrace:
+            _event_queue.append(("siptrace", dict(timestamp=datetime.now(),
                                                    received=False,
                                                    source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
                                                    source_port=tdata.tp_info.transport.local_name.port,
@@ -1236,7 +1236,7 @@ cdef class Registration:
                     self.state = "registered"
         else:
             raise RuntimeError("Unexpected response callback in Registration")
-        _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason))))
+        _event_queue.append(("Registration_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason))))
         if c_success:
             if (self.state == "unregistered" and self.c_want_register) or (self.state =="registered" and not self.c_want_register):
                 self._send_reg(self.c_want_register)
@@ -1256,11 +1256,11 @@ cdef class Registration:
                 self._send_reg(1)
             except:
                 self.state = "unregistered"
-                _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+                _event_queue.append(("Registration_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
                 raise
         else:
             self.state = "unregistered"
-            _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+            _event_queue.append(("Registration_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
     def register(self):
         if self.state == "unregistered" or self.state == "unregistering":
@@ -1303,7 +1303,7 @@ cdef class Registration:
             self.state = "registering"
         else:
             self.state = "unregistering"
-        _event_queue.append(("register_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+        _event_queue.append(("Registration_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 
 cdef void cb_Registration_cb_response(pjsip_regc_cbparam *param) with gil:
@@ -1419,7 +1419,7 @@ cdef class Publication:
                     self.state = "published"
         else:
             raise RuntimeError("Unexpected response callback in Publication")
-        _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason))))
+        _event_queue.append(("Publication_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason))))
         if self.c_new_publish:
             self.c_new_publish = 0
             self._send_pub(1)
@@ -1445,11 +1445,11 @@ cdef class Publication:
                 self.c_content_subtype = None
                 self.c_body = None
                 self.state = "unpublished"
-                _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+                _event_queue.append(("Publication_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
                 raise
         else:
             self.state = "unpublished"
-            _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+            _event_queue.append(("Publication_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
     def publish(self, content_type, content_subtype, body):
         cdef PJSTR c_content_type = PJSTR(content_type)
@@ -1510,7 +1510,7 @@ cdef class Publication:
             self.state = "publishing"
         else:
             self.state = "unpublishing"
-        _event_queue.append(("publish_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+        _event_queue.append(("Publication_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 
 cdef void cb_Publication_cb_response(pjsip_publishc_cbparam *param) with gil:
@@ -1576,14 +1576,14 @@ cdef class Subscription:
         global _event_queue
         self.state = pjsip_evsub_get_state_name(self.c_obj)
         if tsx == NULL:
-            _event_queue.append(("subscribe_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+            _event_queue.append(("Subscription_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
         else:
-            _event_queue.append(("subscribe_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text))))
+            _event_queue.append(("Subscription_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text))))
 
     cdef int _cb_notify(self, pjsip_rx_data *rdata) except -1:
         cdef pjsip_msg_body *c_body = rdata.msg_info.msg.body
         if c_body != NULL:
-            _event_queue.append(("subscribe_notify", dict(obj=self,
+            _event_queue.append(("Subscription_notify", dict(obj=self,
                                                           timestamp=datetime.now(),
                                                           body=PyString_FromStringAndSize(<char *> c_body.data, c_body.len),
                                                           content_type=pj_str_to_str(c_body.content_type.type),

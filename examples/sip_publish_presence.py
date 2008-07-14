@@ -67,14 +67,14 @@ start_time = None
 
 def event_handler(event_name, **kwargs):
     global packet_count, start_time
-    if event_name == "publish_state":
+    if event_name == "Publication_state":
         if kwargs["state"] == "unpublished":
             print "Unpublished: %(code)d %(reason)s" % kwargs
             queue.put("quit")
         elif kwargs["state"] == "published":
             print "PUBLISH done"
             event.set()
-    elif event_name == "sip-trace":
+    elif event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
@@ -109,7 +109,7 @@ def user_input():
 def do_publish(username, domain, password, proxy_ip, proxy_port, expires):
     if proxy_port is not None:
         proxy_port = int(proxy_port)
-    e = Engine(event_handler, auto_sound=False, do_sip_trace=True)
+    e = Engine(event_handler, auto_sound=False, do_siptrace=True)
     e.start()
     try:
         if proxy_ip is None:
