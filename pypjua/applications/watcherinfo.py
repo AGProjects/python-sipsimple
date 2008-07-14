@@ -1,3 +1,9 @@
+"""
+Parses application/watcherinfo+xml documents according to RFC3857 and RFC3858.
+
+See WatcherInfo class for more information.
+"""
+
 from lxml import etree
 
 from pypjua.applications import XMLParser, XMLElementMapping, ParserError
@@ -7,7 +13,20 @@ __all__ = ["NeedFullUpdateError", "WatcherInfo"]
 class NeedFullUpdateError(Exception): pass
 
 class Watcher(XMLElementMapping):
-    """Definition for a watcher in a watcherinfo document"""
+    """
+    Definition for a watcher in a watcherinfo document
+    
+    Provides the attributes:
+     * id
+     * status
+     * event
+     * display_name
+     * expiration
+     * duration
+     * sipuri
+
+    Can be transformed to a string with the format DISPLAY_NAME <SIP_URI>.
+    """
     _xml_attrs = {
             'id': {'id_attribute': True},
             'status': {},
@@ -24,7 +43,15 @@ class Watcher(XMLElementMapping):
         return self.display_name and '%s <%s>' % (self.display_name, self.sipuri) or self.sipuri
 
 class WatcherList(XMLElementMapping):
-    """Definition for a list of watchers in a watcherinfo documennt"""
+    """
+    Definition for a list of watchers in a watcherinfo document
+    
+    It behaves like a list in that it can be indexed by a number, can be
+    iterated and counted.
+
+    It also provides the properties pending, active and terminated which are
+    generators returning Watcher objects with the corresponding status.
+    """
     _xml_attrs = {
             'resource': {'id_attribute': True},
             'package': {}}
@@ -58,7 +85,45 @@ class WatcherList(XMLElementMapping):
     terminated = property(lambda self: (watcher for watcher in self if watcher.status == 'terminated'))
 
 class WatcherInfo(XMLParser):
-    """Definition for watcher info: a list of WatcherList elements"""
+    """
+    Definition for watcher info: a list of WatcherList elements
+    
+    The user agent instantiates this class once it subscribes to a *.winfo event
+    and calls its update() method with the applicatin/watcherinfo+xml documents
+    it receives via NOTIFY.
+
+    The watchers can be accessed in two ways:
+     1. via the wlists property, which returns a list of WatcherList elements;
+     2. via the pending, active and terminated properties, which return
+     dictionaries, mapping WatcherList objects to lists of Watcher objects.
+     Since WatcherList objects can be compared for equality to SIP URI strings,
+     representing the presentity to which the watchers have subscribed, the
+     dictionaries can also be indexed by such strings.
+
+    Example:
+     Given the following watcherinfo document:
+<?xml version="1.0"?>
+<watcherinfo xmlns="urn:ietf:params:xml:ns:watcherinfo"
+             version="0" state="full">
+  <watcher-list resource="sip:professor@example.net" package="presence">
+    <watcher status="active"
+             id="8ajksjda7s"
+             duration-subscribed="509"
+             event="approved" >sip:userA@example.net</watcher>
+    <watcher status="pending"
+             id="hh8juja87s997-ass7"
+             display-name="Mr. Subscriber"
+             event="subscribe">sip:userB@example.org</watcher>
+  </watcher-list>
+</watcherinfo>
+      
+      winfo = WatcherInfo()
+      winfo.update(documentstring)
+      winfo.pending['sip:professor@example.net'] # contains Watcher describing sip:userB@example.org
+      winfo.active['sip:professor@example.net'] # contains Watcher describing sip:userA@example.org
+      winfo.terminated['sip:professor@example.net'] # is an empty list
+      winfo.wlists is a list of WatcherList objects
+    """
     
     accept_types = ['application/watcherinfo+xml']
     _namespace = 'urn:ietf:params:xml:ns:watcherinfo'
@@ -72,6 +137,13 @@ class WatcherInfo(XMLParser):
             self.update(document)
     
     def update(self, document):
+        """
+        Updates the state of this WatcherInfo object with data from an
+        application/watcherinfo+xml document, passed as a string. 
+        
+        Will throw a NeedFullUpdateError if the current document is a partial
+        update and the previous version wasn't received.
+        """
         root = self._parse(document)
         version = int(root.get('version'))
         state = root.get('state')
