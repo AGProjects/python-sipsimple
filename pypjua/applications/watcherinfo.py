@@ -80,6 +80,9 @@ class WatcherList(XMLElementMapping):
     def __getitem__(self, index):
         return self._watchers.values()[index]
 
+    def __len__(self):
+        return len(self._watchers)
+
     pending = property(lambda self: (watcher for watcher in self if watcher.status in ('pending', 'waiting')))
     active = property(lambda self: (watcher for watcher in self if watcher.status == 'active'))
     terminated = property(lambda self: (watcher for watcher in self if watcher.status == 'terminated'))
