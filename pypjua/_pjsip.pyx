@@ -1891,9 +1891,9 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
     for i from 0 <= i < pj_session.attr_count:
         attribute_list.append(SDPAttribute(pj_str_to_str(pj_session.attr[i].name), pj_str_to_str(pj_session.attr[i].value)))
     if pj_session.conn != NULL:
-        connection = SDPConnection(pj_str_to_str(pj_media.conn.addr),
-                                   pj_str_to_str(pj_media.conn.net_type),
-                                   pj_str_to_str(pj_media.conn.addr_type))
+        connection = SDPConnection(pj_str_to_str(pj_session.conn.addr),
+                                   pj_str_to_str(pj_session.conn.net_type),
+                                   pj_str_to_str(pj_session.conn.addr_type))
     session = SDPSession(pj_str_to_str(pj_session.origin.addr),
                          id=pj_session.origin.id,
                          version=pj_session.origin.version,
