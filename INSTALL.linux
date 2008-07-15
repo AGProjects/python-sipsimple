@@ -17,5 +17,9 @@ To compile this module on Linux, perform the following steps;
     cd pjsip
     ./configure
     make
+  Note that, on some platforms (as seen on amd64) you may need to
+  supply -fPIC flag to compiler, otherwise although the compilation
+  will succeed, later attempt to use the library will not.
+    make HOST_CFLAGS=-fPIC
 - Go to the module directory and build the module:
   ./build_inplace
