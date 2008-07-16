@@ -185,6 +185,16 @@ cdef extern from "pjmedia.h":
         unsigned int media_count
         pjmedia_sdp_media *media[PJMEDIA_MAX_SDP_MEDIA]
 
+    # sdp negotiation
+
+    struct pjmedia_sdp_neg
+    #int pjmedia_sdp_neg_get_state (pjmedia_sdp_neg *neg)
+    #char *pjmedia_sdp_neg_state_str(int state)
+    int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session **remote)
+    #int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
+    int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session **remote)
+    #int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
+
 cdef extern from "pjmedia-codec.h":
 
     # codecs
@@ -362,6 +372,7 @@ cdef extern from "pjsip.h":
     int pjsip_dlg_create_uac(pjsip_user_agent *ua, pj_str_t *local_uri, pj_str_t *local_contact_uri, pj_str_t *remote_uri, pj_str_t *target, pjsip_dialog **p_dlg)
     int pjsip_dlg_set_route_set(pjsip_dialog *dlg, pjsip_route_hdr *route_set)
     int pjsip_dlg_create_uas(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg)
+    int pjsip_dlg_terminate(pjsip_dialog *dlg)
 
 cdef extern from "pjsip_simple.h":
 
@@ -426,9 +437,13 @@ cdef extern from "pjsip_ua.h":
     int pjsip_regc_set_route_set(pjsip_regc *regc, pjsip_route_hdr *route_set)
 
     # invite sessions
+    enum pjsip_inv_state:
+        PJSIP_INV_STATE_EARLY
+        PJSIP_INV_STATE_DISCONNECTED
     struct pjsip_inv_session:
-        int state
+        pjsip_inv_state state
         void **mod_data
+        pjmedia_sdp_neg *neg
     struct pjsip_inv_callback:
         void on_state_changed(pjsip_inv_session *inv, pjsip_event *e) with gil
         void on_new_session(pjsip_inv_session *inv, pjsip_event *e) with gil
@@ -438,13 +453,16 @@ cdef extern from "pjsip_ua.h":
         void on_media_update(pjsip_inv_session *inv, int status) with gil
         #void on_send_ack(pjsip_inv_session *inv, pjsip_rx_data *rdata)
     int pjsip_inv_usage_init(pjsip_endpoint *endpt, pjsip_inv_callback *cb)
-    char *pjsip_inv_state_name(int state)
+    #char *pjsip_inv_state_name(int state)
     int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify)
     int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
     int pjsip_inv_send_msg(pjsip_inv_session *inv, pjsip_tx_data *tdata)
     int pjsip_inv_verify_request(pjsip_rx_data *rdata, unsigned int *options, pjmedia_sdp_session *sdp, pjsip_dialog *dlg, pjsip_endpoint *endpt, pjsip_tx_data **tdata)
     int pjsip_inv_create_uas(pjsip_dialog *dlg, pjsip_rx_data *rdata, pjmedia_sdp_session *local_sdp, unsigned int options, pjsip_inv_session **p_inv)
     int pjsip_inv_initial_answer(pjsip_inv_session *inv, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjmedia_sdp_session *sdp, pjsip_tx_data **p_tdata)
+    int pjsip_inv_answer(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjmedia_sdp_session *local_sdp, pjsip_tx_data **p_tdata)
+    int pjsip_inv_create_uac(pjsip_dialog *dlg, pjmedia_sdp_session *local_sdp, unsigned int options, pjsip_inv_session **p_inv)
+    int pjsip_inv_invite(pjsip_inv_session *inv, pjsip_tx_data **p_tdata)
 
 # Python C imports
 
@@ -969,6 +987,7 @@ cdef class PJSIPUA:
         cdef pjsip_hdr *hdr_add
         cdef Invitation inv
         cdef unsigned int zero = 0
+        cdef pjmedia_sdp_session *remote_sdp
         cdef object method_name = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
         if method_name == "OPTIONS":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
@@ -982,6 +1001,7 @@ cdef class PJSIPUA:
             status = pjsip_inv_verify_request(rdata, &zero, NULL, NULL, self.c_pjsip_endpoint.c_obj, &tdata)
             if status == 0:
                 inv = Invitation()
+                inv.state = "INCOMING"
                 inv.caller_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.from_hdr.uri)
                 inv.callee_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
                 status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &self.c_contact_url.pj_str, &inv.c_dlg)
@@ -989,16 +1009,23 @@ cdef class PJSIPUA:
                     raise RuntimeError("Could not create dialog for new INTIVE session: %s" % pj_status_to_str(status))
                 status = pjsip_inv_create_uas(inv.c_dlg, rdata, NULL, 0, &inv.c_obj)
                 if status != 0:
+                    pjsip_dlg_terminate(inv.c_dlg)
                     raise RuntimeError("Could not create new INTIVE session: %s" % pj_status_to_str(status))
                 inv.c_obj.mod_data[self.c_module.id] = <void *> inv
                 status = pjsip_inv_initial_answer(inv.c_obj, rdata, 180, NULL, NULL, &tdata)
                 if status != 0:
+                    pjsip_inv_terminate(inv.c_obj, 500, 0)
                     raise RuntimeError("Could not create 180 reply to INVITE: %s" % pj_status_to_str(status))
                 status = pjsip_inv_send_msg(inv.c_obj, tdata)
                 if status != 0:
+                    pjsip_inv_terminate(inv.c_obj, 500, 0)
                     raise RuntimeError("Could not send 180 reply to INVITE: %s" % pj_status_to_str(status))
                 tdata = NULL
-                _event_queue.append(("Invitation_incoming", dict(timestamp=datetime.now(), obj=inv)))
+                if inv.c_obj.neg != NULL:
+                    pjmedia_sdp_neg_get_neg_remote(inv.c_obj.neg, &remote_sdp)
+                    _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=inv, state=inv.state, sdp=c_make_SDPSession(remote_sdp))))
+                else:
+                    _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=inv, state=inv.state)))
         elif method_name != "ACK":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 405, NULL, &tdata)
             if status != 0:
@@ -1647,33 +1674,42 @@ cdef class Subscription:
         if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
-        if subscribe:
-            c_to = PJSTR(self.to_uri.as_str())
-            c_to_req = PJSTR(self.to_uri.as_str(True))
-            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &ua.c_contact_url.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
-            if status != 0:
-                raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
-            status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
-            if status != 0:
-                raise RuntimeError("Could not create SUBSCRIBE: %s" % pj_status_to_str(status))
-            status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.credentials.c_cred)
-            if status != 0:
-                raise RuntimeError("Could not set SUBSCRIBE credentials: %s" % pj_status_to_str(status))
-            if self.route is not None:
-                status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
+        try:
+            if subscribe:
+                c_to = PJSTR(self.to_uri.as_str())
+                c_to_req = PJSTR(self.to_uri.as_str(True))
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &ua.c_contact_url.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
                 if status != 0:
-                    raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
-            pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
-            c_expires = self.expires
-        else:
-            c_expires = 0
-        status = pjsip_evsub_initiate(self.c_obj, NULL, c_expires, &c_tdata)
-        if status != 0:
-            raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
-        status = pjsip_evsub_send_request(self.c_obj, c_tdata)
-        if status != 0:
-            raise RuntimeError("Could not send SUBSCRIBE message: %s" % pj_status_to_str(status))
+                    raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
+                status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
+                if status != 0:
+                    raise RuntimeError("Could not create SUBSCRIBE: %s" % pj_status_to_str(status))
+                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.credentials.c_cred)
+                if status != 0:
+                    raise RuntimeError("Could not set SUBSCRIBE credentials: %s" % pj_status_to_str(status))
+                if self.route is not None:
+                    status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
+                    if status != 0:
+                        raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
+                pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
+                c_expires = self.expires
+            else:
+                c_expires = 0
+            status = pjsip_evsub_initiate(self.c_obj, NULL, c_expires, &c_tdata)
+            if status != 0:
+                raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
+            pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
+            status = pjsip_evsub_send_request(self.c_obj, c_tdata)
+            if status != 0:
+                raise RuntimeError("Could not send SUBSCRIBE message: %s" % pj_status_to_str(status))
+        except:
+            if self.c_obj != NULL:
+                pjsip_evsub_terminate(self.c_obj, 0)
+            elif self.c_dlg != NULL:
+                pjsip_dlg_terminate(self.c_dlg)
+            self.c_obj = NULL
+            self.c_dlg = NULL
+            raise
 
 
 cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
@@ -1922,37 +1958,130 @@ cdef class Invitation:
             if None in args:
                 raise TypeError("Positional arguments cannot be None")
             try:
-                self.credentials, self.callee_uri = args # TODO: add SDP
+                self.credentials, self.callee_uri = args
             except ValueError:
                 raise TypeError("Expected 2 positional arguments")
             self.caller_uri = self.credentials.uri
             self.route = route
-            self.state = "TERMINATED"
+            self.state = "DISCONNECTED"
+        else:
+            self.state = "INVALID"
 
     def __dealloc__(self):
         global _ua
         cdef PJSIPUA ua
         if _ua != NULL:
+            ua = <object> _ua
             if self.c_obj != NULL:
-                if self.state != "TERMINATED":
+                self.c_obj.mod_data[ua.c_module.id] = NULL
+                if self.state not in ["DISCONNECTED", "INVALID"]:
                     pjsip_inv_terminate(self.c_obj, 481, 0)
 
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
         global _event_queue
-        self.state = pjsip_inv_state_name(self.c_obj.state)
-        if tsx == NULL:
-            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
-        else:
-            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text))))
+        if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED:
+            self.state = "DISCONNECTED"
+            if tsx == NULL:
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+            else:
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text))))
+        elif self.c_obj.state == PJSIP_INV_STATE_EARLY and tsx != NULL and tsx.status_code == 180:
+            _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self)))
 
-    def sync(self):
+    cdef int _cb_sdp_offer(self, SDPSession session) except -1:
         pass
+
+    cdef int _cb_sdp_done(self, int sdp_status) except -1:
+        global _event_queue
+        cdef pjmedia_sdp_session *remote_sdp
+        if self.state in ["CALLING", "PROPOSING"]:
+            if sdp_status != 0:
+                self.end()
+            else:
+                self.state = "ESTABLISHED"
+                pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &remote_sdp)
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, sdp=c_make_SDPSession(remote_sdp))))
+
+    def invite(self, SDPSession local_sdp):
+        global _ua, _event_queue
+        cdef int status
+        cdef pjsip_tx_data *c_tdata
+        cdef PJSTR c_caller_uri
+        cdef PJSTR c_callee_uri
+        cdef PJSTR c_callee_target
+        cdef PJSIPUA ua
+        if _ua == NULL:
+            raise RuntimeError("PJSIPUA already dealloced")
+        ua = <object> _ua
+        if self.state == "DISCONNECTED":
+            c_caller_uri = PJSTR(self.caller_uri.as_str())
+            c_callee_uri = PJSTR(self.callee_uri.as_str())
+            c_callee_target = PJSTR(self.callee_uri.as_str(True))
+            try:
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_caller_uri.pj_str, &ua.c_contact_url.pj_str, &c_callee_uri.pj_str, &c_callee_target.pj_str, &self.c_dlg)
+                if status != 0:
+                    raise RuntimeError("Could not create dialog for outgoing INVITE session: %s" % pj_status_to_str(status))
+                status = pjsip_inv_create_uac(self.c_dlg, &local_sdp.c_obj, 0, &self.c_obj)
+                if status != 0:
+                    raise RuntimeError("Could not create outgoing INVITE session: %s" % pj_status_to_str(status))
+                self.c_obj.mod_data[ua.c_module.id] = <void *> self
+                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.credentials.c_cred)
+                if status != 0:
+                    raise RuntimeError("Could not set INVITE credentials: %s" % pj_status_to_str(status))
+                if self.route is not None:
+                    status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
+                    if status != 0:
+                        raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
+                status = pjsip_inv_invite(self.c_obj, &c_tdata)
+                if status != 0:
+                    raise RuntimeError("Could not create INVITE message: %s" % pj_status_to_str(status))
+                pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
+                status = pjsip_inv_send_msg(self.c_obj, c_tdata)
+                if status != 0:
+                    raise RuntimeError("Could not send INVITE message: %s" % pj_status_to_str(status))
+            except:
+                if self.c_obj != NULL:
+                    pjsip_inv_terminate(self.c_obj, 500, 0)
+                elif self.c_dlg != NULL:
+                    pjsip_dlg_terminate(self.c_dlg)
+                self.c_obj = NULL
+                self.c_dlg = NULL
+                raise
+            self.state = "CALLING"
+            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+        elif self.state == "ESTABLISHED":
+            pass
+        else:
+            raise RuntimeError('"invite" method can only be used in "DISCONNECTED" and "ESTABLISHED" states')
+
+    def accept(self, SDPSession local_sdp):
+        global _ua, _event_queue
+        cdef int status
+        cdef pjsip_tx_data *c_tdata
+        cdef PJSIPUA ua
+        if _ua == NULL:
+            raise RuntimeError("PJSIPUA already dealloced")
+        ua = <object> _ua
+        if self.state == "INCOMING":
+            status = pjsip_inv_answer(self.c_obj, 200, NULL, &local_sdp.c_obj, &c_tdata)
+            if status != 0:
+                raise RuntimeError("Could not create 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
+            pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
+            status = pjsip_inv_send_msg(self.c_obj, c_tdata)
+            if status != 0:
+                raise RuntimeError("Could not send 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
+            self.state = "ESTABLISHED"
+            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+        elif self.state == "PROPOSED":
+            pass
+        else:
+            raise RuntimeError('"accept" method can only be used in "INCOMING" and "PROPOSED" states')
 
     def end(self):
         global _ua
         cdef pjsip_tx_data *c_tdata
         cdef PJSIPUA ua
-        if self.state == "DISCONNECTD" or self.state == "TERMINATED":
+        if self.state in ["DISCONNECTED", "INVALID"]:
             raise RuntimeError("INVITE session is no longer active")
         if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
@@ -1964,29 +2093,52 @@ cdef class Invitation:
         status = pjsip_inv_send_msg(self.c_obj, c_tdata)
         if status != 0:
             raise RuntimeError("Could not send message to end INVITE session: %s" % pj_status_to_str(status))
+        self.state = "DISCONNECTED"
+        _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
     global _ua
     cdef PJSIPUA ua
+    cdef void *invitation_void = NULL
     cdef Invitation invitation
     cdef pjsip_transaction *tsx = NULL
     if _ua != NULL:
         ua = <object> _ua
-        invitation = <object> inv.mod_data[ua.c_module.id]
-        if e != NULL:
-            if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and e.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
-                tsx = e.body.tsx_state.tsx
-        invitation._cb_state(tsx)
+        invitation_void = inv.mod_data[ua.c_module.id]
+        if invitation_void != NULL:
+            invitation = <object> invitation_void
+            if e != NULL:
+                if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and e.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
+                    tsx = e.body.tsx_state.tsx
+            invitation._cb_state(tsx)
 
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!
     pass
 
-cdef void cb_Invitation_sdp_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil:
-    pass
+cdef void cb_Invitation_cb_sdp_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil:
+    global _ua
+    cdef PJSIPUA ua
+    cdef void *invitation_void = NULL
+    cdef Invitation invitation
+    if _ua != NULL:
+        ua = <object> _ua
+        invitation_void = inv.mod_data[ua.c_module.id]
+        if invitation_void != NULL:
+            invitation = <object> invitation_void
+            invitation._cb_sdp_offer(c_make_SDPSession(offer))
 
-cdef void cb_Invitation_sdp_done(pjsip_inv_session *inv, int status) with gil:
-    pass
+cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
+    global _ua
+    cdef PJSIPUA ua
+    cdef void *invitation_void = NULL
+    cdef Invitation invitation
+    if _ua != NULL:
+        ua = <object> _ua
+        invitation_void = inv.mod_data[ua.c_module.id]
+        if invitation_void != NULL:
+            invitation = <object> invitation_void
+            invitation._cb_sdp_done(status)
 
 cdef struct pypjua_log_msg:
     pypjua_log_msg *prev
@@ -2049,7 +2201,7 @@ _subs_cb.on_rx_notify = cb_Subscription_cb_notify
 cdef pjsip_inv_callback _inv_cb
 _inv_cb.on_state_changed = cb_Invitation_cb_state
 _inv_cb.on_new_session = cb_new_Invitation
-_inv_cb.on_rx_offer = cb_Invitation_sdp_offer
-_inv_cb.on_media_update = cb_Invitation_sdp_done
+_inv_cb.on_rx_offer = cb_Invitation_cb_sdp_offer
+_inv_cb.on_media_update = cb_Invitation_cb_sdp_done
 
 pj_srand(clock())
