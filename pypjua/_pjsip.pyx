@@ -436,6 +436,9 @@ cdef extern from "pjsip_ua.h":
     int pjsip_regc_get_info(pjsip_regc *regc, pjsip_regc_info *info)
     int pjsip_regc_set_route_set(pjsip_regc *regc, pjsip_route_hdr *route_set)
 
+    # 100rel / PRACK
+    int pjsip_100rel_init_module(pjsip_endpoint *endpt)
+
     # invite sessions
     enum pjsip_inv_state:
         PJSIP_INV_STATE_EARLY
@@ -556,6 +559,9 @@ cdef class PJSIPEndpoint:
         status = pjsip_evsub_init_module(self.c_obj)
         if status != 0:
             raise RuntimeError("Could not initialize event subscription module: %s" % pj_status_to_str(status))
+        status = pjsip_100rel_init_module(self.c_obj)
+        if status != 0:
+            raise RuntimeError("Could not initialize 100rel module: %s" % pj_status_to_str(status))
         status = pjsip_inv_usage_init(self.c_obj, &_inv_cb)
         if status != 0:
             raise RuntimeError("Could not initialize invitation module: %s" % pj_status_to_str(status))
