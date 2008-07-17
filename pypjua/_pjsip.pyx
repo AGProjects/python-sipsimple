@@ -466,6 +466,7 @@ cdef extern from "pjsip_ua.h":
     int pjsip_inv_answer(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjmedia_sdp_session *local_sdp, pjsip_tx_data **p_tdata)
     int pjsip_inv_create_uac(pjsip_dialog *dlg, pjmedia_sdp_session *local_sdp, unsigned int options, pjsip_inv_session **p_inv)
     int pjsip_inv_invite(pjsip_inv_session *inv, pjsip_tx_data **p_tdata)
+    int pjsip_inv_set_sdp_answer(pjsip_inv_session *inv, pjmedia_sdp_session *sdp)
 
 # Python C imports
 
@@ -1995,12 +1996,17 @@ cdef class Invitation:
             _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self)))
 
     cdef int _cb_sdp_offer(self, SDPSession session) except -1:
-        pass
+        cdef int status
+        cdef SDPSession local_sdp_reject = SDPSession("127.0.0.1") # This is a bogus SDP struct with no media, PJSIP should consider the negotiation fialed and send a 500
+        status = pjsip_inv_set_sdp_answer(self.c_obj, &local_sdp_reject.c_obj)
+        if status != 0:
+            raise RuntimeError("Could not set local SDP in response to re-INVITE: %s" % pj_status_to_str(status))
 
     cdef int _cb_sdp_done(self, int sdp_status) except -1:
         global _event_queue
         cdef pjmedia_sdp_session *remote_sdp
-        if self.state in ["CALLING", "PROPOSING"]:
+        #if self.state in ["CALLING", "PROPOSING"]:
+        if self.state in ["CALLING"]:
             if sdp_status != 0:
                 self.end()
             else:
@@ -2055,10 +2061,11 @@ cdef class Invitation:
                 raise
             self.state = "CALLING"
             _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
-        elif self.state == "ESTABLISHED":
-            pass
+        #elif self.state == "ESTABLISHED":
+        #    pass
         else:
-            raise RuntimeError('"invite" method can only be used in "DISCONNECTED" and "ESTABLISHED" states')
+            #raise RuntimeError('"invite" method can only be used in "DISCONNECTED" and "ESTABLISHED" states')
+            raise RuntimeError('"invite" method can only be used in "DISCONNECTED" state')
 
     def accept(self, SDPSession local_sdp):
         global _ua, _event_queue
@@ -2078,10 +2085,11 @@ cdef class Invitation:
                 raise RuntimeError("Could not send 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
             self.state = "ESTABLISHED"
             _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
-        elif self.state == "PROPOSED":
-            pass
+        #elif self.state == "PROPOSED":
+        #    pass
         else:
-            raise RuntimeError('"accept" method can only be used in "INCOMING" and "PROPOSED" states')
+            #raise RuntimeError('"accept" method can only be used in "INCOMING" and "PROPOSED" states')
+            raise RuntimeError('"accept" method can only be used in "INCOMING" state')
 
     def end(self):
         global _ua
