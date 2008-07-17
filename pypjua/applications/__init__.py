@@ -49,7 +49,7 @@ class XMLParser(Parser):
     _schema_file = None
     _parser = etree.XMLParser()
 
-    _schema_dir = os.path.join(os.path.dirname(globals()['__file__']), 'xml-schemas')
+    _schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
 
     def _parse(self, document):
         if self._parser is not None:
