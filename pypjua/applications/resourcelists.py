@@ -260,6 +260,14 @@ class ElementWithDisplayName(ToElementMixin, DisplayNameMixin):
                                 getattr(self, self._arg),
                                 display_name)
 
+    def __cmp__(self, other):
+        arg = self._arg
+        return cmp(getattr(self, arg), getattr(other, arg)) or \
+               cmp(self.display_name, other.display_name)
+
+    def __hash__(self, other):
+        return hash((getattr(self, arg), self.display_name))
+
 
 class Entry(ElementWithDisplayName):
     _xml_tag = _prefix_ + 'entry'
