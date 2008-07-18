@@ -25,11 +25,22 @@ uri, ref and anchor respectively.
 Create a simple document:
 
 >>> bill = Entry('sip:bill@example.com', display_name = 'Bill Doe')
->>> petri = EntryRef('(some ref)')
+>>> petri = EntryRef('some/ref')
 >>> friends = List([bill, petri])
 >>> rls = ResourceLists([friends])
->>> rls.tostring()
-'<xml...'
+>>> print rls.toxml(pretty_print=True)
+<?xml version='1.0' encoding='UTF-8'?>
+<ns0:resource-lists xmlns:ns0="urn:ietf:params:xml:ns:resource-lists">
+  <ns0:list>
+    <ns0:entry uri="sip:bill@example.com">
+      <ns0:display-name>Bill Doe</ns0:display-name>
+    </ns0:entry>
+    <ns0:entry-ref ref="some/ref"/>
+  </ns0:list>
+</ns0:resource-lists>
+<BLANKLINE>
+
+toxml() passes all the arguments (like pretty_print) to etree.tostring()
 
 Parse a document:
 
@@ -55,8 +66,10 @@ Marketing
 
 """
 
+
+import sys
 from lxml import etree
-from pypjua.applications import XMLParser
+from pypjua.applications import XMLParser, ParserError
 
 __all__ = ['List',
            'DisplayName',
@@ -108,6 +121,7 @@ def class_to_str(klass):
 
 class ToElementMixin(object):
     _xml_tag = None
+    default_encoding = 'UTF-8'
 
     def to_element(self, parent = None):
         if parent is None:
@@ -119,6 +133,12 @@ class ToElementMixin(object):
 
     def set_element(self, element):
         raise NotImplementedError
+
+    def toxml(self, *args, **kwargs):
+        """Shortcut that generates Element and calls etree.tostring"""
+        element = self.to_element()
+        kwargs.setdefault('encoding', self.default_encoding)
+        return etree.tostring(element, *args, **kwargs)
 
 
 class DisplayNameMixin(object):
@@ -287,6 +307,11 @@ class External(ElementWithDisplayName):
 class ResourceLists(list):
     _xml_tag = _prefix_ + 'resource-lists'
 
+    # default parameters for toxml()
+    default_validate = True
+    default_encoding = 'UTF-8'
+    default_xml_declaration = True
+
     @classmethod
     def from_element(cls, element):
         self = cls()
@@ -307,11 +332,26 @@ class ResourceLists(list):
         root = _parser_._parse(document)
         return cls.from_element(root)
 
-    def tostring(self, *args, **kwargs):
+    def toxml(self, *args, **kwargs):
+        """Shortcut that generates Element and calls etree.tostring.
+
+        If `validate' keyword arg is present and evaluates to True, method
+        also does schema validation.
+        """
         element = self.to_element()
-        return etree.tostring(element, *args, **kwargs)
+        kwargs.setdefault('encoding', self.default_encoding)
+        kwargs.setdefault('xml_declaration', self.default_xml_declaration)
+        res = etree.tostring(element, *args, **kwargs)
+        if kwargs.pop('validate', self.default_validate):
+            try:
+                _parser_._validate(element)
+            except ParserError:
+                sys.stderr.write('Failed to validate:\n%s\n' % res)
+                raise
+        return res
 
 
+# possible List members
 _mapping_ = { Entry._xml_tag       : Entry,
               EntryRef._xml_tag    : EntryRef,
               List._xml_tag        : List,
@@ -321,51 +361,61 @@ _mapping_ = { Entry._xml_tag       : Entry,
 
 def __test():
 
-    def check_xml(obj, expected):
+    def clone(obj):
         element = obj.to_element()
-        result = etree.tostring(element)
-        assert result == expected, (result, expected)
+        return obj.__class__.from_element(element)
 
-    # remove namespace from tags
-    for c in map(eval, __all__):
-        t = c._xml_tag
-        t = t[t.find('}')+1:]
-        c._xml_tag = t
+    bill = Entry('sip:bill@example.com', display_name = 'Bill Doe')
+    bill2 = clone(bill)
+    assert bill.uri == bill2.uri
+    assert bill.display_name == bill2.display_name
+    assert bill == bill2
 
-    check_xml(Entry('sip:bill@example.com'),
-              '<entry uri="sip:bill@example.com"/>')
+    bill2.display_name = 'Just Bill'
+    assert bill != bill2
 
-    check_xml(Entry('sip:bill@example.com', display_name = 'Bill Doe'),
-              '<entry uri="sip:bill@example.com"><display-name>Bill Doe</display-name></entry>')
+    ref = EntryRef('a/b/c', display_name = u'Unicode')
+    ref2 = clone(ref)
+    assert ref.ref == ref2.ref
+    assert ref.display_name == ref2.display_name
+    assert ref == ref2
 
-    check_xml(EntryRef('a/b/c', display_name = u'Unicode'),
-              '<entry-ref ref="a/b/c"><display-name>Unicode</display-name></entry-ref>')
+    ext = External('http://localhost')
+    ext2 = clone(ext)
+    assert ext.anchor == ext2.anchor
+    assert ext.display_name == ext2.display_name
+    assert ext == ext2
 
-    check_xml(External('http://localhost'),
-              '<external anchor="http://localhost"/>')
-
-    #check_xml(DisplayName('ABC', lang = 'en'),
-    #          '<display-name xml:lang="en">ABC</display-name>')
+    #name = DisplayName('ABC', lang = 'en')
+    #name2 = clone(name)
+    #assert name == name2
     #XXX ValueError: Invalid attribute name u'xml:lang'
 
-    l = List()
-    check_xml(l, '<list/>')
-    l.name = 'outside'
-    l.append(Entry('1'))
-    l.display_name = 'dname'
-    
-    l2 = List([Entry('2')], name='inside')
-
-    check_xml(l2, '<list name="inside"><entry uri="2"/></list>')
-
-    l.append(l2)
-    check_xml(l, '<list name="outside"><display-name>dname</display-name><entry uri="1"/>' + \
-                 '<list name="inside"><entry uri="2"/></list></list>')
+    lst = List([bill, ref, ext, List(name='inside')], display_name = 'mylist')
+    lst2 = clone(lst)
+    assert lst == lst2
 
     rls = ResourceLists()
-    rls.append(l)
+    rls.append(lst)
+    rls2 = clone(rls)
+    assert rls == rls2
 
-    check_xml(rls, 'x')
+    xml = rls.toxml(pretty_print=True)
+    assert xml  == '''<?xml version='1.0' encoding='UTF-8'?>
+<ns0:resource-lists xmlns:ns0="urn:ietf:params:xml:ns:resource-lists">
+  <ns0:list>
+    <ns0:display-name>mylist</ns0:display-name>
+    <ns0:entry uri="sip:bill@example.com">
+      <ns0:display-name>Bill Doe</ns0:display-name>
+    </ns0:entry>
+    <ns0:entry-ref ref="a/b/c">
+      <ns0:display-name>Unicode</ns0:display-name>
+    </ns0:entry-ref>
+    <ns0:external anchor="http://localhost"/>
+    <ns0:list name="inside"/>
+  </ns0:list>
+</ns0:resource-lists>
+''', xml
 
     assert DisplayName('123') == DisplayName ('123')
     assert not DisplayName('123') == DisplayName ('123', lang = 'en')
