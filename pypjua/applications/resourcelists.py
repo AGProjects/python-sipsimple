@@ -139,6 +139,7 @@ class List(list, ToElementMixin, DisplayNameMixin):
     _xml_tag = _prefix_ + 'list'
 
     def __init__(self, iterable = [], name = None, display_name = None):
+        assert not isinstance(iterable, basestring), 'have you passed name as first argument?'
         list.__init__(self, iterable)
         self.name = name
         self.display_name = display_name
