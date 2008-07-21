@@ -4,6 +4,8 @@
  xmlns="urn:ietf:params:xml:ns:rls-services"
  xmlns:rl="urn:ietf:params:xml:ns:resource-lists"
  elementFormDefault="qualified" attributeFormDefault="unqualified">
+ <xs:import namespace="urn:ietf:params:xml:ns:resource-lists"
+  schemaLocation="resourcelists.xsd"/>
  <xs:element name="rls-services">
   <xs:complexType>
    <xs:sequence minOccurs="0" maxOccurs="unbounded">
