@@ -1,34 +1,16 @@
-"""<resource-lists> (rfc4826) handling
+"""Resource lists (rfc4826) handling
 
 This module provides convenient classes to parse and generate
-<resource-lists> documents as described in RFC 4826.
+<resource-lists> and <rls-services> documents as described in RFC 4826.
 
-TODO: schema isn't enforced at object construction
-
-The module implements following classes which map one-to-one to the
-corresponding xml elements:
-
- * ResourceLists
- * List
- * Entry
- * EntryRef
- * External
- * DisplayName
-
-ResourceLists is a list of List objects.
-List is a list of List/Entry/EntryRef/External objects.
-List may have additional name attribute.
-List, Entry, EntryRef and External may have display_name attribute.
-Entry, EntryRef and External each have one mandatory attribute:
-uri, ref and anchor respectively.
-
-Create a simple document:
+Generation
+----------
 
 >>> bill = Entry('sip:bill@example.com', display_name = 'Bill Doe')
 >>> petri = EntryRef('some/ref')
 >>> friends = List([bill, petri])
->>> rls = ResourceLists([friends])
->>> print rls.toxml(pretty_print=True)
+>>> rl = ResourceLists([friends])
+>>> print rl.toxml(pretty_print=True)
 <?xml version='1.0' encoding='UTF-8'?>
 <ns0:resource-lists xmlns:ns0="urn:ietf:params:xml:ns:resource-lists">
   <ns0:list>
@@ -40,15 +22,47 @@ Create a simple document:
 </ns0:resource-lists>
 <BLANKLINE>
 
-toxml() passes all the arguments (like pretty_print) to etree.tostring()
+toxml() wraps etree.tostring() and accepts all its arguments (like pretty_print).
 
-Parse a document:
+>>> buddies = Service('sip:mybuddies@example.com', 'http://xcap.example.com/xxx', ['presence'])
+>>> marketing = Service('sip:marketing@example.com')
+>>> marketing.list = List([Entry('sip:joe@example.com'), Entry('sip:sudhir@example.com')])
+>>> marketing.packages = ['presence']
+>>> rls = RLSServices([buddies, marketing])
+>>> print rls.toxml(validate=False, pretty_print=True)
+<?xml version='1.0' encoding='UTF-8'?>
+<ns0:rls-services xmlns:ns0="urn:ietf:params:xml:ns:rls-services">
+  <ns0:service uri="sip:mybuddies@example.com">
+    <ns0:resource-list>http://xcap.example.com/xxx</ns0:resource-list>
+    <ns0:packages>
+      <ns0:package>presence</ns0:package>
+    </ns0:packages>
+  </ns0:service>
+  <ns0:service uri="sip:marketing@example.com">
+    <ns1:list xmlns:ns1="urn:ietf:params:xml:ns:resource-lists">
+      <ns1:entry uri="sip:joe@example.com"/>
+      <ns1:entry uri="sip:sudhir@example.com"/>
+    </ns1:list>
+    <ns0:packages>
+      <ns0:package>presence</ns0:package>
+    </ns0:packages>
+  </ns0:service>
+</ns0:rls-services>
+<BLANKLINE>
 
->>> rls = ResourceLists.parse(example_from_section_3_3_of_rfc)
->>> len(rls)
+XXX validation fails when there're one or more List elements (i.e. from imported namespace)
+XXX when there are no Lists, validations passes:
+>>> _ = RLSServices([buddies]).toxml(validate=True)
+
+
+Parsing
+-------
+
+>>> r = ResourceLists.parse(example_from_section_3_3_rfc)
+>>> len(r)
 1
 
->>> friends = rls[0]
+>>> friends = r[0]
 >>> friends.name
 'friends'
 
@@ -60,9 +74,32 @@ Bill Doe
 
 >>> close_friends = friends[2]
 >>> close_friends[0]
-Entry(uri='sip:joe@example.com', display_name=DisplayName('Joe Smith'))
+Entry('sip:joe@example.com', display_name=DisplayName('Joe Smith'))
 >>> print close_friends[2].display_name
 Marketing
+
+
+>>> rls = RLSServices.parse(example_from_section_4_3_rfc)
+>>> len(rls)
+2
+
+>>> rls[0].uri
+'sip:mybuddies@example.com'
+
+>>> rls[0].list
+ResourceList(u'http://xcap.example.com/xxx')
+
+>>> rls[0].packages
+Packages([Package(u'presence')])
+
+
+>>> rls[1].uri
+'sip:marketing@example.com'
+
+>>> rls[1].list
+List([Entry('sip:joe@example.com'), Entry('sip:sudhir@example.com')], name='marketing')
+
+>>> assert rls[1].packages == ['presence']
 
 """
 
@@ -70,13 +107,19 @@ Marketing
 import sys
 from lxml import etree
 from pypjua.applications import XMLParser, ParserError
+from hlist import TypedList, HookedList
 
 __all__ = ['List',
            'DisplayName',
            'Entry',
            'EntryRef',
            'External',
-           'ResourceLists']
+           'ResourceLists',
+           'Package',
+           'Packages',
+           'ResourceList',
+           'Service',
+           'RLSServices']
 
 # excerpt from the RFC:
 
@@ -101,22 +144,39 @@ __all__ = ['List',
 # attribute "anchor" - mandatory, unique among all other anchor in <external> within the same parent
 # anchor must be an absolute http uri that resolves into <list>
 
+# <rls-services>
+# body: sequence of <service> elements
+
+# <service>
+# attribute "uri": mandatory, unique among all <service> in any document
+# body: List or ResourceList, then optional Packages
+
+# <resource-list>
+# body: http uri that references <list>
+
+# <packages>
+# body: sequence of <package>
+
+# <package>
+# body: name of SIP event package
+
 # XXX currently there are no consistency checks in the classes (i.e. that name is unique, etc)
 # you'll get an error at validation, but you should get it earlier, at object construction.
 
-class Parser(XMLParser):
+class ResourceListsParser(XMLParser):
     accept_types = ['application/resource-lists+xml']
     _namespace = 'urn:ietf:params:xml:ns:resource-lists'
     _schema_file = 'resourcelists.xsd'
     _parser = etree.XMLParser(remove_blank_text=True)
 
-_parser_ = Parser()
-_prefix_ = '{%s}' % Parser._namespace
+class RLSServicesParser(XMLParser):
+    accept_types = ['application/rls-services+xml']
+    _namespace = 'urn:ietf:params:xml:ns:rls-services'
+    _schema_file = 'rlsservices.xsd'
+    _parser = etree.XMLParser(remove_blank_text=True)
 
-
-def class_to_str(klass):
-    return klass.__name__
-    return '%s.%s' % (klass.__module__, klass.__name__)
+_resource_lists_prefix = '{%s}' % ResourceListsParser._namespace
+_rls_services_prefix = '{%s}' % RLSServicesParser._namespace
 
 
 class ToElementMixin(object):
@@ -142,6 +202,7 @@ class ToElementMixin(object):
 
 
 class DisplayNameMixin(object):
+    "adds display_name attribute to the class"
 
     def _get_display_name(self):
         return self._display_name
@@ -155,65 +216,8 @@ class DisplayNameMixin(object):
                             _set_display_name)
 
 
-class List(list, ToElementMixin, DisplayNameMixin):
-    _xml_tag = _prefix_ + 'list'
-
-    def __init__(self, iterable = [], name = None, display_name = None):
-        assert not isinstance(iterable, basestring), 'have you passed name as first argument?'
-        list.__init__(self, iterable)
-        self.name = name
-        self.display_name = display_name
-
-    @classmethod
-    def from_element(cls, element):
-        display_name = None
-        lst = []
-        for child in element:
-            klass = _mapping_.get(child.tag)
-            if klass is DisplayName:
-                display_name = DisplayName.from_element(child)
-            elif klass is not None:
-                obj = klass.from_element(child)
-                lst.append(obj)
-        return cls(lst, element.get('name'), display_name)
-
-    def set_element(self, element):
-        if self.name is not None:
-            element.set('name', self.name)
-        if self.display_name:
-            self.display_name.to_element(element)
-        for child in self:
-            child.to_element(element)
-
-    def __repr__(self):
-        if self.name is not None:
-            name = ', name=%r' % self.name
-        else:
-            name = ''
-        if self.display_name is not None:
-            display_name = ', display_name=%r' % self.display_name
-        else:
-            display_name = ''            
-        return '%s(%s%s%s)' % (class_to_str(self.__class__),
-                               list.__repr__(self),
-                               name,
-                               display_name)
-
-    def entries(self):
-        return [x for x in self if isinstance(x, Entry)]
-
-    def lists(self):
-        return [x for x in self if isinstance(x, List)]
-
-    def entryrefs(self):
-        return [x for x in self if isinstance(x, EntryRef)]
-
-    def externals(self):
-        return [x for x in self if isinstance(x, External)]
-
-
 class DisplayName(ToElementMixin):
-    _xml_tag = _prefix_ + 'display-name'
+    _xml_tag = _resource_lists_prefix + 'display-name'
 
     def __init__(self, text, lang = None):
         self.text = text
@@ -275,10 +279,9 @@ class ElementWithDisplayName(ToElementMixin, DisplayNameMixin):
             display_name = ', display_name=%r' % self.display_name
         else:
             display_name = ''
-        return '%s(%s=%r%s)' % (class_to_str(self.__class__),
-                                self._arg,
-                                getattr(self, self._arg),
-                                display_name)
+        return '%s(%r%s)' % (self.__class__.__name__,
+                             getattr(self, self._arg),
+                             display_name)
 
     def __cmp__(self, other):
         arg = self._arg
@@ -290,22 +293,88 @@ class ElementWithDisplayName(ToElementMixin, DisplayNameMixin):
 
 
 class Entry(ElementWithDisplayName):
-    _xml_tag = _prefix_ + 'entry'
+    _xml_tag = _resource_lists_prefix + 'entry'
     _arg = 'uri'
 
 
 class EntryRef(ElementWithDisplayName):
-    _xml_tag = _prefix_ + 'entry-ref'
+    _xml_tag = _resource_lists_prefix + 'entry-ref'
     _arg = 'ref'
 
 
 class External(ElementWithDisplayName):
-    _xml_tag = _prefix_ + 'external'
+    _xml_tag = _resource_lists_prefix + 'external'
     _arg = 'anchor'
 
 
-class ResourceLists(list):
-    _xml_tag = _prefix_ + 'resource-lists'
+class List(TypedList, ToElementMixin, DisplayNameMixin):
+    "list of List/Entry/EntryRef/External objects"
+    _xml_tag = _resource_lists_prefix + 'list'
+
+    def __init__(self, iterable = [], name = None, display_name = None):
+        assert not isinstance(iterable, basestring), 'have you passed name as first argument?'
+        list.__init__(self, iterable)
+        self.name = name
+        self.display_name = display_name
+
+    @classmethod
+    def from_element(cls, element):
+        display_name = None
+        lst = []
+        for child in element:
+            klass = _mapping_.get(child.tag)
+            if klass is DisplayName:
+                display_name = DisplayName.from_element(child)
+            elif klass is not None:
+                obj = klass.from_element(child)
+                lst.append(obj)
+        return cls(lst, element.get('name'), display_name)
+
+    def set_element(self, element):
+        if self.name is not None:
+            element.set('name', self.name)
+        if self.display_name:
+            self.display_name.to_element(element)
+        for child in self:
+            child.to_element(element)
+
+    def __repr__(self):
+        if self.name is not None:
+            name = ', name=%r' % self.name
+        else:
+            name = ''
+        if self.display_name is not None:
+            display_name = ', display_name=%r' % self.display_name
+        else:
+            display_name = ''            
+        return '%s(%s%s%s)' % (self.__class__.__name__,
+                               list.__repr__(self),
+                               name,
+                               display_name)
+
+    def entries(self):
+        return [x for x in self if isinstance(x, Entry)]
+
+    def lists(self):
+        return [x for x in self if isinstance(x, List)]
+
+    def entryrefs(self):
+        return [x for x in self if isinstance(x, EntryRef)]
+
+    def externals(self):
+        return [x for x in self if isinstance(x, External)]
+
+List._items_types_ = (Entry, EntryRef, External, List)
+
+# possible List members
+_mapping_ = { Entry._xml_tag       : Entry,
+              EntryRef._xml_tag    : EntryRef,
+              List._xml_tag        : List,
+              External._xml_tag    : External,
+              DisplayName._xml_tag : DisplayName }
+
+
+class MainListElement(TypedList):
 
     # default parameters for toxml()
     default_validate = True
@@ -316,8 +385,8 @@ class ResourceLists(list):
     def from_element(cls, element):
         self = cls()
         for x in element:
-            assert x.tag == List._xml_tag, x.tag
-            l = List.from_element(x)
+            assert x.tag == cls._items_types_._xml_tag, x.tag
+            l = cls._items_types_.from_element(x)
             self.append(l)
         return self
 
@@ -329,7 +398,7 @@ class ResourceLists(list):
 
     @classmethod
     def parse(cls, document):
-        root = _parser_._parse(document)
+        root = cls.parser._parse(document)
         return cls.from_element(root)
 
     def toxml(self, *args, **kwargs):
@@ -345,19 +414,132 @@ class ResourceLists(list):
         res = etree.tostring(element, *args, **kwargs)
         if validate:
             try:
-                _parser_._validate(element)
+                self.parser._validate(element)
             except ParserError:
                 sys.stderr.write('Failed to validate:\n%s\n' % res)
                 raise
         return res
 
 
-# possible List members
-_mapping_ = { Entry._xml_tag       : Entry,
-              EntryRef._xml_tag    : EntryRef,
-              List._xml_tag        : List,
-              External._xml_tag    : External,
-              DisplayName._xml_tag : DisplayName }
+class ResourceLists(MainListElement):
+    "list of Lists"
+    _xml_tag = _resource_lists_prefix + 'resource-lists'
+    _items_types_ = List
+    parser = ResourceListsParser()
+
+
+class StringElement(unicode, ToElementMixin):
+
+    def __new__(cls, name):
+        return unicode.__new__(cls, name)
+
+    @classmethod
+    def from_element(cls, element):
+        return cls(element.text)
+
+    def set_element(self, element):
+        element.text = self
+
+    def __repr__(self):
+        return '%s(%s)' % (self.__class__.__name__, unicode.__repr__(self))
+
+
+class Package(StringElement):
+    _xml_tag = _rls_services_prefix + 'package'
+
+
+class Packages(HookedList, ToElementMixin):
+    _xml_tag = _rls_services_prefix + 'packages'
+
+    @classmethod
+    def from_element(cls, element):
+        self = cls()
+        for child in element:
+            assert child.tag == Package._xml_tag
+            self.append(Package.from_element(child))
+        return self
+
+    def set_element(self, element):
+        for child in self:
+            child.to_element(element)
+
+    def _before_insert(self, value):
+        if isinstance(value, basestring):
+            return Package(value)
+        elif isinstance(value, Package):
+            return value
+        else:
+            raise TypeError('value must be Package, str or unicode')
+
+
+class ResourceList(StringElement):
+    _xml_tag = _rls_services_prefix + 'resource-list'
+
+
+class Service(ToElementMixin):
+    _xml_tag = _rls_services_prefix + 'service'
+
+    list_classes = { ResourceList._xml_tag : ResourceList,
+                     List._xml_tag : List, # QQQ why this is needed?
+                     _rls_services_prefix + 'list' : List }
+
+    def __init__(self, uri, list = List(), packages = Packages()):
+        self.uri = uri
+        self.list = list
+        self.packages = packages
+
+    def _get_list(self):
+        return self._list
+
+    def _set_list(self, list):
+        if isinstance(list, (List, ResourceList)):
+            self._list = list
+        else:
+            self._list = ResourceList(list)
+
+    list = property(_get_list, _set_list)
+
+    def _get_packages(self):
+        return self._packages
+
+    def _set_packages(self, packages):
+        if isinstance(packages, Packages):
+            self._packages = packages
+        else:
+            self._packages = Packages(packages)
+
+    packages = property(_get_packages, _set_packages)
+
+    @classmethod
+    def from_element(cls, element):
+        uri = element.attrib['uri']
+        children = element.iterchildren()
+        x = children.next()
+        lst = cls.list_classes[x.tag].from_element(x)
+        try:
+            x = children.next()
+        except StopIteration:
+            packages = None
+        else:
+            packages = Packages.from_element(x)
+        return Service(uri, lst, packages)
+
+    def set_element(self, element):
+        element.set('uri', self.uri)
+        self.list.to_element(element)
+        if self.packages:
+            self.packages.to_element(element)
+
+    def __cmp__(self, other):
+        return cmp(self.uri, other.uri) or \
+               cmp(self._list, other._list) or \
+               cmp(self._packages, other._packages)
+
+
+class RLSServices(MainListElement):
+    _xml_tag = _rls_services_prefix + 'rls-services'
+    _items_types_ = Service
+    parser = RLSServicesParser()
 
 
 def __test():
@@ -421,9 +603,43 @@ def __test():
     assert DisplayName('123') == DisplayName ('123')
     assert not DisplayName('123') == DisplayName ('123', lang = 'en')
 
+    package = Package('presence')
+    package2 = clone(package)
+    assert package == package2
+
+    packages = Packages([package, package2])
+    packages2 = clone(package)
+    assert packages == packages
+
+    rl = ResourceList('http://localhost')
+    rl2 = clone(rl)
+    assert rl == rl2
+
+    s = Service('sip:service@service.com', rl, packages)
+    s2 = clone(s)
+    assert s.uri == s2.uri
+    assert s.list == s2.list, (s.list, s2.list)
+    assert s.packages == s2.packages
+    assert s == s2, (s, s2)
+
+    rls = RLSServices([s])
+
+    s = Service('sip:service@service.com', lst, packages)
+    s2 = clone(s)
+    assert s.uri == s2.uri
+    assert s.list == s2.list
+    assert s.packages == s2.packages
+    assert s == s2
+
+    s.packages = [package, package2]
+    assert s.packages == s2.packages
+    assert s == s2
+
+    rls.append(s)
+    rls.toxml(validate=False, pretty_print=True)
 
 if __name__ == '__main__':
-    demo_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    example_from_section_3_3_rfc = """<?xml version="1.0" encoding="UTF-8"?>
 <resource-lists xmlns="urn:ietf:params:xml:ns:resource-lists"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
  <list name="friends">
@@ -445,6 +661,28 @@ if __name__ == '__main__':
   </list>
  </list>
 </resource-lists>"""
+
+    example_from_section_4_3_rfc = """<?xml version="1.0" encoding="UTF-8"?>
+<rls-services xmlns="urn:ietf:params:xml:ns:rls-services"
+   xmlns:rl="urn:ietf:params:xml:ns:resource-lists"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+ <service uri="sip:mybuddies@example.com">
+  <resource-list>http://xcap.example.com/xxx</resource-list>
+  <packages>
+   <package>presence</package>
+  </packages>
+ </service>
+ <service uri="sip:marketing@example.com">
+   <list name="marketing">
+     <rl:entry uri="sip:joe@example.com"/>
+     <rl:entry uri="sip:sudhir@example.com"/>
+   </list>
+   <packages>
+     <package>presence</package>
+   </packages>
+ </service>
+</rls-services>"""
+
     import doctest
-    doctest.testmod(extraglobs = {'example_from_section_3_3_of_rfc' : demo_xml})
+    doctest.testmod(extraglobs = locals())
     __test()
