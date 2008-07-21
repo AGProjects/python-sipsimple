@@ -285,8 +285,8 @@ class ElementWithDisplayName(ToElementMixin, DisplayNameMixin):
         return cmp(getattr(self, arg), getattr(other, arg)) or \
                cmp(self.display_name, other.display_name)
 
-    def __hash__(self, other):
-        return hash((getattr(self, arg), self.display_name))
+    def __hash__(self):
+        return hash((getattr(self, self._arg), self.display_name))
 
 
 class Entry(ElementWithDisplayName):
