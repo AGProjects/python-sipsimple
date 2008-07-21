@@ -341,8 +341,9 @@ class ResourceLists(list):
         element = self.to_element()
         kwargs.setdefault('encoding', self.default_encoding)
         kwargs.setdefault('xml_declaration', self.default_xml_declaration)
+        validate = kwargs.pop('validate', self.default_validate)
         res = etree.tostring(element, *args, **kwargs)
-        if kwargs.pop('validate', self.default_validate):
+        if validate:
             try:
                 _parser_._validate(element)
             except ParserError:
