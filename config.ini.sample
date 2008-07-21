@@ -8,22 +8,25 @@ enable_bonjour=false
 ; advanced options, can be overwritten per account 
 enable_audio=false
 enable_video=false
-enable_im=true
+enable_msrp_im=true
+enable_msrp_file_transfer=true
 enable_presence=true
 enable_presence_spheres=false
-enable_rls_services=false
+enable_presence_rls_services=false
 enable_message_waiting_indicator=true
+enable_xcap=true
+enable_enum_lookup=false
+enable_srtp=no
 sip_transport=auto
 sip_register_period=600
 sip_subscribe_period=600
 sip_publish_period=600
 sip_transport=auto
-audio_codec_list=gsm ilbc speex g711
-video_codec_list=h264
-enable_enum_lookup=false
+audio_codecs=gsm ilbc speex g711
+video_codecs=h264
 
 
-[accountN]
+[account1]
 
 ; basic options
 username=
@@ -34,4 +37,3 @@ outbound_proxy=
 ; advanced options
 xcap_root=https://xcap.example.com/xcap-root/
 msrp_chatserver_domain=conference.example.com
-
