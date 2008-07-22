@@ -5,7 +5,10 @@ active_accounts=account1
 enable_echo_cancelation=true
 enable_bonjour=false
 
-; advanced options, can be overwritten per account 
+
+[account_options]
+
+; default account options, can be overwritten per account 
 enable_audio=false
 enable_video=false
 enable_msrp_im=true
@@ -16,6 +19,7 @@ enable_presence_rls_services=false
 enable_message_waiting_indicator=true
 enable_xcap=true
 enable_enum_lookup=false
+enable_thor_lookup=false
 enable_srtp=no
 sip_transport=auto
 sip_register_period=600
@@ -28,7 +32,8 @@ video_codecs=h264
 
 [account1]
 
-; basic options
+; sip basic options
+display_name=
 username=
 domain=
 password=
@@ -37,3 +42,4 @@ outbound_proxy=
 ; advanced options
 xcap_root=https://xcap.example.com/xcap-root/
 msrp_chatserver_domain=conference.example.com
+
