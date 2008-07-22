@@ -480,8 +480,8 @@ class Service(ToElementMixin):
     _xml_tag = _rls_services_prefix + 'service'
 
     list_classes = { ResourceList._xml_tag : ResourceList,
-                     List._xml_tag : List, # QQQ why this is needed?
-                     _rls_services_prefix + 'list' : List }
+                     _rls_services_prefix + 'list' : List, # QQQ why this is needed?
+                     List._xml_tag : List }
 
     def __init__(self, uri, list = List(), packages = Packages()):
         self.uri = uri
