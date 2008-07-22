@@ -113,11 +113,6 @@ class TypedList(HookedList):
     def _format_types_str(self):
         return ','.join([x.__name__ for x in self._items_types_])
 
-    def _before_remove(self, value):
-        """Called for every value that is about to be removed from the list.
-
-        Must not throw!
-        """
 
 def _test():
     """
