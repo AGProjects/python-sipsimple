@@ -8,6 +8,13 @@ device_id=auto
 msrp_im_chat_history_folder=
 msrp_file_transfer_folder=
 audio_recording_folder=
+user_agent='pypjua'
+enable_audio=false
+enable_video=false
+sip_trace=true
+local_ip=auto
+local_port=auto
+enable_audio_recording=false
 
 
 [gui]
@@ -17,9 +24,6 @@ audio_recording_folder=
 [account_options]
 
 ; default account options, can be overwritten per account 
-enable_audio=false
-enable_audio_recording=false
-enable_video=false
 enable_msrp_im=true
 enable_msrp_file_transfer=true
 enable_register=true
@@ -29,7 +33,6 @@ enable_presence_rls_services=false
 enable_presence_accept_watchers=prompt|allow|deny|allow_and_add_to_my_buddylist
 enable_presence_accept_watchers_from_local_domain=allow_and_add_to_my_buddylist|prompt|allow|deny
 enable_message_waiting_indicator=true
-enable_xcap=true
 enable_enum_lookup=false
 enable_thor_lookup=false
 enable_srtp=never|always|preffer
@@ -54,3 +57,4 @@ outbound_proxy=
 ; advanced options
 xcap_root=https://xcap.example.com/xcap-root/
 msrp_chatserver_domain=conference.example.com
+
