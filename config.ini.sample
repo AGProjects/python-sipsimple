@@ -1,26 +1,38 @@
 
 [general]
-
+; general options 
 active_accounts=account1
 enable_echo_cancelation=true
 enable_bonjour=false
+device_id=auto
+msrp_im_chat_history_folder=
+msrp_file_transfer_folder=
+audio_recording_folder=
+
+
+[gui]
+; graphical user interface options
 
 
 [account_options]
 
 ; default account options, can be overwritten per account 
 enable_audio=false
+enable_audio_recording=false
 enable_video=false
 enable_msrp_im=true
 enable_msrp_file_transfer=true
+enable_register=true
 enable_presence=true
 enable_presence_spheres=false
 enable_presence_rls_services=false
+enable_presence_accept_watchers=prompt|allow|deny|allow_and_add_to_my_buddylist
+enable_presence_accept_watchers_from_local_domain=allow_and_add_to_my_buddylist|prompt|allow|deny
 enable_message_waiting_indicator=true
 enable_xcap=true
 enable_enum_lookup=false
 enable_thor_lookup=false
-enable_srtp=no
+enable_srtp=never|always|preffer
 sip_transport=auto
 sip_register_period=600
 sip_subscribe_period=600
@@ -42,4 +54,3 @@ outbound_proxy=
 ; advanced options
 xcap_root=https://xcap.example.com/xcap-root/
 msrp_chatserver_domain=conference.example.com
-
