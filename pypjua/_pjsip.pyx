@@ -829,7 +829,7 @@ cdef object c_retrieve_nameservers():
         raise NotImplementedError("Nameserver lookup not yet implemented for windows")
     return nameservers
 
-cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)\s+(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)\.(?P<millisecond>\d+)\s+(?P<sender>\S+)?\s+(?P<msg>.*)$")
+cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)\.(?P<millisecond>\d+)\s+(?P<sender>\S+)?\s+(?P<msg>.*)$")
 
 def _get_timestamp(item):
     return item[1].get("timestamp")
