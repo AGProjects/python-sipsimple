@@ -188,12 +188,12 @@ cdef extern from "pjmedia.h":
     # sdp negotiation
 
     struct pjmedia_sdp_neg
-    #int pjmedia_sdp_neg_get_state (pjmedia_sdp_neg *neg)
+    #int pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg)
     #char *pjmedia_sdp_neg_state_str(int state)
     int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session **remote)
     #int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
     int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session **remote)
-    #int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
+    int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
 
 cdef extern from "pjmedia-codec.h":
 
@@ -994,7 +994,6 @@ cdef class PJSIPUA:
         cdef pjsip_hdr *hdr_add
         cdef Invitation inv
         cdef unsigned int zero = 0
-        cdef pjmedia_sdp_session *remote_sdp
         cdef object method_name = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
         if method_name == "OPTIONS":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
@@ -1008,31 +1007,7 @@ cdef class PJSIPUA:
             status = pjsip_inv_verify_request(rdata, &zero, NULL, NULL, self.c_pjsip_endpoint.c_obj, &tdata)
             if status == 0:
                 inv = Invitation()
-                inv.state = "INCOMING"
-                inv.caller_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.from_hdr.uri)
-                inv.callee_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
-                status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &self.c_contact_url.pj_str, &inv.c_dlg)
-                if status != 0:
-                    raise RuntimeError("Could not create dialog for new INTIVE session: %s" % pj_status_to_str(status))
-                status = pjsip_inv_create_uas(inv.c_dlg, rdata, NULL, 0, &inv.c_obj)
-                if status != 0:
-                    pjsip_dlg_terminate(inv.c_dlg)
-                    raise RuntimeError("Could not create new INTIVE session: %s" % pj_status_to_str(status))
-                inv.c_obj.mod_data[self.c_module.id] = <void *> inv
-                status = pjsip_inv_initial_answer(inv.c_obj, rdata, 180, NULL, NULL, &tdata)
-                if status != 0:
-                    pjsip_inv_terminate(inv.c_obj, 500, 0)
-                    raise RuntimeError("Could not create 180 reply to INVITE: %s" % pj_status_to_str(status))
-                status = pjsip_inv_send_msg(inv.c_obj, tdata)
-                if status != 0:
-                    pjsip_inv_terminate(inv.c_obj, 500, 0)
-                    raise RuntimeError("Could not send 180 reply to INVITE: %s" % pj_status_to_str(status))
-                tdata = NULL
-                if inv.c_obj.neg != NULL:
-                    pjmedia_sdp_neg_get_neg_remote(inv.c_obj.neg, &remote_sdp)
-                    _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=inv, state=inv.state, sdp=c_make_SDPSession(remote_sdp))))
-                else:
-                    _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=inv, state=inv.state)))
+                inv._init_incoming(self, rdata)
         elif method_name != "ACK":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 405, NULL, &tdata)
             if status != 0:
@@ -1951,6 +1926,157 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
                          media=media_list)
     return session
 
+
+cdef SDPMedia c_reject_sdp(SDPMedia remote_media):
+    return SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
+
+cdef class UnknownMediaStream:
+    cdef SDPMedia c_remote_media
+    cdef SDPMedia c_local_media
+
+    def __cinit__(self, SDPMedia remote_media, SDPMedia local_media = None):
+        if local_media is None:
+            self.c_local_media = c_reject_sdp(remote_media)
+        else:
+            self.c_local_media = local_media
+        self.c_remote_media = remote_media
+
+
+_re_msrp_uri = re.compile("^(?P<scheme>(msrp)|(msrps))://(((?P<user>.*?)@)?(?P<host>.*?)(:(?P<port>[0-9]+?))?)(/(?P<session_id>.*?))?;(?P<transport>.*?)(;(?P<parameters>.*))?$")
+cdef class MSRPStream:
+    cdef SDPMedia c_remote_media
+    cdef SDPMedia c_local_media
+
+    def __cinit__(self, SDPMedia remote_media = None, SDPMedia local_media = None):
+        cdef list uri_path, accept_types, accept_wrapped_types
+        if remote_media is not None:
+            if local_media is None:
+                uri_path, accept_types, accept_wrapped_types = self._get_data(remote_media)
+                if len(uri_path) == 0 or len(accept_types) == 0:
+                    raise RuntimeError('"path" or "accept-types" attribute is missing or empty')
+                self.c_local_media = c_reject_sdp(remote_media)
+            else:
+                self.c_local_media = local_media
+            self.c_remote_media = remote_media
+
+    property remote_msrp:
+
+        def __get__(self):
+            return self._get_data(self.c_remote_media)
+
+    property local_msrp:
+
+        def __get__(self):
+            return self._get_data(self.c_local_media)
+
+    cdef object _get_data(self, SDPMedia msrp):
+        cdef SDPAttribute attr
+        cdef list uri_path = []
+        cdef list accept_types = []
+        cdef list accept_wrapped_types = []
+        if msrp is not None:
+            for attr in msrp.attributes:
+                if attr.name == "path":
+                    uri_path = attr.value.split()
+                elif attr.name == "accept-types":
+                    accept_types = attr.value.split()
+                elif attr.name == "accept-wrapped-types":
+                    accept_wrapped_types = attr.value.split()
+            return uri_path, accept_types, accept_wrapped_types
+        else:
+            return None
+
+    def enable(self, uri_path, accept_types, accept_wrapped_types = None):
+        cdef list attributes = []
+        cdef object match
+        cdef object transport
+        attributes.append(SDPAttribute("path", " ".join(uri_path)))
+        attributes.append(SDPAttribute("accept-types", " ".join(accept_types)))
+        if accept_wrapped_types is not None:
+            attributes.append(SDPAttribute("accept-wrapped-types", " ".join(accept_wrapped_types)))
+        uri_match = _re_msrp_uri.match(uri_path[-1])
+        if uri_match is None:
+            raise RuntimeError("Error parsing MSRP URI")
+        if uri_match.group("scheme") == "msrps":
+            transport = "TCP/TLS/MSRP"
+        else:
+            transport = "TCP/MSRP"
+        self.c_local_media = SDPMedia("message", int(uri_match.group("port")), transport, formats=["*"], attributes=attributes)
+
+    def disable(self):
+        if self.c_remote_media is None:
+            raise RuntimeError("Cannot disable an offered stream")
+        if self.c_local_media is not None and self.c_local_media.c_obj.desc.port == 0:
+            raise RuntimeError("Stream is already disabled")
+        self.c_local_media = c_reject_sdp(self.c_remote_media)
+
+
+cdef SDPMedia c_get_local_media(object stream):
+    cdef SDPMedia media
+    cdef MSRPStream msrp
+    cdef UnknownMediaStream unknown
+    try:
+        msrp = stream
+        media = msrp.c_local_media
+    except:
+        pass
+    if media is None:
+        unknown = stream
+        media = unknown.c_local_media
+    if media is None:
+        raise RuntimeError("Media stream was never initialized")
+    return media
+
+_stream_map = {"message": MSRPStream}
+cdef class MediaStreams:
+    cdef list c_streams
+    cdef readonly object state
+    cdef SDPSession c_remote_sdp
+
+    def __cinit__(self):
+        self.c_streams = []
+        self.state = "OFFERING"
+
+    cdef int _set_sdp(self, SDPSession remote_sdp, SDPSession local_sdp) except -1:
+        cdef list local_media_list
+        cdef SDPMedia remote_media
+        cdef SDPMedia local_media
+        self.c_remote_sdp = remote_sdp
+        cdef list local_media_list
+        if local_sdp is None:
+            self.state = "ANSWERING"
+            local_media_list = len(remote_sdp.media) * [None]
+        else:
+            self.state = "ESTABLISHED"
+            local_media_list = local_sdp.media
+        self.c_streams = [self._make_stream(remote_media, local_media) for remote_media, local_media in zip(remote_sdp.media, local_media_list)]
+
+    cdef object _make_stream(self, SDPMedia remote_media, SDPMedia local_media):
+        global _stream_map
+        try:
+            return _stream_map.get(remote_media.media, UnknownMediaStream)(remote_media, local_media)
+        except RuntimeError:
+            return UnknownMediaStream(remote_media, local_media)
+
+    property streams:
+
+        def __get__(self):
+            return self.c_streams[:]
+
+    def add_stream(self, stream):
+        if self.state == "ANSWERING":
+            raise RuntimeError('Cannot add streams while in "ANSWERING" state')
+        self.c_streams.append(stream)
+
+    cdef object _make_local_sdp(self, PJSIPUA ua):
+        cdef object host = pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host)
+        cdef list media = [c_get_local_media(stream) for stream in self.c_streams]
+        if self.c_remote_sdp is not None:
+            return SDPSession(host, connection=SDPConnection(host), media=media)
+        else:
+            return SDPSession(host, connection=SDPConnection(host), media=media, start_time=self.c_remote_sdp.c_obj.time.start, stop_time=self.c_remote_sdp.c_obj.time.stop)
+
+
 cdef class Invitation:
     cdef pjsip_inv_session *c_obj
     cdef pjsip_dialog *c_dlg
@@ -1961,6 +2087,11 @@ cdef class Invitation:
     cdef readonly object state
 
     def __cinit__(self, *args, route=None):
+        global _ua
+        cdef PJSIPUA ua
+        if _ua == NULL:
+            raise RuntimeError("PJSIPUA needs to be instanced first")
+        ua = <object> _ua
         if len(args) != 0:
             if None in args:
                 raise TypeError("Positional arguments cannot be None")
@@ -1974,6 +2105,46 @@ cdef class Invitation:
         else:
             self.state = "INVALID"
 
+    cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+        global _event_queue
+        cdef pjsip_tx_data *tdata
+        cdef pjmedia_sdp_session *remote_sdp
+        cdef MediaStreams streams
+        cdef int status
+        try:
+            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &ua.c_contact_url.pj_str, &self.c_dlg)
+            if status != 0:
+                raise RuntimeError("Could not create dialog for new INTIVE session: %s" % pj_status_to_str(status))
+            status = pjsip_inv_create_uas(self.c_dlg, rdata, NULL, 0, &self.c_obj)
+            if status != 0:
+                raise RuntimeError("Could not create new INTIVE session: %s" % pj_status_to_str(status))
+            self.c_obj.mod_data[ua.c_module.id] = <void *> self
+            status = pjsip_inv_initial_answer(self.c_obj, rdata, 180, NULL, NULL, &tdata)
+            if status != 0:
+                raise RuntimeError("Could not create 180 reply to INVITE: %s" % pj_status_to_str(status))
+            pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, ua.c_user_agent_hdr))
+            status = pjsip_inv_send_msg(self.c_obj, tdata)
+            if status != 0:
+                raise RuntimeError("Could not send 180 reply to INVITE: %s" % pj_status_to_str(status))
+        except:
+            if self.c_obj != NULL:
+                pjsip_inv_terminate(self.c_obj, 500, 0)
+            elif self.c_dlg != NULL:
+                pjsip_dlg_terminate(self.c_dlg)
+            self.c_obj = NULL
+            self.c_dlg = NULL
+            raise
+        self.state = "INCOMING"
+        self.caller_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.from_hdr.uri)
+        self.callee_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
+        if self.c_obj.neg != NULL:
+            pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &remote_sdp)
+            streams = MediaStreams()
+            streams._set_sdp(c_make_SDPSession(remote_sdp), None)
+            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams)))
+        else:
+            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+
     def __dealloc__(self):
         global _ua
         cdef PJSIPUA ua
@@ -1984,9 +2155,14 @@ cdef class Invitation:
                 if self.state not in ["DISCONNECTED", "INVALID"]:
                     pjsip_inv_terminate(self.c_obj, 481, 0)
 
+    property media_streams:
+
+        def __get__(self):
+            pass
+
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
         global _event_queue
-        if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED:
+        if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED and self.state != "DISCONNECTED":
             self.state = "DISCONNECTED"
             if tsx == NULL:
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
@@ -2005,6 +2181,8 @@ cdef class Invitation:
     cdef int _cb_sdp_done(self, int sdp_status) except -1:
         global _event_queue
         cdef pjmedia_sdp_session *remote_sdp
+        cdef pjmedia_sdp_session *local_sdp
+        cdef MediaStreams streams
         #if self.state in ["CALLING", "PROPOSING"]:
         if self.state in ["CALLING"]:
             if sdp_status != 0:
@@ -2012,15 +2190,19 @@ cdef class Invitation:
             else:
                 self.state = "ESTABLISHED"
                 pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &remote_sdp)
-                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, sdp=c_make_SDPSession(remote_sdp))))
+                pjmedia_sdp_neg_get_active_local(self.c_obj.neg, &local_sdp)
+                streams = MediaStreams()
+                streams._set_sdp(c_make_SDPSession(remote_sdp), c_make_SDPSession(local_sdp))
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams)))
 
-    def invite(self, SDPSession local_sdp):
+    def invite(self, MediaStreams streams):
         global _ua, _event_queue
         cdef int status
         cdef pjsip_tx_data *c_tdata
         cdef PJSTR c_caller_uri
         cdef PJSTR c_callee_uri
         cdef PJSTR c_callee_target
+        cdef SDPSession c_local_sdp
         cdef PJSIPUA ua
         if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
@@ -2029,11 +2211,12 @@ cdef class Invitation:
             c_caller_uri = PJSTR(self.caller_uri.as_str())
             c_callee_uri = PJSTR(self.callee_uri.as_str())
             c_callee_target = PJSTR(self.callee_uri.as_str(True))
+            c_local_sdp = streams._make_local_sdp(ua)
             try:
                 status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_caller_uri.pj_str, &ua.c_contact_url.pj_str, &c_callee_uri.pj_str, &c_callee_target.pj_str, &self.c_dlg)
                 if status != 0:
                     raise RuntimeError("Could not create dialog for outgoing INVITE session: %s" % pj_status_to_str(status))
-                status = pjsip_inv_create_uac(self.c_dlg, &local_sdp.c_obj, 0, &self.c_obj)
+                status = pjsip_inv_create_uac(self.c_dlg, &c_local_sdp.c_obj, 0, &self.c_obj)
                 if status != 0:
                     raise RuntimeError("Could not create outgoing INVITE session: %s" % pj_status_to_str(status))
                 self.c_obj.mod_data[ua.c_module.id] = <void *> self
@@ -2067,16 +2250,18 @@ cdef class Invitation:
             #raise RuntimeError('"invite" method can only be used in "DISCONNECTED" and "ESTABLISHED" states')
             raise RuntimeError('"invite" method can only be used in "DISCONNECTED" state')
 
-    def accept(self, SDPSession local_sdp):
+    def accept(self, MediaStreams streams):
         global _ua, _event_queue
         cdef int status
         cdef pjsip_tx_data *c_tdata
+        cdef SDPSession c_local_sdp
         cdef PJSIPUA ua
         if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
         if self.state == "INCOMING":
-            status = pjsip_inv_answer(self.c_obj, 200, NULL, &local_sdp.c_obj, &c_tdata)
+            c_local_sdp = streams._make_local_sdp(ua)
+            status = pjsip_inv_answer(self.c_obj, 200, NULL, &c_local_sdp.c_obj, &c_tdata)
             if status != 0:
                 raise RuntimeError("Could not create 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
             pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
