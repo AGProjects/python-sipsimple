@@ -1,5 +1,7 @@
 import atexit
 import weakref
+import sys
+import traceback
 from threading import Thread
 
 from application.python.util import Singleton
@@ -56,8 +58,12 @@ class Engine(Thread):
 
     # worker thread
     def run(self):
-        while not self._stopping:
-            self._ua.poll()
+        try:
+            while not self._stopping:
+                self._ua.poll()
+        except: # TODO: do something more intelligent here than just exiting?
+            traceback.print_exc()
+            sys.exit()
 
     def _handle_event(self, event_name, **kwargs):
         if event_name == "log":
