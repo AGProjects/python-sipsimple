@@ -1,6 +1,11 @@
 __version__ = "0.1"
 
 from engine import Engine
-from _pjsip import SIPURI, Credentials, Route, Registration, Publication, Subscription, Invitation
+from _pjsip import SIPURI, Credentials, Route
+from _pjsip import Registration, Publication, Subscription, Invitation
+from _pjsip import MediaStreams, MSRPStream
 
-__all__ = ["Engine", "SIPURI", "Credentials", "Route", "Registration", "Publication", "Subscription", "Invitation"]
+__all__ = ["Engine",
+           "SIPURI", "Credentials", "Route",
+           "Registration", "Publication", "Subscription", "Invitation",
+           "MediaStreams", "MSRPStream"]
