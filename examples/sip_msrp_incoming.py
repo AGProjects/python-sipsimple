@@ -154,7 +154,7 @@ def do_msrp_wait(username, domain, password, proxy_ip, proxy_port, expires, dump
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route)
+        reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route, expires=expires)
         reg.register()
     except:
         e.stop()
