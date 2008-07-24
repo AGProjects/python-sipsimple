@@ -2152,7 +2152,7 @@ cdef class Invitation:
             ua = <object> _ua
             if self.c_obj != NULL:
                 self.c_obj.mod_data[ua.c_module.id] = NULL
-                if self.state not in ["DISCONNECTED", "INVALID"]:
+                if self.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
                     pjsip_inv_terminate(self.c_obj, 481, 0)
 
     property media_streams:
@@ -2162,7 +2162,7 @@ cdef class Invitation:
 
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
         global _event_queue
-        if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED and self.state != "DISCONNECTED":
+        if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED:
             self.state = "DISCONNECTED"
             if tsx == NULL:
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
@@ -2280,7 +2280,7 @@ cdef class Invitation:
         global _ua
         cdef pjsip_tx_data *c_tdata
         cdef PJSIPUA ua
-        if self.state in ["DISCONNECTED", "INVALID"]:
+        if self.state in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
             raise RuntimeError("INVITE session is no longer active")
         if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
@@ -2292,7 +2292,7 @@ cdef class Invitation:
         status = pjsip_inv_send_msg(self.c_obj, c_tdata)
         if status != 0:
             raise RuntimeError("Could not send message to end INVITE session: %s" % pj_status_to_str(status))
-        self.state = "DISCONNECTED"
+        self.state = "DISCONNECTING"
         _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
