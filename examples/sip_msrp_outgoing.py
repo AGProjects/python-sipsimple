@@ -39,6 +39,7 @@ class MSRPOutgoing(Thread):
         self.start()
 
     def send_message(self, msg):
+        global do_dump_msrp
         if self.sock is not None:
             msrpdata = msrp_protocol.MSRPData(method="SEND", transaction_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))
             msrpdata.add_header(msrp_protocol.ToPathHeader([self.remote_uri]))
@@ -46,7 +47,10 @@ class MSRPOutgoing(Thread):
             msrpdata.add_header(msrp_protocol.MessageIDHeader(str(self.msg_id)))
             msrpdata.add_header(msrp_protocol.ByteRangeHeader((1, len(msg), len(msg))))
             msrpdata.add_header(msrp_protocol.ContentTypeHeader("text/plain"))
-            self.sock.send(msrpdata.encode_start() + msg + msrpdata.encode_end("$"))
+            data = msrpdata.encode_start() + msg + msrpdata.encode_end("$")
+            if do_dump_msrp:
+                print "Sending MSRP data:\n%s" % data
+            self.sock.send(data)
             self.msg_id += 1
 
     def disconnect(self):
@@ -54,11 +58,13 @@ class MSRPOutgoing(Thread):
             self.sock.close()
 
     def run(self):
-        global _re_msrp_send
+        global _re_msrp_send, do_dump_msrp
         while True:
             data = self.sock.recv(4096)
             if len(data) == 0:
                 return
+            if do_dump_msrp:
+                print "Received MSRP data:\n%s" % data
             self.buf.write(data)
             match = _re_msrp_send.match(self.buf.getvalue())
             if match is not None:
@@ -75,6 +81,7 @@ queue = Queue()
 packet_count = 0
 start_time = None
 msrp = MSRPOutgoing()
+do_dump_msrp = False
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count, msrp
@@ -118,8 +125,9 @@ def user_input():
             traceback.print_exc()
             queue.put("end")
 
-def do_msrp_invite(username, domain, password, target_username, target_domain, proxy_ip, proxy_port):
-    global msrp
+def do_msrp_invite(username, domain, password, target_username, target_domain, proxy_ip, proxy_port, dump_msrp):
+    global msrp, do_dump_msrp
+    do_dump_msrp = dump_msrp
     if proxy_port is not None:
         proxy_port = int(proxy_port)
     e = Engine(event_handler, do_siptrace=False, auto_sound=False)
@@ -167,11 +175,13 @@ def parse_options():
     retval = {}
     description = "This example script will attempt to start a simple MSRP conversation with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password target-user@target-domain.com"
-    default_options = dict(proxy_ip=None, proxy_port=None)
+    default_options = dict(proxy_ip=None, proxy_port=None, dump_msrp=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages.")
+    parser.add_option("-D", "--no-dump-msrp", action="store_false", dest="dump_msrp", help="Do not dump the raw contents of incoming and outgoing MSRP messages (default).")
     try:
         options, (username_domain, retval["password"], target) = parser.parse_args()
         retval["username"], retval["domain"] = username_domain.split("@")
