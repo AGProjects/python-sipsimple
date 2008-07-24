@@ -2281,7 +2281,7 @@ cdef class Invitation:
         cdef pjsip_tx_data *c_tdata
         cdef PJSIPUA ua
         if self.state in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
-            raise RuntimeError("INVITE session is no longer active")
+            raise RuntimeError("INVITE session is not active")
         if _ua == NULL:
             raise RuntimeError("PJSIPUA already dealloced")
         ua = <object> _ua
