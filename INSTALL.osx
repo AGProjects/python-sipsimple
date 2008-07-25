@@ -30,8 +30,3 @@ Currently, the easiest way to install these is through fink.
 
 - Install the lxml Python module (again, a fresh console may be needed):
     easy_install lxml
-
-To use MSRP in the invite example script, you will need msrprelay installed:
-
-- Download msrprelay from http://msrprelay.org and do:
-    sudo python setup.py install

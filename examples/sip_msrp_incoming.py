@@ -14,7 +14,7 @@ from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from cStringIO import StringIO
 from application.system import default_host_ip
-import msrp.protocol as msrp_protocol
+import msrp_protocol
 from pypjua import *
 
 MSRP_PORT = 12345
