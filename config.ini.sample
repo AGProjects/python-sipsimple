@@ -1,29 +1,33 @@
 
 [general]
-; general options 
-active_accounts=account1
-enable_echo_cancelation=true
-enable_bonjour=false
-device_id=auto
-msrp_im_chat_history_folder=
-msrp_file_transfer_folder=
-audio_recording_folder=
+
 user_agent='pypjua'
-enable_audio=false
-enable_video=false
-sip_trace=true
 local_ip=auto
 local_port=auto
+device_id=auto
+
+active_accounts=account1
+
+enable_bonjour=false
+
+sip_trace=false
+xcap_trace=false
+msrp_trace=false
+rtp_trace=false
+
+enable_audio_echo_cancelation=true
 enable_audio_recording=false
+audio_recording_folder=
+enable_audio=false
+enable_video=false
 
-
-[gui]
-; graphical user interface options
+msrp_im_chat_history_folder=
+msrp_file_transfer_folder=
 
 
 [account_options]
 
-; default account options, can be overwritten per account 
+; default account options, can be overwritten per account
 enable_msrp_im=true
 enable_msrp_file_transfer=true
 enable_register=true
@@ -43,7 +47,8 @@ sip_publish_period=600
 sip_transport=auto
 audio_codecs=gsm ilbc speex g711
 video_codecs=h264
-
+; chat server is already ona  public IP address, no need to reserve a relay session
+enable_msrp_relay_with_chatserver=false
 
 [account1]
 
@@ -57,4 +62,4 @@ outbound_proxy=
 ; advanced options
 xcap_root=https://xcap.example.com/xcap-root/
 msrp_chatserver_domain=conference.example.com
-
+msrp_relay=auto
