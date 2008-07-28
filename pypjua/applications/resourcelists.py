@@ -97,8 +97,20 @@ List([Entry('sip:joe@example.com'), Entry('sip:sudhir@example.com')], name='mark
 
 >>> assert rls[1].packages == ['presence']
 
-"""
 
+Constraints checking
+-------------------
+
+The module checks some of the constraints described in RFC.
+
+>>> marketing.list.append(Entry('sip:joe@example.com'))
+Traceback (most recent call last):
+ ...
+ValueError: uri must be unique across all Entrys within the same parent: 'sip:joe@example.com'
+
+<service> uri uniqueness is not enforced. SIP URIs aren't canonicalized.
+
+"""
 
 import sys
 from lxml import etree
@@ -262,6 +274,8 @@ class DisplayName(ResourceListsElement, XMLMixin):
     _xml_tag = 'display-name'
 
     def __init__(self, text, lang = None):
+        if not isinstance(text, basestring):
+            raise TypeError('text must be string')
         self.text = text
         self.lang = lang
 
@@ -308,13 +322,21 @@ class ElementWithDisplayName(ResourceListsElement, XMLMixin, DisplayNameMixin):
         return cls(arg, display_name)
 
     def set_element(self, element):
-        element.set(self._arg, getattr(self, self._arg))
+        element.set(self._arg, self.arg)
         if self.display_name:
             self.display_name.to_element(element)
 
     def __init__(self, arg, display_name = None):
+        if not isinstance(arg, basestring):
+            raise TypeError('%s must be string' % self._arg)
+        if not arg:
+            raise ValueError('%s must not be empty' % self._arg)
         setattr(self, self._arg, arg)
         self.display_name = display_name
+
+    @property
+    def arg(self):
+        return getattr(self, self._arg)
 
     def __repr__(self):
         if self.display_name is not None:
@@ -322,16 +344,16 @@ class ElementWithDisplayName(ResourceListsElement, XMLMixin, DisplayNameMixin):
         else:
             display_name = ''
         return '%s(%r%s)' % (self.__class__.__name__,
-                             getattr(self, self._arg),
+                             self.arg,
                              display_name)
 
     def __cmp__(self, other):
         arg = self._arg
-        return cmp(getattr(self, arg), getattr(other, arg)) or \
+        return cmp(self.arg, other.arg) or \
                cmp(self.display_name, other.display_name)
 
     def __hash__(self):
-        return hash((getattr(self, self._arg), self.display_name))
+        return hash(self.arg, self.display_name)
 
 
 class Entry(ElementWithDisplayName):
@@ -355,9 +377,27 @@ class List(TypedList, ResourceListsElement, XMLMixin, DisplayNameMixin):
 
     def __init__(self, iterable = [], name = None, display_name = None):
         assert not isinstance(iterable, basestring), 'have you passed name as first argument?'
-        list.__init__(self, iterable)
+        self._ids = {} # maps class to set of strings (uri for Entry etc)
+        TypedList.__init__(self, iterable)
         self.name = name
         self.display_name = display_name
+
+    def _before_insert(self, value):
+        value = TypedList._before_insert(self, value)
+        klass = value.__class__
+        if value.arg is not None and value.arg in self._ids.setdefault(klass, set()):
+            raise ValueError('%s must be unique across all %ss within the same parent: %r' % \
+                             (klass._arg, klass.__name__, value.arg))
+        self._ids[klass].add(value.arg)
+        return value
+
+    def _before_remove(self, value):
+        self._ids[value.__class__].discard(value.arg)
+        TypedList._before_remove(self, value)
+
+    @property
+    def arg(self):
+        return self.name
 
     @classmethod
     def from_element(cls, element):
@@ -554,50 +594,66 @@ class RLSServices(RLSServicesElement, XMLRoot, SimpleList):
     xml_declaration = True
 
 
-def __test():
+if __name__ == '__main__':
 
-    def clone(obj):
-        element = obj.toxml(pretty_print=True)
-        #print element
-        return obj.__class__.parse(element)
+    def __test():
 
-    bill = Entry('sip:bill@example.com', display_name = 'Bill Doe')
-    bill2 = clone(bill)
-    assert bill.uri == bill2.uri
-    assert bill.display_name == bill2.display_name
-    assert bill == bill2
+        def clone(obj):
+            element = obj.toxml(pretty_print=True)
+            #print element
+            return obj.__class__.parse(element)
 
-    bill2.display_name = 'Just Bill'
-    assert bill != bill2
+        bill = Entry('sip:bill@example.com', display_name = 'Bill Doe')
+        bill2 = clone(bill)
+        assert bill.uri == bill2.uri
+        assert bill.display_name == bill2.display_name
+        assert bill == bill2
 
-    ref = EntryRef('a/b/c', display_name = u'Unicode')
-    ref2 = clone(ref)
-    assert ref.ref == ref2.ref
-    assert ref.display_name == ref2.display_name
-    assert ref == ref2
+        bill2.display_name = 'Just Bill'
+        assert bill != bill2
 
-    ext = External('http://localhost')
-    ext2 = clone(ext)
-    assert ext.anchor == ext2.anchor
-    assert ext.display_name == ext2.display_name
-    assert ext == ext2
+        ref = EntryRef('a/b/c', display_name = u'Unicode')
+        ref2 = clone(ref)
+        assert ref.ref == ref2.ref
+        assert ref.display_name == ref2.display_name
+        assert ref == ref2
 
-    #name = DisplayName('ABC', lang = 'en')
-    #name2 = clone(name)
-    #assert name == name2
-    #XXX ValueError: Invalid attribute name u'xml:lang'
+        ext = External('http://localhost')
+        ext2 = clone(ext)
+        assert ext.anchor == ext2.anchor
+        assert ext.display_name == ext2.display_name
+        assert ext == ext2
 
-    lst = List([bill, ref, ext, List(name='inside')], display_name = 'mylist')
-    lst2 = clone(lst)
-    assert lst == lst2, (lst, lst2)
+        #name = DisplayName('ABC', lang = 'en')
+        #name2 = clone(name)
+        #assert name == name2
+        #XXX ValueError: Invalid attribute name u'xml:lang'
 
-    rls = ResourceLists()
-    rls.append(lst)
-    rls2 = clone(rls)
-    assert rls == rls2
+        try:
+            print List(['2'])
+        except TypeError, ex:
+            print ex
+        else:
+            raise AssertionError('must throw TypeError')
 
-    xml = rls.toxml(pretty_print=True)
-    assert xml  == '''<?xml version='1.0' encoding='UTF-8'?>
+        lst = List([bill, ref, ext, List(name='inside')], display_name = 'mylist')
+        lst2 = clone(lst)
+        assert lst == lst2, (lst, lst2)
+
+        try:
+            lst.append(bill)
+        except ValueError, ex:
+            print ex
+        else:
+            raise AssertionError('must throw ValueError')
+
+        rls = ResourceLists()
+        rls.append(lst)
+        rls2 = clone(rls)
+        assert rls == rls2
+
+        xml = rls.toxml(pretty_print=True)
+        assert xml  == '''<?xml version='1.0' encoding='UTF-8'?>
 <resource-lists xmlns="urn:ietf:params:xml:ns:resource-lists">
   <list>
     <display-name>mylist</display-name>
@@ -613,45 +669,45 @@ def __test():
 </resource-lists>
 ''', xml
 
-    assert DisplayName('123') == DisplayName ('123')
-    assert not DisplayName('123') == DisplayName ('123', lang = 'en')
+        assert DisplayName('123') == DisplayName ('123')
+        assert not DisplayName('123') == DisplayName ('123', lang = 'en')
 
-    package = Package('presence')
-    package2 = clone(package)
-    assert package == package2
+        package = Package('presence')
+        package2 = clone(package)
+        assert package == package2
 
-    packages = Packages([package, package2])
-    packages2 = clone(package)
-    assert packages == packages
+        packages = Packages([package, package2])
+        packages2 = clone(package)
+        assert packages == packages
 
-    rl = ResourceList('http://localhost')
-    rl2 = clone(rl)
-    assert rl == rl2
+        rl = ResourceList('http://localhost')
+        rl2 = clone(rl)
+        assert rl == rl2
 
-    s = Service('sip:service@service.com', rl, packages)
-    s2 = clone(s)
-    assert s.uri == s2.uri
-    assert s.list == s2.list, (s.list, s2.list)
-    assert s.packages == s2.packages
-    assert s == s2, (s, s2)
+        s = Service('sip:service@service.com', rl, packages)
+        s2 = clone(s)
+        assert s.uri == s2.uri
+        assert s.list == s2.list, (s.list, s2.list)
+        assert s.packages == s2.packages
+        assert s == s2, (s, s2)
 
-    rls = RLSServices([s])
+        rls = RLSServices([s])
 
-    s = Service('sip:service@service.com', lst, packages)
-    s2 = clone(s)
-    assert s.uri == s2.uri
-    assert s.list == s2.list
-    assert s.packages == s2.packages
-    assert s == s2
+        s = Service('sip:service@service.com', lst, packages)
+        s2 = clone(s)
+        assert s.uri == s2.uri
+        assert s.list == s2.list
+        assert s.packages == s2.packages
+        assert s == s2
 
-    s.packages = [package, package2]
-    assert s.packages == s2.packages
-    assert s == s2
+        s.packages = [package, package2]
+        assert s.packages == s2.packages
+        assert s == s2
 
-    rls.append(s)
-    rls.toxml(validate=False, pretty_print=True)
+        rls.append(s)
+        rls.toxml(validate=False, pretty_print=True)
 
-    xml = """<?xml version='1.0' encoding='UTF-8'?>
+        xml = """<?xml version='1.0' encoding='UTF-8'?>
 <ns0:rls-services xmlns:ns0="urn:ietf:params:xml:ns:rls-services">
   <ns0:service uri="sip:mybuddies@example.com">
     <ns0:resource-list>http://xcap.example.com/xxx</ns0:resource-list>
@@ -670,10 +726,12 @@ def __test():
   </ns0:service>
 </ns0:rls-services>
 """
-    RLSServices.parse(xml)
+        RLSServices.parse(xml)
 
+        del lst[:]
+        assert [list(x) for x in lst._ids.values()] == [[],[],[],[]]
 
-if __name__ == '__main__':
+    
     example_from_section_3_3_rfc = """<?xml version="1.0" encoding="UTF-8"?>
 <resource-lists xmlns="urn:ietf:params:xml:ns:resource-lists"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
