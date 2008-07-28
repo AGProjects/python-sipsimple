@@ -22,11 +22,13 @@ _re_msrp_send = re.compile("^(.*?)MSRP\\s(.*?)\\sSEND\r\n(.*?)\r\n\r\n(.*?)\r\n-
 
 class MSRP(Thread):
 
-    def __init__(self, is_incoming, do_dump):
+    def __init__(self, is_incoming, do_dump, relay_ip=None, relay_port=None):
         self.is_incoming = is_incoming
         self.do_dump = do_dump
-        self.local_uri = msrp_protocol.URI(host=default_host_ip, port=MSRP_PORT, session_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))
-        self.remote_uri = None
+        self.relay_ip = relay_ip
+        self.relay_port = relay_port
+        self.local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=MSRP_PORT, session_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))]
+        self.remote_uri_path = None
         self.sock = None
         self.msg_id = 1
         self.buf = StringIO()
@@ -38,20 +40,20 @@ class MSRP(Thread):
         else:
             self.listen_sock = None
 
-    def set_remote_uri(self, uri):
-        self.remote_uri = msrp_protocol.parse_uri(uri)
+    def set_remote_uri(self, uri_path):
+        self.remote_uri_path = [msrp_protocol.parse_uri(uri) for uri in uri_path]
         if not self.is_incoming:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(5)
-            self.sock.connect((self.remote_uri.host, self.remote_uri.port or 2855))
+            self.sock.connect((self.remote_uri_path[-1].host, self.remote_uri_path[-1].port or 2855))
             self.sock.settimeout(None)
             self.start()
 
     def send_message(self, msg):
         if self.sock is not None:
             msrpdata = msrp_protocol.MSRPData(method="SEND", transaction_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))
-            msrpdata.add_header(msrp_protocol.ToPathHeader([self.remote_uri]))
-            msrpdata.add_header(msrp_protocol.FromPathHeader([self.local_uri]))
+            msrpdata.add_header(msrp_protocol.ToPathHeader(self.remote_uri_path))
+            msrpdata.add_header(msrp_protocol.FromPathHeader(self.local_uri_path))
             msrpdata.add_header(msrp_protocol.MessageIDHeader(str(self.msg_id)))
             msrpdata.add_header(msrp_protocol.ByteRangeHeader((1, len(msg), len(msg))))
             msrpdata.add_header(msrp_protocol.ContentTypeHeader("text/plain"))
@@ -87,8 +89,8 @@ class MSRP(Thread):
                 self.buf = StringIO()
                 self.buf.write(next)
                 response = msrp_protocol.MSRPData(transaction_id=transaction_id, code=200, comment="OK")
-                response.add_header(msrp_protocol.ToPathHeader([self.remote_uri]))
-                response.add_header(msrp_protocol.FromPathHeader([self.local_uri]))
+                response.add_header(msrp_protocol.ToPathHeader(self.remote_uri_path))
+                response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path))
                 self.sock.send(response.encode())
 
 queue = Queue()
@@ -142,12 +144,10 @@ def user_input():
             traceback.print_exc()
             queue.put(("end", None))
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp):
-    msrp = MSRP(target_username is None, dump_msrp)
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port):
+    msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port)
     inv = None
     streams = None
-    if proxy_port is not None:
-        proxy_port = int(proxy_port)
     e = Engine(event_handler, do_siptrace=False, auto_sound=False)
     e.start()
     try:
@@ -160,7 +160,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         if target_username is not None:
             inv = Invitation(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=target_username, host=target_domain), route=route)
             msrp_stream = MSRPStream()
-            msrp_stream.enable([str(msrp.local_uri)], ["text/plain"])
+            msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
             streams = MediaStreams()
             streams.add_stream(msrp_stream)
     except:
@@ -190,12 +190,12 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     try:
                         streams = data["streams"]
                         msrp_stream = streams.streams[0]
-                        msrp.set_remote_uri(msrp_stream.remote_msrp[0][-1])
+                        msrp.set_remote_uri(msrp_stream.remote_msrp[0])
                     except:
                         print "Could not fetch and parse remote MSRP URI from SDP answer"
                         queue.put(("end", None))
                         continue
-                    msrp_stream.enable([str(msrp.local_uri)], ["text/plain"])
+                    msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
                     print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                 else:
                     data["obj"].end()
@@ -205,7 +205,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             elif command == "established":
                 if target_username is not None:
                     try:
-                        msrp.set_remote_uri(data["streams"].streams[0].remote_msrp[0][-1])
+                        msrp.set_remote_uri(data["streams"].streams[0].remote_msrp[0])
                     except:
                         print "Could not fetch and parse remote MSRP URI from SDP answer"
                         queue.put(("end", None))
@@ -221,27 +221,30 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         except KeyboardInterrupt:
             pass
 
-re_ip_port = re.compile("^(?P<proxy_ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<proxy_port>\d+))?$")
-def parse_proxy(option, opt_str, value, parser):
+re_ip_port = re.compile("^(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
+def parse_ip_port(option, opt_str, value, parser, ip_name, port_name, default_port):
     match = re_ip_port.match(value)
     if match is None:
-        raise OptionValueError("Could not parse supplied outbound proxy addrress")
-    for key, val in match.groupdict().iteritems():
-        if val is not None:
-            setattr(parser.values, key, val)
+        raise OptionValueError("Could not parse supplied address: %s" % value)
+    setattr(parser.values, ip_name, match.group("ip"))
+    if match.group("port") is None:
+        setattr(parser.values, port_name, default_port)
+    else:
+        setattr(parser.values, port_name, int(match.group("port")))
 
 def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password [target-user@target-domain.com]"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, dump_msrp=False)
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
-    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_ip_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages.")
     parser.add_option("-D", "--no-dump-msrp", action="store_false", dest="dump_msrp", help="Do not dump the raw contents of incoming and outgoing MSRP messages (default).")
+    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_ip_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
     try:
         try:
             options, (username_domain, retval["password"], target) = parser.parse_args()
