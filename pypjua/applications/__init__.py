@@ -2,6 +2,8 @@ import os
 
 from lxml import etree
 
+_schema_dir_ = os.path.join(os.path.dirname(__file__), 'xml-schemas')
+
 
 class ParserError(Exception): pass
 
@@ -36,10 +38,13 @@ class XMLElementMapping(object):
     def _parse_element(self, element, *args, **kwargs):
         pass
 
+def parse_schema(filename, dir = _schema_dir_):
+    return etree.XMLSchema(etree.parse(open(os.path.join(dir, filename), 'r')))
+
 class XMLParserMeta(type):
     def __init__(cls, name, bases, dct):
         if cls._schema is None and cls._schema_file is not None:
-            cls._schema = etree.XMLSchema(etree.parse(open(os.path.join(cls._schema_dir, cls._schema_file), 'r')))
+            cls._schema = parse_schema(cls._schema_file, cls._schema_dir)
 
 class XMLParser(Parser):
     __metaclass__ = XMLParserMeta
@@ -49,7 +54,7 @@ class XMLParser(Parser):
     _schema_file = None
     _parser = etree.XMLParser()
 
-    _schema_dir = os.path.join(os.path.dirname(__file__), 'xml-schemas')
+    _schema_dir = _schema_dir_
 
     def _validate(self, element):
         if self._schema is not None:
