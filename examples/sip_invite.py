@@ -17,7 +17,6 @@ from application.system import default_host_ip
 import msrp_protocol
 from pypjua import *
 
-MSRP_PORT = 12345
 _re_msrp_send = re.compile("^(.*?)MSRP\\s(.*?)\\sSEND\r\n(.*?)\r\n\r\n(.*?)\r\n-------\\2([$#+])\r\n(.*)$", re.DOTALL)
 
 class MSRP(Thread):
@@ -27,7 +26,7 @@ class MSRP(Thread):
         self.do_dump = do_dump
         self.relay_ip = relay_ip
         self.relay_port = relay_port
-        self.local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=MSRP_PORT, session_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))]
+        self.local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))]
         self.remote_uri_path = None
         self.sock = None
         self.msg_id = 1
@@ -35,7 +34,8 @@ class MSRP(Thread):
         Thread.__init__(self)
         if is_incoming:
             self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.listen_sock.bind(("", MSRP_PORT))
+            self.listen_sock.bind(("", 0))
+            self.local_uri_path[-1].port = self.listen_sock.getsockname()[1]
             self.start()
         else:
             self.listen_sock = None
