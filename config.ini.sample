@@ -27,7 +27,7 @@ auto_enrolment=true
 ; section, the software will automatically enrol for a new SIP account and
 ; create the [account1] section
 
-enrolment_url=http://enrolment.sipthor.net/
+enrolment_url=https://enrolment.sipthor.net
 ; enrolment procedures requires a HTTP GET to the enrolment_url with the
 ; following syntax: enrolment_url?device_id=X&ethernet=Y where device_id and
 ; ethernet are automatically detected from the system
