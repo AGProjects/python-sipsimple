@@ -28,13 +28,13 @@ auto_enrolment=true
 ; create the [account1] section
 
 enrolment_url=https://enrolment.sipthor.net
-; enrolment procedures requires a HTTP GET to the enrolment_url with the
+; the enrolment procedure requires a HTTP GET to the enrolment_url with the
 ; following syntax: enrolment_url?device_id=X&ethernet=Y where device_id and
-; ethernet are automatically detected from the system
-; the GET request returns a valid [account1] section that must be written to
-; this configuration file
+; ethernet are automatically detected from the system, the GET request
+; returns a valid [account1] section that is added to this configuration
+; file
 
-; UA settings
+; SIP UA settings
 user_agent=pypjua.org
 local_ip=auto
 local_port=auto
