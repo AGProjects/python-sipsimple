@@ -15,83 +15,139 @@ from optparse import OptionParser, OptionValueError
 from cStringIO import StringIO
 from application.system import default_host_ip
 import msrp_protocol
+from digest import process_www_authenticate
 from pypjua import *
 
-_re_msrp_send = re.compile("^(.*?)MSRP\\s(.*?)\\sSEND\r\n(.*?)\r\n\r\n(.*?)\r\n-------\\2([$#+])\r\n(.*)$", re.DOTALL)
+_re_msrp = re.compile("^(?P<pre>.*?)MSRP (?P<transaction_id>[a-zA-Z0-9.\-+%=]+) ((?P<method>[A-Z]+)|((?P<code>[0-9]{3})( (?P<comment>.*?))?))\r\n(?P<headers>.*?)\r\n(\r\n(?P<body>.*?)\r\n)?-------\\2(?P<continuation>[$#+])\r\n(?P<post>.*)$", re.DOTALL)
+
+def random_string(length):
+    return "".join(random.choice(string.letters + string.digits) for i in xrange(length))
 
 class MSRP(Thread):
 
-    def __init__(self, is_incoming, do_dump, relay_ip=None, relay_port=None):
+    def __init__(self, is_incoming, do_dump, relay_ip=None, relay_port=None, relay_username=None, relay_password=None):
         self.is_incoming = is_incoming
         self.do_dump = do_dump
-        self.relay_ip = relay_ip
-        self.relay_port = relay_port
-        self.local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))]
+        self.relay_data = (relay_ip, relay_port, relay_username, relay_password)
+        if not all(self.relay_data):
+            self.relay_data = None
+        self.local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
         self.remote_uri_path = None
         self.sock = None
         self.msg_id = 1
         self.buf = StringIO()
+        self.use_tls = False
         Thread.__init__(self)
         if is_incoming:
-            self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.listen_sock.bind(("", 0))
-            self.local_uri_path[-1].port = self.listen_sock.getsockname()[1]
+            if self.relay_data is not None:
+                self.use_tls = True
+                self._init_relay()
+            else:
+                self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.listen_sock.bind(("", 0))
+                self.local_uri_path[-1].port = self.listen_sock.getsockname()[1]
             self.start()
+
+    def _init_relay(self):
+        relay_ip, relay_port, relay_username, relay_password = self.relay_data
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.settimeout(5)
+        self.sock.connect((relay_ip, relay_port))
+        self.sock.settimeout(None)
+        self.ssl = socket.ssl(self.sock)
+        msrpdata = msrp_protocol.MSRPData(method="AUTH", transaction_id=random_string(12))
+        relay_uri = msrp_protocol.URI(host=relay_ip, port=relay_port, use_tls=True)
+        msrpdata.add_header(msrp_protocol.ToPathHeader([relay_uri]))
+        msrpdata.add_header(msrp_protocol.FromPathHeader(self.local_uri_path))
+        self._send(msrpdata.encode())
+        data = self._recv_msrp()
+        if int(data["code"]) != 401:
+            raise RuntimeError("Expected 401 response from relay")
+        headers = dict(header.split(": ", 1) for header in data["headers"].split("\r\n"))
+        www_authenticate = msrp_protocol.WWWAuthenticateHeader(headers["WWW-Authenticate"])
+        auth, rsp_auth = process_www_authenticate(relay_username, relay_password, "AUTH", str(relay_uri), **www_authenticate.decoded)
+        msrpdata.transaction_id = random_string(12)
+        msrpdata.add_header(msrp_protocol.AuthorizationHeader(auth))
+        self._send(msrpdata.encode())
+        data = self._recv_msrp()
+        if int(data["code"]) != 200:
+            raise RuntimeError("Failed to log on to MSRP relay: %(code)s %(comment)s" % data)
+        headers = dict(header.split(": ", 1) for header in data["headers"].split("\r\n"))
+        use_path = msrp_protocol.UsePathHeader(headers["Use-Path"]).decoded[0]
+        self.local_uri_path = [use_path, self.local_uri_path[0]]
+
+    def _send(self, data):
+        if self.do_dump:
+            print "Sending MSRP data:\n%s" % data
+        if self.use_tls:
+            self.ssl.write(data)
         else:
-            self.listen_sock = None
+            self.sock.send(data)
+
+    def _recv(self):
+        if self.use_tls:
+            data = self.ssl.read(16384)
+        else:
+            data = self.sock.recv(16384)
+        if self.do_dump:
+            print "Received MSRP data:\n%s" % data
+        return data
+
+    def _recv_msrp(self):
+        while True:
+            match = _re_msrp.match(self.buf.getvalue())
+            if match is not None:
+                self.buf = StringIO()
+                self.buf.write(match.group("post"))
+                return match.groupdict()
+            else:
+                data = self._recv()
+                if len(data) == 0:
+                    return None
+                self.buf.write(data)
 
     def set_remote_uri(self, uri_path):
         self.remote_uri_path = [msrp_protocol.parse_uri(uri) for uri in uri_path]
         if not self.is_incoming:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(5)
-            self.sock.connect((self.remote_uri_path[-1].host, self.remote_uri_path[-1].port or 2855))
+            self.sock.connect((self.remote_uri_path[0].host, self.remote_uri_path[0].port or 2855))
             self.sock.settimeout(None)
+            if self.remote_uri_path[0].use_tls:
+                self.use_tls = True
+                self.ssl = socket.ssl(self.sock)
+            if len(self.remote_uri_path) > 1:
+                # accoring to the RFC we have to do a SEND first...
+                self.send_message("Oh my, you are using a MSRP relay!")
             self.start()
 
     def send_message(self, msg):
         if self.sock is not None:
-            msrpdata = msrp_protocol.MSRPData(method="SEND", transaction_id="".join(random.choice(string.letters + string.digits) for i in xrange(12)))
-            msrpdata.add_header(msrp_protocol.ToPathHeader(self.remote_uri_path))
-            msrpdata.add_header(msrp_protocol.FromPathHeader(self.local_uri_path))
+            msrpdata = msrp_protocol.MSRPData(method="SEND", transaction_id=random_string(12))
+            msrpdata.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
+            msrpdata.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
             msrpdata.add_header(msrp_protocol.MessageIDHeader(str(self.msg_id)))
             msrpdata.add_header(msrp_protocol.ByteRangeHeader((1, len(msg), len(msg))))
             msrpdata.add_header(msrp_protocol.ContentTypeHeader("text/plain"))
             data = msrpdata.encode_start() + msg + msrpdata.encode_end("$")
-            if self.do_dump:
-                print "Sending MSRP data:\n%s" % data
-            self.sock.send(data)
+            self._send(data)
             self.msg_id += 1
 
-    def disconnect(self):
-        if self.listen_sock is not None:
-            self.listen_sock.close()
-        if self.sock is not None:
-            self.sock.close()
-
     def run(self):
-        if self.is_incoming:
+        if self.is_incoming and self.relay_data is None:
             self.listen_sock.listen(1)
             self.sock, addr = self.listen_sock.accept()
             self.listen_sock.close()
-            self.listen_sock = None
         while True:
-            data = self.sock.recv(4096)
-            if len(data) == 0:
+            data = self._recv_msrp()
+            if data is None:
                 return
-            if self.do_dump:
-                print "Received MSRP data:\n%s" % data
-            self.buf.write(data)
-            match = _re_msrp_send.match(self.buf.getvalue())
-            if match is not None:
-                garbage, transaction_id, headers, msg, continuation, next = match.groups()
-                print "Received MSRP message: %s" % msg
-                self.buf = StringIO()
-                self.buf.write(next)
-                response = msrp_protocol.MSRPData(transaction_id=transaction_id, code=200, comment="OK")
-                response.add_header(msrp_protocol.ToPathHeader(self.remote_uri_path))
-                response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path))
-                self.sock.send(response.encode())
+            if data["method"] == "SEND":
+                print "Received MSRP message: %s" % data["body"]
+                response = msrp_protocol.MSRPData(transaction_id=data["transaction_id"], code=200, comment="OK")
+                response.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
+                response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
+                self._send(response.encode())
 
 queue = Queue()
 packet_count = 0
@@ -145,7 +201,7 @@ def user_input():
             queue.put(("end", None))
 
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port):
-    msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port)
+    msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password)
     inv = None
     streams = None
     e = Engine(event_handler, do_siptrace=False, auto_sound=False)
@@ -173,7 +229,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             if command == "quit":
                 sys.exit()
             elif command == "unregister":
-                msrp.disconnect()
                 try:
                     reg.unregister()
                 except:
