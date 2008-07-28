@@ -276,12 +276,12 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         except KeyboardInterrupt:
             pass
 
-re_ip_port = re.compile("^(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
-def parse_ip_port(option, opt_str, value, parser, ip_name, port_name, default_port):
-    match = re_ip_port.match(value)
+re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|[a-zA-Z0-9\-\.]+)(:(?P<port>\d+))?$")
+def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port):
+    match = re_host_port.match(value)
     if match is None:
         raise OptionValueError("Could not parse supplied address: %s" % value)
-    setattr(parser.values, ip_name, match.group("ip"))
+    setattr(parser.values, host_name, match.group("host"))
     if match.group("port") is None:
         setattr(parser.values, port_name, default_port)
     else:
@@ -296,9 +296,9 @@ def parse_options():
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
-    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_ip_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
-    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_ip_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use in incoming mode. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
+    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use in incoming mode. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
     try:
         try:
             options, (username_domain, retval["password"], target) = parser.parse_args()
