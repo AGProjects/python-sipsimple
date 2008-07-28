@@ -77,6 +77,8 @@ class HookedList(list):
         for k in xrange(i, j):
             try:
                 self._before_remove(self[k])
+            except IndexError:
+                break
             except:
                 traceback.print_exc()
         return list.__delslice__(self, i, j)
@@ -160,6 +162,9 @@ def _test():
 
     >>> assert 'extend()' == h.pop()
     removing 'extend()'
+
+    >>> del h[:]
+    removing 'y'
 
     >>> h = NonzeroList([3])
     >>> h[1:1] = [40, 50, 0, 60]
