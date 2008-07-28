@@ -56,18 +56,17 @@ class XMLParser(Parser):
 
     _schema_dir = _schema_dir_
 
-    def _validate(self, element):
+    def assertValid(self, element):
         if self._schema is not None:
-            if not self._schema.validate(element):
-                raise ParserError("XML document does not conform to schema")
+            self._schema.assertValid(element)
 
     def _parse(self, document):
         if self._parser is not None:
             try:
                 root = etree.XML(document, self._parser)
+                self.assertValid(root)
             except Exception, e:
                 raise ParserError("Cannot load XML document: %s" % e)
-            self._validate(root)
             return root
         else:
             raise ParserError("No XML parser defined")
