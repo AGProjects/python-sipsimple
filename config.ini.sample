@@ -18,18 +18,18 @@
 
 [general]
 
-; device id and ethernet are detected from hardware, used for auto enrolment
+; device id and ethernet are detected from hardware, used for auto enrollment
 device_id=auto
 ethernet=auro
 
-auto_enrolment=true
+auto_enrollment=true
 ; if true, and this configuration file does not contain the [account1]
 ; section, the software will automatically enrol for a new SIP account and
 ; create the [account1] section
 
-enrolment_url=https://enrolment.sipthor.net
-; the enrolment procedure requires a HTTP GET to the enrolment_url with the
-; following syntax: enrolment_url?device_id=X&ethernet=Y where device_id and
+enrollment_url=https://enrollment.sipthor.net
+; the enrollment procedure requires a HTTP GET to the enrollment_url with the
+; following syntax: enrollment_url?device_id=X&ethernet=Y where device_id and
 ; ethernet are automatically detected from the system, the GET request
 ; returns a valid [account1] section that is added to this configuration
 ; file
