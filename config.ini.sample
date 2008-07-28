@@ -18,21 +18,16 @@
 
 [general]
 
-; device id and ethernet are detected from hardware, used for auto enrollment
-device_id=auto
-ethernet=auro
-
 auto_enrollment=true
 ; if true, and this configuration file does not contain the [account1]
 ; section, the software will automatically enrol for a new SIP account and
 ; create the [account1] section
 
 enrollment_url=https://enrollment.sipthor.net
-; the enrollment procedure requires a HTTP GET to the enrollment_url with the
-; following syntax: enrollment_url?device_id=X&ethernet=Y where device_id and
-; ethernet are automatically detected from the system, the GET request
-; returns a valid [account1] section that is added to this configuration
-; file
+; the enrollment procedure requires the end-point to generated and store a
+; cryptographic public/private key pair, then HTTP POST to the
+; enrollment_url the public_key and signing the request with the private
+; key, the server returns the account defintion in json format
 
 ; SIP UA settings
 user_agent=pypjua.org
