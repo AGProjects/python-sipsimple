@@ -12,14 +12,14 @@ Generation
 >>> rl = ResourceLists([friends])
 >>> print rl.toxml(pretty_print=True)
 <?xml version='1.0' encoding='UTF-8'?>
-<ns0:resource-lists xmlns:ns0="urn:ietf:params:xml:ns:resource-lists">
-  <ns0:list>
-    <ns0:entry uri="sip:bill@example.com">
-      <ns0:display-name>Bill Doe</ns0:display-name>
-    </ns0:entry>
-    <ns0:entry-ref ref="some/ref"/>
-  </ns0:list>
-</ns0:resource-lists>
+<resource-lists xmlns="urn:ietf:params:xml:ns:resource-lists">
+  <list>
+    <entry uri="sip:bill@example.com">
+      <display-name>Bill Doe</display-name>
+    </entry>
+    <entry-ref ref="some/ref"/>
+  </list>
+</resource-lists>
 <BLANKLINE>
 
 toxml() wraps etree.tostring() and accepts all its arguments (like pretty_print).
@@ -29,30 +29,26 @@ toxml() wraps etree.tostring() and accepts all its arguments (like pretty_print)
 >>> marketing.list = List([Entry('sip:joe@example.com'), Entry('sip:sudhir@example.com')])
 >>> marketing.packages = ['presence']
 >>> rls = RLSServices([buddies, marketing])
->>> print rls.toxml(validate=False, pretty_print=True)
+>>> print rls.toxml(pretty_print=True)
 <?xml version='1.0' encoding='UTF-8'?>
-<ns0:rls-services xmlns:ns0="urn:ietf:params:xml:ns:rls-services">
-  <ns0:service uri="sip:mybuddies@example.com">
-    <ns0:resource-list>http://xcap.example.com/xxx</ns0:resource-list>
-    <ns0:packages>
-      <ns0:package>presence</ns0:package>
-    </ns0:packages>
-  </ns0:service>
-  <ns0:service uri="sip:marketing@example.com">
-    <ns1:list xmlns:ns1="urn:ietf:params:xml:ns:resource-lists">
-      <ns1:entry uri="sip:joe@example.com"/>
-      <ns1:entry uri="sip:sudhir@example.com"/>
-    </ns1:list>
-    <ns0:packages>
-      <ns0:package>presence</ns0:package>
-    </ns0:packages>
-  </ns0:service>
-</ns0:rls-services>
+<rls-services xmlns="urn:ietf:params:xml:ns:rls-services" xmlns:rl="urn:ietf:params:xml:ns:resource-lists">
+  <service uri="sip:mybuddies@example.com">
+    <resource-list>http://xcap.example.com/xxx</resource-list>
+    <packages>
+      <package>presence</package>
+    </packages>
+  </service>
+  <service uri="sip:marketing@example.com">
+    <list>
+      <rl:entry uri="sip:joe@example.com"/>
+      <rl:entry uri="sip:sudhir@example.com"/>
+    </list>
+    <packages>
+      <package>presence</package>
+    </packages>
+  </service>
+</rls-services>
 <BLANKLINE>
-
-XXX validation fails when there're one or more List elements (i.e. from imported namespace)
-XXX when there are no Lists, validations passes:
->>> _ = RLSServices([buddies]).toxml(validate=True)
 
 
 Parsing
@@ -106,7 +102,7 @@ List([Entry('sip:joe@example.com'), Entry('sip:sudhir@example.com')], name='mark
 
 import sys
 from lxml import etree
-from pypjua.applications import XMLParser, ParserError
+from pypjua.applications import XMLParser
 from hlist import TypedList, HookedList
 
 __all__ = ['List',
@@ -163,42 +159,88 @@ __all__ = ['List',
 # XXX currently there are no consistency checks in the classes (i.e. that name is unique, etc)
 # you'll get an error at validation, but you should get it earlier, at object construction.
 
+class XMLMixin(object):
+    encoding = 'UTF-8'
+    nsmap = {}
+
+    @classmethod
+    def tag(cls, namespace = None, tag = None):
+        if tag is None:
+            tag = cls._xml_tag # define in subclass
+        if namespace is None:
+            namespace = cls._xml_namespace # define in subclass
+        return '{%s}%s' % (namespace, tag)
+
+    def to_element(self, parent = None, namespace = None, tag = None, nsmap = None):
+        if nsmap is None:
+            nsmap = self.nsmap
+        if parent is None:
+            element = etree.Element(self.tag(namespace, tag), nsmap = nsmap)
+        else:
+            element = etree.SubElement(parent, self.tag(namespace, tag), nsmap = nsmap)
+        self.set_element(element) # define in subclass
+        return element
+
+    @classmethod
+    def parse(cls, document):
+        element = etree.XML(document, cls._xml_parser._parser)
+        return cls.from_element(element)
+
+    def toxml(self, *args, **kwargs):
+        """Shortcut that generates Element and calls etree.tostring"""
+        element = self.to_element()
+        kwargs.setdefault('encoding', self.encoding)
+        return etree.tostring(element, *args, **kwargs)
+
+
+class XMLRoot(XMLMixin):
+    xml_declaration = False
+    validate_output = True
+    validate_input = True
+
+    @classmethod
+    def parse(cls, document):
+        element = etree.XML(document, cls._xml_parser._parser)
+        if cls.validate_input:
+            cls._xml_parser.assertValid(element)
+        return cls.from_element(element)
+
+    def toxml(self, *args, **kwargs):
+        """Shortcut that generates Element and calls etree.tostring.
+
+        If `validate' keyword arg is present and evaluates to True, method
+        also does schema validation.
+        """
+        element = self.to_element()
+        kwargs.setdefault('encoding', self.encoding)
+        kwargs.setdefault('xml_declaration', self.xml_declaration)
+        validate = kwargs.pop('validate', self.validate_output)
+        res = etree.tostring(element, *args, **kwargs)
+        if validate:
+            self._xml_parser.assertValid(element)
+        return res
+
+
 class ResourceListsParser(XMLParser):
     accept_types = ['application/resource-lists+xml']
     _namespace = 'urn:ietf:params:xml:ns:resource-lists'
     _schema_file = 'resourcelists.xsd'
-    _parser = etree.XMLParser(remove_blank_text=True)
+
+class ResourceListsElement(object):
+    _xml_namespace = ResourceListsParser._namespace
+    _xml_parser = ResourceListsParser()
+    nsmap = { '' : _xml_namespace }
 
 class RLSServicesParser(XMLParser):
     accept_types = ['application/rls-services+xml']
     _namespace = 'urn:ietf:params:xml:ns:rls-services'
     _schema_file = 'rlsservices.xsd'
-    _parser = etree.XMLParser(remove_blank_text=True)
 
-_resource_lists_prefix = '{%s}' % ResourceListsParser._namespace
-_rls_services_prefix = '{%s}' % RLSServicesParser._namespace
-
-
-class ToElementMixin(object):
-    _xml_tag = None
-    default_encoding = 'UTF-8'
-
-    def to_element(self, parent = None):
-        if parent is None:
-            element = etree.Element(self._xml_tag)
-        else:
-            element = etree.SubElement(parent, self._xml_tag)
-        self.set_element(element)
-        return element
-
-    def set_element(self, element):
-        raise NotImplementedError
-
-    def toxml(self, *args, **kwargs):
-        """Shortcut that generates Element and calls etree.tostring"""
-        element = self.to_element()
-        kwargs.setdefault('encoding', self.default_encoding)
-        return etree.tostring(element, *args, **kwargs)
+class RLSServicesElement(object):
+    _xml_namespace = RLSServicesParser._namespace
+    _xml_parser = RLSServicesParser()
+    nsmap = { ''   : _xml_namespace,
+              'rl' : ResourceListsElement._xml_namespace }
 
 
 class DisplayNameMixin(object):
@@ -216,8 +258,8 @@ class DisplayNameMixin(object):
                             _set_display_name)
 
 
-class DisplayName(ToElementMixin):
-    _xml_tag = _resource_lists_prefix + 'display-name'
+class DisplayName(ResourceListsElement, XMLMixin):
+    _xml_tag = 'display-name'
 
     def __init__(self, text, lang = None):
         self.text = text
@@ -256,7 +298,7 @@ def find_display_name(element):
             return DisplayName.from_element(child)
 
 
-class ElementWithDisplayName(ToElementMixin, DisplayNameMixin):
+class ElementWithDisplayName(ResourceListsElement, XMLMixin, DisplayNameMixin):
     _arg = None
 
     @classmethod
@@ -293,23 +335,23 @@ class ElementWithDisplayName(ToElementMixin, DisplayNameMixin):
 
 
 class Entry(ElementWithDisplayName):
-    _xml_tag = _resource_lists_prefix + 'entry'
+    _xml_tag = 'entry'
     _arg = 'uri'
 
 
 class EntryRef(ElementWithDisplayName):
-    _xml_tag = _resource_lists_prefix + 'entry-ref'
+    _xml_tag = 'entry-ref'
     _arg = 'ref'
 
 
 class External(ElementWithDisplayName):
-    _xml_tag = _resource_lists_prefix + 'external'
+    _xml_tag = 'external'
     _arg = 'anchor'
 
 
-class List(TypedList, ToElementMixin, DisplayNameMixin):
+class List(TypedList, ResourceListsElement, XMLMixin, DisplayNameMixin):
     "list of List/Entry/EntryRef/External objects"
-    _xml_tag = _resource_lists_prefix + 'list'
+    _xml_tag = 'list'
 
     def __init__(self, iterable = [], name = None, display_name = None):
         assert not isinstance(iterable, basestring), 'have you passed name as first argument?'
@@ -367,68 +409,37 @@ class List(TypedList, ToElementMixin, DisplayNameMixin):
 List._items_types_ = (Entry, EntryRef, External, List)
 
 # possible List members
-_mapping_ = { Entry._xml_tag       : Entry,
-              EntryRef._xml_tag    : EntryRef,
-              List._xml_tag        : List,
-              External._xml_tag    : External,
-              DisplayName._xml_tag : DisplayName }
+_mapping_ = { Entry.tag()       : Entry,
+              EntryRef.tag()    : EntryRef,
+              List.tag()        : List,
+              External.tag()    : External,
+              DisplayName.tag() : DisplayName }
 
 
-class MainListElement(TypedList):
-
-    # default parameters for toxml()
-    default_validate = True
-    default_encoding = 'UTF-8'
-    default_xml_declaration = True
+class SimpleList(TypedList):
 
     @classmethod
     def from_element(cls, element):
         self = cls()
         for x in element:
-            assert x.tag == cls._items_types_._xml_tag, x.tag
+            assert x.tag == cls._items_types_.tag(), x.tag
             l = cls._items_types_.from_element(x)
             self.append(l)
         return self
 
-    def to_element(self):
-        element = etree.Element(self._xml_tag)
+    def set_element(self, element):
         for child in self:
             child.to_element(element)
-        return element
-
-    @classmethod
-    def parse(cls, document):
-        root = cls.parser._parse(document)
-        return cls.from_element(root)
-
-    def toxml(self, *args, **kwargs):
-        """Shortcut that generates Element and calls etree.tostring.
-
-        If `validate' keyword arg is present and evaluates to True, method
-        also does schema validation.
-        """
-        element = self.to_element()
-        kwargs.setdefault('encoding', self.default_encoding)
-        kwargs.setdefault('xml_declaration', self.default_xml_declaration)
-        validate = kwargs.pop('validate', self.default_validate)
-        res = etree.tostring(element, *args, **kwargs)
-        if validate:
-            try:
-                self.parser._validate(element)
-            except ParserError:
-                sys.stderr.write('Failed to validate:\n%s\n' % res)
-                raise
-        return res
 
 
-class ResourceLists(MainListElement):
+class ResourceLists(ResourceListsElement, XMLRoot, SimpleList):
     "list of Lists"
-    _xml_tag = _resource_lists_prefix + 'resource-lists'
+    _xml_tag = 'resource-lists'
     _items_types_ = List
-    parser = ResourceListsParser()
+    xml_declaration = True
 
 
-class StringElement(unicode, ToElementMixin):
+class StringElement(unicode):
 
     def __new__(cls, name):
         return unicode.__new__(cls, name)
@@ -444,18 +455,18 @@ class StringElement(unicode, ToElementMixin):
         return '%s(%s)' % (self.__class__.__name__, unicode.__repr__(self))
 
 
-class Package(StringElement):
-    _xml_tag = _rls_services_prefix + 'package'
+class Package(RLSServicesElement, XMLMixin, StringElement):
+    _xml_tag = 'package'
 
 
-class Packages(HookedList, ToElementMixin):
-    _xml_tag = _rls_services_prefix + 'packages'
+class Packages(RLSServicesElement, XMLMixin, HookedList):
+    _xml_tag = 'packages'
 
     @classmethod
     def from_element(cls, element):
         self = cls()
         for child in element:
-            assert child.tag == Package._xml_tag
+            assert child.tag == Package.tag()
             self.append(Package.from_element(child))
         return self
 
@@ -472,16 +483,15 @@ class Packages(HookedList, ToElementMixin):
             raise TypeError('value must be Package, str or unicode')
 
 
-class ResourceList(StringElement):
-    _xml_tag = _rls_services_prefix + 'resource-list'
+class ResourceList(RLSServicesElement, XMLMixin, StringElement):
+    _xml_tag = 'resource-list'
 
 
-class Service(ToElementMixin):
-    _xml_tag = _rls_services_prefix + 'service'
+class Service(RLSServicesElement, XMLMixin):
+    _xml_tag = 'service'
 
-    list_classes = { ResourceList._xml_tag : ResourceList,
-                     _rls_services_prefix + 'list' : List, # QQQ why this is needed?
-                     List._xml_tag : List }
+    list_classes = { ResourceList.tag() : ResourceList,
+                     List.tag(namespace=RLSServicesElement._xml_namespace) : List }
 
     def __init__(self, uri, list = List(), packages = Packages()):
         self.uri = uri
@@ -526,7 +536,9 @@ class Service(ToElementMixin):
 
     def set_element(self, element):
         element.set('uri', self.uri)
-        self.list.to_element(element)
+        # List has a default namespace==resource-lists, while in <rls-services> document it
+        # must be used with namespace==rls-services or validation fails. Wierd, if you ask me.
+        self.list.to_element(element, namespace = self._xml_namespace)
         if self.packages:
             self.packages.to_element(element)
 
@@ -536,17 +548,18 @@ class Service(ToElementMixin):
                cmp(self._packages, other._packages)
 
 
-class RLSServices(MainListElement):
-    _xml_tag = _rls_services_prefix + 'rls-services'
+class RLSServices(RLSServicesElement, XMLRoot, SimpleList):
+    _xml_tag = 'rls-services'
     _items_types_ = Service
-    parser = RLSServicesParser()
+    xml_declaration = True
 
 
 def __test():
 
     def clone(obj):
-        element = obj.to_element()
-        return obj.__class__.from_element(element)
+        element = obj.toxml(pretty_print=True)
+        #print element
+        return obj.__class__.parse(element)
 
     bill = Entry('sip:bill@example.com', display_name = 'Bill Doe')
     bill2 = clone(bill)
@@ -576,7 +589,7 @@ def __test():
 
     lst = List([bill, ref, ext, List(name='inside')], display_name = 'mylist')
     lst2 = clone(lst)
-    assert lst == lst2
+    assert lst == lst2, (lst, lst2)
 
     rls = ResourceLists()
     rls.append(lst)
@@ -585,19 +598,19 @@ def __test():
 
     xml = rls.toxml(pretty_print=True)
     assert xml  == '''<?xml version='1.0' encoding='UTF-8'?>
-<ns0:resource-lists xmlns:ns0="urn:ietf:params:xml:ns:resource-lists">
-  <ns0:list>
-    <ns0:display-name>mylist</ns0:display-name>
-    <ns0:entry uri="sip:bill@example.com">
-      <ns0:display-name>Bill Doe</ns0:display-name>
-    </ns0:entry>
-    <ns0:entry-ref ref="a/b/c">
-      <ns0:display-name>Unicode</ns0:display-name>
-    </ns0:entry-ref>
-    <ns0:external anchor="http://localhost"/>
-    <ns0:list name="inside"/>
-  </ns0:list>
-</ns0:resource-lists>
+<resource-lists xmlns="urn:ietf:params:xml:ns:resource-lists">
+  <list>
+    <display-name>mylist</display-name>
+    <entry uri="sip:bill@example.com">
+      <display-name>Bill Doe</display-name>
+    </entry>
+    <entry-ref ref="a/b/c">
+      <display-name>Unicode</display-name>
+    </entry-ref>
+    <external anchor="http://localhost"/>
+    <list name="inside"/>
+  </list>
+</resource-lists>
 ''', xml
 
     assert DisplayName('123') == DisplayName ('123')
@@ -637,6 +650,28 @@ def __test():
 
     rls.append(s)
     rls.toxml(validate=False, pretty_print=True)
+
+    xml = """<?xml version='1.0' encoding='UTF-8'?>
+<ns0:rls-services xmlns:ns0="urn:ietf:params:xml:ns:rls-services">
+  <ns0:service uri="sip:mybuddies@example.com">
+    <ns0:resource-list>http://xcap.example.com/xxx</ns0:resource-list>
+    <ns0:packages>
+      <ns0:package>presence</ns0:package>
+    </ns0:packages>
+  </ns0:service>
+  <ns0:service uri="sip:marketing@example.com">
+    <ns0:list xmlns:ns1="urn:ietf:params:xml:ns:resource-lists">
+      <ns1:entry uri="sip:joe@example.com"/>
+      <ns1:entry uri="sip:sudhir@example.com"/>
+    </ns0:list>
+    <ns0:packages>
+      <ns0:package>presence</ns0:package>
+    </ns0:packages>
+  </ns0:service>
+</ns0:rls-services>
+"""
+    RLSServices.parse(xml)
+
 
 if __name__ == '__main__':
     example_from_section_3_3_rfc = """<?xml version="1.0" encoding="UTF-8"?>
