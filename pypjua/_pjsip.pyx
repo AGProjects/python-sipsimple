@@ -852,7 +852,7 @@ cdef class PJSIPUA:
     cdef PJSTR c_trace_module_name
     cdef pjsip_module c_event_module
     cdef PJSTR c_event_module_name
-    cdef public bint c_do_siptrace
+    cdef bint c_do_siptrace
     cdef pjsip_generic_string_hdr *c_user_agent_hdr
     cdef list c_events
     cdef PJSTR c_contact_url
