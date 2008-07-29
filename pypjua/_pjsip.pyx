@@ -278,8 +278,8 @@ cdef extern from "pjsip.h":
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
-    pjsip_route_hdr *pjsip_route_hdr_create(pj_pool_t *pool)
-    pjsip_sip_uri *pjsip_sip_uri_create(pj_pool_t *pool, int secure)
+    pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
+    void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
 
     # module
     enum pjsip_module_priority:
@@ -1115,44 +1115,24 @@ cdef class Credentials:
 
 
 cdef class Route:
-    cdef pj_pool_t *c_pool
     cdef pjsip_route_hdr c_route_set
-    cdef pjsip_route_hdr *c_route_hdr
+    cdef pjsip_route_hdr c_route_hdr
+    cdef pjsip_sip_uri c_sip_uri
     cdef PJSTR c_host
     cdef readonly int port
 
     def __cinit__(self, host, port=5060):
         cdef int status
-        cdef object c_pool_name
-        cdef pjsip_sip_uri *c_sip_uri
-        cdef PJSIPUA ua = c_get_ua()
         self.c_host = PJSTR(host)
         self.port = port
-        c_pool_name = "Route_%d" % id(self)
-        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, c_pool_name, 4096, 4096)
-        if self.c_pool == NULL:
-            raise MemoryError()
-        self.c_route_hdr = pjsip_route_hdr_create(self.c_pool)
-        if self.c_route_hdr == NULL:
-            raise MemoryError()
-        c_sip_uri = pjsip_sip_uri_create(self.c_pool, 0)
-        if c_sip_uri == NULL:
-            raise MemoryError()
-        c_sip_uri.host = self.c_host.pj_str
-        c_sip_uri.port = port
-        c_sip_uri.lr_param = 1
-        self.c_route_hdr.name_addr.uri = <pjsip_uri *> c_sip_uri
+        pjsip_route_hdr_init(NULL, <void *> &self.c_route_hdr)
+        pjsip_sip_uri_init(&self.c_sip_uri, 0)
+        self.c_sip_uri.host = self.c_host.pj_str
+        self.c_sip_uri.port = port
+        self.c_sip_uri.lr_param = 1
+        self.c_route_hdr.name_addr.uri = <pjsip_uri *> &self.c_sip_uri
         pj_list_init(<pj_list_type *> &self.c_route_set)
-        pj_list_push_back(<pj_list_type *> &self.c_route_set, <pj_list_type *> self.c_route_hdr)
-
-    def __dealloc__(self):
-        cdef PJSIPUA ua
-        try:
-            ua = c_get_ua()
-        except RuntimeError:
-            return
-        if self.c_pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+        pj_list_push_back(<pj_list_type *> &self.c_route_set, <pj_list_type *> &self.c_route_hdr)
 
     property host:
 
