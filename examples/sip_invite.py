@@ -282,7 +282,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     msrp.send_message(data)
         except KeyboardInterrupt:
             pass
-        except:
+        except Exception:
             traceback.print_exc()
             sys.exit()
 
