@@ -72,7 +72,7 @@ def do_subscribe(username, domain, password, presentity_username, presentity_dom
         if proxy_ip is None:
             route = None
         else:
-            route = Route(proxy_ip, proxy_port)
+            route = Route(proxy_ip, proxy_port or 5060)
         sub = Subscription(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=presentity_username, host=presentity_domain), event, route=route, expires=expires)
         sub.subscribe()
     except:

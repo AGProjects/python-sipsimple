@@ -115,7 +115,7 @@ def do_publish(username, domain, password, proxy_ip, proxy_port, expires):
         if proxy_ip is None:
             route = None
         else:
-            route = Route(proxy_ip, proxy_port)
+            route = Route(proxy_ip, proxy_port or 5060)
         pub = Publication(Credentials(SIPURI(user=username, host=domain), password), "presence", route=route, expires=expires)
     except:
         e.stop()
