@@ -289,10 +289,10 @@ cdef extern from "pjsip.h":
         pj_str_t name
         int id
         int priority
-        int on_rx_request(pjsip_rx_data *rdata) with gil
-        int on_rx_response(pjsip_rx_data *rdata) with gil
-        int on_tx_request(pjsip_tx_data *tdata) with gil
-        int on_tx_response(pjsip_tx_data *tdata) with gil
+        int on_rx_request(pjsip_rx_data *rdata) except 0 with gil
+        int on_rx_response(pjsip_rx_data *rdata) except 0 with gil
+        int on_tx_request(pjsip_tx_data *tdata) except 0 with gil
+        int on_tx_response(pjsip_tx_data *tdata) except 0 with gil
 
     # endpoint
     struct pjsip_endpoint
@@ -1019,43 +1019,38 @@ cdef class PJSIPUA:
         return 1
 
 
-cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil:
+cdef PJSIPUA c_get_ua():
     global _ua
-    cdef PJSIPUA c_ua
-    if _ua != NULL:
-        c_ua = <object> _ua
-        return c_ua._rx_request(rdata)
-    else:
-        return 0
+    if _ua == NULL:
+        raise RuntimeError("PJSIPUA is not instanced")
+    return <object> _ua
 
-cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
-    global _ua, _event_queue
-    cdef PJSIPUA c_ua
-    if _ua != NULL:
-        c_ua = <object> _ua
-        if c_ua.c_do_siptrace:
-            _event_queue.append(("siptrace", dict(timestamp=datetime.now(),
-                                                   received=True,
-                                                   source_ip=rdata.pkt_info.src_name,
-                                                   source_port=rdata.pkt_info.src_port,
-                                                   destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
-                                                   destination_port=rdata.tp_info.transport.local_name.port,
-                                                   data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len))))
+cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) except 0 with gil:
+    cdef PJSIPUA c_ua = c_get_ua()
+    return c_ua._rx_request(rdata)
+
+cdef int cb_trace_rx(pjsip_rx_data *rdata) except 0 with gil:
+    cdef PJSIPUA c_ua = c_get_ua()
+    if c_ua.c_do_siptrace:
+        _event_queue.append(("siptrace", dict(timestamp=datetime.now(),
+                                               received=True,
+                                               source_ip=rdata.pkt_info.src_name,
+                                               source_port=rdata.pkt_info.src_port,
+                                               destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                               destination_port=rdata.tp_info.transport.local_name.port,
+                                               data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len))))
     return 0
 
-cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
-    global _ua, _event_queue
-    cdef PJSIPUA c_ua
-    if _ua != NULL:
-        c_ua = <object> _ua
-        if c_ua.c_do_siptrace:
-            _event_queue.append(("siptrace", dict(timestamp=datetime.now(),
-                                                   received=False,
-                                                   source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
-                                                   source_port=tdata.tp_info.transport.local_name.port,
-                                                   destination_ip=tdata.tp_info.dst_name,
-                                                   destination_port=tdata.tp_info.dst_port,
-                                                   data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start))))
+cdef int cb_trace_tx(pjsip_tx_data *tdata) except 0 with gil:
+    cdef PJSIPUA c_ua = c_get_ua()
+    if c_ua.c_do_siptrace:
+        _event_queue.append(("siptrace", dict(timestamp=datetime.now(),
+                                               received=False,
+                                               source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
+                                               source_port=tdata.tp_info.transport.local_name.port,
+                                               destination_ip=tdata.tp_info.dst_name,
+                                               destination_port=tdata.tp_info.dst_port,
+                                               data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start))))
     return 0
 
 cdef class EventPackage:
@@ -1096,12 +1091,7 @@ cdef class Credentials:
     cdef PJSTR c_scheme
 
     def __cinit__(self, SIPURI uri, password):
-        global _ua
         cdef int status
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA needs to be instanced first")
-        ua = <object> _ua
         if uri is None:
             raise RuntimeError("uri parameter cannot be None")
         if uri.user is None:
@@ -1132,14 +1122,10 @@ cdef class Route:
     cdef readonly int port
 
     def __cinit__(self, host, port=5060):
-        global _ua
         cdef int status
-        cdef PJSIPUA ua
         cdef object c_pool_name
         cdef pjsip_sip_uri *c_sip_uri
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA needs to be instanced first")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         self.c_host = PJSTR(host)
         self.port = port
         c_pool_name = "Route_%d" % id(self)
@@ -1160,12 +1146,13 @@ cdef class Route:
         pj_list_push_back(<pj_list_type *> &self.c_route_set, <pj_list_type *> self.c_route_hdr)
 
     def __dealloc__(self):
-        global _ua
         cdef PJSIPUA ua
-        if _ua != NULL:
-            ua = <object> _ua
-            if self.c_pool != NULL:
-                pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+        try:
+            ua = c_get_ua()
+        except RuntimeError:
+            return
+        if self.c_pool != NULL:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
 
     property host:
 
@@ -1187,12 +1174,8 @@ cdef class Registration:
     cdef pj_timer_entry c_timer
 
     def __cinit__(self, Credentials credentials, route = None, expires = 300):
-        global _ua
         cdef int status
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA needs to be instanced first")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
             raise RuntimeError("credentials parameter cannot be None")
         self.state = "unregistered"
@@ -1215,14 +1198,15 @@ cdef class Registration:
                 raise RuntimeError("Could not set route set on registration: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
-        global _ua
         cdef PJSIPUA ua
-        if _ua != NULL:
-            ua = <object> _ua
-            if self.c_timer.user_data != NULL:
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
-            if self.c_obj != NULL:
-                pjsip_regc_destroy(self.c_obj)
+        try:
+            ua = c_get_ua()
+        except RuntimeError:
+            return
+        if self.c_timer.user_data != NULL:
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
+        if self.c_obj != NULL:
+            pjsip_regc_destroy(self.c_obj)
 
     def __repr__(self):
         return "<Registration for '%s'>" % self.credentials.c_aor_url.str
@@ -1253,13 +1237,10 @@ cdef class Registration:
                 return c_info.interval
 
     cdef int _cb_response(self, pjsip_regc_cbparam *param) except -1:
-        global _ua, _event_queue
+        global _event_queue
         cdef pj_time_val c_delay
         cdef bint c_success = 0
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if self.state == "registering":
             if param.code / 100 == 2:
                 self.state = "registered"
@@ -1324,12 +1305,8 @@ cdef class Registration:
         self.c_want_register = 0
 
     cdef int _create_reg(self, bint register) except -1:
-        global _ua
         cdef int status
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if register:
             status = pjsip_regc_register(self.c_obj, 0, &self.c_tx_data)
             if status != 0:
@@ -1378,13 +1355,9 @@ cdef class Publication:
     cdef pj_timer_entry c_timer
 
     def __cinit__(self, Credentials credentials, event, route = None, expires = 300):
-        global _ua
         cdef int status
-        cdef PJSIPUA ua
         cdef pj_str_t c_event
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA needs to be instanced first")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
             raise RuntimeError("credentials parameter cannot be None")
         self.state = "unpublished"
@@ -1409,14 +1382,15 @@ cdef class Publication:
                 raise RuntimeError("Could not set route set on publication: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
-        global _ua
         cdef PJSIPUA ua
-        if _ua != NULL:
-            ua = <object> _ua
-            if self.c_timer.user_data != NULL:
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
-            if self.c_obj != NULL:
-                pjsip_publishc_destroy(self.c_obj)
+        try:
+            ua = c_get_ua()
+        except RuntimeError:
+            return
+        if self.c_timer.user_data != NULL:
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
+        if self.c_obj != NULL:
+            pjsip_publishc_destroy(self.c_obj)
 
     def __repr__(self):
         return "<Publication for '%s'>" % self.credentials.c_aor_url.str
@@ -1434,13 +1408,10 @@ cdef class Publication:
             self.c_expires = value
 
     cdef int _cb_response(self, pjsip_publishc_cbparam *param) except -1:
-        global _ua, _event_queue
+        global _event_queue
         cdef pj_time_val c_delay
         cdef bint c_success = 0
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if self.state == "publishing":
             if param.code / 100 == 2:
                 self.state = "published"
@@ -1528,13 +1499,10 @@ cdef class Publication:
         self.c_body = None
 
     cdef int _create_pub(self, pj_str_t *content_type, pj_str_t *content_subtype, pj_str_t *body) except -1:
-        global _ua, _event_queue
+        global _event_queue
         cdef pjsip_msg_body *c_body
         cdef int status
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if body != NULL:
             status = pjsip_publishc_publish(self.c_obj, 0, &self.c_tx_data)
             if status != 0:
@@ -1581,15 +1549,9 @@ cdef class Subscription:
     cdef readonly object state
 
     def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route = None, expires = 300):
-        global _ua
-        global _subs
-        global _subs_cb
         cdef int status
         cdef EventPackage pkg
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA needs to be instanced first")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
             raise RuntimeError("credentials parameter cannot be None")
         if to_uri is None:
@@ -1604,12 +1566,14 @@ cdef class Subscription:
         self.state = "TERMINATED"
 
     def __dealloc__(self):
-        global _ua
         cdef PJSIPUA ua
-        if _ua != NULL:
-            if self.c_obj != NULL:
-                if self.state != "TERMINATED":
-                    pjsip_evsub_terminate(self.c_obj, 0)
+        try:
+            ua = c_get_ua()
+        except RuntimeError:
+            return
+        if self.c_obj != NULL:
+            if self.state != "TERMINATED":
+                pjsip_evsub_terminate(self.c_obj, 0)
 
     def __repr__(self):
         return "<Subscription for '%s' of '%s'>" % (self.c_event.str, self.to_uri.as_str())
@@ -1647,15 +1611,12 @@ cdef class Subscription:
         self._do_sub(0)
 
     cdef int _do_sub(self, bint subscribe) except -1:
-        global _ua
+        global _subs_cb
         cdef pjsip_tx_data *c_tdata
         cdef int status
         cdef int c_expires
         cdef PJSTR c_to, c_to_req
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         try:
             if subscribe:
                 c_to = PJSTR(self.to_uri.as_str())
@@ -1695,26 +1656,20 @@ cdef class Subscription:
 
 
 cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
-    global _ua
-    cdef PJSIPUA ua
     cdef Subscription subscription
     cdef pjsip_transaction *tsx = NULL
-    if _ua != NULL:
-        ua = <object> _ua
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
-        if event != NULL:
-            if event.type == PJSIP_EVENT_TSX_STATE and event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
-                tsx = event.body.tsx_state.tsx
-        subscription._cb_state(tsx)
+    cdef PJSIPUA ua = c_get_ua()
+    subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+    if event != NULL:
+        if event.type == PJSIP_EVENT_TSX_STATE and event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
+            tsx = event.body.tsx_state.tsx
+    subscription._cb_state(tsx)
 
 cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
-    global _ua
-    cdef PJSIPUA ua
     cdef Subscription subscription
-    if _ua != NULL:
-        ua = <object> _ua
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
-        subscription._cb_notify(rdata)
+    cdef PJSIPUA ua = c_get_ua()
+    subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+    subscription._cb_notify(rdata)
 
 cdef class SDPAttribute:
     cdef pjmedia_sdp_attr c_obj
@@ -2087,11 +2042,7 @@ cdef class Invitation:
     cdef readonly object state
 
     def __cinit__(self, *args, route=None):
-        global _ua
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA needs to be instanced first")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if len(args) != 0:
             if None in args:
                 raise TypeError("Positional arguments cannot be None")
@@ -2146,14 +2097,15 @@ cdef class Invitation:
             _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
     def __dealloc__(self):
-        global _ua
         cdef PJSIPUA ua
-        if _ua != NULL:
-            ua = <object> _ua
-            if self.c_obj != NULL:
-                self.c_obj.mod_data[ua.c_module.id] = NULL
-                if self.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
-                    pjsip_inv_terminate(self.c_obj, 481, 0)
+        try:
+            ua = c_get_ua()
+        except RuntimeError:
+            return
+        if self.c_obj != NULL:
+            self.c_obj.mod_data[ua.c_module.id] = NULL
+            if self.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
+                pjsip_inv_terminate(self.c_obj, 481, 0)
 
     property media_streams:
 
@@ -2196,17 +2148,14 @@ cdef class Invitation:
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams)))
 
     def invite(self, MediaStreams streams):
-        global _ua, _event_queue
+        global _event_queue
         cdef int status
         cdef pjsip_tx_data *c_tdata
         cdef PJSTR c_caller_uri
         cdef PJSTR c_callee_uri
         cdef PJSTR c_callee_target
         cdef SDPSession c_local_sdp
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if self.state == "DISCONNECTED":
             c_caller_uri = PJSTR(self.caller_uri.as_str())
             c_callee_uri = PJSTR(self.callee_uri.as_str())
@@ -2251,14 +2200,11 @@ cdef class Invitation:
             raise RuntimeError('"invite" method can only be used in "DISCONNECTED" state')
 
     def accept(self, MediaStreams streams):
-        global _ua, _event_queue
+        global _event_queue
         cdef int status
         cdef pjsip_tx_data *c_tdata
         cdef SDPSession c_local_sdp
-        cdef PJSIPUA ua
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
+        cdef PJSIPUA ua = c_get_ua()
         if self.state == "INCOMING":
             c_local_sdp = streams._make_local_sdp(ua)
             status = pjsip_inv_answer(self.c_obj, 200, NULL, &c_local_sdp.c_obj, &c_tdata)
@@ -2277,14 +2223,10 @@ cdef class Invitation:
             raise RuntimeError('"accept" method can only be used in "INCOMING" state')
 
     def end(self):
-        global _ua
         cdef pjsip_tx_data *c_tdata
-        cdef PJSIPUA ua
+        cdef PJSIPUA ua = c_get_ua()
         if self.state in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
             raise RuntimeError("INVITE session is not active")
-        if _ua == NULL:
-            raise RuntimeError("PJSIPUA already dealloced")
-        ua = <object> _ua
         status = pjsip_inv_end_session(self.c_obj, 486, NULL, &c_tdata)
         if status != 0:
             raise RuntimeError("Could not create message to end INVITE session: %s" % pj_status_to_str(status))
@@ -2296,11 +2238,10 @@ cdef class Invitation:
         _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
-    global _ua
-    cdef PJSIPUA ua
     cdef void *invitation_void = NULL
     cdef Invitation invitation
     cdef pjsip_transaction *tsx = NULL
+    cdef PJSIPUA ua = c_get_ua()
     if _ua != NULL:
         ua = <object> _ua
         invitation_void = inv.mod_data[ua.c_module.id]
@@ -2316,28 +2257,24 @@ cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     pass
 
 cdef void cb_Invitation_cb_sdp_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil:
-    global _ua
     cdef PJSIPUA ua
     cdef void *invitation_void = NULL
     cdef Invitation invitation
-    if _ua != NULL:
-        ua = <object> _ua
-        invitation_void = inv.mod_data[ua.c_module.id]
-        if invitation_void != NULL:
-            invitation = <object> invitation_void
-            invitation._cb_sdp_offer(c_make_SDPSession(offer))
+    cdef PJSIPUA ua = c_get_ua()
+    invitation_void = inv.mod_data[ua.c_module.id]
+    if invitation_void != NULL:
+        invitation = <object> invitation_void
+        invitation._cb_sdp_offer(c_make_SDPSession(offer))
 
 cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
-    global _ua
-    cdef PJSIPUA ua
     cdef void *invitation_void = NULL
     cdef Invitation invitation
-    if _ua != NULL:
-        ua = <object> _ua
-        invitation_void = inv.mod_data[ua.c_module.id]
-        if invitation_void != NULL:
-            invitation = <object> invitation_void
-            invitation._cb_sdp_done(status)
+    cdef PJSIPUA ua = c_get_ua()
+    ua = <object> _ua
+    invitation_void = inv.mod_data[ua.c_module.id]
+    if invitation_void != NULL:
+        invitation = <object> invitation_void
+        invitation._cb_sdp_done(status)
 
 cdef struct pypjua_log_msg:
     pypjua_log_msg *prev
