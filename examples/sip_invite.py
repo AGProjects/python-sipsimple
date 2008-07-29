@@ -38,17 +38,9 @@ class MSRP(Thread):
         self.buf = StringIO()
         self.use_tls = False
         Thread.__init__(self)
-        if is_incoming:
-            if self.relay_data is not None:
-                self.use_tls = True
-                self._init_relay()
-            else:
-                self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.listen_sock.bind(("", 0))
-                self.local_uri_path[-1].port = self.listen_sock.getsockname()[1]
-            self.start()
 
     def _init_relay(self):
+        print "Reserving session at MSRP relay..."
         relay_ip, relay_port, relay_username, relay_password = self.relay_data
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.settimeout(5)
@@ -108,7 +100,16 @@ class MSRP(Thread):
 
     def set_remote_uri(self, uri_path):
         self.remote_uri_path = [msrp_protocol.parse_uri(uri) for uri in uri_path]
-        if not self.is_incoming:
+        if self.is_incoming:
+            if self.relay_data is not None:
+                self.use_tls = True
+                self._init_relay()
+            else:
+                self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.listen_sock.bind(("", 0))
+                self.local_uri_path[-1].port = self.listen_sock.getsockname()[1]
+            self.start()
+        else:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.settimeout(5)
             self.sock.connect((self.remote_uri_path[0].host, self.remote_uri_path[0].port or 2855))
@@ -204,6 +205,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
     msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password)
     inv = None
     streams = None
+    msrp_stream = None
     e = Engine(event_handler, do_siptrace=False, auto_sound=False)
     e.start()
     try:
@@ -245,12 +247,11 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     try:
                         streams = data["streams"]
                         msrp_stream = streams.streams[0]
-                        msrp.set_remote_uri(msrp_stream.remote_msrp[0])
+                        msrp_stream.remote_msrp
                     except:
                         print "Could not fetch and parse remote MSRP URI from SDP answer"
                         queue.put(("end", None))
                         continue
-                    msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
                     print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                 else:
                     data["obj"].end()
@@ -268,13 +269,22 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
-                        inv.end()
+                        queue.put(("end", None))
                     elif data[0].lower() == "y":
+                        try:
+                            msrp.set_remote_uri(msrp_stream.remote_msrp[0])
+                        except RuntimeError:
+                            queue.put(("end", None))
+                            traceback.print_exc()
+                        msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
                         inv.accept(streams)
                 else:
                     msrp.send_message(data)
         except KeyboardInterrupt:
             pass
+        except:
+            traceback.print_exc()
+            sys.exit()
 
 re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|[a-zA-Z0-9\-\.]+)(:(?P<port>\d+))?$")
 def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port):
