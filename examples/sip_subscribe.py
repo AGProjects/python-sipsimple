@@ -58,7 +58,7 @@ def user_input():
 def do_subscribe(username, domain, password, presentity_username, presentity_domain, proxy_ip, proxy_port, expires, event, content_type):
     if proxy_port is not None:
         proxy_port = int(proxy_port)
-    initial_events = Engine.ua_options["initial_events"]
+    initial_events = Engine.init_options_defaults["initial_events"]
     if content_type is not None:
         initial_events[event] = [content_type]
 
@@ -106,7 +106,7 @@ def parse_options():
     retval = {}
     description = "This example script will use the specified SIP account to subscribe to the presence state of the specified presentity. The program will unsubscribe and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password presentity@presentity-domain.com"
-    epilog = " ".join(["Known events:\n"] + ["%s:%s" % (event, ",".join(types)) for event, types in Engine.ua_options["initial_events"].iteritems()])
+    epilog = " ".join(["Known events:\n"] + ["%s:%s" % (event, ",".join(types)) for event, types in Engine.init_options_defaults["initial_events"].iteritems()])
     default_options = dict(expires=300, proxy_ip=None, proxy_port=None, event="presence", content_type=None)
     parser = OptionParser(usage=usage, description=description, epilog=epilog)
     parser.print_usage = parser.print_help
