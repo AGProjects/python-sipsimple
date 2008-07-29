@@ -26,7 +26,7 @@ class Engine(Thread):
             Thread.__init__(self)
             self.init_options = Engine.init_options_defaults.copy()
             for key, value in kwargs.iteritems():
-                if key in options:
+                if key in self.init_options:
                     self.init_options[key] = value
             if event_handler is None:
                 self.event_handler = self._handle_event
