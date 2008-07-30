@@ -99,6 +99,8 @@ cdef extern from "pjlib-util.h":
     int pjlib_util_init()
 
     # dns
+    enum:
+        PJ_DNS_RESOLVER_MAX_NS
     struct pj_dns_resolver
     int pj_dns_resolver_set_ns(pj_dns_resolver *resolver, int count, pj_str_t *servers, int *ports)
 
@@ -587,30 +589,21 @@ cdef class PJSIPEndpoint:
 
     cdef int _init_nameservers(self, nameservers) except -1:
         cdef int status
-        cdef pj_str_t *c_servers_str
+        cdef pj_str_t c_servers_str[PJ_DNS_RESOLVER_MAX_NS]
         cdef pj_dns_resolver *c_resolver
-        cdef int c_memsize = len(nameservers) * sizeof(pj_str_t)
-        cdef pj_pool_t *c_pool = pjsip_endpt_create_pool(self.c_obj, "nameservers", c_memsize, c_memsize)
-        if c_pool == NULL:
-            raise MemoryError("Could not allocate memory pool")
-        try:
-            c_servers_str = <pj_str_t *> pj_pool_alloc(c_pool, c_memsize)
-            if c_servers_str == NULL:
-                raise MemoryError()
-            for index, nameserver in enumerate(nameservers):
+        for index, nameserver in enumerate(nameservers):
+            if index < PJ_DNS_RESOLVER_MAX_NS:
                 c_servers_str[index].ptr = nameserver
                 c_servers_str[index].slen = len(nameserver)
-            status = pjsip_endpt_create_resolver(self.c_obj, &c_resolver)
-            if status != 0:
-                raise RuntimeError("Could not create DNS resolver from endpoint: %s" % pj_status_to_str(status))
-            status = pj_dns_resolver_set_ns(c_resolver, len(nameservers), c_servers_str, NULL)
-            if status != 0:
-                raise RuntimeError("Could not set nameservers on resolver: %s" % pj_status_to_str(status))
-            status = pjsip_endpt_set_resolver(self.c_obj, c_resolver)
-            if status != 0:
-                raise RuntimeError("Could not set DNS resolver at endpoint: %s" % pj_status_to_str(status))
-        finally:
-            pjsip_endpt_release_pool(self.c_obj, c_pool)
+        status = pjsip_endpt_create_resolver(self.c_obj, &c_resolver)
+        if status != 0:
+            raise RuntimeError("Could not create DNS resolver from endpoint: %s" % pj_status_to_str(status))
+        status = pj_dns_resolver_set_ns(c_resolver, len(nameservers), c_servers_str, NULL)
+        if status != 0:
+            raise RuntimeError("Could not set nameservers on resolver: %s" % pj_status_to_str(status))
+        status = pjsip_endpt_set_resolver(self.c_obj, c_resolver)
+        if status != 0:
+            raise RuntimeError("Could not set DNS resolver at endpoint: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
         if self.c_obj != NULL:
