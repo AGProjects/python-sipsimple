@@ -224,7 +224,8 @@ cdef extern from "pjsip.h":
         pjsip_uri *uri
     struct pjsip_hdr:
         pass
-    struct pjsip_generic_string_hdr
+    struct pjsip_generic_string_hdr:
+        pass
     struct pjsip_routing_hdr:
         pjsip_name_addr name_addr
     ctypedef pjsip_routing_hdr pjsip_route_hdr
@@ -278,7 +279,7 @@ cdef extern from "pjsip.h":
         pjsip_rx_data_msg_info msg_info
     void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
-    pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
+    void pjsip_generic_string_hdr_init2(pjsip_generic_string_hdr *hdr, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
@@ -807,6 +808,24 @@ cdef SIPURI c_make_SIPURI(pjsip_name_addr *name_uri):
     display = pj_str_to_str(name_uri.display) or None
     return SIPURI(host, user, port, display)
 
+cdef class GenericStringHeader:
+    cdef pjsip_generic_string_hdr c_obj
+    cdef readonly hname
+    cdef readonly hvalue
+
+    def __cinit__(self, hname, hvalue):
+        cdef pj_str_t c_hname
+        cdef pj_str_t c_hvalue
+        self.hname = hname
+        self.hvalue = hvalue
+        str_to_pj_str(self.hname, &c_hname)
+        str_to_pj_str(self.hvalue, &c_hvalue)
+        pjsip_generic_string_hdr_init2(&self.c_obj, &c_hname, &c_hvalue)
+
+    def __repr__(self):
+        return '<GenericStringHeader "%s: %s">' % (self.hname, self.hvalue)
+
+
 cdef object c_retrieve_nameservers():
     nameservers = []
     IF UNAME_SYSNAME != "Windows":
@@ -846,7 +865,7 @@ cdef class PJSIPUA:
     cdef pjsip_module c_event_module
     cdef PJSTR c_event_module_name
     cdef bint c_do_siptrace
-    cdef pjsip_generic_string_hdr *c_user_agent_hdr
+    cdef GenericStringHeader c_user_agent_hdr
     cdef list c_events
     cdef PJSTR c_contact_url
 
@@ -860,8 +879,6 @@ cdef class PJSIPUA:
     def __init__(self, event_handler, *args, **kwargs):
         global _log_lock
         cdef int status
-        cdef PJSTR c_ua_hname = PJSTR("User-Agent")
-        cdef PJSTR c_ua_hval
         self.c_event_handler = event_handler
         pj_log_set_level(PJ_LOG_MAX_LEVEL)
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
@@ -904,10 +921,7 @@ cdef class PJSIPUA:
             status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
             if status != 0:
                 raise RuntimeError("Could not load events module: %s" % pj_status_to_str(status))
-            c_ua_hval = PJSTR(kwargs["user_agent"])
-            self.c_user_agent_hdr = pjsip_generic_string_hdr_create(self.c_pjsip_endpoint.c_pool, &c_ua_hname.pj_str, &c_ua_hval.pj_str)
-            if self.c_user_agent_hdr == NULL:
-                raise MemoryError()
+            self.c_user_agent_hdr = GenericStringHeader("User-Agent", kwargs["user_agent"])
             for event, accept_types in kwargs["initial_events"].iteritems():
                 self.add_event(event, accept_types)
             self.c_contact_url = PJSTR(SIPURI(host=pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host), port=self.c_pjsip_endpoint.c_udp_transport.local_name.port).as_str())
@@ -1288,7 +1302,7 @@ cdef class Registration:
             status = pjsip_regc_unregister(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise RuntimeError("Could not create unregistration request: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, ua.c_user_agent_hdr))
+        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &ua.c_user_agent_hdr.c_obj))
 
     cdef int _send_reg(self, bint register) except -1:
         global _event_queue
@@ -1488,7 +1502,7 @@ cdef class Publication:
             status = pjsip_publishc_unpublish(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise RuntimeError("Could not create PUBLISH request: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, ua.c_user_agent_hdr))
+        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &ua.c_user_agent_hdr.c_obj))
 
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)
@@ -1614,7 +1628,7 @@ cdef class Subscription:
             status = pjsip_evsub_initiate(self.c_obj, NULL, c_expires, &c_tdata)
             if status != 0:
                 raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
-            pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
+            pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
             status = pjsip_evsub_send_request(self.c_obj, c_tdata)
             if status != 0:
                 raise RuntimeError("Could not send SUBSCRIBE message: %s" % pj_status_to_str(status))
@@ -2046,7 +2060,7 @@ cdef class Invitation:
             status = pjsip_inv_initial_answer(self.c_obj, rdata, 180, NULL, NULL, &tdata)
             if status != 0:
                 raise RuntimeError("Could not create 180 reply to INVITE: %s" % pj_status_to_str(status))
-            pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, ua.c_user_agent_hdr))
+            pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
             status = pjsip_inv_send_msg(self.c_obj, tdata)
             if status != 0:
                 raise RuntimeError("Could not send 180 reply to INVITE: %s" % pj_status_to_str(status))
@@ -2152,7 +2166,7 @@ cdef class Invitation:
                 status = pjsip_inv_invite(self.c_obj, &c_tdata)
                 if status != 0:
                     raise RuntimeError("Could not create INVITE message: %s" % pj_status_to_str(status))
-                pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
+                pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
                 status = pjsip_inv_send_msg(self.c_obj, c_tdata)
                 if status != 0:
                     raise RuntimeError("Could not send INVITE message: %s" % pj_status_to_str(status))
@@ -2183,7 +2197,7 @@ cdef class Invitation:
             status = pjsip_inv_answer(self.c_obj, 200, NULL, &c_local_sdp.c_obj, &c_tdata)
             if status != 0:
                 raise RuntimeError("Could not create 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
-            pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
+            pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
             status = pjsip_inv_send_msg(self.c_obj, c_tdata)
             if status != 0:
                 raise RuntimeError("Could not send 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
@@ -2203,7 +2217,7 @@ cdef class Invitation:
         status = pjsip_inv_end_session(self.c_obj, 486, NULL, &c_tdata)
         if status != 0:
             raise RuntimeError("Could not create message to end INVITE session: %s" % pj_status_to_str(status))
-        pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, ua.c_user_agent_hdr))
+        pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
         status = pjsip_inv_send_msg(self.c_obj, c_tdata)
         if status != 0:
             raise RuntimeError("Could not send message to end INVITE session: %s" % pj_status_to_str(status))
