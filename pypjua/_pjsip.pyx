@@ -668,7 +668,6 @@ cdef class PJMEDIASoundDevice:
 
 
 cdef class PJMEDIAConferenceBridge:
-    cdef object __weakref__
     cdef pjmedia_conf *c_obj
     cdef pjsip_endpoint *c_pjsip_endpoint
     cdef pj_pool_t *c_pool
@@ -863,7 +862,7 @@ cdef class PJSIPUA:
     cdef PJCachingPool c_caching_pool
     cdef PJSIPEndpoint c_pjsip_endpoint
     cdef PJMEDIAEndpoint c_pjmedia_endpoint
-    cdef readonly PJMEDIAConferenceBridge conf_bridge
+    cdef PJMEDIAConferenceBridge c_conf_bridge
     cdef pjsip_module c_module
     cdef PJSTR c_module_name
     cdef pjsip_module c_trace_module
@@ -897,9 +896,9 @@ cdef class PJSIPUA:
             if status != 0:
                 raise RuntimeError("Could not initialize logging mutex: %s" % pj_status_to_str(status))
             self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, self.c_pjsip_endpoint)
-            self.conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["initial_codecs"])
+            self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["initial_codecs"])
             if kwargs["auto_sound"]:
-                self.conf_bridge.auto_set_sound_devices()
+                self.c_conf_bridge.auto_set_sound_devices()
             self.c_module_name = PJSTR("mod-pypjua")
             self.c_module.name = self.c_module_name.pj_str
             self.c_module.id = -1
@@ -958,7 +957,7 @@ cdef class PJSIPUA:
 
     cdef int _do_dealloc(self) except -1:
         global _ua, _log_lock
-        self.conf_bridge = None
+        self.c_conf_bridge = None
         self.c_pjmedia_endpoint = None
         if _log_lock != NULL:
             pj_mutex_lock(_log_lock)

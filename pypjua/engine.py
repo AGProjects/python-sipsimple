@@ -1,5 +1,4 @@
 import atexit
-import weakref
 import sys
 import traceback
 from threading import Thread
@@ -52,7 +51,6 @@ class Engine(Thread):
         if self._Thread__started:
             raise RuntimeError("Can only be started once")
         self._ua = PJSIPUA(self.event_handler, **self.init_options)
-        self.conf_bridge = weakref.proxy(self._ua.conf_bridge)
         self._stopping = False
         Thread.start(self)
 
@@ -71,5 +69,17 @@ class Engine(Thread):
         else:
             print 'Received event "%s": %s' % (event_name, kwargs)
 
+    def __getattr__(self, attr):
+        if hasattr(self, "_ua"):
+            if hasattr(self._ua, attr) and attr != "poll":
+                return getattr(self._ua, attr)
+        raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
+
+    def __setattr__(self, attr, value):
+        if hasattr(self, "_ua"):
+            if hasattr(self._ua, attr) and attr != "poll":
+                setattr(self._ua, attr, value)
+                return
+        Thread.__setattr__(self, attr, value)
 
 atexit.register(Engine._shutdown)
