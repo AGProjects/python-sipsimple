@@ -670,6 +670,7 @@ cdef class PJMEDIASoundDevice:
 cdef class PJMEDIAConferenceBridge:
     cdef object __weakref__
     cdef pjmedia_conf *c_obj
+    cdef pjsip_endpoint *c_pjsip_endpoint
     cdef pj_pool_t *c_pool
     cdef pjmedia_snd_port *c_snd
     cdef PJMEDIAEndpoint c_pjmedia_endpoint
@@ -677,9 +678,9 @@ cdef class PJMEDIAConferenceBridge:
 
     def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, codecs):
         cdef int status
-        self.c_pool = pjsip_endpoint.c_pool
+        self.c_pjsip_endpoint = pjsip_endpoint.c_obj
         self.c_pjmedia_endpoint = pjmedia_endpoint
-        status = pjmedia_conf_create(self.c_pool, 9, 32000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
+        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 9, 32000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
         self.c_codecs = []
@@ -719,9 +720,11 @@ cdef class PJMEDIAConferenceBridge:
         self._set_sound_devices(-1, -1, tail_length)
 
     cdef int _set_sound_devices(self, int playback_index, int recording_index, int tail_length) except -1:
-        # TODO: own pool?
         cdef int status
         self._destroy_snd_port(1)
+        self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
+        if self.c_pool == NULL:
+            raise MemoryError("Could not allocate memory pool")
         status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, 32000, 1, 640, 16, 0, &self.c_snd)
         if status != 0:
             raise RuntimeError("Could not create sound device: %s" % pj_status_to_str(status))
@@ -733,6 +736,7 @@ cdef class PJMEDIAConferenceBridge:
         if status != 0:
             self._destroy_snd_port(0)
             raise RuntimeError("Could not connect sound device: %s" % pj_status_to_str(status))
+        return 0
 
     cdef int _destroy_snd_port(self, int disconnect) except -1:
         if self.c_snd != NULL:
@@ -740,6 +744,8 @@ cdef class PJMEDIAConferenceBridge:
                 pjmedia_snd_port_disconnect(self.c_snd)
             pjmedia_snd_port_destroy(self.c_snd)
             self.c_snd = NULL
+            pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_pool)
+            self.c_pool = NULL
 
     def __dealloc__(self):
         self._destroy_snd_port(1)
