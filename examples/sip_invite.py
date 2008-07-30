@@ -201,7 +201,7 @@ def user_input():
             traceback.print_exc()
             queue.put(("end", None))
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port):
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port, do_register):
     msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password)
     inv = None
     streams = None
@@ -213,8 +213,12 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route, expires=expires)
-        reg.register()
+        if do_register or target_username is None:
+            reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route, expires=expires)
+            reg.register()
+            do_register = True
+        else:
+            queue.put(("registered", None))
         if target_username is not None:
             inv = Invitation(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=target_username, host=target_domain), route=route)
             msrp_stream = MSRPStream()
@@ -231,11 +235,14 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             if command == "quit":
                 sys.exit()
             elif command == "unregister":
-                try:
-                    reg.unregister()
-                except:
-                    traceback.print_exc()
-                    sys.exit()
+                if do_register:
+                    try:
+                        reg.unregister()
+                    except:
+                        traceback.print_exc()
+                        sys.exit()
+                else:
+                    queue.put(("quit", None))
             elif command == "end":
                 try:
                     inv.end()
@@ -301,7 +308,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password [target-user@target-domain.com]"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None)
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_register=True)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -309,6 +316,7 @@ def parse_options():
     parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use in incoming mode. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
+    parser.add_option("-n", "--no-register", action="store_false", dest="do_register", help="Do not perform a REGISTER before starting and outgoing session (enabled by default).")
     try:
         try:
             options, (username_domain, retval["password"], target) = parser.parse_args()
