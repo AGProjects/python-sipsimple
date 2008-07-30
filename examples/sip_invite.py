@@ -117,9 +117,8 @@ class MSRP(Thread):
             if self.remote_uri_path[0].use_tls:
                 self.use_tls = True
                 self.ssl = socket.ssl(self.sock)
-            if len(self.remote_uri_path) > 1:
-                # accoring to the RFC we have to do a SEND first...
-                self.send_message("Oh my, you are using a MSRP relay!")
+            # accoring to the RFC we have to do a SEND first...
+            self.send_message("")
             self.start()
 
     def send_message(self, msg):
