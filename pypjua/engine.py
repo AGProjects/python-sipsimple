@@ -43,9 +43,10 @@ class Engine(Thread):
                 cls.instance.stop()
 
     def stop(self):
-        self._stopping = True
-        self.join()
-        del self._ua
+        if self._Thread__started:
+            self._stopping = True
+            self.join()
+            del self._ua
 
     def start(self):
         if self._Thread__started:
