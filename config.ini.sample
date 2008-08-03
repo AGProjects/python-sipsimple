@@ -55,8 +55,8 @@ rtp_trace=false
 
 ; audio and video settings
 ; if audio is enabled the echo cancelation uses CPU cycles
-audio=false
 rtp_port_range=8000 8100
+audio=false
 audio_echo_cancelation=true
 audio_recording=false
 video=false
@@ -64,10 +64,11 @@ video=false
 ; history storage
 audio_recording_folder=$config_directory/history/audio/%Y-%m-%d
 im_history_folder=$config_directory/history/im/%Y-%m-%d
-file_transfer_folder=$config_directory/history/file_transfer/%Y-%m-%d
+file_transfer_history_folder=$config_directory/history/file_transfer/%Y-%m-%d
+xcap_history_folder=$config_directory/history/xcap/%Y-%m-%d
 
 ; state storage
-xcap_documents_folder=$config_directory/state/xcap
+xcap_state_folder=$config_directory/state/xcap
 presence_watcher_info_state_file=$config_directory/state/presence/winfo.xml
 message_waiting_indicator_state_file=$config_directory/state/mwi.txt
 bonjour_state_folder=$config_directory/state/bonjour

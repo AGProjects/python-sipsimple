@@ -1,6 +1,5 @@
-; all events and actions must be logged in the high level logger
+All events and actions must be logged in the high level logger
 
-; OS level events
 on_wake
 - same as on boot
 
@@ -10,86 +9,122 @@ on_sleep
 - un-subscribe
 
 on_network_change
-- lookup registrar
-- register
+- same as on_sleep
+- same as on_boot 
 
 on_ambient_light_change
+- update pidf
+- publish pidf
 
 on_gps_location_change
+- update pidf
+- publish pidf
 
 on_ambient_noise_change
+- update pidf
+- publish pidf
 
 on_accelerometer_change
-
-; network events
+- update pidf
+- publish pidf
+ 
 on_incomming_invite
-- alert user 
+- alert user
 
 on_incomming_notify
-- for winfo event
-  update winfo state
-  cache winfo
-  merge winfo with pres-rules state
+- for watcher info event
+  update watcher info state
+  cache watcher info 
+  merge watcher info with pres-rules state
   prompt user for allow/deny pending watchers
+- for presence event
+  update buddy state
+  cache buddy state
+  if uri is our own and another instance generated it, display offline state
+  and stop send publish until user set manualy state to online
+- for mwi event
+  update mwi state
+  cache mwi state
+- for xcap-diff
+  get xcap document
+  rebuild state associated with xcap document
+         
+on_incomming_message
+- alert use with message composition state
 
+on_incomming refer
+- if refer to conference prompt user for connecting to the conference room
+ 
 on_register
+
 on_bonjour_updates
 - update bonjour neigbour list
 - dump bonjour list
 
-; UI events
 on_boot
+- purge state folders
 - lookup stun servers
 - detect nat type
 - lookup sip registrar
 - register
-- create empty bonjour state
+- create bonjour state
 - broadcast own bonjour state
-- get enviroment state (light, gps)
+- get enviroment state (light, noise, gps)
 - lookup xcap server
 - get xcap pidf-manipulation
 - build pidf, if pidf-manipulation is set, use that one as current state otherwise go online
-- publish presence
+- publish pidf
 - get xcap pres-rules document
 - build pres-rules state
 - get xcap resource-lists document
 - build buddy list state
 - get xcap rls-services document
 - build subscription buddy list state
-- create empty pidf state for each budy
+- create pidf state for each budy
 - subscribe to buddy list presence event
 - cache xcap documents
-- create empty winfo state
-- subscribe to winfo event
+- create watcher info state
+- subscribe to watcher info event
 - subscribe to xcap-diff event
-- create empty message waiting indicator state
+- create message waiting indicator state
 - subscribe to message waiting indicator event
 
 on_shutdown
 - un-register
 - un-publish
 - un-subscribe
+- backup xcap documents
 
 on_buddy_add
-- save xcap remote
-- save xcap local
+- save resource-lists remote
+- save resource-list local
 - subscribe to buddy
 
 on_buddy_delete
-- save xcap remote
-- save xcap local
+- save resource-lists remote
+- save resource-lists local
 - un-subscribe to buddy
 
 on_buddy_update
-- save xcap remote
-- save xcap local
+- save resource-lists remote
+- save resource-lists local
 
 on_outgoing_invite
-on_change_presence_state
-on_change_policy
-- save xcap remote
-- save xcap local
 
-; periodic events
+on_change_presence_state
+- update pidf
+- publish pidf
+- if persistent away
+	- build pidf-manipulation document
+	- save pidf-manipulation remote	  
+	- save pidf-manipulation local
+
+on_change_policy
+- save pres-rules remote
+- save pres-rules local
+
 on_timer
+- sip keepalive
+- set device state to idle on non keybord activity
+
  
