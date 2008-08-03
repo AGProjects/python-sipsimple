@@ -1,0 +1,95 @@
+; all events and actions must be logged in the high level logger
+
+; OS level events
+on_wake
+- same as on boot
+
+on_sleep
+- un-register
+- un-publish
+- un-subscribe
+
+on_network_change
+- lookup registrar
+- register
+
+on_ambient_light_change
+
+on_gps_location_change
+
+on_ambient_noise_change
+
+on_accelerometer_change
+
+; network events
+on_incomming_invite
+- alert user 
+
+on_incomming_notify
+- for winfo event
+  update winfo state
+  cache winfo
+  merge winfo with pres-rules state
+  prompt user for allow/deny pending watchers
+
+on_register
+on_bonjour_updates
+- update bonjour neigbour list
+- dump bonjour list
+
+; UI events
+on_boot
+- lookup stun servers
+- detect nat type
+- lookup sip registrar
+- register
+- create empty bonjour state
+- broadcast own bonjour state
+- get enviroment state (light, gps)
+- lookup xcap server
+- get xcap pidf-manipulation
+- build pidf, if pidf-manipulation is set, use that one as current state otherwise go online
+- publish presence
+- get xcap pres-rules document
+- build pres-rules state
+- get xcap resource-lists document
+- build buddy list state
+- get xcap rls-services document
+- build subscription buddy list state
+- create empty pidf state for each budy
+- subscribe to buddy list presence event
+- cache xcap documents
+- create empty winfo state
+- subscribe to winfo event
+- subscribe to xcap-diff event
+- create empty message waiting indicator state
+- subscribe to message waiting indicator event
+
+on_shutdown
+- un-register
+- un-publish
+- un-subscribe
+
+on_buddy_add
+- save xcap remote
+- save xcap local
+- subscribe to buddy
+
+on_buddy_delete
+- save xcap remote
+- save xcap local
+- un-subscribe to buddy
+
+on_buddy_update
+- save xcap remote
+- save xcap local
+
+on_outgoing_invite
+on_change_presence_state
+on_change_policy
+- save xcap remote
+- save xcap local
+
+; periodic events
+on_timer
+ 
