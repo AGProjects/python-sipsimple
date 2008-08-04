@@ -168,9 +168,6 @@ __all__ = ['List',
 # <package>
 # body: name of SIP event package
 
-# XXX currently there are no consistency checks in the classes (i.e. that name is unique, etc)
-# you'll get an error at validation, but you should get it earlier, at object construction.
-
 class XMLMixin(object):
     encoding = 'UTF-8'
     nsmap = {}
