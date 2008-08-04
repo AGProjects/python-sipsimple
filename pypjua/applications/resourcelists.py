@@ -31,7 +31,7 @@ toxml() wraps etree.tostring() and accepts all its arguments (like pretty_print)
 >>> rls = RLSServices([buddies, marketing])
 >>> print rls.toxml(pretty_print=True)
 <?xml version='1.0' encoding='UTF-8'?>
-<rls-services xmlns="urn:ietf:params:xml:ns:rls-services" xmlns:rl="urn:ietf:params:xml:ns:resource-lists">
+<rls-services xmlns:rl="urn:ietf:params:xml:ns:resource-lists" xmlns="urn:ietf:params:xml:ns:rls-services">
   <service uri="sip:mybuddies@example.com">
     <resource-list>http://xcap.example.com/xxx</resource-list>
     <packages>
