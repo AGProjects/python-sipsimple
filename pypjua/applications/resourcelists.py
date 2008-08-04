@@ -184,8 +184,6 @@ class XMLMixin(object):
         return '{%s}%s' % (namespace, tag)
 
     def to_element(self, parent = None, namespace = None, tag = None, nsmap = None):
-        if nsmap is None:
-            nsmap = self.nsmap
         if parent is None:
             element = etree.Element(self.tag(namespace, tag), nsmap = nsmap)
         else:
@@ -209,6 +207,11 @@ class XMLRoot(XMLMixin):
     xml_declaration = False
     validate_output = True
     validate_input = True
+
+    def to_element(self, parent = None, namespace = None, tag = None, nsmap = None):
+        if nsmap is None:
+            nsmap = self.nsmap
+        return XMLMixin.to_element(self, parent, namespace, tag, nsmap)
 
     @classmethod
     def parse(cls, document):
