@@ -241,7 +241,7 @@ class ResourceListsParser(XMLParser):
 class ResourceListsElement(object):
     _xml_namespace = ResourceListsParser._namespace
     _xml_parser = ResourceListsParser()
-    nsmap = { '' : _xml_namespace }
+    nsmap = { None : _xml_namespace }
 
 class RLSServicesParser(XMLParser):
     accept_types = ['application/rls-services+xml']
@@ -251,7 +251,7 @@ class RLSServicesParser(XMLParser):
 class RLSServicesElement(object):
     _xml_namespace = RLSServicesParser._namespace
     _xml_parser = RLSServicesParser()
-    nsmap = { ''   : _xml_namespace,
+    nsmap = { None : _xml_namespace,
               'rl' : ResourceListsElement._xml_namespace }
 
 
