@@ -308,7 +308,7 @@ class DisplayName(ResourceListsElement, XMLMixin):
 
 def find_display_name(element):
     for child in element:
-        if child.tag == '{urn:ietf:params:xml:ns:resource-lists}display-name':
+        if child.tag == DisplayName.tag():
             return DisplayName.from_element(child)
 
 
