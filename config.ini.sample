@@ -1,4 +1,4 @@
-; configuration framework config file
+; SIP User Agent configuration framework config file
 
 ; this configuration file controls the behaviour of the middleware that
 ; aggregates the underlying SIP, Presence, XCAP and MSRP libraries
@@ -43,8 +43,8 @@ local_port=auto
 ; the active one in the GUI 
 active_accounts=account1
 
-; enable publication of sip capability on the LAN, it appears as another
-; active account in the user interface, bonjour appears as another identity
+; publish presence on the LAN using multicast DNS, it appears as another
+; active account in the user interface
 bonjour=true
 
 ; enable tracing at protocol level for various components
@@ -187,3 +187,4 @@ video_codec_list=h264
 username=
 domain=
 password=
+
