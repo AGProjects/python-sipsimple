@@ -37,6 +37,7 @@ on_incomming_notify
   cache watcher info 
   merge watcher info with pres-rules state
   prompt user for allow/deny pending watchers
+  each watcher can be added to the pres rules and to own buddy list (tipically when the watcher is allowed)
 - for presence event
   update buddy state
   cache buddy state

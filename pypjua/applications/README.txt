@@ -5,7 +5,7 @@ SIP SIMPLE applications
 This folder contains non-SIP applications required for implementing a
 feature-rich SIP SIMPLE client.
 
-The applications can be used for parsing and generating bodies carried using
+Some applications are for parsing and generating bodies carried using
 PUBLISH/SUBSCRIBE/NOTIFY SIP methods. These SIP methods have been designed
 for asynchronous event notifications and convey in real-time state and other
 information between SIP end-points.
@@ -14,9 +14,12 @@ An example of state is presence, which in its basic form it provides user
 availability information based on end-user choice. In its advanced form,
 presence can provide rich state information including but not limited to
 user mood, geo-location, environment, noise level and type of communication
-desired. The information can be diseminated based on a granular policy which
+desired. The information can be disseminated based on a granular policy which
 allows end-user to device who has access to which part of the published
 information.
+
+Other applications can be used for lookup network resources or broadcast
+availability to the local network using bonjour-like technology.
 
 
 watcherinfo.py 
@@ -68,7 +71,22 @@ Parses and generates pidf-manipulation stored on the XCAP server. Used to
 publish persistent information which remains active after the user agent
 goes off-line.
 
-mwi.py Parses NOTIFY body with message waiting indicator information. Used
-for alerting the user about the presence of voice messages stored on the
+
+mwi.py
+
+Parses NOTIFY body with message waiting indicator information. Used for
+alerting the user about the presence of voice messages stored on the
 voicemail server.
+
+
+lookup.py
+
+General purpose lookup tool for various network resources like sip
+registrar, msrp relay, stun server, thor home node.
+
+
+bonjour.py
+
+Maintains state of online neighbours using multicast DNS technology. Used
+for zero-conf functionality on the local LAN.
 
