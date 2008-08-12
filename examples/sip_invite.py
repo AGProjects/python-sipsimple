@@ -13,6 +13,8 @@ from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from cStringIO import StringIO
+import dns.resolver
+from dns.exception import DNSException
 from application.system import default_host_ip
 import msrp_protocol
 from digest import process_www_authenticate
@@ -25,12 +27,13 @@ def random_string(length):
 
 class MSRP(Thread):
 
-    def __init__(self, is_incoming, do_dump, relay_ip=None, relay_port=None, relay_username=None, relay_password=None):
+    def __init__(self, is_incoming, do_dump, relay_ip=None, relay_port=None, relay_username=None, relay_password=None, do_srv=False):
         self.is_incoming = is_incoming
         self.do_dump = do_dump
         self.relay_data = (relay_ip, relay_port, relay_username, relay_password)
         if not all(self.relay_data):
             self.relay_data = None
+        self.do_srv = do_srv
         self.local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
         self.remote_uri_path = None
         self.sock = None
@@ -42,9 +45,17 @@ class MSRP(Thread):
     def _init_relay(self):
         print "Reserving session at MSRP relay..."
         relay_ip, relay_port, relay_username, relay_password = self.relay_data
+        real_relay_ip = relay_ip
+        if self.do_srv:
+            try:
+                answers = dns.resolver.query("_msrps._tcp.%s" % relay_ip, "SRV")
+                real_relay_ip = str(answers[0].target)
+                relay_port = answers[0].port
+            except DNSException:
+                print "SRV lookup failed, trying normal A record lookup..."
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.settimeout(5)
-        self.sock.connect((relay_ip, relay_port))
+        self.sock.connect((real_relay_ip, relay_port))
         self.sock.settimeout(None)
         self.ssl = socket.ssl(self.sock)
         msrpdata = msrp_protocol.MSRPData(method="AUTH", transaction_id=random_string(12))
@@ -200,8 +211,11 @@ def user_input():
             traceback.print_exc()
             queue.put(("end", None))
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port, do_register):
-    msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password)
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port, do_register, do_srv, auto_msrp_relay):
+    if auto_msrp_relay:
+        msrp = MSRP(target_username is None, dump_msrp, domain, 2855, username, password, True)
+    else:
+        msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, do_srv)
     inv = None
     streams = None
     msrp_stream = None
@@ -300,6 +314,7 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
     setattr(parser.values, host_name, match.group("host"))
     if match.group("port") is None:
         setattr(parser.values, port_name, default_port)
+        setattr(parser.values, "do_srv", True)
     else:
         setattr(parser.values, port_name, int(match.group("port")))
 
@@ -307,7 +322,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password [target-user@target-domain.com]"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_register=True)
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_register=True, do_srv=False, auto_msrp_relay=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -315,6 +330,7 @@ def parse_options():
     parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use in incoming mode. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
+    parser.add_option("-R", "--auto-msrp-relay", action="store_true", dest="auto_msrp_relay", help="Automatically find the MSRP relay to use from the domain part of the SIP URI using SRV records.")
     parser.add_option("-n", "--no-register", action="store_false", dest="do_register", help="Do not perform a REGISTER before starting and outgoing session (enabled by default).")
     try:
         try:
@@ -329,6 +345,9 @@ def parse_options():
             retval["target_username"], retval["target_domain"] = None, None
     except ValueError:
         parser.print_usage()
+        sys.exit()
+    if options.auto_msrp_relay and options.msrp_relay_ip is not None:
+        parser.error("-r and -R options are mutually exclusive, please use either one of them.")
         sys.exit()
     for attr in default_options:
         retval[attr] = getattr(options, attr)

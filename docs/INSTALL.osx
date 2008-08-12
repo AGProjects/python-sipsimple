@@ -30,3 +30,8 @@ Currently, the easiest way to install these is through fink.
 
 - Install the lxml Python module (again, a fresh console may be needed):
     easy_install lxml
+
+The sip_invite example script also requires the dnspython module.
+
+- Install the dnspython module using easy_install:
+    easy_install dnspython
