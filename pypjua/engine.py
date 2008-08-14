@@ -18,7 +18,8 @@ class Engine(Thread):
                              "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"],
                              "initial_events": {"presence": ["application/pidf+xml"],
                                                 "message-summary": ["application/simple-message-summary"],
-                                                "presence.winfo": ["application/watcherinfo+xml"]}}
+                                                "presence.winfo": ["application/watcherinfo+xml"],
+                                                "xcap-diff": ["application/xcap-diff+xml"]}}
 
     def __init__(self, event_handler = None, **kwargs):
         if not Engine._done_init:
