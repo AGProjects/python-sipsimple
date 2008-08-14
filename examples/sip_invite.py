@@ -40,10 +40,13 @@ class MSRP(Thread):
         self.msg_id = 1
         self.buf = StringIO()
         self.use_tls = False
+        if not is_incoming and self.relay_data is not None:
+            self._init_relay()
         Thread.__init__(self)
 
     def _init_relay(self):
         print "Reserving session at MSRP relay..."
+        self.use_tls = True
         relay_ip, relay_port, relay_username, relay_password = self.relay_data
         real_relay_ip = relay_ip
         if self.do_srv:
@@ -117,7 +120,6 @@ class MSRP(Thread):
         self.remote_uri_path = [msrp_protocol.parse_uri(uri) for uri in uri_path]
         if self.is_incoming:
             if self.relay_data is not None:
-                self.use_tls = True
                 self._init_relay()
             else:
                 self.listen_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -125,13 +127,14 @@ class MSRP(Thread):
                 self.local_uri_path[-1].port = self.listen_sock.getsockname()[1]
             self.start()
         else:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.sock.settimeout(5)
-            self.sock.connect((self.remote_uri_path[0].host, self.remote_uri_path[0].port or 2855))
-            self.sock.settimeout(None)
-            if self.remote_uri_path[0].use_tls:
-                self.use_tls = True
-                self.ssl = socket.ssl(self.sock)
+            if self.relay_data is None:
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock.settimeout(5)
+                self.sock.connect((self.remote_uri_path[0].host, self.remote_uri_path[0].port or 2855))
+                self.sock.settimeout(None)
+                if self.remote_uri_path[0].use_tls:
+                    self.use_tls = True
+                    self.ssl = socket.ssl(self.sock)
             # accoring to the RFC we have to do a SEND first...
             self.send_message("")
             self.start()
@@ -333,7 +336,7 @@ def parse_options():
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
     parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
-    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use in incoming mode. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
+    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
     parser.add_option("-R", "--auto-msrp-relay", action="store_true", dest="auto_msrp_relay", help="Automatically find the MSRP relay to use from the domain part of the SIP URI using SRV records.")
     parser.add_option("-n", "--no-register", action="store_false", dest="do_register", help="Do not perform a REGISTER before starting and outgoing session (enabled by default).")
     try:
