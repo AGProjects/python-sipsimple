@@ -90,7 +90,10 @@ class MSRP(Thread):
 
     def _recv(self):
         if self.use_tls:
-            data = self.ssl.read(16384)
+            try:
+                data = self.ssl.read(16384)
+            except socket.sslerror:
+                return ""
         else:
             data = self.sock.recv(16384)
         if self.do_dump:
