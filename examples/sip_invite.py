@@ -52,7 +52,7 @@ class MSRP(Thread):
         if self.do_srv:
             try:
                 answers = dns.resolver.query("_msrps._tcp.%s" % relay_ip, "SRV")
-                real_relay_ip = str(answers[0].target)
+                real_relay_ip = str(answers[0].target).rstrip(".")
                 relay_port = answers[0].port
             except DNSException:
                 print "SRV lookup failed, trying normal A record lookup..."
@@ -81,7 +81,7 @@ class MSRP(Thread):
         headers = dict(header.split(": ", 1) for header in data["headers"].split("\r\n"))
         use_path = msrp_protocol.UsePathHeader(headers["Use-Path"]).decoded[0]
         self.local_uri_path = [use_path, self.local_uri_path[0]]
-        print 'Successfully reserved session at MSRP relay %s:%d, got Use-Path: %s' % (real_relay_ip, relay_port, use_path)
+        print 'Reserved session at MSRP relay %s:%d, Use-Path %s' % (real_relay_ip, relay_port, use_path)
 
     def _send(self, data):
         if self.do_dump:
