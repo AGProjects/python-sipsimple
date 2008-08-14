@@ -2,11 +2,19 @@ import os
 
 from lxml import etree
 
-_schema_dir_ = os.path.join(os.path.dirname(__file__), 'xml-schemas')
+__all__ = ["ParserError", "BuilderError", "XMLElement", "XMLApplication"]
 
+
+_schema_dir_ = os.path.join(os.path.dirname(__file__), 'xml-schemas')
 
 class ParserError(Exception): pass
 class BuilderError(Exception): pass
+
+def classproperty(function):
+    class Descriptor(object):
+        def __get__(self, instance, owner):
+            return function(owner)
+    return Descriptor()
 
 class XMLElement(object):
     encoding = 'UTF-8'
@@ -15,21 +23,17 @@ class XMLElement(object):
     _xml_namespace = None # To be defined in subclass
     _xml_attrs = {} # Not necessarily defined in subclass
 
-    @classmethod
-    def tag(cls, namespace = None, tag = None):
-        tag =  tag or cls._xml_tag
-        namespace = namespace or cls._xml_namespace
-        return '{%s}%s' % (namespace, tag)
+    qname = classproperty(lambda cls: '{%s}%s' % (cls._xml_namespace, cls._xml_tag))
 
-    def to_element(self, parent = None, namespace = None, tag = None, nsmap = None):
+    def to_element(self, parent=None, nsmap=None):
         if parent is None:
-            element = etree.Element(self.tag(namespace, tag), nsmap = nsmap)
+            element = etree.Element(self.qname, nsmap=nsmap)
         else:
-            element = etree.SubElement(parent, self.tag(namespace, tag), nsmap = nsmap)
-        self._build_element(element)
+            element = etree.SubElement(parent, self.qname, nsmap=nsmap)
         for attr, definition in cls._xml_attrs.items():
             if hasattr(obj, attr):
                 element.set(definition.get('xml_attribute', attr), getattr(obj, attr))
+        self._build_element(element)
         return element
     
     # To be defined in subclass
@@ -48,13 +52,6 @@ class XMLElement(object):
     def _parse_element(self, element, *args, **kwargs):
         pass
     
-    # FIXME: except for testing in resourcelists, I see no reason for having this method
-    def toxml(self, *args, **kwargs):
-        """Shortcut that generates Element and calls etree.tostring"""
-        element = self.to_element()
-        kwargs.setdefault('encoding', self.encoding)
-        return etree.tostring(element, *args, **kwargs)
-
     def __eq__(self, obj):
         ids = [getattr(self, attr) for attr, definition in self._xml_attrs.items() if definition.get('id_attribute', False)]
         if isinstance(obj, basestring):
@@ -72,7 +69,7 @@ class XMLElement(object):
                     has_test = True
             if not has_test:
                 try:
-                    return super(XMLElementMapping, self).__eq__(obj)
+                    return super(XMLElement, self).__eq__(obj)
                 except AttributeError:
                     return self is obj
         return True
@@ -80,7 +77,7 @@ class XMLElement(object):
     def __hash__(self):
         id_hashes = [hash(getattr(self, attr)) for attr, definition in self._xml_attrs.items() if definition.get('id_attribute', False)]
         if len(id_hashes) == 0:
-            return super(XMLElementMapping, self).__hash__()
+            return super(XMLElement, self).__hash__()
         return sum(id_hashes)
 
 class XMLApplicationMeta(type):
@@ -96,7 +93,6 @@ class XMLApplicationMeta(type):
 class XMLApplication(XMLElement):
     __metaclass__ = XMLApplicationMeta
     
-    encoding = 'UTF-8'
     accept_types = []
     build_types = []
     
@@ -111,9 +107,9 @@ class XMLApplication(XMLElement):
     _xml_schema_dir = _schema_dir_
     _xml_declaration = False
     
-    def to_element(self, parent=None, namespace=None, tag=None, nsmap=None):
+    def to_element(self, nsmap=None):
         nsmap = nsmap or self._xml_nsmap
-        return super(XMLApplication, self).to_element(parent, namespace, tag, nsmap)
+        return super(XMLApplication, self).to_element(nsmap)
 
     @classmethod
     def parse(cls, document):
@@ -132,7 +128,7 @@ class XMLApplication(XMLElement):
     def _check_qname(cls, element, name, namespace=None):
         namespace = namespace or cls._xml_namespace
         if namespace is not None:
-            name = '{%s}%s' % (namespace, name)
-        if element.tag != name:
+            qname = '{%s}%s' % (namespace, name)
+        if element.tag != qname:
             raise ParserError("Wrong XML element in XML application %s: expected %s, got %s" %
-                    (self.__class__.__name__, name, element.tag))
+                    (self.__class__.__name__, qname, element.tag))

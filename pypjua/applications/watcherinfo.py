@@ -10,6 +10,7 @@ from pypjua.applications import XMLApplication, XMLElement, ParserError
 
 __all__ = ["NeedFullUpdateError", "WatcherInfo"]
 
+
 _namespace_ = 'urn:ietf:params:xml:ns:watcherinfo'
 
 class NeedFullUpdateError(Exception): pass
@@ -188,6 +189,9 @@ class WatcherInfo(XMLApplication):
 
     def __getitem__(self, index):
         return self._wlists[index]
+
+    def __len__(self):
+        return len(self._wlists)
 
     wlists = property(lambda self: self._wlists.values())
     pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self))
