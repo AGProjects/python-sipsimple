@@ -1,13 +1,11 @@
-import atexit
-import sys
 import traceback
-from threading import Thread
+from thread import start_new_thread, allocate_lock
 
 from application.python.util import Singleton
 
 from pypjua._pjsip import PJSIPUA
 
-class Engine(Thread):
+class Engine(object):
     __metaclass__ = Singleton
     _done_init = False
     init_options_defaults = {"local_ip": None,
@@ -23,7 +21,6 @@ class Engine(Thread):
 
     def __init__(self, event_handler = None, **kwargs):
         if not Engine._done_init:
-            Thread.__init__(self)
             self.init_options = Engine.init_options_defaults.copy()
             for key, value in kwargs.iteritems():
                 if key in self.init_options:
@@ -34,35 +31,46 @@ class Engine(Thread):
                 if not callable(event_handler):
                     raise RuntimeError("event_handler argument should be callable")
                 self.event_handler = event_handler
+            self._thread_started = False
             Engine._done_init = True
 
     @classmethod
     def _shutdown(cls):
         if cls.instance is not None:
-            if cls.instance.isAlive():
-                cls.instance.stop()
+            cls.instance.stop()
 
     def stop(self):
-        if self._Thread__started:
-            self._stopping = True
-            self.join()
+        if self._thread_started:
+            self._thread_stopping = True
+            self._lock.acquire()
+            self._thread_started = False
+            del self._thread_stopping
+            del self._lock
             del self._ua
 
     def start(self):
-        if self._Thread__started:
-            raise RuntimeError("Can only be started once")
+        if self._thread_started:
+            raise RuntimeError("Worker thread was already started")
         self._ua = PJSIPUA(self.event_handler, **self.init_options)
-        self._stopping = False
-        Thread.start(self)
+        self._lock = allocate_lock()
+        self._thread_stopping = False
+        self._thread_started = True
+        start_new_thread(self.run, (self,))
 
     # worker thread
+    @staticmethod
     def run(self):
         try:
-            while not self._stopping:
+            self._lock.acquire()
+        except AttributeError: # The lock was removed before we were properly started
+            return
+        try:
+            while not self._thread_stopping:
                 self._ua.poll()
-        except: # TODO: do something more intelligent here than just exiting?
+        except: # TODO: do something that actually works here
             traceback.print_exc()
-            sys.exit()
+            pass
+        self._lock.release()
 
     def _handle_event(self, event_name, **kwargs):
         if event_name == "log":
@@ -81,6 +89,13 @@ class Engine(Thread):
             if hasattr(self._ua, attr) and attr != "poll":
                 setattr(self._ua, attr, value)
                 return
-        Thread.__setattr__(self, attr, value)
+        object.__setattr__(self, attr, value)
 
-atexit.register(Engine._shutdown)
+
+class EngineHelper(object):
+
+    def __del__(self):
+        if Engine.instance is not None:
+            Engine().stop()
+
+_helper = EngineHelper()
