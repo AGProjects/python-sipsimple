@@ -8,19 +8,17 @@ _schema_dir_ = os.path.join(os.path.dirname(__file__), 'xml-schemas')
 class ParserError(Exception): pass
 class BuilderError(Exception): pass
 
-
-class XMLMixin(object):
 class XMLElement(object):
     encoding = 'UTF-8'
     
-    _xml_tag = None
-    _xml_namespace = None
-    _xml_attrs = {}
+    _xml_tag = None # To be defined in subclass
+    _xml_namespace = None # To be defined in subclass
+    _xml_attrs = {} # Not necessarily defined in subclass
 
     @classmethod
     def tag(cls, namespace = None, tag = None):
-        tag =  tag or cls._xml_tag # define in subclass
-        namespace = namespace or cls._xml_namespace # define in subclass
+        tag =  tag or cls._xml_tag
+        namespace = namespace or cls._xml_namespace
         return '{%s}%s' % (namespace, tag)
 
     def to_element(self, parent = None, namespace = None, tag = None, nsmap = None):
@@ -28,7 +26,10 @@ class XMLElement(object):
             element = etree.Element(self.tag(namespace, tag), nsmap = nsmap)
         else:
             element = etree.SubElement(parent, self.tag(namespace, tag), nsmap = nsmap)
-        self.build_element(element) # define in subclass
+        self._build_element(element)
+        for attr, definition in cls._xml_attrs.items():
+            if hasattr(obj, attr):
+                element.set(definition.get('xml_attribute', attr), getattr(obj, attr))
         return element
     
     # To be defined in subclass
@@ -46,7 +47,8 @@ class XMLElement(object):
     # To be defined in subclass
     def _parse_element(self, element, *args, **kwargs):
         pass
-
+    
+    # FIXME: except for testing in resourcelists, I see no reason for having this method
     def toxml(self, *args, **kwargs):
         """Shortcut that generates Element and calls etree.tostring"""
         element = self.to_element()
@@ -109,14 +111,9 @@ class XMLApplication(XMLElement):
     _xml_schema_dir = _schema_dir_
     _xml_declaration = False
     
-    # To be defined in subclasses
-    @classmethod
-    def from_element(cls, element):
-        raise NotImplementedError("from_element method not defined in class %s" % cls.__name__)
-
     def to_element(self, parent=None, namespace=None, tag=None, nsmap=None):
-        nsmap = nsmap or  self._xml_nsmap
-        return XMLMixin.to_element(self, parent, namespace, tag, nsmap)
+        nsmap = nsmap or self._xml_nsmap
+        return super(XMLApplication, self).to_element(parent, namespace, tag, nsmap)
 
     @classmethod
     def parse(cls, document):
@@ -124,16 +121,16 @@ class XMLApplication(XMLElement):
     
     def toxml(self, *args, **kwargs):
         element = self.to_element()
+        if kwargs.pop('validate', self._validate_output):
+            self._xml_schema.assertValid(element)
+        
         kwargs.setdefault('encoding', self.encoding)
         kwargs.setdefault('xml_declaration', self._xml_declaration)
-        validate = kwargs.pop('validate', self._validate_output)
-        res = etree.tostring(element, *args, **kwargs)
-        if validate:
-            self._xml_schema.assertValid(element)
-        return res
-
-    def _check_qname(self, element, name, namespace=None):
-        namespace = namespace or self._xml_namespace
+        return etree.tostring(element, *args, **kwargs)
+    
+    @classmethod
+    def _check_qname(cls, element, name, namespace=None):
+        namespace = namespace or cls._xml_namespace
         if namespace is not None:
             name = '{%s}%s' % (namespace, name)
         if element.tag != name:

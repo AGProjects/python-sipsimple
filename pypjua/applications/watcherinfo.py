@@ -6,13 +6,15 @@ See WatcherInfo class for more information.
 
 from lxml import etree
 
-from pypjua.applications import XMLParser, XMLElementMapping, ParserError
+from pypjua.applications import XMLApplication, XMLElement, ParserError
 
 __all__ = ["NeedFullUpdateError", "WatcherInfo"]
 
+_namespace_ = 'urn:ietf:params:xml:ns:watcherinfo'
+
 class NeedFullUpdateError(Exception): pass
 
-class Watcher(XMLElementMapping):
+class Watcher(XMLElement):
     """
     Definition for a watcher in a watcherinfo document
     
@@ -32,17 +34,18 @@ class Watcher(XMLElementMapping):
             'status': {},
             'event': {},
             'display_name': {'xml_attribute': 'display-name'},
-            'expiration': {'testequal': False},
-            'duration': {'testequal': False}}
+            'expiration': {'test_equal': False},
+            'duration': {'test_equal': False}}
+    _xml_tag = 'watcher'
+    _xml_namespace = _namespace_
 
-    def __init__(self, element):
-        XMLElementMapping.__init__(self, element)
+    def _parse_element(self, element):
         self.sipuri = element.text
 
     def __str__(self):
         return self.display_name and '%s <%s>' % (self.display_name, self.sipuri) or self.sipuri
 
-class WatcherList(XMLElementMapping):
+class WatcherList(XMLElement):
     """
     Definition for a list of watchers in a watcherinfo document
     
@@ -55,19 +58,18 @@ class WatcherList(XMLElementMapping):
     _xml_attrs = {
             'resource': {'id_attribute': True},
             'package': {}}
+    _xml_tag = 'watcher-list'
+    _xml_namespace = _namespace_
 
-    def __init__(self, element, full_parse=True):
+    def _parse_element(self, element, full_parse=True):
         self._watchers = {}
-        XMLElementMapping.__init__(self, element, full_parse)
-
-    def _parse_element(self, element, full_parse):
         if full_parse:
             self.update(element)
 
     def update(self, element):
         updated = []
         for child in element:
-            watcher = Watcher(child)
+            watcher = Watcher.from_element(child)
             old = self._watchers.get(watcher.id)
             self._watchers[watcher.id] = watcher
             if old is None or old != watcher:
@@ -87,7 +89,7 @@ class WatcherList(XMLElementMapping):
     active = property(lambda self: (watcher for watcher in self if watcher.status == 'active'))
     terminated = property(lambda self: (watcher for watcher in self if watcher.status == 'terminated'))
 
-class WatcherInfo(XMLParser):
+class WatcherInfo(XMLApplication):
     """
     Definition for watcher info: a list of WatcherList elements
     
@@ -129,15 +131,18 @@ class WatcherInfo(XMLParser):
     """
     
     accept_types = ['application/watcherinfo+xml']
-    _namespace = 'urn:ietf:params:xml:ns:watcherinfo'
-    _schema_file = 'watcherinfo.xsd'
-    _parser = etree.XMLParser(remove_blank_text=True)
+    _xml_namespace = _namespace_
+    _xml_schema_file = 'watcherinfo.xsd'
+    _parser_opts = {'remove_blank_text': True}
     
-    def __init__(self, document=None):
+    def __init__(self):
         self.version = -1
         self._wlists = {}
-        if document is not None:
-            self.update(document)
+
+    def _parse_element(self, element):
+        self.version = -1
+        self._wlists = {}
+        self._update_from_element(element)
     
     def update(self, document):
         """
@@ -147,9 +152,12 @@ class WatcherInfo(XMLParser):
         Will throw a NeedFullUpdateError if the current document is a partial
         update and the previous version wasn't received.
         """
-        root = self._parse(document)
-        version = int(root.get('version'))
-        state = root.get('state')
+        root = etree.XML(document, self._parser)
+        return self._update_from_element(root)
+
+    def _update_from_element(self, element):
+        version = int(element.get('version'))
+        state = element.get('state')
 
         if version <= self.version:
             return {}
@@ -161,13 +169,13 @@ class WatcherInfo(XMLParser):
         updated_lists = {}
         if state == 'full':
             self._wlists = {}
-            for xml_wlist in root:
-                wlist = WatcherList(xml_wlist)
+            for xml_wlist in element:
+                wlist = WatcherList.from_element(xml_wlist)
                 self._wlists[wlist.resource] = wlist
                 updated_lists[wlist] = list(wlist)
         elif state == 'partial':
-            for xml_wlist in root:
-                wlist = WatcherList(xml_wlist, full_parse=False)
+            for xml_wlist in element:
+                wlist = WatcherList.from_element(xml_wlist, full_parse=False)
                 wlist = self._wlists.get(wlist.resource, wlist)
                 self._wlists[wlist.resource] = wlist
                 updated = wlist.update(xml_wlist)
