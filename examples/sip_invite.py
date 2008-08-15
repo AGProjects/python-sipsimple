@@ -279,6 +279,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         msrp_stream.remote_msrp
                     except:
                         print "Could not fetch and parse remote MSRP URI from SDP answer"
+                        traceback.print_exc()
                         queue.put(("end", None))
                         continue
                     print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
@@ -292,6 +293,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     remote_uri_path = data["streams"].streams[0].remote_msrp[0]
                 except:
                     print "Could not fetch and parse remote MSRP URI path from SDP answer"
+                    traceback.print_exc()
                     queue.put(("end", None))
                     continue
                 print "Session established to: %s" % " ".join(remote_uri_path)
