@@ -23,3 +23,9 @@ To compile this module on Linux, perform the following steps;
     make HOST_CFLAGS=-fPIC
 - Go to the module directory and build the module:
   ./build_inplace
+
+The sip_invite example script also requires the dnspython module.
+
+- Install dnspython python library:
+  On Debian:
+    apt-get install python-dnspython
