@@ -2125,7 +2125,7 @@ cdef class Invitation:
         cdef pjmedia_sdp_session *local_sdp
         cdef MediaStreams streams
         #if self.state in ["CALLING", "PROPOSING"]:
-        if self.state in ["CALLING"]:
+        if self.state in ["CALLING", "INCOMING"]:
             if sdp_status != 0:
                 self.end()
             else:
@@ -2203,8 +2203,6 @@ cdef class Invitation:
             status = pjsip_inv_send_msg(self.c_obj, c_tdata)
             if status != 0:
                 raise RuntimeError("Could not send 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
-            self.state = "ESTABLISHED"
-            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
         #elif self.state == "PROPOSED":
         #    pass
         else:
