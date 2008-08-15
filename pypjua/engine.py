@@ -32,6 +32,7 @@ class Engine(object):
                     raise RuntimeError("event_handler argument should be callable")
                 self.event_handler = event_handler
             self._thread_started = False
+            self._thread_running = False
             Engine._done_init = True
 
     @classmethod
@@ -40,17 +41,16 @@ class Engine(object):
             cls.instance.stop()
 
     def stop(self):
-        if self._thread_started:
+        if self._thread_running:
             self._thread_stopping = True
             self._lock.acquire()
-            self._thread_started = False
             del self._thread_stopping
             del self._lock
             del self._ua
 
     def start(self):
         if self._thread_started:
-            raise RuntimeError("Worker thread was already started")
+            raise RuntimeError("Worker thread was already started once")
         self._ua = PJSIPUA(self.event_handler, **self.init_options)
         self._lock = allocate_lock()
         self._thread_stopping = False
@@ -60,6 +60,7 @@ class Engine(object):
     # worker thread
     @staticmethod
     def run(self):
+        self.thread_running = True
         try:
             self._lock.acquire()
         except AttributeError: # The lock was removed before we were properly started
