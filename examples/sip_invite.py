@@ -184,7 +184,6 @@ def event_handler(event_name, **kwargs):
                 print "Session ended"
             queue.put(("unregister", None))
         elif kwargs["state"] == "ESTABLISHED":
-            print "Session established."
             queue.put(("established", kwargs))
     elif event_name == "Registration_state":
         if kwargs["state"] == "registered":
@@ -253,6 +252,8 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         try:
             command, data = queue.get()
             if command == "quit":
+                if msrp.sock is not None:
+                    msrp.sock.close()
                 sys.exit()
             elif command == "unregister":
                 if do_register:
@@ -286,13 +287,15 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 if inv is not None and inv.state == "DISCONNECTED":
                     inv.invite(streams)
             elif command == "established":
+                try:
+                    remote_uri_path = data["streams"].streams[0].remote_msrp[0]
+                except:
+                    print "Could not fetch and parse remote MSRP URI path from SDP answer"
+                    queue.put(("end", None))
+                    continue
+                print "Session established to: %s" % " ".join(remote_uri_path)
                 if target_username is not None:
-                    try:
-                        msrp.set_remote_uri(data["streams"].streams[0].remote_msrp[0])
-                    except:
-                        print "Could not fetch and parse remote MSRP URI from SDP answer"
-                        queue.put(("end", None))
-                        continue
+                    msrp.set_remote_uri(remote_uri_path)
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
