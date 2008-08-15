@@ -300,14 +300,14 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             elif command == "established":
                 try:
                     remote_uri_path = data["streams"].streams[0].remote_msrp[0]
+                    print "Session negotiated to: %s" % " ".join(remote_uri_path)
+                    if target_username is not None:
+                        msrp.set_remote_uri(remote_uri_path)
                 except:
                     print "Could not fetch and parse remote MSRP URI path from SDP answer"
                     traceback.print_exc()
                     queue.put(("end", None))
                     continue
-                print "Session negotiated to: %s" % " ".join(remote_uri_path)
-                if target_username is not None:
-                    msrp.set_remote_uri(remote_uri_path)
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
