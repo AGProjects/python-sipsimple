@@ -104,6 +104,7 @@ class MSRP(Thread):
         return data
 
     def _recv_msrp(self):
+        global _re_msrp
         while True:
             match = _re_msrp.match(self.buf.getvalue())
             if match is not None:
