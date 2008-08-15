@@ -95,7 +95,7 @@ class MSRP(Thread):
         if self.use_tls:
             try:
                 data = self.ssl.read(16384)
-            except socket.sslerror:
+            except:
                 return ""
         else:
             data = self.sock.recv(16384)
