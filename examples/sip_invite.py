@@ -305,7 +305,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     traceback.print_exc()
                     queue.put(("end", None))
                     continue
-                print "Session established to: %s" % " ".join(remote_uri_path)
+                print "Session negotiated to: %s" % " ".join(remote_uri_path)
                 if target_username is not None:
                     msrp.set_remote_uri(remote_uri_path)
             elif command == "user_input":
