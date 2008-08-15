@@ -168,6 +168,12 @@ class MSRP(Thread):
                 response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
                 self._send(response.encode())
 
+    def disconnect(self):
+        if self.sock is not None:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        if self._Thread__started:
+            self.join()
+
 queue = Queue()
 packet_count = 0
 start_time = None
@@ -253,8 +259,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         try:
             command, data = queue.get()
             if command == "quit":
-                if msrp.sock is not None:
-                    msrp.sock.close()
+                msrp.disconnect()
                 sys.exit()
             elif command == "unregister":
                 if do_register:
@@ -262,6 +267,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         reg.unregister()
                     except:
                         traceback.print_exc()
+                        msrp.disconnect()
                         sys.exit()
                 else:
                     queue.put(("quit", None))
@@ -317,6 +323,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             pass
         except Exception:
             traceback.print_exc()
+            msrp.disconnect()
             sys.exit()
 
 re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|[a-zA-Z0-9\-\.]+)(:(?P<port>\d+))?$")
