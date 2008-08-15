@@ -157,6 +157,7 @@ class MSRP(Thread):
             self.listen_sock.listen(1)
             self.sock, addr = self.listen_sock.accept()
             self.listen_sock.close()
+            del self.listen_sock
         while True:
             data = self._recv_msrp()
             if data is None:
@@ -169,7 +170,9 @@ class MSRP(Thread):
                 self._send(response.encode())
 
     def disconnect(self):
-        if self.sock is not None:
+        if hasattr(self, "listen_sock"):
+            self.listen_sock.close()
+        elif self.sock is not None:
             try:
                 self.sock.shutdown(socket.SHUT_RDWR)
             except:
