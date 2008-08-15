@@ -170,7 +170,10 @@ class MSRP(Thread):
 
     def disconnect(self):
         if self.sock is not None:
-            self.sock.shutdown(socket.SHUT_RDWR)
+            try:
+                self.sock.shutdown(socket.SHUT_RDWR)
+            except:
+                pass
         if self._Thread__started:
             self.join()
 
