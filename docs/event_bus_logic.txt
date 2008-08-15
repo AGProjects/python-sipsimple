@@ -51,9 +51,11 @@ on_incomming_notify
   rebuild state associated with xcap document
          
 on_incomming_message
+  if application type is iscomposing 
 - alert use with message composition state
 
 on_incomming refer
+  if event is conference
 - if refer to conference prompt user for connecting to the conference room
  
 on_register
@@ -69,7 +71,7 @@ on_boot
 - lookup sip registrar
 - register
 - create bonjour state
-- broadcast own bonjour state
+- broadcast bonjour state
 - get enviroment state (light, noise, gps)
 - lookup xcap server
 - get xcap pidf-manipulation
@@ -126,6 +128,5 @@ on_change_policy
 
 on_timer
 - sip keepalive
-- set device state to idle on non keybord activity
-
+- set presence state to idle on non keybord activity
  
