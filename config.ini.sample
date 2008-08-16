@@ -16,11 +16,17 @@
 ; to obtain the list of all settings
 ; grep = config.ini.sample|cut -f 1 -d "="|sort
 
+; %c = config_directory
+; %u = accout username
+; %d = account domain
+; %y = current year
+; %m = current month
+; %d = current day
 
 [general]
 ; MacOSX & Linux: ~/.pypjua/config.ini
 ; Windows: ~/My Documents/Pypjua/config.ini
-config_directory=~/.pypjua
+config_directory=~/.pypjua/
 
 enrollment=true
 ; if true, and this configuration file does not contain the [account1]
@@ -28,8 +34,8 @@ enrollment=true
 ; create the [account1] section
 
 enrollment_url=https://enrollment.sipthor.net
-; the enrollment procedure requires the end-point to generated and store a
-; cryptographic public/private key pair, then HTTP POST to the
+; the enrollment procedure requires the end-point to generate and store a
+; locally a cryptographic public/private key pair, then HTTP POST to the
 ; enrollment_url the public_key and signing the request with the private
 ; key, the server returns the account definition in json format
 
@@ -62,25 +68,24 @@ audio_recording=false
 video=false
 
 ; history storage
-audio_recording_folder=$config_directory/history/audio/%Y-%m-%d
-im_history_folder=$config_directory/history/im/%Y-%m-%d
-file_transfer_history_folder=$config_directory/history/file_transfer/%Y-%m-%d
-xcap_history_folder=$config_directory/history/xcap/%Y-%m-%d
+audio_recording_folder=%c/history/audio/%u@%d/%y-%m-%d/
+im_history_folder=%c/history/im/%y-%m-%d/
+file_transfer_history_folder=%c/history/file_transfer/%u@%d/%y-%m-%d/
+xcap_history_folder=%c/history/xcap/%u@%d/%y-%m-%d/
 
 ; state storage
-xcap_state_folder=$config_directory/state/xcap
-presence_watcher_info_state_file=$config_directory/state/presence/winfo.xml
-message_waiting_indicator_state_file=$config_directory/state/mwi.txt
-bonjour_state_folder=$config_directory/state/bonjour
+xcap_state_folder=%c/state/xcap/%u@%d/
+presence_watcher_info_state_file=%c/state/%u@%d/presence/winfo.xml
+message_waiting_indicator_state_file=%c/state/%u@%d/mwi.txt
+bonjour_state_folder=%c/state/bonjour
 ; each buddy state is saved in a file called uri-pidf.xml
-presence_buddy_state_folder=$config_directory/state/presence/buddies
+presence_buddy_state_folder=%c/state/%u@%d/presence/buddies/
 
 ; protocol trace storage
-xcap_trace_file=$config_directory/trace/xcap.txt
-msrp_trace_file=$config_directory/trace/msrp.txt
-rtp_trace_file=$config_director/trace/rtp.txt
-sip_trace_file=$config_directory/trace/sip.txt
-
+xcap_trace_file=%c/trace/%u@%d-xcap.txt
+msrp_trace_file=%c/trace/%u@%d-msrp.txt
+rtp_trace_file=%c/trace/%u@%d-rtp.txt
+sip_trace_file=%c/trace/%u@%d-sip.txt
 
 [account_options]
 ; default account options, can be overwritten per account
@@ -131,9 +136,6 @@ presence=true
 
 ; xcap root used by XCAP client to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
-
-; enable presence spheres, it may complicate the user interface
-presence_spheres=false
 
 ; enable subscription to RLS service, the presence server subscribes to buddy list in our behalf
 ; it saves bandwidth on the last mile, useful for mobile devices
