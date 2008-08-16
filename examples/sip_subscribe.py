@@ -104,7 +104,7 @@ def parse_proxy(option, opt_str, value, parser):
 
 def parse_options():
     retval = {}
-    description = "This example script will use the specified SIP account to SUBSCRIBE to events published by of the specified presentity, the default event is presence. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
+    description = "This example script will use the specified SIP account to SUBSCRIBE to events published by the specified presentity. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password presentity@presentity-domain.com"
     epilog = " ".join(["Known events:\n"] + ["%s:%s" % (event, ",".join(types)) for event, types in Engine.init_options_defaults["initial_events"].iteritems()])
     default_options = dict(expires=300, proxy_ip=None, proxy_port=None, event="presence", content_type=None)
