@@ -60,7 +60,7 @@ class Engine(object):
     # worker thread
     @staticmethod
     def run(self):
-        self.thread_running = True
+        self._thread_running = True
         try:
             self._lock.acquire()
         except AttributeError: # The lock was removed before we were properly started
@@ -71,6 +71,7 @@ class Engine(object):
         except: # TODO: do something that actually works here
             traceback.print_exc()
             pass
+        self._thread_running = False
         self._lock.release()
 
     def _handle_event(self, event_name, **kwargs):
