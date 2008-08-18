@@ -68,9 +68,14 @@ class Engine(object):
         try:
             while not self._thread_stopping:
                 self._ua.poll()
-        except: # TODO: do something that actually works here
+        except:
             traceback.print_exc()
-            pass
+            self._thread_running = False
+            self._lock.release()
+            del self._thread_stopping
+            del self._lock
+            del self._ua
+            return
         self._thread_running = False
         self._lock.release()
 
