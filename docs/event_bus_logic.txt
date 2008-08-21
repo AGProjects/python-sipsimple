@@ -67,6 +67,7 @@ on_bonjour_updates
 - dump bonjour list
 
 on_boot
+- on_enrollment
 - purge state folders
 - lookup stun servers
 - detect nat type
@@ -131,4 +132,11 @@ on_change_policy
 on_timer
 - sip keepalive
 - set presence state to idle on non keybord activity
- 
+
+on_enrollment
+- generate gnupg key, figure out a random user@sip2sip.info
+- compose enrollemnt request body with the public key
+- sign body with the private key
+- HTTP post the signed body to enrollment server
+- get answer from enrollment server
+- generate configuration file
