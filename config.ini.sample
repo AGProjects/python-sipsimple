@@ -34,10 +34,12 @@ enrollment=true
 ; create the [account1] section
 
 enrollment_url=https://enrollment.sipthor.net
-; the enrollment procedure requires the end-point to generate and store a
-; locally a cryptographic public/private key pair, then HTTP POST to the
+; the enrollment procedure requires the end-point to generate with gnupg a
+; cryptographic public/private key pair, then HTTP POST to the
 ; enrollment_url the public_key and signing the request with the private
-; key, the server returns the account definition in json format
+; key, the server returns the account definition in json format. The server
+; will store the public key with the sip account it created so that it can
+; return it again later
 
 ; SIP UA settings
 sip_user_agent=pypjua.org
