@@ -335,7 +335,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             print "Could not fetch and parse remote MSRP URI path from SDP answer"
                             traceback.print_exc()
                             command = "end"
-                        else:
                     elif args["state"] == "DISCONNECTED":
                         if args.has_key("code"):
                             print "Session ended: %(code)d %(reason)s" % args
