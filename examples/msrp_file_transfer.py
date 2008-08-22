@@ -144,6 +144,7 @@ class MSRPFileTransfer(Thread):
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.sock.settimeout(5)
                 self.sock.connect((self.remote_uri_path[0].host, self.remote_uri_path[0].port or 2855))
+                print "Connected to remote MSRP party at %s:%d" % self.sock.getpeername()
                 self.sock.settimeout(None)
                 if self.remote_uri_path[0].use_tls:
                     self.use_tls = True
@@ -154,10 +155,13 @@ class MSRPFileTransfer(Thread):
         global queue
         if self.is_incoming:
             if self.relay_data is None:
+                queue.put(("print", "Listening for MSRP connection on %s:%d" % self.listen_sock.getsockname()))
                 self.listen_sock.listen(1)
                 self.sock, addr = self.listen_sock.accept()
                 self.listen_sock.close()
                 del self.listen_sock
+                queue.put(("print", "Received incoming MSRP connection from %s:%d" % self.sock.getpeername()))
+            queue.put(("print", "Waiting for MSRP file transfer from remote party..."))
             data = self._recv_msrp()
             if data is None:
                 queue.put(("print", "MSRP session got disconnected before file transfer was completed."))
@@ -191,6 +195,7 @@ class MSRPFileTransfer(Thread):
                 queue.put(("print", 'Received file "%s" of %d bytes, disconnecting...' % (filename, len(data["body"]))))
                 queue.put(("end", None))
         else:
+            queue.put(("print", "Starting file transfer..."))
             file_data = self.fd.read()
             msrpdata = msrp_protocol.MSRPData(method="SEND", transaction_id=random_string(12))
             msrpdata.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
@@ -323,6 +328,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     elif args["state"] == "ESTABLISHED":
                         try:
                             remote_uri_path = args["streams"].streams[0].remote_msrp[0]
+                            print "Session negotiated to: %s" % " ".join(remote_uri_path)
                             if target_username is not None:
                                 msrp.set_remote_uri(remote_uri_path)
                         except:
@@ -330,7 +336,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             traceback.print_exc()
                             command = "end"
                         else:
-                            print "Session negotiated to: %s" % " ".join(remote_uri_path)
                     elif args["state"] == "DISCONNECTED":
                         if args.has_key("code"):
                             print "Session ended: %(code)d %(reason)s" % args
