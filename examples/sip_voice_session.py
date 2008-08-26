@@ -30,9 +30,9 @@ def event_handler(event_name, **kwargs):
         else:
             direction = "SENDING"
         buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
-        buf += ["%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs]
-        buf += kwargs["data"]
-        queue.put("print", "\n".join(buf))
+        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
+        buf.append(kwargs["data"])
+        queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
 
