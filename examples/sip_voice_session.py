@@ -156,7 +156,7 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
 def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming audio call, or attempt to make an outgoing audio call to the specified target. The program will close the session and quit when CTRL+D is pressed."
-    usage = "%prog [options] user@domain.com password [target-user@target-domain.com file]"
+    usage = "%prog [options] user@domain.com password [target-user@target-domain.com]"
     default_options = dict(expires=300, proxy_ip=None, proxy_port=None, do_register=True, do_siptrace=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
