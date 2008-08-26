@@ -767,7 +767,7 @@ cdef class PJMEDIAConferenceBridge:
         cdef unsigned int slot
         self._destroy_snd_port(1)
         if self.c_obj != NULL:
-            for slot in self.c_connected_slots:
+            for slot in list(self.c_connected_slots):
                 if slot != 0:
                     self._disconnect_slot(slot)
             pjmedia_conf_destroy(self.c_obj)
