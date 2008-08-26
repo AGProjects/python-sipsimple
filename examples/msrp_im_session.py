@@ -236,8 +236,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
     else:
         msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, do_srv)
     inv = None
-    streams = None
-    msrp_stream = None
     e = Engine(event_handler, do_siptrace=False, auto_sound=False)
     e.start()
     try:
@@ -253,10 +251,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             queue.put(("registered", None))
         if target_username is not None:
             inv = Invitation(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=target_username, host=target_domain), route=route)
-            msrp_stream = MSRPStream()
-            msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
-            streams = MediaStreams()
-            streams.add_stream(msrp_stream)
     except:
         e.stop()
         raise
@@ -284,45 +278,34 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     queue.put(("unregister", None))
             elif command == "incoming":
                 if inv is None:
-                    inv = data["obj"]
-                    try:
-                        streams = data["streams"]
-                        msrp_stream = streams.streams[0]
-                        msrp_stream.remote_msrp
-                    except:
-                        print "Could not fetch and parse remote MSRP URI from SDP answer"
-                        traceback.print_exc()
-                        queue.put(("end", None))
-                        continue
-                    print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                    if data.has_key("streams") and len(data["streams"]) == 1:
+                        msrp_stream = data["streams"].pop()
+                        if msrp_stream.media_type == "message" and msrp_stream.remote_info[1] == ["text/plain"]:
+                            inv = data["obj"]
+                            print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                        else:
+                            data["obj"].end()
+                    else:
+                        data["obj"].end()
                 else:
                     data["obj"].end()
             elif command == "registered":
                 if inv is not None and inv.state == "DISCONNECTED":
-                    inv.invite(streams)
+                    inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["text/plain"])])
             elif command == "established":
-                try:
-                    remote_uri_path = data["streams"].streams[0].remote_msrp[0]
-                    print "Session negotiated to: %s" % " ".join(remote_uri_path)
-                    if target_username is not None:
-                        msrp.set_remote_uri(remote_uri_path)
-                except:
-                    print "Could not fetch and parse remote MSRP URI path from SDP answer"
-                    traceback.print_exc()
-                    queue.put(("end", None))
-                    continue
+                remote_uri_path = data["streams"].pop().remote_info[0]
+                print "Session negotiated to: %s" % " ".join(remote_uri_path)
+                if target_username is not None:
+                    msrp.set_remote_uri(remote_uri_path)
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
                         queue.put(("end", None))
                     elif data[0].lower() == "y":
-                        try:
-                            msrp.set_remote_uri(msrp_stream.remote_msrp[0])
-                        except RuntimeError:
-                            queue.put(("end", None))
-                            traceback.print_exc()
-                        msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
-                        inv.accept(streams)
+                        msrp_stream = inv.proposed_streams.pop()
+                        msrp.set_remote_uri(msrp_stream.remote_info[0])
+                        msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
+                        inv.accept([msrp_stream])
                 else:
                     msrp.send_message(data)
         except KeyboardInterrupt:

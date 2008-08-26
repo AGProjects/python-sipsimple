@@ -263,8 +263,6 @@ def user_input():
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port, do_register, do_srv, auto_msrp_relay, fd, do_siptrace):
     msrp = None
     inv = None
-    streams = None
-    msrp_stream = None
     e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
     e.start()
     try:
@@ -299,11 +297,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                                 msrp = MSRPFileTransfer(False, dump_msrp, domain, 2855, username, password, True, fd)
                             else:
                                 msrp = MSRPFileTransfer(False, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, do_srv, fd)
-                            msrp_stream = MSRPStream()
-                            msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])
-                            streams = MediaStreams()
-                            streams.add_stream(msrp_stream)
-                            inv.invite(streams)
+                            inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])])
                     elif args["state"] == "unregistered":
                         print "Unregistered: %(code)d %(reason)s" % args
                         command = "quit"
@@ -311,36 +305,30 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                     if args["state"] == "INCOMING":
                         print "Incoming session..."
                         if inv is None:
-                            inv = args["obj"]
-                            try:
-                                streams = args["streams"]
-                                msrp_stream = streams.streams[0]
-                                msrp_stream.remote_msrp
-                            except:
-                                print "Could not fetch and parse remote MSRP URI from SDP answer"
-                                traceback.print_exc()
-                                command = "end"
-                                continue
-                            print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                            if args.has_key("streams") and len(args["streams"]) == 1:
+                                msrp_stream = args["streams"].pop()
+                                if msrp_stream.media_type == "message" and msrp_stream.remote_info[1] == ["binary/octet-stream"]:
+                                    inv = args["obj"]
+                                    print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                                else:
+                                    args["obj"].end()
+                            else:
+                                args["obj"].end()
                         else:
                             print "rejecting."
                             args["obj"].end()
                     elif args["state"] == "ESTABLISHED":
-                        try:
-                            remote_uri_path = args["streams"].streams[0].remote_msrp[0]
-                            print "Session negotiated to: %s" % " ".join(remote_uri_path)
-                            if target_username is not None:
-                                msrp.set_remote_uri(remote_uri_path)
-                        except:
-                            print "Could not fetch and parse remote MSRP URI path from SDP answer"
-                            traceback.print_exc()
-                            command = "end"
+                        remote_uri_path = args["streams"].pop().remote_info[0]
+                        print "Session negotiated to: %s" % " ".join(remote_uri_path)
+                        if target_username is not None:
+                            msrp.set_remote_uri(remote_uri_path)
                     elif args["state"] == "DISCONNECTED":
-                        if args.has_key("code"):
-                            print "Session ended: %(code)d %(reason)s" % args
-                        else:
-                            print "Session ended"
-                        command = "unregister"
+                        if args["obj"] is inv:
+                            if args.has_key("code"):
+                                print "Session ended: %(code)d %(reason)s" % args
+                            else:
+                                print "Session ended"
+                            command = "unregister"
             if command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
@@ -351,13 +339,14 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                                 msrp = MSRPFileTransfer(True, dump_msrp, domain, 2855, username, password, True, fd)
                             else:
                                 msrp = MSRPFileTransfer(True, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, do_srv, fd)
-                            msrp.set_remote_uri(msrp_stream.remote_msrp[0])
                         except RuntimeError:
                             traceback.print_exc()
                             command = "end"
                         else:
-                            msrp_stream.enable([str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])
-                            inv.accept(streams)
+                            msrp_stream = inv.proposed_streams.pop()
+                            msrp.set_remote_uri(msrp_stream.remote_info[0])
+                            msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])
+                            inv.accept([msrp_stream])
             if command == "end":
                 try:
                     if msrp is not None:

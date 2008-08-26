@@ -10,6 +10,10 @@ cdef extern from "string.h":
 cdef extern from "time.h":
     unsigned int clock()
 
+cdef extern from "sys/socket.h":
+    enum:
+        EADDRINUSE
+
 # PJSIP imports
 
 cdef extern from "pjlib.h":
@@ -17,6 +21,8 @@ cdef extern from "pjlib.h":
     # constants
     enum:
         PJ_ERR_MSG_SIZE
+    enum:
+        PJ_ERRNO_START_SYS
 
     # init / shutdown
     int pj_init()
@@ -69,9 +75,12 @@ cdef extern from "pjlib.h":
 
     # sockets
     struct pj_ioqueue_t
+    struct pj_sockaddr:
+        pass
     struct pj_sockaddr_in:
         pass
     int pj_sockaddr_in_init(pj_sockaddr_in *addr, pj_str_t *cp, int port)
+    int pj_sockaddr_get_port(pj_sockaddr *addr)
 
     # time
     struct pj_time_val:
@@ -138,8 +147,11 @@ cdef extern from "pjmedia.h":
     struct pjmedia_conf
     int pjmedia_conf_create(pj_pool_t *pool, int max_slots, int sampling_rate, int channel_count, int samples_per_frame, int bits_per_sample, int options, pjmedia_conf **p_conf)
     int pjmedia_conf_destroy(pjmedia_conf *conf)
-    int pjmedia_conf_connect_port(pjmedia_conf *conf, int src_slot, int sink_slot, int level)
     pjmedia_port *pjmedia_conf_get_master_port(pjmedia_conf *conf)
+    int pjmedia_conf_add_port(pjmedia_conf *conf, pj_pool_t *pool, pjmedia_port *strm_port, pj_str_t *name, unsigned int *p_slot)
+    int pjmedia_conf_remove_port(pjmedia_conf *conf, unsigned int slot)
+    int pjmedia_conf_connect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot, int level)
+    int pjmedia_conf_disconnect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot)
 
     # sdp
     enum:
@@ -196,6 +208,28 @@ cdef extern from "pjmedia.h":
     #int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
     int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session **remote)
     int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
+
+    # transport
+    struct pjmedia_sock_info:
+        pj_sockaddr rtp_addr_name
+    struct pjmedia_transport
+    struct pjmedia_transport_info:
+        pjmedia_sock_info sock_info
+    void pjmedia_transport_info_init(pjmedia_transport_info *info)
+    int pjmedia_transport_udp_create(pjmedia_endpt *endpt, char *name, int port, unsigned int options, pjmedia_transport **p_tp)
+    int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info)
+    int pjmedia_transport_close(pjmedia_transport *tp)
+    int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt, pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
+
+    # stream
+    struct pjmedia_stream_info:
+        pass
+    struct pjmedia_stream
+    int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt, pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
+    int pjmedia_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_stream_info *info, pjmedia_transport *tp, void *user_data, pjmedia_stream **p_stream)
+    int pjmedia_stream_destroy(pjmedia_stream *stream)
+    int pjmedia_stream_get_port(pjmedia_stream *stream, pjmedia_port **p_port)
+    int pjmedia_stream_start(pjmedia_stream *stream)
 
 cdef extern from "pjmedia-codec.h":
 
@@ -676,13 +710,15 @@ cdef class PJMEDIAConferenceBridge:
     cdef pjsip_endpoint *c_pjsip_endpoint
     cdef pj_pool_t *c_pool
     cdef pjmedia_snd_port *c_snd
+    cdef object c_connected_slots
 
     def __cinit__(self, PJSIPEndpoint pjsip_endpoint):
         cdef int status
         self.c_pjsip_endpoint = pjsip_endpoint.c_obj
-        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 9, 32000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
+        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, 32000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
+        self.c_connected_slots = set([0])
 
     cdef object _get_sound_devices(self, bint playback):
         cdef int i
@@ -728,9 +764,37 @@ cdef class PJMEDIAConferenceBridge:
             self.c_pool = NULL
 
     def __dealloc__(self):
+        cdef unsigned int slot
         self._destroy_snd_port(1)
         if self.c_obj != NULL:
+            for slot in self.c_connected_slots:
+                if slot != 0:
+                    self._disconnect_slot(slot)
             pjmedia_conf_destroy(self.c_obj)
+
+    cdef int _connect_slot(self, unsigned int slot) except -1:
+        cdef unsigned int connected_slot
+        cdef int status
+        if slot in self.c_connected_slots:
+            return 0
+        for connected_slot in self.c_connected_slots:
+            status = pjmedia_conf_connect_port(self.c_obj, slot, connected_slot, 0)
+            if status != 0:
+                self._disconnect_slot(slot)
+                raise RuntimeError("Could not connect audio stream on conference bridge: %s" % pj_status_to_str(status))
+            status = pjmedia_conf_connect_port(self.c_obj, connected_slot, slot, 0)
+            if status != 0:
+                self._disconnect_slot(slot)
+                raise RuntimeError("Could not connect audio stream on conference bridge: %s" % pj_status_to_str(status))
+        self.c_connected_slots.add(slot)
+
+    cdef int _disconnect_slot(self, unsigned int slot) except -1:
+        cdef unsigned int connected_slot
+        if slot in self.c_connected_slots:
+            self.c_connected_slots.remove(slot)
+        for connected_slot in self.c_connected_slots:
+            pjmedia_conf_disconnect_port(self.c_obj, slot, connected_slot)
+            pjmedia_conf_disconnect_port(self.c_obj, connected_slot, slot)
 
 
 cdef class SIPURI:
@@ -812,6 +876,8 @@ def _get_timestamp(item):
 
 cdef class EventPackage
 cdef class Invitation
+cdef class MediaStream
+cdef class AudioStream
 
 cdef class PJSIPUA:
     cdef long c_thread_desc[64]
@@ -948,6 +1014,18 @@ cdef class PJSIPUA:
             for codec in new_codecs:
                 getattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec)()
             self.c_pjmedia_endpoint.c_codecs = new_codecs
+
+    def connect_audio_stream(self, MediaStream stream):
+        cdef AudioStream c_audio_stream = stream.c_stream
+        if c_audio_stream.c_stream == NULL:
+            raise RuntimeError("Audio stream has not been fully negotiated yet")
+        self.c_conf_bridge._connect_slot(c_audio_stream.c_conf_slot)
+
+    def disconnect_audio_stream(self, MediaStream stream):
+        cdef AudioStream c_audio_stream = stream.c_stream
+        if c_audio_stream.c_stream == NULL:
+            raise RuntimeError("Audio stream has not been fully negotiated yet")
+        self.c_conf_bridge._disconnect_slot(c_audio_stream.c_conf_slot)
 
     def __dealloc__(self):
         self._do_dealloc()
@@ -1874,151 +1952,264 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
 cdef SDPMedia c_reject_sdp(SDPMedia remote_media):
     return SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
 
-cdef class UnknownMediaStream:
-    cdef SDPMedia c_remote_media
-    cdef SDPMedia c_local_media
+class MediaStreamError(Exception):
+    pass
 
-    def __cinit__(self, SDPMedia remote_media, SDPMedia local_media = None):
-        if local_media is None:
-            self.c_local_media = c_reject_sdp(remote_media)
-        else:
-            self.c_local_media = local_media
-        self.c_remote_media = remote_media
 
+cdef dict _stream_map = {"message": MSRPStream, "audio": AudioStream}
 
 _re_msrp_uri = re.compile("^(?P<scheme>(msrp)|(msrps))://(((?P<user>.*?)@)?(?P<host>.*?)(:(?P<port>[0-9]+?))?)(/(?P<session_id>.*?))?;(?P<transport>.*?)(;(?P<parameters>.*))?$")
 cdef class MSRPStream:
-    cdef SDPMedia c_remote_media
-    cdef SDPMedia c_local_media
+    cdef list c_remote_info
+    cdef list c_local_info
 
-    def __cinit__(self, SDPMedia remote_media = None, SDPMedia local_media = None):
-        cdef list uri_path, accept_types, accept_wrapped_types
-        if remote_media is not None:
-            if local_media is None:
-                uri_path, accept_types, accept_wrapped_types = self._get_data(remote_media)
-                if len(uri_path) == 0 or len(accept_types) == 0:
-                    raise RuntimeError('"path" or "accept-types" attribute is missing or empty')
-                self.c_local_media = c_reject_sdp(remote_media)
-            else:
-                self.c_local_media = local_media
-            self.c_remote_media = remote_media
-
-    property remote_msrp:
-
-        def __get__(self):
-            return self._get_data(self.c_remote_media)
-
-    property local_msrp:
-
-        def __get__(self):
-            return self._get_data(self.c_local_media)
-
-    cdef object _get_data(self, SDPMedia msrp):
-        cdef SDPAttribute attr
-        cdef list uri_path = []
-        cdef list accept_types = []
+    def set_remote_sdp(self, SDPSession remote_sdp, unsigned int sdp_index):
+        cdef SDPMedia msrp = remote_sdp.media[sdp_index]
+        cdef list uri_path, accept_types
         cdef list accept_wrapped_types = []
-        if msrp is not None:
-            for attr in msrp.attributes:
-                if attr.name == "path":
-                    uri_path = attr.value.split()
-                elif attr.name == "accept-types":
-                    accept_types = attr.value.split()
-                elif attr.name == "accept-wrapped-types":
-                    accept_wrapped_types = attr.value.split()
-            return uri_path, accept_types, accept_wrapped_types
-        else:
-            return None
+        cdef object uri, uri_match
+        for attr in msrp.attributes:
+            if attr.name == "path":
+                uri_path = attr.value.split()
+            elif attr.name == "accept-types":
+                accept_types = attr.value.split()
+            elif attr.name == "accept-wrapped-types":
+                accept_wrapped_types = attr.value.split()
+        if uri_path is None:
+            raise MediaStreamError('MSRP "path" attribute is missing')
+        if accept_types is None:
+            raise MediaStreamError('"accept-types" attribute is missing')
+        for uri in uri_path:
+            uri_match = _re_msrp_uri.match(uri)
+            if uri_match is None:
+                raise MediaStreamError('Invalid MSRP URI found: "%s"' % uri)
+        self.c_remote_info = [uri_path, accept_types, accept_wrapped_types]
 
-    def enable(self, uri_path, accept_types, accept_wrapped_types = None):
+    def get_remote_info(self):
+        cdef list l
+        if self.c_remote_info is None:
+            return None
+        else:
+            return [l[:] for l in self.c_remote_info]
+
+    def get_local_info(self):
+        cdef list l
+        if self.c_local_info is None:
+            return None
+        else:
+            return [l[:] for l in self.c_local_info]
+
+    def set_local_info(self, uri_path, accept_types, accept_wrapped_types=[]):
+        cdef object uri, uri_match
+        for uri in uri_path:
+            uri_match = _re_msrp_uri.match(uri)
+            if uri_match is None:
+                raise RuntimeError('Invalid MSRP URI found: "%s"' % uri)
+        if uri_match.group("port") is None:
+            raise RuntimeError("Last URI in URI path does not have a port")
+        self.c_local_info = [list(uri_path), list(accept_types), list(accept_wrapped_types)]
+
+    def get_local_sdp(self):
         cdef list attributes = []
         cdef object match
         cdef object transport
+        cdef list uri_path, accept_types, accept_wrapped_types
+        uri_path, accept_types, accept_wrapped_types = self.c_local_info
         attributes.append(SDPAttribute("path", " ".join(uri_path)))
         attributes.append(SDPAttribute("accept-types", " ".join(accept_types)))
-        if accept_wrapped_types is not None:
+        if accept_wrapped_types:
             attributes.append(SDPAttribute("accept-wrapped-types", " ".join(accept_wrapped_types)))
         uri_match = _re_msrp_uri.match(uri_path[-1])
-        if uri_match is None:
-            raise RuntimeError("Error parsing MSRP URI")
         if uri_match.group("scheme") == "msrps":
             transport = "TCP/TLS/MSRP"
         else:
             transport = "TCP/MSRP"
-        self.c_local_media = SDPMedia("message", int(uri_match.group("port")), transport, formats=["*"], attributes=attributes)
+        return SDPMedia("message", int(uri_match.group("port")), transport, formats=["*"], attributes=attributes)
 
-    def disable(self):
-        if self.c_remote_media is None:
-            raise RuntimeError("Cannot disable an offered stream")
-        if self.c_local_media is not None and self.c_local_media.c_obj.desc.port == 0:
-            raise RuntimeError("Stream is already disabled")
-        self.c_local_media = c_reject_sdp(self.c_remote_media)
-
-
-cdef SDPMedia c_get_local_media(object stream):
-    cdef SDPMedia media
-    cdef MSRPStream msrp
-    cdef UnknownMediaStream unknown
-    try:
-        msrp = stream
-        media = msrp.c_local_media
-    except:
+    def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index):
         pass
-    if media is None:
-        unknown = stream
-        media = unknown.c_local_media
-    if media is None:
-        raise RuntimeError("Media stream was never initialized")
-    return media
 
-_stream_map = {"message": MSRPStream}
-cdef class MediaStreams:
-    cdef list c_streams
-    cdef readonly object state
-    cdef SDPSession c_remote_sdp
 
-    def __cinit__(self):
-        self.c_streams = []
-        self.state = "OFFERING"
+cdef class AudioStream:
+    cdef pjmedia_transport *c_transport
+    cdef pjmedia_stream *c_stream
+    cdef pj_pool_t *c_pool
+    cdef unsigned int c_conf_slot
 
-    cdef int _set_sdp(self, SDPSession remote_sdp, SDPSession local_sdp) except -1:
-        cdef list local_media_list
-        cdef SDPMedia remote_media
-        cdef SDPMedia local_media
-        self.c_remote_sdp = remote_sdp
-        cdef list local_media_list
-        if local_sdp is None:
-            self.state = "ANSWERING"
-            local_media_list = len(remote_sdp.media) * [None]
-        else:
-            self.state = "ESTABLISHED"
-            local_media_list = local_sdp.media
-        self.c_streams = [self._make_stream(remote_media, local_media) for remote_media, local_media in zip(remote_sdp.media, local_media_list)]
-
-    cdef object _make_stream(self, SDPMedia remote_media, SDPMedia local_media):
-        global _stream_map
+    def __dealloc__(self):
+        cdef PJSIPUA ua
         try:
-            return _stream_map.get(remote_media.media, UnknownMediaStream)(remote_media, local_media)
+            ua = c_get_ua()
         except RuntimeError:
-            return UnknownMediaStream(remote_media, local_media)
+            return
+        if self.c_stream != NULL:
+            ua.c_conf_bridge._disconnect_slot(self.c_conf_slot)
+            pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
+            pjmedia_stream_destroy(self.c_stream)
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+        if self.c_transport != NULL:
+            pjmedia_transport_close(self.c_transport)
 
-    property streams:
+    cdef int _get_transport_info(self, pjmedia_transport_info *info) except -1:
+        cdef int status
+        pjmedia_transport_info_init(info)
+        status = pjmedia_transport_get_info(self.c_transport, info)
+        if status != 0:
+            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
+        return 0
+
+    def set_remote_sdp(self, SDPSession remote_sdp, unsigned int sdp_index):
+        pass
+
+    def get_remote_info(self):
+        return None
+
+    def get_local_info(self):
+        cdef pjmedia_transport_info info
+        if self.c_transport == NULL:
+            return None
+        else:
+            self._get_transport_info(&info)
+            return pj_sockaddr_get_port(&info.sock_info.rtp_addr_name)
+
+    def set_local_info(self):
+        cdef int status, i
+        cdef PJSIPUA ua = c_get_ua()
+        for i in xrange(40000, 40100, 2):
+            status = pjmedia_transport_udp_create(ua.c_pjmedia_endpoint.c_obj, NULL, i, 0, &self.c_transport)
+            if status != PJ_ERRNO_START_SYS + EADDRINUSE:
+                break
+        if status != 0:
+            raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
+
+    def get_local_sdp(self):
+        cdef pjmedia_transport_info info
+        cdef SDPSession sdp_session
+        cdef pjmedia_sdp_session *c_sdp_session
+        cdef pj_pool_t *pool
+        cdef object pool_name = "AudioSession_sdp_%d" % id(self)
+        cdef int status
+        cdef PJSIPUA ua = c_get_ua()
+        self._get_transport_info(&info)
+        pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        if pool == NULL:
+            raise MemoryError()
+        try:
+            status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint.c_obj, pool, 1, &info.sock_info, &c_sdp_session)
+            if status != 0:
+                raise RuntimeError("Could not generate SDP for audio session: %s" % pj_status_to_str(status))
+            sdp_session = c_make_SDPSession(c_sdp_session)
+        finally:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
+        return sdp_session.media[0]
+
+    def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index):
+        cdef pjmedia_stream_info stream_info
+        cdef pjmedia_port *media_port
+        cdef object pool_name = "AudioSession_%d" % id(self)
+        cdef int status
+        cdef PJSIPUA ua = c_get_ua()
+        if self.c_stream != NULL:
+            return 0
+        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        if self.c_pool == NULL:
+            raise MemoryError()
+        status = pjmedia_stream_info_from_sdp(&stream_info, self.c_pool, ua.c_pjmedia_endpoint.c_obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
+        if status != 0:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            raise MediaStreamError("Could not parse SDP for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &stream_info, self.c_transport, NULL, &self.c_stream)
+        if status != 0:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            raise MediaStreamError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_start(self.c_stream)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_stream)
+            self.c_stream = NULL
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            raise MediaStreamError("Could not start RTP for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_get_port(self.c_stream, &media_port)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_stream)
+            self.c_stream = NULL
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            raise MediaStreamError("Could not get audio port for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.c_pool, media_port, NULL, &self.c_conf_slot)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_stream)
+            self.c_stream = NULL
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            raise MediaStreamError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
+        return 0
+
+
+cdef class MediaStream:
+    cdef unsigned int c_sdp_index
+    cdef readonly object media_type
+    cdef object c_stream
+
+    def __cinit__(self, *args):
+        global _stream_map
+        cdef SDPSession c_remote_sdp
+        cdef object c_stream_class
+        try:
+            c_remote_sdp, self.c_sdp_index = args
+        except:
+            self.media_type = args[0]
+            try:
+                c_stream_class = _stream_map[self.media_type]
+            except KeyError:
+                raise RuntimeError('Media type "%s" is unknown' % self.media_type)
+            self.c_stream = c_stream_class()
+            self.set_local_info(*args[1:])
+        else:
+            self.media_type = c_remote_sdp.media[self.c_sdp_index].media
+            try:
+                c_stream_class = _stream_map[self.media_type]
+            except KeyError:
+                raise MediaStreamError('Media type "%s" is unknown' % self.media_type)
+            self.c_stream = c_stream_class()
+            self.c_stream.set_remote_sdp(c_remote_sdp, self.c_sdp_index)
+
+    cdef int _check_validity(self) except -1:
+        if self.c_stream is None:
+            raise RuntimeError("This stream is no longer valid")
+        return 0
+
+    property remote_info:
 
         def __get__(self):
-            return self.c_streams[:]
+            self._check_validity()
+            return self.c_stream.get_remote_info()
 
-    def add_stream(self, stream):
-        if self.state == "ANSWERING":
-            raise RuntimeError('Cannot add streams while in "ANSWERING" state')
-        self.c_streams.append(stream)
+    property local_info:
 
-    cdef object _make_local_sdp(self, PJSIPUA ua):
-        cdef object host = pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host)
-        cdef list media = [c_get_local_media(stream) for stream in self.c_streams]
-        if self.c_remote_sdp is not None:
-            return SDPSession(host, connection=SDPConnection(host), media=media)
+        def __get__(self):
+            self._check_validity()
+            return self.c_stream.get_local_info()
+
+    def set_local_info(self, *args):
+        self._check_validity()
+        if self.c_stream.get_local_info() is not None:
+            raise RuntimeError("local info was already set")
         else:
-            return SDPSession(host, connection=SDPConnection(host), media=media, start_time=self.c_remote_sdp.c_obj.time.start, stop_time=self.c_remote_sdp.c_obj.time.stop)
+            self.c_stream.set_local_info(*args)
+
+    cdef SDPMedia _get_local_sdp(self):
+        self._check_validity()
+        if self.c_stream.get_local_info() is not None:
+            return self.c_stream.get_local_sdp()
+        else:
+            raise RuntimeError("local info was never set on media stream")
+
+    cdef int _sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp) except -1:
+        self._check_validity()
+        if self.c_stream.get_remote_info() is None:
+            self.c_stream.set_remote_sdp(remote_sdp, self.c_sdp_index)
+        self.c_stream.sdp_done(remote_sdp, local_sdp, self.c_sdp_index)
+
+    cdef int _end(self):
+        self.c_stream = None
 
 
 cdef class Invitation:
@@ -2029,6 +2220,8 @@ cdef class Invitation:
     cdef readonly SIPURI callee_uri
     cdef readonly Route route
     cdef readonly object state
+    cdef object c_proposed_streams
+    cdef object c_current_streams
 
     def __cinit__(self, *args, route=None):
         cdef PJSIPUA ua = c_get_ua()
@@ -2048,8 +2241,10 @@ cdef class Invitation:
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         global _event_queue
         cdef pjsip_tx_data *tdata
-        cdef pjmedia_sdp_session *remote_sdp
-        cdef MediaStreams streams
+        cdef pjmedia_sdp_session *c_remote_sdp
+        cdef SDPSession remote_sdp
+        cdef object streams = set
+        cdef unsigned int i
         cdef int status
         try:
             status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &ua.c_contact_url.pj_str, &self.c_dlg)
@@ -2078,10 +2273,16 @@ cdef class Invitation:
         self.caller_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.from_hdr.uri)
         self.callee_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
         if self.c_obj.neg != NULL:
-            pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &remote_sdp)
-            streams = MediaStreams()
-            streams._set_sdp(c_make_SDPSession(remote_sdp), None)
-            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams)))
+            pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &c_remote_sdp)
+            remote_sdp = c_make_SDPSession(c_remote_sdp)
+            streams = set()
+            for i from 0 <= i < remote_sdp.c_obj.media_count:
+                try:
+                    streams.add(MediaStream(remote_sdp, i))
+                except MediaStreamError, e:
+                    _event_queue.append(("log", dict(level=5, timestamp=datetime.now(), sender="pypjua", msg="Error parsing incoming SDP: %s" % e.message)))
+            self.c_proposed_streams = streams
+            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams.copy())))
         else:
             _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
@@ -2096,19 +2297,40 @@ cdef class Invitation:
             if self.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
                 pjsip_inv_terminate(self.c_obj, 481, 0)
 
-    property media_streams:
+    property proposed_streams:
 
         def __get__(self):
-            pass
+            if self.c_proposed_streams is None:
+                return None
+            else:
+                return self.c_proposed_streams.copy()
+
+    property current_streams:
+
+        def __get__(self):
+            if self.c_current_streams is None:
+                return None
+            else:
+                return self.c_current_streams.copy()
 
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
         global _event_queue
+        cdef object streams
+        cdef MediaStream stream
         if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED:
             self.state = "DISCONNECTED"
             if tsx == NULL:
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
             else:
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text))))
+            streams = set()
+            if self.c_proposed_streams is not None:
+                streams.union(self.c_proposed_streams)
+            if self.c_current_streams is not None:
+                streams.union(self.c_current_streams)
+            for stream in streams:
+                stream._end()
+            self.c_proposed_streams = self.c_current_streams = None
         elif self.c_obj.state == PJSIP_INV_STATE_EARLY and tsx != NULL and tsx.status_code == 180:
             _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self)))
 
@@ -2119,24 +2341,39 @@ cdef class Invitation:
         if status != 0:
             raise RuntimeError("Could not set local SDP in response to re-INVITE: %s" % pj_status_to_str(status))
 
-    cdef int _cb_sdp_done(self, int sdp_status) except -1:
+    cdef int _cb_sdp_done(self, int sdp_status) except -1: # TODO: check what happens if audio negotiation has failed (but other streams have succeeded)
         global _event_queue
-        cdef pjmedia_sdp_session *remote_sdp
-        cdef pjmedia_sdp_session *local_sdp
-        cdef MediaStreams streams
+        cdef pjmedia_sdp_session *c_remote_sdp, *c_local_sdp
+        cdef SDPSession remote_sdp, local_sdp
+        cdef MediaStream stream
+        cdef unsigned int i
         #if self.state in ["CALLING", "PROPOSING"]:
         if self.state in ["CALLING", "INCOMING"]:
             if sdp_status != 0:
                 self.end()
             else:
                 self.state = "ESTABLISHED"
-                pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &remote_sdp)
-                pjmedia_sdp_neg_get_active_local(self.c_obj.neg, &local_sdp)
-                streams = MediaStreams()
-                streams._set_sdp(c_make_SDPSession(remote_sdp), c_make_SDPSession(local_sdp))
-                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams)))
+                pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &c_remote_sdp)
+                remote_sdp = c_make_SDPSession(c_remote_sdp)
+                pjmedia_sdp_neg_get_active_local(self.c_obj.neg, &c_local_sdp)
+                local_sdp = c_make_SDPSession(c_local_sdp)
+                for stream in list(self.c_proposed_streams):
+                    if stream.c_sdp_index >= remote_sdp.c_obj.media_count or c_remote_sdp.media[stream.c_sdp_index].desc.port == 0:
+                        stream._end()
+                        self.c_proposed_streams.remove(stream)
+                        _event_queue.append(("log", dict(level=5, timestamp=datetime.now(), sender="pypjua", msg="A media stream was rejected")))
+                    else:
+                        try:
+                            stream._sdp_done(remote_sdp, local_sdp)
+                        except MediaStreamError, e:
+                            stream._end()
+                            self.c_proposed_streams.remove(stream)
+                            _event_queue.append(("log", dict(level=5, timestamp=datetime.now(), sender="pypjua", msg="Error processing incoming SDP: %s" % e.message)))
+                self.c_current_streams = self.c_proposed_streams
+                self.c_proposed_streams = None
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=self.c_current_streams.copy())))
 
-    def invite(self, MediaStreams streams):
+    def invite(self, streams):
         global _event_queue
         cdef int status
         cdef pjsip_tx_data *c_tdata
@@ -2144,12 +2381,21 @@ cdef class Invitation:
         cdef PJSTR c_callee_uri
         cdef PJSTR c_callee_target
         cdef SDPSession c_local_sdp
+        cdef object c_streams = set(streams)
+        cdef MediaStream c_stream
+        cdef unsigned int c_index
+        cdef list c_sdp_streams = []
+        cdef object c_host
         cdef PJSIPUA ua = c_get_ua()
+        c_host = pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host)
         if self.state == "DISCONNECTED":
             c_caller_uri = PJSTR(self.caller_uri.as_str())
             c_callee_uri = PJSTR(self.callee_uri.as_str())
             c_callee_target = PJSTR(self.callee_uri.as_str(True))
-            c_local_sdp = streams._make_local_sdp(ua)
+            for c_index, c_stream in enumerate(c_streams):
+                c_stream.c_sdp_index = c_index
+                c_sdp_streams.append(c_stream._get_local_sdp())
+            c_local_sdp = SDPSession(c_host, connection=SDPConnection(c_host), media=c_sdp_streams)
             try:
                 status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_caller_uri.pj_str, &ua.c_contact_url.pj_str, &c_callee_uri.pj_str, &c_callee_target.pj_str, &self.c_dlg)
                 if status != 0:
@@ -2180,6 +2426,7 @@ cdef class Invitation:
                 self.c_obj = NULL
                 self.c_dlg = NULL
                 raise
+            self.c_proposed_streams = c_streams
             self.state = "CALLING"
             _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
         #elif self.state == "ESTABLISHED":
@@ -2188,15 +2435,34 @@ cdef class Invitation:
             #raise RuntimeError('"invite" method can only be used in "DISCONNECTED" and "ESTABLISHED" states')
             raise RuntimeError('"invite" method can only be used in "DISCONNECTED" state')
 
-    def accept(self, MediaStreams streams):
+    def accept(self, streams):
         global _event_queue
         cdef int status
         cdef pjsip_tx_data *c_tdata
-        cdef SDPSession c_local_sdp
+        cdef object c_streams = set(streams)
+        cdef MediaStream c_stream
+        cdef pjmedia_sdp_session *c_remote_sdp
+        cdef SDPSession local_sdp, remote_sdp
+        cdef unsigned int c_index
+        cdef list c_sdp_streams
+        cdef object c_host
         cdef PJSIPUA ua = c_get_ua()
+        c_host = pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host)
         if self.state == "INCOMING":
-            c_local_sdp = streams._make_local_sdp(ua)
-            status = pjsip_inv_answer(self.c_obj, 200, NULL, &c_local_sdp.c_obj, &c_tdata)
+            if self.c_proposed_streams is not None:
+                pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &c_remote_sdp)
+                remote_sdp = c_make_SDPSession(c_remote_sdp)
+                c_sdp_streams = [c_reject_sdp(remote_sdp.media[c_index]) for c_index in range(remote_sdp.c_obj.media_count)]
+                for c_stream in c_streams:
+                    c_sdp_streams[c_stream.c_sdp_index] = c_stream._get_local_sdp()
+                local_sdp = SDPSession(c_host, connection=SDPConnection(c_host), media=[c_stream._get_local_sdp() for c_stream in c_streams], start_time=remote_sdp.c_obj.time.start, stop_time=remote_sdp.c_obj.time.stop)
+            else:
+                c_sdp_streams = []
+                for c_index, c_stream in enumerate(c_streams):
+                    c_stream.c_sdp_index = c_index
+                    c_sdp_streams.append(c_stream._get_local_sdp())
+                local_sdp = SDPSession(c_host, connection=SDPConnection(c_host), media=c_sdp_streams)
+            status = pjsip_inv_answer(self.c_obj, 200, NULL, &local_sdp.c_obj, &c_tdata)
             if status != 0:
                 raise RuntimeError("Could not create 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
             pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
@@ -2224,6 +2490,7 @@ cdef class Invitation:
         self.state = "DISCONNECTING"
         _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
+
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
     cdef void *invitation_void = NULL
     cdef Invitation invitation
@@ -2244,7 +2511,6 @@ cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     pass
 
 cdef void cb_Invitation_cb_sdp_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil:
-    cdef PJSIPUA ua
     cdef void *invitation_void = NULL
     cdef Invitation invitation
     cdef PJSIPUA ua = c_get_ua()
