@@ -1,0 +1,187 @@
+#!/usr/bin/env python
+
+import sys
+sys.path.append(".")
+sys.path.append("..")
+import re
+import traceback
+import string
+import random
+import socket
+import os
+from thread import start_new_thread
+from threading import Thread
+from Queue import Queue
+from optparse import OptionParser, OptionValueError
+from pypjua import *
+
+queue = Queue()
+packet_count = 0
+start_time = None
+
+def event_handler(event_name, **kwargs):
+    global start_time, packet_count, queue
+    if event_name == "siptrace":
+        if start_time is None:
+            start_time = kwargs["timestamp"]
+        packet_count += 1
+        if kwargs["received"]:
+            direction = "RECEIVED"
+        else:
+            direction = "SENDING"
+        buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
+        buf += ["%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs]
+        buf += kwargs["data"]
+        queue.put("print", "\n".join(buf))
+    elif event_name != "log":
+        queue.put(("pypjua_event", (event_name, kwargs)))
+
+def user_input():
+    global queue
+    while True:
+        try:
+            msg = raw_input()
+            queue.put(("user_input", msg))
+        except EOFError:
+            queue.put(("end", None))
+            break
+        except:
+            traceback.print_exc()
+            queue.put(("end", None))
+            break
+
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, do_register, do_siptrace):
+    inv = None
+    e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=["speex", "g711"])
+    e.start()
+    try:
+        if proxy_ip is None:
+            route = None
+        else:
+            route = Route(proxy_ip, proxy_port)
+        if do_register or target_username is None:
+            reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route, expires=expires)
+            reg.register()
+            do_register = True
+        else:
+            queue.put(("pypjua_event", ("Registration_state", dict(state="registered"))))
+        if target_username is not None:
+            inv = Invitation(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=target_username, host=target_domain), route=route)
+    except:
+        e.stop()
+        raise
+    start_new_thread(user_input, ())
+    while True:
+        try:
+            command, data = queue.get()
+            if command == "print":
+                print data
+            if command == "pypjua_event":
+                event_name, args = data
+                if event_name == "Registration_state":
+                    if args["state"] == "registered":
+                        print "REGISTER was succesfull."
+                        if inv is not None and inv.state == "DISCONNECTED":
+                            inv.invite([MediaStream("audio")])
+                    elif args["state"] == "unregistered":
+                        print "Unregistered: %(code)d %(reason)s" % args
+                        command = "quit"
+                if event_name == "Invitation_ringing":
+                    print "Ringing..."
+                elif event_name == "Invitation_state":
+                    if args["state"] == "INCOMING":
+                        print "Incoming session..."
+                        if inv is None:
+                            if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "audio":
+                                inv = args["obj"]
+                                print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                            else:
+                                print "Not an audio call, rejecting."
+                                args["obj"].end()
+                        else:
+                            print "rejecting."
+                            args["obj"].end()
+                    elif args["state"] == "ESTABLISHED":
+                        e.connect_audio_stream(args["streams"].pop())
+                        print "Media negotiation done"
+                    elif args["state"] == "DISCONNECTED":
+                        if args["obj"] is inv:
+                            if args.has_key("code"):
+                                print "Session ended: %(code)d %(reason)s" % args
+                            else:
+                                print "Session ended"
+                            command = "unregister"
+            if command == "user_input":
+                if inv is not None and inv.state == "INCOMING":
+                    if data[0].lower() == "n":
+                        command = "end"
+                    elif data[0].lower() == "y":
+                            audio_stream = inv.proposed_streams.pop()
+                            audio_stream.set_local_info()
+                            inv.accept([audio_stream])
+            if command == "end":
+                try:
+                    inv.end()
+                except:
+                    command = "unregister"
+            if command == "unregister":
+                if do_register:
+                    reg.unregister()
+                else:
+                    command = "quit"
+            if command == "quit":
+                e.stop()
+                sys.exit()
+        except KeyboardInterrupt:
+            print "Interrupted, exiting instantly!"
+            e.stop()
+            sys.exit()
+        except Exception:
+            traceback.print_exc()
+            e.stop()
+            sys.exit()
+
+re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
+def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port):
+    match = re_host_port.match(value)
+    if match is None:
+        raise OptionValueError("Could not parse supplied address: %s" % value)
+    setattr(parser.values, host_name, match.group("host"))
+    if match.group("port") is None:
+        setattr(parser.values, port_name, default_port)
+        setattr(parser.values, "do_srv", True)
+    else:
+        setattr(parser.values, port_name, int(match.group("port")))
+
+def parse_options():
+    retval = {}
+    description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming audio call, or attempt to make an outgoing audio call to the specified target. The program will close the session and quit when CTRL+D is pressed."
+    usage = "%prog [options] user@domain.com password [target-user@target-domain.com file]"
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, do_register=True, do_siptrace=False)
+    parser = OptionParser(usage=usage, description=description)
+    parser.print_usage = parser.print_help
+    parser.set_defaults(**default_options)
+    parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
+    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-s", "--do-sip-trace", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-n", "--no-register", action="store_false", dest="do_register", help="Do not perform a REGISTER before starting and outgoing session (enabled by default).")
+    try:
+        try:
+            options, (username_domain, retval["password"], target) = parser.parse_args()
+        except ValueError:
+            options, (username_domain, retval["password"]) = parser.parse_args()
+            target = None
+        retval["username"], retval["domain"] = username_domain.split("@")
+        if target is not None:
+            retval["target_username"], retval["target_domain"] = target.split("@")
+        else:
+            retval["target_username"], retval["target_domain"] = None, None
+    except ValueError:
+        parser.print_usage()
+        sys.exit()
+    for attr in default_options:
+        retval[attr] = getattr(options, attr)
+    return retval
+
+if __name__ == "__main__":
+    do_invite(**parse_options())
