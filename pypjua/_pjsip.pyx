@@ -234,6 +234,8 @@ cdef extern from "pjmedia.h":
 cdef extern from "pjmedia-codec.h":
 
     # codecs
+    enum:
+        PJMEDIA_SPEEX_NO_UWB
     int pjmedia_codec_gsm_init(pjmedia_endpt *endpt)
     int pjmedia_codec_gsm_deinit()
     int pjmedia_codec_g722_init(pjmedia_endpt *endpt)
@@ -687,7 +689,7 @@ cdef class PJMEDIAEndpoint:
         pjmedia_codec_ilbc_deinit()
 
     def codec_speex_init(self):
-        pjmedia_codec_speex_init(self.c_obj, 0, -1, -1)
+        pjmedia_codec_speex_init(self.c_obj, PJMEDIA_SPEEX_NO_UWB, -1, -1)
 
     def codec_speex_deinit(self):
         pjmedia_codec_speex_deinit()
@@ -715,7 +717,7 @@ cdef class PJMEDIAConferenceBridge:
     def __cinit__(self, PJSIPEndpoint pjsip_endpoint):
         cdef int status
         self.c_pjsip_endpoint = pjsip_endpoint.c_obj
-        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, 32000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
+        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, 16000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
         self.c_connected_slots = set([0])
@@ -741,7 +743,7 @@ cdef class PJMEDIAConferenceBridge:
         self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError("Could not allocate memory pool")
-        status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, 32000, 1, 640, 16, 0, &self.c_snd)
+        status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, 16000, 1, 640, 16, 0, &self.c_snd)
         if status != 0:
             raise RuntimeError("Could not create sound device: %s" % pj_status_to_str(status))
         status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
