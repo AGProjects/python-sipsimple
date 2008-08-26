@@ -11,6 +11,7 @@ class Engine(object):
     init_options_defaults = {"local_ip": None,
                              "local_port": None,
                              "auto_sound": True,
+                             "ec_tail_length": 200,
                              "user_agent": "pypjua",
                              "do_siptrace": False,
                              "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"],

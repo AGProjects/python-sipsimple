@@ -926,7 +926,7 @@ cdef class PJSIPUA:
             self.codecs = kwargs["initial_codecs"]
             self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint)
             if kwargs["auto_sound"]:
-                self.auto_set_sound_devices()
+                self.auto_set_sound_devices(kwargs["ec_tail_length"])
             self.c_module_name = PJSTR("mod-pypjua")
             self.c_module.name = self.c_module_name.pj_str
             self.c_module.id = -1
