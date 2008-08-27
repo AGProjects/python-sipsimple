@@ -10,9 +10,11 @@ cdef extern from "string.h":
 cdef extern from "time.h":
     unsigned int clock()
 
-cdef extern from "sys/socket.h":
+cdef extern from "sys/errno.h":
     enum:
         EADDRINUSE
+    enum:
+        EBADF
 
 # PJSIP imports
 
@@ -1073,7 +1075,7 @@ cdef class PJSIPUA:
         c_max_timeout.msec = 100
         with nogil:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &c_max_timeout)
-        if status != 0:
+        if status not in [0, PJ_ERRNO_START_SYS + EBADF]:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
 
