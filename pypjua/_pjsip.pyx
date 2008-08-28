@@ -224,8 +224,11 @@ cdef extern from "pjmedia.h":
     int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt, pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
 
     # stream
+    struct pjmedia_codec_info:
+        pj_str_t encoding_name
+        unsigned int clock_rate
     struct pjmedia_stream_info:
-        pass
+        pjmedia_codec_info fmt
     struct pjmedia_stream
     int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt, pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
     int pjmedia_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_stream_info *info, pjmedia_transport *tp, void *user_data, pjmedia_stream **p_stream)
@@ -2001,6 +2004,9 @@ cdef class MSRPStream:
                 raise MediaStreamError('Invalid MSRP URI found: "%s"' % uri)
         self.c_remote_info = [uri_path, accept_types, accept_wrapped_types]
 
+    def get_info(self):
+        return self.get_local_info(), self.get_remote_info()
+
     def get_remote_info(self):
         cdef list l
         if self.c_remote_info is None:
@@ -2051,6 +2057,8 @@ cdef class AudioStream:
     cdef pjmedia_stream *c_stream
     cdef pj_pool_t *c_pool
     cdef unsigned int c_conf_slot
+    cdef object c_codec
+    cdef unsigned int c_clock_rate
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -2076,6 +2084,12 @@ cdef class AudioStream:
 
     def set_remote_sdp(self, SDPSession remote_sdp, unsigned int sdp_index):
         pass
+
+    def get_info(self):
+        if self.c_stream == NULL:
+            return None
+        else:
+            return self.c_codec, self.c_clock_rate
 
     def get_remote_info(self):
         return None
@@ -2134,6 +2148,8 @@ cdef class AudioStream:
         if status != 0:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
             raise MediaStreamError("Could not parse SDP for audio session: %s" % pj_status_to_str(status))
+        self.c_codec = pj_str_to_str(stream_info.fmt.encoding_name)
+        self.c_clock_rate = stream_info.fmt.clock_rate
         status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &stream_info, self.c_transport, NULL, &self.c_stream)
         if status != 0:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
@@ -2191,6 +2207,12 @@ cdef class MediaStream:
         if self.c_stream is None:
             raise RuntimeError("This stream is no longer valid")
         return 0
+
+    property info:
+
+        def __get__(self):
+            self._check_validity()
+            return self.c_stream.get_info()
 
     property remote_info:
 

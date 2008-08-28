@@ -103,8 +103,9 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             print "rejecting."
                             args["obj"].end()
                     elif args["state"] == "ESTABLISHED":
-                        e.connect_audio_stream(args["streams"].pop())
-                        print "Media negotiation done"
+                        audio_stream = args["streams"].pop()
+                        e.connect_audio_stream(audio_stream)
+                        print 'Media negotiation done, using "%s" codec at %dHz' % audio_stream.info
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
                             if args.has_key("code"):
