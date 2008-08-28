@@ -102,7 +102,7 @@ def user_input():
             queue.put(key_commands[ch])
             event.wait()
             event.clear()
-        elif ch == "q":
+        elif ch == "q" or ch == "\x04":
             queue.put("unpublish")
             break
 
