@@ -236,6 +236,11 @@ cdef extern from "pjmedia.h":
     int pjmedia_stream_get_port(pjmedia_stream *stream, pjmedia_port **p_port)
     int pjmedia_stream_start(pjmedia_stream *stream)
 
+    # wav player
+    int pjmedia_port_destroy(pjmedia_port *port)
+    int pjmedia_wav_player_port_create(pj_pool_t *pool, char *filename, unsigned int ptime, unsigned int flags, unsigned int buff_size, pjmedia_port **p_port)
+    int pjmedia_wav_player_set_eof_cb(pjmedia_port *port, void *user_data, int cb(pjmedia_port *port, void *usr_data) with gil)
+
 cdef extern from "pjmedia-codec.h":
 
     # codecs
@@ -871,6 +876,42 @@ cdef class GenericStringHeader:
         return '<GenericStringHeader "%s: %s">' % (self.hname, self.hvalue)
 
 
+cdef class WaveFile:
+    cdef pjsip_endpoint *pjsip_endpoint
+    cdef PJMEDIAConferenceBridge conf_bridge
+    cdef pj_pool_t *pool
+    cdef pjmedia_port *port
+    cdef unsigned int conf_slot
+
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name):
+        cdef int status
+        cdef object pool_name = "playwav_%s" % file_name
+        self.pjsip_endpoint = pjsip_endpoint.c_obj
+        self.conf_bridge = conf_bridge
+        self.pool = pjsip_endpt_create_pool(self.pjsip_endpoint, pool_name, 4096, 4096)
+        if self.pool == NULL:
+            raise MemoryError("Could not allocate memory pool")
+        status = pjmedia_wav_player_port_create(self.pool, file_name, 0, 0, 0, &self.port)
+        if status != 0:
+            raise RuntimeError("Could not open WAV file: %s" % pj_status_to_str(status))
+        status = pjmedia_wav_player_set_eof_cb(self.port, <void *> self, cb_play_wave_eof)
+        if status != 0:
+            raise RuntimeError("Could not set WAV EOF callback: %s" % pj_status_to_str(status))
+        status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
+        if status != 0:
+            raise RuntimeError("Could not connect WAV playback to conference bridge: %s" % pj_status_to_str(status))
+        conf_bridge._connect_slot(self.conf_slot)
+
+    def __dealloc__(self):
+        if self.conf_slot != 0:
+            self.conf_bridge._disconnect_slot(self.conf_slot)
+            pjmedia_conf_remove_port(self.conf_bridge.c_obj, self.conf_slot)
+        if self.port != NULL:
+            pjmedia_port_destroy(self.port)
+        if self.pool != NULL:
+            pjsip_endpt_release_pool(self.pjsip_endpoint, self.pool)
+
+
 cdef object c_retrieve_nameservers():
     nameservers = []
     IF UNAME_SYSNAME != "Windows":
@@ -915,6 +956,7 @@ cdef class PJSIPUA:
     cdef GenericStringHeader c_user_agent_hdr
     cdef list c_events
     cdef PJSTR c_contact_url
+    cdef list c_wav_files
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -922,6 +964,7 @@ cdef class PJSIPUA:
             raise RuntimeError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
         self.c_events = []
+        self.c_wav_files = []
 
     def __init__(self, event_handler, *args, **kwargs):
         global _log_lock
@@ -1046,11 +1089,15 @@ cdef class PJSIPUA:
             raise RuntimeError("Audio stream has not been fully negotiated yet")
         self.c_conf_bridge._disconnect_slot(c_audio_stream.c_conf_slot)
 
+    def play_wav_file(self, file_name):
+        self.c_wav_files.append(WaveFile(self.c_pjsip_endpoint, self.c_conf_bridge, file_name))
+
     def __dealloc__(self):
         self._do_dealloc()
 
     cdef int _do_dealloc(self) except -1:
         global _ua, _log_lock
+        self.c_wav_files = None
         self.c_conf_bridge = None
         self.c_pjmedia_endpoint = None
         if _log_lock != NULL:
@@ -1130,6 +1177,12 @@ cdef PJSIPUA c_get_ua():
     if _ua == NULL:
         raise RuntimeError("PJSIPUA is not instanced")
     return <object> _ua
+
+cdef int cb_play_wave_eof(pjmedia_port *port, void *user_data) with gil:
+    cdef WaveFile wav_file = <object> user_data
+    cdef PJSIPUA ua = c_get_ua()
+    ua.c_wav_files.remove(wav_file)
+    return 1
 
 cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) except 0 with gil:
     cdef PJSIPUA c_ua = c_get_ua()
