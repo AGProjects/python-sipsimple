@@ -43,15 +43,16 @@ def user_input():
             msg = raw_input()
             queue.put(("user_input", msg))
         except EOFError:
-            queue.put(("end", None))
+            queue.put(("end", True))
             break
         except:
             traceback.print_exc()
-            queue.put(("end", None))
+            queue.put(("end", True))
             break
 
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, do_register, do_siptrace, ec_tail_length, sample_rate):
     inv = None
+    want_quit = target_username is not None
     e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=["speex", "g711"], ec_tail_length=ec_tail_length, sample_rate=sample_rate)
     e.start()
     try:
@@ -110,16 +111,21 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                                 print "Session ended: %(code)d %(reason)s" % args
                             else:
                                 print "Session ended"
-                            command = "unregister"
+                            if want_quit:
+                                command = "unregister"
+                            else:
+                                inv = None
             if command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
                         command = "end"
+                        data = False
                     elif data[0].lower() == "y":
                             audio_stream = inv.proposed_streams.pop()
                             audio_stream.set_local_info()
                             inv.accept([audio_stream])
             if command == "end":
+                want_quit = data
                 try:
                     inv.end()
                 except:
