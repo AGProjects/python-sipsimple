@@ -409,7 +409,10 @@ def parse_options():
             target = None
         retval["username"], retval["domain"] = username_domain.split("@")
         if target is not None:
-            retval["target_username"], retval["target_domain"] = target.split("@")
+            try:
+                retval["target_username"], retval["target_domain"] = target.split("@")
+            except ValueError:
+                retval["target_username"], retval["target_domain"] = target, retval["domain"]
             retval["fd"] = open(filename, "rb")
         else:
             retval["target_username"], retval["target_domain"] = None, None
