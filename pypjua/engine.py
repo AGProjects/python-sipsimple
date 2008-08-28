@@ -11,7 +11,7 @@ class Engine(object):
     init_options_defaults = {"local_ip": None,
                              "local_port": None,
                              "auto_sound": True,
-                             "ec_tail_length": 200,
+                             "ec_tail_length": 50,
                              "user_agent": "pypjua",
                              "do_siptrace": False,
                              "sample_rate": 32,

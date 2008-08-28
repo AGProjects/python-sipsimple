@@ -1050,10 +1050,10 @@ cdef class PJSIPUA:
         def __get__(self):
             return self.c_conf_bridge._get_sound_devices(False)
 
-    def set_sound_devices(self, PJMEDIASoundDevice playback_device, PJMEDIASoundDevice recording_device, tail_length = 200):
+    def set_sound_devices(self, PJMEDIASoundDevice playback_device, PJMEDIASoundDevice recording_device, tail_length = 50):
         self.c_conf_bridge._set_sound_devices(playback_device.c_index, recording_device.c_index, tail_length)
 
-    def auto_set_sound_devices(self, tail_length = 200):
+    def auto_set_sound_devices(self, tail_length = 50):
         self.c_conf_bridge._set_sound_devices(-1, -1, tail_length)
 
     property codecs:

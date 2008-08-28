@@ -165,7 +165,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming audio call, or attempt to make an outgoing audio call to the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password [target-user@target-domain.com]"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, do_register=True, do_siptrace=False, ec_tail_length=200, sample_rate=32)
+    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, do_register=True, do_siptrace=False, ec_tail_length=50, sample_rate=32)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -173,7 +173,7 @@ def parse_options():
     parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-s", "--do-sip-trace", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-n", "--no-register", action="store_false", dest="do_register", help="Do not perform a REGISTER before starting and outgoing session (enabled by default).")
-    parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 200 ms.')
+    parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 50 ms.')
     parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
     try:
         try:
