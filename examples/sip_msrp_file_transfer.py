@@ -260,7 +260,7 @@ def user_input():
             queue.put(("end", None))
             break
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, expires, dump_msrp, msrp_relay_ip, msrp_relay_port, do_register, do_srv, auto_msrp_relay, fd, do_siptrace):
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, msrp_relay_ip, msrp_relay_port, do_srv, auto_msrp_relay, fd, do_siptrace):
     msrp = None
     inv = None
     e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
@@ -270,10 +270,9 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             route = None
         else:
             route = Route(proxy_ip, proxy_port)
-        if do_register or target_username is None:
-            reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route, expires=expires)
+        if target_username is None:
+            reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route)
             reg.register()
-            do_register = True
         else:
             queue.put(("pypjua_event", ("Registration_state", dict(state="registered"))))
         if target_username is not None:
@@ -355,7 +354,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 except:
                     command = "unregister"
             if command == "unregister":
-                if do_register:
+                if target_username is None:
                     reg.unregister()
                 else:
                     command = "quit"
@@ -393,17 +392,15 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP file transfer, or attempt to send the specified file over MSRP to the specified target. The program will close the session and quit when the file transfer is done or CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password [target-user@target-domain.com file]"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_register=True, do_srv=False, auto_msrp_relay=False, do_siptrace=False)
+    default_options = dict(proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_srv=False, auto_msrp_relay=False, do_siptrace=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
-    parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
     parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
     parser.add_option("-s", "--do-sip-trace", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
     parser.add_option("-R", "--auto-msrp-relay", action="store_true", dest="auto_msrp_relay", help="Automatically find the MSRP relay to use from the domain part of the SIP URI using SRV records.")
-    parser.add_option("-n", "--no-register", action="store_false", dest="do_register", help="Do not perform a REGISTER before starting and outgoing session (enabled by default).")
     try:
         try:
             options, (username_domain, retval["password"], target, filename) = parser.parse_args()
