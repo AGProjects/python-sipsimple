@@ -95,6 +95,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         if inv is None:
                             if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "audio":
                                 inv = args["obj"]
+                                e.play_wav_file("ring.wav")
                                 print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                             else:
                                 print "Not an audio call, rejecting."
