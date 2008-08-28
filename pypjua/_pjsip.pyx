@@ -238,6 +238,7 @@ cdef extern from "pjmedia-codec.h":
     # codecs
     enum:
         PJMEDIA_SPEEX_NO_UWB
+        PJMEDIA_SPEEX_NO_WB
     int pjmedia_codec_gsm_init(pjmedia_endpt *endpt)
     int pjmedia_codec_gsm_deinit()
     int pjmedia_codec_g722_init(pjmedia_endpt *endpt)
@@ -652,12 +653,14 @@ cdef class PJSIPEndpoint:
 cdef class PJMEDIAEndpoint:
     cdef pjmedia_endpt *c_obj
     cdef list c_codecs
+    cdef unsigned int c_sample_rate
 
-    def __cinit__(self, PJCachingPool caching_pool, PJSIPEndpoint pjsip_endpoint):
+    def __cinit__(self, PJCachingPool caching_pool, PJSIPEndpoint pjsip_endpoint, unsigned int sample_rate):
         cdef int status
         status = pjmedia_endpt_create(&caching_pool.c_obj.factory, pjsip_endpt_get_ioqueue(pjsip_endpoint.c_obj), 0, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create PJMEDIA endpoint: %s" % pj_status_to_str(status))
+        self.c_sample_rate = sample_rate
         self.c_codecs = []
 
     def __dealloc__(self):
@@ -691,7 +694,12 @@ cdef class PJMEDIAEndpoint:
         pjmedia_codec_ilbc_deinit()
 
     def codec_speex_init(self):
-        pjmedia_codec_speex_init(self.c_obj, PJMEDIA_SPEEX_NO_UWB, -1, -1)
+        cdef int c_options = 0
+        if self.c_sample_rate < 32:
+            c_options |= PJMEDIA_SPEEX_NO_UWB
+        if self.c_sample_rate < 16:
+            c_options |= PJMEDIA_SPEEX_NO_WB
+        pjmedia_codec_speex_init(self.c_obj, c_options, -1, -1)
 
     def codec_speex_deinit(self):
         pjmedia_codec_speex_deinit()
@@ -712,14 +720,16 @@ cdef class PJMEDIASoundDevice:
 cdef class PJMEDIAConferenceBridge:
     cdef pjmedia_conf *c_obj
     cdef pjsip_endpoint *c_pjsip_endpoint
+    cdef PJMEDIAEndpoint c_pjmedia_endpoint
     cdef pj_pool_t *c_pool
     cdef pjmedia_snd_port *c_snd
     cdef object c_connected_slots
 
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint):
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint):
         cdef int status
         self.c_pjsip_endpoint = pjsip_endpoint.c_obj
-        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, 16000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
+        self.c_pjmedia_endpoint = pjmedia_endpoint
+        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
         self.c_connected_slots = set([0])
@@ -745,7 +755,7 @@ cdef class PJMEDIAConferenceBridge:
         self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError("Could not allocate memory pool")
-        status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, 16000, 1, 640, 16, 0, &self.c_snd)
+        status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, 640, 16, 0, &self.c_snd)
         if status != 0:
             raise RuntimeError("Could not create sound device: %s" % pj_status_to_str(status))
         status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
@@ -913,6 +923,8 @@ cdef class PJSIPUA:
     def __init__(self, event_handler, *args, **kwargs):
         global _log_lock
         cdef int status
+        if kwargs["sample_rate"] not in [8, 16, 32]:
+            raise RuntimeError("Sample rate should be one of 8, 16 or 32kHz")
         self.c_event_handler = event_handler
         pj_log_set_level(PJ_LOG_MAX_LEVEL)
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
@@ -924,9 +936,9 @@ cdef class PJSIPUA:
             status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "log_lock", &_log_lock)
             if status != 0:
                 raise RuntimeError("Could not initialize logging mutex: %s" % pj_status_to_str(status))
-            self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, self.c_pjsip_endpoint)
+            self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, self.c_pjsip_endpoint, kwargs["sample_rate"])
             self.codecs = kwargs["initial_codecs"]
-            self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint)
+            self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint)
             if kwargs["auto_sound"]:
                 self.auto_set_sound_devices(kwargs["ec_tail_length"])
             self.c_module_name = PJSTR("mod-pypjua")
