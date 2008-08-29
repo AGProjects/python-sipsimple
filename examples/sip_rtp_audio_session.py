@@ -53,7 +53,8 @@ def user_input():
 
 class RingingThread(Thread):
 
-    def __init__(self):
+    def __init__(self, inbound):
+        self.inbound = inbound
         self.stopping = False
         Thread.__init__(self)
         self.setDaemon(True)
@@ -68,12 +69,16 @@ class RingingThread(Thread):
         while True:
             if self.stopping:
                 return
-            queue.put(("ring", None))
+            if self.inbound:
+                queue.put(("play_wav", "ring_inbound.wav"))
+            else:
+                queue.put(("play_wav", "ring_outbound.wav"))
             sleep(5)
 
 
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate):
     inv = None
+    ringer = None
     want_quit = target_username is not None
     e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=["speex", "g711"], ec_tail_length=ec_tail_length, sample_rate=sample_rate)
     e.start()
@@ -110,13 +115,14 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         command = "quit"
                 if event_name == "Invitation_ringing":
                     print "Ringing..."
+                    ringer = RingingThread(False)
                 elif event_name == "Invitation_state":
                     if args["state"] == "INCOMING":
                         print "Incoming session..."
                         if inv is None:
                             if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "audio":
                                 inv = args["obj"]
-                                ringer = RingingThread()
+                                ringer = RingingThread(True)
                                 print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                             else:
                                 print "Not an audio call, rejecting."
@@ -125,11 +131,17 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             print "rejecting."
                             args["obj"].end()
                     elif args["state"] == "ESTABLISHED":
+                        if ringer is not None:
+                            ringer.stop()
+                            ringer = None
                         audio_stream = args["streams"].pop()
                         e.connect_audio_stream(audio_stream)
                         print 'Media negotiation done, using "%s" codec at %dHz' % audio_stream.info
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
+                            if ringer is not None:
+                                ringer.stop()
+                                ringer = None
                             if args.has_key("code"):
                                 print "Session ended: %(code)d %(reason)s" % args
                             else:
@@ -141,16 +153,14 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             if command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
-                        ringer.stop()
                         command = "end"
                         data = False
                     elif data[0].lower() == "y":
-                        ringer.stop()
                         audio_stream = inv.proposed_streams.pop()
                         audio_stream.set_local_info()
                         inv.accept([audio_stream])
-            if command == "ring":
-                e.play_wav_file("ring.wav")
+            if command == "play_wav":
+                e.play_wav_file(data)
             if command == "end":
                 want_quit = data
                 try:
