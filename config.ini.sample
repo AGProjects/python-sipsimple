@@ -191,4 +191,5 @@ video_codec_list=h264
 username=
 domain=
 password=
+sip_outbound_proxy=
 

@@ -69,7 +69,7 @@ class RingingThread(Thread):
             if self.stopping:
                 return
             queue.put(("ring", None))
-            sleep(3)
+            sleep(5)
 
 
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate):
