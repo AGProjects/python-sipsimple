@@ -13,6 +13,7 @@ from thread import start_new_thread
 from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
+from time import sleep
 from pypjua import *
 
 queue = Queue()
@@ -49,6 +50,27 @@ def user_input():
             traceback.print_exc()
             queue.put(("end", True))
             break
+
+class RingingThread(Thread):
+
+    def __init__(self):
+        self.stopping = False
+        Thread.__init__(self)
+        self.setDaemon(True)
+        self.start()
+
+    def stop(self):
+        self.stopping = True
+        self.join()
+
+    def run(self):
+        global queue
+        while True:
+            if self.stopping:
+                return
+            queue.put(("ring", None))
+            sleep(3)
+
 
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate):
     inv = None
@@ -94,7 +116,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         if inv is None:
                             if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "audio":
                                 inv = args["obj"]
-                                e.play_wav_file("ring.wav")
+                                ringer = RingingThread()
                                 print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                             else:
                                 print "Not an audio call, rejecting."
@@ -119,12 +141,16 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             if command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
+                        ringer.stop()
                         command = "end"
                         data = False
                     elif data[0].lower() == "y":
-                            audio_stream = inv.proposed_streams.pop()
-                            audio_stream.set_local_info()
-                            inv.accept([audio_stream])
+                        ringer.stop()
+                        audio_stream = inv.proposed_streams.pop()
+                        audio_stream.set_local_info()
+                        inv.accept([audio_stream])
+            if command == "ring":
+                e.play_wav_file("ring.wav")
             if command == "end":
                 want_quit = data
                 try:
