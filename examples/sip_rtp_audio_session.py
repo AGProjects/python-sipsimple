@@ -9,6 +9,8 @@ import string
 import random
 import socket
 import os
+import atexit
+import termios
 from thread import start_new_thread
 from threading import Thread
 from Queue import Queue
@@ -19,6 +21,37 @@ from pypjua import *
 queue = Queue()
 packet_count = 0
 start_time = None
+old = None
+
+def termios_restore():
+    global old
+    if old is not None:
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, old)
+
+# copied from http://snippets.dzone.com/posts/show/3084
+def getchar():
+    global old
+    fd = sys.stdin.fileno()
+
+    if os.isatty(fd):
+
+        old = termios.tcgetattr(fd)
+        new = termios.tcgetattr(fd)
+        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
+        new[6] [termios.VMIN] = 1
+        new[6] [termios.VTIME] = 0
+
+        try:
+            termios.tcsetattr(fd, termios.TCSANOW, new)
+            termios.tcsendbreak(fd,0)
+            ch = os.read(fd,7)
+
+        finally:
+            termios_restore()
+    else:
+        ch = os.read(fd,7)
+
+    return(ch)
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue
@@ -41,11 +74,12 @@ def user_input():
     global queue
     while True:
         try:
-            msg = raw_input()
-            queue.put(("user_input", msg))
-        except EOFError:
-            queue.put(("end", True))
-            break
+            char = getchar()
+            if char == "\x04":
+                queue.put(("end", True))
+                break
+            else:
+                queue.put(("user_input", char))
         except:
             traceback.print_exc()
             queue.put(("end", True))
@@ -80,6 +114,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
     inv = None
     ringer = None
     want_quit = target_username is not None
+    atexit.register(termios_restore)
     e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=["speex", "g711"], ec_tail_length=ec_tail_length, sample_rate=sample_rate)
     e.start()
     try:
@@ -152,10 +187,10 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                                 inv = None
             if command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
-                    if data[0].lower() == "n":
+                    if data.lower() == "n":
                         command = "end"
                         data = False
-                    elif data[0].lower() == "y":
+                    elif data.lower() == "y":
                         audio_stream = inv.proposed_streams.pop()
                         audio_stream.set_local_info()
                         inv.accept([audio_stream])
