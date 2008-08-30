@@ -69,6 +69,8 @@ audio_echo_cancelation=true
 audio_recording=false
 audio_echo_cancelation_tail=50ms
 audio_sample_rate=32
+audio_ringtone_outbound=ring_outbound.wav
+audio_ringtone_inbound=ring_outbound.wav
 video=false
 
 ; history storage
