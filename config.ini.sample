@@ -67,6 +67,8 @@ rtp_port_range=8000 8100
 audio=false
 audio_echo_cancelation=true
 audio_recording=false
+audio_echo_cancelation_tail=50ms
+audio_sample_rate=32
 video=false
 
 ; history storage
@@ -101,23 +103,11 @@ sip_outbound_proxy=
 ; default im protocol, try MSRP and fallback to MESSAGE method
 im_protocol=msrp sip
 
-; when an IM chat session request is received, how to react on it
-im_accept_invitations=prompt|automatic
-
 ; from whom to accept invitations for IM chat sessions
 im_allow_invitations_from=buddy_list|everyone
 
-; detect MSRP relay from DNS lookup and use it when necessary
-msrp_relay_client=always|if_behind_nat|never
-
-; overwrite DNS lookup with a fixed address: hostname|ip:port
+; overwrite default DNS lookup with a fixed address: hostname|ip:port
 msrp_relay_address=auto
-
-; become an MSRP relay for others, used for P2P scenarios, detect NAT to see if we can become a relay
-msrp_relay_server=false
-
-; when acting as a relay, whom to accept
-msrp_relay_allow_from=buddy_list|everyone
 
 ; domain used for the multi-party MSRP chat server
 im_chatserver_domain=conference.example.com
@@ -126,10 +116,7 @@ im_chatserver_domain=conference.example.com
 file_transfer=true
 file_transfer_allow_invitations_from=buddy_list|everyone
 
-; chat server is already on a public IP address, by default no need to reserve a relay session
-msrp_relay_with_chatserver=false
-
-; register contact with the SIP registrar, used to receive invitations and keep the NAT open
+; register contact with the SIP registrar
 register=true
 
 ; enable publication and subscription to presence event package, if enabled
@@ -143,11 +130,8 @@ xcap_root=https://xcap.example.com/xcap-root/
 ; it saves bandwidth on the last mile, useful for mobile devices
 presence_rls_services=true
 
-; behaviour for new watchers of our presence
-presence_accept_watchers=prompt|allow|deny|allow_and_add_to_my_buddylist
-
 ; is useful for watchers in same domain to be granted different default rights (e.g. same company)
-presence_accept_watchers_from_local_domain=allow_and_add_to_my_buddylist|prompt|allow|deny
+presence_accept_watchers_from_local_domain=allow_and_add_to_my_buddylist|prompt|allow
 
 ; use pidf-manipulation xcap document for extended away, this document
 ; maintains state in presence server even if we are offline (e.g. holiday indication)
@@ -177,11 +161,11 @@ sip_transport=auto
 
 ; refresh periods for various calls flows
 sip_register_period=600
-sip_subscribe_period=3600
-sip_publish_period=3600
+sip_subscribe_period=600
+sip_publish_period=600
 
 ; audio codec list
-audio_codec_list=gsm ilbc speex g711
+audio_codec_list=speex ilbc g711
 
 ; video codec list
 video_codec_list=h264
