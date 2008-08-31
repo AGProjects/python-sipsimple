@@ -1,10 +1,12 @@
-Bugs
-----
 
-PRACK crash
+PJSIP bindings
+--------------
+
+Fix PRACK crash
 Fix multiple rings
 Fix running problems on linux
-Re-invites in pjsip
+Support Re-invites
+Add option to enable per call pjmedia confort noice generator (CNG)
 
 
 Low level features
