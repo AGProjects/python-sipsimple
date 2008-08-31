@@ -3,46 +3,47 @@ PJSIP bindings
 --------------
 
 Fix PRACK crash
-Fix multiple rings
 Fix running problems on linux
 Support Re-invites
 Add option to enable per call pjmedia confort noice generator (CNG)
+tcp/tls transports
+message method
+dtmf-tones from pjmedia (RFC 2833)
+30X handling
 
 
-Low level features
-------------------
+Applications
+------------
 
 msrp client library
 conference-info payload
 xcap client library
 pres-rules payload
 pidf payload
-message method
 is-composing payload
-tcp/tls transports
 mwi payload
 bonjour
 lookup module
 xcap-diff payload
-dtmf-tones from pjmedia (RFC 2833)
-30X handling
 
 
 Test scripts
 ------------
 
+fix play wav for multiple ringining
 read credentials from config.ini
 create macosx binaries
 create windows binaries
 combine msrp and rtp session in one script
 
 
-High level features
--------------------
+Middleware
+----------
 
 notification bus
 configuration framework
 integration logic
+logging
 enrollment library
 
 
@@ -52,5 +53,5 @@ User interfaces
 stand-alone software library
 command line clients for linux and mac
 simple gui for incoming and outgoing sip sessions
-fully fledged gui
+full gui
 
