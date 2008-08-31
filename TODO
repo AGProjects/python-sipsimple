@@ -24,7 +24,7 @@ mwi payload
 bonjour
 lookup module
 xcap-diff payload
-dtmf-tones
+dtmf-tones from pjmedia (RFC 2833)
 30X handling
 
 
