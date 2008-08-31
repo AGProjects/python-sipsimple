@@ -1,0 +1,54 @@
+Bugs
+----
+
+PRACK crash
+Fix multiple rings
+Fix running problems on linux
+Re-invites in pjsip
+
+
+Low level features
+------------------
+
+msrp client library
+conference-info payload
+xcap client library
+pres-rules payload
+pidf payload
+message method
+is-composing payload
+tcp/tls transports
+mwi payload
+bonjour
+lookup module
+xcap-diff payload
+dtmf-tones
+30X handling
+
+
+Test scripts
+------------
+
+read credentials from config.ini
+create macosx binaries
+create windows binaries
+combine msrp and rtp session in one script
+
+
+High level features
+-------------------
+
+notification bus
+configuration framework
+integration logic
+enrollment library
+
+
+User interfaces
+---------------
+
+stand-alone software library
+command line clients for linux and mac
+simple gui for incoming and outgoing sip sessions
+fully fledged gui
+
