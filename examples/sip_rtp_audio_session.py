@@ -96,7 +96,6 @@ class RingingThread(Thread):
 
     def stop(self):
         self.stopping = True
-        self.join()
 
     def run(self):
         global queue
