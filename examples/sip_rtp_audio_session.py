@@ -142,8 +142,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 event_name, args = data
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
-                        if target_username is None:
-                            print "REGISTER was succesfull."
                         if inv is not None and inv.state == "DISCONNECTED":
                             inv.invite([MediaStream("audio")])
                     elif args["state"] == "unregistered":

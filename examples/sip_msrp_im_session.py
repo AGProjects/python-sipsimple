@@ -202,7 +202,6 @@ def event_handler(event_name, **kwargs):
             queue.put(("established", kwargs))
     elif event_name == "Registration_state":
         if kwargs["state"] == "registered":
-            print "REGISTER was succesfull."
             queue.put(("registered", None))
         elif kwargs["state"] == "unregistered":
             print "Unregistered: %(code)d %(reason)s" % kwargs

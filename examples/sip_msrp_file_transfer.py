@@ -290,7 +290,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 event_name, args = data
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
-                        print "REGISTER was succesfull."
                         if inv is not None and inv.state == "DISCONNECTED":
                             if use_msrp_relay:
                                 if auto_msrp_relay:
