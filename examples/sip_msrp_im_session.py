@@ -232,12 +232,15 @@ def user_input():
             traceback.print_exc()
             queue.put(("end", None))
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, msrp_relay_ip, msrp_relay_port, do_srv, auto_msrp_relay):
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port):
     global correspondent
-    if auto_msrp_relay:
-        msrp = MSRP(target_username is None, dump_msrp, domain, 2855, username, password, True)
+    if use_msrp_relay:
+        if auto_msrp_relay:
+            msrp = MSRP(target_username is None, dump_msrp, domain, 2855, username, password, True)
+        else:
+            msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, False)
     else:
-        msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, do_srv)
+        msrp = MSRP(target_username is None, dump_msrp)
     inv = None
     e = Engine(event_handler, do_siptrace=False, auto_sound=False)
     e.start()
@@ -327,15 +330,20 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             msrp.disconnect()
             sys.exit()
 
-re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}|[a-zA-Z0-9\-\.]+)(:(?P<port>\d+))?$")
-def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port):
+re_host_port = re.compile("^((?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(?P<host>[a-zA-Z0-9\-\.]+))(:(?P<port>\d+))?$")
+def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port, allow_host):
     match = re_host_port.match(value)
     if match is None:
         raise OptionValueError("Could not parse supplied address: %s" % value)
-    setattr(parser.values, host_name, match.group("host"))
+    if match.group("ip") is None:
+        if allow_host:
+            setattr(parser.values, host_name, match.group("host"))
+        else:
+            raise OptionValueError("Not a IP address: %s" % match.group("host"))
+    else:
+        setattr(parser.values, host_name, match.group("ip"))
     if match.group("port") is None:
         setattr(parser.values, port_name, default_port)
-        setattr(parser.values, "do_srv", True)
     else:
         setattr(parser.values, port_name, int(match.group("port")))
 
@@ -343,14 +351,13 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] user@domain.com password [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_srv=False, auto_msrp_relay=False)
+    default_options = dict(proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
-    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060, False), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
-    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855), help="MSRP relay to use to use. By default using a MSRP relay is disabled.", metavar="IP[:PORT]")
-    parser.add_option("-R", "--auto-msrp-relay", action="store_true", dest="auto_msrp_relay", help="Automatically find the MSRP relay to use from the domain part of the SIP URI using SRV records.")
+    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
     try:
         try:
             options, (username_domain, retval["password"], target) = parser.parse_args()
@@ -368,9 +375,11 @@ def parse_options():
     except ValueError:
         parser.print_usage()
         sys.exit()
-    if options.auto_msrp_relay and options.msrp_relay_ip is not None:
-        parser.error("-r and -R options are mutually exclusive, please use either one of them.")
-        sys.exit()
+    retval["auto_msrp_relay"] = options.msrp_relay_ip is None
+    if retval["auto_msrp_relay"]:
+        retval["use_msrp_relay"] = True
+    else:
+        retval["use_msrp_relay"] = options.msrp_relay_ip.lower() != "none"
     for attr in default_options:
         retval[attr] = getattr(options, attr)
     return retval
