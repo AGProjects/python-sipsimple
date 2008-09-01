@@ -145,7 +145,8 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         if inv is not None and inv.state == "DISCONNECTED":
                             inv.invite([MediaStream("audio")])
                     elif args["state"] == "unregistered":
-                        print "Unregistered: %(code)d %(reason)s" % args
+                        if args["code"] / 100 != 2:
+                            print "Unregistered: %(code)d %(reason)s" % args
                         command = "quit"
                 if event_name == "Invitation_ringing":
                     if ringer is None:

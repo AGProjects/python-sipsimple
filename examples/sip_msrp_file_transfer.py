@@ -300,7 +300,8 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                                 msrp = MSRPFileTransfer(False, dump_msrp, None, None, username, password, False, fd)
                             inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])])
                     elif args["state"] == "unregistered":
-                        print "Unregistered: %(code)d %(reason)s" % args
+                        if args["code"] / 100 != 2:
+                            print "Unregistered: %(code)d %(reason)s" % args
                         command = "quit"
                 elif event_name == "Invitation_state":
                     if args["state"] == "INCOMING":
