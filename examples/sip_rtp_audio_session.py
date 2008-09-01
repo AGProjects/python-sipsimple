@@ -132,6 +132,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         e.stop()
         raise
     start_new_thread(user_input, ())
+    print "Press Control-D to stop the program or h to hang-up an ongoing session."
     while True:
         try:
             command, data = queue.get()
@@ -187,14 +188,19 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             else:
                                 inv = None
             if command == "user_input":
-                if inv is not None and inv.state == "INCOMING":
-                    if data.lower() == "n":
-                        command = "end"
-                        data = False
-                    elif data.lower() == "y":
-                        audio_stream = inv.proposed_streams.pop()
-                        audio_stream.set_local_info()
-                        inv.accept([audio_stream])
+                if inv is not None:
+                    if data.lower() == "h":
+                        if inv is not None:
+                            command = "end"
+                            data = target_username is not None
+                    elif inv.state == "INCOMING":
+                        if data.lower() == "n":
+                            command = "end"
+                            data = False
+                        elif data.lower() == "y":
+                            audio_stream = inv.proposed_streams.pop()
+                            audio_stream.set_local_info()
+                            inv.accept([audio_stream])
             if command == "play_wav":
                 e.play_wav_file(data)
             if command == "end":
