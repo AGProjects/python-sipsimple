@@ -2,14 +2,22 @@
 PJSIP bindings
 --------------
 
+Add simple config file to INVITE scripts
+Make a redistributable (Mac?) application out of MSRP chat and voice scripts
+Look at CTRL+C behaviour of scripts
+Use local proxy by default when target is in a foreign domain
+Read remote User-Agent header from Invitation class (and other headers in general)
+Add tag to Contact header
 Fix PRACK crash
 Fix running problems on linux
+Fix one keystroke y/n for MSRP scripts
+Fix remainig TODOs for PUBLISH/REGISTER
 Support Re-invites
 Add option to enable per call pjmedia confort noice generator (CNG)
 tcp/tls transports
 message method
 dtmf-tones from pjmedia (RFC 2833)
-30X handling
+30X handling (REFER?)
 
 
 Applications
