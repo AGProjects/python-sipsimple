@@ -149,15 +149,17 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         print "Unregistered: %(code)d %(reason)s" % args
                         command = "quit"
                 if event_name == "Invitation_ringing":
-                    print "Ringing..."
-                    ringer = RingingThread(False)
+                    if ringer is None:
+                        print "Ringing..."
+                        ringer = RingingThread(False)
                 elif event_name == "Invitation_state":
                     if args["state"] == "INCOMING":
                         print "Incoming session..."
                         if inv is None:
                             if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "audio":
                                 inv = args["obj"]
-                                ringer = RingingThread(True)
+                                if ringer is None:
+                                    ringer = RingingThread(True)
                                 print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                             else:
                                 print "Not an audio call, rejecting."
