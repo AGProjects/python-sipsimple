@@ -320,7 +320,11 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         remote_uri_path = args["streams"].pop().remote_info[0]
                         print "Session negotiated to: %s" % " ".join(remote_uri_path)
                         if target_username is not None:
-                            msrp.set_remote_uri(remote_uri_path)
+                            try:
+                                msrp.set_remote_uri(remote_uri_path)
+                            except:
+                                traceback.print_exc()
+                                command = "end"
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
                             if args.has_key("code"):
@@ -343,9 +347,14 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             command = "end"
                         else:
                             msrp_stream = inv.proposed_streams.pop()
-                            msrp.set_remote_uri(msrp_stream.remote_info[0])
-                            msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])
-                            inv.accept([msrp_stream])
+                            try:
+                                msrp.set_remote_uri(msrp_stream.remote_info[0])
+                            except:
+                                traceback.print_exc()
+                                command = "end"
+                            else:
+                                msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])
+                                inv.accept([msrp_stream])
             if command == "end":
                 try:
                     if msrp is not None:

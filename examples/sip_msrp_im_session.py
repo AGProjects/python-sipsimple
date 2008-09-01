@@ -300,14 +300,22 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 remote_uri_path = data["streams"].pop().remote_info[0]
                 print "Session negotiated to: %s" % " ".join(remote_uri_path)
                 if target_username is not None:
-                    msrp.set_remote_uri(remote_uri_path)
+                    try:
+                        msrp.set_remote_uri(remote_uri_path)
+                    except:
+                        traceback.print_exc()
+                        queue.put(("end", None))
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":
                         queue.put(("end", None))
                     elif data[0].lower() == "y":
                         msrp_stream = inv.proposed_streams.pop()
-                        msrp.set_remote_uri(msrp_stream.remote_info[0])
+                        try:
+                            msrp.set_remote_uri(msrp_stream.remote_info[0])
+                        except:
+                            traceback.print_exc()
+                            queue.put(("end", None))
                         msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
                         inv.accept([msrp_stream])
                 else:
