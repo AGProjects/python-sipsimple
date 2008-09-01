@@ -30,11 +30,9 @@ xcap-diff payload
 Test scripts
 ------------
 
-fix play wav for multiple ringining
 read credentials from config.ini
 create macosx binaries
 create windows binaries
-combine msrp and rtp session in one script
 
 
 Middleware
@@ -45,6 +43,7 @@ configuration framework
 integration logic
 logging
 enrollment library
+audio mute other applications on incomming call
 
 
 User interfaces
