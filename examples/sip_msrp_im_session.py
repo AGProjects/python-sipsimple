@@ -153,6 +153,7 @@ class MSRP(Thread):
             self.msg_id += 1
 
     def run(self):
+        global correspondent
         if self.is_incoming and self.relay_data is None:
             self.listen_sock.listen(1)
             self.sock, addr = self.listen_sock.accept()
@@ -163,7 +164,7 @@ class MSRP(Thread):
             if data is None:
                 return
             if data["method"] == "SEND":
-                print "Received MSRP message: %s" % data["body"]
+                print "%s: %s" % (correspondent.as_str(), data["body"])
                 response = msrp_protocol.MSRPData(transaction_id=data["transaction_id"], code=200, comment="OK")
                 response.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
                 response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
@@ -231,6 +232,7 @@ def user_input():
             queue.put(("end", None))
 
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, msrp_relay_ip, msrp_relay_port, do_srv, auto_msrp_relay):
+    global correspondent
     if auto_msrp_relay:
         msrp = MSRP(target_username is None, dump_msrp, domain, 2855, username, password, True)
     else:
@@ -250,6 +252,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             queue.put(("registered", None))
         if target_username is not None:
             inv = Invitation(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=target_username, host=target_domain), route=route)
+            correspondent = inv.callee_uri
     except:
         e.stop()
         raise
@@ -281,6 +284,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         msrp_stream = data["streams"].pop()
                         if msrp_stream.media_type == "message" and msrp_stream.remote_info[1] == ["text/plain"]:
                             inv = data["obj"]
+                            correspondent = inv.caller_uri
                             print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                         else:
                             data["obj"].end()
