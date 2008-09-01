@@ -112,7 +112,7 @@ def parse_options():
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in SUBSCRIBE. Default is 300 seconds.')
-    parser.add_option("-p", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
     parser.add_option("-v", "--event", type="string", dest="event", help='Event to subscribe to. Default is "presence".')
     parser.add_option("-c", "--content-type", type="string", dest="content_type", help = '"Content-Type" the UA expects to receving in a NOTIFY for this subscription. For the known events this does not need to be specified, but may be overridden".')
     try:
