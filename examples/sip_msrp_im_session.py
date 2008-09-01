@@ -289,7 +289,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         if msrp_stream.media_type == "message" and msrp_stream.remote_info[1] == ["text/plain"]:
                             inv = data["obj"]
                             correspondent = inv.caller_uri
-                            print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                            print 'Incoming audio session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                         else:
                             data["obj"].end()
                     else:
