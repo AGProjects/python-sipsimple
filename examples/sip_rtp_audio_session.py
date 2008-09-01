@@ -286,7 +286,7 @@ def parse_options():
         try:
             retval["target_username"], retval["target_domain"] = args[0].split("@")
         except ValueError:
-            retval["target_username"], retval["target_domain"] = args[0], retval["domain"]
+            retval["target_username"], retval["target_domain"] = args[0], options.domain
     else:
         retval["target_username"], retval["target_domain"] = None, None
     if not all([options.username, options.domain, options.password]):
