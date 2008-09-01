@@ -208,7 +208,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
-                            if args.has_key("code"):
+                            if args.has_key("code") and args["code"] / 100 != 2:
                                 print "Session ended: %(code)d %(reason)s" % args
                             else:
                                 print "Session ended"

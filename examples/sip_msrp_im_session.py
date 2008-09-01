@@ -193,7 +193,7 @@ def event_handler(event_name, **kwargs):
             print "Incoming session..."
             queue.put(("incoming", kwargs))
         elif kwargs["state"] == "DISCONNECTED":
-            if kwargs.has_key("code"):
+            if kwargs.has_key("code") and kwargs["code"] / 100 != 2:
                 print "Session ended: %(code)d %(reason)s" % kwargs
             else:
                 print "Session ended"
