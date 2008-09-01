@@ -164,7 +164,8 @@ class MSRP(Thread):
             if data is None:
                 return
             if data["method"] == "SEND":
-                print "%s: %s" % (correspondent.as_str(), data["body"])
+                if data["body"]:
+                    print "%s: %s" % (correspondent.as_str(), data["body"])
                 response = msrp_protocol.MSRPData(transaction_id=data["transaction_id"], code=200, comment="OK")
                 response.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
                 response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
