@@ -17,9 +17,37 @@ from cStringIO import StringIO
 import dns.resolver
 from dns.exception import DNSException
 from application.system import default_host_ip
+from application.process import process
+from application.configuration import *
 import msrp_protocol
 from digest import process_www_authenticate
 from pypjua import *
+
+re_ip_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
+class SIPProxyAddress(tuple):
+    def __new__(typ, value):
+        match = re_ip_port.search(value)
+        if match is None:
+            raise ValueError("invalid IP address/port: %r" % value)
+        if match.group("port") is None:
+            port = 5060
+        else:
+            port = match.group("port")
+            if port > 65535:
+                raise ValueError("port is out of range: %d" % port)
+        return match.group("host"), port
+
+
+class Config(ConfigSection):
+    _datatypes = {"username": str, "domain": str, "password": str, "outbound_proxy": SIPProxyAddress}
+    username = None
+    domain = None
+    password = None
+    outbound_proxy = None, None
+
+process._system_config_directory = os.path.expanduser("~")
+configuration = ConfigFile("pypjua.ini")
+configuration.read_settings("Account", Config)
 
 _re_msrp = re.compile("^(?P<pre>.*?)MSRP (?P<transaction_id>[a-zA-Z0-9.\-+%=]+) ((?P<method>[A-Z]+)|((?P<code>[0-9]{3})( (?P<comment>.*?))?))\r\n(?P<headers>.*?)\r\n(\r\n(?P<body>.*?)\r\n)?-------\\2(?P<continuation>[$#+])\r\n(?P<post>.*)$", re.DOTALL)
 
@@ -416,36 +444,37 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
 def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP file transfer, or attempt to send the specified file over MSRP to the specified target. The program will close the session and quit when the file transfer is done or CTRL+D is pressed."
-    usage = "%prog [options] user@domain.com password [target-user@target-domain.com file]"
-    default_options = dict(proxy_ip=None, proxy_port=None, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False)
+    usage = "%prog [options] [target-user@target-domain.com file]"
+    default_options = dict(proxy_ip=Config.outbound_proxy[0], proxy_port=Config.outbound_proxy[1], username=Config.username, password=Config.password, domain=Config.domain, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
-    parser.add_option("-d", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
+    parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
+    parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
+    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
+    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
+    parser.add_option("-m", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
     parser.add_option("-s", "--do-sip-trace", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
-    try:
+    options, args = parser.parse_args()
+    if args:
         try:
-            options, (username_domain, retval["password"], target, filename) = parser.parse_args()
+            target, filename = args
         except ValueError:
-            options, (username_domain, retval["password"]) = parser.parse_args()
-            target = None
-        retval["username"], retval["domain"] = username_domain.split("@")
-        if target is not None:
-            try:
-                retval["target_username"], retval["target_domain"] = target.split("@")
-            except ValueError:
-                retval["target_username"], retval["target_domain"] = target, retval["domain"]
+            parser.print_usage()
+            sys.exit()
+        try:
+            retval["target_username"], retval["target_domain"] = args[0].split("@")
+        except ValueError:
+            retval["target_username"], retval["target_domain"] = args[0], options.domain
+        try:
             retval["fd"] = open(filename, "rb")
-        else:
-            retval["target_username"], retval["target_domain"] = None, None
-            retval["fd"] = None
-    except ValueError:
-        parser.print_usage()
-        sys.exit()
-    except IOError, e:
-        parser.error(e)
+        except IOError, e:
+            parser.error(e)
+    else:
+        retval["target_username"], retval["target_domain"], retval["fd"] = None, None, None
+    if not all([options.username, options.domain, options.password]):
+        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
     retval["auto_msrp_relay"] = options.msrp_relay_ip is None
     if retval["auto_msrp_relay"]:
         retval["use_msrp_relay"] = True
