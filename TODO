@@ -2,7 +2,6 @@
 PJSIP bindings
 --------------
 
-Add simple config file to INVITE scripts
 Look at CTRL+C behaviour of scripts
 Use local proxy by default when target is in a foreign domain
 Read remote User-Agent header from Invitation class (and other headers in general)
