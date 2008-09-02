@@ -263,6 +263,7 @@ def user_input():
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, fd, do_siptrace):
     msrp = None
     inv = None
+    printed = False
     e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
     e.start()
     try:
@@ -290,6 +291,10 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 event_name, args = data
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
+                        if not printed:
+                            if target_username is None:
+                                print "Registered with SIP address: %s@%s, waiting for incoming session..." % (username, domain)
+                            printed = True
                         if inv is not None and inv.state == "DISCONNECTED":
                             if use_msrp_relay:
                                 if auto_msrp_relay:
