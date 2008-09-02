@@ -6,7 +6,7 @@ RFC5025.
 from lxml import etree
 
 from pypjua.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLApplication
-from pypjua.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyMeta, RuleSet
+from pypjua.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyMeta, ActionElement, TransformationElement, RuleSet
 
 __all__ = ['_cp_namespace_',
            '_pr_namespace_',
@@ -45,7 +45,7 @@ _pr_namespace_ = 'urn:ietf:params:xml:ns:pres-rules'
 
 class PresRulesMeta(CommonPolicyMeta): pass
 
-class SubHandling(XMLStringElement):
+class SubHandling(XMLStringElement, ActionElement):
     _xml_tag = 'sub-handling'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
@@ -77,7 +77,7 @@ class AllDevices(XMLEmptyElement):
 
 PresRulesMeta.register(AllDevices)
 
-class ProvideDevices(XMLListElement):
+class ProvideDevices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-devices'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
@@ -111,7 +111,7 @@ class AllPersons(XMLEmptyElement):
 
 PresRulesMeta.register(AllPersons)
 
-class ProvidePersons(XMLListElement):
+class ProvidePersons(XMLListElement, TransformationElement):
     _xml_tag = 'provide-persons'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
@@ -152,7 +152,7 @@ class AllServices(XMLEmptyElement):
 
 PresRulesMeta.register(AllServices)
 
-class ProvideServices(XMLListElement):
+class ProvideServices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-services'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
@@ -186,84 +186,84 @@ class BooleanProvideElement(XMLStringElement):
     _xml_meta = None # to be defined
     _xml_values = (BooleanString('True'), BooleanString('False'))
 
-class ProvideActivities(BooleanProvideElement):
+class ProvideActivities(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-activities'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideActivities)
 
-class ProvideClass(BooleanProvideElement):
+class ProvideClass(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-class'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideClass)
 
-class ProvideDeviceID(BooleanProvideElement):
+class ProvideDeviceID(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-deviceID'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideDeviceID)
 
-class ProvideMood(BooleanProvideElement):
+class ProvideMood(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-mood'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideMood)
 
-class ProvidePlaceIs(BooleanProvideElement):
+class ProvidePlaceIs(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-place-is'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvidePlaceIs)
 
-class ProvidePlaceType(BooleanProvideElement):
+class ProvidePlaceType(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-place-type'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvidePlaceType)
 
-class ProvidePrivacy(BooleanProvideElement):
+class ProvidePrivacy(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-privacy'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvidePrivacy)
 
-class ProvideRelationship(BooleanProvideElement):
+class ProvideRelationship(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-relationship'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideRelationship)
 
-class ProvideStatusIcon(BooleanProvideElement):
+class ProvideStatusIcon(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-status-icon'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideStatusIcon)
 
-class ProvideSphere(BooleanProvideElement):
+class ProvideSphere(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-sphere'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideSphere)
 
-class ProvideTimeOffset(BooleanProvideElement):
+class ProvideTimeOffset(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-time-offset'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
 
 PresRulesMeta.register(ProvideTimeOffset)
 
-class ProvideUserInput(XMLStringElement):
+class ProvideUserInput(XMLStringElement, TransformationElement):
     _xml_tag = 'provide-user-input'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta
@@ -272,7 +272,7 @@ class ProvideUserInput(XMLStringElement):
 
 PresRulesMeta.register(ProvideUserInput)
 
-class ProvideUnknownAttribute(BooleanProvideElement):
+class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-unknown-attribute'
     _xml_namespace = _pr_namespace_
     _xml_attrs = {'name': {},
@@ -281,7 +281,7 @@ class ProvideUnknownAttribute(BooleanProvideElement):
 
 PresRulesMeta.register(ProvideUnknownAttribute)
 
-class ProvideAllAttributes(XMLEmptyElement):
+class ProvideAllAttributes(XMLEmptyElement, TransformationElement):
     _xml_tag = 'provide-all-attributes'
     _xml_namespace = _pr_namespace_
     _xml_meta = PresRulesMeta

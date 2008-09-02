@@ -6,6 +6,9 @@ RFC4745.
 from pypjua.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLApplication
 
 __all__ = ['_namespace_',
+           'ConditionElement',
+           'ActionElement',
+           'TransformationElement',
            'IdentityOne',
            'IdentityExcept',
            'IdentityMany',
@@ -23,6 +26,14 @@ __all__ = ['_namespace_',
 _namespace_ = 'urn:ietf:params:xml:ns:common-policy'
 
 class CommonPolicyMeta(XMLMeta): pass
+
+# Mixin types for extensibility
+class ConditionElement(object): pass
+
+class ActionElement(object): pass
+
+class TransformationElement(object): pass
+
 
 class IdentityOne(XMLElement):
     _xml_tag = 'one'
@@ -99,7 +110,7 @@ class IdentityMany(XMLListElement):
 
 CommonPolicyMeta.register(IdentityMany)
 
-class Identity(XMLListElement):
+class Identity(XMLListElement, ConditionElement):
     _xml_tag = 'identity'
     _xml_namespace = _namespace_
     _xml_meta = CommonPolicyMeta
@@ -109,13 +120,9 @@ class Identity(XMLListElement):
 
     def _parse_element(self, element):
         for child in element:
-            if child.tag == IdentityOne.qname:
-                child_cls = IdentityOne
-            elif child.tag == IdentityMany.qname:
-                child_cls = IdentityMany
-            else:
-                raise TypeError("Expecting <one> or <many> in <identity> element, got %s instead" % child.tag)
-            self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
+            child_cls = self._xml_meta.get(child.tag)
+            if child_cls is not None:
+                self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
 
     def _build_element(self, element, nsmap):
         for child in self:
@@ -128,7 +135,7 @@ class Identity(XMLListElement):
 
 CommonPolicyMeta.register(Identity)
 
-class Sphere(XMLElement):
+class Sphere(XMLElement, ConditionElement):
     _xml_tag = 'sphere'
     _xml_namespace = _namespace_
     _xml_attrs = {'value': {'id_attribute': True}}
@@ -161,7 +168,7 @@ class ValidityUntil(XMLStringElement):
 
 CommonPolicyMeta.register(ValidityUntil)
 
-class Validity(XMLListElement):
+class Validity(XMLListElement, ConditionElement):
     _xml_tag = 'validity'
     _xml_namespace = _namespace_
     _xml_meta = CommonPolicyMeta
@@ -171,13 +178,9 @@ class Validity(XMLListElement):
 
     def _parse_element(self, element):
         for child in element:
-            if child.tag == ValidityFrom.qname:
-                child_cls = ValidityFrom
-            elif child.tag == ValidityUntil.qname:
-                child_cls = ValidityUntil
-            else:
-                raise TypeError("Expecting <from> or <until> in <validity> element, got %s instead" % child.tag)
-            self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
+            child_cls = self._xml_meta.get(child.tag)
+            if child_cls is not None:
+                self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
 
     def _build_element(self, element, nsmap):
         for child in self:
@@ -208,6 +211,11 @@ class Conditions(XMLListElement):
         for child in self:
             child.to_element(parent=element, nsmap=nsmap)
 
+    def _before_add(self, value):
+        if not isinstance(value, ConditionElement):
+            raise TypeError("Conditions element can only contain ConditionElement children, got %s instead" % value.__class__.__name__)
+        return value
+
 CommonPolicyMeta.register(Conditions)
 
 class Actions(XMLListElement):
@@ -228,6 +236,11 @@ class Actions(XMLListElement):
         for child in self:
             child.to_element(parent=element, nsmap=nsmap)
 
+    def _before_add(self, value):
+        if not isinstance(value, ActionElement):
+            raise TypeError("Actions element can only contain ActionElement children, got %s instead" % value.__class__.__name__)
+        return value
+
 CommonPolicyMeta.register(Actions)
 
 class Transformations(XMLListElement):
@@ -247,6 +260,11 @@ class Transformations(XMLListElement):
     def _build_element(self, element, nsmap):
         for child in self:
             child.to_element(parent=element, nsmap=nsmap)
+
+    def _before_add(self, value):
+        if not isinstance(value, TransformationElement):
+            raise TypeError("Transformations element can only contain TransformationElement children, got %s instead" % value.__class__.__name__)
+        return value
 
 CommonPolicyMeta.register(Transformations)
 
