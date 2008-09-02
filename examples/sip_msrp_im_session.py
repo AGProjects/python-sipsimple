@@ -262,7 +262,7 @@ def user_input():
             traceback.print_exc()
             queue.put(("end", None))
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port):
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace):
     global correspondent
     if use_msrp_relay:
         if auto_msrp_relay:
@@ -273,7 +273,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         msrp = MSRP(target_username is None, dump_msrp)
     inv = None
     printed = False
-    e = Engine(event_handler, do_siptrace=False, auto_sound=False)
+    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
     e.start()
     try:
         if proxy_ip is None:
@@ -386,7 +386,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=Config.outbound_proxy[0], proxy_port=Config.outbound_proxy[1], username=Config.username, password=Config.password, domain=Config.domain, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None)
+    default_options = dict(proxy_ip=Config.outbound_proxy[0], proxy_port=Config.outbound_proxy[1], username=Config.username, password=Config.password, domain=Config.domain, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -395,6 +395,7 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060, False), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-m", "--dump-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
+    parser.add_option("-s", "--do-sip-trace", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
     options, args = parser.parse_args()
     if args:
