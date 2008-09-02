@@ -171,7 +171,7 @@ class MSRP(Thread):
             self.start()
 
     def send_message(self, msg):
-        if self.sock is not None:
+        if self.remote_uri_path is not None:
             msrpdata = msrp_protocol.MSRPData(method="SEND", transaction_id=random_string(12))
             msrpdata.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
             msrpdata.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
