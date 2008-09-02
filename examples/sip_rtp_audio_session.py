@@ -194,7 +194,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                                 inv = args["obj"]
                                 if ringer is None:
                                     ringer = RingingThread(True)
-                                print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                                print 'Incoming audio session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                             else:
                                 print "Not an audio call, rejecting."
                                 args["obj"].end()
