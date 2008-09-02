@@ -204,7 +204,7 @@ def event_handler(event_name, **kwargs):
         if kwargs["state"] == "registered":
             queue.put(("registered", None))
         elif kwargs["state"] == "unregistered":
-            if if kwargs["code"] / 100 != 2:
+            if kwargs["code"] / 100 != 2:
                 print "Unregistered: %(code)d %(reason)s" % kwargs
             queue.put(("quit", None))
     elif event_name == "siptrace":
