@@ -320,6 +320,11 @@ class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
                  'ns': {}}
     _xml_meta = PresRulesMeta
 
+    def __init__(self, ns, name, value):
+        BooleanProvideElement.__init__(self, value)
+        self.ns = ns
+        self.name = name
+
 PresRulesMeta.register(ProvideUnknownAttribute)
 
 class ProvideAllAttributes(XMLEmptyElement, TransformationElement):
