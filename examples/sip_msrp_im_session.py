@@ -385,7 +385,7 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
 def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
-    usage = "%prog [options] user@domain.com password [target-user@target-domain.com]"
+    usage = "%prog [options] [target-user@target-domain.com]"
     default_options = dict(proxy_ip=Config.outbound_proxy[0], proxy_port=Config.outbound_proxy[1], username=Config.username, password=Config.password, domain=Config.domain, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
