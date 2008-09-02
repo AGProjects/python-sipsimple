@@ -242,6 +242,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
     else:
         msrp = MSRP(target_username is None, dump_msrp)
     inv = None
+    printed = False
     e = Engine(event_handler, do_siptrace=False, auto_sound=False)
     e.start()
     try:
@@ -297,6 +298,10 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 else:
                     data["obj"].end()
             elif command == "registered":
+                if not printed:
+                    if target_username is None:
+                        print "Registered with SIP address: %s@%s, waiting for incoming session..." % (username, domain)
+                    printed = True
                 if inv is not None and inv.state == "DISCONNECTED":
                     inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["text/plain"])])
             elif command == "established":
