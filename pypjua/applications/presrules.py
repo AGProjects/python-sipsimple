@@ -1,6 +1,47 @@
 """
 Parses and produces Presence Authorization Rules documents according to
 RFC5025.
+
+Example usage:
+>>> conditions = Conditions([Identity([IdentityOne('sip:user@example.com')])])
+>>> actions = Actions([SubHandling('allow')])
+>>> transformations = Transformations()
+>>> psrv = ProvideServices([ServiceURIScheme('sip'), ServiceURIScheme('mailto')])
+>>> ppers = ProvidePersons([AllPersons()])
+>>> transformations[0:0] = [psrv, ppers]
+>>> transformations.append(ProvideActivities('true'))
+>>> transformations.append(ProvideUserInput('bare'))
+>>> transformations.append(ProvideUnknownAttribute(ns='urn:vendor-specific:foo-namespace', name='foo', value='true'))
+>>> rule = Rule(id='a', conditions=conditions, actions=actions, transformations=transformations)
+>>> prules = PresRules([rule])
+>>> print prules.toxml(pretty_print=True)
+<?xml version='1.0' encoding='UTF-8'?>
+<cr:ruleset xmlns:pr="urn:ietf:params:xml:ns:pres-rules" xmlns:cr="urn:ietf:params:xml:ns:common-policy">
+  <cr:rule id="a">
+    <cr:conditions>
+      <cr:identity>
+        <cr:one id="sip:user@example.com"/>
+      </cr:identity>
+    </cr:conditions>
+    <cr:actions>
+      <pr:sub-handling>allow</pr:sub-handling>
+    </cr:actions>
+    <cr:transformations>
+      <pr:provide-services>
+        <pr:service-uri-scheme>sip</pr:service-uri-scheme>
+        <pr:service-uri-scheme>mailto</pr:service-uri-scheme>
+      </pr:provide-services>
+      <pr:provide-persons>
+        <pr:all-persons/>
+      </pr:provide-persons>
+      <pr:provide-activities>true</pr:provide-activities>
+      <pr:provide-user-input>bare</pr:provide-user-input>
+      <pr:provide-unknown-attribute ns="urn:vendor-specific:foo-namespace" name="foo">true</pr:provide-unknown-attribute>
+    </cr:transformations>
+  </cr:rule>
+</cr:ruleset>
+<BLANKLINE>
+
 """
 
 from lxml import etree

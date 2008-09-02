@@ -1,6 +1,41 @@
 """
 Generic data types to be used in policy applications, according to
 RFC4745.
+
+Example usage:
+
+>>> alice = IdentityOne('sip:alice@example.com')
+>>> carol = IdentityOne('tel:+1-212-555-1234')
+>>> bob = IdentityOne('mailto:bob@example.net')
+>>> print carol
+tel:+1-212-555-1234
+>>> id = Identity([alice, bob])
+>>> print id
+['sip:alice@example.com', 'mailto:bob@example.net']
+>>> id[1:1] = [carol]
+>>> print id
+['sip:alice@example.com', 'tel:+1-212-555-1234', 'mailto:bob@example.net']
+>>> conditions = Conditions([id])
+>>> rule = Rule(id='f3g44r1', conditions=conditions, actions=Actions(), transformations=Transformations())
+>>> ruleset = RuleSet()
+>>> ruleset.append(rule)
+>>> print ruleset.toxml(pretty_print=True)
+<?xml version='1.0' encoding='UTF-8'?>
+<ruleset xmlns="urn:ietf:params:xml:ns:common-policy">
+  <rule id="f3g44r1">
+    <conditions>
+      <identity>
+        <one id="sip:alice@example.com"/>
+        <one id="tel:+1-212-555-1234"/>
+        <one id="mailto:bob@example.net"/>
+      </identity>
+    </conditions>
+    <actions/>
+    <transformations/>
+  </rule>
+</ruleset>
+<BLANKLINE>
+
 """
 
 from pypjua.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLApplication
