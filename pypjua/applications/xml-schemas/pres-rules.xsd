@@ -4,7 +4,8 @@
  xmlns:cr="urn:ietf:params:xml:ns:common-policy"
  xmlns:pr="urn:ietf:params:xml:ns:pres-rules"
  elementFormDefault="qualified" attributeFormDefault="unqualified">
- <xs:import namespace="urn:ietf:params:xml:ns:common-policy"/>
+ <xs:import namespace="urn:ietf:params:xml:ns:common-policy"
+     schemaLocation="common-policy.xsd"/>
  <xs:simpleType name="booleanPermission">
   <xs:restriction base="xs:boolean"/>
  </xs:simpleType>
