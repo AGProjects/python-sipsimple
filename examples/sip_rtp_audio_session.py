@@ -141,6 +141,7 @@ class RingingThread(Thread):
 def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate):
     inv = None
     ringer = None
+    printed = False
     want_quit = target_username is not None
     atexit.register(termios_restore)
     e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=["speex", "g711"], ec_tail_length=ec_tail_length, sample_rate=sample_rate)
@@ -161,7 +162,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         e.stop()
         raise
     start_new_thread(user_input, ())
-    print "Press Control-D to stop the program or h to hang-up an ongoing session."
     while True:
         try:
             command, data = queue.get()
@@ -171,6 +171,11 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                 event_name, args = data
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
+                        if not printed:
+                            if target_username is None:
+                                print "Registered with SIP address: %s@%s, waiting for incoming session..." % (username, domain)
+                            print "Press Control-D to stop the program or h to hang-up an ongoing session."
+                            printed = True
                         if inv is not None and inv.state == "DISCONNECTED":
                             inv.invite([MediaStream("audio")])
                     elif args["state"] == "unregistered":
