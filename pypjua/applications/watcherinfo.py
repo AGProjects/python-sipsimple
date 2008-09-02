@@ -1,19 +1,71 @@
 """
 Parses application/watcherinfo+xml documents according to RFC3857 and RFC3858.
 
-See WatcherInfo class for more information.
+Example:
+
+>>> winfo_doc='''<?xml version="1.0"?>
+... <watcherinfo xmlns="urn:ietf:params:xml:ns:watcherinfo"
+...              version="0" state="full">
+...   <watcher-list resource="sip:professor@example.net" package="presence">
+...     <watcher status="active"
+...              id="8ajksjda7s"
+...              duration-subscribed="509"
+...              event="approved" >sip:userA@example.net</watcher>
+...     <watcher status="pending"
+...              id="hh8juja87s997-ass7"
+...              display-name="Mr. Subscriber"
+...              event="subscribe">sip:userB@example.org</watcher>
+...   </watcher-list>
+... </watcherinfo>'''
+>>> winfo = WatcherInfo()
+
+The return value of winfo.update() is a dictionary containing WatcherList objects
+as keys and lists of the updated watchers as values.
+
+>>> updated = winfo.update(winfo_doc)
+>>> len(updated['sip:professor@example.net'])
+2
+
+winfo.pending, winfo.terminated and winfo.active are dictionaries indexed by
+WatcherList objects as keys and lists of Wacher objects as values.
+
+>>> print winfo.pending['sip:professor@example.net'][0]
+"Mr. Subscriber" <sip:userB@example.org>
+>>> print winfo.pending['sip:professor@example.net'][1]
+Traceback (most recent call last):
+  File "<stdin>", line 1, in <module>
+IndexError: list index out of range
+>>> print winfo.active['sip:professor@example.net'][0]
+sip:userA@example.net
+>>> len(winfo.terminated['sip:professor@example.net'])
+0
+
+winfo.wlists is the list of WatcherList objects
+
+>>> list(winfo.wlists[0].active) == list(winfo.active['sip:professor@example.net'])
+True
+
+
+See the classes for more information.
 """
 
 from lxml import etree
 
-from pypjua.applications import XMLApplication, XMLElement, ParserError
+from pypjua.applications import XMLMeta, XMLApplication, XMLElement
 
-__all__ = ["NeedFullUpdateError", "WatcherInfo"]
+__all__ = ['_namespace_',
+           'NeedFullUpdateError',
+           'WatcherInfoMeta',
+           'Watcher', 
+           'WatcherList',
+           'WatcherInfo']
 
 
 _namespace_ = 'urn:ietf:params:xml:ns:watcherinfo'
 
 class NeedFullUpdateError(Exception): pass
+
+class WatcherInfoMeta(XMLMeta): pass
 
 class Watcher(XMLElement):
     """
@@ -30,6 +82,8 @@ class Watcher(XMLElement):
 
     Can be transformed to a string with the format DISPLAY_NAME <SIP_URI>.
     """
+    _xml_tag = 'watcher'
+    _xml_namespace = _namespace_
     _xml_attrs = {
             'id': {'id_attribute': True},
             'status': {},
@@ -37,14 +91,15 @@ class Watcher(XMLElement):
             'display_name': {'xml_attribute': 'display-name'},
             'expiration': {'test_equal': False},
             'duration': {'test_equal': False}}
-    _xml_tag = 'watcher'
-    _xml_namespace = _namespace_
+    _xml_meta = WatcherInfoMeta
 
     def _parse_element(self, element):
         self.sipuri = element.text
 
     def __str__(self):
-        return self.display_name and '%s <%s>' % (self.display_name, self.sipuri) or self.sipuri
+        return self.display_name and '"%s" <%s>' % (self.display_name, self.sipuri) or self.sipuri
+
+WatcherInfoMeta.register(Watcher)
 
 class WatcherList(XMLElement):
     """
@@ -56,11 +111,12 @@ class WatcherList(XMLElement):
     It also provides the properties pending, active and terminated which are
     generators returning Watcher objects with the corresponding status.
     """
+    _xml_tag = 'watcher-list'
+    _xml_namespace = _namespace_
     _xml_attrs = {
             'resource': {'id_attribute': True},
             'package': {}}
-    _xml_tag = 'watcher-list'
-    _xml_namespace = _namespace_
+    _xml_meta = WatcherInfoMeta
 
     def _parse_element(self, element, full_parse=True):
         self._watchers = {}
@@ -90,6 +146,8 @@ class WatcherList(XMLElement):
     active = property(lambda self: (watcher for watcher in self if watcher.status == 'active'))
     terminated = property(lambda self: (watcher for watcher in self if watcher.status == 'terminated'))
 
+WatcherInfoMeta.register(WatcherList)
+
 class WatcherInfo(XMLApplication):
     """
     Definition for watcher info: a list of WatcherList elements
@@ -105,35 +163,15 @@ class WatcherInfo(XMLApplication):
      Since WatcherList objects can be compared for equality to SIP URI strings,
      representing the presentity to which the watchers have subscribed, the
      dictionaries can also be indexed by such strings.
-
-    Example:
-     Given the following watcherinfo document:
-<?xml version="1.0"?>
-<watcherinfo xmlns="urn:ietf:params:xml:ns:watcherinfo"
-             version="0" state="full">
-  <watcher-list resource="sip:professor@example.net" package="presence">
-    <watcher status="active"
-             id="8ajksjda7s"
-             duration-subscribed="509"
-             event="approved" >sip:userA@example.net</watcher>
-    <watcher status="pending"
-             id="hh8juja87s997-ass7"
-             display-name="Mr. Subscriber"
-             event="subscribe">sip:userB@example.org</watcher>
-  </watcher-list>
-</watcherinfo>
-      
-      winfo = WatcherInfo()
-      winfo.update(documentstring)
-      winfo.pending['sip:professor@example.net'] # contains Watcher describing sip:userB@example.org
-      winfo.active['sip:professor@example.net'] # contains Watcher describing sip:userA@example.org
-      winfo.terminated['sip:professor@example.net'] # is an empty list
-      winfo.wlists is a list of WatcherList objects
     """
     
     accept_types = ['application/watcherinfo+xml']
+
+    _xml_tag = 'watcherinfo'
     _xml_namespace = _namespace_
+    _xml_meta = WatcherInfoMeta
     _xml_schema_file = 'watcherinfo.xsd'
+    
     _parser_opts = {'remove_blank_text': True}
     
     def __init__(self):
@@ -197,3 +235,5 @@ class WatcherInfo(XMLApplication):
     pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self))
     active = property(lambda self: dict((wlist, list(wlist.active)) for wlist in self))
     terminated = property(lambda self: dict((wlist, list(wlist.terminated)) for wlist in self))
+
+WatcherInfoMeta.register(WatcherInfo)
