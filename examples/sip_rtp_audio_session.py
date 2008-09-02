@@ -101,12 +101,14 @@ def event_handler(event_name, **kwargs):
 
 def user_input():
     global queue
+    ending = False
     while True:
         try:
             char = getchar()
             if char == "\x04":
-                queue.put(("end", True))
-                break
+                if not ending:
+                    queue.put(("end", True))
+                    ending = True
             else:
                 queue.put(("user_input", char))
         except:
