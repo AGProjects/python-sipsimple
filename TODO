@@ -2,6 +2,7 @@
 PJSIP bindings
 --------------
 
+Review impact of GIL and threading on RTP jitter
 Emit more than one 180
 Handle logging in a beter way
 Split up .pyx file
