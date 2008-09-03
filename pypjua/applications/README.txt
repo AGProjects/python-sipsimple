@@ -15,7 +15,7 @@ availability information based on end-user choice. In its advanced form,
 presence can provide rich state information including but not limited to
 user mood, geo-location, environment, noise level and type of communication
 desired. The information can be disseminated based on a granular policy which
-allows end-user to device who has access to which part of the published
+allows end-users to decide who has access to which part of the published
 information.
 
 Other applications can be used for lookup network resources or broadcast
@@ -33,11 +33,21 @@ presence.winfo.
 
 resourcelists.py
 
-Parses and generates XML documents for constructing resource lists and
-rls-services documents. Used for server side storage of presence related
-buddy lists using XCAP protocol. The SIP clients maintains the
-resource-lists on the XCAP server which provides persisten storage and
-aggregation point for multiple devices.
+Parses and generates XML documents for constructing resource lists
+documents. Used for server side storage of presence related buddy lists
+using XCAP protocol. The SIP clients maintain the resource-lists on the XCAP
+server which provides persisten storage and aggregation point for multiple
+devices.
+
+
+rlsservices.py
+
+Parses and generates XML documents for constructing rls-services documents.
+Used for delegating presence related works to the server. The client build
+rls-services lists with buddies and instructs the server to subscribe to the
+sip uris indicated in the lists. This way the client can save bandwidth as
+the server performs the signalling for subscription and collection of
+notifications and provides consolidated answer to the sip user agent.
 
 
 presrules.py
@@ -45,7 +55,7 @@ presrules.py
 Parses and generates authorization rules in XML format for presence or other
 applications. Authorization rules are stored on the XCAP server. The
 presence rules are generated either based on user initiative or as a
-response to a new subscription signaled by a change in the watherinfo
+response to a new subscription signaled by a change in the watcherinfo
 application.
 
 
