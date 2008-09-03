@@ -291,9 +291,17 @@ cdef extern from "pjsip.h":
         pj_str_t name
     struct pjsip_request_line:
         pjsip_method method
+    struct pjsip_status_line:
+        int code
+        pj_str_t reason
     union pjsip_msg_line:
         pjsip_request_line req
+        pjsip_status_line status
+    enum pjsip_msg_type_e:
+        PJSIP_REQUEST_MSG
+        PJSIP_RESPONSE_MSG
     struct pjsip_msg:
+        pjsip_msg_type_e type
         pjsip_msg_line line
         pjsip_msg_body *body
     struct pjsip_buffer:
@@ -389,11 +397,17 @@ cdef extern from "pjsip.h":
         PJSIP_EVENT_RX_MSG
         PJSIP_EVENT_TRANSPORT_ERROR
         PJSIP_EVENT_TIMER
+    union pjsip_event_body_tsx_state_src:
+        pjsip_rx_data *rdata
     struct pjsip_event_body_tsx_state:
+        pjsip_event_body_tsx_state_src src
         pjsip_transaction *tsx
         pjsip_event_id_e type
+    struct pjsip_event_body_rx_msg:
+        pjsip_rx_data *rdata
     union pjsip_event_body:
         pjsip_event_body_tsx_state tsx_state
+        pjsip_event_body_rx_msg rx_msg
     struct pjsip_event:
         pjsip_event_id_e type
         pjsip_event_body body
@@ -497,10 +511,12 @@ cdef extern from "pjsip_ua.h":
         pjsip_inv_state state
         void **mod_data
         pjmedia_sdp_neg *neg
+        int cause
+        pj_str_t cause_text
     struct pjsip_inv_callback:
         void on_state_changed(pjsip_inv_session *inv, pjsip_event *e) with gil
         void on_new_session(pjsip_inv_session *inv, pjsip_event *e) with gil
-        #void on_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e)
+        void on_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
         void on_rx_offer(pjsip_inv_session *inv, pjmedia_sdp_session *offer) with gil
         #void on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_session **p_offer)
         void on_media_update(pjsip_inv_session *inv, int status) with gil
@@ -2404,16 +2420,24 @@ cdef class Invitation:
             else:
                 return self.c_current_streams.copy()
 
-    cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
+    cdef int _cb_rx_data(self, pjsip_rx_data *rdata) except -1:
+        global _event_queue
+        if rdata.msg_info.msg.type == PJSIP_RESPONSE_MSG:
+            if self.state == "CALLING" and rdata.msg_info.msg.line.status.code == 180:
+                _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self)))
+
+    cdef int _cb_state(self) except -1:
         global _event_queue
         cdef object streams
         cdef MediaStream stream
+        cdef object prev_state
         if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED:
+            prev_state = self.state
             self.state = "DISCONNECTED"
-            if tsx == NULL:
+            if prev_state == "DISCONNECTING":
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
             else:
-                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text))))
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=self.c_obj.cause, reason=pj_str_to_str(self.c_obj.cause_text))))
             streams = set()
             if self.c_proposed_streams is not None:
                 streams.union(self.c_proposed_streams)
@@ -2422,8 +2446,6 @@ cdef class Invitation:
             for stream in streams:
                 stream._end()
             self.c_proposed_streams = self.c_current_streams = None
-        elif self.c_obj.state == PJSIP_INV_STATE_EARLY and tsx != NULL and tsx.status_code == 180:
-            _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self)))
 
     cdef int _cb_sdp_offer(self, SDPSession session) except -1:
         cdef int status
@@ -2583,6 +2605,19 @@ cdef class Invitation:
         _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 
+cdef void cb_Invitation_cb_tsx_state_change(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
+    cdef void *invitation_void = NULL
+    cdef Invitation invitation
+    cdef pjsip_rx_data *rdata
+    cdef PJSIPUA ua = c_get_ua()
+    if _ua != NULL:
+        ua = <object> _ua
+        invitation_void = inv.mod_data[ua.c_module.id]
+        if invitation_void != NULL:
+            invitation = <object> invitation_void
+            if e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                invitation._cb_rx_data(e.body.tsx_state.src.rdata)
+
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
     cdef void *invitation_void = NULL
     cdef Invitation invitation
@@ -2594,9 +2629,9 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
         if invitation_void != NULL:
             invitation = <object> invitation_void
             if e != NULL:
-                if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and e.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
-                    tsx = e.body.tsx_state.tsx
-            invitation._cb_state(tsx)
+                if e.type == PJSIP_EVENT_RX_MSG:
+                    invitation._cb_rx_data(e.body.rx_msg.rdata)
+            invitation._cb_state()
 
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!
@@ -2684,5 +2719,6 @@ _inv_cb.on_state_changed = cb_Invitation_cb_state
 _inv_cb.on_new_session = cb_new_Invitation
 _inv_cb.on_rx_offer = cb_Invitation_cb_sdp_offer
 _inv_cb.on_media_update = cb_Invitation_cb_sdp_done
+_inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_change
 
 pj_srand(clock())
