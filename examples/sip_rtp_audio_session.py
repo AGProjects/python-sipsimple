@@ -155,7 +155,6 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
             srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
             a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
             route = Route(random.choice(a_answers).address, srv_answers[0].port)
-            print route
         else:
             route = Route(proxy_ip, proxy_port)
         if target_username is None:
