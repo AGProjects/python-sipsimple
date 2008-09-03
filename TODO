@@ -2,7 +2,6 @@
 PJSIP bindings
 --------------
 
-Use local proxy by default when target is in a foreign domain
 Read remote User-Agent header from Invitation class (and other headers in general)
 Add tag to Contact header
 Fix PRACK crash
