@@ -16,6 +16,7 @@ from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from time import sleep
+import dns.resolver
 from application.process import process
 from application.configuration import *
 from pypjua import *
@@ -150,7 +151,11 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
     e.start()
     try:
         if proxy_ip is None:
-            route = None
+            # for now assume 1 SRV record and more than one A record
+            srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
+            a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
+            route = Route(random.choice(a_answers).address, srv_answers[0].port)
+            print route
         else:
             route = Route(proxy_ip, proxy_port)
         if target_username is None:
