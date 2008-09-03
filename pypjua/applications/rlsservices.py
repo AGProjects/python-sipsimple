@@ -64,7 +64,7 @@ __all__ = ['_rl_namespace_',
            'Packages',
            'ResourceList',
            'RLSList',
-           'Servicce',
+           'Service',
            'RLSServices']
 
 
