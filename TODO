@@ -2,6 +2,9 @@
 PJSIP bindings
 --------------
 
+Emit more than one 180
+Handle logging in a beter way
+Split up .pyx file
 Read remote User-Agent header from Invitation class (and other headers in general)
 Add tag to Contact header
 Fix PRACK crash
