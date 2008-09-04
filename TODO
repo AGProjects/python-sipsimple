@@ -6,7 +6,6 @@ Review impact of GIL and threading on RTP jitter
 Emit more than one 180
 Handle logging in a beter way
 Split up .pyx file
-Read remote User-Agent header from Invitation class (and other headers in general)
 Add tag to Contact header
 Fix PRACK crash
 Fix running problems on linux
@@ -17,7 +16,7 @@ Add option to enable per call pjmedia confort noice generator (CNG)
 tcp/tls transports
 message method
 dtmf-tones from pjmedia (RFC 2833)
-30X handling (REFER?)
+REFER handling
 
 
 Applications
