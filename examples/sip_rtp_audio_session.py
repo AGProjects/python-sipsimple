@@ -198,6 +198,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                         if inv is None:
                             if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "audio":
                                 inv = args["obj"]
+                                other_user_agent = args["headers"].get("User-Agent")
                                 if ringer is None:
                                     ringer = RingingThread(True)
                                 print 'Incoming audio session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
@@ -208,12 +209,16 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             print "rejecting."
                             args["obj"].end()
                     elif args["state"] == "ESTABLISHED":
+                        if "headers" in args:
+                            other_user_agent = args["headers"].get("User-Agent")
                         if ringer is not None:
                             ringer.stop()
                             ringer = None
                         audio_stream = args["streams"].pop()
                         e.connect_audio_stream(audio_stream)
                         print 'Media negotiation done, using "%s" codec at %dHz' % audio_stream.info
+                        if other_user_agent is not None:
+                            print 'Remote UA is "%s"' % other_user_agent
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
                             if ringer is not None:
