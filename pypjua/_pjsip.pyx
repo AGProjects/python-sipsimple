@@ -97,6 +97,8 @@ cdef extern from "pjlib.h":
     pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data, void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
 
     # lists
+    struct pj_list:
+        void *next
     struct pj_list_type
     void pj_list_init(pj_list_type *node)
     void pj_list_push_back(pj_list_type *list, pj_list_type *node)
@@ -303,6 +305,7 @@ cdef extern from "pjsip.h":
     struct pjsip_msg:
         pjsip_msg_type_e type
         pjsip_msg_line line
+        pjsip_hdr hdr
         pjsip_msg_body *body
     struct pjsip_buffer:
         char *start
@@ -334,6 +337,7 @@ cdef extern from "pjsip.h":
         pjsip_rx_data_msg_info msg_info
     void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
+    int pjsip_hdr_print_on(void *hdr, char *buf, unsigned int len)
     void pjsip_generic_string_hdr_init2(pjsip_generic_string_hdr *hdr, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
@@ -2329,6 +2333,7 @@ cdef class Invitation:
     cdef readonly object state
     cdef object c_proposed_streams
     cdef object c_current_streams
+    cdef pjsip_rx_data *c_last_rdata
 
     def __cinit__(self, *args, route=None):
         cdef PJSIPUA ua = c_get_ua()
@@ -2350,7 +2355,7 @@ cdef class Invitation:
         cdef pjsip_tx_data *tdata
         cdef pjmedia_sdp_session *c_remote_sdp
         cdef SDPSession remote_sdp
-        cdef object streams = set
+        cdef object streams, headers, body
         cdef unsigned int i
         cdef int status
         try:
@@ -2379,6 +2384,8 @@ cdef class Invitation:
         self.state = "INCOMING"
         self.caller_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.from_hdr.uri)
         self.callee_uri = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
+        self._cb_rx_data(rdata)
+        headers, body = self._get_last_headers_body()
         if self.c_obj.neg != NULL:
             pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &c_remote_sdp)
             remote_sdp = c_make_SDPSession(c_remote_sdp)
@@ -2389,9 +2396,9 @@ cdef class Invitation:
                 except MediaStreamError, e:
                     _event_queue.append(("log", dict(level=5, timestamp=datetime.now(), sender="pypjua", msg="Error parsing incoming SDP: %s" % e.message)))
             self.c_proposed_streams = streams
-            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams.copy())))
+            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=streams.copy(), headers=headers, body=body)))
         else:
-            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
+            _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, headers=headers, body=body)))
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -2420,24 +2427,57 @@ cdef class Invitation:
             else:
                 return self.c_current_streams.copy()
 
+    cdef object _get_last_headers_body(self):
+        cdef pjsip_msg_body *c_body
+        cdef pjsip_hdr *hdr
+        cdef char header_buf[1024]
+        cdef int header_len
+        cdef object full_header
+        cdef dict headers = {}
+        if self.c_last_rdata == NULL:
+            return None, None
+        c_body = self.c_last_rdata.msg_info.msg.body
+        hdr = <pjsip_hdr *> (<pj_list *> &self.c_last_rdata.msg_info.msg.hdr).next
+        while hdr != &self.c_last_rdata.msg_info.msg.hdr:
+            header_len = pjsip_hdr_print_on(hdr, header_buf, 1024)
+            if header_len == -1:
+                header_len = 1024
+            full_header = PyString_FromStringAndSize(header_buf, header_len)
+            try:
+                full_header = full_header.split(": ", 1)
+            except:
+                pass
+            else:
+                headers[full_header[0]] = full_header[1]
+            hdr = <pjsip_hdr *> (<pj_list *> hdr).next
+        if c_body == NULL:
+            body = None
+        else:
+            body = pj_str_to_str(c_body.content_type.type), pj_str_to_str(c_body.content_type.subtype), PyString_FromStringAndSize(<char *> c_body.data, c_body.len)
+        return headers, body
+
     cdef int _cb_rx_data(self, pjsip_rx_data *rdata) except -1:
         global _event_queue
+        cdef object headers, body
+        self.c_last_rdata = rdata
         if rdata.msg_info.msg.type == PJSIP_RESPONSE_MSG:
             if self.state == "CALLING" and rdata.msg_info.msg.line.status.code == 180:
-                _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self)))
+                headers, body = self._get_last_headers_body()
+                _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self, headers=headers, body=body)))
 
     cdef int _cb_state(self) except -1:
         global _event_queue
         cdef object streams
         cdef MediaStream stream
-        cdef object prev_state
+        cdef object prev_state, headers, body
         if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED:
             prev_state = self.state
             self.state = "DISCONNECTED"
             if prev_state == "DISCONNECTING":
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
             else:
-                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=self.c_obj.cause, reason=pj_str_to_str(self.c_obj.cause_text))))
+                headers, body = self._get_last_headers_body()
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=self.c_obj.cause, reason=pj_str_to_str(self.c_obj.cause_text), headers=headers, body=body)))
             streams = set()
             if self.c_proposed_streams is not None:
                 streams.union(self.c_proposed_streams)
@@ -2459,12 +2499,14 @@ cdef class Invitation:
         cdef pjmedia_sdp_session *c_remote_sdp, *c_local_sdp
         cdef SDPSession remote_sdp, local_sdp
         cdef MediaStream stream
+        cdef object prev_state, headers, body
         cdef unsigned int i
         #if self.state in ["CALLING", "PROPOSING"]:
         if self.state in ["CALLING", "INCOMING"]:
             if sdp_status != 0:
                 self.end()
             else:
+                prev_state = self.state
                 self.state = "ESTABLISHED"
                 pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &c_remote_sdp)
                 remote_sdp = c_make_SDPSession(c_remote_sdp)
@@ -2484,7 +2526,11 @@ cdef class Invitation:
                             _event_queue.append(("log", dict(level=5, timestamp=datetime.now(), sender="pypjua", msg="Error processing incoming SDP: %s" % e.message)))
                 self.c_current_streams = self.c_proposed_streams
                 self.c_proposed_streams = None
-                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=self.c_current_streams.copy())))
+                if prev_state == "CALLING":
+                    headers, body = self._get_last_headers_body()
+                    _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=self.c_current_streams.copy(), headers=headers, body=body)))
+                else:
+                    _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, streams=self.c_current_streams.copy())))
 
     def invite(self, streams):
         global _event_queue
