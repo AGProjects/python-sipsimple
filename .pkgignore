@@ -1,0 +1,17 @@
+_darcs
+.#*
+.pkgignore*
+.DS_Store
+*.pyc
+*.pyo
+*~
+*.wpr
+*.wpu
+*.stats
+*.ini
+makedist
+TODO
+BUGS
+build
+pjsip
+*.tar.gz

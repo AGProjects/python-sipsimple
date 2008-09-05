@@ -1,31 +1,43 @@
-Tested on Debian unstable
-For other distributions, use the appropriate package manager.
+Install dependencies
+--------------------
 
-To compile this module on Linux, perform the following steps;
-- Make sure you have a subversion client installed
-  On Debian:
-    apt-get install subversion
-- Make sure you have Cython installed:
-  On Debian:
-    apt-get install cython
-- Make sure you have python-application installed:
-  On Debian:
-    apt-get install python-application
-- Check out PJSIP from SVN in the directory this README is in:
-    svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
-- Go to the PJSIP directory and compile:
-    cd pjsip
-    ./configure
-    make
-  Note that, on some platforms (as seen on amd64) you may need to
-  supply -fPIC flag to compiler, otherwise although the compilation
-  will succeed, later attempt to use the library will not.
-    make HOST_CFLAGS=-fPIC
-- Go to the module directory and build the module:
-  ./build_inplace
+For Debian unstable:
 
-The sip_invite example script also requires the dnspython module.
+apt-get install subversion cython python-application python-dnspython
 
-- Install dnspython python library:
-  On Debian:
-    apt-get install python-dnspython
+For other distributions, use the appropriate package manager and install the
+following packages:
+
+- subversion
+- cython
+- python-application
+- dnspython
+
+
+Compile PJSIP library
+---------------------
+
+Check out PJSIP from SVN in the pypjua main directory:
+
+svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+
+Go to the PJSIP directory and compile:
+
+cd pjsip
+make distclean
+./configure
+make
+
+Note that, on some platforms (as seen on amd64) you may need to supply -fPIC
+flag to compiler, otherwise although the compilation will succeed, later
+attempt to use the library will not.
+
+make HOST_CFLAGS=-fPIC
+
+
+Build pypjua library
+--------------------
+
+Go to the main pypjua directory and build the module:
+./build_inplace
+

@@ -1,37 +1,39 @@
-To compile this module on Mac OS-X, perform the following steps;
+Install dependencies
+--------------------
 
-- Make sure you have Cython installed:
-    sudo easy_install cython
+The software works on MacOSx 10.5 or newer.
 
-- Make sure you have python-application installed:
-    sudo easy_install python-application
+Install fink from http://www.finkproject.org/download
 
-- Check out PJSIP from SVN in the directory this README is in:
-    svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+Install libxml2 and libxslt (you may need to open a new console for the new
+PATH settings to take effect):
 
-- Compile pjsip C library:
-    cd pjsip
-    CFLAGS="-arch i386 -arch ppc" ./configure
-    make
+sudo fink install libxml2 libxslt
 
-- Finally go to the main directory and build pypjua:
-  ./build_inplace
+sudo easy_install lxml
+sudo easy_install cython
+sudo easy_install python-application
+sudo easy_install dnspython
 
-To use the XML application modules (as used by the subscribe example script),
-you will need newer versions of libxml2 and libxslt than are provided by OS-X.
-Currently, the easiest way to install these is through fink.
 
-- Install fink from:
-    http://www.finkproject.org/download
+Compile PJSIP library
+---------------------
 
-- Install libxml2 and libxslt (you may need to open a new console for the new
-  PATH settings to take effect):
-    sudo fink install libxml2 libxslt
+Check out PJSIP from SVN in the pypjua main directory:
 
-- Install the lxml Python module (again, a fresh console may be needed):
-    easy_install lxml
+svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-The sip_invite example script also requires the dnspython module.
+Compile pjsip C library:
 
-- Install the dnspython module using easy_install:
-    easy_install dnspython
+cd pjsip
+make distclean
+CFLAGS="-arch i386 -arch ppc" ./configure
+make
+
+
+Build pypjua library
+--------------------
+
+Go to the main pypjua directory and build the module:
+./build_inplace
+
