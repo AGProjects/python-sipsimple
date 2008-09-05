@@ -9,11 +9,13 @@ Install libxml2 and libxslt (you may need to open a new console for the new
 PATH settings to take effect):
 
 sudo fink install libxml2 libxslt
-
 sudo easy_install lxml
 sudo easy_install cython
 sudo easy_install python-application
 sudo easy_install dnspython
+
+Install xcaplient library from:
+http://download.ag-projects.com/OpenXCAP/clients/
 
 
 Compile PJSIP library
@@ -34,6 +36,16 @@ make
 Build pypjua library
 --------------------
 
-Go to the main pypjua directory and build the module:
+Go to the main pypjua directory and build the library:
+
 ./build_inplace
+
+which generates:
+
+pypjua/_pjsip.c    
+pypjua/_pjsip.so
+
+The _pjsip.so library can then be imported in the target software. See the
+scripts in the examples/ directory for how to use the functionality provided
+by this library.
 

@@ -13,6 +13,9 @@ following packages:
 - python-application
 - dnspython
 
+Install xcaplient library from:
+http://download.ag-projects.com/OpenXCAP/clients/
+
 
 Compile PJSIP library
 ---------------------
@@ -38,6 +41,16 @@ make HOST_CFLAGS=-fPIC
 Build pypjua library
 --------------------
 
-Go to the main pypjua directory and build the module:
+Go to the main pypjua directory and build the library:
+
 ./build_inplace
+
+which generates:
+
+pypjua/_pjsip.c
+pypjua/_pjsip.so 
+
+The _pjsip.so library can then be imported in the target software. See the
+scripts in the examples/ directory for how to use the functionality provided
+by this library.
 
