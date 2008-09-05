@@ -206,7 +206,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                                 print "Not an audio call, rejecting."
                                 args["obj"].end()
                         else:
-                            print "rejecting."
+                            print "Rejecting."
                             args["obj"].end()
                     elif args["state"] == "ESTABLISHED":
                         if "headers" in args:

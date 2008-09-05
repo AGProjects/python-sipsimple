@@ -350,7 +350,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             else:
                                 args["obj"].end()
                         else:
-                            print "rejecting."
+                            print "Rejecting."
                             args["obj"].end()
                     elif args["state"] == "ESTABLISHED":
                         remote_uri_path = args["streams"].pop().remote_info[0]
