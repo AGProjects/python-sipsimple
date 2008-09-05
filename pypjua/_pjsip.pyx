@@ -2637,18 +2637,20 @@ cdef class Invitation:
     def end(self):
         cdef pjsip_tx_data *c_tdata
         cdef PJSIPUA ua = c_get_ua()
+        cdef object c_prev_state = self.state
         if self.state in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
             raise RuntimeError("INVITE session is not active")
         status = pjsip_inv_end_session(self.c_obj, 486, NULL, &c_tdata)
         if status != 0:
             raise RuntimeError("Could not create message to end INVITE session: %s" % pj_status_to_str(status))
+        self.state = "DISCONNECTING"
+        _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
         if c_tdata != NULL:
             pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
             status = pjsip_inv_send_msg(self.c_obj, c_tdata)
             if status != 0:
+                self.state = c_prev_state
                 raise RuntimeError("Could not send message to end INVITE session: %s" % pj_status_to_str(status))
-        self.state = "DISCONNECTING"
-        _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
 
 
 cdef void cb_Invitation_cb_tsx_state_change(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
