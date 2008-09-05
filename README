@@ -27,8 +27,14 @@ This software is licensed according to the GNU General Public License
 version 2. See LICENSE file for more details.
 
 
-Authors
--------
+Installation
+------------
 
-See AUTHORS file.
+See docs/INSTALL.* files
+
+
+Testing the software
+--------------------
+
+See the scripts in the examples directory.
 

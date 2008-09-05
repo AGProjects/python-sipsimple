@@ -15,3 +15,7 @@ BUGS
 build
 pjsip
 *.tar.gz
+config.ini
+pypjua.ini
+_pjsip.c
+_pjsip.so
