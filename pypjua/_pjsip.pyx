@@ -2465,7 +2465,7 @@ cdef class Invitation:
                 headers, body = self._get_last_headers_body()
                 _event_queue.append(("Invitation_ringing", dict(timestamp=datetime.now(), obj=self, headers=headers, body=body)))
 
-    cdef int _cb_state(self) except -1:
+    cdef int _cb_state(self, rx_msg) except -1:
         global _event_queue
         cdef object streams
         cdef MediaStream stream
@@ -2473,11 +2473,11 @@ cdef class Invitation:
         if self.c_obj.state == PJSIP_INV_STATE_DISCONNECTED:
             prev_state = self.state
             self.state = "DISCONNECTED"
-            if prev_state == "DISCONNECTING":
-                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
-            else:
+            if rx_msg and prev_state != "DISCONNECTING":
                 headers, body = self._get_last_headers_body()
                 _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state, code=self.c_obj.cause, reason=pj_str_to_str(self.c_obj.cause_text), headers=headers, body=body)))
+            else:
+                _event_queue.append(("Invitation_state", dict(timestamp=datetime.now(), obj=self, state=self.state)))
             streams = set()
             if self.c_proposed_streams is not None:
                 streams.union(self.c_proposed_streams)
@@ -2670,6 +2670,7 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
     cdef void *invitation_void = NULL
     cdef Invitation invitation
     cdef pjsip_transaction *tsx = NULL
+    cdef object rx_msg = False
     cdef PJSIPUA ua = c_get_ua()
     if _ua != NULL:
         ua = <object> _ua
@@ -2679,7 +2680,10 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
             if e != NULL:
                 if e.type == PJSIP_EVENT_RX_MSG:
                     invitation._cb_rx_data(e.body.rx_msg.rdata)
-            invitation._cb_state()
+                    rx_msg = True
+                elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                    rx_msg = True
+            invitation._cb_state(rx_msg)
 
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!
