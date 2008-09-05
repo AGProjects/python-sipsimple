@@ -3,10 +3,11 @@ PJSIP bindings
 --------------
 
 Review impact of GIL and threading on RTP jitter
+Eliminite the scratchy gap at the begining of audio session
 Emit more than one 180
 Handle logging in a beter way
 Split up .pyx file
-Add tag to Contact header
+Add tag to Contact header for multiple line identification
 Fix PRACK crash
 Fix running problems on linux
 Fix one keystroke y/n for MSRP scripts (and make sure the one in the voice script works well)
@@ -17,6 +18,7 @@ tcp/tls transports
 message method
 dtmf-tones from pjmedia (RFC 2833)
 REFER handling
+Support for real-time text protocol sessions (text over RTP streams RFC 4103)
 
 
 Applications
@@ -24,13 +26,11 @@ Applications
 
 msrp client library
 conference-info payload
-xcap client library
-pres-rules payload
 pidf payload
 is-composing payload
 mwi payload
 bonjour
-lookup module
+lookup module: sip, msrp relay, enum
 xcap-diff payload
 
 
@@ -50,7 +50,7 @@ configuration framework
 integration logic
 logging
 enrollment library
-audio mute other applications on incomming call
+audio mute other OS applications on incomming call
 
 
 User interfaces
