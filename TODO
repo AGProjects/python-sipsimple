@@ -1,4 +1,11 @@
 
+General
+-------
+
+Create a Debian package and a python installer.
+Create MacOSX and MS Windows binaries.
+
+
 PJSIP bindings
 --------------
 
@@ -26,6 +33,7 @@ Applications
 ------------
 
 msrp client library
+buddy list library
 conference-info payload
 pidf payload
 is-composing payload
@@ -34,14 +42,9 @@ xcap-diff payload
 bonjour
 lookup module: sip, msrp relay, enum
 enrollment
-buddy list library
-
-
-Test scripts
-------------
-
-create macosx binaries
-create windows binaries
+video session support
+vnc session support
+whiteboard session support
 
 
 Middleware
@@ -52,12 +55,15 @@ configuration framework
 integration logic
 logging
 audio mute other OS applications on incomming call
+environment detection: ambient light, noise and movement
+aquire geo-location 
+
 
 User interfaces
 ---------------
 
 stand-alone software library
 command line clients
-simple gui for incoming and outgoing sip sessions
-full gui
+MacOSX simplist gui, dock icon with dial action
+full gui for all supported OSs
 

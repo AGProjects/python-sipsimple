@@ -1,4 +1,7 @@
 
+PyPjUA
+------
+
 Copyright (c) 2008 AG Projects
 http://ag-projects.com
 
@@ -6,9 +9,9 @@ http://ag-projects.com
 Description
 -----------
 
-This open-source software library combines PJSIP C stack with an elegant
-middleware that allows for easy development of feature-rich, easy skinable
-SIP clients for desktop computers running MacOSX, Linux and Windows
+PyPjUA is an open-source software library combines PJSIP C SIP stack with an
+elegant middleware that allows for easy development of feature-rich, easy
+skinable SIP clients for desktop computers running MacOSX, Linux and Windows
 operating systems, portable Internet devices like Nokia 810, Apple iPhone or
 Android mobile phones.
 

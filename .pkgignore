@@ -11,7 +11,6 @@ _darcs
 *.ini
 makedist
 TODO
-BUGS
 build
 pjsip
 *.tar.gz
