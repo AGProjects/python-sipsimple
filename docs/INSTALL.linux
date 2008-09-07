@@ -3,17 +3,20 @@ Install dependencies
 
 For Debian unstable:
 
-apt-get install subversion cython python-application python-dnspython
+apt-get install subversion python-dnspython python-setuptools python-lxml \
+cython python-application python-twisted
 
 For other distributions, use the appropriate package manager and install the
-following packages:
+same packages.
 
-- subversion
-- cython
-- python-application
-- dnspython
+Beware that some Linux distributions do not have up to date versions of all
+required packages. To install the latest versions of the python components
+use the easy_install script provided in python-setuptools package. For
+example to install the latest version of dnspython on Linux Ubuntu:
 
-Install xcaplient library from:
+sudo easy_install dnspython
+
+Install the xcaplient library from:
 http://download.ag-projects.com/OpenXCAP/clients/
 
 
@@ -34,6 +37,7 @@ make
 Note that, on some platforms (as seen on amd64) you may need to supply -fPIC
 flag to compiler, otherwise although the compilation will succeed, later
 attempt to use the library will not.
+make distclean
 
 make HOST_CFLAGS=-fPIC
 
@@ -50,7 +54,18 @@ which generates:
 pypjua/_pjsip.c
 pypjua/_pjsip.so 
 
+
+Using the software
+------------------
+
 The _pjsip.so library can then be imported in the target software. See the
 scripts in the examples/ directory for how to use the functionality provided
 by this library.
+
+
+Note
+----
+
+Make sure your username is added to the system 'audio' group otherwise you
+have no access to the sound device.
 
