@@ -5,10 +5,39 @@ sys.path.append(".")
 sys.path.append("..")
 import re
 import traceback
+import os
 from thread import start_new_thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
+from application.configuration import *
+from application.process import process
 from pypjua import *
+
+re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
+class SIPProxyAddress(tuple):
+    def __new__(typ, value):
+        match = re_host_port.search(value)
+        if match is None:
+            raise ValueError("invalid IP address/port: %r" % value)
+        if match.group("port") is None:
+            port = 5060
+        else:
+            port = match.group("port")
+            if port > 65535:
+                raise ValueError("port is out of range: %d" % port)
+        return match.group("host"), port
+
+
+class AccountConfig(ConfigSection):
+    _datatypes = {"username": str, "domain": str, "password": str, "outbound_proxy": SIPProxyAddress}
+    username = None
+    domain = None
+    password = None
+    outbound_proxy = None, None
+
+process._system_config_directory = os.path.expanduser("~")
+configuration = ConfigFile("pypjua.ini")
+configuration.read_settings("Account", AccountConfig)
 
 queue = Queue()
 packet_count = 0
@@ -84,19 +113,17 @@ def parse_proxy(option, opt_str, value, parser):
 def parse_options():
     retval = {}
     description = "This example script will register the provided SIP account and refresh it while the program is running. When CTRL+D is pressed it will unregister."
-    usage = "%prog [options] user@domain.com password"
-    default_options = dict(expires=300, proxy_ip=None, proxy_port=None)
+    usage = "%prog [options]"
+    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
+    parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
+    parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
+    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
-    try:
-        options, (username_domain, retval["password"]) = parser.parse_args()
-        retval["username"], retval["domain"] = username_domain.split("@")
-    except ValueError:
-        parser.print_usage()
-        sys.exit()
+    options, args = parser.parse_args()
     for attr in default_options:
         retval[attr] = getattr(options, attr)
     return retval
