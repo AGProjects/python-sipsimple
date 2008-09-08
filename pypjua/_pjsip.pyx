@@ -757,7 +757,7 @@ cdef class PJMEDIAConferenceBridge:
         cdef int status
         self.c_pjsip_endpoint = pjsip_endpoint.c_obj
         self.c_pjmedia_endpoint = pjmedia_endpoint
-        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, 640, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
+        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
         self.c_connected_slots = set([0])
@@ -783,7 +783,7 @@ cdef class PJMEDIAConferenceBridge:
         self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError("Could not allocate memory pool")
-        status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, 640, 16, 0, &self.c_snd)
+        status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_snd)
         if status != 0:
             raise RuntimeError("Could not create sound device: %s" % pj_status_to_str(status))
         status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
