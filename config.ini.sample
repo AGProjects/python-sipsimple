@@ -65,13 +65,6 @@ rtp_trace=false
 ; if audio is enabled the echo cancelation uses CPU cycles
 rtp_port_range=8000 8100
 audio=false
-audio_echo_cancelation=true
-audio_recording=false
-audio_echo_cancelation_tail=50ms
-audio_sample_rate=32
-audio_ringtone_outbound=ring_outbound.wav
-audio_ringtone_inbound=ring_outbound.wav
-audio_comfort_noise_generator=true
 video=false
 
 ; history storage
@@ -93,6 +86,20 @@ xcap_trace_file=%c/trace/%u@%d-xcap.txt
 msrp_trace_file=%c/trace/%u@%d-msrp.txt
 rtp_trace_file=%c/trace/%u@%d-rtp.txt
 sip_trace_file=%c/trace/%u@%d-sip.txt
+
+[audio]
+sample_rate=32
+echo_cancellation_tail_length=200
+recording_device=
+playback_device=
+comfort_noise=true
+; audio codec list
+audio_codec_list=speex, g711, ilbc, gsm, g722
+
+[video]
+; video codec list
+video_codec_list=h264
+
 
 [account_options]
 ; default account options, can be overwritten per account
@@ -163,14 +170,9 @@ sip_register_period=600
 sip_subscribe_period=600
 sip_publish_period=600
 
-; audio codec list
-audio_codec_list=speex, g711, ilbc, gsm, g722
-
-; video codec list
-video_codec_list=h264
-
 
 [account1]
+display_name=
 username=
 domain=
 password=
