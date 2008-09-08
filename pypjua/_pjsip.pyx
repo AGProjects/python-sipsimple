@@ -13,8 +13,6 @@ cdef extern from "time.h":
 cdef extern from "sys/errno.h":
     enum:
         EADDRINUSE
-    enum:
-        EBADF
 
 # PJSIP imports
 
@@ -364,7 +362,6 @@ cdef extern from "pjsip.h":
     int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv)
     pj_pool_t *pjsip_endpt_create_pool(pjsip_endpoint *endpt, char *pool_name, int initial, int increment)
     void pjsip_endpt_release_pool(pjsip_endpoint *endpt, pj_pool_t *pool)
-    pj_ioqueue_t *pjsip_endpt_get_ioqueue(pjsip_endpoint *endpt)
     int pjsip_endpt_handle_events(pjsip_endpoint *endpt, pj_time_val *max_timeout) nogil
     int pjsip_endpt_register_module(pjsip_endpoint *endpt, pjsip_module *module)
     int pjsip_endpt_schedule_timer(pjsip_endpoint *endpt, pj_timer_entry *entry, pj_time_val *delay)
@@ -683,9 +680,9 @@ cdef class PJMEDIAEndpoint:
     cdef list c_codecs
     cdef unsigned int c_sample_rate
 
-    def __cinit__(self, PJCachingPool caching_pool, PJSIPEndpoint pjsip_endpoint, unsigned int sample_rate):
+    def __cinit__(self, PJCachingPool caching_pool, unsigned int sample_rate):
         cdef int status
-        status = pjmedia_endpt_create(&caching_pool.c_obj.factory, pjsip_endpt_get_ioqueue(pjsip_endpoint.c_obj), 0, &self.c_obj)
+        status = pjmedia_endpt_create(&caching_pool.c_obj.factory, NULL, 1, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create PJMEDIA endpoint: %s" % pj_status_to_str(status))
         self.c_sample_rate = sample_rate
@@ -1002,7 +999,7 @@ cdef class PJSIPUA:
             status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "log_lock", &_log_lock)
             if status != 0:
                 raise RuntimeError("Could not initialize logging mutex: %s" % pj_status_to_str(status))
-            self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, self.c_pjsip_endpoint, kwargs["sample_rate"])
+            self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
             self.codecs = kwargs["initial_codecs"]
             self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint)
             if kwargs["auto_sound"]:
@@ -1157,7 +1154,7 @@ cdef class PJSIPUA:
         c_max_timeout.msec = 100
         with nogil:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &c_max_timeout)
-        if status not in [0, PJ_ERRNO_START_SYS + EBADF]:
+        if status != 0:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
 
