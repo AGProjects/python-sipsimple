@@ -94,7 +94,7 @@ recording_device=
 playback_device=
 comfort_noise=true
 ; audio codec list
-audio_codec_list=speex, g711, ilbc, gsm, g722
+codec_list=speex,g711,ilbc,gsm,g722
 
 [video]
 ; video codec list
