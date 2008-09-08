@@ -10,6 +10,7 @@ import random
 import socket
 import os
 import atexit
+import select
 import termios
 from thread import start_new_thread
 from threading import Thread
@@ -56,32 +57,24 @@ old = None
 def termios_restore():
     global old
     if old is not None:
-        termios.tcsetattr(sys.stdin.fileno(), termios.TCSAFLUSH, old)
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
 
-# copied from http://snippets.dzone.com/posts/show/3084
 def getchar():
     global old
     fd = sys.stdin.fileno()
-
     if os.isatty(fd):
-
         old = termios.tcgetattr(fd)
         new = termios.tcgetattr(fd)
         new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
-        new[6] [termios.VMIN] = 1
-        new[6] [termios.VTIME] = 0
-
+        new[6][termios.VMIN] = '\000'
         try:
-            termios.tcsetattr(fd, termios.TCSANOW, new)
-            termios.tcsendbreak(fd,0)
-            ch = os.read(fd,7)
-
+            termios.tcsetattr(fd, termios.TCSADRAIN, new)
+            if select.select([fd], [], [], None)[0]:
+                return sys.stdin.read(10)
         finally:
             termios_restore()
     else:
-        ch = os.read(fd,7)
-
-    return(ch)
+        return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue

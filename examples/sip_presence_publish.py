@@ -4,6 +4,8 @@ import sys
 sys.path.append(".")
 sys.path.append("..")
 import os
+import atexit
+import select
 import termios
 import re
 import traceback
@@ -13,29 +15,31 @@ from threading import Event
 from optparse import OptionParser, OptionValueError
 from pypjua import *
 
-# copied from http://snippets.dzone.com/posts/show/3084
+old = None
+
+def termios_restore():
+    global old
+    if old is not None:
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
+
+atexit.register(termios_restore)
+
 def getchar():
+    global old
     fd = sys.stdin.fileno()
-
     if os.isatty(fd):
-
         old = termios.tcgetattr(fd)
         new = termios.tcgetattr(fd)
         new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
-        new[6] [termios.VMIN] = 1
-        new[6] [termios.VTIME] = 0
-
+        new[6][termios.VMIN] = '\000'
         try:
-            termios.tcsetattr(fd, termios.TCSANOW, new)
-            termios.tcsendbreak(fd,0)
-            ch = os.read(fd,7)
-
+            termios.tcsetattr(fd, termios.TCSADRAIN, new)
+            if select.select([fd], [], [], None)[0]:
+                return sys.stdin.read(10)
         finally:
-            termios.tcsetattr(fd, termios.TCSAFLUSH, old)
+            termios_restore()
     else:
-        ch = os.read(fd,7)
-
-    return(ch)
+        return os.read(fd, 10)
 
 def generate_presence_xml(username, domain, activity, note):
     is_idle = ""
