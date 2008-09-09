@@ -9,21 +9,22 @@ Create MacOSX and MS Windows binaries.
 PJSIP bindings
 --------------
 
+Fix PRACK crash
+MESSAGE method
+Support Re-invites
+Support non-sdp offer in INVITE (for resource lists used for conference)
 Emit more than one 180
 Split up .pyx file
 Add tag to Contact header for multiple line identification
-Fix PRACK crash
 Fix one keystroke y/n for MSRP scripts (and make sure the one in the voice script works well)
 Fix remainig TODOs for PUBLISH/REGISTER
-Support Re-invites
 Add option to enable per call pjmedia confort noice generator (CNG)
 TCP/TLS transport
-MESSAGE method
-DTMF-tones handling
-REFER handling
+DTMF-tones
+REFER method
+Support for real-time text protocol sessions (text over RTP streams RFC 4103)
 sRTP handling (requires TLS transport)
 zRTP handling
-Support for real-time text protocol sessions (text over RTP streams RFC 4103)
 
 
 Applications
