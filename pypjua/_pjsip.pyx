@@ -2367,7 +2367,7 @@ cdef class Invitation:
                 try:
                     streams.add(MediaStream(remote_sdp, i))
                 except MediaStreamError, e:
-                    c_add_event("log", dict(level=5, sender="pypjua", msg="Error parsing incoming SDP: %s" % e.message))
+                    c_add_event("log", dict(level=3, sender="pypjua", message="Error parsing incoming SDP: %s" % e.message))
             self.c_proposed_streams = streams
             c_add_event("Invitation_state", dict(obj=self, state=self.state, streams=streams.copy(), headers=headers, body=body))
         else:
@@ -2486,14 +2486,14 @@ cdef class Invitation:
                     if stream.c_sdp_index >= remote_sdp.c_obj.media_count or c_remote_sdp.media[stream.c_sdp_index].desc.port == 0:
                         stream._end()
                         self.c_proposed_streams.remove(stream)
-                        c_add_event("log", dict(level=5, sender="pypjua", msg="A media stream was rejected"))
+                        c_add_event("log", dict(level=3, sender="pypjua", message="A media stream was rejected"))
                     else:
                         try:
                             stream._sdp_done(remote_sdp, local_sdp)
                         except MediaStreamError, e:
                             stream._end()
                             self.c_proposed_streams.remove(stream)
-                            c_add_event("log", dict(level=5, sender="pypjua", msg="Error processing incoming SDP: %s" % e.message))
+                            c_add_event("log", dict(level=3, sender="pypjua", message="Error processing incoming SDP: %s" % e.message))
                 self.c_current_streams = self.c_proposed_streams
                 self.c_proposed_streams = None
                 if prev_state == "CALLING":
