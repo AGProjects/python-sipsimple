@@ -71,10 +71,10 @@ def user_input():
             queue.put("unregister")
             break
 
-def do_register(username, domain, password, proxy_ip, proxy_port, expires):
+def do_register(username, domain, password, proxy_ip, proxy_port, expires, do_siptrace):
     if proxy_port is not None:
         proxy_port = int(proxy_port)
-    e = Engine(event_handler, do_siptrace=True, auto_sound=False)
+    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
     e.start()
     try:
         if proxy_ip is None:
@@ -114,7 +114,7 @@ def parse_options():
     retval = {}
     description = "This example script will register the provided SIP account and refresh it while the program is running. When CTRL+D is pressed it will unregister."
     usage = "%prog [options]"
-    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain)
+    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, do_siptrace=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -123,6 +123,7 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     options, args = parser.parse_args()
     for attr in default_options:
         retval[attr] = getattr(options, attr)
