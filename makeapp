@@ -1,0 +1,7 @@
+#!/bin/sh
+
+rm -rf build dist
+python makeapp.py py2app
+mkdir dist/sip_rtp_audio_session.app/Contents/Resources/Python
+(cd dist/sip_rtp_audio_session.app/Contents/Resources/Python && ln -sf ../lib/python2.5 site-packages)
+(cd dist && zip -r -y sip_rtp_audio_session.zip sip_rtp_audio_session.app)
