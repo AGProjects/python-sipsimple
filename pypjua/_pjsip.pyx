@@ -7,9 +7,6 @@ cdef extern from "stdlib.h":
 cdef extern from "string.h":
     void *memcpy(void *s1, void *s2, int n)
 
-cdef extern from "time.h":
-    unsigned int clock()
-
 cdef extern from "sys/errno.h":
     enum:
         EADDRINUSE
@@ -2791,4 +2788,4 @@ _inv_cb.on_rx_offer = cb_Invitation_cb_sdp_offer
 _inv_cb.on_media_update = cb_Invitation_cb_sdp_done
 _inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_change
 
-pj_srand(clock())
+pj_srand(random.getrandbits(32)) # rely on python seed for now
