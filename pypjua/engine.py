@@ -83,7 +83,7 @@ class Engine(object):
 
     def _handle_event(self, event_name, **kwargs):
         if event_name == "log":
-            print "%(timestamp)s (%(level)d) %(sender)14s: %(msg)s" % kwargs
+            print "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs
         else:
             print 'Received event "%s": %s' % (event_name, kwargs)
 
