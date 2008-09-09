@@ -49,7 +49,7 @@ class AudioConfig(ConfigSection):
     _datatypes = {"sample_rate": int, "echo_cancellation_tail_length": int,"codec_list": datatypes.StringList}
     sample_rate = 32
     echo_cancellation_tail_length = 50
-    codec_list = ["speex", "g711"]
+    codec_list = ["speex", "g711", "ilbc", "gsm", "g722"]
 
 
 process._system_config_directory = os.path.expanduser("~")
@@ -301,7 +301,7 @@ def parse_options():
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 50 ms.')
     parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
-    parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711".')
+    parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     options, args = parser.parse_args()
     if args:
         try:
