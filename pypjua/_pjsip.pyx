@@ -203,6 +203,8 @@ cdef extern from "pjmedia.h":
 
     # sdp negotiation
 
+    enum:
+        PJMEDIA_SDPNEG_NOANSCODEC
     struct pjmedia_sdp_neg
     #int pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg)
     #char *pjmedia_sdp_neg_state_str(int state)
@@ -2474,7 +2476,8 @@ cdef class Invitation:
         #if self.state in ["CALLING", "PROPOSING"]:
         if self.state in ["CALLING", "INCOMING"]:
             if sdp_status != 0:
-                self.end()
+                c_add_event("log", dict(level=3, sender="pypjua", message="SDP negotiation failed: %s" % pj_status_to_str(sdp_status)))
+                self.end(488)
             else:
                 prev_state = self.state
                 self.state = "ESTABLISHED"
@@ -2590,7 +2593,9 @@ cdef class Invitation:
                     c_sdp_streams.append(c_stream._get_local_sdp())
                 local_sdp = SDPSession(c_host, connection=SDPConnection(c_host), media=c_sdp_streams)
             status = pjsip_inv_answer(self.c_obj, 200, NULL, &local_sdp.c_obj, &c_tdata)
-            if status != 0:
+            if status == PJMEDIA_SDPNEG_NOANSCODEC:
+                return
+            elif status != 0:
                 raise RuntimeError("Could not create 200 answer to accept INVITE session: %s" % pj_status_to_str(status))
             pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
             status = pjsip_inv_send_msg(self.c_obj, c_tdata)
@@ -2602,13 +2607,13 @@ cdef class Invitation:
             #raise RuntimeError('"accept" method can only be used in "INCOMING" and "PROPOSED" states')
             raise RuntimeError('"accept" method can only be used in "INCOMING" state')
 
-    def end(self):
+    def end(self, int reply_code=486):
         cdef pjsip_tx_data *c_tdata
         cdef PJSIPUA ua = c_get_ua()
         cdef object c_prev_state = self.state
         if self.state in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
             raise RuntimeError("INVITE session is not active")
-        status = pjsip_inv_end_session(self.c_obj, 486, NULL, &c_tdata)
+        status = pjsip_inv_end_session(self.c_obj, reply_code, NULL, &c_tdata)
         if status != 0:
             raise RuntimeError("Could not create message to end INVITE session: %s" % pj_status_to_str(status))
         self.state = "DISCONNECTING"
