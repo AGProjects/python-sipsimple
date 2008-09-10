@@ -370,6 +370,7 @@ cdef extern from "pjsip.h":
         PJSIP_H_ALLOW
         PJSIP_H_SUPPORTED
     pjsip_hdr *pjsip_endpt_get_capability(pjsip_endpoint *endpt, int htype, pj_str_t *hname)
+    int pjsip_endpt_add_capability(pjsip_endpoint *endpt, pjsip_module *mod, int htype, pj_str_t *hname, unsigned count, pj_str_t *tags)
     int pjsip_endpt_create_response(pjsip_endpoint *endpt, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
     int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata, pjsip_tx_data *tdata, void *token, void *cb)
 
@@ -984,6 +985,7 @@ cdef class PJSIPUA:
     def __init__(self, event_handler, *args, **kwargs):
         global _event_queue_lock
         cdef int status
+        cdef PJSTR c_message_method = PJSTR("MESSAGE")
         if kwargs["sample_rate"] not in [8, 16, 32]:
             raise RuntimeError("Sample rate should be one of 8, 16 or 32kHz")
         self.c_event_handler = event_handler
@@ -1010,6 +1012,9 @@ cdef class PJSIPUA:
             status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
             if status != 0:
                 raise RuntimeError("Could not load application module: %s" % pj_status_to_str(status))
+            status = pjsip_endpt_add_capability(self.c_pjsip_endpoint.c_obj, &self.c_module, PJSIP_H_ALLOW, NULL, 1, &c_message_method.pj_str)
+            if status != 0:
+                raise RuntimeError("Could not add MESSAGE method to supported methods: %s" % pj_status_to_str(status))
             self.c_do_siptrace = bool(kwargs["do_siptrace"])
             self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
             self.c_trace_module.name = self.c_trace_module_name.pj_str
@@ -1151,6 +1156,7 @@ cdef class PJSIPUA:
         cdef pjsip_tx_data *tdata
         cdef pjsip_hdr *hdr_add
         cdef Invitation inv
+        cdef dict message_params
         cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
         cdef object method_name = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
         if method_name == "OPTIONS":
@@ -1166,6 +1172,17 @@ cdef class PJSIPUA:
             if status == 0:
                 inv = Invitation()
                 inv._init_incoming(self, rdata)
+        elif method_name == "MESSAGE":
+            message_params = dict()
+            message_params["to_uri"] = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
+            message_params["from_uri"] = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.from_hdr.uri)
+            message_params["content_type"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
+            message_params["content_subtype"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
+            message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data, rdata.msg_info.msg.body.len)
+            c_add_event("message", message_params)
+            status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
+            if status != 0:
+                raise RuntimeError("Could not create response: %s" % pj_status_to_str(status))
         elif method_name != "ACK":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 405, NULL, &tdata)
             if status != 0:
