@@ -504,6 +504,8 @@ cdef extern from "pjsip_ua.h":
     int pjsip_100rel_init_module(pjsip_endpoint *endpt)
 
     # invite sessions
+    enum:
+        PJSIP_INV_SUPPORT_100REL
     enum pjsip_inv_state:
         PJSIP_INV_STATE_EARLY
         PJSIP_INV_STATE_DISCONNECTED
@@ -1149,7 +1151,7 @@ cdef class PJSIPUA:
         cdef pjsip_tx_data *tdata
         cdef pjsip_hdr *hdr_add
         cdef Invitation inv
-        cdef unsigned int zero = 0
+        cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
         cdef object method_name = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
         if method_name == "OPTIONS":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
@@ -1160,7 +1162,7 @@ cdef class PJSIPUA:
                 if hdr_add != NULL:
                     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, hdr_add))
         elif method_name == "INVITE":
-            status = pjsip_inv_verify_request(rdata, &zero, NULL, NULL, self.c_pjsip_endpoint.c_obj, &tdata)
+            status = pjsip_inv_verify_request(rdata, &options, NULL, NULL, self.c_pjsip_endpoint.c_obj, &tdata)
             if status == 0:
                 inv = Invitation()
                 inv._init_incoming(self, rdata)
