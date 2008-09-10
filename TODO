@@ -26,6 +26,7 @@ REFER method
 Support for real-time text protocol sessions (text over RTP streams RFC 4103)
 sRTP handling (requires TLS transport)
 zRTP handling
+Add dummy soundcard setting to simulate voip calls without turning on the audio card
 
 
 Applications
