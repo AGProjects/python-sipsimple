@@ -12,21 +12,21 @@ Description
 -----------
 
 PyPjUA is Python software library for PJSIP C SIP stack that together with
-an elegant middleware allows for easy development of real-time
+an elegant middleware allows for easy development of real-time Internet
 communications end-points based on SIP protocol with rich presence and IM
-capability that run on desktop computers running Mac OS X, Linux and Windows
-operating systems, portable devices like Nokia Internet tablet, Apple iPhone
-or Android mobile phone.
+capability for computers running Mac OS X, Linux and Windows operating
+systems or portable devices like Nokia Internet tablet, Apple iPhone and
+Android mobile phone.
 
 The goal of this project is to deliver the best Open Source development kit
-for rich featured SIP User Agents while hiding the complex underlying
+for rich featured SIP User Agents, while hiding the complex underlying
 functionality behind an easy to use high-level application programming
-interface. Compared to other available SIP libraries, this project adds both
-to the client and to the corresponding open-source servers multiple media
-streams support, 'the missing' SIP-SIMPLE features for rich presence
+interface. Compared to other available SIP libraries, this project adds,
+both to the client and to the corresponding open-source servers, multiple
+media streams support, 'the missing' SIP-SIMPLE features for rich presence
 (presence rules, resource lists, rls services, rich PIDF, XCAP full and
-partial document manipulation) and session based interactive messaging based
-on MSRP protocol including relay support.
+partial document manipulation) and session based interactive messaging using
+MSRP protocol.
 
 The software library is tested against the most popular SIP server software
 available today: OpenSER, OpenXCAP, MSRPRelay and MediaProxy.
@@ -35,10 +35,10 @@ available today: OpenSER, OpenXCAP, MSRPRelay and MediaProxy.
 End-user experiences
 --------------------
 
-Using this software you are able to create elegant real-time communications
-applications without having to read or understand the +1200 RFC documents
-behind it. If you read them all some antidepressant and desintoxication is
-recommended after this effort.
+This software allows you to create elegant real-time communications
+applications without having to read the +1200 RFC documents behind it. If
+you read them all, some antidepressant and desintoxication is recommended
+after this effort.
 
 As a library with a high-level API, the toolkit can also be used to add SIP
 and Presence functionality to network devices without a display (like TV
@@ -70,11 +70,8 @@ used to:
 - Setup up ad-hoc multi-party chat sessions with an MSRP chat server (under
   construction)
 
-Using these scripts is easy to test and prototype rich Presence, IM and VoIP
-services based on the SIP protocol. To use these scripts you can use your
-own SIP infrastructure or register a free SIP SIMPLE account on:
-
-http://SIP2SIP.info
+For testing, you can use your own infrastructure or register a free SIP
+SIMPLE account on http://SIP2SIP.info
 
 
 License
