@@ -2,6 +2,8 @@
 PyPjUA
 ------
 
+http://pypjua.com
+
 Copyright (c) 2008 AG Projects
 http://ag-projects.com
 
@@ -56,7 +58,8 @@ Testing the library
 -------------------
 
 Besides the Python software library itself, the repository contains the
-ready to use command-line examples scripts that can be used to:
+ready to use command-line examples scripts for Linux and MacOSX that can be
+used to:
 
 - Setup IM or file-transfer sessions with or without support from a MSRP relay
 - Setup up VoIP sessions with wide-band speex codec
