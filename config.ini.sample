@@ -23,7 +23,7 @@
 ; %m = current month
 ; %d = current day
 
-[general]
+[General]
 ; MacOSX & Linux: ~/.pypjua/config.ini
 ; Windows: ~/My Documents/Pypjua/config.ini
 config_directory=~/.pypjua/
@@ -87,6 +87,7 @@ msrp_trace_file=%c/trace/%u@%d-msrp.txt
 rtp_trace_file=%c/trace/%u@%d-rtp.txt
 sip_trace_file=%c/trace/%u@%d-sip.txt
 
+
 [Audio]
 sample_rate=32
 echo_cancellation_tail_length=200
@@ -96,13 +97,16 @@ comfort_noise=true
 ; audio codec list
 codec_list=speex,g711,ilbc,gsm,g722
 
+
 [Video]
 ; video codec list
 video_codec_list=h264
 
 
-[account_options]
-; default account options, can be overwritten per account
+[Account]
+username=
+domain=
+password=
 
 ; Display name in From header
 display_name=
@@ -165,16 +169,7 @@ rtp_zrtp=never|always|prefer
 ; SIP transport can be udp, tcp, tls, detected from the DNS NAPTR record
 sip_transport=auto
 
-; refresh periods for various calls flows
+; refresh periods
 sip_register_period=600
 sip_subscribe_period=600
 sip_publish_period=600
-
-
-[account1]
-display_name=
-username=
-domain=
-password=
-sip_outbound_proxy=
-
