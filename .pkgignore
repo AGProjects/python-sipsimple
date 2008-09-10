@@ -18,3 +18,4 @@ config.ini
 pypjua.ini
 _pjsip.c
 _pjsip.so
+dist
