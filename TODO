@@ -9,7 +9,6 @@ Create MacOSX and MS Windows binaries.
 PJSIP bindings
 --------------
 
-Fix PRACK crash
 MESSAGE method
 Support Re-invites
 Support non-sdp offer in INVITE (for resource lists used for conference)
