@@ -1171,6 +1171,7 @@ cdef class PJSIPUA:
             if status != 0:
                 raise RuntimeError("Could not create response: %s" % pj_status_to_str(status))
         if tdata != NULL:
+            pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &self.c_user_agent_hdr.c_obj))
             status = pjsip_endpt_send_response2(self.c_pjsip_endpoint.c_obj, rdata, tdata, NULL, NULL)
             if status != 0:
                 raise RuntimeError("Could not send response: %s" % pj_status_to_str(status))
