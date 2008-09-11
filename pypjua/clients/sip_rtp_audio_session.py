@@ -46,10 +46,11 @@ class AccountConfig(ConfigSection):
 
 
 class AudioConfig(ConfigSection):
-    _datatypes = {"sample_rate": int, "echo_cancellation_tail_length": int,"codec_list": datatypes.StringList}
+    _datatypes = {"sample_rate": int, "echo_cancellation_tail_length": int,"codec_list": datatypes.StringList, "disable_sound": datatypes.Boolean}
     sample_rate = 32
     echo_cancellation_tail_length = 50
     codec_list = ["speex", "g711", "ilbc", "gsm", "g722"]
+    disable_sound = False
 
 
 process._system_config_directory = os.path.expanduser("~")
@@ -142,13 +143,13 @@ class RingingThread(Thread):
             sleep(5)
 
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs):
+def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs, disable_sound):
     inv = None
     ringer = None
     printed = False
     want_quit = target_username is not None
     atexit.register(termios_restore)
-    e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=codecs, ec_tail_length=ec_tail_length, sample_rate=sample_rate)
+    e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=codecs, ec_tail_length=ec_tail_length, sample_rate=sample_rate, auto_sound=not disable_sound)
     e.start()
     try:
         if proxy_ip is None:
@@ -290,7 +291,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming audio call, or attempt to make an outgoing audio call to the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -302,6 +303,7 @@ def parse_options():
     parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 50 ms.')
     parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
+    parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (disabled by default).")
     options, args = parser.parse_args()
     if args:
         try:
