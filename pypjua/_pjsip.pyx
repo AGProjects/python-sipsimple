@@ -870,6 +870,14 @@ cdef class SIPURI:
         else:
             return "<%s>" % retval
 
+    def __hash__(self):
+        cdef object hash_str = self.host
+        if self.user is not None:
+            hash_str += self.user
+        if self.port is not None:
+            hash_str += str(self.port)
+        return hash(hash_str)
+
     def __richcmp__(self, other, op):
         cdef int eq = 1
         for attr in ["host", "user", "port"]:
