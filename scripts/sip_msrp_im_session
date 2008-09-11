@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import os
-me = os.path.basename(__file__)
-m = __import__('pypjua.clients.' + me, fromlist=['main'])
-m.main()
+import sys; sys.path = ['..'] + sys.path
+import pypjua.clients.runclient
 
