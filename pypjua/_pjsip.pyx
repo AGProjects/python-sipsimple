@@ -286,7 +286,10 @@ cdef extern from "pjsip.h":
         pjsip_media_type content_type
         void *data
         unsigned int len
+    enum pjsip_method_e:
+        PJSIP_OTHER_METHOD
     struct pjsip_method:
+        pjsip_method_e id
         pj_str_t name
     struct pjsip_request_line:
         pjsip_method method
@@ -317,6 +320,7 @@ cdef extern from "pjsip.h":
         pjsip_buffer buf
         pjsip_tx_data_tp_info tp_info
     struct pjsip_rx_data_tp_info:
+        pj_pool_t *pool
         pjsip_transport *transport
     struct pjsip_rx_data_pkt_info:
         pj_time_val timestamp
@@ -339,6 +343,8 @@ cdef extern from "pjsip.h":
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
+    int pjsip_msg_print(pjsip_msg *msg, char *buf, unsigned int size)
+    int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata)
 
     # module
     enum pjsip_module_priority:
@@ -373,6 +379,7 @@ cdef extern from "pjsip.h":
     int pjsip_endpt_add_capability(pjsip_endpoint *endpt, pjsip_module *mod, int htype, pj_str_t *hname, unsigned count, pj_str_t *tags)
     int pjsip_endpt_create_response(pjsip_endpoint *endpt, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
     int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata, pjsip_tx_data *tdata, void *token, void *cb)
+    int pjsip_endpt_create_request(pjsip_endpoint *endpt, pjsip_method *method, pj_str_t *target, pj_str_t *frm, pj_str_t *to, pj_str_t *contact, pj_str_t *call_id, int cseq, pj_str_t *text, pjsip_tx_data **p_tdata)
 
     # transports
     struct pjsip_host_port:
@@ -390,6 +397,7 @@ cdef extern from "pjsip.h":
         int status_code
         pj_str_t status_text
         pjsip_role_e role
+        pjsip_tx_data *last_tx
     int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
 
     # event
@@ -412,8 +420,11 @@ cdef extern from "pjsip.h":
     struct pjsip_event:
         pjsip_event_id_e type
         pjsip_event_body body
+    int pjsip_endpt_send_request(pjsip_endpoint *endpt, pjsip_tx_data *tdata, int timeout, void *token, void cb(void *token, pjsip_event *e) with gil)
 
     # auth
+    enum:
+        PJSIP_EFAILEDCREDENTIAL
     enum pjsip_cred_data_type:
         PJSIP_CRED_DATA_PLAIN_PASSWD
     struct pjsip_cred_info:
@@ -424,7 +435,9 @@ cdef extern from "pjsip.h":
         pj_str_t data
     struct pjsip_auth_clt_sess:
         pass
+    int pjsip_auth_clt_init(pjsip_auth_clt_sess *sess, pjsip_endpoint *endpt, pj_pool_t *pool, unsigned int options)
     int pjsip_auth_clt_set_credentials(pjsip_auth_clt_sess *sess, int cred_cnt, pjsip_cred_info *c)
+    int pjsip_auth_clt_reinit_req(pjsip_auth_clt_sess *sess, pjsip_rx_data *rdata, pjsip_tx_data *old_request, pjsip_tx_data **new_request)
 
     # dialog layer
     ctypedef pjsip_module pjsip_user_agent
@@ -995,6 +1008,7 @@ cdef class PJSIPUA:
     cdef list c_events
     cdef PJSTR c_contact_url
     cdef list c_wav_files
+    cdef object c_sent_messages
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -1003,6 +1017,7 @@ cdef class PJSIPUA:
         _ua = <void *> self
         self.c_events = []
         self.c_wav_files = []
+        self.c_sent_messages = set()
 
     def __init__(self, event_handler, *args, **kwargs):
         global _event_queue_lock
@@ -1344,6 +1359,97 @@ cdef class Route:
     def __repr__(self):
         return '<Route to "%s:%d">' % (self.c_host.str, self.port)
 
+def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route = None):
+    cdef pjsip_tx_data *tdata
+    cdef int status
+    cdef PJSTR message_method_name = PJSTR("MESSAGE")
+    cdef pjsip_method message_method
+    cdef PJSTR to_uri_to, to_uri_req, content_type_pj, content_subtype_pj, body_pj
+    cdef tuple saved_data
+    cdef char test_buf[1300]
+    cdef int size
+    cdef PJSIPUA ua = c_get_ua()
+    if credentials is None:
+        raise RuntimeError("credentials parameter cannot be None")
+    if to_uri is None:
+        raise RuntimeError("to_uri parameter cannot be None")
+    to_uri_to = PJSTR(to_uri.as_str(False))
+    if to_uri in ua.c_sent_messages:
+        raise RuntimeError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
+    to_uri_req = PJSTR(to_uri.as_str(True))
+    message_method.id = PJSIP_OTHER_METHOD
+    message_method.name = message_method_name.pj_str
+    status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &credentials.c_aor_url.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
+    if status != 0:
+        raise RuntimeError("Could not create MESSAGE request: %s" % pj_status_to_str(status))
+    pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
+    if route is not None:
+        pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
+    content_type_pj = PJSTR(content_type)
+    content_subtype_pj = PJSTR(content_subtype)
+    body_pj = PJSTR(body)
+    tdata.msg.body = pjsip_msg_body_create(tdata.pool, &content_type_pj.pj_str, &content_subtype_pj.pj_str, &body_pj.pj_str)
+    if tdata.msg.body == NULL:
+        pjsip_tx_data_dec_ref(tdata)
+        raise MemoryError()
+    size = pjsip_msg_print(tdata.msg, test_buf, 1300)
+    if size == -1:
+        pjsip_tx_data_dec_ref(tdata)
+        raise RuntimeError("MESSAGE request exceeds 1300 bytes")
+    saved_data = credentials, to_uri
+    status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
+    if status != 0:
+        pjsip_tx_data_dec_ref(tdata)
+        raise RuntimeError("Could not send MESSAGE request: %s" % pj_status_to_str(status))
+    Py_INCREF(saved_data)
+    ua.c_sent_messages.add(to_uri)
+
+cdef void cb_send_message(void *token, pjsip_event *e) with gil:
+    cdef Credentials credentials
+    cdef SIPURI to_uri
+    cdef tuple saved_data = <object> token
+    cdef pjsip_transaction *tsx
+    cdef pjsip_rx_data *rdata
+    cdef pjsip_tx_data *tdata
+    cdef pjsip_auth_clt_sess auth
+    cdef object exc
+    cdef int final = 1
+    cdef int status
+    cdef PJSIPUA ua = c_get_ua()
+    credentials, to_uri = saved_data
+    if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+        tsx = e.body.tsx_state.tsx
+        rdata = e.body.tsx_state.src.rdata
+        if tsx.status_code < 200:
+            return
+        elif tsx.status_code in [401, 407]:
+            final = 0
+            try:
+                status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint.c_obj, rdata.tp_info.pool, 0)
+                if status != 0:
+                    raise RuntimeError("Could not init auth: %s" % pj_status_to_str(status))
+                status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials.c_cred)
+                if status != 0:
+                    raise RuntimeError("Could not set auth credentials: %s" % pj_status_to_str(status))
+                status = pjsip_auth_clt_reinit_req(&auth, rdata, tsx.last_tx, &tdata)
+                if status != 0:
+                    if status == PJSIP_EFAILEDCREDENTIAL:
+                        final = 1
+                    else:
+                        raise RuntimeError("Could not create auth response: %s" % pj_status_to_str(status))
+                else:
+                    status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
+                    if status != 0:
+                        pjsip_tx_data_dec_ref(tdata)
+                        raise RuntimeError("Could not send MESSAGE request: %s" % pj_status_to_str(status))
+            except Exception, exc:
+                final = 1
+        if final:
+            Py_DECREF(saved_data)
+            ua.c_sent_messages.remove(to_uri)
+            c_add_event("message_response", dict(to_uri=to_uri, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text)))
+            if exc is not None:
+                raise exc
 
 cdef class Registration:
     cdef pjsip_regc *c_obj
