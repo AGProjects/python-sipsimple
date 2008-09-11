@@ -869,6 +869,9 @@ cdef class SIPURI:
     def __repr__(self):
         return '<SIPURI "%s">' % self.as_str()
 
+    def __str__(self):
+        return self.as_str()
+
     def as_str(self, in_req=False):
         cdef object retval = self.host
         if self.user:
