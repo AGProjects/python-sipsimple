@@ -10,7 +10,6 @@ PJSIP bindings
 --------------
 
 Read display name from config file
-MESSAGE method
 Support Re-invites
 Support non-sdp offer in INVITE (for resource lists used for conference)
 Emit more than one 180
