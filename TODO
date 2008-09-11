@@ -15,6 +15,7 @@ Support Re-invites
 Support non-sdp offer in INVITE (for resource lists used for conference)
 Emit more than one 180
 Test with more than one media stream in SDP
+Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
 Add tag to Contact header for multiple line identification
 Fix one keystroke y/n for MSRP scripts (and make sure the one in the voice script works well)
