@@ -66,9 +66,9 @@ To install the library and the sample scripts from scripts/ directory run:
 sudo python setup.py install
 
 
-Note
-----
+Notes
+-----
 
-Make sure your username is added to the system 'audio' group otherwise you
+- Make sure your username is added to the system 'audio' group otherwise you
 have no access to the sound device.
-
+- OSS drivers are not supported. You must use ALSA drivers for the sound card.
