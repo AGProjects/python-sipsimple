@@ -8,8 +8,8 @@ import os
 
 version = "0.1"
 
-title = "PyPJUA - A PJSIP based SIP UA"
-description = "A SIP UA implementation using PJSIP"
+title = "PyPjUA SIP User Agent"
+description = "Python SIP SIMPLE User Agent library using PJSIP"
 
 def filter_cmdline(line, prefix):
     return [arg.split(prefix, 1)[1] for arg in line.split() if arg.startswith(prefix)]
@@ -43,24 +43,24 @@ setup(name         = "pypjua",
       version      = version,
       author       = "Ruud Klaver",
       author_email = "ruud@ag-projects.com",
-      url          = "http://www.ag-projects.com/",
+      url          = "http://pypjua.com/",
       description  = title,
       long_description = description,
       license      = "GPL",
-      platforms    = ["Linux"],
+      platforms    = ["Platform Independent"],
       classifiers  = [
           #"Development Status :: 1 - Planning",
-          "Development Status :: 2 - Pre-Alpha",
-          #"Development Status :: 3 - Alpha",
+          #"Development Status :: 2 - Pre-Alpha",
+          "Development Status :: 3 - Alpha",
           #"Development Status :: 4 - Beta",
           #"Development Status :: 5 - Production/Stable",
           #"Development Status :: 6 - Mature",
           #"Development Status :: 7 - Inactive",
-          #"Intended Audience :: Service Providers",
+          "Intended Audience :: Service Providers",
           "License :: GNU General Public License (GPL)",
-          #"Operating System :: POSIX :: Linux",
-          #"Programming Language :: Python",
-          #"Programming Language :: C"
+          "Operating System :: OS Independent",
+          "Programming Language :: Python",
+          "Programming Language :: C"
       ],
       packages     = ["pypjua", "pypjua.clients"],
       package_data = {'pypjua.clients' : ['ring_inbound.wav', 'ring_outbound.wav']},
