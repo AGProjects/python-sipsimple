@@ -22,6 +22,8 @@ from application.process import process
 from application.configuration import *
 from pypjua import *
 
+current_directory = os.path.split(__file__)[0]
+
 re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
     def __new__(typ, value):
@@ -248,7 +250,7 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
                             audio_stream.set_local_info()
                             inv.accept([audio_stream])
             if command == "play_wav":
-                e.play_wav_file(data)
+                e.play_wav_file(os.path.join(current_directory, data))
             if command == "end":
                 want_quit = data
                 try:

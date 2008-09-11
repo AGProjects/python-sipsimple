@@ -4,6 +4,7 @@ from distutils.core import setup, Extension
 from distutils import sysconfig
 import sys
 import re
+import os
 
 version = "0.1"
 
@@ -61,7 +62,9 @@ setup(name         = "pypjua",
           #"Programming Language :: Python",
           #"Programming Language :: C"
       ],
-      packages     = ["pypjua"],
+      packages     = ["pypjua", "pypjua.clients"],
+      package_data = {'pypjua.clients' : ['ring_inbound.wav', 'ring_outbound.wav']},
+      scripts = ['scripts/' + x for x in os.listdir('scripts')],
       ext_modules  = [
           Extension(name = "pypjua._pjsip",
                     sources = ["pypjua/_pjsip.c"],
