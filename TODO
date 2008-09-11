@@ -26,6 +26,7 @@ REFER method
 Support for real-time text protocol sessions (text over RTP streams RFC 4103)
 sRTP handling (requires TLS transport)
 zRTP handling
+Print sip account in the output of register script
 
 
 Applications
