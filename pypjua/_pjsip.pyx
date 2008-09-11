@@ -893,16 +893,18 @@ cdef class SIPURI:
 
     def __richcmp__(self, other, op):
         cdef int eq = 1
+        if op not in [2,3]:
+            return NotImplemented
+        if not isinstance(other, SIPURI):
+            return NotImplemented
         for attr in ["host", "user", "port"]:
             if getattr(self, attr) != getattr(other, attr):
                 eq = 0
                 break
         if op == 2:
             return bool(eq)
-        elif op == 3:
-            return not eq
         else:
-            return NotImplemented
+            return not eq
 
 
 cdef SIPURI c_make_SIPURI(pjsip_name_addr *name_uri):
