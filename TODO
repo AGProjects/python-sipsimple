@@ -28,6 +28,7 @@ sRTP handling (requires TLS transport)
 zRTP handling
 Print sip account in the output of register script
 Add option to record the audio session in a file
+Read use agent name from the config file
 
 
 Applications

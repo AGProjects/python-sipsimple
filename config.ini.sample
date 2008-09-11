@@ -41,8 +41,9 @@ enrollment_url=https://enrollment.sipthor.net
 ; will store the public key with the sip account it created so that it can
 ; return it again later
 
-; SIP UA settings
-sip_user_agent=pypjua.org
+; SIP UA name
+user_agent=pypjua
+
 ; ip and port to listen to
 local_ip=auto
 local_port=auto
