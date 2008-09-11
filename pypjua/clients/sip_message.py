@@ -80,7 +80,7 @@ def user_input():
             queue.put(("unregister", None))
 
 
-def do_message(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace):
+def do_message(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, message):
     printed = False
     sent = False
     msg_buf = []
@@ -100,6 +100,9 @@ def do_message(username, domain, password, proxy_ip, proxy_port, target_username
             reg.register()
         else:
             queue.put(("pypjua_event", ("Registration_state", dict(state="registered"))))
+        if message is not None:
+            msg_buf.append(message)
+            queue.put(("eof", None))
     except:
         e.stop()
         raise
@@ -177,7 +180,7 @@ def parse_options():
     retval = {}
     description = "This example script will either REGISTER using the specified credentials and sit idle waiting for an incoming MESSAGE request, or attempt to send a MESSAGE request to the specified target. In outgoing mode the program will read the contents of the messages to be sent from standard input, CTRL+D signalling EOF as usual. In listen mode the program will quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, do_siptrace=False)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, do_siptrace=False, message=None)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -186,6 +189,7 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-m", "--message", type="string", dest="message", help="Contents of the message to send. This disables reading the message from standard input.")
     options, args = parser.parse_args()
     if args:
         try:
