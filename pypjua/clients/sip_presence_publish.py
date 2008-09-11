@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-sys.path.append(".")
-sys.path.append("..")
 import os
 import atexit
 import select
