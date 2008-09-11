@@ -33,8 +33,8 @@ CFLAGS="-arch i386 -arch ppc" ./configure
 make
 
 
-Build pypjua library
---------------------
+Building pypjua library
+-----------------------
 
 Go to the main pypjua directory and build the library:
 
@@ -45,7 +45,13 @@ which generates:
 pypjua/_pjsip.c    
 pypjua/_pjsip.so
 
-The _pjsip.so library can then be imported in the target software. See the
-scripts in the examples/ directory for how to use the functionality provided
-by this library.
+The _pjsip.so library can then be imported in the target software. 
+
+
+Installing the library
+----------------------
+
+To install the library and the sample scripts from scripts/ directory run:
+
+sudo python setup.py install
 
