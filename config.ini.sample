@@ -92,12 +92,9 @@ sip_trace_file=%c/trace/%u@%d-sip.txt
 [Audio]
 sample_rate=32
 echo_cancellation_tail_length=200
-recording_device=
-playback_device=
+disable-sound=false
 comfort_noise=true
-; audio codec list
 codec_list=speex,g711,ilbc,gsm,g722
-
 
 [Video]
 ; video codec list
