@@ -316,5 +316,8 @@ def parse_options():
         retval[attr] = getattr(options, attr)
     return retval
 
-if __name__ == "__main__":
+def main():
     do_invite(**parse_options())
+
+if __name__ == "__main__":
+    main()
