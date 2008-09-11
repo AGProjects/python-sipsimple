@@ -30,6 +30,7 @@ Print sip account in the output of register script
 Add option to record the audio session in a file
 Read use agent name from the config file
 Add ringing to msrp chat script
+Mute other applications durring incoming sessions
 
 
 Applications
