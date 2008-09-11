@@ -849,7 +849,8 @@ cdef class SIPURI:
     def __cinit__(self, host, user=None, port=None, display=None):
         self.host = host
         self.user = user
-        self.port = port
+        if port is not None:
+            self.port = int(port)
         self.display = display
 
     def __repr__(self):
