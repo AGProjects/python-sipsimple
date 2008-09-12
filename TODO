@@ -22,7 +22,6 @@ Handle DTMF-tones
 Emit more than one 180
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
-Add account distinguishing string in Contact header for Register
 Fix remainig TODOs for PUBLISH/REGISTER
 sRTP
 zRTP
