@@ -9,7 +9,6 @@ Create MacOSX and MS Windows binaries.
 PJSIP bindings
 --------------
 
-Print sip account in the output of register script
 Add ringing to msrp scripts
 Configure Display name
 Configure User Agent
