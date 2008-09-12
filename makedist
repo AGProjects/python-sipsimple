@@ -16,8 +16,7 @@ rm -rf $self-*.tar.gz
 dirname=`basename $PWD`
 basedir=`dirname  $PWD`
 
-version=`tail -1 _darcs/inventory |cut -f 3 -d "*"|cut -f 1 -d ]`
-archive="$self-$version$style.tar.gz"
+archive="$self.tar.gz"
 
 if [ "$dirname" != "$self" ]; then
     create=1

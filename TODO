@@ -41,6 +41,7 @@ Enrollment
 MSRP client library
 Conference-info payload
 Is-composing payload
+Desktop sharing using VNC over MSRP
 MWI payload
 Xcap-diff payload
 
@@ -51,7 +52,6 @@ Sessions
 --------
 
 Video
-Desktop sharing/vnc
 Whiteboarding
 
 
