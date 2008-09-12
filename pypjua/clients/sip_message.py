@@ -35,10 +35,11 @@ class SIPProxyAddress(tuple):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"username": str, "domain": str, "password": str, "outbound_proxy": SIPProxyAddress}
+    _datatypes = {"username": str, "domain": str, "password": str, "display_name": str, "outbound_proxy": SIPProxyAddress}
     username = None
     domain = None
     password = None
+    display_name = None
     outbound_proxy = None, None
 
 
@@ -80,7 +81,7 @@ def user_input():
             queue.put(("unregister", None))
 
 
-def do_message(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, message):
+def do_message(username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, message):
     printed = False
     sent = False
     msg_buf = []
@@ -94,7 +95,7 @@ def do_message(username, domain, password, proxy_ip, proxy_port, target_username
             route = Route(random.choice(a_answers).address, srv_answers[0].port)
         else:
             route = Route(proxy_ip, proxy_port)
-        cred = Credentials(SIPURI(user=username, host=domain), password)
+        cred = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         if target_username is None:
             reg = Registration(cred, route=route)
             reg.register()
@@ -180,13 +181,14 @@ def parse_options():
     retval = {}
     description = "This example script will either REGISTER using the specified credentials and sit idle waiting for an incoming MESSAGE request, or attempt to send a MESSAGE request to the specified target. In outgoing mode the program will read the contents of the messages to be sent from standard input, CTRL+D signalling EOF as usual. In listen mode the program will quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, do_siptrace=False, message=None)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, message=None)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
+    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-m", "--message", type="string", dest="message", help="Contents of the message to send. This disables reading the message from standard input.")

@@ -36,11 +36,12 @@ class SIPProxyAddress(tuple):
         return match.group("host"), port
 
 
-class Config(ConfigSection):
-    _datatypes = {"username": str, "domain": str, "password": str, "outbound_proxy": SIPProxyAddress}
+class AccountConfig(ConfigSection):
+    _datatypes = {"username": str, "domain": str, "password": str, "display_name": str, "outbound_proxy": SIPProxyAddress}
     username = None
     domain = None
     password = None
+    display_name = None
     outbound_proxy = None, None
 
 
@@ -260,7 +261,7 @@ def user_input():
             traceback.print_exc()
             queue.put(("end", None))
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace):
+def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace):
     global correspondent
     if use_msrp_relay:
         if auto_msrp_relay:
@@ -279,12 +280,12 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         else:
             route = Route(proxy_ip, proxy_port)
         if target_username is None:
-            reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route)
+            reg = Registration(Credentials(SIPURI(user=username, host=domain, display=display_name), password), route=route)
             reg.register()
         else:
             queue.put(("registered", None))
         if target_username is not None:
-            inv = Invitation(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=target_username, host=target_domain), route=route)
+            inv = Invitation(Credentials(SIPURI(user=username, host=domain, display=display_name), password), SIPURI(user=target_username, host=target_domain), route=route)
             correspondent = inv.callee_uri
     except:
         e.stop()
@@ -384,13 +385,14 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=Config.outbound_proxy[0], proxy_port=Config.outbound_proxy[1], username=Config.username, password=Config.password, domain=Config.domain, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False)
+    default_options = dict(proxy_ip=Config.outbound_proxy[0], proxy_port=Config.outbound_proxy[1], username=Config.username, password=Config.password, domain=Config.domain, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
+    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060, False), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-m", "--trace-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")

@@ -38,10 +38,11 @@ class SIPProxyAddress(tuple):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"username": str, "domain": str, "password": str, "outbound_proxy": SIPProxyAddress}
+    _datatypes = {"username": str, "domain": str, "password": str, "display_name": str, "outbound_proxy": SIPProxyAddress}
     username = None
     domain = None
     password = None
+    display_name = None
     outbound_proxy = None, None
 
 
@@ -143,7 +144,7 @@ class RingingThread(Thread):
             sleep(5)
 
 
-def do_invite(username, domain, password, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs, disable_sound):
+def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs, disable_sound):
     inv = None
     ringer = None
     printed = False
@@ -160,12 +161,12 @@ def do_invite(username, domain, password, proxy_ip, proxy_port, target_username,
         else:
             route = Route(proxy_ip, proxy_port)
         if target_username is None:
-            reg = Registration(Credentials(SIPURI(user=username, host=domain), password), route=route)
+            reg = Registration(Credentials(SIPURI(user=username, host=domain, display=display_name), password), route=route)
             reg.register()
         else:
             queue.put(("pypjua_event", ("Registration_state", dict(state="registered"))))
         if target_username is not None:
-            inv = Invitation(Credentials(SIPURI(user=username, host=domain), password), SIPURI(user=target_username, host=target_domain), route=route)
+            inv = Invitation(Credentials(SIPURI(user=username, host=domain, display=display_name), password), SIPURI(user=target_username, host=target_domain), route=route)
     except:
         e.stop()
         raise
@@ -291,13 +292,14 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming audio call, or attempt to make an outgoing audio call to the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
     parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
+    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 50 ms.')
