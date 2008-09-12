@@ -16,7 +16,6 @@ Combined msrp/rtp script
 Multipart bodies
 Re-INVITEs
 TCP/TLS transport
-Handle DTMF-tones
 Emit more than one 180
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
