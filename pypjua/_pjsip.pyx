@@ -26,6 +26,7 @@ cdef extern from "pjlib.h":
     void pj_shutdown()
 
     # string
+    char *pj_create_random_string(char *str, int length)
     struct pj_str_t:
         char *ptr
         int slen
@@ -293,6 +294,7 @@ cdef extern from "pjsip.h":
         pj_str_t name
     struct pjsip_request_line:
         pjsip_method method
+        pjsip_uri *uri
     struct pjsip_status_line:
         int code
         pj_str_t reason
@@ -345,6 +347,7 @@ cdef extern from "pjsip.h":
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
     int pjsip_msg_print(pjsip_msg *msg, char *buf, unsigned int size)
     int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata)
+    pj_str_t *pjsip_uri_get_scheme(void *uri)
 
     # module
     enum pjsip_module_priority:
@@ -1011,7 +1014,6 @@ cdef class PJSIPUA:
     cdef bint c_do_siptrace
     cdef GenericStringHeader c_user_agent_hdr
     cdef list c_events
-    cdef PJSTR c_contact_url
     cdef list c_wav_files
     cdef object c_sent_messages
 
@@ -1079,7 +1081,6 @@ cdef class PJSIPUA:
             self.c_user_agent_hdr = GenericStringHeader("User-Agent", kwargs["user_agent"])
             for event, accept_types in kwargs["initial_events"].iteritems():
                 self.add_event(event, accept_types)
-            self.c_contact_url = PJSTR(SIPURI(host=pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host), port=self.c_pjsip_endpoint.c_udp_transport.local_name.port).as_str())
         except:
             self._do_dealloc()
             raise
@@ -1192,6 +1193,9 @@ cdef class PJSIPUA:
         if status != 0:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
+
+    cdef PJSTR c_create_contact_uri(self, object username):
+        return PJSTR(SIPURI(host=pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host), user=username, port=self.c_pjsip_endpoint.c_udp_transport.local_name.port).as_str())
 
     cdef int _rx_request(self, pjsip_rx_data *rdata) except 0:
         cdef int status
@@ -1306,13 +1310,14 @@ cdef class EventPackage:
 cdef class Credentials:
     cdef readonly SIPURI uri
     cdef readonly object password
+    cdef readonly object token
     cdef PJSTR c_domain_req_url
     cdef PJSTR c_req_url
     cdef PJSTR c_aor_url
     cdef pjsip_cred_info c_cred
     cdef PJSTR c_scheme
 
-    def __cinit__(self, SIPURI uri, password):
+    def __cinit__(self, SIPURI uri, password, token = None):
         cdef int status
         if uri is None:
             raise RuntimeError("uri parameter cannot be None")
@@ -1322,6 +1327,11 @@ cdef class Credentials:
             raise RuntimeError("SIP URI parameter has port set")
         self.uri = uri
         self.password = password
+        if token is None:
+            self.token = PyString_FromStringAndSize(NULL, 10)
+            pj_create_random_string(PyString_AsString(self.token), 10)
+        else:
+            self.token = token
         self.c_scheme = PJSTR("digest")
         self.c_domain_req_url = PJSTR(SIPURI(host=uri.host).as_str(True))
         self.c_req_url = PJSTR(uri.as_str(True))
@@ -1465,6 +1475,7 @@ cdef class Registration:
     cdef pjsip_tx_data *c_tx_data
     cdef bint c_want_register
     cdef pj_timer_entry c_timer
+    cdef PJSTR c_contact_uri
 
     def __cinit__(self, Credentials credentials, route = None, expires = 300):
         cdef int status
@@ -1476,10 +1487,11 @@ cdef class Registration:
         self.credentials = credentials
         self.route = route
         self.c_want_register = 0
+        self.c_contact_uri = ua.c_create_contact_uri(credentials.token)
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create client registration: %s" % pj_status_to_str(status))
-        status = pjsip_regc_init(self.c_obj, &credentials.c_domain_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &ua.c_contact_url.pj_str, expires)
+        status = pjsip_regc_init(self.c_obj, &credentials.c_domain_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &self.c_contact_uri.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init registration: %s" % pj_status_to_str(status))
         status = pjsip_regc_set_credentials(self.c_obj, 1, &credentials.c_cred)
@@ -1900,13 +1912,14 @@ cdef class Subscription:
         cdef pjsip_tx_data *c_tdata
         cdef int status
         cdef int c_expires
-        cdef PJSTR c_to, c_to_req
+        cdef PJSTR c_to, c_to_req, c_contact_uri
         cdef PJSIPUA ua = c_get_ua()
         try:
             if subscribe:
                 c_to = PJSTR(self.to_uri.as_str())
                 c_to_req = PJSTR(self.to_uri.as_str(True))
-                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &ua.c_contact_url.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
+                c_contact_uri = ua.c_create_contact_uri(self.credentials.token)
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
                 if status != 0:
                     raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
                 status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
@@ -2481,10 +2494,18 @@ cdef class Invitation:
         cdef pjmedia_sdp_session *c_remote_sdp
         cdef SDPSession remote_sdp
         cdef object streams, headers, body
+        cdef pjsip_sip_uri *req_uri
+        cdef object contact_token
+        cdef PJSTR contact_uri
         cdef unsigned int i
         cdef int status
         try:
-            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &ua.c_contact_url.pj_str, &self.c_dlg)
+            if pj_str_to_str(pjsip_uri_get_scheme(rdata.msg_info.msg.line.req.uri)[0]) in ["sip", "sips"]:
+                req_uri = <pjsip_sip_uri *> rdata.msg_info.msg.line.req.uri
+                if req_uri.user.slen > 0:
+                    contact_token = pj_str_to_str(req_uri.user)
+            contact_uri = ua.c_create_contact_uri(contact_token)
+            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri.pj_str, &self.c_dlg)
             if status != 0:
                 raise RuntimeError("Could not create dialog for new INTIVE session: %s" % pj_status_to_str(status))
             status = pjsip_inv_create_uas(self.c_dlg, rdata, NULL, 0, &self.c_obj)
@@ -2521,9 +2542,9 @@ cdef class Invitation:
                 except MediaStreamError, e:
                     c_add_event("log", dict(level=3, sender="pypjua", message="Error parsing incoming SDP: %s" % e.message))
             self.c_proposed_streams = streams
-            c_add_event("Invitation_state", dict(obj=self, state=self.state, streams=streams.copy(), headers=headers, body=body))
+            c_add_event("Invitation_state", dict(obj=self, state=self.state, streams=streams.copy(), headers=headers, body=body, contact_token=contact_token))
         else:
-            c_add_event("Invitation_state", dict(obj=self, state=self.state, headers=headers, body=body))
+            c_add_event("Invitation_state", dict(obj=self, state=self.state, headers=headers, body=body, contact_token=contact_token))
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -2667,6 +2688,7 @@ cdef class Invitation:
         cdef unsigned int c_index
         cdef list c_sdp_streams = []
         cdef object c_host
+        cdef PJSTR c_contact_uri
         cdef PJSIPUA ua = c_get_ua()
         c_host = pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host)
         if self.state == "DISCONNECTED":
@@ -2678,7 +2700,8 @@ cdef class Invitation:
                 c_sdp_streams.append(c_stream._get_local_sdp())
             c_local_sdp = SDPSession(c_host, connection=SDPConnection(c_host), media=c_sdp_streams)
             try:
-                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_caller_uri.pj_str, &ua.c_contact_url.pj_str, &c_callee_uri.pj_str, &c_callee_target.pj_str, &self.c_dlg)
+                c_contact_uri = ua.c_create_contact_uri(self.credentials.token)
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_caller_uri.pj_str, &c_contact_uri.pj_str, &c_callee_uri.pj_str, &c_callee_target.pj_str, &self.c_dlg)
                 if status != 0:
                     raise RuntimeError("Could not create dialog for outgoing INVITE session: %s" % pj_status_to_str(status))
                 status = pjsip_inv_create_uac(self.c_dlg, &c_local_sdp.c_obj, 0, &self.c_obj)
