@@ -1,3 +1,4 @@
+*.tar.gz
 _darcs
 .#*
 .pkgignore*
@@ -13,9 +14,9 @@ makedist
 TODO
 build
 pjsip
-*.tar.gz
 config.ini
 pypjua.ini
 _pjsip.c
 _pjsip.so
 dist
+rebuild

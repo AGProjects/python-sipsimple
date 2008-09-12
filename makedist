@@ -11,10 +11,12 @@ if [ ! -f $script ]; then
     exit 1
 fi
 
+rm -rf $self-*.tar.gz
+
 dirname=`basename $PWD`
 basedir=`dirname  $PWD`
 
-version=`grep version pypjua/__init__.py|cut -f 2 -d "\""`
+version=`tail -1 _darcs/inventory |cut -f 3 -d "*"|cut -f 1 -d ]`
 archive="$self-$version$style.tar.gz"
 
 if [ "$dirname" != "$self" ]; then
@@ -30,9 +32,9 @@ fi
 echo "Creating $archive"
 
 GZIP=--best
-tar --exclude-from=$pkgignore --directory ../ -zchf "$archive" $self
+tar --exclude-from=$pkgignore --directory ../ -zchf /tmp/$archive $self
+mv /tmp/$archive .
 
 if [ $create -eq 1 ]; then
    rm ../$self
 fi
-
