@@ -10,7 +10,6 @@ PJSIP bindings
 --------------
 
 Add ringing to msrp scripts
-Configure Display name
 Configure User Agent
 Set shell return code 0 for 2XX, 3XX and 1 for the rest
 Combined msrp/rtp script
