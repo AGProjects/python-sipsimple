@@ -26,7 +26,7 @@ cdef extern from "pjlib.h":
     void pj_shutdown()
 
     # string
-    char *pj_create_random_string(char *str, int length)
+    char *pj_create_random_string(char *str, unsigned int length)
     struct pj_str_t:
         char *ptr
         int slen
@@ -260,6 +260,8 @@ cdef extern from "pjsip.h":
 
     # messages
     struct pjsip_transport
+    enum pjsip_uri_context_e:
+        PJSIP_URI_IN_CONTACT_HDR
     struct pjsip_uri
     struct pjsip_sip_uri:
         pj_str_t host
@@ -277,6 +279,8 @@ cdef extern from "pjsip.h":
         pjsip_name_addr name_addr
     ctypedef pjsip_routing_hdr pjsip_route_hdr
     struct pjsip_fromto_hdr:
+        pjsip_uri *uri
+    struct pjsip_contact_hdr:
         pjsip_uri *uri
     enum:
         PJSIP_MAX_ACCEPT_COUNT
@@ -348,6 +352,7 @@ cdef extern from "pjsip.h":
     int pjsip_msg_print(pjsip_msg *msg, char *buf, unsigned int size)
     int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata)
     pj_str_t *pjsip_uri_get_scheme(void *uri)
+    int pjsip_uri_print(pjsip_uri_context_e context, void *uri, char *buf, unsigned int size)
 
     # module
     enum pjsip_module_priority:
@@ -503,6 +508,8 @@ cdef extern from "pjsip_ua.h":
         int code
         pj_str_t reason
         int expiration
+        int contact_cnt
+        pjsip_contact_hdr **contact
     struct pjsip_regc_info:
         int interval
         int next_reg
@@ -1544,6 +1551,9 @@ cdef class Registration:
     cdef int _cb_response(self, pjsip_regc_cbparam *param) except -1:
         cdef pj_time_val c_delay
         cdef bint c_success = 0
+        cdef int i, length
+        cdef list contact_uri_list = []
+        cdef char contact_uri_buf[1024]
         cdef PJSIPUA ua = c_get_ua()
         if self.state == "registering":
             if param.code / 100 == 2:
@@ -1568,7 +1578,13 @@ cdef class Registration:
                     self.state = "registered"
         else:
             raise RuntimeError("Unexpected response callback in Registration")
-        c_add_event("Registration_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
+        if self.state == "registered":
+            for i from 0 <= i < param.contact_cnt:
+                length = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, param.contact[i].uri, contact_uri_buf, 1024)
+                contact_uri_list.append(PyString_FromStringAndSize(contact_uri_buf, length))
+            c_add_event("Registration_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str ,contact_uri_list=contact_uri_list))
+        else:
+            c_add_event("Registration_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
         if c_success:
             if (self.state == "unregistered" and self.c_want_register) or (self.state =="registered" and not self.c_want_register):
                 self._send_reg(self.c_want_register)
