@@ -2384,6 +2384,11 @@ cdef class AudioStream:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
             raise MediaStreamError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
         status = pjmedia_stream_set_dtmf_callback(self.c_stream, cb_AudioStream_cb_dtmf, <void *> inv)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_stream)
+            self.c_stream = NULL
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            raise MediaStreamError("Could not set DTMF callback for audio session: %s" % pj_status_to_str(status))
         status = pjmedia_stream_start(self.c_stream)
         if status != 0:
             pjmedia_stream_destroy(self.c_stream)
