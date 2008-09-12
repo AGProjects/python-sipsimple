@@ -42,10 +42,13 @@ packet_count = 0
 start_time = None
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count
+    global start_time, packet_count, account
     if event_name == "Registration_state":
         if kwargs["state"] == "registered":
-            print "REGISTER was succesfull!"
+            print 'REGISTER for "%s" was succesfull!' % account
+            print "Contact URI used: %s" % kwargs["contact_uri"]
+            if len(kwargs["contact_uri_list"]) > 1:
+                print "Other devices registered: %s" % ", ".join([contact_uri for contact_uri in kwargs["contact_uri_list"] if contact_uri != kwargs["contact_uri"]])
         elif kwargs["state"] == "unregistered":
             print "Unregistered: %(code)d %(reason)s" % kwargs
             queue.put("quit")
@@ -70,6 +73,8 @@ def user_input():
             break
 
 def do_register(username, domain, password, proxy_ip, proxy_port, expires, do_siptrace):
+    global account
+    account = "%s@%s" % (username, domain)
     if proxy_port is not None:
         proxy_port = int(proxy_port)
     e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
