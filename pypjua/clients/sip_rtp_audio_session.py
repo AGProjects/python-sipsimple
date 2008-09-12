@@ -235,6 +235,8 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                                 command = "unregister"
                             else:
                                 inv = None
+                elif event_name == "MediaStream_dtmf":
+                    print "Received DTMF digit from remote party: %s" % args["digit"]
             if command == "user_input":
                 if inv is not None:
                     if data.lower() == "h":
