@@ -235,6 +235,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_stream_destroy(pjmedia_stream *stream)
     int pjmedia_stream_get_port(pjmedia_stream *stream, pjmedia_port **p_port)
     int pjmedia_stream_start(pjmedia_stream *stream)
+    int pjmedia_stream_dial_dtmf(pjmedia_stream *stream, pj_str_t *ascii_digit)
     int pjmedia_stream_set_dtmf_callback(pjmedia_stream *stream, void cb(pjmedia_stream *stream, void *user_data, int digit) with gil, void *user_data)
 
     # wav player
@@ -2280,6 +2281,9 @@ cdef class MSRPStream:
     def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index, Invitation inv):
         pass
 
+    def do_op(self, op, *args):
+        return False
+
 
 cdef class AudioStream:
     cdef pjmedia_transport *c_transport
@@ -2409,6 +2413,19 @@ cdef class AudioStream:
             raise MediaStreamError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
         return 0
 
+    def do_op(self, op, *args):
+        cdef pj_str_t c_digit
+        cdef int status
+        if op == "send_dtmf":
+            if len(args) != 1:
+                raise RuntimeError("send_dtmf op requires exactly 1 argument")
+            str_to_pj_str(args[0], &c_digit)
+            status = pjmedia_stream_dial_dtmf(self.c_stream, &c_digit)
+            if status != 0:
+                raise RuntimeError("Could not send DTMF digit on audio stream: %s" % pj_status_to_str(status))
+            return True
+        else:
+            return False
 
 cdef void cb_AudioStream_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:
     cdef Invitation inv = <object> user_data
@@ -2494,6 +2511,10 @@ cdef class MediaStream:
 
     cdef int _end(self):
         self.c_stream = None
+
+    def do_op(self, op, *args):
+        if not self.c_stream.do_op(op, *args):
+            raise RuntimeError('Operation "%s" is not supported by this media stream.' % op)
 
 
 cdef class Invitation:
