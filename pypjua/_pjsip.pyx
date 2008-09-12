@@ -235,6 +235,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_stream_destroy(pjmedia_stream *stream)
     int pjmedia_stream_get_port(pjmedia_stream *stream, pjmedia_port **p_port)
     int pjmedia_stream_start(pjmedia_stream *stream)
+    int pjmedia_stream_set_dtmf_callback(pjmedia_stream *stream, void cb(pjmedia_stream *stream, void *user_data, int digit) with gil, void *user_data)
 
     # wav player
     int pjmedia_port_destroy(pjmedia_port *port)
@@ -2276,7 +2277,7 @@ cdef class MSRPStream:
             transport = "TCP/MSRP"
         return SDPMedia("message", int(uri_match.group("port")), transport, formats=["*"], attributes=attributes)
 
-    def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index):
+    def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index, Invitation inv):
         pass
 
 
@@ -2361,7 +2362,7 @@ cdef class AudioStream:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
         return sdp_session.media[0]
 
-    def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index):
+    def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index, Invitation inv):
         cdef pjmedia_stream_info stream_info
         cdef pjmedia_port *media_port
         cdef object pool_name = "AudioSession_%d" % id(self)
@@ -2382,6 +2383,7 @@ cdef class AudioStream:
         if status != 0:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
             raise MediaStreamError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_set_dtmf_callback(self.c_stream, cb_AudioStream_cb_dtmf, <void *> inv)
         status = pjmedia_stream_start(self.c_stream)
         if status != 0:
             pjmedia_stream_destroy(self.c_stream)
@@ -2402,6 +2404,17 @@ cdef class AudioStream:
             raise MediaStreamError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
         return 0
 
+
+cdef void cb_AudioStream_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:
+    cdef Invitation inv = <object> user_data
+    cdef MediaStream media_stream
+    cdef AudioStream audio_stream
+    for media_stream in inv.c_current_streams:
+        if isinstance(media_stream.c_stream, AudioStream):
+            audio_stream = media_stream.c_stream
+            if audio_stream.c_stream == stream:
+                break
+    c_add_event("MediaStream_dtmf", dict(obj=media_stream, invitation=inv, digit=chr(digit)))
 
 cdef class MediaStream:
     cdef unsigned int c_sdp_index
@@ -2468,11 +2481,11 @@ cdef class MediaStream:
         else:
             raise RuntimeError("local info was never set on media stream")
 
-    cdef int _sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp) except -1:
+    cdef int _sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, Invitation inv) except -1:
         self._check_validity()
         if self.c_stream.get_remote_info() is None:
             self.c_stream.set_remote_sdp(remote_sdp, self.c_sdp_index)
-        self.c_stream.sdp_done(remote_sdp, local_sdp, self.c_sdp_index)
+        self.c_stream.sdp_done(remote_sdp, local_sdp, self.c_sdp_index, inv)
 
     cdef int _end(self):
         self.c_stream = None
@@ -2679,7 +2692,7 @@ cdef class Invitation:
                         c_add_event("log", dict(level=3, sender="pypjua", message="A media stream was rejected"))
                     else:
                         try:
-                            stream._sdp_done(remote_sdp, local_sdp)
+                            stream._sdp_done(remote_sdp, local_sdp, self)
                         except MediaStreamError, e:
                             stream._end()
                             self.c_proposed_streams.remove(stream)
