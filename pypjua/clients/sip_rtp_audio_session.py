@@ -240,9 +240,10 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
             if command == "user_input":
                 if inv is not None:
                     if data.lower() == "h":
-                        if inv is not None:
-                            command = "end"
-                            data = target_username is not None
+                        command = "end"
+                        data = target_username is not None
+                    elif data in "0123456789*#" and inv.state == "ESTABLISHED":
+                        inv.current_streams.pop().do_op("send_dtmf", data)
                     elif inv.state == "INCOMING":
                         if data.lower() == "n":
                             command = "end"
