@@ -22,16 +22,15 @@ Handle DTMF-tones
 Emit more than one 180
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
-Multiple identities in Contact header for Register
-Fix one keystroke y/n for MSRP scripts (and make sure the one in the voice script works well)
+Add account distinguishing string in Contact header for Register
 Fix remainig TODOs for PUBLISH/REGISTER
-REFER method
 sRTP
 zRTP
 Add option to record the audio session in a file
 Mute other applications during INVITE
-Text over RTP streams RFC 4103)
-Confort noice generator
+Text over RTP streams RFC 4103
+Comfort noice generator
+Support IPv6
 
 
 Applications
