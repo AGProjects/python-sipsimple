@@ -27,6 +27,7 @@ Mute other applications during INVITE
 Text over RTP streams RFC 4103
 Comfort noice generator
 Support IPv6
+Echo the DTMF tones using audio back to the user
 
 
 Applications
