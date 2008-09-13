@@ -29,7 +29,7 @@ Compile pjsip C library:
 
 cd pjsip
 make distclean
-CFLAGS="-arch i386 -arch ppc" ./configure
+CFLAGS="-arch i386" ./configure
 make
 
 
@@ -51,7 +51,13 @@ The _pjsip.so library can then be imported in the target software.
 Installing the library
 ----------------------
 
-To install the library and the sample scripts from scripts/ directory run:
+To install the library and the sample scripts run:
 
 sudo python setup.py install
+
+
+Testing the library
+-------------------
+
+See README.txt in pypjua/clients directory.
 
