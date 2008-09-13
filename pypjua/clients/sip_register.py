@@ -46,10 +46,10 @@ def event_handler(event_name, **kwargs):
     global start_time, packet_count, account
     if event_name == "Registration_state":
         if kwargs["state"] == "registered":
-            print 'REGISTER for "%s" was succesfull!' % account
-            print "Contact URI used: %s" % kwargs["contact_uri"]
+            print 'REGISTER contact for SIP address %s was succesfull' % account
+            print "Contact: %s" % kwargs["contact_uri"]
             if len(kwargs["contact_uri_list"]) > 1:
-                print "Other devices registered: %s" % ", ".join([contact_uri for contact_uri in kwargs["contact_uri_list"] if contact_uri != kwargs["contact_uri"]])
+                print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in kwargs["contact_uri_list"] if contact_uri != kwargs["contact_uri"]])
         elif kwargs["state"] == "unregistered":
             print "Unregistered: %(code)d %(reason)s" % kwargs
             queue.put("quit")
