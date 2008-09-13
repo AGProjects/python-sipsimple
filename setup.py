@@ -62,8 +62,11 @@ setup(name         = "pypjua",
           "Programming Language :: Python",
           "Programming Language :: C"
       ],
-      packages     = ["pypjua", "pypjua.clients"],
-      package_data = {'pypjua.clients' : ['ring_inbound.wav', 'ring_outbound.wav']},
+      packages     = ["pypjua", "pypjua.clients", "pypjua.applications"],
+      package_data = {
+          'pypjua.clients' : ['ring_inbound.wav', 'ring_outbound.wav'],
+          'pypjua.applications' : ['xml-schemas/*']
+      },
       scripts = ['scripts/' + x for x in os.listdir('scripts')],
       ext_modules  = [
           Extension(name = "pypjua._pjsip",
