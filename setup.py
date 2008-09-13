@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 from distutils import sysconfig
 import sys
 import re
@@ -10,6 +10,7 @@ version = "0.1"
 
 title = "PyPjUA SIP User Agent"
 description = "Python SIP SIMPLE User Agent library using PJSIP"
+scripts = [x[:-3] for x in os.listdir('pypjua/clients') if re.match('^sip_.*\\.py$', x)]
 
 def filter_cmdline(line, prefix):
     return [arg.split(prefix, 1)[1] for arg in line.split() if arg.startswith(prefix)]
@@ -67,7 +68,11 @@ setup(name         = "pypjua",
           'pypjua.clients' : ['ring_inbound.wav', 'ring_outbound.wav'],
           'pypjua.applications' : ['xml-schemas/*']
       },
-      scripts = ['scripts/' + x for x in os.listdir('scripts')],
+
+      entry_points = {
+         'console_scripts': ["%s=pypjua.clients.%s:main" % (x,x) for x in scripts]
+      },
+
       ext_modules  = [
           Extension(name = "pypjua._pjsip",
                     sources = ["pypjua/_pjsip.c"],
