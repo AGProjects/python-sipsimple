@@ -182,7 +182,10 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                     if args["state"] == "registered":
                         if not printed:
                             if target_username is None:
-                                print "Registered with SIP address: %s@%s, waiting for incoming session..." % (username, domain)
+                                print "Registered SIP address: %s@%s" % (username, domain)
+                                print "Contact: %s, waiting for incoming session ..." % args["contact_uri"]
+                                if len(args["contact_uri_list"]) > 1:
+                                        print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
                             print "Press Control-D to stop the program or h to hang-up an ongoing session."
                             printed = True
                         if inv is not None and inv.state == "DISCONNECTED":
