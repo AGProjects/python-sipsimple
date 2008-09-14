@@ -1,12 +1,6 @@
 
-Packaging
----------
-
-Debian package for library and command line tools
-Python installer
-MacOSX binaries
-Linux binaries
-MS Windows binaries
+Add doc strings to all classes and functions
+Follow async design for all potentially blocking tasks
 
 
 PJSIP bindings
@@ -26,8 +20,29 @@ sRTP
 zRTP
 Add option to record the audio session in a file
 Comfort noice generator
-Support IPv6
 Echo the DTMF tones using audio back to the user
+
+
+Command line clients
+--------------------
+
+- To be able to use the scripts in alarm systens, set the shell return code
+to 0 (failure) for 2XX, 3XX and 1 (success) for other codes. For invite
+scripts the code is based on the response for the initial INVITE, not for
+the BYE If RTP was not received with 6 seconds after call setup, consider
+the call has failed.
+
+- Add parameter for number of registrations to the sip_register script
+
+- Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
+  scripts
+
+- Add option to log the output of the scripts to a log file or syslog
+
+- Add option --config-file to read the configuration from another file
+
+- Find a way to describe multiple sip accounts in the config file and select
+one of them during runtime
 
 
 Applications
@@ -36,7 +51,7 @@ Applications
 Pidf payload
 Buddy list library
 Bonjour
-Enrollment
+Enrollment design
 
 MSRP client library
 Conference-info payload
@@ -44,7 +59,8 @@ Is-composing payload
 MWI payload
 Xcap-diff payload
 
-Lookup module for SIP (RFC3263), MSRP relay, ENUM, SipThor
+Lookup module for SIP (RFC3263), MSRP relay, ENUM, SIPThor
+
 
 Sessions
 --------
@@ -74,16 +90,17 @@ Minimalist GUI for MacOSX, SIP client in a dock icon
 Full GUI for all supported OSs
 
 
-Command line clients
---------------------
+Packaging
+---------
 
-To be able to use the scripts in alarm systens, set the shell return code to
-0 (failure) for 2XX, 3XX and 1 (success) for other codes. For invite scripts
-the code is based on the response for the initial INVITE, not for the BYE If
-RTP was not received with 6 seconds after calls etup, consider call has
-failed.
-Add parameter for number of registrations to the sip_register script
-Add parameter to hangup after a number of seconds for sip_rtp and sip msrp scripts
-Add option to log the output of the scripts to a log file or syslog
-Add option --config-file to read the configuration from another file
+Debian package for library and command line tools
+Python installer
+MacOSX binaries
+Linux binaries
+MS Windows binaries
 
+
+Nice to have
+------------
+
+Support IPv6
