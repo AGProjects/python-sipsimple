@@ -7,11 +7,11 @@ Usage:
 
 from setuptools import setup
 
-APP = ['examples/sip_rtp_audio_session.py']
+APP = ['pypjua/clients/sip_rtp_audio_session.py']
 DATA_FILES = []
 OPTIONS = {'argv_emulation': True,
            'site_packages': True,
-           'resources': ['examples/ring_inbound.wav', 'examples/ring_outbound.wav'],
+           'resources': ['pypjua/clients/ring_inbound.wav', 'pypjua/clients/ring_outbound.wav'],
            'includes': ['dns.*', 'application.*', 'pypjua.*'],
            'packages': ['dns', 'application', 'pypjua']}
 
