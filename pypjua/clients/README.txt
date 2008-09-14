@@ -13,6 +13,7 @@ library:
 - sip_msrp_file_transfer
 - sip_presence_publish
 - sip_presence_subscribe
+- sip_message
 
 Some scripts can be used to setup audio (VoIP), interactive mesaging (IM)
 and file transfer sessions. Other scripts can be used to publish presence
