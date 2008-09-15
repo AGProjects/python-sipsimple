@@ -6,9 +6,10 @@ from distutils.command.build_scripts import build_scripts
 import re
 import os
 
-from pypjua.clients.setupconfig import data_files_dir
+# cannot import pypjua here
+exec(file('pypjua/clients/setupconfig.py').read())
 
-version = "0.1" # import version from pypjua/__init__.py instead?
+version = "0.1"
 
 title = "PyPjUA SIP User Agent"
 description = "Python SIP SIMPLE User Agent library using PJSIP"
