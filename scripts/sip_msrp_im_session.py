@@ -12,6 +12,7 @@ from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from cStringIO import StringIO
+from time import sleep
 import dns.resolver
 from dns.exception import DNSException
 from application.system import default_host_ip
@@ -20,6 +21,8 @@ from application.configuration import *
 import msrp_protocol
 from digest import process_www_authenticate
 from pypjua import *
+
+current_directory = os.path.split(__file__)[0]
 
 re_ip_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
@@ -211,6 +214,31 @@ class MSRP(Thread):
         if self._Thread__started:
             self.join()
 
+
+class RingingThread(Thread):
+
+    def __init__(self, inbound):
+        self.inbound = inbound
+        self.stopping = False
+        Thread.__init__(self)
+        self.setDaemon(True)
+        self.start()
+
+    def stop(self):
+        self.stopping = True
+
+    def run(self):
+        global queue
+        while True:
+            if self.stopping:
+                return
+            if self.inbound:
+                queue.put(("play_wav", "ring_inbound.wav"))
+            else:
+                queue.put(("play_wav", "ring_outbound.wav"))
+            sleep(5)
+
+
 queue = Queue()
 packet_count = 0
 start_time = None
@@ -229,6 +257,8 @@ def event_handler(event_name, **kwargs):
             queue.put(("unregister", None))
         elif kwargs["state"] == "ESTABLISHED":
             queue.put(("established", kwargs))
+    elif event_name == "Invitation_ringing":
+        queue.put(("ringing", None))
     elif event_name == "Registration_state":
         if kwargs["state"] == "registered":
             queue.put(("registered", None))
@@ -273,7 +303,8 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
         msrp = MSRP(target_username is None, dump_msrp)
     inv = None
     printed = False
-    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
+    ringer = None
+    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=True, ec_tail_length=0)
     e.start()
     try:
         if proxy_ip is None:
@@ -299,6 +330,9 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                 msrp.disconnect()
                 sys.exit()
             elif command == "unregister":
+                if ringer is not None:
+                    ringer.stop()
+                    ringer = None
                 if target_username is None:
                     try:
                         reg.unregister()
@@ -320,6 +354,8 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                         if msrp_stream.media_type == "message" and msrp_stream.remote_info[1] == ["text/plain"]:
                             inv = data["obj"]
                             correspondent = inv.caller_uri
+                            if ringer is None:
+                                ringer = RingingThread(True)
                             print 'Incoming session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                         else:
                             data["obj"].end()
@@ -335,6 +371,9 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                 if inv is not None and inv.state == "DISCONNECTED":
                     inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["text/plain"])])
             elif command == "established":
+                if ringer is not None:
+                    ringer.stop()
+                    ringer = None
                 remote_uri_path = data["streams"].pop().remote_info[0]
                 print "Session negotiated to: %s" % " ".join(remote_uri_path)
                 if target_username is not None:
@@ -343,6 +382,13 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                     except:
                         traceback.print_exc()
                         queue.put(("end", None))
+            elif command == "ringing":
+                if ringer is None:
+                    print "Ringing..."
+                    ringer = RingingThread(False)
+            elif command == "play_wav":
+                print "playing %s" % data
+                e.play_wav_file(os.path.join(current_directory, data))
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":

@@ -12,6 +12,7 @@ from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from cStringIO import StringIO
+from time import sleep
 import dns.resolver
 from dns.exception import DNSException
 from application.system import default_host_ip
@@ -20,6 +21,8 @@ from application.configuration import *
 import msrp_protocol
 from digest import process_www_authenticate
 from pypjua import *
+
+current_directory = os.path.split(__file__)[0]
 
 re_ip_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
@@ -252,6 +255,31 @@ class MSRPFileTransfer(Thread):
         if self._Thread__started:
             self.join()
 
+
+class RingingThread(Thread):
+
+    def __init__(self, inbound):
+        self.inbound = inbound
+        self.stopping = False
+        Thread.__init__(self)
+        self.setDaemon(True)
+        self.start()
+
+    def stop(self):
+        self.stopping = True
+
+    def run(self):
+        global queue
+        while True:
+            if self.stopping:
+                return
+            if self.inbound:
+                queue.put(("play_wav", "ring_inbound.wav"))
+            else:
+                queue.put(("play_wav", "ring_outbound.wav"))
+            sleep(5)
+
+
 queue = Queue()
 packet_count = 0
 start_time = None
@@ -291,8 +319,9 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
     msrp = None
     inv = None
     printed = False
+    ringer = None
     print "Using configuration file %s" % process.config_file("pypjua.ini")
-    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
+    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=True, ec_tail_length=0)
     e.start()
     try:
         if proxy_ip is None:
@@ -336,6 +365,10 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                         if args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
                         command = "quit"
+                elif event_name == "Invitation_ringing":
+                    if ringer is None:
+                        print "Ringing..."
+                        ringer = RingingThread(False)
                 elif event_name == "Invitation_state":
                     if args["state"] == "INCOMING":
                         print "Incoming session..."
@@ -344,6 +377,8 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                                 msrp_stream = args["streams"].pop()
                                 if msrp_stream.media_type == "message" and msrp_stream.remote_info[1] == ["binary/octet-stream"]:
                                     inv = args["obj"]
+                                    if ringer is None:
+                                        ringer = RingingThread(True)
                                     print 'Incoming INVITE from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
                                 else:
                                     args["obj"].end()
@@ -353,6 +388,9 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                             print "Rejecting."
                             args["obj"].end()
                     elif args["state"] == "ESTABLISHED":
+                        if ringer is not None:
+                            ringer.stop()
+                            ringer = None
                         remote_uri_path = args["streams"].pop().remote_info[0]
                         print "Session negotiated to: %s" % " ".join(remote_uri_path)
                         if target_username is not None:
@@ -363,6 +401,9 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                                 command = "end"
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
+                            if ringer is not None:
+                                ringer.stop()
+                                ringer = None
                             if args.has_key("code") and args["code"] / 100 != 2:
                                 print "Session ended: %(code)d %(reason)s" % args
                             else:
@@ -394,6 +435,8 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                             else:
                                 msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])
                                 inv.accept([msrp_stream])
+            if command == "play_wav":
+                e.play_wav_file(os.path.join(current_directory, data))
             if command == "end":
                 try:
                     if msrp is not None:
