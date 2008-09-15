@@ -263,6 +263,7 @@ def user_input():
 
 def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace):
     global correspondent
+    print "Using configuration file %s" % process.config_file("pypjua.ini")
     if use_msrp_relay:
         if auto_msrp_relay:
             msrp = MSRP(target_username is None, dump_msrp, domain, 2855, username, password, True)

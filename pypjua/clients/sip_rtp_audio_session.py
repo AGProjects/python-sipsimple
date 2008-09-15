@@ -149,6 +149,7 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
     ringer = None
     printed = False
     want_quit = target_username is not None
+    print "Using configuration file %s" % process.config_file("pypjua.ini")
     atexit.register(termios_restore)
     e = Engine(event_handler, do_siptrace=do_siptrace, initial_codecs=codecs, ec_tail_length=ec_tail_length, sample_rate=sample_rate, auto_sound=not disable_sound)
     e.start()
@@ -167,6 +168,7 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
             queue.put(("pypjua_event", ("Registration_state", dict(state="registered"))))
         if target_username is not None:
             inv = Invitation(Credentials(SIPURI(user=username, host=domain, display=display_name), password), SIPURI(user=target_username, host=target_domain), route=route)
+            print "Call initiated from %s to %s via outbound proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
     except:
         e.stop()
         raise
@@ -224,7 +226,7 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                         e.connect_audio_stream(audio_stream)
                         print 'Media negotiation done, using "%s" codec at %dHz' % audio_stream.info
                         if other_user_agent is not None:
-                            print 'Remote UA is "%s"' % other_user_agent
+                            print 'Remote User Agent is "%s"' % other_user_agent
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
                             if ringer is not None:

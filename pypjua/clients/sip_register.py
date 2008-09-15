@@ -76,6 +76,7 @@ def user_input():
 def do_register(username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
     global account
     account = "%s@%s" % (username, domain)
+    print "Using configuration file %s" % process.config_file("pypjua.ini")
     if proxy_port is not None:
         proxy_port = int(proxy_port)
     e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)

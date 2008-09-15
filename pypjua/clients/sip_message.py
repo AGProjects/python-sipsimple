@@ -85,6 +85,7 @@ def do_message(username, domain, password, display_name, proxy_ip, proxy_port, t
     printed = False
     sent = False
     msg_buf = []
+    print "Using configuration file %s" % process.config_file("pypjua.ini")
     e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
     e.start()
     try:
