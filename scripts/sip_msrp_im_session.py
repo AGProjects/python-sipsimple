@@ -387,7 +387,6 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                     print "Ringing..."
                     ringer = RingingThread(False)
             elif command == "play_wav":
-                print "playing %s" % data
                 e.play_wav_file(get_path(data))
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
