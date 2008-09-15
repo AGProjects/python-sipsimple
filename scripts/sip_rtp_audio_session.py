@@ -168,7 +168,7 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
             queue.put(("pypjua_event", ("Registration_state", dict(state="registered"))))
         if target_username is not None:
             inv = Invitation(Credentials(SIPURI(user=username, host=domain, display=display_name), password), SIPURI(user=target_username, host=target_domain), route=route)
-            print "Call from %s to %s thorugh proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
+            print "Call from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
     except:
         e.stop()
         raise
