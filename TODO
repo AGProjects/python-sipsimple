@@ -39,7 +39,8 @@ the call has failed.
 
 - Add option to log the output of the scripts to a log file or syslog
 
-- Add option --config-file to read the configuration from another file
+- Add option to select an account from multiple accounts defined in the
+  configuration file
 
 - Find a way to describe multiple sip accounts in the config file and select
 one of them during runtime
