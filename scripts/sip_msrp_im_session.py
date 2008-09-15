@@ -22,7 +22,7 @@ from pypjua.clients import msrp_protocol
 from pypjua.clients.digest import process_www_authenticate
 from pypjua import *
 
-current_directory = os.path.split(__file__)[0]
+from pypjua.clients.clientconfig import get_path
 
 re_ip_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
@@ -388,7 +388,7 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                     ringer = RingingThread(False)
             elif command == "play_wav":
                 print "playing %s" % data
-                e.play_wav_file(os.path.join(current_directory, data))
+                e.play_wav_file(get_path(data))
             elif command == "user_input":
                 if inv is not None and inv.state == "INCOMING":
                     if data[0].lower() == "n":

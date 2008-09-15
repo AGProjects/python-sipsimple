@@ -22,7 +22,7 @@ from pypjua.clients import msrp_protocol
 from pypjua.clients.digest import process_www_authenticate
 from pypjua import *
 
-current_directory = os.path.split(__file__)[0]
+from pypjua.clients.clientconfig import get_path
 
 re_ip_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
@@ -436,7 +436,7 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                                 msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["binary/octet-stream"])
                                 inv.accept([msrp_stream])
             if command == "play_wav":
-                e.play_wav_file(os.path.join(current_directory, data))
+                e.play_wav_file(get_path(data))
             if command == "end":
                 try:
                     if msrp is not None:
