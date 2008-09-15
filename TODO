@@ -6,7 +6,6 @@ Follow async design for all potentially blocking tasks
 PJSIP bindings
 --------------
 
-Add ringing to msrp scripts
 Configure User Agent
 Combined msrp/rtp script
 Multipart bodies
