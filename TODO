@@ -27,7 +27,7 @@ Command line clients
 --------------------
 
 - To be able to use the scripts in alarm systens, set the shell return code
-to 0 (failure) for 2XX, 3XX and 1 (success) for other codes. For invite
+to 0 (success) for 2XX, 3XX and 1 (failure) for other codes. For invite
 scripts the code is based on the response for the initial INVITE, not for
 the BYE If RTP was not received with 6 seconds after call setup, consider
 the call has failed.
@@ -44,6 +44,8 @@ the call has failed.
 
 - Find a way to describe multiple sip accounts in the config file and select
 one of them during runtime
+
+- Display SDP endpoint addresses on successful INVITE
 
 
 Applications
@@ -105,3 +107,4 @@ Nice to have
 ------------
 
 Support IPv6
+Survive local IP address changes
