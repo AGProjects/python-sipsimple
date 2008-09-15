@@ -18,8 +18,8 @@ from dns.exception import DNSException
 from application.system import default_host_ip
 from application.process import process
 from application.configuration import *
-import msrp_protocol
-from digest import process_www_authenticate
+from pypjua.clients import msrp_protocol
+from pypjua.clients.digest import process_www_authenticate
 from pypjua import *
 
 current_directory = os.path.split(__file__)[0]
