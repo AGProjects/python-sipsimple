@@ -42,9 +42,6 @@ the call has failed.
 - Add option to select an account from multiple accounts defined in the
   configuration file
 
-- Find a way to describe multiple sip accounts in the config file and select
-one of them during runtime
-
 - Display SDP endpoint addresses on successful INVITE
 
 
