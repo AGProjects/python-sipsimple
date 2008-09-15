@@ -2,15 +2,22 @@
 
 from setuptools import setup, Extension
 from distutils import sysconfig
-import sys
+from distutils.command.build_scripts import build_scripts
 import re
 import os
 
-version = "0.1"
+from pypjua.clients.setupconfig import data_files_dir
+
+version = "0.1" # import version from pypjua/__init__.py instead?
 
 title = "PyPjUA SIP User Agent"
 description = "Python SIP SIMPLE User Agent library using PJSIP"
-scripts = [x[:-3] for x in os.listdir('pypjua/clients') if re.match('^sip_.*\\.py$', x)]
+scripts = ['scripts/'+x for x in os.listdir('scripts') if re.match('^sip_.*\\.py$', x)]
+data_files = ['scripts/ring_inbound.wav', 'scripts/ring_outbound.wav']
+
+if data_files_dir:
+    data_files = [(data_files_dir, data_files)]
+
 
 def filter_cmdline(line, prefix):
     return [arg.split(prefix, 1)[1] for arg in line.split() if arg.startswith(prefix)]
@@ -40,6 +47,23 @@ for left, right, lib in re_conditionals.findall(open(build_mak_file).read()):
 
 sysconfig._variable_rx = re.compile("([a-zA-Z][a-zA-Z0-9_]+)\s*=\s*(.*)")
 
+
+if os.name == 'posix':
+    class my_build_scripts(build_scripts):
+        "remove .py extension from the scripts"
+
+        def run (self):
+            res = build_scripts.run(self)
+            for script in self.scripts:
+                filename = os.path.basename(script)
+                if filename.endswith('.py'):
+                    path = os.path.join(self.build_dir, filename)
+                    print 'renaming %s -> %s' % (path, path[:-3])
+                    os.rename(path, path[:-3])
+else:
+    my_build_scripts = build_scripts
+
+
 setup(name         = "pypjua",
       version      = version,
       author       = "Ruud Klaver",
@@ -65,13 +89,11 @@ setup(name         = "pypjua",
       ],
       packages     = ["pypjua", "pypjua.clients", "pypjua.applications"],
       package_data = {
-          'pypjua.clients' : ['ring_inbound.wav', 'ring_outbound.wav'],
           'pypjua.applications' : ['xml-schemas/*']
       },
 
-      entry_points = {
-         'console_scripts': ["%s=pypjua.clients.%s:main" % (x,x) for x in scripts]
-      },
+      data_files = data_files,
+      scripts = scripts,
 
       ext_modules  = [
           Extension(name = "pypjua._pjsip",
@@ -82,5 +104,7 @@ setup(name         = "pypjua",
                     define_macros = macros,
                     libraries = libs,
                     extra_link_args = extras)
-      ]
+      ],
+
+      cmdclass = { 'build_scripts' : my_build_scripts }
 )
