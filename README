@@ -12,11 +12,11 @@ Description
 -----------
 
 PyPjUA is Python software library for PJSIP C SIP stack that together with
-an elegant middleware allows for easy development of real-time Internet
-communications end-points based on SIP protocol with rich presence and IM
-capability for computers running Mac OS X, Linux and Windows operating
-systems or portable devices like Nokia Internet tablet, Apple iPhone and
-Android mobile phone.
+an elegant middleware allows for easy development of real-time voice and
+video over IP Internet communications end-points based on SIP protocol with
+rich Presence and Interactive Messaging (IM) capability for computers
+running Mac OS X, Linux and Windows operating systems or portable devices
+like Nokia Internet tablet, Apple iPhone and Android mobile phone.
 
 The goal of this project is to deliver the best Open Source development kit
 for rich featured SIP User Agents, while hiding the complex underlying
@@ -27,19 +27,50 @@ streams support, 'the missing' SIP-SIMPLE features for rich presence
 (presence rules, resource lists, RLS services, RPIDF and XCAP policy).
 
 The software library is tested against the most popular SIP server software
-available today: OpenSER, OpenXCAP, MSRPRelay and MediaProxy.
+available today: OpenSER, Asterisk, OpenXCAP, MSRPRelay and MediaProxy.
+
+
+Overview of SIP functionality
+-----------------------------
+
+From RFC 3261: "SIP is an application-layer control protocol that can
+establish, modify, and terminate multimedia sessions (conferences) such as
+Internet telephony calls.  SIP can also invite participants to already
+existing sessions, such as multicast conferences.  Media can be added to
+(and removed from) an existing session.  SIP transparently supports name
+mapping and redirection services, which supports personal mobility, users
+can maintain a single externally visible identifier regardless of their
+network location. 
+
+SIP supports five facets of establishing and terminating multimedia
+communications:
+
+	User location: determination of the end system to be used for
+	communication;
+
+	User availability: determination of the willingness of the called
+	party to engage in communications;
+
+	User capabilities: determination of the media and media parameters
+	to be used;
+
+	Session setup: "ringing", establishment of session parameters at
+	both called and calling party;
+
+	Session management: including transfer and termination of sessions,
+	modifying session parameters, and invoking services. "
 
 
 End-user experiences
 --------------------
 
-This software allows you to create elegant real-time communications
+PyPjUA software allows you to create elegant real-time communications
 applications without having to read the +1200 RFC documents behind it. If
 you read them all, some antidepressant and desintoxication is recommended
 after this effort.
 
 As a library with a high-level API, the toolkit can also be used to add SIP
-and Presence functionality to network devices without a display (like TV
+VoIP, IM and Presence functionality to various network devices (like TV
 set-up boxes), as long as Python environment is supported by such platform.
 You may collapse the whole telecom industry into a simple Call me button or
 expand the presence buddy list to display the mood or blood pressure of your
@@ -47,9 +78,10 @@ buddies (if they want to share this information with you). Some of the
 things possible with this library are listed here:
 
 - VoIP calls using Internet codecs (wide-band Speex, iLBC) and G.711
+- Parallel forking to multiple SIP devices
 - Zero configuration server-less communication over LAN (Bonjour)
 - Presence using SIP SIMPLE (PUBLISH, SUBSCRIBE, NOTIFY and XCAP policy)
-- Interactive Messaging (IM) and File transfer using MSRP protocol
+- Interactive Messaging (IM) and file transfer using MSRP protocol
 
 
 Testing the library
@@ -63,13 +95,13 @@ used to:
 - Setup up VoIP sessions with wide-band speex codec
 - PUBLISH, SUBSCRIBE and handle incoming NOTIFY for SIP events like
   presence, xcap-diff, watcher-info, conference, message-summary
-- Manage XCAP documents pres-rules, resource-lists, rls-services and 
+- Manage XCAP policy documents pres-rules, resource-lists, RLS-services and
   pidf-manipulation
 - Setup up ad-hoc multi-party chat sessions with an MSRP chat server (under
   construction)
 
-For testing, you can use your own infrastructure or register a free SIP
-SIMPLE account on http://SIP2SIP.info
+For testing, you can use your own infrastructure, an account from a SIP
+service provider or by registering a free SIP account at http://sip2sip.info
 
 
 License
