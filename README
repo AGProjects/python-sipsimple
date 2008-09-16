@@ -21,12 +21,10 @@ Android mobile phone.
 The goal of this project is to deliver the best Open Source development kit
 for rich featured SIP User Agents, while hiding the complex underlying
 functionality behind an easy to use high-level application programming
-interface. Compared to other available SIP libraries, this project adds,
-both to the client and to the corresponding open-source servers, multiple
-media streams support, 'the missing' SIP-SIMPLE features for rich presence
-(presence rules, resource lists, rls services, rich PIDF, XCAP full and
-partial document manipulation) and session based interactive messaging using
-MSRP protocol.
+interface. Compared to other available SIP libraries, this project provides
+session based Interactive Messaging (IM) using MSRP protocol, multiple
+streams support, 'the missing' SIP-SIMPLE features for rich presence
+(presence rules, resource lists, RLS services, RPIDF and XCAP policy).
 
 The software library is tested against the most popular SIP server software
 available today: OpenSER, OpenXCAP, MSRPRelay and MediaProxy.
