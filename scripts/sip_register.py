@@ -34,6 +34,7 @@ class AccountConfig(ConfigSection):
     display_name = None
     outbound_proxy = None, None
 
+
 process._system_config_directory = os.path.expanduser("~")
 configuration = ConfigFile("pypjua.ini")
 configuration.read_settings("Account", AccountConfig)
@@ -43,17 +44,8 @@ packet_count = 0
 start_time = None
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, account
-    if event_name == "Registration_state":
-        if kwargs["state"] == "registered":
-            print 'REGISTER contact for SIP address %s was succesfull' % account
-            print "Contact: %s" % kwargs["contact_uri"]
-            if len(kwargs["contact_uri_list"]) > 1:
-                print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in kwargs["contact_uri_list"] if contact_uri != kwargs["contact_uri"]])
-        elif kwargs["state"] == "unregistered":
-            print "Unregistered: %(code)d %(reason)s" % kwargs
-            queue.put("quit")
-    elif event_name == "siptrace":
+    global start_time, packet_count, queue
+    if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
@@ -61,21 +53,22 @@ def event_handler(event_name, **kwargs):
             direction = "RECEIVED"
         else:
             direction = "SENDING"
-        print "%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))
-        print "%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs
-        print kwargs["data"]
+        buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
+        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
+        buf.append(kwargs["data"])
+        queue.put(("print", "\n".join(buf)))
+    elif event_name != "log":
+        queue.put(("pypjua_event", (event_name, kwargs)))
 
 def user_input():
     while True:
         try:
             raw_input()
         except EOFError:
-            queue.put("unregister")
+            queue.put(("unregister", None))
             break
 
 def do_register(username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
-    global account
-    account = "%s@%s" % (username, domain)
     print "Using configuration file %s" % process.config_file("pypjua.ini")
     if proxy_port is not None:
         proxy_port = int(proxy_port)
@@ -94,17 +87,37 @@ def do_register(username, domain, password, display_name, proxy_ip, proxy_port, 
     start_new_thread(user_input, ())
     while True:
         try:
-            command = queue.get()
-            if command == "quit":
-                sys.exit()
-            elif command == "unregister":
+            command, data = queue.get()
+            if command == "print":
+                print data
+            if command == "pypjua_event":
+                event_name, args = data
+                if event_name == "Registration_state":
+                    if args["state"] == "registered":
+                        print 'REGISTER contact for SIP address %s@%s was succesfull' % (username, domain)
+                        print "Contact: %s" % args["contact_uri"]
+                        if len(args["contact_uri_list"]) > 1:
+                            print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
+                    elif args["state"] == "unregistered":
+                        print "Unregistered: %(code)d %(reason)s" % args
+                        command = "quit"
+            if command == "unregister":
                 try:
                     reg.unregister()
                 except:
                     traceback.print_exc()
-                    sys.exit()
+                    command = "quit"
+            if command == "quit":
+                e.stop()
+                sys.exit()
         except KeyboardInterrupt:
-            pass
+            print "Interrupted, exiting instantly!"
+            e.stop()
+            sys.exit()
+        except Exception:
+            traceback.print_exc()
+            e.stop()
+            sys.exit()
 
 re_ip_port = re.compile("^(?P<proxy_ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<proxy_port>\d+))?$")
 def parse_proxy(option, opt_str, value, parser):
