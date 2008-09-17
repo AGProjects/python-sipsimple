@@ -93,7 +93,8 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                         if len(args["contact_uri_list"]) > 1:
                             print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
                     elif args["state"] == "unregistered":
-                        print "Unregistered: %(code)d %(reason)s" % args
+                        if args["code"] / 100 != 2:
+                            print "Unregistered: %(code)d %(reason)s" % args
                         user_quit = False
                         command = "quit"
             if command == "unregister":
