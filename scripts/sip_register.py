@@ -5,9 +5,11 @@ import re
 import traceback
 import os
 import signal
+import random
 from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
+import dns.resolver
 from application.configuration import *
 from application.process import process
 from pypjua import *
@@ -68,10 +70,15 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
     lock.acquire()
     try:
         if proxy_ip is None:
-            route = None
+            # for now assume 1 SRV record and more than one A record
+            srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
+            a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
+            route = Route(random.choice(a_answers).address, srv_answers[0].port)
         else:
             route = Route(proxy_ip, proxy_port or 5060)
-        reg = Registration(Credentials(SIPURI(user=username, host=domain, display=display_name), password), route=route, expires=expires)
+        credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
+        reg = Registration(credentials, route=route, expires=expires)
+        print 'Registering for SIP address "%s" at proxy %s:%d' % (credentials.uri, route.host, route.port)
         reg.register()
         while True:
             command, data = queue.get()
@@ -81,7 +88,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                 event_name, args = data
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
-                        print 'REGISTER contact for SIP address %s@%s was succesfull' % (username, domain)
+                        print "REGISTER was succesfull"
                         print "Contact: %s" % args["contact_uri"]
                         if len(args["contact_uri_list"]) > 1:
                             print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
@@ -94,6 +101,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
             if command == "quit":
                 break
     except:
+        user_quit = False
         traceback.print_exc()
     finally:
         e.stop()
@@ -104,10 +112,10 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
 def do_register(**kwargs):
     global user_quit, lock, queue
     print "Using configuration file %s" % process.config_file("pypjua.ini")
+    ctrl_d_pressed = False
     e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=False)
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
-    ctrl_d_pressed = False
     try:
         while True:
             try:
