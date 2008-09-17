@@ -185,10 +185,12 @@ def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, ta
                         if not printed:
                             if target_username is None:
                                 print "Registered SIP address: %s@%s" % (username, domain)
-                                print "Contact: %s, waiting for incoming session ..." % args["contact_uri"]
+                                print "Contact: %s" % args["contact_uri"]
                                 if len(args["contact_uri_list"]) > 1:
                                         print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
                             print "Press Control-D to stop the program or h to hang-up an ongoing session."
+                            if target_username is None:
+                                print "Waiting for incoming session..."
                             printed = True
                         if inv is not None and inv.state == "DISCONNECTED":
                             inv.invite([MediaStream("audio")])
