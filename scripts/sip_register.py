@@ -91,7 +91,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                         print "REGISTER was succesfull"
                         print "Contact: %s" % args["contact_uri"]
                         if len(args["contact_uri_list"]) > 1:
-                            print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
+                            print "Other registered contacts:\n%s" % "\n".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
                     elif args["state"] == "unregistered":
                         if args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
