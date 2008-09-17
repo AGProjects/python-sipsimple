@@ -4,7 +4,8 @@ import sys
 import re
 import traceback
 import os
-from thread import start_new_thread
+import signal
+from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from application.configuration import *
@@ -42,6 +43,8 @@ configuration.read_settings("Account", AccountConfig)
 queue = Queue()
 packet_count = 0
 start_time = None
+user_quit = True
+lock = allocate_lock()
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue
@@ -60,20 +63,11 @@ def event_handler(event_name, **kwargs):
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
 
-def user_input():
-    while True:
-        try:
-            raw_input()
-        except EOFError:
-            queue.put(("unregister", None))
-            break
-
-def do_register(username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
-    print "Using configuration file %s" % process.config_file("pypjua.ini")
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
+    global user_quit, lock, queue
     if proxy_port is not None:
         proxy_port = int(proxy_port)
-    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
-    e.start()
+    lock.acquire()
     try:
         if proxy_ip is None:
             route = None
@@ -81,12 +75,7 @@ def do_register(username, domain, password, display_name, proxy_ip, proxy_port, 
             route = Route(proxy_ip, proxy_port or 5060)
         reg = Registration(Credentials(SIPURI(user=username, host=domain, display=display_name), password), route=route, expires=expires)
         reg.register()
-    except:
-        e.stop()
-        raise
-    start_new_thread(user_input, ())
-    while True:
-        try:
+        while True:
             command, data = queue.get()
             if command == "print":
                 print data
@@ -100,24 +89,41 @@ def do_register(username, domain, password, display_name, proxy_ip, proxy_port, 
                             print "Other registered contacts: %s" % ", ".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
                     elif args["state"] == "unregistered":
                         print "Unregistered: %(code)d %(reason)s" % args
+                        user_quit = False
                         command = "quit"
             if command == "unregister":
-                try:
-                    reg.unregister()
-                except:
-                    traceback.print_exc()
-                    command = "quit"
+                reg.unregister()
             if command == "quit":
-                e.stop()
-                sys.exit()
-        except KeyboardInterrupt:
-            print "Interrupted, exiting instantly!"
-            e.stop()
-            sys.exit()
-        except Exception:
-            traceback.print_exc()
-            e.stop()
-            sys.exit()
+                break
+    except:
+        traceback.print_exc()
+    finally:
+        e.stop()
+        if not user_quit:
+            os.kill(os.getpid(), signal.SIGINT)
+        lock.release()
+
+def do_register(**kwargs):
+    global user_quit, lock, queue
+    print "Using configuration file %s" % process.config_file("pypjua.ini")
+    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=False)
+    e.start()
+    start_new_thread(read_queue, (e,), kwargs)
+    ctrl_d_pressed = False
+    try:
+        while True:
+            try:
+                raw_input()
+            except EOFError:
+                if not ctrl_d_pressed:
+                    queue.put(("unregister", None))
+                    ctrl_d_pressed = True
+    except KeyboardInterrupt:
+        if user_quit:
+            print "CTRL+C pressed, exiting instantly!"
+            queue.put(("quit", True))
+        lock.acquire()
+        return
 
 re_ip_port = re.compile("^(?P<proxy_ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<proxy_port>\d+))?$")
 def parse_proxy(option, opt_str, value, parser):
