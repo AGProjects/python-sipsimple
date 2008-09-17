@@ -68,5 +68,5 @@ sudo python setup.py install
 Testing the library
 -------------------
 
-See README.txt in pypjua/clients directory.
+See README.txt in the scripts directory directory.
 
