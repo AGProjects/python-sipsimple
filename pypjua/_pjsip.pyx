@@ -1037,6 +1037,7 @@ cdef class PJSIPUA:
     cdef list c_events
     cdef list c_wav_files
     cdef object c_sent_messages
+    cdef pj_time_val c_max_timeout
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -1047,6 +1048,8 @@ cdef class PJSIPUA:
         self.c_events = []
         self.c_wav_files = []
         self.c_sent_messages = set()
+        self.c_max_timeout.sec = 0
+        self.c_max_timeout.msec = 100
 
     def __init__(self, event_handler, *args, **kwargs):
         global _event_queue_lock
@@ -1204,13 +1207,10 @@ cdef class PJSIPUA:
             self.c_event_handler(event_name, **event_params)
 
     def poll(self):
-        cdef pj_time_val c_max_timeout
         cdef int status
         self.c_check_thread()
-        c_max_timeout.sec = 0
-        c_max_timeout.msec = 100
         with nogil:
-            status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &c_max_timeout)
+            status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &self.c_max_timeout)
         if status != 0:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
