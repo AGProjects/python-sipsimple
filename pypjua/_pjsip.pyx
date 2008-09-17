@@ -1181,6 +1181,7 @@ cdef class PJSIPUA:
         self.c_wav_files.append(WaveFile(self.c_pjsip_endpoint, self.c_conf_bridge, file_name))
 
     def __dealloc__(self):
+        self.c_check_thread()
         self._do_dealloc()
 
     cdef int _do_dealloc(self) except -1:
