@@ -3,20 +3,15 @@
 import sys
 import re
 import traceback
-import string
-import random
-import socket
 import os
-import atexit
-import select
-import termios
-from thread import start_new_thread
-from threading import Thread
+import signal
+import random
+from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 import dns.resolver
-from application.process import process
 from application.configuration import *
+from application.process import process
 from pypjua import *
 
 re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
@@ -50,6 +45,8 @@ configuration.read_settings("Account", AccountConfig)
 queue = Queue()
 packet_count = 0
 start_time = None
+user_quit = True
+lock = allocate_lock()
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue
@@ -68,26 +65,12 @@ def event_handler(event_name, **kwargs):
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
 
-def user_input():
-    global queue
-    while True:
-        try:
-            msg = raw_input()
-            queue.put(("user_input", msg))
-        except EOFError:
-            queue.put(("eof", None))
-        except:
-            traceback.print_exc()
-            queue.put(("unregister", None))
-
-
-def do_message(username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, message):
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, message):
+    global user_quit, lock, queue
+    lock.acquire()
     printed = False
     sent = False
     msg_buf = []
-    print "Using configuration file %s" % process.config_file("pypjua.ini")
-    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=False)
-    e.start()
     try:
         if proxy_ip is None:
             # for now assume 1 SRV record and more than one A record
@@ -96,21 +79,19 @@ def do_message(username, domain, password, display_name, proxy_ip, proxy_port, t
             route = Route(random.choice(a_answers).address, srv_answers[0].port)
         else:
             route = Route(proxy_ip, proxy_port)
-        cred = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
+        credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         if target_username is None:
-            reg = Registration(cred, route=route)
+            reg = Registration(credentials, route=route)
+            print 'Registering for SIP address "%s" at proxy %s:%d and waiting for MESSAGE request' % (credentials.uri, route.host, route.port)
             reg.register()
         else:
-            queue.put(("pypjua_event", ("Registration_state", dict(state="registered"))))
-        if message is not None:
-            msg_buf.append(message)
-            queue.put(("eof", None))
-    except:
-        e.stop()
-        raise
-    start_new_thread(user_input, ())
-    while True:
-        try:
+            to_uri = SIPURI(user=target_username, host=target_domain)
+            if message is None:
+                print "Press Control-D on an empty line to end input and send the MESSAGE request."
+            else:
+                msg_buf.append(message)
+                queue.put(("eof", None))
+        while True:
             command, data = queue.get()
             if command == "print":
                 print data
@@ -119,15 +100,15 @@ def do_message(username, domain, password, display_name, proxy_ip, proxy_port, t
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
                         if not printed:
-                            if target_username is None:
-                                print "Registered with SIP address: %s@%s, waiting for incoming MESSAGE..." % (username, domain)
-                                print "Press Control-D to stop the program."
-                            else:
-                                print "Press Control-D on an empty line to end input and send the MESSAGE request."
+                            print "REGISTER was succesfull"
+                            print "Contact: %s" % args["contact_uri"]
+                            if len(args["contact_uri_list"]) > 1:
+                                print "Other registered contacts:\n%s" % "\n".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
                             printed = True
                     elif args["state"] == "unregistered":
                         if args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
+                        user_quit = False
                         command = "quit"
                 elif event_name == "Invitation_state":
                     if args["state"] == "INCOMING":
@@ -140,32 +121,51 @@ def do_message(username, domain, password, display_name, proxy_ip, proxy_port, t
                         print "Could not deliver MESSAGE: %(code)d %(reason)s" % args
                     else:
                         print "MESSAGE was accepted by remote party."
+                    user_quit = False
                     command = "quit"
             if command == "user_input":
                 if not sent:
                     msg_buf.append(data)
             if command == "eof":
                 if target_username is None:
-                    command = "unregister"
+                    reg.unregister()
                 elif not sent:
                     sent = True
-                    send_message(cred, SIPURI(user=target_username, host=target_domain), "text", "plain", "\n".join(msg_buf), route)
-            if command == "unregister":
-                if target_username is None:
-                    reg.unregister()
-                else:
-                    command = "quit"
+                    print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%d' % (credentials.uri, to_uri, route.host, route.port)
+                    send_message(credentials, SIPURI(user=target_username, host=target_domain), "text", "plain", "\n".join(msg_buf), route)
             if command == "quit":
-                e.stop()
-                sys.exit()
-        except KeyboardInterrupt:
-            print "Interrupted, exiting instantly!"
-            e.stop()
-            sys.exit()
-        except Exception:
-            traceback.print_exc()
-            e.stop()
-            sys.exit()
+                break
+    except:
+        user_quit = False
+        traceback.print_exc()
+    finally:
+        e.stop()
+        if not user_quit:
+            os.kill(os.getpid(), signal.SIGINT)
+        lock.release()
+
+def do_message(**kwargs):
+    global user_quit, lock, queue
+    print "Using configuration file %s" % process.config_file("pypjua.ini")
+    ctrl_d_pressed = False
+    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=False)
+    e.start()
+    start_new_thread(read_queue, (e,), kwargs)
+    try:
+        while True:
+            try:
+                msg = raw_input()
+                queue.put(("user_input", msg))
+            except EOFError:
+                if not ctrl_d_pressed:
+                    queue.put(("eof", None))
+                    ctrl_d_pressed = True
+    except KeyboardInterrupt:
+        if user_quit:
+            print "CTRL+C pressed, exiting instantly!"
+            queue.put(("quit", True))
+        lock.acquire()
+        return
 
 def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port):
     match = re_host_port.match(value)
