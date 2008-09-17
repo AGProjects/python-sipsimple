@@ -65,8 +65,6 @@ def event_handler(event_name, **kwargs):
 
 def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
     global user_quit, lock, queue
-    if proxy_port is not None:
-        proxy_port = int(proxy_port)
     lock.acquire()
     try:
         if proxy_ip is None:
@@ -125,14 +123,15 @@ def do_register(**kwargs):
         lock.acquire()
         return
 
-re_ip_port = re.compile("^(?P<proxy_ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<proxy_port>\d+))?$")
-def parse_proxy(option, opt_str, value, parser):
-    match = re_ip_port.match(value)
+def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port):
+    match = re_host_port.match(value)
     if match is None:
-        raise OptionValueError("Could not parse supplied outbound proxy addrress")
-    for key, val in match.groupdict().iteritems():
-        if val is not None:
-            setattr(parser.values, key, val)
+        raise OptionValueError("Could not parse supplied address: %s" % value)
+    setattr(parser.values, host_name, match.group("host"))
+    if match.group("port") is None:
+        setattr(parser.values, port_name, default_port)
+    else:
+        setattr(parser.values, port_name, int(match.group("port")))
 
 def parse_options():
     retval = {}
@@ -147,7 +146,7 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_proxy, help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records.", metavar="IP[:PORT]")
+    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     options, args = parser.parse_args()
     for attr in default_options:
