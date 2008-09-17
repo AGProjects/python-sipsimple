@@ -97,6 +97,9 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                             print "Unregistered: %(code)d %(reason)s" % args
                         user_quit = False
                         command = "quit"
+                elif event_name == "Invitation_state":
+                    if args["state"] == "INCOMING":
+                        args["obj"].end()
             if command == "eof":
                 reg.unregister()
             if command == "quit":
