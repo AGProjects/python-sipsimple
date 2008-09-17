@@ -289,7 +289,6 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
     setattr(parser.values, host_name, match.group("host"))
     if match.group("port") is None:
         setattr(parser.values, port_name, default_port)
-        setattr(parser.values, "do_srv", True)
     else:
         setattr(parser.values, port_name, int(match.group("port")))
 
