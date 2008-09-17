@@ -97,7 +97,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                             print "Unregistered: %(code)d %(reason)s" % args
                         user_quit = False
                         command = "quit"
-            if command == "unregister":
+            if command == "eof":
                 reg.unregister()
             if command == "quit":
                 break
@@ -123,7 +123,7 @@ def do_register(**kwargs):
                 raw_input()
             except EOFError:
                 if not ctrl_d_pressed:
-                    queue.put(("unregister", None))
+                    queue.put(("eof", None))
                     ctrl_d_pressed = True
     except KeyboardInterrupt:
         if user_quit:
