@@ -62,6 +62,8 @@ cdef extern from "pjlib.h":
     void *pj_pool_alloc(pj_pool_t *pool, int size)
 
     # threads
+    enum:
+        PJ_THREAD_DESC_SIZE
     struct pj_mutex_t
     struct pj_thread_t
     int pj_mutex_create_simple(pj_pool_t *pool, char *name, pj_mutex_t **mutex)
@@ -985,6 +987,17 @@ cdef class WaveFile:
             pjsip_endpt_release_pool(self.pjsip_endpoint, self.pool)
 
 
+cdef class PJSIPThread:
+    cdef pj_thread_t *c_obj
+    cdef long c_thread_desc[PJ_THREAD_DESC_SIZE]
+
+    def __cinit__(self):
+        cdef object thread_name = "python_%d" % id(self)
+        cdef int status
+        status = pj_thread_register(thread_name, self.c_thread_desc, &self.c_obj)
+        if status != 0:
+            raise RuntimeError("Error while registering thread: %s" % pj_status_to_str(status))
+
 cdef object c_retrieve_nameservers():
     nameservers = []
     IF UNAME_SYSNAME != "Windows":
@@ -1006,8 +1019,7 @@ cdef class MediaStream
 cdef class AudioStream
 
 cdef class PJSIPUA:
-    cdef long c_thread_desc[64]
-    cdef pj_thread_t *c_thread
+    cdef list c_threads
     cdef object c_event_handler
     cdef PJLIB c_pjlib
     cdef PJCachingPool c_caching_pool
@@ -1031,6 +1043,7 @@ cdef class PJSIPUA:
         if _ua != NULL:
             raise RuntimeError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
+        self.c_threads = []
         self.c_events = []
         self.c_wav_files = []
         self.c_sent_messages = set()
@@ -1193,8 +1206,7 @@ cdef class PJSIPUA:
     def poll(self):
         cdef pj_time_val c_max_timeout
         cdef int status
-        if not pj_thread_is_registered() and self.c_thread == NULL:
-            pj_thread_register("python", self.c_thread_desc, &self.c_thread)
+        self.c_check_thread()
         c_max_timeout.sec = 0
         c_max_timeout.msec = 100
         with nogil:
@@ -1202,6 +1214,10 @@ cdef class PJSIPUA:
         if status != 0:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
+
+    cdef int c_check_thread(self) except -1:
+        if not pj_thread_is_registered():
+            self.c_threads.append(PJSIPThread())
 
     cdef PJSTR c_create_contact_uri(self, object username):
         return PJSTR(SIPURI(host=pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host), user=username, port=self.c_pjsip_endpoint.c_udp_transport.local_name.port).as_str())
@@ -1252,9 +1268,12 @@ cdef class PJSIPUA:
 
 cdef PJSIPUA c_get_ua():
     global _ua
+    cdef PJSIPUA ua
     if _ua == NULL:
         raise RuntimeError("PJSIPUA is not instanced")
-    return <object> _ua
+    ua = <object> _ua
+    ua.c_check_thread()
+    return ua
 
 cdef int cb_play_wave_eof(pjmedia_port *port, void *user_data) with gil:
     cdef WaveFile wav_file = <object> user_data
