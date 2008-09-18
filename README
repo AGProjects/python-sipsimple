@@ -40,25 +40,24 @@ existing sessions, such as multicast conferences.  Media can be added to
 (and removed from) an existing session.  SIP transparently supports name
 mapping and redirection services, which supports personal mobility, users
 can maintain a single externally visible identifier regardless of their
-network location. 
+network location.
 
 SIP supports five facets of establishing and terminating multimedia
 communications:
 
-	User location: determination of the end system to be used for
-	communication;
+User location: determination of the end system to be used for communication;
 
-	User availability: determination of the willingness of the called
-	party to engage in communications;
+User availability: determination of the willingness of the called party to
+engage in communications;
 
-	User capabilities: determination of the media and media parameters
-	to be used;
+User capabilities: determination of the media and media parameters to be
+used;
 
-	Session setup: "ringing", establishment of session parameters at
-	both called and calling party;
+Session setup: "ringing", establishment of session parameters at both called
+and calling party;
 
-	Session management: including transfer and termination of sessions,
-	modifying session parameters, and invoking services. "
+Session management: including transfer and termination of sessions,
+modifying session parameters, and invoking services. "
 
 
 End-user experiences
