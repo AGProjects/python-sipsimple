@@ -67,8 +67,8 @@ def event_handler(event_name, **kwargs):
 
 def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
     global user_quit, lock, queue
-    printed = False
     lock.acquire()
+    printed = False
     try:
         if proxy_ip is None:
             # for now assume 1 SRV record and more than one A record
