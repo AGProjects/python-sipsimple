@@ -7,7 +7,11 @@ import string
 import random
 import socket
 import os
-from thread import start_new_thread
+import termios
+import select
+import signal
+import atexit
+from thread import start_new_thread, allocate_lock
 from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
@@ -48,6 +52,11 @@ class AccountConfig(ConfigSection):
     outbound_proxy = None, None
 
 
+class AudioConfig(ConfigSection):
+    _datatypes = {"disable_sound": datatypes.Boolean}
+    disable_sound = False
+
+
 process._system_config_directory = os.path.expanduser("~")
 configuration = ConfigFile("pypjua.ini")
 configuration.read_settings("Account", AccountConfig)
@@ -77,7 +86,8 @@ class MSRP(Thread):
         Thread.__init__(self)
 
     def _init_relay(self):
-        print "Reserving session at MSRP relay..."
+        global queue
+        queue.put(("print", "Reserving session at MSRP relay..."))
         self.use_tls = True
         relay_ip, relay_port, relay_username, relay_password = self.relay_data
         real_relay_ip = relay_ip
@@ -87,7 +97,7 @@ class MSRP(Thread):
                 real_relay_ip = str(answers[0].target).rstrip(".")
                 relay_port = answers[0].port
             except DNSException:
-                print "SRV lookup failed, trying normal A record lookup..."
+                queue.put(("print", "SRV lookup failed, trying normal A record lookup..."))
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.settimeout(5)
         self.sock.connect((real_relay_ip, relay_port))
@@ -113,11 +123,12 @@ class MSRP(Thread):
         headers = dict(header.split(": ", 1) for header in data["headers"].split("\r\n"))
         use_path = msrp_protocol.UsePathHeader(headers["Use-Path"]).decoded[0]
         self.local_uri_path = [use_path, self.local_uri_path[0]]
-        print 'Reserved session at MSRP relay %s:%d, Use-Path %s' % (real_relay_ip, relay_port, use_path)
+        queue.put(("print", 'Reserved session at MSRP relay %s:%d, Use-Path %s' % (real_relay_ip, relay_port, use_path)))
 
     def _send(self, data):
+        global queue
         if self.do_dump:
-            print "Sending MSRP data:\n%s" % data
+            queue.put(("print", "Sending MSRP data:\n%s" % data))
         if self.use_tls:
             self.ssl.write(data)
         else:
@@ -132,7 +143,7 @@ class MSRP(Thread):
         else:
             data = self.sock.recv(16384)
         if self.do_dump:
-            print "Received MSRP data:\n%s" % data
+            queue.put(("print", "Received MSRP data:\n%s" % data))
         return data
 
     def _recv_msrp(self):
@@ -197,7 +208,7 @@ class MSRP(Thread):
                 return
             if data["method"] == "SEND":
                 if data["body"]:
-                    print "%s: %s" % (correspondent.as_str(), data["body"])
+                    queue.put(("print_message", data["body"]))
                 response = msrp_protocol.MSRPData(transaction_id=data["transaction_id"], code=200, comment="OK")
                 response.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
                 response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
@@ -242,31 +253,37 @@ class RingingThread(Thread):
 queue = Queue()
 packet_count = 0
 start_time = None
+user_quit = True
+lock = allocate_lock()
+switch_mode = False
+old = None
+
+def termios_restore():
+    global old
+    if old is not None:
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
+
+def getchar():
+    global old
+    fd = sys.stdin.fileno()
+    if os.isatty(fd):
+        old = termios.tcgetattr(fd)
+        new = termios.tcgetattr(fd)
+        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
+        new[6][termios.VMIN] = '\000'
+        try:
+            termios.tcsetattr(fd, termios.TCSADRAIN, new)
+            termios.tcflush(fd, termios.TCIFLUSH)
+            if select.select([fd], [], [], None)[0]:
+                return sys.stdin.read(10)
+        finally:
+            termios_restore()
+    else:
+        return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue
-    if event_name == "Invitation_state":
-        if kwargs["state"] == "INCOMING":
-            print "Incoming session..."
-            queue.put(("incoming", kwargs))
-        elif kwargs["state"] == "DISCONNECTED":
-            if kwargs.has_key("code") and kwargs["code"] / 100 != 2:
-                print "Session ended: %(code)d %(reason)s" % kwargs
-            else:
-                print "Session ended"
-            queue.put(("unregister", None))
-        elif kwargs["state"] == "ESTABLISHED":
-            queue.put(("established", kwargs))
-    elif event_name == "Invitation_ringing":
-        queue.put(("ringing", None))
-    elif event_name == "Registration_state":
-        if kwargs["state"] == "registered":
-            queue.put(("registered", None))
-        elif kwargs["state"] == "unregistered":
-            if kwargs["code"] / 100 != 2:
-                print "Unregistered: %(code)d %(reason)s" % kwargs
-            queue.put(("quit", None))
-    elif event_name == "siptrace":
+    if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
@@ -274,141 +291,206 @@ def event_handler(event_name, **kwargs):
             direction = "RECEIVED"
         else:
             direction = "SENDING"
-        print "%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))
-        print "%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs
-        print kwargs["data"]
+        buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
+        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
+        buf.append(kwargs["data"])
+        queue.put(("print", "\n".join(buf)))
+    elif event_name != "log":
+        queue.put(("pypjua_event", (event_name, kwargs)))
 
-def user_input():
-    global queue
-    while True:
-        try:
-            msg = raw_input()
-            queue.put(("user_input", msg))
-        except EOFError:
-            queue.put(("end", None))
-            break
-        except:
-            traceback.print_exc()
-            queue.put(("end", None))
-
-def do_invite(username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace):
-    global correspondent
-    print "Using configuration file %s" % process.config_file("pypjua.ini")
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound):
+    global user_quit, lock, queue, switch_mode
+    lock.acquire()
+    inv = None
+    msrp = None
+    ringer = None
+    printed = False
+    want_quit = target_username is not None
     if use_msrp_relay:
         if auto_msrp_relay:
-            msrp = MSRP(target_username is None, dump_msrp, domain, 2855, username, password, True)
+            msrp_args = [target_username is None, dump_msrp, domain, 2855, username, password, True]
         else:
-            msrp = MSRP(target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, False)
+            msrp_args = [target_username is None, dump_msrp, msrp_relay_ip, msrp_relay_port, username, password, False]
     else:
-        msrp = MSRP(target_username is None, dump_msrp)
-    inv = None
-    printed = False
-    ringer = None
-    e = Engine(event_handler, do_siptrace=do_siptrace, auto_sound=True, ec_tail_length=0)
-    e.start()
+        msrp_args = [target_username is None, dump_msrp]
     try:
         if proxy_ip is None:
-            route = None
+            # for now assume 1 SRV record and more than one A record
+            srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
+            a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
+            route = Route(random.choice(a_answers).address, srv_answers[0].port)
         else:
             route = Route(proxy_ip, proxy_port)
+        credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         if target_username is None:
-            reg = Registration(Credentials(SIPURI(user=username, host=domain, display=display_name), password), route=route)
+            reg = Registration(credentials, route=route)
+            print 'Registering for SIP address "%s" at proxy %s:%d and waiting for incoming INVITE' % (credentials.uri, route.host, route.port)
             reg.register()
         else:
-            queue.put(("registered", None))
-        if target_username is not None:
-            inv = Invitation(Credentials(SIPURI(user=username, host=domain, display=display_name), password), SIPURI(user=target_username, host=target_domain), route=route)
-            correspondent = inv.callee_uri
-    except:
-        e.stop()
-        raise
-    start_new_thread(user_input, ())
-    while True:
-        try:
+            msrp = MSRP(*msrp_args)
+            inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
+            print "MSRP chat from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
+            inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["text/plain"])])
+            other_party = inv.callee_uri
+            print "Press Ctrl-D to stop the program."
+        while True:
             command, data = queue.get()
-            if command == "quit":
-                msrp.disconnect()
-                sys.exit()
-            elif command == "unregister":
-                if ringer is not None:
-                    ringer.stop()
-                    ringer = None
-                if target_username is None:
-                    try:
-                        reg.unregister()
-                    except:
-                        traceback.print_exc()
-                        msrp.disconnect()
-                        sys.exit()
-                else:
-                    queue.put(("quit", None))
-            elif command == "end":
+            if command == "print":
+                print data
+            if command == "print_message":
+                print "%s: %s" % (other_party, data)
+            if command == "pypjua_event":
+                event_name, args = data
+                if event_name == "Registration_state":
+                    if args["state"] == "registered":
+                        if not printed:
+                            print "REGISTER was succesfull"
+                            print "Contact: %s" % args["contact_uri"]
+                            if len(args["contact_uri_list"]) > 1:
+                                print "Other registered contacts:\n%s" % "\n".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
+                            print "Press Ctrl-D to stop the program."
+                            print "Waiting for incoming session..."
+                            printed = True
+                    elif args["state"] == "unregistered":
+                        if args["code"] / 100 != 2:
+                            print "Unregistered: %(code)d %(reason)s" % args
+                        user_quit = False
+                        command = "quit"
+                if event_name == "Invitation_ringing":
+                    if ringer is None:
+                        print "Ringing..."
+                        ringer = RingingThread(False)
+                elif event_name == "Invitation_state":
+                    if args["state"] == "INCOMING":
+                        print "Incoming session..."
+                        if inv is None:
+                            if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "message":
+                                inv = args["obj"]
+                                other_user_agent = args["headers"].get("User-Agent")
+                                if ringer is None:
+                                    ringer = RingingThread(True)
+                                print 'Incoming MSRP session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                            else:
+                                print "Not an MSRP session, rejecting."
+                                args["obj"].end()
+                        else:
+                            print "Rejecting."
+                            args["obj"].end()
+                    elif args["state"] == "ESTABLISHED":
+                        if "headers" in args:
+                            other_user_agent = args["headers"].get("User-Agent")
+                        if ringer is not None:
+                            ringer.stop()
+                            ringer = None
+                        remote_uri_path = args["streams"].pop().remote_info[0]
+                        print "Session negotiated to: %s" % " ".join(remote_uri_path)
+                        if target_username is not None:
+                            msrp.set_remote_uri(remote_uri_path)
+                        if other_user_agent is not None:
+                            print 'Remote User Agent is "%s"' % other_user_agent
+                        switch_mode = True
+                        os.kill(os.getpid(), signal.SIGINT)
+                    elif args["state"] == "DISCONNECTED":
+                        if args["obj"] is inv:
+                            if ringer is not None:
+                                ringer.stop()
+                                ringer = None
+                            if args.has_key("code") and args["code"] / 100 != 2:
+                                print "Session ended: %(code)d %(reason)s" % args
+                            else:
+                                print "Session ended"
+                            if msrp is not None:
+                                msrp.disconnect()
+                                msrp = None
+                                switch_mode = True
+                                os.kill(os.getpid(), signal.SIGINT)
+                            if want_quit:
+                                command = "unregister"
+                            else:
+                                inv = None
+            if command == "user_input":
+                if inv is not None:
+                    if inv.state == "INCOMING":
+                        if data.lower() == "n":
+                            command = "end"
+                            want_quit = False
+                        elif data.lower() == "y":
+                            other_party = inv.caller_uri
+                            msrp_stream = inv.proposed_streams.pop()
+                            msrp = MSRP(*msrp_args)
+                            msrp.set_remote_uri(msrp_stream.remote_info[0])
+                            msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
+                            inv.accept([msrp_stream])
+                    elif inv.state == "ESTABLISHED":
+                        msrp.send_message(data)
+            if command == "play_wav":
+                e.play_wav_file(get_path(data))
+            if command == "eof":
+                command = "end"
+                want_quit = True
+            if command == "end":
                 try:
                     inv.end()
                 except:
-                    queue.put(("unregister", None))
-            elif command == "incoming":
-                if inv is None:
-                    if data.has_key("streams") and len(data["streams"]) == 1:
-                        msrp_stream = data["streams"].pop()
-                        if msrp_stream.media_type == "message" and msrp_stream.remote_info[1] == ["text/plain"]:
-                            inv = data["obj"]
-                            correspondent = inv.caller_uri
-                            if ringer is None:
-                                ringer = RingingThread(True)
-                            print 'Incoming session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
-                        else:
-                            data["obj"].end()
+                    command = "unregister"
+            if command == "unregister":
+                if target_username is None:
+                    reg.unregister()
+                else:
+                    user_quit = False
+                    command = "quit"
+            if command == "quit":
+                break
+    except:
+        user_quit = False
+        traceback.print_exc()
+    finally:
+        e.stop()
+        if not user_quit:
+            os.kill(os.getpid(), signal.SIGINT)
+        lock.release()
+
+def do_invite(**kwargs):
+    global user_quit, lock, queue, switch_mode
+    print "Using configuration file %s" % process.config_file("pypjua.ini")
+    ctrl_d_pressed = False
+    char_mode = True
+    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=not kwargs["disable_sound"], ec_tail_length=0)
+    e.start()
+    start_new_thread(read_queue, (e,), kwargs)
+    atexit.register(termios_restore)
+    try:
+        while True:
+            try:
+                if char_mode:
+                    char = getchar()
+                    if char == "\x04":
+                        if not ctrl_d_pressed:
+                            queue.put(("eof", None))
+                            ctrl_d_pressed = True
                     else:
-                        data["obj"].end()
+                        queue.put(("user_input", char))
                 else:
-                    data["obj"].end()
-            elif command == "registered":
-                if not printed:
-                    if target_username is None:
-                        print "Registered with SIP address: %s@%s, waiting for incoming session..." % (username, domain)
-                    printed = True
-                if inv is not None and inv.state == "DISCONNECTED":
-                    inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["text/plain"])])
-            elif command == "established":
-                if ringer is not None:
-                    ringer.stop()
-                    ringer = None
-                remote_uri_path = data["streams"].pop().remote_info[0]
-                print "Session negotiated to: %s" % " ".join(remote_uri_path)
-                if target_username is not None:
                     try:
-                        msrp.set_remote_uri(remote_uri_path)
-                    except:
-                        traceback.print_exc()
-                        queue.put(("end", None))
-            elif command == "ringing":
-                if ringer is None:
-                    print "Ringing..."
-                    ringer = RingingThread(False)
-            elif command == "play_wav":
-                e.play_wav_file(get_path(data))
-            elif command == "user_input":
-                if inv is not None and inv.state == "INCOMING":
-                    if data[0].lower() == "n":
-                        queue.put(("end", None))
-                    elif data[0].lower() == "y":
-                        msrp_stream = inv.proposed_streams.pop()
-                        try:
-                            msrp.set_remote_uri(msrp_stream.remote_info[0])
-                        except:
-                            traceback.print_exc()
-                            queue.put(("end", None))
-                        msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
-                        inv.accept([msrp_stream])
+                        msg = raw_input()
+                        queue.put(("user_input", msg))
+                    except EOFError:
+                        if not ctrl_d_pressed:
+                            queue.put(("eof", None))
+                            ctrl_d_pressed = True
+            except KeyboardInterrupt:
+                if switch_mode:
+                    switch_mode = False
+                    ctrl_d_pressed = False
+                    char_mode = not char_mode
                 else:
-                    msrp.send_message(data)
-        except KeyboardInterrupt:
-            pass
-        except Exception:
-            traceback.print_exc()
-            msrp.disconnect()
-            sys.exit()
+                    raise
+    except KeyboardInterrupt:
+        if user_quit:
+            print "Ctrl+C pressed, exiting instantly!"
+            queue.put(("quit", True))
+        lock.acquire()
+        return
 
 re_host_port = re.compile("^((?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(?P<host>[a-zA-Z0-9\-\.]+))(:(?P<port>\d+))?$")
 def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port, allow_host):
@@ -431,7 +513,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -443,6 +525,7 @@ def parse_options():
     parser.add_option("-m", "--trace-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
+    parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     options, args = parser.parse_args()
     if args:
         try:
