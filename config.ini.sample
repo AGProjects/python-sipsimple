@@ -115,9 +115,6 @@ sip_outbound_proxy=
 ; from whom to accept invitations for IM chat sessions
 im_allow_invitations_from=buddy_list|everyone
 
-; from whom to accept invitations for file transfers
-file_transfer_allow_invitations_from=buddy_list|everyone
-
 ; overwrite default DNS lookup with a fixed address: hostname|ip:port
 msrp_relay_address=auto
 
@@ -134,12 +131,8 @@ presence=true
 ; xcap root used by XCAP client to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
 
-; useful for watchers in same domain to be granted different default rights (e.g. same company)
-presence_accept_watchers_from_local_domain=prompt|allow
-
-; use pidf-manipulation xcap document for extended away, this document
-; maintains state in presence server even if we are offline (e.g. holiday indication)
-presence_pidf_manipulation_for_extended_away=true
+; useful for watchers in same domain to be granted default rights (e.g. same company)
+presence_accept_watchers_from_domains=
 
 ; enable subscription to RLS service, the presence server subscribes to buddy list in our behalf
 ; it saves bandwidth on the last mile, useful for mobile devices
@@ -150,19 +143,6 @@ subscribe_message_waiting_indicator=true
 
 ; subscribe to xcap-diff event to be notified when the xcap docs are changed by other instance
 subscribe_xcap_diff=true
-
-; if enabled, lookup the SIP Thor home node and use it for registration and
-; as outbound proxy
-thor_lookup=false
-
-; Enable keep alive to keep the NAT open with the SIP registar
-sip_keepalive=false
-
-; Enable encrypted RTP by exchanging secret key in SDP negotiation (traceable)
-rtp_srtp=never|always|preffer
-
-; Enable encrypted RTP using public key cryptography in end-points (untraceable)
-rtp_zrtp=never|always|prefer
 
 ; SIP transport can be udp, tcp, tls, detected from the DNS NAPTR record
 sip_transport=auto
