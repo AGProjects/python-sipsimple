@@ -67,6 +67,7 @@ def event_handler(event_name, **kwargs):
 
 def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
     global user_quit, lock, queue
+    printed = False
     lock.acquire()
     try:
         if proxy_ip is None:
@@ -88,10 +89,13 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                 event_name, args = data
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
-                        print "REGISTER was succesfull"
-                        print "Contact: %s" % args["contact_uri"]
-                        if len(args["contact_uri_list"]) > 1:
-                            print "Other registered contacts:\n%s" % "\n".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
+                        if not printed:
+                            print "REGISTER was succesfull"
+                            print "Contact: %s" % args["contact_uri"]
+                            if len(args["contact_uri_list"]) > 1:
+                                print "Other registered contacts:\n%s" % "\n".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
+                            print "Press Ctrl+D to stop the program."
+                            printed = True
                     elif args["state"] == "unregistered":
                         if args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
@@ -130,7 +134,7 @@ def do_register(**kwargs):
                     ctrl_d_pressed = True
     except KeyboardInterrupt:
         if user_quit:
-            print "CTRL+C pressed, exiting instantly!"
+            print "Ctrl+C pressed, exiting instantly!"
             queue.put(("quit", True))
         lock.acquire()
         return
@@ -147,7 +151,7 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
 
 def parse_options():
     retval = {}
-    description = "This example script will register the provided SIP account and refresh it while the program is running. When CTRL+D is pressed it will unregister."
+    description = "This example script will register the provided SIP account and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
     usage = "%prog [options]"
     default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False)
     parser = OptionParser(usage=usage, description=description)

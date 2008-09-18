@@ -87,7 +87,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         else:
             to_uri = SIPURI(user=target_username, host=target_domain)
             if message is None:
-                print "Press Control-D on an empty line to end input and send the MESSAGE request."
+                print "Press Ctrl+D on an empty line to end input and send the MESSAGE request."
             else:
                 msg_buf.append(message)
                 queue.put(("eof", None))
@@ -104,7 +104,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                             print "Contact: %s" % args["contact_uri"]
                             if len(args["contact_uri_list"]) > 1:
                                 print "Other registered contacts:\n%s" % "\n".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
-                            print "Press Control-D to stop the program."
+                            print "Press Ctrl+D to stop the program."
                             printed = True
                     elif args["state"] == "unregistered":
                         if args["code"] / 100 != 2:
@@ -163,7 +163,7 @@ def do_message(**kwargs):
                     ctrl_d_pressed = True
     except KeyboardInterrupt:
         if user_quit:
-            print "CTRL+C pressed, exiting instantly!"
+            print "Ctrl+C pressed, exiting instantly!"
             queue.put(("quit", True))
         lock.acquire()
         return
@@ -180,7 +180,7 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
 
 def parse_options():
     retval = {}
-    description = "This example script will either REGISTER using the specified credentials and sit idle waiting for an incoming MESSAGE request, or attempt to send a MESSAGE request to the specified target. In outgoing mode the program will read the contents of the messages to be sent from standard input, CTRL+D signalling EOF as usual. In listen mode the program will quit when CTRL+D is pressed."
+    description = "This example script will either REGISTER using the specified credentials and sit idle waiting for an incoming MESSAGE request, or attempt to send a MESSAGE request to the specified target. In outgoing mode the program will read the contents of the messages to be sent from standard input, Ctrl+D signalling EOF as usual. In listen mode the program will quit when Ctrl+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
     default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, message=None)
     parser = OptionParser(usage=usage, description=description)
