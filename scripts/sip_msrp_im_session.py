@@ -333,7 +333,9 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
             msrp = MSRP(*msrp_args)
             inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
             print "MSRP chat from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
-            inv.invite([MediaStream("message", [str(uri) for uri in msrp.local_uri_path], ["text/plain"])])
+            stream = MediaStream("message")
+            stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
+            inv.invite([stream])
             other_party = inv.callee_uri
             print "Press Ctrl-D to stop the program."
         while True:

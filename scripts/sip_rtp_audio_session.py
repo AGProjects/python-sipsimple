@@ -204,7 +204,8 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                             ringer = None
                         audio_stream = args["streams"].pop()
                         e.connect_audio_stream(audio_stream)
-                        print 'Media negotiation done, using "%s" codec at %dHz' % audio_stream.info
+                        print 'Media negotiation done, using "%s" codec at %dHz' % (audio_stream.codec, audio_stream.sample_rate)
+                        print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio_stream.local_ip, audio_stream.local_port, audio_stream.remote_ip, audio_stream.remote_port)
                         if other_user_agent is not None:
                             print 'Remote User Agent is "%s"' % other_user_agent
                     elif args["state"] == "DISCONNECTED":
@@ -228,15 +229,13 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                         command = "end"
                         want_quit = target_username is not None
                     elif data in "0123456789*#" and inv.state == "ESTABLISHED":
-                        inv.current_streams.pop().do_op("send_dtmf", data)
+                        inv.current_streams.pop().send_dtmf(data)
                     elif inv.state == "INCOMING":
                         if data.lower() == "n":
                             command = "end"
                             want_quit = False
                         elif data.lower() == "y":
-                            audio_stream = inv.proposed_streams.pop()
-                            audio_stream.set_local_info()
-                            inv.accept([audio_stream])
+                            inv.accept([inv.proposed_streams.pop()])
             if command == "play_wav":
                 e.play_wav_file(get_path(data))
             if command == "eof":

@@ -2221,16 +2221,15 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
 cdef SDPMedia c_reject_sdp(SDPMedia remote_media):
     return SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
 
-class MediaStreamError(Exception):
-    pass
-
-
 cdef dict _stream_map = {"message": MSRPStream, "audio": AudioStream}
 
 _re_msrp_uri = re.compile("^(?P<scheme>(msrp)|(msrps))://(((?P<user>.*?)@)?(?P<host>.*?)(:(?P<port>[0-9]+?))?)(/(?P<session_id>.*?))?;(?P<transport>.*?)(;(?P<parameters>.*))?$")
 cdef class MSRPStream:
     cdef list c_remote_info
     cdef list c_local_info
+
+    def has_remote_sdp(self):
+        return self.c_remote_info is not None
 
     def set_remote_sdp(self, SDPSession remote_sdp, unsigned int sdp_index):
         cdef SDPMedia msrp = remote_sdp.media[sdp_index]
@@ -2245,47 +2244,22 @@ cdef class MSRPStream:
             elif attr.name == "accept-wrapped-types":
                 accept_wrapped_types = attr.value.split()
         if uri_path is None:
-            raise MediaStreamError('MSRP "path" attribute is missing')
+            raise RuntimeError('MSRP "path" attribute is missing')
         if accept_types is None:
-            raise MediaStreamError('"accept-types" attribute is missing')
-        for uri in uri_path:
-            uri_match = _re_msrp_uri.match(uri)
-            if uri_match is None:
-                raise MediaStreamError('Invalid MSRP URI found: "%s"' % uri)
-        self.c_remote_info = [uri_path, accept_types, accept_wrapped_types]
-
-    def get_info(self):
-        return self.get_local_info(), self.get_remote_info()
-
-    def get_remote_info(self):
-        cdef list l
-        if self.c_remote_info is None:
-            return None
-        else:
-            return [l[:] for l in self.c_remote_info]
-
-    def get_local_info(self):
-        cdef list l
-        if self.c_local_info is None:
-            return None
-        else:
-            return [l[:] for l in self.c_local_info]
-
-    def set_local_info(self, uri_path, accept_types, accept_wrapped_types=[]):
-        cdef object uri, uri_match
+            raise RuntimeError('"accept-types" attribute is missing')
         for uri in uri_path:
             uri_match = _re_msrp_uri.match(uri)
             if uri_match is None:
                 raise RuntimeError('Invalid MSRP URI found: "%s"' % uri)
-        if uri_match.group("port") is None:
-            raise RuntimeError("Last URI in URI path does not have a port")
-        self.c_local_info = [list(uri_path), list(accept_types), list(accept_wrapped_types)]
+        self.c_remote_info = [uri_path, accept_types, accept_wrapped_types]
 
     def get_local_sdp(self):
         cdef list attributes = []
         cdef object match
         cdef object transport
         cdef list uri_path, accept_types, accept_wrapped_types
+        if self.c_local_info is None:
+            raise RuntimeError("local info for MSRP stream was not set")
         uri_path, accept_types, accept_wrapped_types = self.c_local_info
         attributes.append(SDPAttribute("path", " ".join(uri_path)))
         attributes.append(SDPAttribute("accept-types", " ".join(accept_types)))
@@ -2301,8 +2275,35 @@ cdef class MSRPStream:
     def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index, Invitation inv):
         pass
 
-    def do_op(self, op, *args):
-        return False
+    property remote_info:
+
+        def __get__(self):
+            cdef list l
+            if self.c_remote_info is None:
+                return None
+            else:
+                return [l[:] for l in self.c_remote_info]
+
+    property local_info:
+
+        def __get__(self):
+            cdef list l
+            if self.c_local_info is None:
+                return None
+            else:
+                return [l[:] for l in self.c_local_info]
+
+    def set_local_info(self, uri_path, accept_types, accept_wrapped_types=[]):
+        cdef object uri, uri_match
+        if self.c_local_info is not None:
+            raise RuntimeError("local info was already set")
+        for uri in uri_path:
+            uri_match = _re_msrp_uri.match(uri)
+            if uri_match is None:
+                raise RuntimeError('Invalid MSRP URI found: "%s"' % uri)
+        if uri_match.group("port") is None:
+            raise RuntimeError("Last URI in URI path does not have a port")
+        self.c_local_info = [list(uri_path), list(accept_types), list(accept_wrapped_types)]
 
 
 cdef class AudioStream:
@@ -2310,8 +2311,12 @@ cdef class AudioStream:
     cdef pjmedia_stream *c_stream
     cdef pj_pool_t *c_pool
     cdef unsigned int c_conf_slot
-    cdef object c_codec
-    cdef unsigned int c_clock_rate
+    cdef readonly object local_ip
+    cdef readonly object local_port
+    cdef readonly object remote_ip
+    cdef readonly object remote_port
+    cdef readonly object codec
+    cdef readonly object sample_rate
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -2335,35 +2340,16 @@ cdef class AudioStream:
             raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
         return 0
 
+    # mandatory methods
+    def has_remote_sdp(self):
+        return self.remote_port is not None
+
     def set_remote_sdp(self, SDPSession remote_sdp, unsigned int sdp_index):
-        pass
-
-    def get_info(self):
-        if self.c_stream == NULL:
-            return None
-        else:
-            return self.c_codec, self.c_clock_rate
-
-    def get_remote_info(self):
-        return None
-
-    def get_local_info(self):
-        cdef pjmedia_transport_info info
-        if self.c_transport == NULL:
-            return None
-        else:
-            self._get_transport_info(&info)
-            return pj_sockaddr_get_port(&info.sock_info.rtp_addr_name)
-
-    def set_local_info(self):
-        cdef int status, i
-        cdef PJSIPUA ua = c_get_ua()
-        for i in xrange(40000, 40100, 2):
-            status = pjmedia_transport_udp_create(ua.c_pjmedia_endpoint.c_obj, NULL, i, 0, &self.c_transport)
-            if status != PJ_ERRNO_START_SYS + EADDRINUSE:
-                break
-        if status != 0:
-            raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
+        if remote_sdp.media[sdp_index].connection is not None:
+            self.remote_ip = remote_sdp.media[sdp_index].connection.address
+        elif remote_sdp.connection is not None:
+            self.remote_ip = remote_sdp.connection.address
+        self.remote_port = remote_sdp.media[sdp_index].port
 
     def get_local_sdp(self):
         cdef pjmedia_transport_info info
@@ -2371,9 +2357,19 @@ cdef class AudioStream:
         cdef pjmedia_sdp_session *c_sdp_session
         cdef pj_pool_t *pool
         cdef object pool_name = "AudioSession_sdp_%d" % id(self)
-        cdef int status
+        cdef int status, i
         cdef PJSIPUA ua = c_get_ua()
-        self._get_transport_info(&info)
+        if self.c_transport == NULL:
+            for i in xrange(40000, 40100, 2):
+                status = pjmedia_transport_udp_create(ua.c_pjmedia_endpoint.c_obj, NULL, i, 0, &self.c_transport)
+                if status != PJ_ERRNO_START_SYS + EADDRINUSE:
+                    break
+            if status != 0:
+                raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
+        pjmedia_transport_info_init(&info)
+        status = pjmedia_transport_get_info(self.c_transport, &info)
+        if status != 0:
+            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
         pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if pool == NULL:
             raise MemoryError()
@@ -2384,6 +2380,8 @@ cdef class AudioStream:
             sdp_session = c_make_SDPSession(c_sdp_session)
         finally:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
+        self.local_ip = sdp_session.connection.address
+        self.local_port = sdp_session.media[0].port
         return sdp_session.media[0]
 
     def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index, Invitation inv):
@@ -2400,52 +2398,49 @@ cdef class AudioStream:
         status = pjmedia_stream_info_from_sdp(&stream_info, self.c_pool, ua.c_pjmedia_endpoint.c_obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
         if status != 0:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise MediaStreamError("Could not parse SDP for audio session: %s" % pj_status_to_str(status))
-        self.c_codec = pj_str_to_str(stream_info.fmt.encoding_name)
-        self.c_clock_rate = stream_info.fmt.clock_rate
+            raise RuntimeError("Could not parse SDP for audio session: %s" % pj_status_to_str(status))
+        self.codec = pj_str_to_str(stream_info.fmt.encoding_name)
+        self.sample_rate = stream_info.fmt.clock_rate
         status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &stream_info, self.c_transport, NULL, &self.c_stream)
         if status != 0:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise MediaStreamError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
+            raise RuntimeError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
         status = pjmedia_stream_set_dtmf_callback(self.c_stream, cb_AudioStream_cb_dtmf, <void *> inv)
         if status != 0:
             pjmedia_stream_destroy(self.c_stream)
             self.c_stream = NULL
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise MediaStreamError("Could not set DTMF callback for audio session: %s" % pj_status_to_str(status))
+            raise RuntimeError("Could not set DTMF callback for audio session: %s" % pj_status_to_str(status))
         status = pjmedia_stream_start(self.c_stream)
         if status != 0:
             pjmedia_stream_destroy(self.c_stream)
             self.c_stream = NULL
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise MediaStreamError("Could not start RTP for audio session: %s" % pj_status_to_str(status))
+            raise RuntimeError("Could not start RTP for audio session: %s" % pj_status_to_str(status))
         status = pjmedia_stream_get_port(self.c_stream, &media_port)
         if status != 0:
             pjmedia_stream_destroy(self.c_stream)
             self.c_stream = NULL
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise MediaStreamError("Could not get audio port for audio session: %s" % pj_status_to_str(status))
+            raise RuntimeError("Could not get audio port for audio session: %s" % pj_status_to_str(status))
         status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.c_pool, media_port, NULL, &self.c_conf_slot)
         if status != 0:
             pjmedia_stream_destroy(self.c_stream)
             self.c_stream = NULL
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise MediaStreamError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
+            raise RuntimeError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
         return 0
 
-    def do_op(self, op, *args):
+    # proxied methods
+
+    def send_dtmf(self, digit):
         cdef pj_str_t c_digit
         cdef int status
-        if op == "send_dtmf":
-            if len(args) != 1:
-                raise RuntimeError("send_dtmf op requires exactly 1 argument")
-            str_to_pj_str(args[0], &c_digit)
-            status = pjmedia_stream_dial_dtmf(self.c_stream, &c_digit)
-            if status != 0:
-                raise RuntimeError("Could not send DTMF digit on audio stream: %s" % pj_status_to_str(status))
-            return True
-        else:
-            return False
+        str_to_pj_str(digit, &c_digit)
+        status = pjmedia_stream_dial_dtmf(self.c_stream, &c_digit)
+        if status != 0:
+            raise RuntimeError("Could not send DTMF digit on audio stream: %s" % pj_status_to_str(status))
+
 
 cdef void cb_AudioStream_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:
     cdef Invitation inv = <object> user_data
@@ -2463,78 +2458,43 @@ cdef class MediaStream:
     cdef readonly object media_type
     cdef object c_stream
 
-    def __cinit__(self, *args):
+    def __cinit__(self, media_type):
         global _stream_map
-        cdef SDPSession c_remote_sdp
         cdef object c_stream_class
+        self.media_type = media_type
         try:
-            c_remote_sdp, self.c_sdp_index = args
-        except:
-            self.media_type = args[0]
-            try:
-                c_stream_class = _stream_map[self.media_type]
-            except KeyError:
-                raise RuntimeError('Media type "%s" is unknown' % self.media_type)
-            self.c_stream = c_stream_class()
-            self.set_local_info(*args[1:])
-        else:
-            self.media_type = c_remote_sdp.media[self.c_sdp_index].media
-            try:
-                c_stream_class = _stream_map[self.media_type]
-            except KeyError:
-                raise MediaStreamError('Media type "%s" is unknown' % self.media_type)
-            self.c_stream = c_stream_class()
-            self.c_stream.set_remote_sdp(c_remote_sdp, self.c_sdp_index)
+            c_stream_class = _stream_map[self.media_type]
+        except KeyError:
+            raise RuntimeError('Media type "%s" is unknown' % self.media_type)
+        self.c_stream = c_stream_class()
+
+    cdef int _init_remote_sdp(self, SDPSession c_remote_sdp, unsigned int c_sdp_index) except -1:
+        self.c_sdp_index = c_sdp_index
+        #self.media_type = c_remote_sdp.media[self.c_sdp_index].media
+        self.c_stream.set_remote_sdp(c_remote_sdp, self.c_sdp_index)
+
+    def __getattr__(self, attr):
+        if self.c_stream is not None and attr not in ["get_local_sdp", "has_remote_sdp", "set_remote_sdp", "sdp_done"]:
+            return getattr(self.c_stream, attr)
+        raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
 
     cdef int _check_validity(self) except -1:
         if self.c_stream is None:
             raise RuntimeError("This stream is no longer valid")
         return 0
 
-    property info:
-
-        def __get__(self):
-            self._check_validity()
-            return self.c_stream.get_info()
-
-    property remote_info:
-
-        def __get__(self):
-            self._check_validity()
-            return self.c_stream.get_remote_info()
-
-    property local_info:
-
-        def __get__(self):
-            self._check_validity()
-            return self.c_stream.get_local_info()
-
-    def set_local_info(self, *args):
-        self._check_validity()
-        if self.c_stream.get_local_info() is not None:
-            raise RuntimeError("local info was already set")
-        else:
-            self.c_stream.set_local_info(*args)
-
     cdef SDPMedia _get_local_sdp(self):
         self._check_validity()
-        if self.c_stream.get_local_info() is not None:
-            return self.c_stream.get_local_sdp()
-        else:
-            raise RuntimeError("local info was never set on media stream")
+        return self.c_stream.get_local_sdp()
 
     cdef int _sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, Invitation inv) except -1:
         self._check_validity()
-        if self.c_stream.get_remote_info() is None:
+        if not self.c_stream.has_remote_sdp():
             self.c_stream.set_remote_sdp(remote_sdp, self.c_sdp_index)
         self.c_stream.sdp_done(remote_sdp, local_sdp, self.c_sdp_index, inv)
 
     cdef int _end(self):
         self.c_stream = None
-
-    def do_op(self, op, *args):
-        if not self.c_stream.do_op(op, *args):
-            raise RuntimeError('Operation "%s" is not supported by this media stream.' % op)
 
 
 cdef class Invitation:
@@ -2569,6 +2529,7 @@ cdef class Invitation:
         cdef pjmedia_sdp_session *c_remote_sdp
         cdef SDPSession remote_sdp
         cdef object streams, headers, body
+        cdef MediaStream stream
         cdef pjsip_sip_uri *req_uri
         cdef object contact_token
         cdef PJSTR contact_uri
@@ -2613,8 +2574,10 @@ cdef class Invitation:
             streams = set()
             for i from 0 <= i < remote_sdp.c_obj.media_count:
                 try:
-                    streams.add(MediaStream(remote_sdp, i))
-                except MediaStreamError, e:
+                    stream = MediaStream(remote_sdp.media[i].media)
+                    stream._init_remote_sdp(remote_sdp, i)
+                    streams.add(stream)
+                except RuntimeError, e:
                     c_add_event("log", dict(level=3, sender="pypjua", message="Error parsing incoming SDP: %s" % e.message))
             self.c_proposed_streams = streams
             c_add_event("Invitation_state", dict(obj=self, state=self.state, streams=streams.copy(), headers=headers, body=body, contact_token=contact_token))
@@ -2739,7 +2702,7 @@ cdef class Invitation:
                     else:
                         try:
                             stream._sdp_done(remote_sdp, local_sdp, self)
-                        except MediaStreamError, e:
+                        except RuntimeError, e:
                             stream._end()
                             self.c_proposed_streams.remove(stream)
                             c_add_event("log", dict(level=3, sender="pypjua", message="Error processing incoming SDP: %s" % e.message))
