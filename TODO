@@ -6,7 +6,6 @@ Follow async design for all potentially blocking tasks
 PJSIP bindings
 --------------
 
-Configure User Agent
 Combined msrp/rtp script
 Multipart bodies
 Re-INVITEs
@@ -20,7 +19,7 @@ zRTP
 Add option to record the audio session in a file
 Comfort noice generator
 Echo the DTMF tones using audio back to the user
-Add feature to send OPTIONS method and parse the replys
+Add feature to send OPTIONS method and parse the replies
 Replace in configuration file the username and domain combination with one parameter called sip_address
 
 
@@ -42,8 +41,6 @@ the call has failed.
 
 - Add option to select an account from multiple accounts defined in the
   configuration file
-
-- Display SDP endpoint addresses on successful INVITE
 
 
 Applications
