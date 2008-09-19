@@ -207,8 +207,10 @@ class MSRP(Thread):
             if data is None:
                 return
             if data["method"] == "SEND":
-                if data["body"]:
-                    queue.put(("print_message", data["body"]))
+                headers = dict(header.split(": ", 1) for header in data["headers"].split("\r\n"))
+                if headers.has_key("Content-Type") and headers["Content-Type"] == "text/plain":
+                    if data["body"]:
+                        queue.put(("print_message", data["body"]))
                 response = msrp_protocol.MSRPData(transaction_id=data["transaction_id"], code=200, comment="OK")
                 response.add_header(msrp_protocol.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
                 response.add_header(msrp_protocol.FromPathHeader(self.local_uri_path[-1:]))
@@ -364,12 +366,17 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                     if args["state"] == "INCOMING":
                         print "Incoming session..."
                         if inv is None:
-                            if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "message":
-                                inv = args["obj"]
-                                other_user_agent = args["headers"].get("User-Agent")
-                                if ringer is None:
-                                    ringer = RingingThread(True)
-                                print 'Incoming MSRP session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                            if args.has_key("streams") and len(args["streams"]) == 1:
+                                msrp_stream = args["streams"].pop()
+                                if msrp_stream.media_type == "message" and "text/plain" in msrp_stream.remote_info[1]:
+                                    inv = args["obj"]
+                                    other_user_agent = args["headers"].get("User-Agent")
+                                    if ringer is None:
+                                        ringer = RingingThread(True)
+                                        print 'Incoming MSRP session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                                else:
+                                    print "Not an MSRP chat session, rejecting."
+                                    args["obj"].end()
                             else:
                                 print "Not an MSRP session, rejecting."
                                 args["obj"].end()
