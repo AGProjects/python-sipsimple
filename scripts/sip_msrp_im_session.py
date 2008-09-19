@@ -60,6 +60,7 @@ class AudioConfig(ConfigSection):
 process._system_config_directory = os.path.expanduser("~")
 configuration = ConfigFile("pypjua.ini")
 configuration.read_settings("Account", AccountConfig)
+configuration.read_settings("Audio", AudioConfig)
 
 _re_msrp = re.compile("^(?P<pre>.*?)MSRP (?P<transaction_id>[a-zA-Z0-9.\-+%=]+) ((?P<method>[A-Z]+)|((?P<code>[0-9]{3})( (?P<comment>.*?))?))\r\n(?P<headers>.*?)\r\n(\r\n(?P<body>.*?)\r\n)?-------\\2(?P<continuation>[$#+])\r\n(?P<post>.*)$", re.DOTALL)
 
