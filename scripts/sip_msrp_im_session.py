@@ -285,7 +285,7 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue
+    global start_time, packet_count, queue, pjsip_logging
     if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -300,8 +300,10 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
+    elif pjsip_logging:
+        queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound):
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound, pjsip_logging):
     global user_quit, lock, queue, switch_mode
     lock.acquire()
     inv = None
@@ -461,8 +463,9 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         lock.release()
 
 def do_invite(**kwargs):
-    global user_quit, lock, queue, switch_mode
+    global user_quit, lock, queue, switch_mode, pjsip_logging
     print "Using configuration file %s" % process.config_file("pypjua.ini")
+    pjsip_logging = kwargs["pjsip_logging"]
     ctrl_d_pressed = False
     char_mode = True
     e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=not kwargs["disable_sound"], ec_tail_length=0)
@@ -523,7 +526,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -536,6 +539,7 @@ def parse_options():
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
+    parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
     if args:
         try:

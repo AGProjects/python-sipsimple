@@ -49,7 +49,7 @@ user_quit = True
 lock = allocate_lock()
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue
+    global start_time, packet_count, queue, pjsip_logging
     if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -64,8 +64,10 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
+    elif pjsip_logging:
+        queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace):
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, expires, do_siptrace, pjsip_logging):
     global user_quit, lock, queue
     lock.acquire()
     printed = False
@@ -118,8 +120,9 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         lock.release()
 
 def do_register(**kwargs):
-    global user_quit, lock, queue
+    global user_quit, lock, queue, pjsip_logging
     print "Using configuration file %s" % process.config_file("pypjua.ini")
+    pjsip_logging = kwargs["pjsip_logging"]
     ctrl_d_pressed = False
     e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=False)
     e.start()
@@ -153,7 +156,7 @@ def parse_options():
     retval = {}
     description = "This example script will register the provided SIP account and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
     usage = "%prog [options]"
-    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False)
+    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -164,6 +167,7 @@ def parse_options():
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
     for attr in default_options:
         retval[attr] = getattr(options, attr)

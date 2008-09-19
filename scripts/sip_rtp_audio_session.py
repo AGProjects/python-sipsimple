@@ -90,7 +90,7 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue
+    global start_time, packet_count, queue, pjsip_logging
     if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -105,6 +105,8 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
+    elif pjsip_logging:
+        queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 class RingingThread(Thread):
 
@@ -130,7 +132,7 @@ class RingingThread(Thread):
             sleep(5)
 
 
-def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs, disable_sound):
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs, disable_sound, pjsip_logging):
     global user_quit, lock, queue
     lock.acquire()
     inv = None
@@ -264,9 +266,10 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         lock.release()
 
 def do_invite(**kwargs):
-    global user_quit, lock, queue
+    global user_quit, lock, queue, pjsip_logging
     print "Using configuration file %s" % process.config_file("pypjua.ini")
     ctrl_d_pressed = False
+    pjsip_logging = kwargs["pjsip_logging"]
     e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"])
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
@@ -304,7 +307,7 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming audio call, or attempt to make an outgoing audio call to the specified target. The program will close the session and quit when Ctrl+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.set_defaults(**default_options)
@@ -318,6 +321,7 @@ def parse_options():
     parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
+    parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
     if args:
         try:
