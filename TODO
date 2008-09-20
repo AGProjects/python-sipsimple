@@ -6,10 +6,8 @@ Follow async design for all potentially blocking tasks
 PJSIP bindings
 --------------
 
-Combined msrp/rtp script
-Multipart bodies
 Re-INVITEs
-TCP/TLS transport
+TCP/TLS transports
 Emit more than one 180
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
@@ -26,19 +24,17 @@ Replace in configuration file the username and domain combination with one param
 Command line clients
 --------------------
 
+- combined msrp/rtp script
+- sip_presence_publish.py and sip_presence_subscribe.py scripts
 - To be able to use the scripts in alarm systens, set the shell return code
 to 0 (success) for 2XX, 3XX and 1 (failure) for other codes. For invite
 scripts the code is based on the response for the initial INVITE, not for
 the BYE If RTP was not received with 6 seconds after call setup, consider
 the call has failed.
-
 - Add parameter for number of registrations to the sip_register script
-
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
-
 - Add option to log the output of the scripts to a log file or syslog
-
 - Add option to select an account from multiple accounts defined in the
   configuration file
 
@@ -46,10 +42,10 @@ the call has failed.
 Applications
 ------------
 
-Pidf payload
-Buddy list library
+PIDF payload
+Buddy list high level library
 Bonjour
-Enrollment design
+Enrollment
 
 MSRP client library
 Conference-info payload
@@ -63,9 +59,9 @@ Lookup module for SIP (RFC3263), MSRP relay, ENUM, SIPThor
 Sessions
 --------
 
+Video over RTP using h.264 codec
 Real time text over RTP (RFC4103)
-Desktop sharing using VNC over MSRP
-Video over RTP
+Desktop sharing using VNC protocol
 
 
 Middleware
@@ -98,9 +94,10 @@ Linux binaries
 MS Windows binaries
 
 
-Nice to have
-------------
+Others
+------
 
-Support IPv6
+IPv6 support
 Survive local IP address changes
+P2PSIP overlay
 
