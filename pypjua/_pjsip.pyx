@@ -295,6 +295,7 @@ cdef extern from "pjsip.h":
         pjsip_uri *uri
     struct pjsip_contact_hdr:
         pjsip_uri *uri
+        int expires
     enum:
         PJSIP_MAX_ACCEPT_COUNT
     struct pjsip_media_type:
@@ -1650,8 +1651,8 @@ cdef class Registration:
         if self.state == "registered":
             for i from 0 <= i < param.contact_cnt:
                 length = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, param.contact[i].uri, contact_uri_buf, 1024)
-                contact_uri_list.append(PyString_FromStringAndSize(contact_uri_buf, length))
-            c_add_event("Registration_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str ,contact_uri_list=contact_uri_list))
+                contact_uri_list.append((PyString_FromStringAndSize(contact_uri_buf, length), param.contact[i].expires))
+            c_add_event("Registration_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
         else:
             c_add_event("Registration_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
         if c_success:

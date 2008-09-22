@@ -352,9 +352,9 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                     if args["state"] == "registered":
                         if not printed:
                             print "REGISTER was succesfull"
-                            print "Contact: %s" % args["contact_uri"]
+                            print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
                             if len(args["contact_uri_list"]) > 1:
-                                print "Other registered contacts:\n%s" % "\n".join([contact_uri for contact_uri in args["contact_uri_list"] if contact_uri != args["contact_uri"]])
+                                print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
                             print "Press Ctrl-D to stop the program."
                             print "Waiting for incoming session..."
                             printed = True
