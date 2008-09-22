@@ -1,13 +1,10 @@
 
-Add doc strings to all classes and functions
-Follow async design for all potentially blocking tasks
-
-
 PJSIP bindings
 --------------
 
 Re-INVITEs
 STUN/ICE support
+Handle Multipart bodies
 TCP/TLS transports
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
@@ -18,18 +15,20 @@ Add option to record the audio session in a file
 Comfort noice generator
 Add feature to send OPTIONS method and parse the replies
 Replace in configuration file the username and domain combination with one parameter called sip_address
+Handle incomming REFER to conference bridge
 
 
 Command line clients
 --------------------
 
+- handle multiple incomming sessions
+- conference established sessions
 - combined msrp/rtp script
 - sip_presence_publish.py and sip_presence_subscribe.py scripts
-- To be able to use the scripts in alarm systens, set the shell return code
-to 0 (success) for 2XX, 3XX and 1 (failure) for other codes. For invite
-scripts the code is based on the response for the initial INVITE, not for
-the BYE If RTP was not received with 6 seconds after call setup, consider
-the call has failed.
+- set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
+other codes. For invite scripts the code is based on the response for the
+initial INVITE, not for the BYE If RTP was not received with 6 seconds after
+call setup, consider the call has failed.
 - Add parameter for number of registrations to the sip_register script
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
@@ -96,6 +95,7 @@ MS Windows binaries
 Others
 ------
 
+Add doc strings to all classes and functions
 IPv6 support
 Survive local IP address changes
 P2PSIP overlay
