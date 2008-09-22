@@ -8,7 +8,6 @@ PJSIP bindings
 
 Re-INVITEs
 TCP/TLS transports
-Emit more than one 180
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
 Fix remainig TODOs for PUBLISH/REGISTER
