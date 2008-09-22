@@ -7,6 +7,7 @@ PJSIP bindings
 --------------
 
 Re-INVITEs
+STUN/ICE support
 TCP/TLS transports
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
