@@ -1112,11 +1112,11 @@ cdef class PJSIPUA:
         try:
             self.c_pjlib = PJLIB()
             self.c_caching_pool = PJCachingPool()
+            self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
             self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_port"])
             status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
             if status != 0:
                 raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
-            self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
             self.codecs = kwargs["initial_codecs"]
             self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["playback_dtmf"])
             if kwargs["auto_sound"]:
@@ -1236,12 +1236,12 @@ cdef class PJSIPUA:
         global _ua, _event_queue_lock
         self.c_wav_files = None
         self.c_conf_bridge = None
-        self.c_pjmedia_endpoint = None
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)
             pj_mutex_destroy(_event_queue_lock)
             _event_queue_lock = NULL
         self.c_pjsip_endpoint = None
+        self.c_pjmedia_endpoint = None
         self.c_caching_pool = None
         self.c_pjlib = None
         self._poll_log()
