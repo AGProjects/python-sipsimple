@@ -2484,6 +2484,7 @@ cdef class AudioStream:
     def send_dtmf(self, digit):
         cdef pj_str_t c_digit
         cdef int status
+        cdef PJSIPUA = c_get_ua()
         str_to_pj_str(digit, &c_digit)
         status = pjmedia_stream_dial_dtmf(self.c_stream, &c_digit)
         if status != 0:
