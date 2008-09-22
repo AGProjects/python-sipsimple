@@ -16,7 +16,6 @@ sRTP
 zRTP
 Add option to record the audio session in a file
 Comfort noice generator
-Echo the DTMF tones using audio back to the user
 Add feature to send OPTIONS method and parse the replies
 Replace in configuration file the username and domain combination with one parameter called sip_address
 
