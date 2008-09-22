@@ -223,8 +223,6 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                                 command = "unregister"
                             else:
                                 inv = None
-                elif event_name == "MediaStream_dtmf":
-                    print "Received DTMF code: %s" % args["digit"]
             if command == "user_input":
                 if inv is not None:
                     if data.lower() == "h":

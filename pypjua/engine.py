@@ -15,6 +15,7 @@ class Engine(object):
                              "user_agent": "pypjua",
                              "do_siptrace": False,
                              "sample_rate": 32,
+                             "playback_dtmf": True,
                              "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"],
                              "initial_events": {"presence": ["application/pidf+xml"],
                                                 "message-summary": ["application/simple-message-summary"],
