@@ -18,11 +18,11 @@ sudo easy_install dnspython
 An alternative method to install the above python packages is to download,
 unpack and run (as root):
 
-./setup.py build; ./setup.py install
+sudo python setup.py build; sudo python setup.py install
 
 for each of them in the directories where they were unpacked.
 
-Install the xcaplient library from:
+Install the python-xcaplib library from:
 http://download.ag-projects.com/OpenXCAP/clients/
 
 
@@ -60,7 +60,7 @@ The _pjsip.so library can then be imported in the target software.
 Installing the library
 ----------------------
 
-To install the library and the sample scripts run:
+To install system-wide the library and the sample scripts run:
 
 sudo python setup.py install
 
