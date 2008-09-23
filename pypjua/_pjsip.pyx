@@ -2484,11 +2484,14 @@ cdef class AudioStream:
     def send_dtmf(self, digit):
         cdef pj_str_t c_digit
         cdef int status
-        cdef PJSIPUA = c_get_ua()
+        cdef PJSIPUA ua = c_get_ua()
+        if len(digit) != 1 and digit not in "0123456789*#ABCD":
+            raise RuntimeError("Not a valid DTMF digit: %s" % digit)
         str_to_pj_str(digit, &c_digit)
         status = pjmedia_stream_dial_dtmf(self.c_stream, &c_digit)
         if status != 0:
             raise RuntimeError("Could not send DTMF digit on audio stream: %s" % pj_status_to_str(status))
+        ua.c_conf_bridge._playback_dtmf(ord(digit))
 
 
 cdef void cb_AudioStream_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:

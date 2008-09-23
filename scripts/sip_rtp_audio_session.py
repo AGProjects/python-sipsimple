@@ -228,7 +228,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                     if data.lower() == "h":
                         command = "end"
                         want_quit = target_username is not None
-                    elif data in "0123456789*#" and inv.state == "ESTABLISHED":
+                    elif data in "0123456789*#ABCD" and inv.state == "ESTABLISHED":
                         inv.current_streams.pop().send_dtmf(data)
                     elif inv.state == "INCOMING":
                         if data.lower() == "n":
