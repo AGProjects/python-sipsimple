@@ -560,7 +560,7 @@ def parse_options():
         try:
             retval["target_username"], retval["target_domain"] = args[0].split("@")
         except ValueError:
-            retval["target_username"], retval["target_domain"] = args[0], options.domain
+            retval["target_username"], retval["target_domain"] = args[0], retval['domain']
     else:
         retval["target_username"], retval["target_domain"] = None, None
     retval["auto_msrp_relay"] = options.msrp_relay_ip is None
