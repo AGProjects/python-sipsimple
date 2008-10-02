@@ -168,8 +168,12 @@ def parse_options():
     
     if options.account_name is None:
         account_section = "Account"
+        print "Using default account"
     else:
         account_section = "Account_%s" % options.account_name
+        print "Using account '%s'" % options.account_name
+    accounts = ((acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account'))
+    print "Accounts available: %s" % ', '.join(accounts)
     configuration.read_settings(account_section, AccountConfig)
     default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))

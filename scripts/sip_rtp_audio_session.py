@@ -263,7 +263,6 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
 
 def do_invite(**kwargs):
     global user_quit, lock, queue, pjsip_logging
-    print "Using configuration file %s" % process.config_file("pypjua.ini")
     ctrl_d_pressed = False
     pjsip_logging = kwargs["pjsip_logging"]
     e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"])
@@ -305,8 +304,8 @@ def parse_options():
     usage = "%prog [options] [target-user@target-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
-    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP login account")
+    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file. If not supplied, the section Account will be read.", metavar="NAME")
+    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP address of the user in the form user@domain")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
@@ -320,8 +319,12 @@ def parse_options():
 
     if options.account_name is None:
         account_section = "Account"
+        print "Using default account"
     else:
         account_section = "Account_%s" % options.account_name
+        print "Using account '%s'" % options.account_name
+    accounts = ((acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account'))
+    print "Accounts available: %s" % ', '.join(accounts)
     configuration.read_settings(account_section, AccountConfig)
     default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
