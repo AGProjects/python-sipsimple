@@ -55,9 +55,8 @@ class AudioConfig(ConfigSection):
     disable_sound = False
 
 
-process._system_config_directory = os.path.expanduser("~")
-configuration = ConfigFile("pypjua.ini")
-configuration.read_settings("Account", AccountConfig)
+process._system_config_directory = os.path.expanduser("~/.pypjua")
+configuration = ConfigFile("config.ini")
 configuration.read_settings("Audio", AudioConfig)
 
 queue = Queue()
@@ -305,10 +304,9 @@ def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming audio call, or attempt to make an outgoing audio call to the specified target. The program will close the session and quit when Ctrl+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.set_defaults(**default_options)
+    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
     parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
@@ -321,6 +319,15 @@ def parse_options():
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
+
+    if options.account_name is None:
+        account_section = "Account"
+    else:
+        account_section = "Account_%s" % options.account_name
+    configuration.read_settings(account_section, AccountConfig)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
+    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
+    
     if args:
         try:
             retval["target_username"], retval["target_domain"] = args[0].split("@")

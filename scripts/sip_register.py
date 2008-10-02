@@ -38,9 +38,8 @@ class AccountConfig(ConfigSection):
     outbound_proxy = None, None
 
 
-process._system_config_directory = os.path.expanduser("~")
-configuration = ConfigFile("pypjua.ini")
-configuration.read_settings("Account", AccountConfig)
+process._system_config_directory = os.path.expanduser("~/.pypjua")
+configuration = ConfigFile("config.ini")
 
 queue = Queue()
 packet_count = 0
@@ -156,10 +155,8 @@ def parse_options():
     retval = {}
     description = "This example script will register the provided SIP account and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
     usage = "%prog [options]"
-    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False)
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.set_defaults(**default_options)
     parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
@@ -169,6 +166,15 @@ def parse_options():
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
+    
+    if options.account_name is None:
+        account_section = "Account"
+    else:
+        account_section = "Account_%s" % options.account_name
+    configuration.read_settings(account_section, AccountConfig)
+    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False)
+    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
+    
     for attr in default_options:
         retval[attr] = getattr(options, attr)
     return retval
@@ -178,3 +184,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
