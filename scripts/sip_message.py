@@ -37,7 +37,7 @@ class AccountConfig(ConfigSection):
     outbound_proxy = None, None
 
 
-process._system_config_directory = os.path.expanduser("~/.pypjua")
+process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
 
 queue = Queue()

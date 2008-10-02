@@ -56,7 +56,7 @@ class AudioConfig(ConfigSection):
     disable_sound = False
 
 
-process._system_config_directory = os.path.expanduser("~/.pypjua")
+process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
 configuration.read_settings("Audio", AudioConfig)
 
