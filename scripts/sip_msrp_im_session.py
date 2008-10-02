@@ -539,12 +539,8 @@ def parse_options():
     
     if options.account_name is None:
         account_section = "Account"
-        print "Using default account"
     else:
         account_section = "Account_%s" % options.account_name
-        print "Using account '%s'" % options.account_name
-    accounts = ((acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account'))
-    print "Accounts available: %s" % ', '.join(accounts)
     configuration.read_settings(account_section, AccountConfig)
     default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
@@ -571,6 +567,12 @@ def parse_options():
         retval["use_msrp_relay"] = True
     else:
         retval["use_msrp_relay"] = options.msrp_relay_ip.lower() != "none"
+    if options.account_name is None:
+        print "Using default account: %s" % options.sip_address
+    else:
+        print "Using account '%s': %s" % (options.account_name, options.sip_address)
+    accounts = ((acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account'))
+    print "Accounts available: %s" % ', '.join(accounts)
     return retval
 
 def main():
