@@ -44,9 +44,8 @@ class SIPProxyAddress(tuple):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"username": str, "domain": str, "password": str, "display_name": str, "outbound_proxy": SIPProxyAddress}
-    username = None
-    domain = None
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": SIPProxyAddress}
+    sip_address = None
     password = None
     display_name = None
     outbound_proxy = None, None
@@ -527,8 +526,8 @@ def parse_options():
     usage = "%prog [options] [target-user@target-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-u", "--username", type="string", dest="username", help="Username to use for the local account. This overrides the setting from the config file.")
-    parser.add_option("-d", "--domain", type="string", dest="domain", help="SIP domain to use for the local account. This overrides the setting from the config file.")
+    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
+    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP login account")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060, False), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
@@ -544,9 +543,19 @@ def parse_options():
     else:
         account_section = "Account_%s" % options.account_name
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], username=AccountConfig.username, password=AccountConfig.password, domain=AccountConfig.domain, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
+    if not all([options.sip_address, options.password]):
+        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
+    for attr in default_options:
+        retval[attr] = getattr(options, attr)
+    try:
+        retval["username"], retval["domain"] = options.sip_address.split("@")
+    except ValueError:
+        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
+    else:
+        del retval["sip_address"]
     if args:
         try:
             retval["target_username"], retval["target_domain"] = args[0].split("@")
@@ -554,15 +563,11 @@ def parse_options():
             retval["target_username"], retval["target_domain"] = args[0], options.domain
     else:
         retval["target_username"], retval["target_domain"] = None, None
-    if not all([options.username, options.domain, options.password]):
-        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
     retval["auto_msrp_relay"] = options.msrp_relay_ip is None
     if retval["auto_msrp_relay"]:
         retval["use_msrp_relay"] = True
     else:
         retval["use_msrp_relay"] = options.msrp_relay_ip.lower() != "none"
-    for attr in default_options:
-        retval[attr] = getattr(options, attr)
     return retval
 
 def main():
