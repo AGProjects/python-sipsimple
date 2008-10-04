@@ -1,3 +1,4 @@
+
 PyPjUA test scripts
 -------------------
 
@@ -22,7 +23,7 @@ Running each script with --help argument displays the script capabilities
 and the required arguments.
 
 You must have a SIP account in order to use these scripts. If you do not
-have a SIP account you may register one for free at: http://sip2sip.info
+have a SIP account you may register one for free at http://sip2sip.info
 
 After your have obtained a SIP account, create a configuration file in your
 home directory called pypjua.ini. This configuration file must contain the
