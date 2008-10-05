@@ -1,5 +1,6 @@
 import os
 import sys
+import copy
 import traceback
 
 from lxml import etree
@@ -11,7 +12,11 @@ __all__ = ['ParserError',
            'XMLListElement',
            'XMLStringElement',
            'XMLEmptyElement',
-           'XMLApplication']
+           'XMLApplication',
+           'ExtensibleXMLElement',
+           'ExtensibleXMLApplication',
+           'ExtensibleXMLListApplication',
+           'XMLExtension']
 
 
 _schema_dir_ = os.path.join(os.path.dirname(__file__), 'xml-schemas')
@@ -68,7 +73,7 @@ class XMLElement(object):
         for attr, definition in self._xml_attrs.items():
             value = hasattr(self, attr) and getattr(self, attr) or None
             if value is not None:
-                element.set(definition.get('xml_attribute', attr), value)
+                element.set(definition.get('xml_attribute', attr), definition.get('build', lambda x: x)(value))
         self._build_element(element, nsmap)
         return element
     
@@ -81,7 +86,7 @@ class XMLElement(object):
         obj = cls.__new__(cls)
         obj._xml_meta = kwargs.pop('xml_meta', cls._xml_meta)
         for attr, definition in cls._xml_attrs.items():
-            setattr(obj, attr, element.get(definition.get('xml_attribute', attr)))
+            setattr(obj, attr, definition.get('parse', lambda x: x)(element.get(definition.get('xml_attribute', attr))))
         obj._parse_element(element, *args, **kwargs)
         return obj
     
@@ -254,12 +259,12 @@ class XMLStringElement(XMLElement):
     def _parse_element(self, element):
         self.value = element.text
         if self._xml_lang:
-            self.lang = element.get('xml:lang', None)
+            self.lang = element.get('{http://www.w3.org/XML/1998/namespace}lang', None)
 
     def _build_element(self, element, nsmap):
         element.text = self.value
         if self._xml_lang and self.lang is not None:
-            element.set('xml:lang', self.lang)
+            element.set('{http://www.w3.org/XML/1998/namespace}lang', self.lang)
 
     def _get_value(self):
         return self._value
@@ -304,10 +309,50 @@ class XMLEmptyElement(XMLElement):
         return self.__class__.__name__
 
     def __eq__(self, obj):
-        return self is obj
+        return type(self) == type(obj)
 
     def __hash__(self):
-        return object.__hash__(self)
+        return object.__hash__(type(self))
+
+class XMLChoiceElement(XMLElement):
+    _xml_tag = None # To be defined in subclass
+    _xml_namespace = None # To be defined in subclass
+    _xml_attrs = {} # Not necessarily defined in subclass
+    _xml_meta = None # To be defined in subclass
+    _xml_type = None # To be defined in subclass
+    
+    def __init__(self, value):
+        self.value = value
+    
+    def _parse_element(self, element):
+        for child in element:
+            child_cls = self._xml_meta.get(child.tag)
+            if child_cls is not None:
+                self.value = child_cls.from_element(child, xml_meta=self._xml_meta)
+
+    def _build_element(self, element, nsmap):
+        if self.value is not None:
+            self.value.to_element(parent=element, nsmap=nsmap)
+
+    def __str__(self):
+        return '%s: %s' % (self.__class__.__name__, self.value)
+
+    def __eq__(self, obj):
+        return type(self) == type(obj) and self.value == obj.value
+
+    def __hash__(self):
+        return hash(type(self)) + hash(self.value)
+
+    def _set_value(self, value):
+        if not isinstance(value, self._xml_type):
+            raise TypeError("Expected type %s, got %s instead" % (self._xml_type.__name__, value.__class__.__name__))
+        self.__value = value
+
+    def _get_value(self):
+        return self.__value
+    
+    value = property(_get_value, _set_value)
+
 
 class XMLApplicationType(type):
     def __init__(cls, name, bases, dct):
@@ -362,3 +407,177 @@ class XMLApplication(XMLElement):
         if element.tag != qname:
             raise ParserError("Wrong XML element in XML application %s: expected %s, got %s" %
                     (self.__class__.__name__, qname, element.tag))
+
+
+# classes created by derivation of the above
+class XMLListApplication(XMLApplication, XMLListElement): pass
+
+
+#
+# Extensibility API
+#
+
+class ExtensibleXMLApplicationType(XMLApplicationType):
+    def __init__(cls, name, bases, dct):
+        XMLApplicationType.__init__(cls, name, bases, dct)
+        cls._ext_schemas = []
+
+class ExtensibleXMLApplication(XMLApplication):
+    __metaclass__ = ExtensibleXMLApplicationType
+    
+    @classmethod
+    def registerExtension(cls, ext):
+        oldns = cls._xml_nsmap.get(ext._xml_prefix)
+        if oldns is not None:
+            if oldns != ext._xml_namespace:
+                raise ValueError("Prefix %s already registered with ns %s; cannot reregister with ns %s" % (ext._xml_prefix,  oldns, ext._xml_namespace))
+        else:
+            if ext._xml_namespace in cls._xml_nsmap.values():
+                raise ValueError("Namespace %s already registed; cannot reregister with prefix %s" % (ext._xml_namespace, ext._xml_prefix))
+        cls._xml_nsmap[ext._xml_prefix] = ext._xml_namespace
+        if ext._xml_schema is not None:
+            cls._ext_schemas.append(ext._xml_schema)
+        for elem, bindings in ext._xml_ext_def:
+            cls._xml_meta.register(elem)
+            for parent, defs in bindings:
+                parent.registerExtension(elem, **defs)
+    
+    @classmethod
+    def parse(cls, document):
+        element = etree.XML(document, cls._parser)
+#        if self._validate_input:
+#            for schema in cls._ext_schemas:
+#                schema.assertValid(element)
+        return cls.from_element(element)
+    
+    def toxml(self, *args, **kwargs):
+        nsmap = kwargs.pop('nsmap', None)
+        element = self.to_element(nsmap=nsmap)
+        if kwargs.pop('validate', self._validate_output):
+            self._xml_schema.assertValid(element)
+#            for schema in self._ext_schemas:
+#                schema.assertValid(element)
+        
+        kwargs.setdefault('encoding', self.encoding)
+        kwargs.setdefault('xml_declaration', self._xml_declaration)
+        return etree.tostring(element, *args, **kwargs)
+    
+
+class ExtensibleXMLElementType(type):
+    def __init__(cls, name, bases, dct):
+        cls._attr_extensions = {}
+
+class ExtensibleXMLElement(XMLElement):
+    __metaclass__ = ExtensibleXMLElementType
+
+    _xml_ext_type = None # Defined in subclass
+
+    _attr_extensions = {}
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            if key in self.__class__.__dict__:
+                prop = self.__class__.__dict__[key]
+                if type(prop) == property:
+                    setattr(self, key, value)
+                    continue
+            raise AttributeError("Don't know how to set attribute %s of %s object" % (key, self.__class__))
+    
+    def to_element(self, parent=None, nsmap=None):
+        if parent is None:
+            element = etree.Element(self.qname, nsmap=nsmap)
+        else:
+            element = etree.SubElement(parent, self.qname, nsmap=nsmap)
+        for attr, definition in self._xml_attrs.items():
+            value = hasattr(self, attr) and getattr(self, attr) or None
+            if value is not None:
+                element.set(definition.get('xml_attribute', attr), value)
+        self._build_element(element, nsmap)
+        return element
+
+    def _build_extensions(self, parent, nsmap):
+        for _type, attr in self._attr_extensions.values():
+            attr = getattr(self, attr)
+            if attr is not None:
+                attr.to_element(parent=element, nsmap=nsmap)
+    
+    @classmethod
+    def from_element(cls, element, *args, **kwargs):
+        obj = cls.__new__(cls)
+        obj._xml_meta = kwargs.pop('xml_meta', cls._xml_meta)
+        for child in element:
+            ext, attr = cls._attr_extensions.get(child.tag, (None, None))
+            if ext is not None:
+                setattr(self, attr, ext.from_element(child, xml_meta=obj._xml_meta))
+                element.remove(child)
+        for attr, definition in cls._xml_attrs.items():
+            setattr(obj, attr, element.get(definition.get('xml_attribute', attr)))
+        obj._parse_element(element, *args, **kwargs)
+        return obj
+    
+    @classmethod
+    def registerExtension(cls, ext, attribute=None):
+        if cls._xml_ext_type is not None:
+            if not issubclass(ext, cls._xml_ext_type):
+                raise TypeError("%s can only be extended by %s types" % (cls.__name__, cls._xml_ext_type))
+        cls._check_extension(ext)
+        if attribute is not None:
+            setattr(cls, attribute, property(lambda self: getattr(self, '_%s' % attribute, None),
+                                             lambda self, value: setattr(self, '_%s' % attribute, value)))
+            cls._attr_extensions[ext.qname] = (ext, attribute)
+
+    @classmethod
+    def _check_extension(cls, ext):
+        pass
+
+class XMLExtensionType(type):
+    def __init__(cls, name, bases, dct):
+        if cls._xml_schema is None and cls._xml_schema_file is not None:
+            cls._xml_schema = etree.XMLSchema(etree.parse(open(os.path.join(cls._xml_schema_dir, cls._xml_schema_file), 'r')))
+
+class XMLExtension(object):
+    """
+    Example:
+    class MyExtension(XMLExtension):
+        _xml_ext_def = [(Element, ParentElement, {'attribute': 'my_ext'})]
+        _xml_namespace = 'urn:ext:foo'
+        _xml_prefix = 'foo'
+    """
+    __metaclass__ = XMLExtensionType
+
+    _xml_ext_def = [] # To be defined in subclass
+    _xml_namespace = None # To be defined in subclass
+    _xml_prefix = None # To be defined in subclass
+    _xml_schema = None # May be defined in subclass
+    _xml_schema_file = None # May be defined in subclass
+    _xml_schema_dir = _schema_dir_
+
+# classes created by derivation of the above
+class ExtensibleXMLListApplication(ExtensibleXMLApplication, XMLListApplication): pass
+class ExtensibleXMLListElement(ExtensibleXMLElement, XMLListElement): pass
+
+
+#
+# XML class generators
+#
+
+
+class XMLGeneratorType(type):
+    def __init__(cls, name, bases, dct):
+        if len(cls._xml_names) > 0:
+            gen_type = type(cls._xml_bases[0])
+            for name in cls._xml_names:
+                gen_name = cls._xml_name_prefix + ''.join(word.capitalize() for word in name.replace('_', '-').split('-'))
+                new_type = gen_type(gen_name, cls._xml_bases, {'_xml_tag': name,
+                    '_xml_namespace': cls._xml_namespace, '_xml_meta': cls._xml_meta, '__module__': cls.__module__})
+                cls._xml_meta.register(new_type)
+                sys.modules[cls.__module__].__all__.append(gen_name)
+                setattr(sys.modules[cls.__module__], gen_name, new_type)
+
+class XMLGenerator(object):
+    __metaclass__ = XMLGeneratorType
+    
+    _xml_namespace = None # To be defined in subclass
+    _xml_meta = None # To be defined in subclass
+    _xml_bases = () # To be defined in subclass
+    _xml_name_prefix = '' # May be defined in subclass
+    _xml_names = [] # To be defined in subclass
