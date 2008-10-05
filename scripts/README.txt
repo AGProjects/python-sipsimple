@@ -12,8 +12,9 @@ library:
 - sip_rtp_audio_session
 - sip_msrp_im_session
 - sip_msrp_file_transfer
-- sip_presence_publish
-- sip_presence_subscribe
+- sip_publish_presence
+- sip_subscribe_winfo
+- sip_subscribe_presence
 - sip_message
 
 Some scripts can be used to setup audio (VoIP), interactive mesaging (IM)
