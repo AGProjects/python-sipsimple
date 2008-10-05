@@ -16,16 +16,19 @@ Comfort noice generator
 Add feature to send OPTIONS method and parse the replies
 Replace in configuration file the username and domain combination with one parameter called sip_address
 Handle incomming REFER to conference bridge
-Play a soft beep tone while on hold (every 30 seconds)
+Play a soft beep tone while on hold every 30 seconds
+Play a beep after we closed a session
+Conference established sessions
 
 
 Command line clients
 --------------------
 
 - handle multiple incomming sessions
+- handle 301/302 redirect by prompting the user to accept/reject the redirection
 - conference established sessions
-- combined msrp/rtp script
-- sip_presence_publish.py and sip_presence_subscribe.py scripts
+- combine msrp/rtp in one script
+- rewrite sip_presence_publish.py and sip_presence_subscribe.py scripts
 - set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
 other codes. For invite scripts the code is based on the response for the
 initial INVITE, not for the BYE If RTP was not received with 6 seconds after
@@ -34,10 +37,10 @@ call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
 - Add option to log the output of the scripts to a log file or syslog
-- Add option to select an account from multiple accounts defined in the
-  configuration file
+- Add runtime option to mute the call (press m)
+- Add sip_rtp_audio_session_bonjour script
 
-
+ 
 Applications
 ------------
 
@@ -60,7 +63,7 @@ Sessions
 
 Video over RTP using h.264 codec
 Real time text over RTP (RFC4103)
-Desktop sharing using VNC protocol
+Desktop sharing (VNC protocol)
 
 
 Middleware
@@ -87,7 +90,7 @@ Packaging
 ---------
 
 Debian package for library and command line tools
-Python installer
+Python installer (must build all deps)
 MacOSX binaries
 Linux binaries
 MS Windows binaries

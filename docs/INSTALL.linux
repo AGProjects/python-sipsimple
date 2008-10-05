@@ -18,6 +18,20 @@ For example to install the latest version of dnspython and cython on Ubuntu:
 sudo easy_install dnspython
 sudo easy_install cython
 
+For Nokia Internet table N810:
+
+Install diablo/sdk and debfarm catalogues referenced from:
+http://www.gronmayer.com/it/index.php
+
+apt-get install libc6-dev subversion python2.5-cython python2.5-setuptools
+python2.5-libxml2 libxslt1-dev zlib1g-dev flash-and-reboot initfs-flasher
+kernel-diablo-flasher libasound2-dev
+
+easy_install dnspython
+easy_install python-application
+easy_install twisted
+easy_install lxml
+
 Install the python-xcaplib library from:
 http://download.ag-projects.com/OpenXCAP/clients/
 
