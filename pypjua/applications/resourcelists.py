@@ -52,7 +52,6 @@ Marketing
 import sys
 from lxml import etree
 from pypjua.applications import ParserError, XMLMeta, XMLApplication, XMLElement, XMLListElement, XMLStringElement
-from hlist import TypedList, HookedList
 
 __all__ = ['_namespace_',
            'ResourceListsMeta',
@@ -216,7 +215,7 @@ class List(XMLListElement):
 
 ResourceListsMeta.register(List)
 
-class ResourceLists(XMLApplication, XMLListElement):
+class ResourceLists(XMLListApplication):
     accept_types = ['application/resource-lists+xml']
     build_types = ['application/resource-lists+xml']
     

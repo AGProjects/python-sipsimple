@@ -189,7 +189,7 @@ class Service(XMLElement):
         self.list.to_element(parent=element, nsmap=nsmap)
         self.packages.to_element(parent=element, nsmap=nsmap)
 
-class RLSServices(XMLApplication, XMLListElement):
+class RLSServices(XMLListApplication):
     accept_types = ['application/rls-services+xml']
     build_types = ['application/rls-services+xml']
 

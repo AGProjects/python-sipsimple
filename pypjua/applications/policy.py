@@ -64,9 +64,7 @@ class CommonPolicyMeta(XMLMeta): pass
 
 # Mixin types for extensibility
 class ConditionElement(object): pass
-
 class ActionElement(object): pass
-
 class TransformationElement(object): pass
 
 
@@ -334,7 +332,7 @@ class Rule(XMLElement):
 
 CommonPolicyMeta.register(Rule)
 
-class RuleSet(XMLApplication, XMLListElement):
+class RuleSet(XMLListApplication):
     accept_types = ['application/auth-policy+xml']
     build_types = ['application/auth-policy+xml']
     
