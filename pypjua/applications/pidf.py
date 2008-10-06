@@ -97,6 +97,8 @@ class Timestamp(XMLElement):
 
     @classmethod
     def parse_timestamp(cls, stamp):
+        if stamp is None:
+            return None
         match = cls._timestamp_re.match(stamp)
         if match is None:
             raise ParserError("Timestamp %s is not in RFC3339 format" % stamp)
@@ -120,6 +122,8 @@ class Timestamp(XMLElement):
 
     @classmethod
     def format_timestamp(cls, dt):
+        if dt is None:
+            return None
         minutes = cls.utc_offset()
         if minutes == 0:
             tzspec = 'Z'
@@ -280,7 +284,7 @@ class PIDF(ExtensibleXMLListApplication):
             else:
                 child_cls = self._xml_meta.get(child.tag)
                 if child_cls is not None:
-                    self.append(chidl_cls.from_element(child, xml_meta=self._xml_meta))
+                    self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
 
     def _build_element(self, element, nsmap):
         for child in self:

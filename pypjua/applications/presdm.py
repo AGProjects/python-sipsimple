@@ -5,13 +5,26 @@ support the data module defined in RFC4479.
 """
 
 from pypjua.applications import XMLExtension, XMLStringElement, ExtensibleXMLElement
-from pypjua.applications.pidf import PIDFTopElement, PIDF, PIDFMeta
+from pypjua.applications.pidf import PIDFTopElement, PIDF, PIDFMeta, NoteList, Note, Timestamp
+
+__all__ = ['_namespace_',
+           'DeviceExtension',
+           'PersonExtension',
+           'DMNote',
+           'DeviceID',
+           'Device',
+           'Person']
 
 _namespace_ = 'urn:ietf:params:xml:ns:pidf:data-model'
 
 
 class DeviceExtension(object): pass
 class PersonExtension(object): pass
+
+class DMNote(Note):
+    _xml_tag = 'note'
+    _xml_namespace = _namespace_
+    _xml_meta = PIDFMeta
 
 class DeviceID(XMLStringElement):
     _xml_tag = 'deviceID'
@@ -42,8 +55,8 @@ class Device(ExtensibleXMLElement, PIDFTopElement):
         for child in element:
             if child.tag == DeviceID.qname:
                 self.deviceID = DeviceID.from_element(child, xml_meta=self._xml_meta)
-            elif child.tag == Note.qname:
-                self.notes.append(Note.from_element(child, xml_meta=self._xml_meta))
+            elif child.tag == DMNote.qname:
+                self.notes.append(DMNote.from_element(child, xml_meta=self._xml_meta))
             elif child.tag == Timestamp.qname:
                 self.timestamp = Timestamp.from_element(child, xml_meta=self._xml_meta)
 
@@ -75,8 +88,8 @@ class Person(ExtensibleXMLElement, PIDFTopElement):
         self.notes = NoteList()
         self.timestamp = None
         for child in element:
-            if child.tag == Note.qname:
-                self.notes.append(Note.from_element(child, xml_meta=self._xml_meta))
+            if child.tag == DMNote.qname:
+                self.notes.append(DMNote.from_element(child, xml_meta=self._xml_meta))
             elif child.tag == Timestamp.qname:
                 self.timestamp = Timestamp.from_element(child, xml_meta=self._xml_meta)
 
@@ -89,7 +102,9 @@ class Person(ExtensibleXMLElement, PIDFTopElement):
 
 class PresDMExtension(XMLExtension):
     _xml_ext_def = [(Device, []),
-                    (Person, [])]
+                    (Person, []),
+                    (DeviceID, []),
+                    (DMNote, [])]
     _xml_namespace = _namespace_
     _xml_prefix = 'dm'
     _xml_schema_file = 'data-model.xsd'
