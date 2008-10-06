@@ -83,7 +83,7 @@ def display_person(person, pidf, buf):
     if len(person.notes) > 0:
         for note in person.notes:
             buf.append("    %s" % format_note(note))
-    elif len(pidf.notes > 0):
+    elif len(pidf.notes) > 0:
         for note in pidf.notes:
             buf.append("    %s" % format_note(note))
     # display activities
@@ -215,7 +215,7 @@ def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue, pjsip_logging
     if event_name == "Subscription_state":
         if kwargs["state"] == "ACTIVE":
-            print "SUBSCRIBE was succesfull!"
+            queue.put(("print", "SUBSCRIBE was succesfull"))
         elif kwargs["state"] == "TERMINATED":
             if kwargs.has_key("code"):
                 queue.put(("print", "Unsubscribed: %(code)d %(reason)s" % kwargs))
@@ -261,7 +261,7 @@ def read_queue(e, username, domain, password, display_name, presentity_username,
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         presentity = SIPURI(user=presentity_username, host=presentity_domain)
         sub = Subscription(credentials, presentity, 'presence', route=route, expires=expires)
-        print 'Subscribing to "%s" for the presence event, at proxy %s:%d and waiting for incoming NOTICE' % (presentity, route.host, route.port)
+        print 'Subscribing to "%s" for the presence event, at proxy %s:%d and waiting for incoming NOTIFY' % (presentity, route.host, route.port)
         sub.subscribe()
         
         while True:
