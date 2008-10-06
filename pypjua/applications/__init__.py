@@ -319,39 +319,70 @@ class XMLChoiceElement(XMLElement):
     _xml_namespace = None # To be defined in subclass
     _xml_attrs = {} # Not necessarily defined in subclass
     _xml_meta = None # To be defined in subclass
-    _xml_type = None # To be defined in subclass
+    _xml_values = set() # To be defined in subclass
+    _xml_default_value = None # May be defined in subclass
+    _xml_value_maps = {} # May be defined in subclass # tag -> value
+    _xml_allow_many = False # May be defined in subclass
+    _xml_allow_other = False # May be defined in subclass
     
-    def __init__(self, value):
-        self.value = value
+    def __init__(self, values=[]):
+        self.__values = set()
+        for value in values:
+            self.add(value)
     
     def _parse_element(self, element):
+        self.__values = set()
         for child in element:
-            child_cls = self._xml_meta.get(child.tag)
-            if child_cls is not None:
-                self.value = child_cls.from_element(child, xml_meta=self._xml_meta)
+            namespace, tag = parse_tag(child.tag)
+            if namespace == self._xml_namespace:
+                try:
+                    if tag == 'other':
+                        self.add(child.text)
+                    else:
+                        self.add(self._xml_value_maps.get(tag, tag))
+                except ValueError, e:
+                    raise ParserError(str(e))
 
     def _build_element(self, element, nsmap):
-        if self.value is not None:
-            self.value.to_element(parent=element, nsmap=nsmap)
+        inv_value_maps = dict((value, key) for key, value in self._xml_value_maps.items())
+        if len(self.__values) > 0:
+            for value in self.__values:
+                if value in self.__values:
+                    etree.SubElement(element, '{%s}%s' % (self._xml_namespace, inv_value_maps.get(value, value)), nsmap=nsmap)
+                else:
+                    element = etree.SubElement(element, '{%s}other' % self._xml_namespace, nsmap=nsmap)
+                    element.text = value
+        elif self._xml_default_value is not None:
+            etree.SubElement(element, '{%s}%s' % (self._xml_namespace, inv_value_maps.get(self._xml_default_value, self._xml_default_value)))
 
     def __str__(self):
-        return '%s: %s' % (self.__class__.__name__, self.value)
+        return '%s: %s' % (self.__class__.__name__, ', '.join(self.__values))
 
     def __eq__(self, obj):
-        return type(self) == type(obj) and self.value == obj.value
+        return type(self) == type(obj) and self.__values == obj.values
 
     def __hash__(self):
-        return hash(type(self)) + hash(self.value)
+        return hash(type(self)) + hash(self.__values)
 
-    def _set_value(self, value):
-        if not isinstance(value, self._xml_type):
-            raise TypeError("Expected type %s, got %s instead" % (self._xml_type.__name__, value.__class__.__name__))
-        self.__value = value
+    def add(self, value):
+        if value in self.__values:
+            return
+        if not self._xml_allow_many and len(self.__values) > 0:
+            raise ValueError("Cannot have more than one child in element type %s" % self.__class__.__name__)
+        if not self._xml_allow_other and value not in self._xml_values:
+            raise ValueError("Invalid value for element type %s; acceptable values are: %s" % (self.__class__.__name__, ', '.join(self._xml_values)))
+        self.__values.add(value)
 
-    def _get_value(self):
-        return self.__value
+    def set(self, value):
+        if value in self.__values:
+            return
+        self.__values.clear()
+        self.__values.add(value)
     
-    value = property(_get_value, _set_value)
+    def remove(self, value):
+        self.__values.remove(value)
+
+    values = property(lambda self: self.__values[:])
 
 
 class XMLApplicationType(type):
@@ -490,11 +521,11 @@ class ExtensibleXMLElement(XMLElement):
         for attr, definition in self._xml_attrs.items():
             value = hasattr(self, attr) and getattr(self, attr) or None
             if value is not None:
-                element.set(definition.get('xml_attribute', attr), value)
+                element.set(definition.get('xml_attribute', attr), definition.get('build', lambda x: x)(value))
         self._build_element(element, nsmap)
         return element
 
-    def _build_extensions(self, parent, nsmap):
+    def _build_extensions(self, element, nsmap):
         for _type, attr in self._attr_extensions.values():
             attr = getattr(self, attr)
             if attr is not None:
@@ -507,10 +538,10 @@ class ExtensibleXMLElement(XMLElement):
         for child in element:
             ext, attr = cls._attr_extensions.get(child.tag, (None, None))
             if ext is not None:
-                setattr(self, attr, ext.from_element(child, xml_meta=obj._xml_meta))
+                setattr(obj, attr, ext.from_element(child, xml_meta=obj._xml_meta))
                 element.remove(child)
         for attr, definition in cls._xml_attrs.items():
-            setattr(obj, attr, element.get(definition.get('xml_attribute', attr)))
+            setattr(obj, attr, definition.get('parse', lambda x: x)(element.get(definition.get('xml_attribute', attr))))
         obj._parse_element(element, *args, **kwargs)
         return obj
     
@@ -581,3 +612,14 @@ class XMLGenerator(object):
     _xml_bases = () # To be defined in subclass
     _xml_name_prefix = '' # May be defined in subclass
     _xml_names = [] # To be defined in subclass
+
+
+#
+# Utility methods
+#
+def parse_tag(tag):
+    if tag[0] == '{':
+        tag = tag[1:]
+        return tag.split('}')
+    else:
+        return None, tag
