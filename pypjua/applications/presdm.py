@@ -5,7 +5,7 @@ support the data module defined in RFC4479.
 """
 
 from pypjua.applications import XMLExtension, XMLStringElement, ExtensibleXMLElement
-from pypjua.applications.pidf import PIDFTopElement, PIDF, PIDFMeta, NoteList, Note, Timestamp
+from pypjua.applications.pidf import PIDFTopElement, PIDF, Tuple, TupleExtension, PIDFMeta, NoteList, Note, Timestamp
 
 __all__ = ['_namespace_',
            'DeviceExtension',
@@ -26,7 +26,7 @@ class DMNote(Note):
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
 
-class DeviceID(XMLStringElement):
+class DeviceID(XMLStringElement, TupleExtension):
     _xml_tag = 'deviceID'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
@@ -103,7 +103,7 @@ class Person(ExtensibleXMLElement, PIDFTopElement):
 class PresDMExtension(XMLExtension):
     _xml_ext_def = [(Device, []),
                     (Person, []),
-                    (DeviceID, []),
+                    (DeviceID, [(Tuple, {'attribute': 'device_id'})]),
                     (DMNote, [])]
     _xml_namespace = _namespace_
     _xml_prefix = 'dm'
