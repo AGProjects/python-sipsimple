@@ -382,7 +382,7 @@ class XMLChoiceElement(XMLElement):
     def remove(self, value):
         self.__values.remove(value)
 
-    values = property(lambda self: self.__values[:])
+    values = property(lambda self: list(self.__values))
 
 
 class XMLApplicationType(type):
@@ -418,7 +418,12 @@ class XMLApplication(XMLElement):
 
     @classmethod
     def parse(cls, document):
-        return cls.from_element(etree.XML(document, cls._parser))
+        try:
+            xml = etree.XML(document, cls._parser)
+        except etree.XMLSyntaxError, e:
+            raise ParserError(str(e))
+        else:
+            return cls.from_element(xml)
     
     def toxml(self, *args, **kwargs):
         nsmap = kwargs.pop('nsmap', None)
@@ -475,11 +480,15 @@ class ExtensibleXMLApplication(XMLApplication):
     
     @classmethod
     def parse(cls, document):
-        element = etree.XML(document, cls._parser)
-#        if self._validate_input:
-#            for schema in cls._ext_schemas:
-#                schema.assertValid(element)
-        return cls.from_element(element)
+        try:
+            xml = etree.XML(document, cls._parser)
+        except etree.XMLSyntaxError, e:
+            raise ParserError(str(e))
+        else:
+#            if self._validate_input:
+#                for schema in cls._ext_schemas:
+#                    schema.assertValid(element)
+            return cls.from_element(xml)
     
     def toxml(self, *args, **kwargs):
         nsmap = kwargs.pop('nsmap', None)
