@@ -156,6 +156,42 @@ def display_person(person, pidf, buf):
         if person.user_input.idle_threshold:
             buf.append("      Idle threshold: %s seconds" % person.user_input.idle_threshold)
 
+def display_service(service, pidf, buf):
+    # display class
+    if service.rpid_class is not None:
+        buf.append("    Class: %s" % person.rpid_class)
+    # display status
+    if service.status is not None and service.status.basic is not None:
+        buf.append("    Status: %s" % service.status.basic)
+    # display contact
+    if service.contact is not None:
+        buf.append("    Contact%s: %s" % ((service.contact.priority is not None) and (' priority %s' % service.contact.priority) or '', service.contact))
+    # display timestamp
+    if service.timestamp is not None:
+        buf.append("    Timestamp: %s" % service.timestamp)
+    # display device ID
+    if service.device_id is not None:
+        buf.append("    Service offered by devide id: %s" % service.device_id)
+    # display relationship
+    if service.relationship is not None:
+        buf.append("    Relationship: %s" % service.relationship.values[0])
+    # display service-class
+    if service.service_class is not None:
+        buf.append("    Service class: %s" % service.service_class.values[0])
+    # display status icon
+    if service.status_icon is not None:
+        buf.append("    Status icon: %s" % service.status_icon)
+    # display user input
+    if service.user_input is not None:
+        buf.append("    Service is %s" % service.user_input)
+        if service.user_input.last_input:
+            buf.append("      Last input at: %s" % service.user_input.last_input)
+        if service.user_input.idle_threshold:
+            buf.append("      Idle threshold: %s seconds" % service.user_input.idle_threshold)
+    # display notes
+    for note in service.notes:
+        buf.append("    %s" % format_note(note))
+
 def handle_pidf(pidf):
     buf = []
     buf.append("Presence for %s:" % pidf.entity)
@@ -183,6 +219,15 @@ def handle_pidf(pidf):
         for person in persons.values():
             buf.append("  Person information, occurence id %s" % person.id)
             display_person(person, pidf, buf)
+
+    # handle services informaation
+    if len(services) == 1:
+        buf.append("  Service information:")
+        display_service(services.values()[0], pidf, buf)
+    else:
+        for service in services.values():
+            buf.append("  Service information, occurence id %s" % service.id)
+            display_service(service, pidf, buf)
 
     # push the data
     text = '\n'.join(buf)
