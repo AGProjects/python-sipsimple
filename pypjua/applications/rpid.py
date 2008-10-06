@@ -167,6 +167,9 @@ class PlaceIs(XMLElement, PersonExtension):
         self.notes = NoteList()
     
     def _parse_element(self, element):
+        self.audio = None
+        self.video = None
+        self.text = None
         self.notes = NoteList()
         for child in element:
             if child.tag == RPIDNote.qname:

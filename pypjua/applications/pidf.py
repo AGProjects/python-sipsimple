@@ -167,6 +167,9 @@ class NoteList(object):
     def __iter__(self):
         return self.__notes.itervalues()
 
+    def __len__(self):
+        return len(self.__notes)
+
     def append(self, note):
         self.__notes[note.lang] = note
 
