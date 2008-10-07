@@ -217,11 +217,12 @@ def display_device(device, pidf, buf):
             buf.append("      Idle threshold: %s seconds" % device.user_input.idle_threshold)
 
 def handle_pidf(pidf):
-    buf = []
+    buf = ["-"*16, "Received NOTIFY:"]
     buf.append("Presence for %s:" % pidf.entity)
     persons = {}
     devices = {}
     services = {}
+    printed_sep = True
     for child in pidf:
         if isinstance(child, Person):
             persons[child.id] = child
@@ -236,20 +237,31 @@ def handle_pidf(pidf):
             buf.append("  Person information:")
             for note in pidf.notes:
                 buf.append("    %s" % format_note(note))
+            printed_sep = False
     else:
         for person in persons.values():
             buf.append("  Person information, id %s" % person.id)
             display_person(person, pidf, buf)
+        printed_sep = False
+
 
     # handle services informaation
-    for service in services.values():
-        buf.append("  Service information, id %s" % service.id)
-        display_service(service, pidf, buf)
+    if len(services) > 0:
+        if not printed_sep:
+            buf.append("  " + "-"*8)
+        for service in services.values():
+            buf.append("  Service information, id %s" % service.id)
+            display_service(service, pidf, buf)
 
     # handle devices informaation
-    for device in devices.values():
-        buf.append("  Device information, id %s" % device.id)
-        display_device(device, pidf, buf)
+    if len(devices) > 0:
+        if not printed_sep:
+            buf.append("  " + "-"*8)
+        for device in devices.values():
+            buf.append("  Device information, id %s" % device.id)
+            display_device(device, pidf, buf)
+    
+    buf.append("-"*16)
 
     # push the data
     text = '\n'.join(buf)
