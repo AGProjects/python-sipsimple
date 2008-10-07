@@ -79,6 +79,9 @@ def display_person(person, pidf, buf):
     # display class
     if person.rpid_class is not None:
         buf.append("    Class: %s" % person.rpid_class)
+    # display timestamp
+    if person.timestamp is not None:
+        buf.append("    Timestamp: %s" % service.timestamp)
     # display notes
     if len(person.notes) > 0:
         for note in person.notes:
@@ -160,18 +163,21 @@ def display_service(service, pidf, buf):
     # display class
     if service.rpid_class is not None:
         buf.append("    Class: %s" % person.rpid_class)
+    # display timestamp
+    if service.timestamp is not None:
+        buf.append("    Timestamp: %s" % service.timestamp)
+    # display notes
+    for note in service.notes:
+        buf.append("    %s" % format_note(note))
     # display status
     if service.status is not None and service.status.basic is not None:
         buf.append("    Status: %s" % service.status.basic)
     # display contact
     if service.contact is not None:
         buf.append("    Contact%s: %s" % ((service.contact.priority is not None) and (' priority %s' % service.contact.priority) or '', service.contact))
-    # display timestamp
-    if service.timestamp is not None:
-        buf.append("    Timestamp: %s" % service.timestamp)
     # display device ID
     if service.device_id is not None:
-        buf.append("    Service offered by devide id: %s" % service.device_id)
+        buf.append("    Service offered by device id: %s" % service.device_id)
     # display relationship
     if service.relationship is not None:
         buf.append("    Relationship: %s" % service.relationship.values[0])
@@ -188,9 +194,27 @@ def display_service(service, pidf, buf):
             buf.append("      Last input at: %s" % service.user_input.last_input)
         if service.user_input.idle_threshold:
             buf.append("      Idle threshold: %s seconds" % service.user_input.idle_threshold)
+
+def display_device(device, pidf, buf):
+    # display device ID
+    if device.device_id is not None:
+        buf.append("    Device id: %s" % device.device_id)
+    # display class
+    if device.rpid_class is not None:
+        buf.append("    Class: %s" % person.rpid_class)
+    # display timestamp
+    if device.timestamp is not None:
+        buf.append("    Timestamp: %s" % device.timestamp)
     # display notes
-    for note in service.notes:
+    for note in device.notes:
         buf.append("    %s" % format_note(note))
+    # display user input
+    if device.user_input is not None:
+        buf.append("    Service is %s" % device.user_input)
+        if device.user_input.last_input:
+            buf.append("      Last input at: %s" % device.user_input.last_input)
+        if device.user_input.idle_threshold:
+            buf.append("      Idle threshold: %s seconds" % device.user_input.idle_threshold)
 
 def handle_pidf(pidf):
     buf = []
@@ -212,22 +236,20 @@ def handle_pidf(pidf):
             buf.append("  Person information:")
             for note in pidf.notes:
                 buf.append("    %s" % format_note(note))
-    elif len(persons) == 1:
-        buf.append("  Person information:")
-        display_person(persons.values()[0], pidf, buf)
     else:
         for person in persons.values():
-            buf.append("  Person information, occurence id %s" % person.id)
+            buf.append("  Person information, id %s" % person.id)
             display_person(person, pidf, buf)
 
     # handle services informaation
-    if len(services) == 1:
-        buf.append("  Service information:")
-        display_service(services.values()[0], pidf, buf)
-    else:
-        for service in services.values():
-            buf.append("  Service information, occurence id %s" % service.id)
-            display_service(service, pidf, buf)
+    for service in services.values():
+        buf.append("  Service information, id %s" % service.id)
+        display_service(service, pidf, buf)
+
+    # handle devices informaation
+    for device in devices.values():
+        buf.append("  Device information, id %s" % device.id)
+        display_device(device, pidf, buf)
 
     # push the data
     text = '\n'.join(buf)
@@ -267,6 +289,8 @@ def event_handler(event_name, **kwargs):
             else:
                 queue.put(("print", "Unsubscribed"))
             queue.put(("quit", None))
+        elif kwargs["state"] == "PENDING":
+            queue.put(("print", "Subscription is pending"))
     elif event_name == "Subscription_notify":
         if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in PIDF.accept_types:
             try:
