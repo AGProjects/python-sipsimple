@@ -314,7 +314,7 @@ class XMLEmptyElement(XMLElement):
     def __hash__(self):
         return object.__hash__(type(self))
 
-class XMLChoiceElement(XMLElement):
+class XMLSingleChoiceElement(XMLElement):
     _xml_tag = None # To be defined in subclass
     _xml_namespace = None # To be defined in subclass
     _xml_attrs = {} # Not necessarily defined in subclass
@@ -322,8 +322,66 @@ class XMLChoiceElement(XMLElement):
     _xml_values = set() # To be defined in subclass
     _xml_default_value = None # May be defined in subclass
     _xml_value_maps = {} # May be defined in subclass # tag -> value
-    _xml_allow_many = False # May be defined in subclass
-    _xml_allow_other = False # May be defined in subclass
+    _xml_ext_type = None # May be defined in subclass
+    
+    def __init__(self, value=None):
+        self.__value = None
+        self.value = value
+    
+    def _parse_element(self, element):
+        self.__value = None
+        for child in element:
+            namespace, tag = parse_tag(child.tag)
+            if namespace == self._xml_namespace:
+                value = self._xml_value_maps.get(tag, tag)
+                if value in self._xml_values:
+                    self.value = self._xml_value_maps.get(tag, tag)
+                    continue
+            child_cls = self._xml_meta.get(child.tag)
+            if child_cls is not None and self._xml_ext_type is not None and issubclass(child_cls, self._xml_ext_type):
+                self.value = child_cls.from_element(child, xml_meta=self._xml_meta)
+
+    def _build_element(self, element, nsmap):
+        if self.value is not None:
+            if instanceof(self.value, str):
+                try:
+                    tag = (key for key, value in self._xml_value_maps.items() if value == self.value).next()
+                except StopIteration:
+                    tag = self.value
+                etree.SubElement(element, '{%s}%s' % (self._xml_namespace, tag), nsmap=nsmap)
+            else:
+                self.value.to_element(parent=element, nsmap=nsmap)
+
+    def __str__(self):
+        return self.value
+
+    def __eq__(self, obj):
+        return hasattr(obj, 'value') and self.value == obj.value
+
+    def __hash__(self):
+        return hash(self.value)
+
+    def _set_value(self, value):
+        if value is None:
+            self.__value = self._xml_default_value
+        elif instanceof(value, str):
+            if value not in self._xml_values:
+                raise ValueError("Illegal value for element type %s; acceptable types are: %s" % (self.__class__.__name__, ', '.join(self._xml_values)))
+        elif self._xml_ext_type is None or not isinstance(value, self._xml_ext_type):
+            raise ValueError("Invalid value for element type %s: got type %s" % (self.__class__.__name, value.__class__.__name__))
+        self.__value = value
+
+    value = property(lambda self: self.__value, _set_value)
+
+class XMLMultipleChoiceElement(XMLElement):
+    _xml_tag = None # To be defined in subclass
+    _xml_namespace = None # To be defined in subclass
+    _xml_attrs = {} # Not necessarily defined in subclass
+    _xml_meta = None # To be defined in subclass
+    _xml_values = set() # To be defined in subclass
+    _xml_default_value = None # May be defined in subclass
+    _xml_value_maps = {} # May be defined in subclass # tag -> value
+    _xml_ext_type = None
     
     def __init__(self, values=[]):
         self.__values = set()
@@ -335,50 +393,47 @@ class XMLChoiceElement(XMLElement):
         for child in element:
             namespace, tag = parse_tag(child.tag)
             if namespace == self._xml_namespace:
-                try:
-                    if tag == 'other':
-                        self.add(child.text)
-                    else:
-                        self.add(self._xml_value_maps.get(tag, tag))
-                except ValueError, e:
-                    raise ParserError(str(e))
+                value = self._xml_value_maps.get(tag, tag)
+                if value in self._xml_values:
+                    self.add(value)
+                    continue
+            child_cls = self._xml_meta.get(child.tag)
+            if child_cls is not None and self._xml_ext_type is not None and issubclass(child_cls, self._xml_ext_type):
+                self.add(child_cls.from_element(child, xml_meta=self._xml_meta))
 
     def _build_element(self, element, nsmap):
         inv_value_maps = dict((value, key) for key, value in self._xml_value_maps.items())
         if len(self.__values) > 0:
             for value in self.__values:
-                if value in self.__values:
+                if isinstance(value, str):
                     etree.SubElement(element, '{%s}%s' % (self._xml_namespace, inv_value_maps.get(value, value)), nsmap=nsmap)
                 else:
-                    element = etree.SubElement(element, '{%s}other' % self._xml_namespace, nsmap=nsmap)
-                    element.text = value
+                    value.to_element(parent=element, nsmap=nsmap)
         elif self._xml_default_value is not None:
             etree.SubElement(element, '{%s}%s' % (self._xml_namespace, inv_value_maps.get(self._xml_default_value, self._xml_default_value)))
 
     def __str__(self):
-        return '%s: %s' % (self.__class__.__name__, ', '.join(self.__values))
+        return ', '.join(str(value) for value in self.__values)
 
     def __eq__(self, obj):
-        return type(self) == type(obj) and self.__values == obj.values
+        return hasattr(obj, 'values') and self.values == obj.values
 
     def __hash__(self):
-        return hash(type(self)) + hash(self.__values)
+        return hash(self.values)
 
     def add(self, value):
         if value in self.__values:
             return
-        if not self._xml_allow_many and len(self.__values) > 0:
-            raise ValueError("Cannot have more than one child in element type %s" % self.__class__.__name__)
-        if not self._xml_allow_other and value not in self._xml_values:
-            raise ValueError("Invalid value for element type %s; acceptable values are: %s" % (self.__class__.__name__, ', '.join(self._xml_values)))
+        if isinstance(value, str):
+            if value not in self._xml_values:
+                raise ValueError("Invalid value for element type %s; acceptable values are: %s" % (self.__class__.__name__, ', '.join(self._xml_values)))
+        elif self._xml_ext_type is None or not isinstance(value, self._xml_ext_type):
+            raise ValueError("Invalid value for element type %s: got type %s" % (self.__class__.__name, value.__class__.__name__))
         self.__values.add(value)
 
-    def set(self, value):
-        if value in self.__values:
-            return
+    def clear(self):
         self.__values.clear()
-        self.__values.add(value)
-    
+
     def remove(self, value):
         self.__values.remove(value)
 
