@@ -26,7 +26,7 @@ class DMNote(Note):
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
 
-class DeviceID(XMLStringElement, TupleExtension):
+class DeviceID(XMLStringElement, TupleExtension, DeviceExtension):
     _xml_tag = 'deviceID'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
@@ -61,6 +61,8 @@ class Device(ExtensibleXMLElement, PIDFTopElement):
                 self.timestamp = Timestamp.from_element(child, xml_meta=self._xml_meta)
 
     def _build_element(self, element, nsmap):
+        if self.id is None:
+            raise BuilderError("`id' attribute of Device object must be specified")
         self._build_extensions(element, nsmap)
         if self.deviceID is not None:
             self.deviceID.to_element(parent=element, nsmap=nsmap)
@@ -94,6 +96,8 @@ class Person(ExtensibleXMLElement, PIDFTopElement):
                 self.timestamp = Timestamp.from_element(child, xml_meta=self._xml_meta)
 
     def _build_element(self, element, nsmap):
+        if self.id is None:
+            raise BuilderError("`id' attribute of Person object must be specified")
         self._build_extensions(element, nsmap)
         for note in self.notes:
             note.to_element(parent=element, nsmap=nsmap)
@@ -103,7 +107,8 @@ class Person(ExtensibleXMLElement, PIDFTopElement):
 class PresDMExtension(XMLExtension):
     _xml_ext_def = [(Device, []),
                     (Person, []),
-                    (DeviceID, [(Tuple, {'attribute': 'device_id'})]),
+                    (DeviceID, [(Tuple, {'attribute': 'device_id'}),
+                                (Device, {'attribute': 'device_id'})]),
                     (DMNote, [])]
     _xml_namespace = _namespace_
     _xml_prefix = 'dm'

@@ -79,16 +79,14 @@ class Timestamp(XMLElement):
 
     _timestamp_re = re.compile(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})T(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(\.(?P<secfrac>\d{1,}))?((?P<UTC>Z)|((?P<tzsign>\+|-)(?P<tzhour>\d{2}):(?P<tzminute>\d{2})))')
 
-    def __init__(self, timestamp=None):
-        if timestamp is None:
-            timestamp = datetime.datetime.now()
-        self.timestamp = timestamp
+    def __init__(self, value=None):
+        self.value = value
 
     def _parse_element(self, element):
-        self.timestamp = self.parse_timestamp(element.text)
+        self.value = self.parse_timestamp(element.text)
 
     def _build_element(self, element, nsmap):
-        element.text = self.format_timestamp(self.timestamp)
+        element.text = self.format_timestamp(self.value)
     
     @classmethod
     def utc_offset(cls):
@@ -138,8 +136,15 @@ class Timestamp(XMLElement):
             tzspec = '%s%02d:%02d' % (sign, hours, minutes)
         return dt.replace(microsecond=0).isoformat()+tzspec
     
+    def _set_value(self, value):
+        if value is None:
+            value = datetime.datetime.now()
+        self.__value = value
+
+    value = property(lambda self: self.__value, _set_value)
+    
     def __str__(self):
-        return str(self.timestamp)
+        return str(self.value)
 
 PIDFMeta.register(Timestamp)
 
@@ -180,7 +185,7 @@ class Basic(XMLStringElement):
     _xml_lang = False
     _xml_values = ('open', 'closed')
 
-PIDFMeta.register(Note)
+PIDFMeta.register(Basic)
 
 class Status(ExtensibleXMLElement):
     _xml_tag = 'status'
@@ -203,6 +208,8 @@ class Status(ExtensibleXMLElement):
         if self.basic is not None:
             self.basic.to_element(parent=element, nsmap=nsmap)
         self._build_extensions(element, nsmap)
+        if len(element) == 0:
+            raise BuilderError("Status objects must have at least one child")
 
 PIDFMeta.register(Status)
 
@@ -214,6 +221,7 @@ class Contact(XMLStringElement):
     _xml_lang = False
 
 PIDFMeta.register(Contact)
+
 class Tuple(ExtensibleXMLElement, PIDFTopElement):
     _xml_tag = 'tuple'
     _xml_namespace = _namespace_
@@ -247,8 +255,11 @@ class Tuple(ExtensibleXMLElement, PIDFTopElement):
                 self.timestamp = Timestamp.from_element(child, xml_meta=self._xml_meta)
 
     def _build_element(self, element, nsmap):
-        if self.status is not None:
-            self.status.to_element(parent=element, nsmap=nsmap)
+        if self.id is None:
+            raise BuilderError("`id' attribute of Tuple object must be specified")
+        if self.status is None:
+            raise BuilderError("Tuple objects must contain a Status child")
+        self.status.to_element(parent=element, nsmap=nsmap)
         self._build_extensions(element, nsmap)
         if self.contact is not None:
             self.contact.to_element(parent=element, nsmap=nsmap)
@@ -290,14 +301,18 @@ class PIDF(ExtensibleXMLListApplication):
                     self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
 
     def _build_element(self, element, nsmap):
+        if self.entity is None:
+            raise BuilderError("`entity' attribute of PIDF object must be specified")
+        other_children = []
         for child in self:
             if isinstance(child, Tuple):
                 child.to_element(parent=element, nsmap=nsmap)
+            else:
+                other_children.append(child)
         for note in self.notes:
             note.to_element(parent=element, nsmap=nsmap)
-        for child in self:
-            if not isinstance(child, Tuple):
-                child.to_element(parent=element, nsmap=nsmap)
+        for child in other_children:
+            child.to_element(parent=element, nsmap=nsmap)
 
     def _before_add(self, value):
         if not isinstance(value, PIDFTopElement):
