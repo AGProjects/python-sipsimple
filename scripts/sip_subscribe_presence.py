@@ -402,8 +402,8 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
 
 def parse_options():
     retval = {}
-    description = "This example script will use the specified SIP account to SUBSCRIBE to the presence event published by the specified presentity. It will then interprete PIDF bodies contained in NOTIFYs and display their meaning. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
-    usage = "%prog [options] presentity@presentity-domain.com"
+    description = "This example script will use the specified SIP account to SUBSCRIBE to the presence event published by the specified presentity. If a presentity address is not specified, it will subscribe to the account's own presence. It will then interprete PIDF bodies contained in NOTIFYs and display their meaning. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
+    usage = "%prog [options] [presentity@presentity-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file. If not supplied, the section Account will be read.", metavar="NAME")
@@ -441,8 +441,7 @@ def parse_options():
         except ValueError:
             retval["presentity_username"], retval["presentity_domain"] = args[0], retval['domain']
     else:
-        parser.print_usage()
-        sys.exit()
+        retval["presentity_username"], retval["presentity_domain"] = retval['username'], retval['domain']
     if options.account_name is None:
         print "Using default account: %s" % options.sip_address
     else:
