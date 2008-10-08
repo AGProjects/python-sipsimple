@@ -109,7 +109,7 @@ class Mood(XMLMultipleChoiceElement, PersonExtension):
                        'distracted', 'embarrassed', 'excited', 'flirtatious',
                        'frustrated', 'grumpy', 'guilty', 'happy', 'hot', 'humbled',
                        'humiliated', 'hungry', 'hurt', 'impressed', 'in awe',
-                       'in_love', 'indignant', 'interested', 'invisible', 'jealous',
+                       'in love', 'indignant', 'interested', 'invisible', 'jealous',
                        'lonely', 'mean', 'moody', 'nervous', 'neutral', 'offended',
                        'playful', 'proud', 'relieved', 'remorseful', 'restless',
                        'sad', 'sarcastic', 'serious', 'shocked', 'shy', 'sick',
