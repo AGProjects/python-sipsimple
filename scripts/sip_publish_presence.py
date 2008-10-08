@@ -139,8 +139,7 @@ class NotesMenu(Menu):
         print '\n'.join(buf)
     
     def _add_note(self):
-        #lang = getstr("Language")
-        lang = 'en'
+        lang = getstr("Language")
         if lang == '':
             lang = None
         value = getstr("Note")
@@ -182,7 +181,8 @@ class MoodMenu(Menu):
                              'a': {"description": "add a mood", "handler": self._add_mood},
                              'd': {"description": "delete a mood", "handler": self._del_mood},
                              'c': {"description": "clear all mood data", "handler": self._clear_moods},
-                             'n': {"description": "handle mood notes", "handler": Menu.gotoMenu(NotesMenu(RPIDNote, person, DMTimestamp))}})
+                             'n': {"description": "set mood note", "handler": self._set_note},
+                             'r': {"description": "set random mood", "handler": self._set_random}})
 
     def _show_moods(self):
         buf = ["Moods:"]
@@ -216,9 +216,9 @@ class MoodMenu(Menu):
         else:
             if person.mood is None:
                 person.mood = Mood()
-                person.mood.notes = self.interface['n']['handler'].menu.list
             person.mood.add(values[m-1])
             person.timestamp = DMTimestamp()
+            publish_pidf()
             print "Mood added"
 
     def _del_mood(self):
@@ -250,6 +250,7 @@ class MoodMenu(Menu):
         else:
             person.mood.remove(values[m-1])
             person.timestamp = DMTimestamp()
+            publish_pidf()
             print "Mood deleted"
 
     def _clear_moods(self):
@@ -258,7 +259,172 @@ class MoodMenu(Menu):
             return
         person.mood = None
         person.timestamp = DMTimestamp()
+        publish_pidf()
         print "Mood information cleared"
+
+    def _set_note(self):
+        if person.mood is not None and len(person.mood.notes) > 0:
+            print 'Current note: %s' % person.mood.notes['en']
+        note = getstr("Set note")
+        if note == '':
+            if person.mood is not None and len(person.mood.notes) > 0:
+                del person.mood.notes['en']
+        else:
+            if person.mood is None:
+                person.mood = Mood()
+            person.mood.notes.append(RPIDNote(note, lang='en'))
+            person.timestamp = DMTimestamp()
+            publish_pidf()
+            print 'Note set'
+    
+    def _set_random(self):
+        values = list(Mood._xml_value_maps.get(value, value) for value in Mood._xml_values)
+        random.shuffle(values)
+        
+        if person.mood is None:
+            person.mood = Mood()
+        else:
+            person.mood.clear()
+        values = values[:3]
+        for mood in values:
+            person.mood.add(mood)
+        person.timestamp = DMTimestamp()
+        publish_pidf()
+        print "You are now " + ", ".join(values)
+
+
+# Activities manipulation pidf
+class ActivitiesMenu(Menu):
+    def __init__(self):
+        Menu.__init__(self, {'s': {"description": "show current activitiess", "handler": self._show_activities},
+                             'a': {"description": "add an activity", "handler": self._add_activity},
+                             'd': {"description": "delete an activity", "handler": self._del_activity},
+                             'c': {"description": "clear all activity data", "handler": self._clear_activities},
+                             'n': {"description": "set activity note", "handler": self._set_note},
+                             'r': {"description": "set random activities", "handler": self._set_random}})
+
+    def _show_activities(self):
+        buf = ["Activities:"]
+        if person.activities is not None:
+            for a in person.activities.values:
+                buf.append("  %s" % str(a))
+        print '\n'.join(buf)
+    
+    def _add_activity(self):
+        buf = ["Possible activities:"]
+        values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values)
+        values.sort()
+        max_len = max(len(s) for s in values)+2
+        format = " %%02d) %%-%ds" % max_len
+        num_line = 72/(max_len+5)
+        i = 0
+        text = ''
+        for val in values:
+            text += format % (i+1, val)
+            i += 1
+            if i % num_line == 0:
+                buf.append(text)
+                text = ''
+        print '\n'.join(buf)
+        print
+        a = getstr("Select activity to add")
+        try:
+            a = int(a)
+        except ValueError:
+            print "Invalid input"
+        else:
+            if person.activities is None:
+                person.activities = Activities()
+            person.activities.add(values[a-1])
+            person.timestamp = DMTimestamp()
+            publish_pidf()
+            print "Activity added"
+
+    def _del_activity(self):
+        if person.activities is None:
+            print "There are no current activities set"
+            return
+        buf = ["Current activities:"]
+        values = person.activities.values
+        values.sort()
+        max_len = max(len(s) for s in values)+2
+        format = " %%02d) %%-%ds" % max_len
+        num_line = 72/(max_len+5)
+        i = 0
+        text = ''
+        for val in values:
+            text += format % (i+1, val)
+            i += 1
+            if i % num_line == 0:
+                buf.append(text)
+                text = ''
+        buf.append(text)
+        print '\n'.join(buf)
+        print
+        a = getstr("Select activity to delete")
+        try:
+            a = int(a)
+        except ValueError:
+            print "Invalid input"
+        else:
+            person.activities.remove(values[a-1])
+            person.timestamp = DMTimestamp()
+            publish_pidf()
+            print "Activity deleted"
+
+    def _clear_activities(self):
+        if person.activities is None:
+            print "There are no current activities set"
+            return
+        person.activities = None
+        person.timestamp = DMTimestamp()
+        publish_pidf()
+        print "Activities information cleared"
+
+    def _set_note(self):
+        if person.activities is not None and len(person.activities.notes) > 0:
+            print 'Current note: %s' % person.activities.notes['en']
+        note = getstr("Set note")
+        if note == '':
+            if person.activities is not None and len(person.activities.notes) > 0:
+                del person.activities.notes['en']
+        else:
+            if person.activities is None:
+                person.activities = Activities()
+            person.activities.notes.append(RPIDNote(note, lang='en'))
+            person.timestamp = DMTimestamp()
+            publish_pidf()
+            print 'Note set'
+    
+    def _set_random(self):
+        values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values)
+        random.shuffle(values)
+        
+        if person.activities is None:
+            person.activities = Activities()
+        else:
+            person.activities.clear()
+        values = values[:3]
+        for act in values:
+            person.activities.add(act)
+        person.timestamp = DMTimestamp()
+        publish_pidf()
+        print "You are now " + ", ".join(values)
+
+
+
+def set_person_note():
+    if len(person.notes) > 0:
+        print 'Current note: %s' % person.notes['en']
+    note = getstr("Set note")
+    if note == '':
+        if len(person.notes) > 0:
+            del person.mood.notes['en']
+    else:
+        person.notes.append(DMNote(note, lang='en'))
+        person.timestamp = DMTimestamp()
+        publish_pidf()
+        print 'Note added'
 
 
 def termios_restore():
@@ -345,14 +511,14 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         pidf.append(person)
 
         # initialize menus
-        top_level = Menu({'s': {"description": "show PIDF", "handler": lambda: sys.stdout.write(pidf.toxml(pretty_print=True))},
-                          'p': {"description": "publish PIDF", "handler": publish_pidf}})
+        top_level = Menu({'s': {"description": "show PIDF", "handler": lambda: sys.stdout.write(pidf.toxml(pretty_print=True))}})
         top_level.del_action('x')
         menu_stack.append(top_level)
 
         top_level.add_action('m', {"description": "set mood information", "handler": Menu.gotoMenu(MoodMenu())})
+        top_level.add_action('a', {"description": "set activities information", "handler": Menu.gotoMenu(ActivitiesMenu())})
         person_notes_menu = NotesMenu(DMNote, person, DMTimestamp)
-        top_level.add_action('n', {"description": "handle notes", "handler": Menu.gotoMenu(person_notes_menu)})
+        top_level.add_action('n', {"description": "set note", "handler": set_person_note})
         
         # stuff that depends on menus
         person.notes = person_notes_menu.list
