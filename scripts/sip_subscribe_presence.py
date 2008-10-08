@@ -81,7 +81,7 @@ def display_person(person, pidf, buf):
         buf.append("    Class: %s" % person.rpid_class)
     # display timestamp
     if person.timestamp is not None:
-        buf.append("    Timestamp: %s" % service.timestamp)
+        buf.append("    Timestamp: %s" % person.timestamp)
     # display notes
     if len(person.notes) > 0:
         for note in person.notes:

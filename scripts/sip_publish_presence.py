@@ -76,11 +76,11 @@ def publish_pidf():
     try:
         pub.publish("application", "pidf+xml", pidf.toxml())
     except BuilderError, e:
-        queue.put(("print", "PIDF as currently defined is invalid: %s" % str(e)))
+        print "PIDF as currently defined is invalid: %s" % str(e)
     except:
         traceback.print_exc()
     else:
-        queue.put(("print_frommenu", "PUBLISHing PIDF"))
+        print "PUBLISHing PIDF"
 
 class Menu(object):
     def __init__(self, interface):
@@ -89,10 +89,12 @@ class Menu(object):
         self.interface = interface
     
     def print_prompt(self):
+        print
         buf = ["Commands:"]
         for key, desc in self.interface.items():
             buf.append("  %s: %s" % (key, desc['description']))
-        queue.put(("print_menu", "\n".join(buf)))
+        print "\n".join(buf)
+        print
 
     def process_input(self, key):
         desc = self.interface.get(key)
@@ -122,12 +124,13 @@ class Menu(object):
 
 
 class NotesMenu(Menu):
-    def __init__(self, obj=None, timestamp_type=None):
+    def __init__(self, note_type, obj=None, timestamp_type=None):
         Menu.__init__(self, {'s': {"description": "show current notes", "handler": self._show_notes},
                              'a': {"description": "add a note", "handler": self._add_note},
                              'd': {"description": "delete a note", "handler": self._del_note},
                              'c': {"description": "clear all note data", "handler": self._clear_notes}})
         self.list = NoteList()
+        self.note_type = note_type
         self.obj = obj
         self.timestamp_type = timestamp_type
 
@@ -135,34 +138,35 @@ class NotesMenu(Menu):
         buf = ["Notes:"]
         for note in self.list:
             buf.append(" %s'%s'" % ((note.lang is None) and ' ' or (' (%s) ' % note.lang), note.value))
-        queue.put(("print_frommenu", '\n'.join(buf)))
+        print '\n'.join(buf)
     
     def _add_note(self):
         lang = getstr("Language")
         if lang == '':
             lang = None
         value = getstr("Note")
-        self.list.append(Note(value, lang))
+        self.list.append(self.note_type(value, lang))
         if self.obj:
             self.obj.timestamp = self.timestamp_type()
-        queue.put(("print_frommenu", "Note added"))
+        print "Note added"
 
     def _del_note(self):
         buf = ["Current notes:"]
         for note in self.list:
             buf.append(" %s'%s'" % ((note.lang is None) and ' ' or (' (%s) ' % note.lang), note.value))
         print '\n'.join(buf)
-        lang = getstr("\nLanguage of note to delete")
+        print
+        lang = getstr("Language of note to delete")
         if lang == '':
             lang = None
         try:
             del self.list[lang]
         except KeyError:
-            queue.put(("print_frommenu", "No note in language `%s'" % lang))
+            print "No note in language `%s'" % lang
         else:
             if self.obj:
                 self.obj.timestamp = self.timestamp_type()
-            queue.put(("print_frommenu", "Note deleted"))
+            print "Note deleted"
 
     def _clear_notes(self):
         notes = list(self.list)
@@ -170,7 +174,7 @@ class NotesMenu(Menu):
             del self.list[note.lang]
         if self.obj:
             self.obj.timestamp = self.timestamp_type()
-        queue.put(("print_frommenu", "Notes deleted"))
+        print "Notes deleted"
 
 # Mood manipulation pidf
 class MoodMenu(Menu):
@@ -179,14 +183,14 @@ class MoodMenu(Menu):
                              'a': {"description": "add a mood", "handler": self._add_mood},
                              'd': {"description": "delete a mood", "handler": self._del_mood},
                              'c': {"description": "clear all mood data", "handler": self._clear_moods},
-                             'n': {"description": "handle mood notes", "handler": Menu.gotoMenu(NotesMenu(person, DMTimestamp))}})
+                             'n': {"description": "handle mood notes", "handler": Menu.gotoMenu(NotesMenu(RPIDNote, person, DMTimestamp))}})
 
     def _show_moods(self):
         buf = ["Moods:"]
         if person.mood is not None:
             for m in person.mood.values:
                 buf.append("  %s" % str(m))
-        queue.put(("print_frommenu", '\n'.join(buf)))
+        print '\n'.join(buf)
     
     def _add_mood(self):
         buf = ["Possible moods:"]
@@ -204,22 +208,23 @@ class MoodMenu(Menu):
                 buf.append(text)
                 text = ''
         print '\n'.join(buf)
-        m = getstr("\nSelect mood to add")
+        print
+        m = getstr("Select mood to add")
         try:
             m = int(m)
         except ValueError:
-            queue.put(("print_frommenu", "Invalid input"))
+            print "Invalid input"
         else:
             if person.mood is None:
                 person.mood = Mood()
                 person.mood.notes = self.interface['n']['handler'].menu.list
             person.mood.add(values[m-1])
             person.timestamp = DMTimestamp()
-            queue.put(("print_frommenu", "Mood added"))
+            print "Mood added"
 
     def _del_mood(self):
         if person.mood is None:
-            queue.put(("print_frommenu", "There is no current mood set"))
+            print "There is no current mood set"
             return
         buf = ["Current moods:"]
         values = person.mood.values
@@ -237,23 +242,24 @@ class MoodMenu(Menu):
                 text = ''
         buf.append(text)
         print '\n'.join(buf)
-        m = getstr("\nSelect mood to delete")
+        print
+        m = getstr("Select mood to delete")
         try:
             m = int(m)
         except ValueError:
-            queue.put(("print_frommenu", "Invalid input"))
+            print "Invalid input"
         else:
             person.mood.remove(values[m-1])
             person.timestamp = DMTimestamp()
-            queue.put(("print_frommenu", "Mood deleted"))
+            print "Mood deleted"
 
     def _clear_moods(self):
         if person.mood is None:
-            queue.put(("print_frommenu", "There is no current mood set"))
+            print "There is no current mood set"
             return
         person.mood = None
         person.timestamp = DMTimestamp()
-        queue.put(("print_frommenu", "Mood information cleared"))
+        print "Mood information cleared"
 
 
 def termios_restore():
@@ -339,13 +345,13 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         pidf.append(person)
 
         # initialize menus
-        top_level = Menu({'s': {"description": "show PIDF", "handler": lambda: queue.put(("print_frommenu", pidf.toxml(pretty_print=True)))},
+        top_level = Menu({'s': {"description": "show PIDF", "handler": lambda: sys.stdout.write(pidf.toxml(pretty_print=True))},
                           'p': {"description": "publish PIDF", "handler": publish_pidf}})
         top_level.del_action('x')
         menu_stack.append(top_level)
 
         top_level.add_action('m', {"description": "set mood information", "handler": Menu.gotoMenu(MoodMenu())})
-        person_notes_menu = NotesMenu(person, DMTimestamp)
+        person_notes_menu = NotesMenu(DMNote, person, DMTimestamp)
         top_level.add_action('n', {"description": "handle notes", "handler": Menu.gotoMenu(person_notes_menu)})
         
         # stuff that depends on menus
@@ -357,13 +363,6 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
             if command == "print":
                 print data
                 menu_stack[-1].print_prompt()
-            if command == "print_menu":
-                print
-                print 'Identity: %s@%s' % (sip_uri.user, sip_uri.host)
-                print data
-                print
-            if command == "print_frommenu":
-                print data
             if command == "pypjua_event":
                 event_name, args = data
             if command == "user_input":
