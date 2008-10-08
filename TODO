@@ -2,6 +2,8 @@
 PJSIP bindings
 --------------
 
+Return list of headers of the response in the event handler
+Pass arbitrary headers to SIP requests
 Re-INVITEs
 STUN/ICE support
 Handle Multipart bodies
