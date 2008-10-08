@@ -384,7 +384,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
                         if not printed:
-                            print "REGISTER was succesfull"
+                            print "REGISTER was successful"
                             print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
                             if len(args["contact_uri_list"]) > 1:
                                 print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
