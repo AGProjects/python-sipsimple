@@ -79,8 +79,6 @@ def publish_pidf():
         print "PIDF as currently defined is invalid: %s" % str(e)
     except:
         traceback.print_exc()
-    else:
-        print "PUBLISHing PIDF"
 
 class Menu(object):
     def __init__(self, interface):
@@ -306,7 +304,8 @@ def event_handler(event_name, **kwargs):
             queue.put(("print", "Unpublished: %(code)d %(reason)s" % kwargs))
             queue.put(("quit", None))
         elif kwargs["state"] == "published":
-            queue.put(("print", "PUBLISH was successful"))
+            #queue.put(("print", "PUBLISH was successful"))
+            pass
     elif event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]

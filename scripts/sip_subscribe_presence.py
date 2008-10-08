@@ -294,7 +294,8 @@ def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue, pjsip_logging
     if event_name == "Subscription_state":
         if kwargs["state"] == "ACTIVE":
-            queue.put(("print", "SUBSCRIBE was successful"))
+            #queue.put(("print", "SUBSCRIBE was successful"))
+            pass
         elif kwargs["state"] == "TERMINATED":
             if kwargs.has_key("code"):
                 queue.put(("print", "Unsubscribed: %(code)d %(reason)s" % kwargs))
