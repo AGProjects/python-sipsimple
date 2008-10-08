@@ -141,7 +141,8 @@ class NotesMenu(Menu):
         print '\n'.join(buf)
     
     def _add_note(self):
-        lang = getstr("Language")
+        #lang = getstr("Language")
+        lang = 'en'
         if lang == '':
             lang = None
         value = getstr("Note")
