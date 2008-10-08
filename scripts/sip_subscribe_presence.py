@@ -105,6 +105,10 @@ def display_person(person, pidf, buf):
             if len(person.activities.notes) > 0:
                 for note in person.activities.notes:
                     buf.append("      %s" % format_note(note))
+        elif len(person.activities.notes) > 0:
+            buf.append("    Activities")
+            for note in person.activities.notes:
+                buf.append("      %s" % format_note(note))
     # display mood
     if person.mood is not None:
         moods = person.mood.values
