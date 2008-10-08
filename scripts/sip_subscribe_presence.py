@@ -217,7 +217,7 @@ def display_device(device, pidf, buf):
             buf.append("      Idle threshold: %s seconds" % device.user_input.idle_threshold)
 
 def handle_pidf(pidf):
-    buf = ["-"*16, "Received NOTIFY:"]
+    buf = ["-"*16]
     buf.append("Presence for %s:" % pidf.entity)
     persons = {}
     devices = {}
@@ -248,7 +248,7 @@ def handle_pidf(pidf):
     # handle services informaation
     if len(services) > 0:
         if not printed_sep:
-            buf.append("  " + "-"*8)
+            buf.append("  " + "-"*3)
         for service in services.values():
             buf.append("  Service information, id %s" % service.id)
             display_service(service, pidf, buf)
@@ -256,7 +256,7 @@ def handle_pidf(pidf):
     # handle devices informaation
     if len(devices) > 0:
         if not printed_sep:
-            buf.append("  " + "-"*8)
+            buf.append("  " + "-"*3)
         for device in devices.values():
             buf.append("  Device information, id %s" % device.id)
             display_device(device, pidf, buf)
@@ -305,6 +305,7 @@ def event_handler(event_name, **kwargs):
             queue.put(("print", "Subscription is pending"))
     elif event_name == "Subscription_notify":
         if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in PIDF.accept_types:
+            queue.put(("print", "Received NOTIFY:"))
             try:
                 pidf = PIDF.parse(kwargs['body'])
             except ParserError, e:
