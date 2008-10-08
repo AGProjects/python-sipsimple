@@ -82,7 +82,7 @@ def publish_pidf():
 
 class Menu(object):
     def __init__(self, interface):
-        interface['x'] = {"description": "exit to upper level menu", "handler": Menu.exitMenu()}
+        interface['x'] = {"description": "exit to upper level menu", "handler": Menu.exitMenu}
         interface['q'] = {"description": "quit program", "handler": lambda: queue.put(("quit", None))}
         self.interface = interface
     
@@ -118,7 +118,13 @@ class Menu(object):
 
     @staticmethod
     def exitMenu():
-        return lambda: menu_stack.pop()
+        menu_stack.pop()
+
+    @staticmethod
+    def exitTopLevel():
+        main = menu_stack.popleft()
+        menu_stack.clear()
+        menu_stack.append(main)
 
 
 class NotesMenu(Menu):
@@ -147,6 +153,7 @@ class NotesMenu(Menu):
         if self.obj:
             self.obj.timestamp = self.timestamp_type()
         print "Note added"
+        self.exitTopLevel()
 
     def _del_note(self):
         buf = ["Current notes:"]
@@ -165,6 +172,7 @@ class NotesMenu(Menu):
             if self.obj:
                 self.obj.timestamp = self.timestamp_type()
             print "Note deleted"
+        self.exitTopLevel()
 
     def _clear_notes(self):
         notes = list(self.list)
@@ -173,6 +181,7 @@ class NotesMenu(Menu):
         if self.obj:
             self.obj.timestamp = self.timestamp_type()
         print "Notes deleted"
+        self.exitTopLevel()
 
 # Mood manipulation pidf
 class MoodMenu(Menu):
@@ -208,9 +217,11 @@ class MoodMenu(Menu):
                 text = ''
         print '\n'.join(buf)
         print
-        m = getstr("Select mood to add")
+        m = getstr("Select mood to add (any non-number will string will return")
         try:
             m = int(m)
+            if a not in xrange(len(values)):
+                raise ValueError
         except ValueError:
             print "Invalid input"
         else:
@@ -220,6 +231,7 @@ class MoodMenu(Menu):
             person.timestamp = DMTimestamp()
             publish_pidf()
             print "Mood added"
+        self.exitTopLevel()
 
     def _del_mood(self):
         if person.mood is None:
@@ -252,6 +264,7 @@ class MoodMenu(Menu):
             person.timestamp = DMTimestamp()
             publish_pidf()
             print "Mood deleted"
+        self.exitTopLevel()
 
     def _clear_moods(self):
         if person.mood is None:
@@ -261,6 +274,7 @@ class MoodMenu(Menu):
         person.timestamp = DMTimestamp()
         publish_pidf()
         print "Mood information cleared"
+        self.exitTopLevel()
 
     def _set_note(self):
         if person.mood is not None and len(person.mood.notes) > 0:
@@ -276,6 +290,7 @@ class MoodMenu(Menu):
             person.timestamp = DMTimestamp()
             publish_pidf()
             print 'Note set'
+        self.exitTopLevel()
     
     def _set_random(self):
         values = list(Mood._xml_value_maps.get(value, value) for value in Mood._xml_values)
@@ -291,26 +306,27 @@ class MoodMenu(Menu):
         person.timestamp = DMTimestamp()
         publish_pidf()
         print "You are now " + ", ".join(values)
+        self.exitTopLevel()
 
 
 # Activities manipulation pidf
 class ActivitiesMenu(Menu):
     def __init__(self):
-        Menu.__init__(self, {'s': {"description": "show current activitiess", "handler": self._show_activities},
-                             'a': {"description": "add an activity", "handler": self._add_activity},
-                             'd': {"description": "delete an activity", "handler": self._del_activity},
-                             'c': {"description": "clear all activity data", "handler": self._clear_activities},
+        Menu.__init__(self, {'s': {"description": "show current activity", "handler": self._show_activity},
+                             'a': {"description": "set activity", "handler": self._set_activity},
+                             'd': {"description": "delete activity", "handler": self._del_activity},
+                             'c': {"description": "clear all activity data", "handler": self._clear_activity},
                              'n': {"description": "set activity note", "handler": self._set_note},
-                             'r': {"description": "set random activities", "handler": self._set_random}})
+                             'r': {"description": "set random activity", "handler": self._set_random}})
 
-    def _show_activities(self):
-        buf = ["Activities:"]
+    def _show_activity(self):
+        buf = ["Activity:"]
         if person.activities is not None:
             for a in person.activities.values:
                 buf.append("  %s" % str(a))
         print '\n'.join(buf)
     
-    def _add_activity(self):
+    def _set_activity(self):
         buf = ["Possible activities:"]
         values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values)
         values.sort()
@@ -330,56 +346,40 @@ class ActivitiesMenu(Menu):
         a = getstr("Select activity to add")
         try:
             a = int(a)
+            if a not in xrange(len(values)):
+                raise ValueError
         except ValueError:
             print "Invalid input"
         else:
             if person.activities is None:
                 person.activities = Activities()
+            else:
+                person.activities.clear()
             person.activities.add(values[a-1])
             person.timestamp = DMTimestamp()
             publish_pidf()
-            print "Activity added"
+            print "Activity set"
+        self.exitTopLevel()
 
     def _del_activity(self):
-        if person.activities is None:
-            print "There are no current activities set"
+        if person.activities is None or len(person.activities.values) == 0:
+            print "There is no current activity set"
             return
-        buf = ["Current activities:"]
-        values = person.activities.values
-        values.sort()
-        max_len = max(len(s) for s in values)+2
-        format = " %%02d) %%-%ds" % max_len
-        num_line = 72/(max_len+5)
-        i = 0
-        text = ''
-        for val in values:
-            text += format % (i+1, val)
-            i += 1
-            if i % num_line == 0:
-                buf.append(text)
-                text = ''
-        buf.append(text)
-        print '\n'.join(buf)
-        print
-        a = getstr("Select activity to delete")
-        try:
-            a = int(a)
-        except ValueError:
-            print "Invalid input"
-        else:
-            person.activities.remove(values[a-1])
-            person.timestamp = DMTimestamp()
-            publish_pidf()
-            print "Activity deleted"
+        person.activities.clear()
+        person.timestamp = DMTimestamp()
+        publish_pidf()
+        print "Activity deleted"
+        self.exitTopLevel()
 
-    def _clear_activities(self):
+    def _clear_activity(self):
         if person.activities is None:
-            print "There are no current activities set"
+            print "There is no current activity set"
             return
         person.activities = None
         person.timestamp = DMTimestamp()
         publish_pidf()
         print "Activities information cleared"
+        self.exitTopLevel()
 
     def _set_note(self):
         if person.activities is not None and len(person.activities.notes) > 0:
@@ -395,21 +395,21 @@ class ActivitiesMenu(Menu):
             person.timestamp = DMTimestamp()
             publish_pidf()
             print 'Note set'
+        self.exitTopLevel()
     
     def _set_random(self):
         values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values)
-        random.shuffle(values)
+        activity = random.choice(values)
         
         if person.activities is None:
             person.activities = Activities()
         else:
             person.activities.clear()
-        values = values[:3]
-        for act in values:
-            person.activities.add(act)
+        person.activities.add(activity)
         person.timestamp = DMTimestamp()
         publish_pidf()
-        print "You are now " + ", ".join(values)
+        print "You are now %s" % activity
+        self.exitTopLevel()
 
 
 
@@ -419,7 +419,7 @@ def set_person_note():
     note = getstr("Set note")
     if note == '':
         if len(person.notes) > 0:
-            del person.mood.notes['en']
+            del person.notes['en']
     else:
         person.notes.append(DMNote(note, lang='en'))
         person.timestamp = DMTimestamp()
