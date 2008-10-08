@@ -14,9 +14,7 @@ Description
 PyPjUA is Python software library for PJSIP C SIP stack that together with
 an elegant middleware allows for easy development of real-time voice and
 video over IP Internet communications end-points based on SIP protocol with
-rich Presence and Interactive Messaging (IM) capability for computers
-running Mac OS X, Linux and Windows operating systems or portable devices
-like Nokia Internet tablet, Apple iPhone and Android mobile phone.
+rich Presence, Interactive Messaging (IM) and File Transfer capabilities.
 
 The goal of this project is to deliver the best Open Source development kit
 for rich featured SIP User Agents, while hiding the complex underlying
@@ -24,7 +22,7 @@ functionality behind an easy to use high-level application programming
 interface. Compared to other available SIP libraries, this project provides
 session based Interactive Messaging (IM) using MSRP protocol, multiple
 streams support, 'the missing' SIP-SIMPLE features for rich presence
-(presence rules, resource lists, RLS services, RPIDF and XCAP policy).
+(presence rules, resource lists, RLS services, rich PIDF and XCAP policy).
 
 The software library is tested against the most popular SIP server software
 available today: OpenSER, Asterisk, OpenXCAP, MSRPRelay and MediaProxy.
@@ -45,25 +43,22 @@ network location.
 SIP supports five facets of establishing and terminating multimedia
 communications:
 
-User location: determination of the end system to be used for communication;
-
-User availability: determination of the willingness of the called party to
-engage in communications;
-
-User capabilities: determination of the media and media parameters to be
-used;
-
-Session setup: "ringing", establishment of session parameters at both called
-and calling party;
-
-Session management: including transfer and termination of sessions,
-modifying session parameters, and invoking services. "
+ - User location: determination of the end system to be used for
+   communication;
+ - User availability: determination of the willingness of the called party
+   to engage in communications;
+ - User capabilities: determination of the media and media parameters to be
+   used;
+ - Session setup: "ringing", establishment of session parameters at both
+   called and calling party;
+ - Session management: including transfer and termination of sessions,
+   modifying session parameters, and invoking services. "
 
 
 End-user experiences
 --------------------
 
-PyPjUA software allows you to create elegant real-time communications
+The software allows you to create elegant real-time communications
 applications without having to read the +1200 RFC documents behind it. If
 you read them all, some antidepressant and desintoxication is recommended
 after this effort.
@@ -77,10 +72,9 @@ buddies (if they want to share this information with you). Some of the
 things possible with this library are listed here:
 
 - VoIP calls using Internet codecs (wide-band Speex, iLBC) and G.711
-- Parallel forking to multiple SIP devices
 - Zero configuration server-less communication over LAN (Bonjour)
 - Presence using SIP SIMPLE (PUBLISH, SUBSCRIBE, NOTIFY and XCAP policy)
-- Interactive Messaging (IM) and file transfer using MSRP protocol
+- Interactive Messaging (IM) and File Transfer using MSRP protocol
 
 
 Testing the library

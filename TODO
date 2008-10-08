@@ -19,7 +19,6 @@ Add feature to send OPTIONS method and parse the replies
 Handle incomming REFER to conference bridge
 Play a soft beep tone while on hold every 30 seconds
 Play a beep after we closed a session
-Conference established sessions
 
 
 Command line clients
