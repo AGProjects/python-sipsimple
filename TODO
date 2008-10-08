@@ -2,12 +2,12 @@
 PJSIP bindings
 --------------
 
-Return list of headers of the response in the event handler
 Pass arbitrary headers to SIP requests
-Re-INVITEs
-STUN/ICE support
-Handle Multipart bodies
-TCP/TLS transports
+Handle re-INVITEs
+Return list of SIP headers of the response in the event handler
+Handle multipart bodies
+TCP/TLS
+STUN/ICE
 Properly decrease reference counts of pjsip_tx_data structs
 Split up .pyx file
 Fix remainig TODOs for PUBLISH/REGISTER
@@ -16,7 +16,6 @@ zRTP
 Add option to record the audio session in a file
 Comfort noice generator
 Add feature to send OPTIONS method and parse the replies
-Replace in configuration file the username and domain combination with one parameter called sip_address
 Handle incomming REFER to conference bridge
 Play a soft beep tone while on hold every 30 seconds
 Play a beep after we closed a session
@@ -26,11 +25,11 @@ Conference established sessions
 Command line clients
 --------------------
 
+- Add runtime option to mute the call (press m)
 - handle multiple incomming sessions
 - handle 301/302 redirect by prompting the user to accept/reject the redirection
 - conference established sessions
 - combine msrp/rtp in one script
-- rewrite sip_presence_publish.py and sip_presence_subscribe.py scripts
 - set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
 other codes. For invite scripts the code is based on the response for the
 initial INVITE, not for the BYE If RTP was not received with 6 seconds after
@@ -39,17 +38,15 @@ call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
 - Add option to log the output of the scripts to a log file or syslog
-- Add runtime option to mute the call (press m)
 - Add sip_rtp_audio_session_bonjour script
 
  
 Applications
 ------------
 
-PIDF payload
-Buddy list high level library
-Bonjour
+Buddy list high-level library
 Enrollment
+Bonjour
 
 MSRP client library
 Conference-info payload
@@ -76,7 +73,7 @@ Configuration framework
 Integration logic
 Logging
 Mute other applications during INVITE
-Environment detection: ambient light, noise, movement, geo-location 
+Environment detection: ambient and geo-location detection
 
 
 User interfaces
