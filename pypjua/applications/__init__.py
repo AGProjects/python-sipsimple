@@ -425,8 +425,12 @@ class XMLMultipleChoiceElement(XMLElement):
         if value in self.__values:
             return
         if isinstance(value, str):
-            if value not in self._xml_values:
-                raise ValueError("Invalid value for element type %s; acceptable values are: %s" % (self.__class__.__name__, ', '.join(self._xml_values)))
+            for key, val in self._xml_value_maps.items():
+                if value == val and key in self._xml_values:
+                    break
+            else:
+                if value not in self._xml_values:
+                    raise ValueError("Invalid value for element type %s; acceptable values are: %s" % (self.__class__.__name__, ', '.join(self._xml_values)))
         elif self._xml_ext_type is None or not isinstance(value, self._xml_ext_type):
             raise ValueError("Invalid value for element type %s: got type %s" % (self.__class__.__name, value.__class__.__name__))
         self.__values.add(value)

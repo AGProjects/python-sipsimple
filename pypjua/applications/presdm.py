@@ -11,6 +11,7 @@ __all__ = ['_namespace_',
            'DeviceExtension',
            'PersonExtension',
            'DMNote',
+           'DMTimestamp',
            'DeviceID',
            'Device',
            'Person']
@@ -23,6 +24,11 @@ class PersonExtension(object): pass
 
 class DMNote(Note):
     _xml_tag = 'note'
+    _xml_namespace = _namespace_
+    _xml_meta = PIDFMeta
+
+class DMTimestamp(Timestamp):
+    _xml_tag = 'timestamp'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
 
@@ -57,8 +63,8 @@ class Device(ExtensibleXMLElement, PIDFTopElement):
                 self.deviceID = DeviceID.from_element(child, xml_meta=self._xml_meta)
             elif child.tag == DMNote.qname:
                 self.notes.append(DMNote.from_element(child, xml_meta=self._xml_meta))
-            elif child.tag == Timestamp.qname:
-                self.timestamp = Timestamp.from_element(child, xml_meta=self._xml_meta)
+            elif child.tag == DMTimestamp.qname:
+                self.timestamp = DMTimestamp.from_element(child, xml_meta=self._xml_meta)
 
     def _build_element(self, element, nsmap):
         if self.id is None:
@@ -92,8 +98,8 @@ class Person(ExtensibleXMLElement, PIDFTopElement):
         for child in element:
             if child.tag == DMNote.qname:
                 self.notes.append(DMNote.from_element(child, xml_meta=self._xml_meta))
-            elif child.tag == Timestamp.qname:
-                self.timestamp = Timestamp.from_element(child, xml_meta=self._xml_meta)
+            elif child.tag == DMTimestamp.qname:
+                self.timestamp = DMTimestamp.from_element(child, xml_meta=self._xml_meta)
 
     def _build_element(self, element, nsmap):
         if self.id is None:
