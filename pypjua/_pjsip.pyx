@@ -1932,8 +1932,9 @@ cdef class Subscription:
     cdef readonly SIPURI to_uri
     cdef PJSTR c_event
     cdef readonly object state
+    cdef list c_extra_headers
 
-    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route = None, expires = 300):
+    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route = None, expires = 300, extra_headers = {}):
         cdef int status
         cdef EventPackage pkg
         cdef PJSIPUA ua = c_get_ua()
@@ -1949,6 +1950,7 @@ cdef class Subscription:
         if event not in ua.events:
             raise RuntimeError('Event "%s" is unknown' % event)
         self.state = "TERMINATED"
+        self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -1967,6 +1969,11 @@ cdef class Subscription:
 
         def __get__(self):
             return self.c_event.str
+
+    property extra_headers:
+
+        def __get__(self):
+            return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
 
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
         self.state = pjsip_evsub_get_state_name(self.c_obj)
@@ -1999,6 +2006,7 @@ cdef class Subscription:
         cdef int status
         cdef int c_expires
         cdef PJSTR c_to, c_to_req, c_contact_uri
+        cdef GenericStringHeader header
         cdef PJSIPUA ua = c_get_ua()
         try:
             if subscribe:
@@ -2026,6 +2034,8 @@ cdef class Subscription:
             if status != 0:
                 raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
             pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
+            for header in self.c_extra_headers:
+                pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &header.c_obj))
             status = pjsip_evsub_send_request(self.c_obj, c_tdata)
             if status != 0:
                 raise RuntimeError("Could not send SUBSCRIBE message: %s" % pj_status_to_str(status))
