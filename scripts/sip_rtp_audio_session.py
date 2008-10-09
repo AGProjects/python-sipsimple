@@ -215,6 +215,8 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                                 ringer = None
                             if args.has_key("code") and args["code"] / 100 != 2:
                                 print "Session ended: %(code)d %(reason)s" % args
+                                if args["code"] in [301, 302]:
+                                    print "Received redirect request to %s" % args["headers"]["Contact"]
                             else:
                                 print "Session ended"
                             if want_quit:
