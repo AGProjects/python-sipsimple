@@ -4,6 +4,8 @@ This module provides an extension to PIDF (module pypjua.applications.pidf) to
 support rich presence.
 """
 
+import datetime
+
 from pypjua.applications import ParserError, BuilderError, XMLExtension, XMLElement, XMLListElement, XMLEmptyElement, XMLStringElement, XMLSingleChoiceElement, XMLMultipleChoiceElement
 from pypjua.applications.pidf import PIDFTopElement, PIDF, PIDFMeta, TupleExtension, Timestamp, Note, NoteList, Tuple
 from pypjua.applications.presdm import PersonExtension, DeviceExtension, Person, Device
@@ -470,6 +472,9 @@ class TimeOffset(XMLStringElement, PersonExtension):
         self.since = since
         self.until = until
         self.description = description
+        if value is None:
+            diff = datetime.datetime.now()-datetime.datetime.utcnow()
+            value = int(round(diff.days*1440+diff.seconds/60.0+diff.microseconds/60000000.0))
         XMLStringElement.__init__(self, str(value))
 
 PIDFMeta.register(TimeOffset)
