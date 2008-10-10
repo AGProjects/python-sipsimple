@@ -142,7 +142,8 @@ class WatcherList(XMLElement):
     def __len__(self):
         return len(self._watchers)
 
-    pending = property(lambda self: (watcher for watcher in self if watcher.status in ('pending', 'waiting')))
+    pending = property(lambda self: (watcher for watcher in self if watcher.status == 'pending'))
+    waiting = property(lambda self: (watcher for watcher in self if watcher.status == 'waiting'))
     active = property(lambda self: (watcher for watcher in self if watcher.status == 'active'))
     terminated = property(lambda self: (watcher for watcher in self if watcher.status == 'terminated'))
 
@@ -233,6 +234,7 @@ class WatcherInfo(XMLApplication):
 
     wlists = property(lambda self: self._wlists.values())
     pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self))
+    waiting = property(lambda self: dict((wlist, list(wlist.waiting)) for wlist in self))
     active = property(lambda self: dict((wlist, list(wlist.active)) for wlist in self))
     terminated = property(lambda self: dict((wlist, list(wlist.terminated)) for wlist in self))
 
