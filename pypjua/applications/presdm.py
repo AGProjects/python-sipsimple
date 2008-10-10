@@ -27,16 +27,22 @@ class DMNote(Note):
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
 
+PIDFMeta.register(DMNote)
+
 class DMTimestamp(Timestamp):
     _xml_tag = 'timestamp'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
+
+PIDFMeta.register(DMTimestamp)
 
 class DeviceID(XMLStringElement, TupleExtension, DeviceExtension):
     _xml_tag = 'deviceID'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
     _xml_lang = False
+
+PIDFMeta.register(DeviceID)
 
 class Device(ExtensibleXMLElement, PIDFTopElement):
     _xml_tag = 'device'
@@ -77,6 +83,8 @@ class Device(ExtensibleXMLElement, PIDFTopElement):
         if self.timestamp is not None:
             self.timestamp.to_element(parent=element, nsmap=nsmap)
 
+PIDFMeta.register(Device)
+
 class Person(ExtensibleXMLElement, PIDFTopElement):
     _xml_tag = 'person'
     _xml_namespace = _namespace_
@@ -110,12 +118,11 @@ class Person(ExtensibleXMLElement, PIDFTopElement):
         if self.timestamp is not None:
             self.timestamp.to_element(parent=element, nsmap=nsmap)
 
+PIDFMeta.register(Person)
+
 class PresDMExtension(XMLExtension):
-    _xml_ext_def = [(Device, []),
-                    (Person, []),
-                    (DeviceID, [(Tuple, {'attribute': 'device_id'}),
-                                (Device, {'attribute': 'device_id'})]),
-                    (DMNote, [])]
+    _xml_ext_def = [(DeviceID, [(Tuple, {'attribute': 'device_id'}),
+                                (Device, {'attribute': 'device_id'})])]
     _xml_namespace = _namespace_
     _xml_prefix = 'dm'
     _xml_schema_file = 'data-model.xsd'

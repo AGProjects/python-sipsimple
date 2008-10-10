@@ -533,7 +533,6 @@ class ExtensibleXMLApplication(XMLApplication):
         if ext._xml_schema is not None:
             cls._ext_schemas.append(ext._xml_schema)
         for elem, bindings in ext._xml_ext_def:
-            cls._xml_meta.register(elem)
             for parent, defs in bindings:
                 parent.registerExtension(elem, **defs)
     

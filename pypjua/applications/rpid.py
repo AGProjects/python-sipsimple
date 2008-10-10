@@ -56,6 +56,8 @@ class RPIDNote(Note):
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
 
+PIDFMeta.register(RPIDNote)
+
 class Activities(XMLMultipleChoiceElement, PersonExtension):
     _xml_tag = 'activities'
     _xml_namespace = _namespace_
@@ -95,6 +97,8 @@ class Activities(XMLMultipleChoiceElement, PersonExtension):
         for note in self.notes:
             note.to_element(parent=element, nsmap=nsmap)
         XMLMultipleChoiceElement._build_element(self, element, nsmap)
+
+PIDFMeta.register(Activities)
 
 class Mood(XMLMultipleChoiceElement, PersonExtension):
     _xml_tag = 'mood'
@@ -141,12 +145,16 @@ class Mood(XMLMultipleChoiceElement, PersonExtension):
             note.to_element(parent=element, nsmap=nsmap)
         XMLMultipleChoiceElement._build_element(self, element, nsmap)
 
+PIDFMeta.register(Mood)
+
 class Audio(XMLSingleChoiceElement):
     _xml_tag = 'audio'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
     _xml_values = set(('noisy', 'ok', 'quiet', 'unknown'))
     _xml_default_value = 'unknown'
+
+PIDFMeta.register(Audio)
 
 class Video(XMLSingleChoiceElement):
     _xml_tag = 'video'
@@ -155,12 +163,16 @@ class Video(XMLSingleChoiceElement):
     _xml_values = set(('toobright', 'ok', 'dark', 'unknown'))
     _xml_default_value = 'unknown'
 
+PIDFMeta.register(Video)
+
 class Text(XMLSingleChoiceElement):
     _xml_tag = 'text'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
     _xml_values = set(('uncomfortable', 'inappropriate', 'ok', 'unknown'))
     _xml_default_value = 'unknown'
+
+PIDFMeta.register(Text)
 
 class PlaceIs(XMLListElement, PersonExtension):
     _xml_tag = 'place-is'
@@ -216,6 +228,8 @@ class PlaceIs(XMLListElement, PersonExtension):
             raise TypeError("PlaceIs elements can only contain PlaceIsElement children, got %s instead" % value.__class__.__name__)
         return value
 
+PIDFMeta.register(PlaceIs)
+
 class PlaceType(XMLListElement, PersonExtension):
     _xml_tag = 'place-type'
     _xml_namespace = _namespace_
@@ -251,6 +265,8 @@ class PlaceType(XMLListElement, PersonExtension):
         if not isinstance(value, PlaceTypeElement):
             raise TypeError("PlaceType elements can only contain PlaceTypeElement children, got %s instead" % value.__class__.__name__)
         return value
+
+PIDFMeta.register(PlaceType)
 
 class Privacy(XMLListElement, PersonExtension):
     _xml_tag = 'privacy'
@@ -309,6 +325,8 @@ class Privacy(XMLListElement, PersonExtension):
             raise TypeError("Privacy elements can only contain PrivacyElement children, got %s instead" % value.__class__.__name__)
         return value
 
+PIDFMeta.register(Privacy)
+
 class Relationship(XMLSingleChoiceElement, TupleExtension):
     _xml_tag = 'relationship'
     _xml_namespace = _namespace_
@@ -335,6 +353,8 @@ class Relationship(XMLSingleChoiceElement, TupleExtension):
             note.to_element(parent=element, nsmap=nsmap)
         XMLSingleChoiceElement._build_element(self, element, nsmap)
 
+PIDFMeta.register(Relationship)
+
 class ServiceClass(XMLSingleChoiceElement, TupleExtension):
     _xml_tag = 'service-class'
     _xml_namespace = _namespace_
@@ -360,20 +380,28 @@ class ServiceClass(XMLSingleChoiceElement, TupleExtension):
             note.to_element(parent=element, nsmap=nsmap)
         XMLSingleChoiceElement._build_element(self, element, nsmap)
 
+PIDFMeta.register(ServiceClass)
+
 class Home(XMLEmptyElement, SphereElement):
     _xml_tag = 'home'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
+
+PIDFMeta.register(Home)
 
 class Work(XMLEmptyElement, SphereElement):
     _xml_tag = 'work'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
 
+PIDFMeta.register(Work)
+
 class Unknown(XMLEmptyElement, SphereElement):
     _xml_tag = 'unknown'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
+
+PIDFMeta.register(Unknown)
 
 class Sphere(XMLElement, PersonExtension):
     _xml_tag = 'sphere'
@@ -408,6 +436,8 @@ class Sphere(XMLElement, PersonExtension):
     
     value = property(lambda self: self.__value, _set_value)
 
+PIDFMeta.register(Sphere)
+
 class StatusIcon(XMLStringElement, TupleExtension, PersonExtension):
     _xml_tag = 'status-icon'
     _xml_namespace = _namespace_
@@ -422,6 +452,8 @@ class StatusIcon(XMLStringElement, TupleExtension, PersonExtension):
         self.since = since
         self.until = until
         XMLStringElement.__init__(self, value)
+
+PIDFMeta.register(StatusIcon)
 
 class TimeOffset(XMLStringElement, PersonExtension):
     _xml_tag = 'time-offset'
@@ -440,6 +472,8 @@ class TimeOffset(XMLStringElement, PersonExtension):
         self.description = description
         XMLStringElement.__init__(self, str(value))
 
+PIDFMeta.register(TimeOffset)
+
 class UserInput(XMLStringElement, TupleExtension, PersonExtension, DeviceExtension):
     _xml_tag = 'user-input'
     _xml_namespace = _namespace_
@@ -456,17 +490,23 @@ class UserInput(XMLStringElement, TupleExtension, PersonExtension, DeviceExtensi
         self.idle_threshold = idle_threshold
         XMLStringElement.__init__(self, value)
 
+PIDFMeta.register(UserInput)
+
 class Class(XMLStringElement, TupleExtension, PersonExtension, DeviceExtension):
     _xml_tag = 'class'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
     _xml_lang = False
 
+PIDFMeta.register(Class)
+
 class Other(XMLStringElement, ActivityElement, MoodElement, RelationshipElement):
     _xml_tag = 'other'
     _xml_namespace = _namespace_
     _xml_meta = PIDFMeta
     _xml_lang = True
+
+PIDFMeta.register(Other)
 
 class RPIDExtension(XMLExtension):
     _xml_ext_def = [(Activities, [(Person, {'attribute': 'activities'})]),
@@ -485,15 +525,7 @@ class RPIDExtension(XMLExtension):
                                  (Device, {'attribute': 'user_input'})]),
                     (Class, [(Tuple, {'attribute': 'rpid_class'}),
                              (Person, {'attribute': 'rpid_class'}),
-                             (Device, {'attribute': 'rpid_class'})]),
-                    (RPIDNote, []),
-                    (Audio, []),
-                    (Video, []),
-                    (Text, []),
-                    (Home, []),
-                    (Work, []),
-                    (Unknown, []),
-                    (Other, [])]
+                             (Device, {'attribute': 'rpid_class'})])]
     _xml_namespace = _namespace_
     _xml_prefix = 'rpid'
     _xml_schema_file = 'rpid.xsd'
