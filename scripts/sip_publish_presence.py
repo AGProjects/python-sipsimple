@@ -293,7 +293,7 @@ class MoodMenu(Menu):
         self.exitTopLevel()
     
     def _set_random(self):
-        values = list(Mood._xml_value_maps.get(value, value) for value in Mood._xml_values)
+        values = list(Mood._xml_value_maps.get(value, value) for value in Mood._xml_values if value != 'unknown')
         random.shuffle(values)
         
         if person.mood is None:
@@ -398,7 +398,7 @@ class ActivitiesMenu(Menu):
         self.exitTopLevel()
     
     def _set_random(self):
-        values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values)
+        values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values if value != 'unknown')
         activity = random.choice(values)
         
         if person.activities is None:
