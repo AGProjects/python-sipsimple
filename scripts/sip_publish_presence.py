@@ -507,6 +507,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         pidf = PIDF(entity='%s@%s' % (username, domain))
         
         person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
+        person.time_offset = TimeOffset()
         person.timestamp = DMTimestamp()
         pidf.append(person)
 

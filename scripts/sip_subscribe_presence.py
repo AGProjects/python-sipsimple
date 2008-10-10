@@ -154,7 +154,7 @@ def display_person(person, pidf, buf):
         buf.append("    Status icon: %s" % person.status_icon)
     # display time offset
     if person.time_offset is not None:
-        buf.append("    Time offset: %s minutes %s" % (person.time_offset, (person.time_offset.description is not None and ('(%s)' % person.time_offset.description) or '')))
+        buf.append("    Time offset from UTC: %s minutes %s" % (person.time_offset, (person.time_offset.description is not None and ('(%s)' % person.time_offset.description) or '')))
     # display user input
     if person.user_input is not None:
         buf.append("    User is %s" % person.user_input)
