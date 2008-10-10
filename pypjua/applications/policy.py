@@ -38,7 +38,7 @@ tel:+1-212-555-1234
 
 """
 
-from pypjua.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLApplication
+from pypjua.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLListApplication
 
 __all__ = ['_namespace_',
            'ConditionElement',
@@ -314,6 +314,9 @@ class Rule(XMLElement):
         self.transformations = transformations
 
     def _parse_element(self, element):
+        self.conditions = None
+        self.actions = None
+        self.transformations = None
         for child in element:
             if child.tag == Conditions.qname:
                 self.conditions = Conditions.from_element(child, xml_meta=self._xml_meta)
