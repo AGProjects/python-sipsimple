@@ -1215,6 +1215,16 @@ cdef class PJSIPUA:
                 getattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec)()
             self.c_pjmedia_endpoint.c_codecs = new_codecs
 
+    property local_ip:
+
+        def __get__(self):
+            return pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host)
+
+    property local_port:
+
+        def __get__(self):
+            return self.c_pjsip_endpoint.c_udp_transport.local_name.port
+
     def connect_audio_stream(self, MediaStream stream):
         cdef AudioStream c_audio_stream = stream.c_stream
         if c_audio_stream.c_stream == NULL:
