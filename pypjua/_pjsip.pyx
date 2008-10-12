@@ -1009,6 +1009,7 @@ cdef class WaveFile:
     def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name):
         cdef int status
         cdef object pool_name = "playwav_%s" % file_name
+        c_get_ua()
         self.pjsip_endpoint = pjsip_endpoint.c_obj
         self.conf_bridge = conf_bridge
         self.pool = pjsip_endpt_create_pool(self.pjsip_endpoint, pool_name, 4096, 4096)
@@ -1026,6 +1027,7 @@ cdef class WaveFile:
         conf_bridge._connect_playback_slot(self.conf_slot)
 
     def __dealloc__(self):
+        c_get_ua()
         if self.conf_slot != 0:
             self.conf_bridge._disconnect_slot(self.conf_slot)
             pjmedia_conf_remove_port(self.conf_bridge.c_obj, self.conf_slot)
