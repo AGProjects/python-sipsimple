@@ -14,6 +14,8 @@ local_port=auto
 ; publish presence on the LAN using multicast DNS, it appears as another
 ; active account in the user interface
 bonjour=true
+; Display name for bonjour
+bonjour_name=
 
 rtp_port_range=8000 8100
 audio=false

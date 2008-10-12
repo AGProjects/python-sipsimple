@@ -2,7 +2,7 @@
 PJSIP bindings
 --------------
 
-Pass arbitrary headers to SIP requests
+Pass arbitrary headers to all SIP requests
 Handle re-INVITEs
 Return list of SIP headers of the response in the event handler
 Handle multipart bodies
@@ -13,7 +13,7 @@ Split up .pyx file
 Fix remainig TODOs for PUBLISH/REGISTER
 sRTP
 zRTP
-Add option to record the audio session in a file
+Record the audio session in a file
 Comfort noice generator
 Add feature to send OPTIONS method and parse the replies
 Handle incomming REFER to conference bridge
@@ -37,7 +37,7 @@ call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
 - Add option to log the output of the scripts to a log file or syslog
-- Resolve outbound proxies set as hostname both in config and on commandline to IP
+- Add sip_rtp_audio_session_bonjour script
 
  
 Applications
