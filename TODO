@@ -37,7 +37,7 @@ call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
 - Add option to log the output of the scripts to a log file or syslog
-- Add sip_rtp_audio_session_bonjour script
+- Resolve outbound proxies set as hostname both in config and on commandline to IP
 
  
 Applications
