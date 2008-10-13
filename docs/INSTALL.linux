@@ -64,7 +64,6 @@ Building pypjua library
 Go to the main pypjua directory and build the library:
 
 ./build_inplace
-
 which generates:
 
 pypjua/_pjsip.c
@@ -74,13 +73,56 @@ pypjua/_pjsip.so
 The _pjsip.so library can then be imported in the target software. 
 
 
+Building Debian package
+-----------------------
+
+You need the following packages before trying to build a debian package:
+
+apt-get install build-essential libasound2-dev python-setuptools cdbs debhelper python-all-dev python-support cython
+
+Check out PJSIP from SVN in the pypjua main directory:
+
+svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+
+Go to the PJSIP directory and compile:
+
+cd pjsip
+make distclean
+./configure
+make
+
+Note that, on some platforms (as seen on amd64) you may need to supply -fPIC
+flag to compiler, otherwise although the compilation will succeed, later
+attempts to use the library will not.
+make distclean
+
+make HOST_CFLAGS=-fPIC
+
+Go back to the software root directory and make a source distribution tarball:
+
+debuild clean
+python setup.py sdist
+
+Go to the dist directory and untar the tarball just created:
+
+cd dist
+tar xvzf *.tar.gz
+
+Change to the distribution directory and:
+
+ln -s ../../pjsip pjsip
+./build_inplace
+dpkg-buildpackage
+
+You will now have a Debian package in the upper level directory.
+
+
 Installing the library
 ----------------------
 
 To install the library and the sample scripts run:
 
 sudo python setup.py install
-
 
 Testing the library
 -------------------
