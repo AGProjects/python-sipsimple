@@ -4,7 +4,7 @@
  xmlns="urn:ietf:params:xml:ns:resource-lists"
  elementFormDefault="qualified" attributeFormDefault="unqualified">
  <xs:import namespace="http://www.w3.org/XML/1998/namespace"
-  schemaLocation="http://www.w3.org/2001/xml.xsd"/>
+  schemaLocation="xml.xsd"/>
  <xs:complexType name="listType">
   <xs:sequence>
    <xs:element name="display-name" type="display-nameType"
