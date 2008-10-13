@@ -3,5 +3,5 @@ recursive-include docs INSTALL.*
 prune debian/tmp
 prune debian/sipclient
 include MANIFEST.in config.ini.sample AUTHORS build_inplace
-recursive-include pypjua _pjsip.pyx
+recursive-include pypjua _pjsip.pyx Makefile
 recursive-include scripts *.wav
