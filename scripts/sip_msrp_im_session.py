@@ -306,7 +306,7 @@ def event_handler(event_name, **kwargs):
     elif pjsip_logging:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound, pjsip_logging):
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound, pjsip_logging, use_bonjour):
     global user_quit, lock, queue, switch_mode
     lock.acquire()
     inv = None
@@ -323,17 +323,27 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         msrp_args = [target_username is None, dump_msrp]
     try:
         if proxy_ip is None:
-            # for now assume 1 SRV record and more than one A record
-            srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
-            a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
-            route = Route(random.choice(a_answers).address, srv_answers[0].port)
+            if use_bonjour:
+                route = None
+            else:
+                # for now assume 1 SRV record and more than one A record
+                srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
+                a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
+                route = Route(random.choice(a_answers).address, srv_answers[0].port)
         else:
             route = Route(proxy_ip, proxy_port)
-        credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
+        if not use_bonjour:
+            credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         if target_username is None:
-            reg = Registration(credentials, route=route)
-            print 'Registering for SIP address "%s" at proxy %s:%d and waiting for incoming INVITE' % (credentials.uri, route.host, route.port)
-            reg.register()
+            if use_bonjour:
+                print "Using bonjour"
+                print "Listening on local interface %s:%d" % (e.local_ip, e.local_port)
+                print "Press Ctrl-D to stop the program or h to hang-up an ongoing session."
+                print "Waiting for incoming session..."
+            else:
+                reg = Registration(credentials, route=route)
+                print 'Registering for SIP address "%s" at proxy %s:%d and waiting for incoming INVITE' % (credentials.uri, route.host, route.port)
+                reg.register()
         else:
             msrp = MSRP(*msrp_args)
             inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
@@ -449,7 +459,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                 except:
                     command = "unregister"
             if command == "unregister":
-                if target_username is None:
+                if target_username is None and not use_bonjour:
                     reg.unregister()
                 else:
                     user_quit = False
@@ -549,13 +559,19 @@ def parse_options():
     configuration.read_settings(account_section, AccountConfig)
     default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-    
-    if not all([options.sip_address, options.password]):
-        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
+
+    retval["use_bonjour"] = options.account_name == "bonjour"
+    if not retval["use_bonjour"]:
+        if not all([options.sip_address, options.password]):
+            raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
     for attr in default_options:
         retval[attr] = getattr(options, attr)
     try:
-        retval["username"], retval["domain"] = options.sip_address.split("@")
+        if retval["use_bonjour"]:
+            options.msrp_relay_ip = "none"
+            retval["username"], retval["domain"] = None, None
+        else:
+            retval["username"], retval["domain"] = options.sip_address.split("@")
     except ValueError:
         raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
     else:
