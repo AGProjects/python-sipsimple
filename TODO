@@ -6,6 +6,7 @@ Pass arbitrary headers to all SIP requests
 Handle re-INVITEs
 Return list of SIP headers of the response in the event handler
 Handle multipart bodies
+Fix high CPU usage
 TCP/TLS
 STUN/ICE
 Properly decrease reference counts of pjsip_tx_data structs
@@ -24,7 +25,6 @@ Play a beep after we closed a session
 Command line clients
 --------------------
 
-- Add runtime option to mute the call (press m)
 - handle multiple incomming sessions
 - handle 301/302 redirect by prompting the user to accept/reject the redirection
 - conference established sessions
@@ -37,7 +37,7 @@ call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
 - Add option to log the output of the scripts to a log file or syslog
-- Add sip_rtp_audio_session_bonjour script
+- Resolve outbound proxies set as hostname both in config and on commandline to IP
 
  
 Applications
@@ -68,7 +68,6 @@ Middleware
 ----------
 
 Notification bus
-Configuration framework
 Integration logic
 Logging
 Mute other applications during INVITE
@@ -87,10 +86,7 @@ Full GUI for all supported OSs
 Packaging
 ---------
 
-Debian package for library and command line tools
-Python installer (must build all deps)
 MacOSX binaries
-Linux binaries
 MS Windows binaries
 
 

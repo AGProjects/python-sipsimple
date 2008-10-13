@@ -1,26 +1,49 @@
-Install dependencies
---------------------
 
-For Debian unstable:
+The installation procedure on Linux systems is divided in two major
+variants:
+
+A. Manual installation
+B. Debian packaging
+
+
+A. Manual installation
+
+The installation procedure includes 4 steps described below:
+
+Step 1. Install dependencies
+Step 2. Compile PJSIP C library
+Step 3. Build the Python library
+Step 4. Install the library system wide
+
+
+Step 1. Install dependencies
+
+
+For Linux Debian (unstable or testing)
+--------------------------------------
 
 apt-get install subversion python-dnspython python-setuptools python-lxml \
 cython python-application python-twisted
 
-For other distributions, use the appropriate package manager and install the
-same packages.
 
-Beware that some Linux distributions do not have up to date versions of all
-required packages. To install the latest versions of the python components
-use the easy_install script provided in python-setuptools package. 
+For other distributions
+-----------------------
 
-For example to install the latest version of dnspython and cython on Ubuntu:
+Use the appropriate package manager and install the same packages. Some
+Linux distributions might not have up to date versions of all required
+packages. To install the latest versions of the python components use the
+easy_install script provided in python-setuptools package. For example to
+install the latest versions of dnspython and cython on Ubuntu OS use:
 
 sudo easy_install dnspython
 sudo easy_install cython
 
-For Nokia Internet table N810:
 
-Install diablo/sdk and debfarm catalogues referenced from:
+For Nokia Internet table N810 
+-----------------------------
+
+Install the diablo sdk and debfarm catalogues referenced from:
+
 http://www.gronmayer.com/it/index.php
 
 apt-get install libc6-dev subversion python2.5-cython python2.5-setuptools
@@ -36,55 +59,59 @@ Install the python-xcaplib library from:
 http://download.ag-projects.com/OpenXCAP/clients/
 
 
-Compile PJSIP library
----------------------
+Step 2. Compile PJSIP C library
 
-Check out PJSIP from SVN in the pypjua main directory:
+Check out the PJSIP project in the pypjua main directory:
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-Go to the PJSIP directory and compile:
+Go to the PJSIP directory and compile it:
 
 cd pjsip
 make distclean
 ./configure
 make
 
-Note that, on some platforms (as seen on amd64) you may need to supply -fPIC
-flag to compiler, otherwise although the compilation will succeed, later
-attempt to use the library will not.
-make distclean
+Note that, on some platforms like amd64 you may need to supply -fPIC flag to
+the compiler, otherwise although the compilation will succeed, later attempt
+to use the library will not. 
 
+make distclean
 make HOST_CFLAGS=-fPIC
 
 
-Building pypjua library
------------------------
+Step 3. Build the Python library
+--------------------------------
 
-Go to the main pypjua directory and build the library:
+Go to the main pypjua directory and build the library by running:
 
-./build_inplace
-which generates:
-
-pypjua/_pjsip.c
-pypjua/_pjsip.so 
+sh ./build_inplace
 
 
-The _pjsip.so library can then be imported in the target software. 
+Step 4. Install the library system wide
+---------------------------------------
+
+To install the library and the command line tools system wide:
+
+sudo python setup.py install
+
+The command line tools are installed in the system executable path and
+starting with sip_.
 
 
-Building Debian package
------------------------
+B. Debian packaging
 
 You need the following packages before trying to build a debian package:
 
-apt-get install build-essential libasound2-dev python-setuptools cdbs debhelper python-all-dev python-support cython
+apt-get install subversion python-dnspython python-setuptools python-lxml \
+cython python-application python-twisted build-essential libasound2-dev \
+python-setuptools cdbs debhelper python-all-dev python-support cython
 
-Check out PJSIP from SVN in the pypjua main directory:
+Check out the PJSIP project from the pypjua main directory:
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-Go to the PJSIP directory and compile:
+Go to the PJSIP directory and compile it:
 
 cd pjsip
 make distclean
@@ -98,7 +125,8 @@ make distclean
 
 make HOST_CFLAGS=-fPIC
 
-Go back to the software root directory and make a source distribution tarball:
+Go back to the software root directory and make a source distribution
+tarball:
 
 debuild clean
 python setup.py sdist
@@ -117,21 +145,10 @@ dpkg-buildpackage
 You will now have a Debian package in the upper level directory.
 
 
-Installing the library
-----------------------
-
-To install the library and the sample scripts run:
-
-sudo python setup.py install
-
-Testing the library
--------------------
-
-See README.txt in the scripts directory directory.
-
-
 Notes
 -----
 
+- For testing the library see README.txt in the scripts directory
 - The unix user must belong to the 'audio' group
 - OSS drivers are not supported. You must use ALSA drivers.
+
