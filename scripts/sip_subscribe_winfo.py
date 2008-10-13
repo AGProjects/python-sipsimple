@@ -95,9 +95,9 @@ def get_prules():
     block_rule_identities = None
     try:
         doc = xcap_client.get('pres-rules')
-    except urllib2.URLError, e:
+    except URLError, e:
         print "Cannot obtain 'pres-rules' document: %s" % str(e)
-    except urllib2.HTTPError, e:
+    except HTTPError, e:
         print "Cannot obtain 'pres-rules' document: %s" % str(e)
     else:
         try:
