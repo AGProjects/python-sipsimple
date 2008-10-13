@@ -1,0 +1,14 @@
+Source: sipclient
+Section: net
+Priority: extra
+Maintainer: Lucian Stanescu <luci@ag-projects.com>
+Build-Depends: cdbs (>= 0.4.47), debhelper (>= 7), python-all-dev (>= 2.5), python-support
+Standards-Version: 3.8.0
+Homepage: http://pypjua.org
+
+Package: sipclient
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.0.9), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, cython
+Provides: ${python:Provides}
+Description: Python SIP SIMPLE User Agent
+XB-Python-Version: ${python:Versions}

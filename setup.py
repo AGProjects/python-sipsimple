@@ -65,7 +65,7 @@ else:
     my_build_scripts = build_scripts
 
 
-setup(name         = "pypjua",
+setup(name         = "sipclient",
       version      = version,
       author       = "Ruud Klaver",
       author_email = "ruud@ag-projects.com",
