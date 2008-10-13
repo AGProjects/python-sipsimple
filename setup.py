@@ -9,7 +9,7 @@ import os
 # cannot import pypjua here
 exec(file('pypjua/clients/setupconfig.py').read())
 
-version = "0.2"
+version = "0.2.1"
 
 title = "PyPjUA SIP User Agent"
 description = "Python SIP SIMPLE User Agent library using PJSIP"

@@ -1,3 +1,9 @@
+sipclient (0.2.1) unstable; urgency=low
+
+  * Also include the xml schemas
+
+ -- Lucian Stanescu <luci@ag-projects.com>  Mon, 13 Oct 2008 17:29:48 +0200
+
 sipclient (0.2) unstable; urgency=low
 
   * Initial release
