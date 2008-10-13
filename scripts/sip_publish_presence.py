@@ -29,6 +29,10 @@ from pypjua.applications.rpid import *
 
 from pypjua.clients.clientconfig import get_path
 
+class GeneralConfig(ConfigSection):
+    _datatypes = {"listen_udp": datatypes.NetworkAddress}
+    listen_udp = datatypes.NetworkAddress("any")
+
 re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
     def __new__(typ, value):
@@ -54,6 +58,7 @@ class AccountConfig(ConfigSection):
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
+configuration.read_settings("General", GeneralConfig)
 
 
 queue = Queue()
@@ -562,7 +567,7 @@ def do_publish(**kwargs):
     ctrl_d_pressed = False
     pjsip_logging = kwargs["pjsip_logging"]
 
-    e = Engine(event_handler, do_siptrace=kwargs['do_siptrace'], auto_sound=False)
+    e = Engine(event_handler, do_siptrace=kwargs['do_siptrace'], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
@@ -627,7 +632,7 @@ def parse_options():
     else:
         account_section = "Account_%s" % options.account_name
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False)
+    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):

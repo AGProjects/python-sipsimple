@@ -683,7 +683,7 @@ cdef class PJSIPEndpoint:
         cdef pj_str_t c_local_ip
         cdef pj_str_t *c_p_local_ip = NULL
         cdef pj_sockaddr_in c_local_addr
-        if local_ip is not None:
+        if local_ip is not None and local_ip is not "0.0.0.0":
             c_p_local_ip = &c_local_ip
             str_to_pj_str(local_ip, c_p_local_ip)
         status = pj_sockaddr_in_init(&c_local_addr, c_p_local_ip, local_port or 0)

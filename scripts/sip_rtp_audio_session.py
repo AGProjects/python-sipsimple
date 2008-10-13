@@ -23,6 +23,10 @@ from pypjua import *
 
 from pypjua.clients.clientconfig import get_path
 
+class GeneralConfig(ConfigSection):
+    _datatypes = {"listen_udp": datatypes.NetworkAddress}
+    listen_udp = datatypes.NetworkAddress("any")
+
 re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
     def __new__(typ, value):
@@ -57,6 +61,7 @@ class AudioConfig(ConfigSection):
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
 configuration.read_settings("Audio", AudioConfig)
+configuration.read_settings("General", GeneralConfig)
 
 queue = Queue()
 packet_count = 0
@@ -277,7 +282,7 @@ def do_invite(**kwargs):
     global user_quit, lock, queue, pjsip_logging
     ctrl_d_pressed = False
     pjsip_logging = kwargs["pjsip_logging"]
-    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"])
+    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
@@ -334,7 +339,7 @@ def parse_options():
     else:
         account_section = "Account_%s" % options.account_name
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False)
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     retval["use_bonjour"] = options.account_name == "bonjour"
