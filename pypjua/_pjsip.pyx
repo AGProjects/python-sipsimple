@@ -1565,8 +1565,9 @@ cdef class Registration:
     cdef bint c_want_register
     cdef pj_timer_entry c_timer
     cdef PJSTR c_contact_uri
+    cdef list c_extra_headers
 
-    def __cinit__(self, Credentials credentials, route = None, expires = 300):
+    def __cinit__(self, Credentials credentials, route = None, expires = 300, extra_headers = {}):
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
@@ -1590,6 +1591,7 @@ cdef class Registration:
             status = pjsip_regc_set_route_set(self.c_obj, &self.route.c_route_set)
             if status != 0:
                 raise RuntimeError("Could not set route set on registration: %s" % pj_status_to_str(status))
+        self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -1629,6 +1631,11 @@ cdef class Registration:
                 if status != 0:
                     raise RuntimeError('Could not get registration info: %s' % pj_status_to_str(status))
                 return c_info.interval
+
+    property extra_headers:
+
+        def __get__(self):
+            return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
 
     cdef int _cb_response(self, pjsip_regc_cbparam *param) except -1:
         cdef pj_time_val c_delay
@@ -1706,6 +1713,7 @@ cdef class Registration:
         self.c_want_register = 0
 
     cdef int _create_reg(self, bint register) except -1:
+        cdef GenericStringHeader header
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if register:
@@ -1717,6 +1725,8 @@ cdef class Registration:
             if status != 0:
                 raise RuntimeError("Could not create unregistration request: %s" % pj_status_to_str(status))
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &ua.c_user_agent_hdr.c_obj))
+        for header in self.c_extra_headers:
+            pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &header.c_obj))
 
     cdef int _send_reg(self, bint register) except -1:
         cdef int status
