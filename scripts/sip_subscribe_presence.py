@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 import sys
-import re
 import traceback
 import string
-import random
 import socket
 import os
 import atexit
@@ -16,7 +14,6 @@ from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from time import sleep
-import dns.resolver
 from application.process import process
 from application.configuration import *
 from pypjua import *
@@ -28,32 +25,19 @@ from pypjua.applications.presdm import *
 from pypjua.applications.rpid import *
 
 from pypjua.clients.clientconfig import get_path
+from pypjua.clients.lookup import *
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress}
     listen_udp = datatypes.NetworkAddress("any")
 
-re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
-class SIPProxyAddress(tuple):
-    def __new__(typ, value):
-        match = re_host_port.search(value)
-        if match is None:
-            raise ValueError("invalid IP address/port: %r" % value)
-        if match.group("port") is None:
-            port = 5060
-        else:
-            port = match.group("port")
-            if port > 65535:
-                raise ValueError("port is out of range: %d" % port)
-        return match.group("host"), port
-
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": SIPProxyAddress}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname}
     sip_address = None
     password = None
     display_name = None
-    outbound_proxy = None, None
+    outbound_proxy = None
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -341,17 +325,10 @@ def event_handler(event_name, **kwargs):
     elif pjsip_logging:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, presentity_username, presentity_domain, proxy_ip, proxy_port, expires, content_type, do_siptrace, pjsip_logging):
+def read_queue(e, username, domain, password, display_name, presentity_username, presentity_domain, route, expires, content_type, do_siptrace, pjsip_logging):
     global user_quit, lock, queue
     lock.acquire()
     try:
-        if proxy_ip is None:
-            # for now assume 1 SRV record and more than one A record
-            srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
-            a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
-            route = Route(random.choice(a_answers).address, srv_answers[0].port)
-        else:
-            route = Route(proxy_ip, proxy_port)
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         presentity = SIPURI(user=presentity_username, host=presentity_domain)
         sub = Subscription(credentials, presentity, 'presence', route=route, expires=expires)
@@ -390,6 +367,16 @@ def do_subscribe(**kwargs):
     global user_quit, lock, queue, pjsip_logging
     ctrl_d_pressed = False
     pjsip_logging = kwargs["pjsip_logging"]
+    outbound_proxy = kwargs.pop("outbound_proxy")
+    if outbound_proxy is None:
+        proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
+    else:
+        proxy_host, proxy_port, proxy_is_ip = outbound_proxy
+    try:
+        kwargs["route"] = Route(*lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
+    except RuntimeError, e:
+        print e.message
+        return
     initial_events = Engine.init_options_defaults["initial_events"]
     if kwargs['content_type'] is not None:
         initial_events['presence'] = [content_type]
@@ -415,15 +402,11 @@ def do_subscribe(**kwargs):
         lock.acquire()
         return
     
-def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port):
-    match = re_host_port.match(value)
-    if match is None:
-        raise OptionValueError("Could not parse supplied address: %s" % value)
-    setattr(parser.values, host_name, match.group("host"))
-    if match.group("port") is None:
-        setattr(parser.values, port_name, default_port)
-    else:
-        setattr(parser.values, port_name, int(match.group("port")))
+def parse_outbound_proxy(option, opt_str, value, parser):
+    try:
+        parser.values.outbound_proxy = IPAddressOrHostname(value)
+    except ValueError, e:
+        raise OptionValueError(e.message)
 
 def parse_options():
     retval = {}
@@ -436,7 +419,7 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in SUBSCRIBE. Default is 300 seconds.')
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
+    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-c", "--content-type", type="string", dest="content_type", help = '"Content-Type" the UA expects to receving in a NOTIFY for this subscription. For the known events this does not need to be specified, but may be overridden".')
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
@@ -449,7 +432,7 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, do_siptrace=False, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, do_siptrace=False, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):
