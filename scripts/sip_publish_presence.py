@@ -61,6 +61,7 @@ string = None
 
 pidf = None
 person = None
+tuple = None
 
 menu_stack = deque()
 
@@ -418,6 +419,18 @@ def set_person_note():
         publish_pidf()
         print 'Note added'
 
+def toggle_basic():
+    if tuple.status.basic == 'open':
+        tuple.status.basic = Basic('closed')
+        tuple.timestamp = Timestamp()
+        publish_pidf()
+        print "Your basic status is now 'closed'"
+    else:
+        tuple.status.basic = Basic('open')
+        tuple.timestamp = Timestamp()
+        publish_pidf()
+        print "Your basic status is now 'open'"
+
 
 def termios_restore():
     global old
@@ -482,7 +495,7 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 def read_queue(e, username, domain, password, display_name, route, expires, do_siptrace, pjsip_logging):
-    global user_quit, lock, queue, pub, sip_uri, pidf, person
+    global user_quit, lock, queue, pub, sip_uri, pidf, person, tuple
     lock.acquire()
     try:
         sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -490,6 +503,10 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_s
         
         # initialize PIDF
         pidf = PIDF(entity='%s@%s' % (username, domain))
+        
+        tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
+        tuple.timestamp = Timestamp()
+        pidf.append(tuple)
         
         person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
         person.time_offset = TimeOffset()
@@ -503,6 +520,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_s
 
         top_level.add_action('m', {"description": "set mood information", "handler": Menu.gotoMenu(MoodMenu())})
         top_level.add_action('a', {"description": "set activities information", "handler": Menu.gotoMenu(ActivitiesMenu())})
+        top_level.add_action('b', {"description": "toggle basic status", "handler": toggle_basic})
         person_notes_menu = NotesMenu(DMNote, person, DMTimestamp)
         top_level.add_action('n', {"description": "set note", "handler": set_person_note})
         
