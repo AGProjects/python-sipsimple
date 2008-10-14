@@ -16,7 +16,10 @@ def verify_account_config():
         except IOError, e:
             print "Configuration file '%s' does not exist and cannot be created: %s" % (config_file, str(e))
         else:
-            print "Generating configuration file '%s'. Please modify it and restart the program." % config_file
+            print "Generating configuration file '%s'." % config_file
+            print "Please configure your SIP account credentials in the configuration file and restart the program."
+            print "If you do not have a SIP account, you can register one for free at http://sip2sip.info"
+            print >>f, "; To register a free SIP SIMPLE account go to http://sip2sip.info\n"
             print >>f, "[Account]"
             print >>f, "sip_address = alice@example.com"
             print >>f, "password = alice's_pass"
