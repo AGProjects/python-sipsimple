@@ -11,7 +11,7 @@ exec(file('pypjua/clients/setupconfig.py').read())
 
 version = "0.2.1"
 
-title = "PyPjUA SIP User Agent"
+title = "Python SIP User Agent"
 description = "Python SIP SIMPLE User Agent library using PJSIP"
 scripts = ['scripts/'+x for x in os.listdir('scripts') if re.match('^sip_.*\\.py$', x)]
 data_files = ['scripts/ring_inbound.wav', 'scripts/ring_outbound.wav']

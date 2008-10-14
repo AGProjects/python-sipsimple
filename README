@@ -1,6 +1,6 @@
 
-PyPjUA
-------
+Python Sip Client
+-----------------
 
 http://pypjua.com
 
@@ -11,18 +11,18 @@ http://ag-projects.com
 Description
 -----------
 
-PyPjUA is Python software library for PJSIP C SIP stack that together with
-an elegant middleware allows for easy development of real-time voice and
-video over IP Internet communications end-points based on SIP protocol with
-rich Presence, Interactive Messaging (IM) and File Transfer capabilities.
+Python Sip Client is software library built on top of PJSIP that together
+with an elegant middleware allows for easy development of real-time
+communications Internet end-points based on SIP protocol with rich Presence,
+Interactive Messaging (IM) and File Transfer capabilities.
 
 The goal of this project is to deliver the best Open Source development kit
 for rich featured SIP User Agents, while hiding the complex underlying
 functionality behind an easy to use high-level application programming
 interface. Compared to other available SIP libraries, this project provides
 session based Interactive Messaging (IM) using MSRP protocol, multiple
-streams support, 'the missing' SIP-SIMPLE features for rich presence
-(presence rules, resource lists, RLS services, rich PIDF and XCAP policy).
+streams support and 'the missing' SIP-SIMPLE features for rich presence:
+presence rules, resource lists, RLS services, rich PIDF and XCAP policy.
 
 The software library is tested against the most popular SIP server software
 available today: OpenSER, Asterisk, OpenXCAP, MSRPRelay and MediaProxy.
@@ -81,13 +81,12 @@ Testing the library
 -------------------
 
 Besides the Python software library itself, the repository contains the
-ready to use command-line examples scripts for Linux and MacOSX that can be
-used to:
+ready to use command-line examples scripts that can be used to:
 
 - Setup IM or file-transfer sessions with or without support from a MSRP relay
-- Setup up VoIP sessions with wide-band speex codec
-- PUBLISH, SUBSCRIBE and handle incoming NOTIFY for SIP events like
-  presence, xcap-diff, watcher-info, conference, message-summary
+- Setup up VoIP sessions with high-quality wideband codecs
+- Handle PUBLISH, SUBSCRIBE and NOTIFY messages for SIP events like
+  presence, xcap-diff, watcher-info, conference and message-summary
 - Manage XCAP policy documents pres-rules, resource-lists, RLS-services and
   pidf-manipulation
 - Setup up ad-hoc multi-party chat sessions with an MSRP chat server (under
@@ -109,11 +108,6 @@ Installation
 
 See docs/INSTALL.* files
 
-
-Building distribution packages
-------------------------------
-
-See docs/INSTALL.* files
 
 Testing the software
 --------------------
