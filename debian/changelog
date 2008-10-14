@@ -4,6 +4,10 @@ sipclient (0.2.1) unstable; urgency=low
   * Include Debian packages instructions in docs/INSTALL.linux
   * A minimal configuration file is generated if not found
   * Add 'Supported' header when subscribing to RLS services URIs
+  * Added local IP address and port to listen on for UDP packets to
+    configuration file
+  * Added registerless "bonjour" account to relevant scripts
+  * Improved SRV lookup procedure and do full lookup for outbound proxy
 
  -- Lucian Stanescu <luci@ag-projects.com>  Mon, 13 Oct 2008 17:29:48 +0200
 
