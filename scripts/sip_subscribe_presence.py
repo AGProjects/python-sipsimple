@@ -20,7 +20,7 @@ import dns.resolver
 from application.process import process
 from application.configuration import *
 from pypjua import *
-from pypjua import enrollment
+from pypjua.clients import enrollment
 
 from pypjua.applications import ParserError
 from pypjua.applications.pidf import *

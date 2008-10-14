@@ -13,7 +13,7 @@ import dns.resolver
 from application.configuration import *
 from application.process import process
 from pypjua import *
-from pypjua import enrollment
+from pypjua.clients import enrollment
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress}

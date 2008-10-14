@@ -25,7 +25,7 @@ from application.configuration import *
 from pypjua.clients import msrp_protocol
 from pypjua.clients.digest import process_www_authenticate
 from pypjua import *
-from pypjua import enrollment
+from pypjua.clients import enrollment
 
 from pypjua.clients.clientconfig import get_path
 

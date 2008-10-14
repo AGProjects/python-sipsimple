@@ -23,7 +23,7 @@ from application.configuration import *
 from urllib2 import HTTPError, URLError
 
 from pypjua import *
-from pypjua import enrollment
+from pypjua.clients import enrollment
 
 from pypjua.applications import ParserError
 from pypjua.applications.watcherinfo import *
