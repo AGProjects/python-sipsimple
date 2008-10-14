@@ -3,6 +3,7 @@ sipclient (0.2.1) unstable; urgency=low
   * Include the xml schemas
   * Include Debian packages instructions in docs/INSTALL.linux
   * A minimal configuration file is generated if not found
+  * Add 'Supported' header when subscribing to RLS services URIs
 
  -- Lucian Stanescu <luci@ag-projects.com>  Mon, 13 Oct 2008 17:29:48 +0200
 
