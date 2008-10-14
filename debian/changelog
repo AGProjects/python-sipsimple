@@ -8,6 +8,8 @@ sipclient (0.2.1) unstable; urgency=low
     configuration file
   * Added registerless "bonjour" account to relevant scripts
   * Improved SRV lookup procedure and do full lookup for outbound proxy
+  * Do not consider 404 an error when getting the pres-rules document in sip_subscribe_winfo
+  * Make the UDP limit 64K
 
  -- Lucian Stanescu <luci@ag-projects.com>  Mon, 13 Oct 2008 17:29:48 +0200
 

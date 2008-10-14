@@ -33,9 +33,10 @@ Check out PJSIP from SVN in the pypjua main directory:
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-Compile pjsip C library:
+Compile pjsip C library (after changing the UDP message limit to 64K):
 
 cd pjsip
+grep  PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
 make distclean
 CFLAGS="-arch i386" ./configure
 make
