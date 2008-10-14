@@ -1763,8 +1763,9 @@ cdef class Publication:
     cdef PJSTR c_body
     cdef bint c_new_publish
     cdef pj_timer_entry c_timer
+    cdef list c_extra_headers
 
-    def __cinit__(self, Credentials credentials, event, route = None, expires = 300):
+    def __cinit__(self, Credentials credentials, event, route = None, expires = 300, extra_headers = {}):
         cdef int status
         cdef pj_str_t c_event
         cdef PJSIPUA ua = c_get_ua()
@@ -1790,6 +1791,7 @@ cdef class Publication:
             status = pjsip_publishc_set_route_set(self.c_obj, &self.route.c_route_set)
             if status != 0:
                 raise RuntimeError("Could not set route set on publication: %s" % pj_status_to_str(status))
+        self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -1816,6 +1818,11 @@ cdef class Publication:
             if status != 0:
                 raise RuntimeError('Could not set new "expires" value: %s' % pj_status_to_str(status))
             self.c_expires = value
+
+    property extra_headers:
+
+        def __get__(self):
+            return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
 
     cdef int _cb_response(self, pjsip_publishc_cbparam *param) except -1:
         cdef pj_time_val c_delay
@@ -1908,6 +1915,7 @@ cdef class Publication:
 
     cdef int _create_pub(self, pj_str_t *content_type, pj_str_t *content_subtype, pj_str_t *body) except -1:
         cdef pjsip_msg_body *c_body
+        cdef GenericStringHeader header
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if body != NULL:
@@ -1923,6 +1931,8 @@ cdef class Publication:
             if status != 0:
                 raise RuntimeError("Could not create PUBLISH request: %s" % pj_status_to_str(status))
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &ua.c_user_agent_hdr.c_obj))
+        for header in self.c_extra_headers:
+            pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &header.c_obj))
 
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)
