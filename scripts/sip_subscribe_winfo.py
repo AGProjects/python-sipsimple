@@ -23,6 +23,7 @@ from application.configuration import *
 from urllib2 import HTTPError, URLError
 
 from pypjua import *
+from pypjua import enrollment
 
 from pypjua.applications import ParserError
 from pypjua.applications.watcherinfo import *
@@ -65,6 +66,7 @@ class AccountConfig(ConfigSection):
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
+enrollment.verify_account_config()
 configuration = ConfigFile("config.ini")
 
 
@@ -378,6 +380,8 @@ def parse_options():
         account_section = "Account"
     else:
         account_section = "Account_%s" % options.account_name
+    if account_section not in configuration.parser.sections():
+        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
     if not AccountConfig.presence:
         raise RuntimeError("Presence is not enabled for this account. Please set presence=True in the config file")
@@ -407,4 +411,8 @@ def main():
     do_subscribe(**parse_options())
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError, e:
+        print "Error: %s" % str(e)
+        sys.exit(1)

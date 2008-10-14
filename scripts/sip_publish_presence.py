@@ -21,6 +21,7 @@ import dns.resolver
 from application.process import process
 from application.configuration import *
 from pypjua import *
+from pypjua import enrollment
 
 from pypjua.applications import BuilderError
 from pypjua.applications.pidf import *
@@ -57,6 +58,7 @@ class AccountConfig(ConfigSection):
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
+enrollment.verify_account_config()
 configuration = ConfigFile("config.ini")
 configuration.read_settings("General", GeneralConfig)
 
@@ -631,6 +633,8 @@ def parse_options():
         account_section = "Account"
     else:
         account_section = "Account_%s" % options.account_name
+    if account_section not in configuration.parser.sections():
+        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
     default_options = dict(expires=300, proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
@@ -659,4 +663,8 @@ def main():
     do_publish(**parse_options())
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError, e:
+        print "Error: %s" % str(e)
+        sys.exit(1)
