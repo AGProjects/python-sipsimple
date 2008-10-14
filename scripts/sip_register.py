@@ -7,7 +7,6 @@ import signal
 from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
-import dns.resolver
 from application.configuration import *
 from application.process import process
 from pypjua import *
