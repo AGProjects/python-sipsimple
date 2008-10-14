@@ -2604,8 +2604,9 @@ cdef class Invitation:
     cdef object c_proposed_streams
     cdef object c_current_streams
     cdef pjsip_rx_data *c_last_rdata
+    cdef list c_extra_headers
 
-    def __cinit__(self, *args, route=None):
+    def __cinit__(self, *args, route=None, extra_headers={}):
         cdef PJSIPUA ua = c_get_ua()
         if len(args) != 0:
             if None in args:
@@ -2616,6 +2617,7 @@ cdef class Invitation:
                 raise TypeError("Expected 2 positional arguments")
             self.caller_uri = self.credentials.uri
             self.route = route
+            self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
             self.state = "DISCONNECTED"
         else:
             self.state = "INVALID"
@@ -2706,6 +2708,11 @@ cdef class Invitation:
                 return None
             else:
                 return self.c_current_streams.copy()
+
+    property extra_headers:
+
+        def __get__(self):
+            return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
 
     cdef object _get_last_headers_body(self):
         cdef pjsip_msg_body *c_body
@@ -2823,6 +2830,7 @@ cdef class Invitation:
         cdef list c_sdp_streams = []
         cdef object c_host
         cdef PJSTR c_contact_uri
+        cdef GenericStringHeader header
         cdef PJSIPUA ua = c_get_ua()
         c_host = pj_str_to_str(ua.c_pjsip_endpoint.c_udp_transport.local_name.host)
         if self.state == "DISCONNECTED":
@@ -2853,6 +2861,8 @@ cdef class Invitation:
                 if status != 0:
                     raise RuntimeError("Could not create INVITE message: %s" % pj_status_to_str(status))
                 pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
+                for header in self.c_extra_headers:
+                    pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &header.c_obj))
                 status = pjsip_inv_send_msg(self.c_obj, c_tdata)
                 if status != 0:
                     raise RuntimeError("Could not send INVITE message: %s" % pj_status_to_str(status))
