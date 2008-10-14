@@ -39,7 +39,7 @@ sudo easy_install dnspython
 sudo easy_install cython
 
 
-For Nokia Internet table N810 
+For Nokia Internet tablet N810 
 -----------------------------
 
 Install the diablo sdk and debfarm catalogues referenced from:
