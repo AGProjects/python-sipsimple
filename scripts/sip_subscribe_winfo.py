@@ -258,7 +258,7 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
         sub = Subscription(Credentials(sip_uri, password), sip_uri, 'presence.winfo', route=route, expires=expires)
         winfo = WatcherInfo()
         if xcap_root is not None:
-            xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password)
+            xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password, auth=None)
         print 'Subscribing to "%s@%s" for the presence.winfo event, at proxy %s:%d and waiting for incoming NOTIFY' % (sip_uri.user, sip_uri.host, route.host, route.port)
         sub.subscribe()
         
