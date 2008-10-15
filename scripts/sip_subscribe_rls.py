@@ -370,7 +370,7 @@ def do_subscribe(**kwargs):
     if kwargs['content_type'] is not None:
         initial_events['presence'] = [kwargs['content_type']]
     else:
-        initial_events['presence'] = 'multipart/related'
+        initial_events['presence'] = ['multipart/related']
 
     e = Engine(event_handler, do_siptrace=kwargs['do_siptrace'], auto_sound=False, initial_events=initial_events)
     e.start()
