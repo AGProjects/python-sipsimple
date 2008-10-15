@@ -15,7 +15,6 @@ Split up .pyx file
 Fix remainig TODOs for PUBLISH/REGISTER
 sRTP
 zRTP
-Record the audio session in a file
 Comfort noice generator
 Add feature to send OPTIONS method and parse the replies
 Handle incomming REFER to msrp focus
