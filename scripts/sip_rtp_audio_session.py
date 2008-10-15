@@ -245,6 +245,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                     command = "quit"
             if command == "quit":
                 break
+            data, args = None, None
     except:
         user_quit = False
         traceback.print_exc()
