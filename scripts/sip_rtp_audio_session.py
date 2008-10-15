@@ -319,17 +319,18 @@ def parse_options():
     parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
 
-    if options.account_name is None:
-        account_section = "Account"
-    else:
-        account_section = "Account_%s" % options.account_name
-    if account_section not in configuration.parser.sections():
-        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
-    configuration.read_settings(account_section, AccountConfig)
+    retval["use_bonjour"] = options.account_name == "bonjour"
+    if not retval["use_bonjour"]:
+        if options.account_name is None:
+            account_section = "Account"
+        else:
+            account_section = "Account_%s" % options.account_name
+        if account_section not in configuration.parser.sections():
+            raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
+        configuration.read_settings(account_section, AccountConfig)
     default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
-    retval["use_bonjour"] = options.account_name == "bonjour"
     if not retval["use_bonjour"]:
         if not all([options.sip_address, options.password]):
             raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
@@ -354,7 +355,8 @@ def parse_options():
     if options.account_name is None:
         print "Using default account: %s" % options.sip_address
     else:
-        print "Using account '%s': %s" % (options.account_name, options.sip_address)
+        if not retval["use_bonjour"]:
+            print "Using account '%s': %s" % (options.account_name, options.sip_address)
     accounts = ((acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account'))
     print "Accounts available: %s" % ', '.join(accounts)
     return retval
