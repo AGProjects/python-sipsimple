@@ -2,10 +2,11 @@
 PJSIP bindings
 --------------
 
-Pass arbitrary headers to all SIP requests
-Handle re-INVITEs
+Handle re-INVITEs and UPDATE
 Return list of SIP headers of the response in the event handler
+Means to query RTP statistics
 Handle multipart bodies
+More advanced conference bridge control
 Fix high CPU usage
 TCP/TLS
 STUN/ICE
@@ -17,9 +18,8 @@ zRTP
 Record the audio session in a file
 Comfort noice generator
 Add feature to send OPTIONS method and parse the replies
-Handle incomming REFER to conference bridge
-Play a soft beep tone while on hold every 30 seconds
-Play a beep after we closed a session
+Handle incomming REFER to msrp focus
+Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
 
 
 Command line clients
@@ -33,7 +33,6 @@ Command line clients
 other codes. For invite scripts the code is based on the response for the
 initial INVITE, not for the BYE If RTP was not received with 6 seconds after
 call setup, consider the call has failed.
-- Add parameter for number of registrations to the sip_register script
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
 - Add option to log the output of the scripts to a log file or syslog
@@ -41,6 +40,9 @@ call setup, consider the call has failed.
  
 Applications
 ------------
+
+Play a soft beep tone while on hold every 30 seconds
+Play a beep after we closed a session
 
 Buddy list high-level library
 Enrollment
