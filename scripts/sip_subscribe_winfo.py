@@ -132,7 +132,7 @@ def allow_watcher(watcher):
                 allow_rule_identities.append(IdentityOne(str(watcher)))
             try:
                 xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
-            except urllib.HTTPError, e:
+            except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
             else:
                 print "Watcher %s is now authorized" % watcher
@@ -156,7 +156,7 @@ def block_watcher(watcher):
                 block_rule_identities.append(IdentityOne(str(watcher)))
             try:
                 xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
-            except urllib.HTTPError, e:
+            except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
             else:
                 print "Watcher %s is now denied authorization" % watcher
