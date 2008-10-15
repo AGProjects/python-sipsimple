@@ -1024,44 +1024,6 @@ cdef class GenericStringHeader:
         return '<GenericStringHeader "%s: %s">' % (self.hname, self.hvalue)
 
 
-cdef class WaveFile:
-    cdef pjsip_endpoint *pjsip_endpoint
-    cdef PJMEDIAConferenceBridge conf_bridge
-    cdef pj_pool_t *pool
-    cdef pjmedia_port *port
-    cdef unsigned int conf_slot
-
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name):
-        cdef int status
-        cdef object pool_name = "playwav_%s" % file_name
-        c_get_ua()
-        self.pjsip_endpoint = pjsip_endpoint.c_obj
-        self.conf_bridge = conf_bridge
-        self.pool = pjsip_endpt_create_pool(self.pjsip_endpoint, pool_name, 4096, 4096)
-        if self.pool == NULL:
-            raise MemoryError("Could not allocate memory pool")
-        status = pjmedia_wav_player_port_create(self.pool, file_name, 0, 0, 0, &self.port)
-        if status != 0:
-            raise RuntimeError("Could not open WAV file: %s" % pj_status_to_str(status))
-        status = pjmedia_wav_player_set_eof_cb(self.port, <void *> self, cb_play_wave_eof)
-        if status != 0:
-            raise RuntimeError("Could not set WAV EOF callback: %s" % pj_status_to_str(status))
-        status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
-        if status != 0:
-            raise RuntimeError("Could not connect WAV playback to conference bridge: %s" % pj_status_to_str(status))
-        conf_bridge._connect_playback_slot(self.conf_slot)
-
-    def __dealloc__(self):
-        c_get_ua()
-        if self.conf_slot != 0:
-            self.conf_bridge._disconnect_slot(self.conf_slot)
-            pjmedia_conf_remove_port(self.conf_bridge.c_obj, self.conf_slot)
-        if self.port != NULL:
-            pjmedia_port_destroy(self.port)
-        if self.pool != NULL:
-            pjsip_endpt_release_pool(self.pjsip_endpoint, self.pool)
-
-
 cdef class PJSIPThread:
     cdef pj_thread_t *c_obj
     cdef long c_thread_desc[PJ_THREAD_DESC_SIZE]
@@ -1092,6 +1054,7 @@ cdef class EventPackage
 cdef class Invitation
 cdef class MediaStream
 cdef class AudioStream
+cdef class WaveFile
 cdef class RecordingWaveFile
 
 cdef class PJSIPUA:
@@ -1266,6 +1229,7 @@ cdef class PJSIPUA:
         self.c_conf_bridge._disconnect_slot(c_audio_stream.c_conf_slot)
 
     def play_wav_file(self, file_name):
+        self.c_check_thread()
         self.c_wav_files.append(WaveFile(self.c_pjsip_endpoint, self.c_conf_bridge, file_name))
 
     def rec_wav_file(self, file_name):
@@ -1373,6 +1337,39 @@ cdef PJSIPUA c_get_ua():
     ua = <object> _ua
     ua.c_check_thread()
     return ua
+
+cdef class WaveFile:
+    cdef pj_pool_t *pool
+    cdef pjmedia_port *port
+    cdef unsigned int conf_slot
+
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name):
+        cdef int status
+        cdef object pool_name = "playwav_%s" % file_name
+        self.pool = pjsip_endpt_create_pool(pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        if self.pool == NULL:
+            raise MemoryError("Could not allocate memory pool")
+        status = pjmedia_wav_player_port_create(self.pool, file_name, 0, 0, 0, &self.port)
+        if status != 0:
+            raise RuntimeError("Could not open WAV file: %s" % pj_status_to_str(status))
+        status = pjmedia_wav_player_set_eof_cb(self.port, <void *> self, cb_play_wave_eof)
+        if status != 0:
+            raise RuntimeError("Could not set WAV EOF callback: %s" % pj_status_to_str(status))
+        status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
+        if status != 0:
+            raise RuntimeError("Could not connect WAV playback to conference bridge: %s" % pj_status_to_str(status))
+        conf_bridge._connect_playback_slot(self.conf_slot)
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua = c_get_ua()
+        if self.conf_slot != 0:
+            ua.c_conf_bridge._disconnect_slot(self.conf_slot)
+            pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.conf_slot)
+        if self.port != NULL:
+            pjmedia_port_destroy(self.port)
+        if self.pool != NULL:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
+
 
 cdef int cb_play_wave_eof(pjmedia_port *port, void *user_data) with gil:
     cdef WaveFile wav_file = <object> user_data
