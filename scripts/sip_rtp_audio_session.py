@@ -137,7 +137,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
             if use_bonjour:
                 print "Using bonjour"
                 print "Listening on local interface %s:%d" % (e.local_ip, e.local_port)
-                print "Press Ctrl-D to stop the program or h to hang-up an ongoing session."
+                print "Press Ctrl-D to stop the program, h to hang-up or r to record an ongoing session."
                 print "Waiting for incoming session..."
             else:
                 reg = Registration(credentials, route=route)
@@ -147,7 +147,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
             inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
             print "Call from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
             inv.invite([MediaStream("audio")])
-            print "Press Ctrl-D to stop the program or h to hang-up an ongoing session."
+            print "Press Ctrl-D to stop the program,h to hang-up or r to record an ongoing session."
         while True:
             command, data = queue.get()
             if command == "print":
