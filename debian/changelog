@@ -1,3 +1,12 @@
+sipclient (0.2.2) unstable; urgency=low
+
+  * Small bug fixes
+  * Recording capability added
+  * Make sip_subscribe_rls script accept multipart/related content-type
+  * Allow setting basic presence in sip_publish_presence script
+
+ -- Lucian Stanescu <luci@ag-projects.com>  Wed, 15 Oct 2008 17:39:34 +0200
+
 sipclient (0.2.1) unstable; urgency=low
 
   * Include the xml schemas
