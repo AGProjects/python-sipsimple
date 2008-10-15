@@ -9,6 +9,7 @@ import atexit
 import select
 import termios
 import signal
+import datetime
 from thread import start_new_thread, allocate_lock
 from threading import Thread
 from Queue import Queue
@@ -127,6 +128,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
     inv = None
     ringer = None
     printed = False
+    rec_file = None
     want_quit = target_username is not None
     try:
         if not use_bonjour:
@@ -201,6 +203,10 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             print 'Remote User Agent is "%s"' % other_user_agent
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
+                            if rec_file is not None:
+                                rec_file.stop()
+                                print 'Stopped recording audio to "%s"' % rec_file.file_name
+                                rec_file = None
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
@@ -221,6 +227,14 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                         want_quit = target_username is not None
                     elif data in "0123456789*#ABCD" and inv.state == "ESTABLISHED":
                         inv.current_streams.pop().send_dtmf(data)
+                    elif data.lower() == "r":
+                        if rec_file is None:
+                            rec_file = e.rec_wav_file(datetime.datetime.now().strftime("sip_audio_%d-%m-%Y-%H:%M:%S.wav"))
+                            print 'Recording audio to "%s"' % rec_file.file_name
+                        else:
+                            rec_file.stop()
+                            print 'Stopped recording audio to "%s"' % rec_file.file_name
+                            rec_file = None
                     elif inv.state == "INCOMING":
                         if data.lower() == "n":
                             command = "end"

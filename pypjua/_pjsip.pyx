@@ -245,6 +245,11 @@ cdef extern from "pjmedia.h":
     int pjmedia_wav_player_port_create(pj_pool_t *pool, char *filename, unsigned int ptime, unsigned int flags, unsigned int buff_size, pjmedia_port **p_port)
     int pjmedia_wav_player_set_eof_cb(pjmedia_port *port, void *user_data, int cb(pjmedia_port *port, void *usr_data) with gil)
 
+    # wav recorder
+    enum pjmedia_file_writer_option:
+        PJMEDIA_FILE_WRITE_PCM
+    int pjmedia_wav_writer_port_create(pj_pool_t *pool, char *filename, unsigned int clock_rate, unsigned int channel_count, unsigned int samples_per_frame, unsigned int bits_per_sample, unsigned int flags, int buff_size, pjmedia_port **p_port)
+
     # tone generator
     struct pjmedia_tone_digit:
         char digit
@@ -790,7 +795,8 @@ cdef class PJMEDIAConferenceBridge:
     cdef pj_pool_t *c_pool, *c_tonegen_pool
     cdef pjmedia_snd_port *c_snd
     cdef pjmedia_port *c_tonegen
-    cdef object c_connected_slots
+    cdef list c_pb_in_slots, c_conv_in_slots
+    cdef list c_all_out_slots, c_conv_out_slots
 
     def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, playback_dtmf):
         cdef int status
@@ -800,7 +806,8 @@ cdef class PJMEDIAConferenceBridge:
         status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
-        self.c_connected_slots = set([0])
+        self.c_conv_in_slots = self.c_all_out_slots = [0]
+        self.c_pb_in_slots = self.c_conv_out_slots = []
         if playback_dtmf:
             self.c_tonegen_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "dtmf_tonegen", 4096, 4096)
             if self.c_tonegen_pool == NULL:
@@ -862,44 +869,62 @@ cdef class PJMEDIAConferenceBridge:
         cdef unsigned int slot
         self._destroy_snd_port(1)
         if self.c_obj != NULL:
-            for slot in list(self.c_connected_slots):
-                if slot != 0:
-                    self._disconnect_slot(slot)
             pjmedia_conf_destroy(self.c_obj)
             if self.c_tonegen != NULL:
                 pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
 
-    cdef int _connect_slot(self, unsigned int slot) except -1:
-        cdef unsigned int connected_slot
+    cdef int _connect_playback_slot(self, unsigned int slot) except -1:
+        cdef unsigned int output_slot
         cdef int status
-        if slot in self.c_connected_slots:
-            return 0
-        for connected_slot in self.c_connected_slots:
-            status = pjmedia_conf_connect_port(self.c_obj, slot, connected_slot, 0)
+        self.c_pb_in_slots.append(slot)
+        for output_slot in self.c_all_out_slots:
+            status = pjmedia_conf_connect_port(self.c_obj, slot, output_slot, 0)
             if status != 0:
-                self._disconnect_slot(slot)
                 raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
-            status = pjmedia_conf_connect_port(self.c_obj, connected_slot, slot, 0)
-            if status != 0:
-                self._disconnect_slot(slot)
-                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
-        self.c_connected_slots.add(slot)
         return 0
 
-    cdef int _connect_playback_slot(self, unsigned int slot) except -1:
+    cdef int _connect_output_slot(self, unsigned int slot) except -1:
+        cdef unsigned int input_slot
         cdef int status
-        status = pjmedia_conf_connect_port(self.c_obj, slot, 0, 0)
-        if status != 0:
-            raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+        self.c_all_out_slots.append(slot)
+        for input_slot in self.c_pb_in_slots + self.c_conv_in_slots:
+            status = pjmedia_conf_connect_port(self.c_obj, input_slot, slot, 0)
+            if status != 0:
+                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+        return 0
+
+    cdef int _connect_conv_slot(self, unsigned int slot) except -1:
+        cdef unsigned int other_slot
+        cdef int status
+        self.c_conv_in_slots.append(slot)
+        self.c_conv_out_slots.append(slot)
+        for other_slot in self.c_conv_in_slots:
+            status = pjmedia_conf_connect_port(self.c_obj, other_slot, slot, 0)
+            if status != 0:
+                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+        for other_slot in self.c_all_out_slots + self.c_conv_out_slots:
+            status = pjmedia_conf_connect_port(self.c_obj, slot, other_slot, 0)
+            if status != 0:
+                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+        return 0
 
     cdef int _disconnect_slot(self, unsigned int slot) except -1:
-        cdef unsigned int connected_slot
-        if slot in self.c_connected_slots:
-            self.c_connected_slots.remove(slot)
-        for connected_slot in self.c_connected_slots:
-            pjmedia_conf_disconnect_port(self.c_obj, slot, connected_slot)
-            pjmedia_conf_disconnect_port(self.c_obj, connected_slot, slot)
-        return 0
+        cdef unsigned int other_slot
+        if slot in self.c_pb_in_slots:
+            self.c_pb_in_slots.remove(slot)
+            for other_slot in self.c_all_out_slots:
+                pjmedia_conf_disconnect_port(self.c_obj, slot, other_slot)
+        elif slot in self.c_all_out_slots:
+            self.c_all_out_slots.remove(slot)
+            for other_slot in self.c_pb_in_slots + self.c_conv_in_slots:
+                pjmedia_conf_disconnect_port(self.c_obj, other_slot, slot)
+        elif slot in self.c_conv_in_slots:
+            self.c_conv_in_slots.remove(slot)
+            self.c_conv_out_slots.remove(slot)
+            for other_slot in self.c_conv_in_slots:
+                pjmedia_conf_disconnect_port(self.c_obj, other_slot, slot)
+            for other_slot in self.c_all_out_slots + self.c_conv_out_slots:
+                pjmedia_conf_disconnect_port(self.c_obj, slot, other_slot)
 
     cdef int _playback_dtmf(self, char digit) except -1:
         cdef pjmedia_tone_digit tone
@@ -1067,6 +1092,7 @@ cdef class EventPackage
 cdef class Invitation
 cdef class MediaStream
 cdef class AudioStream
+cdef class RecordingWaveFile
 
 cdef class PJSIPUA:
     cdef list c_threads
@@ -1086,6 +1112,7 @@ cdef class PJSIPUA:
     cdef GenericStringHeader c_user_agent_hdr
     cdef list c_events
     cdef list c_wav_files
+    cdef list c_rec_files
     cdef object c_sent_messages
     cdef pj_time_val c_max_timeout
 
@@ -1097,6 +1124,7 @@ cdef class PJSIPUA:
         self.c_threads = []
         self.c_events = []
         self.c_wav_files = []
+        self.c_rec_files = []
         self.c_sent_messages = set()
         self.c_max_timeout.sec = 0
         self.c_max_timeout.msec = 100
@@ -1229,7 +1257,7 @@ cdef class PJSIPUA:
         cdef AudioStream c_audio_stream = stream.c_stream
         if c_audio_stream.c_stream == NULL:
             raise RuntimeError("Audio stream has not been fully negotiated yet")
-        self.c_conf_bridge._connect_slot(c_audio_stream.c_conf_slot)
+        self.c_conf_bridge._connect_conv_slot(c_audio_stream.c_conf_slot)
 
     def disconnect_audio_stream(self, MediaStream stream):
         cdef AudioStream c_audio_stream = stream.c_stream
@@ -1240,12 +1268,22 @@ cdef class PJSIPUA:
     def play_wav_file(self, file_name):
         self.c_wav_files.append(WaveFile(self.c_pjsip_endpoint, self.c_conf_bridge, file_name))
 
+    def rec_wav_file(self, file_name):
+        cdef RecordingWaveFile rec_file
+        self.c_check_thread()
+        rec_file = RecordingWaveFile(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, self.c_conf_bridge, file_name)
+        self.c_rec_files.append(rec_file)
+        return rec_file
+
     def __dealloc__(self):
         self.c_check_thread()
         self._do_dealloc()
 
     cdef int _do_dealloc(self) except -1:
         global _ua, _event_queue_lock
+        cdef RecordingWaveFile rec_file
+        for rec_file in self.c_rec_files:
+            rec_file.stop()
         self.c_wav_files = None
         self.c_conf_bridge = None
         if _event_queue_lock != NULL:
@@ -1341,6 +1379,50 @@ cdef int cb_play_wave_eof(pjmedia_port *port, void *user_data) with gil:
     cdef PJSIPUA ua = c_get_ua()
     ua.c_wav_files.remove(wav_file)
     return 1
+
+cdef class RecordingWaveFile:
+    cdef pj_pool_t *pool
+    cdef pjmedia_port *port
+    cdef unsigned int conf_slot
+    cdef readonly object file_name
+
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name):
+        cdef int status
+        cdef object pool_name = "recwav_%s" % file_name
+        self.file_name = file_name
+        self.pool = pjsip_endpt_create_pool(pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        if self.pool == NULL:
+            raise MemoryError("Could not allocate memory pool")
+        status = pjmedia_wav_writer_port_create(self.pool, file_name, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_FILE_WRITE_PCM, 0, &self.port)
+        if status != 0:
+            raise RuntimeError("Could not create WAV file: %s" % pj_status_to_str(status))
+        status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
+        if status != 0:
+            raise RuntimeError("Could not connect WAV playback to conference bridge: %s" % pj_status_to_str(status))
+        conf_bridge._connect_output_slot(self.conf_slot)
+
+    def stop(self):
+        cdef PJSIPUA ua = c_get_ua()
+        if self.conf_slot != 0:
+            ua.c_conf_bridge._disconnect_slot(self.conf_slot)
+            pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.conf_slot)
+            self.conf_slot = 0
+        if self.port != NULL:
+            pjmedia_port_destroy(self.port)
+            self.port = NULL
+        ua.c_rec_files.remove(self)
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+        except:
+            return
+        if self.port != NULL:
+            self.stop()
+        if self.pool != NULL:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
+
 
 cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) except 0 with gil:
     cdef PJSIPUA c_ua = c_get_ua()
