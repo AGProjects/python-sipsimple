@@ -213,7 +213,7 @@ class MoodMenu(Menu):
         m = getstr("Select mood to add (any non-number will string will return")
         try:
             m = int(m)
-            if a not in xrange(len(values)):
+            if m not in xrange(len(values)):
                 raise ValueError
         except ValueError:
             print "Invalid input"
