@@ -134,6 +134,7 @@ def allow_watcher(watcher):
                 xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
             except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
+                prules = None
             else:
                 print "Watcher %s is now authorized" % watcher
                 break
@@ -158,6 +159,7 @@ def block_watcher(watcher):
                 xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
             except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
+                prules = None
             else:
                 print "Watcher %s is now denied authorization" % watcher
                 break
