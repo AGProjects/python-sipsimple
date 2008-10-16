@@ -344,7 +344,7 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
                 print "Waiting for incoming session..."
             else:
                 reg = Registration(credentials, route=route)
-                print 'Registering for SIP address "%s" at %s:%d  % (credentials.uri, route.host, route.port)
+                print 'Registering "%s" at %s:%d'  % (credentials.uri, route.host, route.port)
                 reg.register()
         else:
             msrp = MSRP(*msrp_args)

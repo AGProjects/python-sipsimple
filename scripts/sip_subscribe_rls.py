@@ -321,7 +321,7 @@ def read_queue(e, username, domain, password, display_name, presentity_username,
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         presentity = SIPURI(user=presentity_username, host=presentity_domain)
         sub = Subscription(credentials, presentity, 'presence', route=route, expires=expires, extra_headers={'Supported': 'eventlist'})
-        print 'Subscribing to "%s" for the presence event, at %s:%d  % (presentity, route.host, route.port)
+        print 'Subscribing to "%s" for the presence event, at %s:%d' % (presentity, route.host, route.port)
         sub.subscribe()
         
         while True:
