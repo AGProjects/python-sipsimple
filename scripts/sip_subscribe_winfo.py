@@ -39,6 +39,11 @@ class Boolean(int):
         else:
             return False
 
+class GeneralConfig(ConfigSection):
+    _datatypes = {"listen_udp": datatypes.NetworkAddress}
+    listen_udp = datatypes.NetworkAddress("any")
+
+
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname, "xcap_root": str, "presence": Boolean}
     sip_address = None
@@ -52,6 +57,7 @@ class AccountConfig(ConfigSection):
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 enrollment.verify_account_config()
 configuration = ConfigFile("config.ini")
+configuration.read_settings("General", GeneralConfig)
 
 
 queue = Queue()
@@ -320,7 +326,7 @@ def do_subscribe(**kwargs):
         print e.message
         return
 
-    e = Engine(event_handler, do_siptrace=kwargs['do_siptrace'], auto_sound=False)
+    e = Engine(event_handler, do_siptrace=kwargs['do_siptrace'], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
@@ -373,7 +379,7 @@ def parse_options():
     configuration.read_settings(account_section, AccountConfig)
     if not AccountConfig.presence:
         raise RuntimeError("Presence is not enabled for this account. Please set presence=True in the config file")
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False, xcap_root=AccountConfig.xcap_root)
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False, xcap_root=AccountConfig.xcap_root, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):
