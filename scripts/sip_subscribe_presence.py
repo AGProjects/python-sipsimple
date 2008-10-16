@@ -452,12 +452,14 @@ def parse_options():
             retval["presentity_username"], retval["presentity_domain"] = args[0], retval['domain']
     else:
         retval["presentity_username"], retval["presentity_domain"] = retval['username'], retval['domain']
+    
+    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
+    accounts.sort()
+    print "Accounts available: %s" % ', '.join(accounts)
     if options.account_name is None:
         print "Using default account: %s" % options.sip_address
     else:
         print "Using account '%s': %s" % (options.account_name, options.sip_address)
-    accounts = ((acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account'))
-    print "Accounts available: %s" % ', '.join(accounts)
     
     return retval
 
