@@ -142,7 +142,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                 print "Waiting for incoming session..."
             else:
                 reg = Registration(credentials, route=route)
-                print 'Registering for SIP address "%s" at %s:%d  % (credentials.uri, route.host, route.port)
+                print 'Registering for "%s" at %s:%d  % (credentials.uri, route.host, route.port)
                 reg.register()
         else:
             inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
