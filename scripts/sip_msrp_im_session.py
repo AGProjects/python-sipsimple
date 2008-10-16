@@ -28,32 +28,19 @@ from pypjua import *
 from pypjua.clients import enrollment
 
 from pypjua.clients.clientconfig import get_path
+from pypjua.clients.lookup import *
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress}
     listen_udp = datatypes.NetworkAddress("any")
 
-re_ip_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
-class SIPProxyAddress(tuple):
-    def __new__(typ, value):
-        match = re_ip_port.search(value)
-        if match is None:
-            raise ValueError("invalid IP address/port: %r" % value)
-        if match.group("port") is None:
-            port = 5060
-        else:
-            port = match.group("port")
-            if port > 65535:
-                raise ValueError("port is out of range: %d" % port)
-        return match.group("host"), port
-
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": SIPProxyAddress}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname}
     sip_address = None
     password = None
     display_name = None
-    outbound_proxy = None, None
+    outbound_proxy = None
 
 
 class AudioConfig(ConfigSection):
@@ -308,7 +295,7 @@ def event_handler(event_name, **kwargs):
     elif pjsip_logging:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound, pjsip_logging, use_bonjour):
+def read_queue(e, username, domain, password, display_name, route, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound, pjsip_logging, use_bonjour):
     global user_quit, lock, queue, switch_mode
     lock.acquire()
     inv = None
@@ -324,16 +311,6 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
     else:
         msrp_args = [target_username is None, dump_msrp]
     try:
-        if proxy_ip is None:
-            if use_bonjour:
-                route = None
-            else:
-                # for now assume 1 SRV record and more than one A record
-                srv_answers = dns.resolver.query("_sip._udp.%s" % domain, "SRV")
-                a_answers = dns.resolver.query(str(srv_answers[0].target), "A")
-                route = Route(random.choice(a_answers).address, srv_answers[0].port)
-        else:
-            route = Route(proxy_ip, proxy_port)
         if not use_bonjour:
             credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         if target_username is None:
@@ -482,6 +459,19 @@ def do_invite(**kwargs):
     pjsip_logging = kwargs["pjsip_logging"]
     ctrl_d_pressed = False
     char_mode = True
+    outbound_proxy = kwargs.pop("outbound_proxy")
+    if kwargs["use_bonjour"]:
+        kwargs["route"] = None
+    else:
+        if outbound_proxy is None:
+            proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
+        else:
+            proxy_host, proxy_port, proxy_is_ip = outbound_proxy
+        try:
+            kwargs["route"] = Route(*lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
+        except RuntimeError, e:
+            print e.message
+            return
     e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=not kwargs["disable_sound"], ec_tail_length=0, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
@@ -536,6 +526,12 @@ def parse_host_port(option, opt_str, value, parser, host_name, port_name, defaul
     else:
         setattr(parser.values, port_name, int(match.group("port")))
 
+def parse_outbound_proxy(option, opt_str, value, parser):
+    try:
+        parser.values.outbound_proxy = IPAddressOrHostname(value)
+    except ValueError, e:
+        raise OptionValueError(e.message)
+
 def parse_options():
     retval = {}
     description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP session, or attempt to start a MSRP session with the specified target. The program will close the session and quit when CTRL+D is pressed."
@@ -546,7 +542,7 @@ def parse_options():
     parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP login account")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060, False), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
+    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-m", "--trace-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
@@ -563,7 +559,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     if not retval["use_bonjour"]:
