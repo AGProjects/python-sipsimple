@@ -61,6 +61,9 @@ sip_outbound_proxy=
 ; xcap root used to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
 
+; history directory for saving audio recordings etc.
+history_directory=~/.sipclient/history
+
 ; from whom to accept invitations for IM chat sessions
 im_allow_invitations_from=buddy_list|everyone
 
