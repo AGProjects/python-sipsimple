@@ -806,8 +806,10 @@ cdef class PJMEDIAConferenceBridge:
         status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
-        self.c_conv_in_slots = self.c_all_out_slots = [0]
-        self.c_pb_in_slots = self.c_conv_out_slots = []
+        self.c_conv_in_slots = [0]
+        self.c_all_out_slots = [0]
+        self.c_pb_in_slots = []
+        self.c_conv_out_slots = []
         if playback_dtmf:
             self.c_tonegen_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "dtmf_tonegen", 4096, 4096)
             if self.c_tonegen_pool == NULL:
@@ -878,6 +880,8 @@ cdef class PJMEDIAConferenceBridge:
         cdef int status
         self.c_pb_in_slots.append(slot)
         for output_slot in self.c_all_out_slots:
+            if slot == output_slot:
+                continue
             status = pjmedia_conf_connect_port(self.c_obj, slot, output_slot, 0)
             if status != 0:
                 raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
@@ -888,6 +892,8 @@ cdef class PJMEDIAConferenceBridge:
         cdef int status
         self.c_all_out_slots.append(slot)
         for input_slot in self.c_pb_in_slots + self.c_conv_in_slots:
+            if input_slot == slot:
+                continue
             status = pjmedia_conf_connect_port(self.c_obj, input_slot, slot, 0)
             if status != 0:
                 raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
@@ -899,10 +905,14 @@ cdef class PJMEDIAConferenceBridge:
         self.c_conv_in_slots.append(slot)
         self.c_conv_out_slots.append(slot)
         for other_slot in self.c_conv_in_slots:
+            if other_slot == slot:
+                continue
             status = pjmedia_conf_connect_port(self.c_obj, other_slot, slot, 0)
             if status != 0:
                 raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
         for other_slot in self.c_all_out_slots + self.c_conv_out_slots:
+            if slot == other_slot:
+                continue
             status = pjmedia_conf_connect_port(self.c_obj, slot, other_slot, 0)
             if status != 0:
                 raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
