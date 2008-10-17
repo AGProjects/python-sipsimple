@@ -56,7 +56,7 @@ sip_address=
 password=
 
 ; send all messages through this proxy 
-sip_outbound_proxy=
+outbound_proxy=
 
 ; xcap root used to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
@@ -76,9 +76,11 @@ im_chatserver_domain=conference.example.com
 ; register contact with the SIP registrar
 register=true
 
-; enable publication and subscription to presence event package, if enabled
-; the software will publish its state and subscribe to the buddy list
-presence=false
+; enable publication and subscription to presence.winfo event package, if
+; enabled the software will publish its state and authorize or block
+; watchers; subscribing to someone else's presence is enabled at all
+; times since this doesn't require any special capability in the provider
+use_presence_agent=false
 
 ; useful for watchers in the same domain
 presence_accept_watchers_from_domains=
