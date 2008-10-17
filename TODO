@@ -35,6 +35,12 @@ call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts
 - Add option to log the output of the scripts to a log file or syslog
+- subscribe to a list of URIs
+- get the pres-rules and display them at start of the sip_subscribe_winfo script
+- print source of NOTIFY
+- create script rls_services_manager
+- create script pres_rules_manager
+- pidf_manipulation_manager - script to upload a simple pidf to xcap
 
  
 Applications
