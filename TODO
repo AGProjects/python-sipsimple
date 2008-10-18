@@ -1,106 +1,126 @@
 
-PJSIP bindings
---------------
+Python PJSIP bindings
+---------------------
 
-Handle re-INVITEs and UPDATE
-Return list of SIP headers of the response in the event handler
-Means to query RTP statistics
-Handle multipart bodies
-More advanced conference bridge control
-Fix high CPU usage
-TCP/TLS
-STUN/ICE
-Properly decrease reference counts of pjsip_tx_data structs
-Split up .pyx file
-Fix remainig TODOs for PUBLISH/REGISTER
-sRTP
-zRTP
-Comfort noice generator
-Add feature to send OPTIONS method and parse the replies
-Handle incomming REFER to msrp focus
-Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
+- Concatenate the user_agent with the software version number
+- Handle re-INVITEs and UPDATE
+- Return list of SIP headers of the response in the event handler
+- Means to query RTP statistics
+- Handle multipart bodies
+- More advanced conference bridge control
+- Fix high CPU usage
+- TCP/TLS
+- STUN/ICE
+- Properly decrease reference counts of pjsip_tx_data structs
+- Split up .pyx file
+- Fix remainig TODOs for PUBLISH/REGISTER
+- sRTP
+- zRTP
+- Add feature to send OPTIONS method and parse the replies
+- Handle incomming REFER to msrp focus
+- Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
+- API documentation
 
 
 Command line clients
 --------------------
 
-- handle multiple incomming sessions
-- handle 301/302 redirect by prompting the user to accept/reject the redirection
-- conference established sessions
-- combine msrp/rtp in one script
-- set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
-other codes. For invite scripts the code is based on the response for the
-initial INVITE, not for the BYE If RTP was not received with 6 seconds after
-call setup, consider the call has failed.
+- Publish service and status when starting/stopping rtp/msrp session script
+- Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
+  other codes. For invite scripts the code is based on the response for the
+  initial INVITE, not for the BYE If RTP was not received with 6 seconds after
+  call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
-  scripts
+  scripts, used for scripting alarms
 - Add option to log the output of the scripts to a log file or syslog
-- subscribe to a list of URIs
-- get the pres-rules and display them at start of the sip_subscribe_winfo script
-- print source of NOTIFY
-- create script rls_services_manager
-- create script pres_rules_manager
-- pidf_manipulation_manager - script to upload a simple pidf to xcap
+- sip_subscribe_presence to a list of URIs
+- Display current pres-rules on start of sip_subscribe_winfo script
+- print source of incomming NOTIFYs
+- rls_services_manager script
+- pres_rules_manager script
+- pidf_manipulation_manager script
+- add polite block to winfo pres-rules update
+- Handle multiple incomming sessions (waiting for the re-INVITE)
+- Conference established sessions
+- Handle 301/302 redirect by prompting the user to accept/reject the redirection
+- Combine msrp/rtp in one script
+- Documentation
 
  
 Applications
 ------------
 
-Play a soft beep tone while on hold every 30 seconds
-Play a beep after we closed a session
-
-Buddy list high-level library
-Enrollment
-Bonjour
-
-MSRP client library
-Conference-info payload
-Is-composing payload
-MWI payload
-Xcap-diff payload
-
-Lookup module for SIP (RFC3263), MSRP relay, ENUM, SIPThor
+- Non-blocking XCAP client library
+- Non-blocking MSRP client library
+- Conference-info payload
+- Is-composing payload
+- MWI payload
+- Xcap-diff payload
+- Buddylist library
+- Bonjour discovery
+- Lookup capabilities for SIP (RFC3263), MSRP relay and ENUM
+- Documentation
 
 
 Sessions
 --------
 
-Video over RTP using h.264 codec
-Real time text over RTP (RFC4103)
-Desktop sharing (VNC protocol)
+- Comfort noice generator
+- Video (H.264)
+- Real time text over RTP (RFC4103)
+- Desktop sharing (VNC protocol?)
+
+
+End-user experience
+-------------------
+
+- Play a soft beep tone while on hold every 30 seconds
+- Play a beep after we closed a session
+- Mute other applications during INVITE
+
+
+Enrollment 
+----------
+
+- End-point certificate generator
+- Account creation
+- UA-profile XCAP application
 
 
 Middleware
 ----------
 
-Notification bus
-Integration logic
-Logging
-Mute other applications during INVITE
-Environment detection: ambient and geo-location detection
+- Configuration framerwork based on ua-profile event package
+- Notification bus
+- Logging
+- Environment detection: ambient and geo-location detection
 
 
 User interfaces
 ---------------
 
-Stand-alone software library
-Command line clients
-Minimalist GUI for MacOSX, SIP client in a dock icon
-Full GUI for all supported OSs
+- Stand-alone software library
+- Command line clients
+- Minimalist GUI for MacOSX, SIP client in a dock icon
+- Full GUI for all supported OSs
 
 
 Packaging
 ---------
 
-MacOSX binaries
-MS Windows binaries
+- Python installer (done)
+- Debian packaging (done)
+- Fink packaging
+- Windows build
+- MacOSX installer
+- Windows installer
 
 
 Others
 ------
 
-Add doc strings to all classes and functions
-IPv6 support
-Survive local IP address changes
-P2PSIP overlay
+- Add doc strings to all classes and functions
+- IPv6 support
+- Survive local IP address changes
+- P2PSIP overlay
 

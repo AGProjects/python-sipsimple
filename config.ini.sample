@@ -5,11 +5,11 @@
 
 [General]
 ; User Agent name
-user_agent=pypjua
+user_agent=ag-project.com
 
 ; ip and port for SIP signalling
-local_ip=auto
-local_port=auto
+; 0.0.0.0 or any or ip:port or ip
+listen_udp=any
 
 ; publish presence on the LAN using multicast DNS, it appears as another
 ; active account in the user interface
