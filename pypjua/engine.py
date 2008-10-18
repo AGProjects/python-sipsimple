@@ -12,7 +12,7 @@ class Engine(object):
                              "local_port": None,
                              "auto_sound": True,
                              "ec_tail_length": 50,
-                             "user_agent": "ag-projects.com/pypjua",
+                             "user_agent": "ag-projects/sipclient",
                              "do_siptrace": False,
                              "sample_rate": 32,
                              "playback_dtmf": True,

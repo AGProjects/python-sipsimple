@@ -5,7 +5,8 @@
 
 [General]
 ; User Agent name
-user_agent=ag-project.com
+; software version will be automatically appended
+user_agent=ag-projects.com/sipclient
 
 ; ip and port for SIP signalling
 ; 0.0.0.0 or any or ip:port or ip
@@ -28,6 +29,12 @@ xcap_trace=false
 msrp_trace=false
 rtp_trace=false
 
+; history directory for saving audio sessions and IM chats
+history_directory=~/.sipclient/history
+
+; log directory
+log_directory=~/.sipclient/log
+
 
 [Audio]
 sample_rate=32
@@ -44,25 +51,21 @@ codec_list=h264
 
 [Account]
 
+; credentials used for authentication to the SIP Proxy, XCAP server, MSRP relay
+sip_address=
+password=
+
+; send all SIP messages through this proxy, can be a domain name, a hostname, an ip or ip:port
+outbound_proxy=
+
 ; Enable or disable this account
 active=true
 
 ; Display name in From header
 display_name=
 
-; credentials used for authentication to the SIP Proxy, XCAP server and MSRP
-; relay
-sip_address=
-password=
-
-; send all messages through this proxy 
-outbound_proxy=
-
 ; xcap root used to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
-
-; history directory for saving audio recordings etc.
-history_directory=~/.sipclient/history
 
 ; from whom to accept invitations for IM chat sessions
 im_allow_invitations_from=buddy_list|everyone
