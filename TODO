@@ -3,6 +3,7 @@ Python PJSIP bindings
 ---------------------
 
 - Concatenate the user_agent with the software version number
+- Add log of pjsip messages to a file, default is .sipclient/log/user@domain/pjsip.txt
 - Handle re-INVITEs and UPDATE
 - Return list of SIP headers of the response in the event handler
 - Means to query RTP statistics
@@ -25,6 +26,8 @@ Python PJSIP bindings
 Command line clients
 --------------------
 
+- Append pjsip messages to .sipclient/log/user@domain/pjsip.txt
+- Append SIP messages to .sipclient/log/user@domain/sip.txt
 - Publish service and status when starting/stopping rtp/msrp session script
 - Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
   other codes. For invite scripts the code is based on the response for the
@@ -82,6 +85,8 @@ End-user experience
 Enrollment 
 ----------
 
+- Create log directory on startup .sipclient/log/user@domain/
+- Create history directory on startup .sipclient/history/user@domain/
 - End-point certificate generator
 - Account creation
 - UA-profile XCAP application

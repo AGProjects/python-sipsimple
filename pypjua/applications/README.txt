@@ -102,15 +102,8 @@ alerting the user about the presence of voice messages stored on the
 voicemail server.
 
 
-lookup.py
-
-General purpose lookup tool for various network resources like sip
-registrar, msrp relay, stun server, thor home node.
-
-
 bonjour.py
 
 Maintains state of online neighbours using multicast DNS technology. Used
 for zero-conf functionality on the local LAN.
-
 
