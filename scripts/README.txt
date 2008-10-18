@@ -2,8 +2,7 @@
 Command line tools
 ------------------
 
-The following scripts are available to test the functionality of pypjua
-library:
+Several command line tools are available:
 
 sip_register
 sip_rtp_audio_session
@@ -12,13 +11,14 @@ sip_msrp_file_transfer
 sip_publish_presence
 sip_subscribe_presence
 sip_subscribe_winfo
+sip_subscribe_rls
 sip_message
 
 Some scripts can be used to setup audio (VoIP), interactive mesaging (IM)
 and file transfer sessions. Other scripts can be used to publish presence
-information and subscribe to presence or other type of event notifications.
-Running each script with --help argument displays the script capabilities
-and the required arguments.
+information and subscribe to presence or other type of events. Running each
+script with --help argument displays the script capabilities and the
+required arguments.
 
 You must have a SIP account in order to use these scripts. If you do not
 have a SIP account you may register one for free at: http://sip2sip.info

@@ -2,8 +2,6 @@
 Python Sip Client
 -----------------
 
-http://pypjua.com
-
 Copyright (c) 2008 AG Projects
 http://ag-projects.com
 
@@ -27,9 +25,32 @@ presence rules, resource lists, RLS services, rich PIDF and XCAP policy.
 The software library is tested against the most popular SIP server software
 available today: OpenSER, Asterisk, OpenXCAP, MSRPRelay and MediaProxy.
 
+Several command line tools are available for setting up real time voice, IM
+and file transfer sessions, publish and subscribe to presence or other type
+of events:
 
-Overview of SIP functionality
------------------------------
+- sip_register
+- sip_rtp_audio_session
+- sip_msrp_im_session
+- sip_msrp_file_transfer
+- sip_publish_presence
+- sip_subscribe_presence
+- sip_subscribe_winfo
+- sip_subscribe_rls
+- sip_message
+- xcap_rls_services
+- xcap_pres_rules
+- xcap_pidf_manipulation
+
+Some scripts can be used to setup audio (VoIP), interactive messaging (IM)
+and file transfer sessions. Other scripts can be used to publish presence
+information and subscribe to presence or other type of events. Running each
+script with --help argument displays the script capabilities and the
+required arguments.
+
+
+Overview of SIP and Presence functionality
+------------------------------------------
 
 From RFC 3261: "SIP is an application-layer control protocol that can
 establish, modify, and terminate multimedia sessions (conferences) such as
@@ -45,14 +66,27 @@ communications:
 
  - User location: determination of the end system to be used for
    communication;
+
  - User availability: determination of the willingness of the called party
    to engage in communications;
+
  - User capabilities: determination of the media and media parameters to be
    used;
+
  - Session setup: "ringing", establishment of session parameters at both
    called and calling party;
+
  - Session management: including transfer and termination of sessions,
    modifying session parameters, and invoking services. "
+
+
+Traditionally, Presence was defined as 'the willingness and ability of a
+user to communicate with other users on the network'. Presence today is much
+broader and is redefined by Dean Willis as 'dynamically updated information
+about the state of selected entities, where the information, states,
+selection, and dynamically of update are variable and appropriate for the
+application'. The software contains rich presence functionality not
+available today in other SIP solutions.
 
 
 End-user experiences
@@ -80,11 +114,11 @@ things possible with this library are listed here:
 Testing the library
 -------------------
 
-Besides the Python software library itself, the repository contains the
-ready to use command-line examples scripts that can be used to:
+Included with the distribution are a set of command-line tools that can be
+used to:
 
 - Setup IM or file-transfer sessions with or without support from a MSRP relay
-- Setup up VoIP sessions with high-quality wideband codecs
+- Setup up VoIP sessions with high-quality wideband codecs (speex)
 - Handle PUBLISH, SUBSCRIBE and NOTIFY messages for SIP events like
   presence, xcap-diff, watcher-info, conference and message-summary
 - Manage XCAP policy documents pres-rules, resource-lists, RLS-services and
