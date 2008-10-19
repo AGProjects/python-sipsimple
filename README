@@ -1,6 +1,6 @@
 
-Python Sip Client
------------------
+SipClient
+---------
 
 Copyright (c) 2008 AG Projects
 http://ag-projects.com
@@ -9,38 +9,36 @@ http://ag-projects.com
 Description
 -----------
 
-Python Sip Client is software library built on top of PJSIP that together
-with an elegant middleware allows for easy development of real-time
-communications Internet end-points based on SIP protocol with rich Presence,
-Interactive Messaging (IM) and File Transfer capabilities.
+SipClient is Python software library built on top of PJSIP that together
+with an elegant middleware allows for easy development of Client/Server or
+Peer-to-Peer Internet communications end-points based on SIP protocol with
+rich Presence, Interactive Messaging (IM) and File Transfer capabilities.
 
-The goal of this project is to deliver the best Open Source development kit
-for rich featured SIP User Agents, while hiding the complex underlying
-functionality behind an easy to use high-level application programming
-interface. Compared to other available SIP libraries, this project provides
-session based Interactive Messaging (IM) using MSRP protocol, multiple
-streams support and 'the missing' SIP-SIMPLE features for rich presence:
-presence rules, resource lists, RLS services, rich PIDF and XCAP policy.
+The goal of this project is to deliver the best Python based Open Source
+development kit for rich featured SIP User Agents, while hiding the complex
+underlying functionality behind an easy to use high-level application
+programming interface. Compared to other available SIP libraries, this
+project provides session based Interactive Messaging (IM) using MSRP
+protocol, multiple streams support and 'the missing' SIP-SIMPLE features for
+rich presence: presence rules, resource lists, RLS services, rich PIDF and
+XCAP policy.
 
 The software library is tested against the most popular SIP server software
-available today: OpenSER, Asterisk, OpenXCAP, MSRPRelay and MediaProxy.
+available today: OpenSIPs, Asterisk, OpenXCAP, MSRPRelay and MediaProxy.
 
 Several command line tools are available for setting up real time voice, IM
 and file transfer sessions, publish and subscribe to presence or other type
 of events:
 
-- sip_register
-- sip_rtp_audio_session
-- sip_msrp_im_session
-- sip_msrp_file_transfer
-- sip_publish_presence
-- sip_subscribe_presence
-- sip_subscribe_winfo
-- sip_subscribe_rls
-- sip_message
-- xcap_rls_services
-- xcap_pres_rules
-- xcap_pidf_manipulation
+ * sip_register - REGISTER a SIP end-point with a SIP REGISTRAR
+ * sip_rtp_audio_session - Setup a voice audio session (VoIP)
+ * sip_msrp_im_session - Setup an IM session using MSRP protocol
+ * sip_msrp_file_transfer - File Transfer session using MSRP protocol
+ * sip_message - Send text message in page mode using MESSAGE method
+ * sip_publish_presence - PUBLISH presence to a SIP Presence Agent
+ * sip_subscribe_presence - SUBSCRIBE to presence information
+ * sip_subscribe_winfo - SUBSCRIBE to watcher list on a SIP Presence Agent
+ * sip_subscribe_rls - SUBSCRIBE to lists managed by Resource List Server
 
 Some scripts can be used to setup audio (VoIP), interactive messaging (IM)
 and file transfer sessions. Other scripts can be used to publish presence
@@ -111,23 +109,11 @@ things possible with this library are listed here:
 - Interactive Messaging (IM) and File Transfer using MSRP protocol
 
 
-Testing the library
--------------------
+For testing the software, you can use your own infrastructure, an account
+from a SIP service provider or by registering a free SIP account at
+http://sip2sip.info
 
-Included with the distribution are a set of command-line tools that can be
-used to:
-
-- Setup IM or file-transfer sessions with or without support from a MSRP relay
-- Setup up VoIP sessions with high-quality wideband codecs (speex)
-- Handle PUBLISH, SUBSCRIBE and NOTIFY messages for SIP events like
-  presence, xcap-diff, watcher-info, conference and message-summary
-- Manage XCAP policy documents pres-rules, resource-lists, RLS-services and
-  pidf-manipulation
-- Setup up ad-hoc multi-party chat sessions with an MSRP chat server (under
-  construction)
-
-For testing, you can use your own infrastructure, an account from a SIP
-service provider or by registering a free SIP account at http://sip2sip.info
+For more information see the README.txt file in scripts directory.
 
 
 License
@@ -143,8 +129,17 @@ Installation
 See docs/INSTALL.* files
 
 
-Testing the software
---------------------
+Support
+-------
 
-See the README.txt file and the executables in the scripts directory.
+The project is supported via this wiki collaboration system provided at:
+
+http://pypjua.org
+
+To open ticket please Register first. The ticketing support system is
+available only for registered users. Please beware that the support is
+provided by the community on a best-effort basis.
+
+If you wish to contribute and become an active developer of this project,
+send your request by email to pypjua-devel@ag-projects.com.
 

@@ -2,14 +2,20 @@ Source: sipclient
 Section: net
 Priority: extra
 Maintainer: Lucian Stanescu <luci@ag-projects.com>
-Uploaders: Ruud Klaver <ruud@ag-projects.com>, Lucian Stanescu <luci@ag-projects.com>
+Uploaders: Ruud Klaver <ruud@ag-projects.com>, Lucian Stanescu <luci@ag-projects.com>, Adrian Georgescu <ag@ag-projects.com>
 Build-Depends: cdbs (>= 0.4.47), debhelper (>= 7), python-all-dev (>= 2.5), python-support, cython, build-essential, libasound2-dev
 Standards-Version: 3.8.0
-Homepage: http://pypjua.org
+Homepage: http://www.ag-projects.com/SipClient
 
 Package: sipclient
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.0.9), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib
 Provides: ${python:Provides}
-Description: Python SIP SIMPLE User Agent
+Description: Python SIP client
+ SipClient is Python software library built on top of PJSIP that together
+ with an elegant middleware allows for easy development of Client/Server or
+ Peer-to-Peer Internet communications end-points based on SIP protocol with
+ rich Presence, Interactive Messaging (IM) and File Transfer capabilities.
+ .
+ Homepage: http://ag-projects.com/SipClient
 XB-Python-Version: ${python:Versions}
