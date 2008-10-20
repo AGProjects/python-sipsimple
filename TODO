@@ -59,7 +59,9 @@ Applications
 - Xcap-diff payload
 - Buddylist library
 - Bonjour discovery
-- Lookup capabilities for SIP (RFC3263), MSRP relay and ENUM
+- Lookup capabilities for SIP (RFC3263)
+- Lookup for MSRP relay
+- Lookup for ENUM
 - Documentation
 
 
@@ -111,9 +113,10 @@ User interfaces
 Packaging
 ---------
 
+- Create fink description for python-xcaplib
 - Python installer (done)
 - Debian packaging (done)
-- Fink packaging
+- Fink packaging (done)
 - Windows build
 - MacOSX installer
 - Windows installer
