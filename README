@@ -10,25 +10,33 @@ Description
 -----------
 
 SipClient is Python software library built on top of PJSIP that together
-with an elegant middleware allows for easy development of Client/Server or
-Peer-to-Peer Internet communications end-points based on SIP protocol with
-rich Presence, Interactive Messaging (IM) and File Transfer capabilities.
+with an elegant middleware allows for easy development of Client/Server and
+Peer-to-Peer Internet communications end-points based on SIP SIMPLE
+protocols with rich Presence, Interactive Messaging (IM) and File Transfer
+capabilities.
 
-The goal of this project is to deliver the best Python based Open Source
-development kit for rich featured SIP User Agents, while hiding the complex
-underlying functionality behind an easy to use high-level application
-programming interface. Compared to other available SIP libraries, this
-project provides session based Interactive Messaging (IM) using MSRP
-protocol, multiple streams support and 'the missing' SIP-SIMPLE features for
-rich presence: presence rules, resource lists, RLS services, rich PIDF and
-XCAP policy.
+The goal of this project is to deliver the best Open Source Python library
+for rich featured SIP User Agents, while hiding the complex underlying
+functionality behind an easy to use high-level application programming
+interface. Compared to other available SIP libraries, this project provides
+beyond basic audio calls, multiple streams support for IM, voice and video
+sessions, Interactive Messaging (IM), file transfer and multi-party chat
+sessions using MSRP protocol, publication and subscription for rich presence
+information (RPIDF), management for presence rules, resource lists, RLS
+services using XCAP protocol.
 
-The software library is tested against the most popular SIP SIMPLE server
-software available today: OpenSIPs, OpenXCAP and MSRPRelay.
 
-Several command line tools are available for setting up real time voice, IM
-and file transfer sessions, publish and subscribe to presence or other type
-of events:
+Testing
+-------
+
+This SIP SIMPLE software library has been closely developed together with
+and tested against the most popular SIP SIMPLE server software available
+today: OpenSIPs from http://opensips.org, OpenXCAP from http://openxcap.org
+and MSRPRelay from http://msrprelay.org.
+
+With the library, a set of command line tools are available for setting up
+real time voice, IM and file transfer sessions, publish and subscribe to
+presence or other type of events:
 
  * sip_register - REGISTER a SIP end-point with a SIP REGISTRAR
  * sip_rtp_audio_session - Setup a voice audio session (VoIP)
