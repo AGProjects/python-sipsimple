@@ -1,0 +1,43 @@
+Info2: <<
+Package: python-application-py%type_pkg[python]
+Version: 1.0.9
+Revision: 1
+Distribution: (%type_pkg[python] = 23) 10.3, (%type_pkg[python] = 23) 10.4, (%type_pkg[python] = 24) 10.4
+Type: python (2.3 2.4 2.5)
+Description: Basic building blocks for python applications
+License: LGPL
+Maintainer: Dan Pascu <dan@ag-projects.com>
+
+# Dependencies:
+Depends: python%type_pkg[python], twisted2-py%type_pkg[python]
+
+# Unpack Phase:
+Source: http://pypi.python.org/packages/source/p/python-application/python-application-%v.tar.gz
+Source-MD5: 9693525f25cd4597b300db31a074b613
+
+# Compile Phase:
+CompileScript: python%type_raw[python] setup.py build
+
+# Install Phase:
+InstallScript: python%type_raw[python] setup.py install --root=%d
+DocFiles: README
+
+# Additional Info:
+DescDetail: <<
+This package is a collection of modules that are useful when building python
+applications. Their purpose is to eliminate the need to divert resources into
+implementing the small tasks that every application needs to do in order to run
+successfully and focus instead on the application logic itself.
+
+The modules that the application package provides are:
+
+   1. process - UNIX process and signal management.
+   2. python - python utility classes and functions.
+   3. configuration - a simple interface to handle configuration files.
+   4. log - an extensible system logger for console and syslog.
+   5. debug - memory troubleshooting and execution timing.
+   6. system - interaction with the underlying operating system.
+<<
+Homepage: http://ag-projects.com/
+
+<<
