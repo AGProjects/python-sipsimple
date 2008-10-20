@@ -23,8 +23,8 @@ protocol, multiple streams support and 'the missing' SIP-SIMPLE features for
 rich presence: presence rules, resource lists, RLS services, rich PIDF and
 XCAP policy.
 
-The software library is tested against the most popular SIP server software
-available today: OpenSIPs, Asterisk, OpenXCAP, MSRPRelay and MediaProxy.
+The software library is tested against the most popular SIP SIMPLE server
+software available today: OpenSIPs, OpenXCAP and MSRPRelay.
 
 Several command line tools are available for setting up real time voice, IM
 and file transfer sessions, publish and subscribe to presence or other type
