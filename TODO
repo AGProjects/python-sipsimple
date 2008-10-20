@@ -2,8 +2,6 @@
 Python PJSIP bindings
 ---------------------
 
-- Concatenate the user_agent with the software version number
-- Add log of pjsip messages to a file, default is .sipclient/log/user@domain/pjsip.txt
 - Handle re-INVITEs and UPDATE
 - Return list of SIP headers of the response in the event handler
 - Means to query RTP statistics
