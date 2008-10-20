@@ -1,6 +1,6 @@
 
-Fink installation
------------------
+A. Fink installation
+--------------------
 
 A ready to install fink package is available for MacOSX 10.5 (Leopard) on an
 Intel architecture.
@@ -19,8 +19,8 @@ sudo apt-get update
 sudo apt-get install sipclient
 
 
-Building from sources
----------------------
+B. Building from sources
+------------------------
 
 The installation procedure includes 4 steps described below:
 
@@ -93,8 +93,41 @@ The command line tools are installed in the system executable path and
 starting with sip_.
 
 
-Building the fink package
--------------------------
+C. Building the fink package
+----------------------------
 
-To be written.
+The software works on MacOSx 10.5 or newer on Intel CPUs only. You must have
+installed the Apple Developer tools before proceeding to the next steps.
+
+Download and install fink from http://www.finkproject.org
+
+sudo fink configure
+
+Activate the "unstable" tree and select an appropriate set of mirrors.
+
+Go to fink directory, edit the versions of the changed packages and their
+md5 checksums then copy the package descriptions to local fink directory.
+
+sudo cp fink/*.info /sw/fink/dists/local/main/finkinfo/
+
+fink index
+
+Build the packages:
+
+fink -m --build-as-nobody rebuild dnspython-py25
+fink -m --build-as-nobody rebuild python-application-py25 
+fink -m --build-as-nobody rebuild sipclient
+
+The fink package are created in:
+
+/sw/fink/dists/local/main/binary-darwin-i386/*.deb
+
+Install the package:
+
+fink install sipclient
+
+Check the installed packages:
+
+fink list sipclient  dnspython-py25 python-application-py25
+
 

@@ -9,7 +9,7 @@ License: GPL
 Maintainer: Ruud Klaver <ruud@ag-projects.com>
 
 # Dependencies:
-Depends: python25, dnspython-py25, lxml-py25, python-application-py25
+Depends: python25, dnspython-py25, lxml-py25, python-application-py25, setuptools-py25
 
 # Unpack Phase:
 Source: http://download.ag-projects.com/SipClient/sipclient_%v.tar.gz
@@ -35,7 +35,11 @@ DocFiles: README
 
 # Additional Info:
 DescDetail: <<
-Python SIP client based on PJSIP....
+SipClient is Python software library built on top of PJSIP that together
+with an elegant middleware allows for easy development of Client/Server and
+Peer-to-Peer Internet communications end-points based on SIP SIMPLE
+protocols with rich Presence, Interactive Messaging (IM) and File Transfer
+capabilities.
 <<
 Homepage: http://ag-projects.com/
 
