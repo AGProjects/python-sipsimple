@@ -3,22 +3,23 @@ Debian installation
 -------------------
 
 For Debian testing or unstable on an i386 architecture there is an official
-public repository provided by AG Projects. Install the AG Projects debian
-software signing key:
+public repository provided by AG Projects. 
 
-wget http://download.ag-projects.com/agp-debian-gpg.key apt-key add
-agp-debian-gpg.key
+Install the AG Projects debian software signing key:
 
-Add these lines in etc/apt/sources.list
+wget http://download.ag-projects.com/agp-debian-gpg.key 
+sudo apt-key add agp-debian-gpg.key
+
+Add these lines at the end of etc/apt/sources.list
 
 # AG Projects software
 deb http://ag-projects.com/debian unstable main
 deb-src http://ag-projects.com/debian unstable main
 
-After that, run:
+Then install the software:
 
-apt-get update
-apt-get install sipclient
+sudo apt-get update
+sudo apt-get install sipclient
 
 
 Building from sources

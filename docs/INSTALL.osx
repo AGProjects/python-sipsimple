@@ -1,10 +1,42 @@
-Install dependencies
---------------------
+
+Fink installation
+-----------------
+
+A ready to install fink package is available for MacOSX 10.5 (Leopard) on an
+Intel architecture.
+
+First download and install fink from http://www.finkproject.org
+
+Add these lines at the end of /sw/etc/apt/sources.list:
+
+deb http://download.ag-projects.com/fink local main
+deb http://download.ag-projects.com/fink stable main crypto
+deb http://download.ag-projects.com/fink unstable main crypto
+
+Then install the software:
+
+sudo apt-get update 
+sudo apt-get install sipclient
+
+
+Building from sources
+---------------------
+
+The installation procedure includes 4 steps described below:
+
+Step 1. Install dependencies
+Step 2. Compile PJSIP C library
+Step 3. Build the Python library
+Step 4. Install the library system wide
+
+
+Step 1. Install dependencies
+----------------------------
 
 The software works on MacOSx 10.5 or newer on Intel CPUs only. You must have
 installed the Apple Developer tools before proceeding to the next steps.
 
-Install fink from http://www.finkproject.org/download
+First download and install fink from http://www.finkproject.org
 
 Install libxml2 and libxslt (you may need to open a new console for the new
 PATH settings to take effect):
@@ -26,48 +58,43 @@ Install the python-xcaplib library from:
 http://download.ag-projects.com/OpenXCAP/clients/
 
 
-Compile PJSIP library
----------------------
+Step 2. Compile PJSIP C library
+-------------------------------
 
-Check out PJSIP from SVN in the pypjua main directory:
+Check out the PJSIP project in the pypjua main directory:
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-Compile pjsip C library (after changing the UDP message limit to 64K):
+Go to the PJSIP directory and compile it (after changing the UDP message limit to 64K):
 
 cd pjsip
 grep  PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
 make distclean
-CFLAGS="-arch i386" ./configure
+./configure
 make
 
 
-Building pypjua library
------------------------
+Step 3. Build the Python library
+--------------------------------
 
-Go to the main pypjua directory and build the library:
+Go to the main pypjua directory and build the library by running:
 
-cd..
-./build_inplace
-
-which generates:
-
-pypjua/_pjsip.c    
-pypjua/_pjsip.so
-
-The _pjsip.so library can then be imported in the target software. 
+sh ./build_inplace
 
 
-Installing the library
-----------------------
+Step 4. Install the library system wide
+---------------------------------------
 
-To install system-wide the library and the sample scripts run:
+To install the library and the command line tools system wide:
 
 sudo python setup.py install
 
+The command line tools are installed in the system executable path and
+starting with sip_.
 
-Testing the library
--------------------
 
-See README.txt in the scripts directory directory.
+Building the fink package
+-------------------------
+
+To be written.
 
