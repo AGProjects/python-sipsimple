@@ -25,7 +25,7 @@ def verify_account_config():
             print >>f, "password = alice's_pass"
             print >>f, "display_name = Alice"
             print >>f, ";outbound_proxy = sip.example.com"
-            print >>f, ";presence = True"
+            print >>f, ";use_presence_agent = True"
             print >>f, ";xcap_root = https://xcap.example.com/xcap-root"
             f.close()
             sys.exit(0)
