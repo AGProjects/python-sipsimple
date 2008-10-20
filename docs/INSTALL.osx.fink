@@ -1,23 +1,36 @@
-Installing from fink
---------------------
 
-PyPJUA is available as a fink package. The following steps describe how to
-install fink on OS X and obtain the PyPJUA package from the AG Projects
-repository.
+Installing SipClient using Fink
+------------------------------
 
-- Download the fink installer .dmg from:
-    http://www.finkproject.org/download/index.php
-- Mount the .dmg and run the installer.
-- Open a terminal and run "sudo fink configure". Make sure to activate the
+SipClient can be installed on MacOSX 10.5 (Leopard) as a fink package. The
+following steps describe how to install fink on MacOSX and obtain the
+SipClient package from the AG Projects repository.
+
+1. Download the fink installer .dmg from:
+   http://www.finkproject.org/download/index.php
+
+2. Mount the .dmg and run the installer.
+
+3. Open a terminal and run "sudo fink configure". Make sure to activate the
   "unstable" tree and select an appropriate set of mirrors.
-- Edit /sw/etc/fink.conf and set "SelfUdpateMethod: rsync".
-- Edit /sw/etc/apt/sources.list and add the following lines:
-    deb http://download.ag-projects.com/fink local main
-    deb http://download.ag-projects.com/fink stable main crypto
-    deb http://download.ag-projects.com/fink unstable main crypto
-- Download the fink .info files for the additional packages by executing the
-  following command:
-    cd /sw/fink/dists/local/main/finkinfo/; for pkg in dnspython-py python-application-py sipclient; do sudo curl -O http://download.ag-projects.com/fink/dists/local/main/finkinfo/${pkg}.info; done
-- Update your fink installation by running "sudo fink selfupdate".
-- Install the PyPJUA package by running "sudo fink install sipclient". Choose
-  the "db44-aes-shlibs" package when presented with the choice.
+
+4. Edit /sw/etc/fink.conf and set "SelfUdpateMethod: rsync".
+
+5. Edit /sw/etc/apt/sources.list and add the following lines:
+
+deb http://download.ag-projects.com/fink local main
+deb http://download.ag-projects.com/fink stable main crypto
+deb http://download.ag-projects.com/fink unstable main crypto
+
+6. Download the fink .info files for the additional packages by executing the following command:
+
+cd /sw/fink/dists/local/main/finkinfo/; \
+for pkg in dnspython-py python-application-py sipclient; do \
+sudo curl -O http://download.ag-projects.com/fink/dists/local/main/finkinfo/${pkg}.info; \
+done
+
+7. Update your fink installation by running "sudo fink selfupdate".
+
+8. Install the PyPJUA package by running "sudo fink install sipclient". Choose
+   the "db44-aes-shlibs" package when presented with the choice.
+
