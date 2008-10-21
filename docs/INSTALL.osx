@@ -37,10 +37,10 @@ installed the Apple Developer tools before proceeding to the next steps.
 
 First download and install fink from http://www.finkproject.org
 
-Install libxml2 and libxslt (you may need to open a new console for the new
-PATH settings to take effect):
+You need to open a new console for the new PATH settings to take effect.
 
-sudo fink install libxml2 libxslt
+sudo apt-get install libxml2 libxslt
+sudo easy_install setuptools
 sudo easy_install lxml
 sudo easy_install cython
 sudo easy_install python-application
@@ -101,7 +101,15 @@ sudo fink configure
 
 Activate the "unstable" tree and select an appropriate set of mirrors.
 
-Go to fink directory, edit the versions of the changed packages and their
+Set in /sw/etc/fink.conf:
+
+SelfUpdateMethod: rsync
+
+fink selfupdate
+
+fink install lxml-py25 setuptools-py25 twisted2-py25
+
+Go to pypjua/fink directory, edit the versions of the changed packages and their
 md5 checksums then copy the package descriptions to local fink directory.
 
 sudo cp fink/*.info /sw/fink/dists/local/main/finkinfo/
@@ -112,6 +120,7 @@ Build the packages:
 
 fink -m --build-as-nobody rebuild dnspython-py25
 fink -m --build-as-nobody rebuild python-application-py25 
+fink -m --build-as-nobody rebuild python-xcaplib-py25
 fink -m --build-as-nobody rebuild sipclient
 
 The fink package are created in:
