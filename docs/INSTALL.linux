@@ -1,9 +1,9 @@
 
-Debian installation
--------------------
+A. Debian installation
+----------------------
 
 For Debian testing or unstable on an i386 architecture there is an official
-public repository provided by AG Projects. 
+public repository provided by AG Projects.
 
 Install the AG Projects debian software signing key:
 
@@ -22,8 +22,8 @@ sudo apt-get update
 sudo apt-get install sipclient
 
 
-Building from sources
----------------------
+B. Installation from sources
+----------------------------
 
 The installation procedure includes 4 steps described below:
 
@@ -99,7 +99,6 @@ make HOST_CFLAGS=-fPIC
 
 
 Step 3. Build the Python library
---------------------------------
 
 Go to the main pypjua directory and build the library by running:
 
@@ -107,7 +106,6 @@ sh ./build_inplace
 
 
 Step 4. Install the library system wide
----------------------------------------
 
 To install the library and the command line tools system wide:
 
@@ -117,8 +115,8 @@ The command line tools are installed in the system executable path and
 starting with sip_.
 
 
-Building the Debian package
----------------------------
+C. Building the Debian package
+------------------------------
 
 You need the following packages before trying to build a debian package:
 

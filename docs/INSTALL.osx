@@ -19,8 +19,8 @@ sudo apt-get update
 sudo apt-get install sipclient
 
 
-B. Building from sources
-------------------------
+B. Installation from sources
+----------------------------
 
 The installation procedure includes 4 steps described below:
 
@@ -31,7 +31,6 @@ Step 4. Install the library system wide
 
 
 Step 1. Install dependencies
-----------------------------
 
 The software works on MacOSx 10.5 or newer on Intel CPUs only. You must have
 installed the Apple Developer tools before proceeding to the next steps.
@@ -59,7 +58,6 @@ http://download.ag-projects.com/OpenXCAP/clients/
 
 
 Step 2. Compile PJSIP C library
--------------------------------
 
 Check out the PJSIP project in the pypjua main directory:
 
@@ -75,7 +73,6 @@ make
 
 
 Step 3. Build the Python library
---------------------------------
 
 Go to the main pypjua directory and build the library by running:
 
@@ -83,7 +80,6 @@ sh ./build_inplace
 
 
 Step 4. Install the library system wide
----------------------------------------
 
 To install the library and the command line tools system wide:
 
@@ -122,12 +118,11 @@ The fink package are created in:
 
 /sw/fink/dists/local/main/binary-darwin-i386/*.deb
 
-Install the package:
+Check if the package can be installed:
 
 fink install sipclient
 
 Check the installed packages:
 
-fink list sipclient  dnspython-py25 python-application-py25
-
+fink list sipclient dnspython-py25 python-application-py25
 
