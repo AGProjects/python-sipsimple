@@ -9,9 +9,9 @@ First download and install fink from http://www.finkproject.org
 
 Add these lines at the end of /sw/etc/apt/sources.list:
 
-deb http://download.ag-projects.com/fink local main
-deb http://download.ag-projects.com/fink stable main crypto
-deb http://download.ag-projects.com/fink unstable main crypto
+deb http://ag-projects.com/fink local main
+deb http://ag-projects.com/fink stable main crypto
+deb http://ag-projects.com/fink unstable main crypto
 
 Then install the software:
 
