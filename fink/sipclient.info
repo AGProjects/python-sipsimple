@@ -9,7 +9,7 @@ License: GPL
 Maintainer: Ruud Klaver <ruud@ag-projects.com>
 
 # Dependencies:
-Depends: python25, dnspython-py25, lxml-py25, python-application-py25, python-xcaplib-py25
+Depends: python25, dnspython-py25, lxml-py25, python-application-py25, python-xcaplib-py25, setuptools-py25
 
 # Unpack Phase:
 Source: http://download.ag-projects.com/SipClient/sipclient_%v.tar.gz
@@ -31,7 +31,7 @@ python2.5 setup.py build
 <<
 # Install Phase:
 InstallScript: python2.5 setup.py install --root=%d
-DocFiles: README AUTHORS docs/* debian/changelog
+DocFiles: README AUTHORS docs/* debian/changelog config.ini.sample
 
 # Additional Info:
 DescDetail: <<
