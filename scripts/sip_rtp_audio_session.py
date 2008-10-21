@@ -223,6 +223,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                 inv = None
             if command == "user_input":
                 if inv is not None:
+                    data = data[0]
                     if data.lower() == "h":
                         command = "end"
                         want_quit = target_username is not None

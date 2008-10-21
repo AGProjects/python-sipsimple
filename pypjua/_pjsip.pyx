@@ -2616,7 +2616,7 @@ cdef class AudioStream:
         cdef pj_str_t c_digit
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
-        if len(digit) != 1 and digit not in "0123456789*#ABCD":
+        if len(digit) != 1 or digit not in "0123456789*#ABCD":
             raise RuntimeError("Not a valid DTMF digit: %s" % digit)
         str_to_pj_str(digit, &c_digit)
         status = pjmedia_stream_dial_dtmf(self.c_stream, &c_digit)
