@@ -628,7 +628,7 @@ def parse_outbound_proxy(option, opt_str, value, parser):
 
 def parse_options():
     retval = {}
-    description = "This example script will publish the rich presence state of the specified SIP account based on a menu-driven interface."
+    description = "This script will publish rich presence state of the specified SIP account to a SIP Presence Agent, the presence information can be changed using a menu-driven interface."
     usage = "%prog [options]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help

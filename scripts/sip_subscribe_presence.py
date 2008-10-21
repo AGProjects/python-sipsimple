@@ -410,7 +410,7 @@ def parse_outbound_proxy(option, opt_str, value, parser):
 
 def parse_options():
     retval = {}
-    description = "This example script will use the specified SIP account to SUBSCRIBE to the presence event published by the specified presentity. If a presentity address is not specified, it will subscribe to the account's own presence. It will then interprete PIDF bodies contained in NOTIFYs and display their meaning. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
+    description = "This script will use SUBSCRIBE to the presence event published by the specified SIP address. If a SIP address is not specified, it will subscribe to its own presence. It will then interprete PIDF bodies contained in NOTIFYs and display their meaning. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
     usage = "%prog [options] [presentity@presentity-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help

@@ -142,7 +142,7 @@ def parse_outbound_proxy(option, opt_str, value, parser):
 
 def parse_options():
     retval = {}
-    description = "This example script will register the provided SIP account and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
+    description = "This script will register a SIP account to a SIP registrar and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
     usage = "%prog [options]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help

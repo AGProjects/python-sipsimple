@@ -561,7 +561,7 @@ def parse_outbound_proxy(option, opt_str, value, parser):
 
 def parse_options():
     retval = {}
-    description = "This example script will REGISTER using the specified credentials and either sit idle waiting for an incoming MSRP file transfer, or attempt to send the specified file over MSRP to the specified target. The program will close the session and quit when the file transfer is done or CTRL+D is pressed."
+    description = "This script will ither sit idle waiting for an incoming MSRP file transfer, or send the specified file to the specified SIP target. The program will close the session and quit when the file transfer is done or CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com file]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
