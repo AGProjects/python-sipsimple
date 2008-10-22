@@ -19,11 +19,17 @@ The goal of this project is to deliver the best Open Source Python library
 for rich featured SIP User Agents, while hiding the complex underlying
 functionality behind an easy to use high-level application programming
 interface. Compared to other available SIP libraries, this project provides
-beyond basic audio calls, multiple streams support for IM, voice and video
-sessions, Interactive Messaging (IM), file transfer and multi-party chat
-sessions using MSRP protocol, publication and subscription for rich presence
-information (RPIDF), management for presence rules, resource lists, RLS
-services using XCAP protocol.
+beyond basic audio calls, session based Interactive Messaging (IM) combined
+with voice and video sessions, file transfer and multi-party chat sessions
+using MSRP protocol, publication and subscription for rich presence
+information like availability, moods, activities and geo-location,
+management for presence rules, resource lists, RLS services using XCAP
+protocol.
+
+Shortly said, this software allows you to create elegant real-time
+communications applications without having to read the +1200 RFC documents
+behind it. If you read them all, some antidepressant and desintoxication is
+recommended after this effort.
 
 
 Testing

@@ -113,10 +113,10 @@ User interfaces
 Packaging
 ---------
 
-- Create fink description for python-xcaplib
 - Python installer (done)
-- Debian packaging (done)
 - Fink packaging (done)
+- Debian packaging for i386
+- Debian packaging for 64 bit architectures
 - Windows build
 - MacOSX installer
 - Windows installer
