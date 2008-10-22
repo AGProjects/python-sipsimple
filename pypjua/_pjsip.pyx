@@ -2991,7 +2991,7 @@ cdef class Invitation:
                 c_sdp_streams = [c_reject_sdp(remote_sdp.media[c_index]) for c_index in range(remote_sdp.c_obj.media_count)]
                 for c_stream in c_streams:
                     c_sdp_streams[c_stream.c_sdp_index] = c_stream._get_local_sdp()
-                local_sdp = SDPSession(c_host, connection=SDPConnection(c_host), media=[c_stream._get_local_sdp() for c_stream in c_streams], start_time=remote_sdp.c_obj.time.start, stop_time=remote_sdp.c_obj.time.stop)
+                local_sdp = SDPSession(c_host, connection=SDPConnection(c_host), media=c_sdp_streams, start_time=remote_sdp.c_obj.time.start, stop_time=remote_sdp.c_obj.time.stop)
             else:
                 c_sdp_streams = []
                 for c_index, c_stream in enumerate(c_streams):
