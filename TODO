@@ -46,7 +46,8 @@ Command line clients
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
 - Combine msrp/rtp in one script
 - Documentation
-
+- make sip_register exit after n number of successful REGISTERs (default 1)
+- toggle logging at runtime
  
 Applications
 ------------
