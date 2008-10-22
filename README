@@ -29,10 +29,10 @@ services using XCAP protocol.
 Testing
 -------
 
-This SIP SIMPLE software library has been closely developed together with
-and tested against the most popular SIP SIMPLE server software available
-today: OpenSIPs from http://opensips.org, OpenXCAP from http://openxcap.org
-and MSRPRelay from http://msrprelay.org.
+SIP SIMPLE client is closely developed together with and tested against the
+most popular SIP SIMPLE server software available today: OpenSIPs from
+http://opensips.org, OpenXCAP from http://openxcap.org and MSRPRelay from
+http://msrprelay.org.
 
 With the library, a set of command line tools are available for setting up
 real time voice, IM and file transfer sessions, publish and subscribe to
@@ -47,12 +47,16 @@ presence or other type of events:
  * sip_subscribe_presence - SUBSCRIBE to presence information
  * sip_subscribe_winfo - SUBSCRIBE to watcher list on a SIP Presence Agent
  * sip_subscribe_rls - SUBSCRIBE to lists managed by Resource List Server
+ * xcapclient - Manage presence policy and buddy lists on an XCAP server
 
 Some scripts can be used to setup audio (VoIP), interactive messaging (IM)
 and file transfer sessions. Other scripts can be used to publish presence
 information and subscribe to presence or other type of events. Running each
 script with --help argument displays the script capabilities and the
 required arguments.
+
+For testing, you can use your own infrastructure or register a free SIP
+SIMPLE account on http://SIP2SIP.info
 
 
 Overview of SIP and Presence functionality
