@@ -305,17 +305,17 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
         
         if xcap_root is not None:
             xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password, auth=None)
-        print 'Fetching current rules'
+        print 'Retrieving current presence rules from %s' % xcap_root
         get_prules()
-        print 'Allowed watchers:'
+        print 'Allowed list:'
         if allow_rule_identities is not None:
             for identity in allow_rule_identities:
                 print '\t%s' % identity
-        print 'Blocked watchers:'
+        print 'Blocked list:'
         if block_rule_identities is not None:
             for identity in block_rule_identities:
                 print '\t%s' % identity
-        print 'Polite-blocked watchers:'
+        print 'Polite-blocked list:'
         if polite_block_rule_identities is not None:
             for identity in polite_block_rule_identities:
                 print '\t%s' % identity
@@ -328,25 +328,25 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
             if command == "print":
                 print data
                 if len(pending) > 0:
-                    print "Authorize %s watcher %s to view your presence? (y/n/p)" % (pending[0].status, pending[0])
+                    print "%s watcher %s wants to subscribe to your presence information. Press (a) to allow, (d) to deny, (p) to polite block:" % (pending[0].status, pending[0])
             if command == "pypjua_event":
                 event_name, args = data
             if command == "user_input":
                 key = data
                 if len(pending) > 0:
-                    if key == 'y':
+                    if key == 'a':
                         watcher = pending.popleft()
                         allow_watcher(watcher)
-                    elif key == 'n':
+                    elif key == 'd':
                         watcher = pending.popleft()
                         block_watcher(watcher)
                     elif key == 'p':
                         watcher = pending.popleft()
                         polite_block_watcher(watcher)
                     else:
-                        print "Please answer yes, no or polite-block"
+                        print "Please select a valid choice. Press (a) to allow, (d) to deny, (p) to polite block"
                     if len(pending) > 0:
-                        print "Authorize %s watcher %s to view your presence (yes, no or polite-block)? (y/n/p)" % (pending[0].status, pending[0])
+                        print "%s watcher %s wants to subscribe to your presence information. Press (a) to allow, (d) to deny, (p) to polite block:" % (pending[0].status, pending[0])
             if command == "eof":
                 command = "end"
                 want_quit = True
