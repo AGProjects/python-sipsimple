@@ -76,6 +76,8 @@ allow_rule = None
 allow_rule_identities = None
 block_rule = None
 block_rule_identities = None
+polite_block_rule = None
+polite_block_rule_identities = None
 
 def get_prules():
     global prules, prules_etag, allow_rule, block_rule, allow_rule_identities, block_rule_identities
@@ -119,6 +121,13 @@ def get_prules():
                                         if isinstance(condition, Identity):
                                             block_rule = rule
                                             block_rule_identities = condition
+                                            break
+                            elif action == 'polite-block':
+                                if rule.conditions is not None:
+                                    for condition in rule.conditions:
+                                        if isinstance(condition, Identity):
+                                            polite_block_rule = rule
+                                            polite_block_rule_identities = condition
                                             break
                             break
 
@@ -174,6 +183,32 @@ def block_watcher(watcher):
         sleep(0.1)
     else:
         print "Could not deny authorization of watcher %s" % watcher
+
+def polite_block_watcher(watcher):
+    global prules, prules_etag, polite_block_rule, polite_block_rule_identities
+    for i in xrange(3):
+        if prules is None:
+            get_prules()
+        if prules is not None:
+            if polite_block_rule is None:
+                polite_block_rule_identities = Identity()
+                polite_block_rule = Rule('pres_polite_blacklist', conditions=Conditions([block_rule_identities]), actions=Actions([SubHandling('polite-block')]),
+                        transformations=Transformations())
+                prules.append(polite_block_rule)
+            if str(watcher) not in polite_block_rule_identities:
+                polite_block_rule_identities.append(IdentityOne(str(watcher)))
+            try:
+                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
+            except HTTPError, e:
+                print "Cannot PUT 'pres-rules' document: %s" % str(e)
+                prules = None
+            else:
+                prules_etag = res.etag
+                print "Watcher %s is now politely blocked" % watcher
+                break
+        sleep(0.1)
+    else:
+        print "Could not politely block authorization of watcher %s" % watcher
 
 def handle_winfo(result):
     buf = ["Received NOTIFY:", "----"]
@@ -277,7 +312,7 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
             if command == "print":
                 print data
                 if len(pending) > 0:
-                    print "Authorize %s watcher %s to view your presence? (y/n)" % (pending[0].status, pending[0])
+                    print "Authorize %s watcher %s to view your presence? (y/n/p)" % (pending[0].status, pending[0])
             if command == "pypjua_event":
                 event_name, args = data
             if command == "user_input":
@@ -289,10 +324,13 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
                     elif key == 'n':
                         watcher = pending.popleft()
                         block_watcher(watcher)
+                    elif key == 'p':
+                        watcher = pending.popleft()
+                        polite_block_watcher(watcher)
                     else:
-                        print "Please answer yes or no"
+                        print "Please answer yes, no or polite-block"
                     if len(pending) > 0:
-                        print "Authorize %s watcher %s to view your presence? (y/n)" % (pending[0].status, pending[0])
+                        print "Authorize %s watcher %s to view your presence (yes, no or polite-block)? (y/n/p)" % (pending[0].status, pending[0])
             if command == "eof":
                 command = "end"
                 want_quit = True
@@ -402,7 +440,7 @@ def parse_options():
         print "Using default account: %s" % options.sip_address
     else:
         print "Using account '%s': %s" % (options.account_name, options.sip_address)
-    
+
     return retval
 
 def main():
