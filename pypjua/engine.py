@@ -3,7 +3,7 @@ from thread import start_new_thread, allocate_lock
 
 from application.python.util import Singleton
 
-from pypjua._pjsip import PJSIPUA
+from pypjua._pjsip import PJSIPUA, PJ_VERSION
 from pypjua import __version__
 
 class Engine(object):
@@ -13,7 +13,7 @@ class Engine(object):
                              "local_port": None,
                              "auto_sound": True,
                              "ec_tail_length": 50,
-                             "user_agent": "ag-projects/sipclient-%s" % __version__,
+                             "user_agent": "ag-projects/sipclient-%s-pjsip-%s" % (__version__, PJ_VERSION),
                              "do_siptrace": False,
                              "sample_rate": 32,
                              "playback_dtmf": True,

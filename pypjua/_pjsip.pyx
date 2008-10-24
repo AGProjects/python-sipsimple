@@ -25,6 +25,9 @@ cdef extern from "pjlib.h":
     int pj_init()
     void pj_shutdown()
 
+    # version
+    char *pj_get_version()
+
     # string
     char *pj_create_random_string(char *str, unsigned int length)
     struct pj_str_t:
@@ -3183,6 +3186,7 @@ cdef list c_get_clear_event_queue():
         free(event_free)
     return events
 
+PJ_VERSION = pj_get_version()
 cdef void *_ua = NULL
 cdef pj_mutex_t *_event_queue_lock = NULL
 cdef pypjua_event *_event_queue_head = NULL
