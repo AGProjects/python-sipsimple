@@ -302,8 +302,24 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
         sip_uri = SIPURI(user=username, host=domain, display=display_name)
         sub = Subscription(Credentials(sip_uri, password), sip_uri, 'presence.winfo', route=route, expires=expires)
         winfo = WatcherInfo()
+        
         if xcap_root is not None:
             xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password, auth=None)
+        print 'Fetching current rules'
+        get_prules()
+        print 'Allowed watchers:'
+        if allow_rule_identities is not None:
+            for identity in allow_rule_identities:
+                print '\t%s' % identity
+        print 'Blocked watchers:'
+        if block_rule_identities is not None:
+            for identity in block_rule_identities:
+                print '\t%s' % identity
+        print 'Polite-blocked watchers:'
+        if polite_block_rule_identities is not None:
+            for identity in polite_block_rule_identities:
+                print '\t%s' % identity
+    
         print 'Subscribing to "%s@%s" for the presence.winfo event, at %s:%d' % (sip_uri.user, sip_uri.host, route.host, route.port)
         sub.subscribe()
         
