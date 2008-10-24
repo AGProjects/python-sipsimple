@@ -35,18 +35,15 @@ Command line clients
   scripts, used for scripting alarms
 - Add option to log the output of the scripts to a log file or syslog
 - sip_subscribe_presence to a list of URIs
-- Display current pres-rules on start of sip_subscribe_winfo script
 - print source of incomming NOTIFYs
 - xcap_rls_services script
 - xcap_pres_rules script
 - xcap_pidf_manipulation script
-- add polite block to winfo pres-rules update
 - Handle multiple incomming sessions (waiting for the re-INVITE)
 - Conference established sessions
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
 - Combine msrp/rtp in one script
 - Documentation
-- make sip_register exit after n number of successful REGISTERs (default 1)
 - toggle logging at runtime
  
 Applications
