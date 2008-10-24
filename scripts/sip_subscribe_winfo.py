@@ -152,11 +152,11 @@ def allow_watcher(watcher):
                 prules = None
             else:
                 prules_etag = res.etag
-                print "Watcher %s is now authorized" % watcher
+                print "Watcher %s is now allowed" % watcher
                 break
         sleep(0.1)
     else:
-        print "Could not authorized watcher %s" % watcher
+        print "Could not allow watcher %s" % watcher
 
 def block_watcher(watcher):
     global prules, prules_etag, block_rule, block_rule_identities
@@ -178,11 +178,11 @@ def block_watcher(watcher):
                 prules = None
             else:
                 prules_etag = res.etag
-                print "Watcher %s is now denied authorization" % watcher
+                print "Watcher %s is now denied" % watcher
                 break
         sleep(0.1)
     else:
-        print "Could not deny authorization of watcher %s" % watcher
+        print "Could not deny watcher %s" % watcher
 
 def polite_block_watcher(watcher):
     global prules, prules_etag, polite_block_rule, polite_block_rule_identities
