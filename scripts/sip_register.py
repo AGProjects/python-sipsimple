@@ -57,7 +57,7 @@ def event_handler(event_name, **kwargs):
     elif pjsip_logging:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, route, expires, do_siptrace, pjsip_logging):
+def read_queue(e, username, domain, password, display_name, route, expires, do_siptrace, pjsip_logging, max_registers):
     global user_quit, lock, queue
     lock.acquire()
     printed = False
@@ -81,6 +81,9 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_s
                                 print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
                             print "Press Ctrl+D to stop the program."
                             printed = True
+                        max_registers -= 1
+                        if max_registers <= 0:
+                            command = "eof"
                     elif args["state"] == "unregistered":
                         if args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
@@ -154,6 +157,7 @@ def parse_options():
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-r", "--max-registers", type="int", dest="max_registers", help="Max number of REGISTERs sent (default 1).")
     options, args = parser.parse_args()
     
     if options.account_name is None:
@@ -163,7 +167,7 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1], max_registers=1)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):
