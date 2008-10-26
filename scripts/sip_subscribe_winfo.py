@@ -192,7 +192,7 @@ def polite_block_watcher(watcher):
         if prules is not None:
             if polite_block_rule is None:
                 polite_block_rule_identities = Identity()
-                polite_block_rule = Rule('pres_polite_blacklist', conditions=Conditions([block_rule_identities]), actions=Actions([SubHandling('polite-block')]),
+                polite_block_rule = Rule('pres_polite_blacklist', conditions=Conditions([polite_block_rule_identities]), actions=Actions([SubHandling('polite-block')]),
                         transformations=Transformations())
                 prules.append(polite_block_rule)
             if str(watcher) not in polite_block_rule_identities:
@@ -328,7 +328,7 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
             if command == "print":
                 print data
                 if len(pending) > 0:
-                    print "%s watcher %s wants to subscribe to your presence information. Press (a) to allow, (d) to deny, (p) to polite block:" % (pending[0].status, pending[0])
+                    print "%s watcher %s wants to subscribe to your presence information. Press (a) for allow, (d) for deny or (p) for polite blocking:" % (pending[0].status.capitalize(), pending[0])
             if command == "pypjua_event":
                 event_name, args = data
             if command == "user_input":
@@ -346,7 +346,7 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
                     else:
                         print "Please select a valid choice. Press (a) to allow, (d) to deny, (p) to polite block"
                     if len(pending) > 0:
-                        print "%s watcher %s wants to subscribe to your presence information. Press (a) to allow, (d) to deny, (p) to polite block:" % (pending[0].status, pending[0])
+                        print "%s watcher %s wants to subscribe to your presence information. Press (a) for allow, (d) for deny or (p) for polite blocking:" % (pending[0].status.capitalize(), pending[0])
             if command == "eof":
                 command = "end"
                 want_quit = True
