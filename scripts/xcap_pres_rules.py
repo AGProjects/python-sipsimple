@@ -265,7 +265,7 @@ def print_prules():
     if polite_block_rule_identities is not None:
         for identity in polite_block_rule_identities:
             print '\t%s' % str(identity).replace('sip:', '')
-    print "Press (a) to allow, (d) to deny, (p) to politely block a new watcher or (r) to remove a watcher from the rules"
+    print "Press (a) to allow, (d) to deny, (p) to politely block a new watcher or (r) to remove a watcher from the rules. (s) will show the presence rules xml."
     
 
 def termios_restore():
@@ -312,7 +312,7 @@ def read_queue(username, domain, password, display_name, xcap_root):
             xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password, auth=None)
         print 'Retrieving current presence rules from %s' % xcap_root
         get_prules()
-        if show_xml:
+        if show_xml and prules is not None:
             print "Presence rules document:"
             print prules.toxml(pretty_print=True)
         print_prules()
@@ -321,8 +321,6 @@ def read_queue(username, domain, password, display_name, xcap_root):
             command, data = queue.get()
             if command == "print":
                 print data
-                if len(pending) > 0:
-                    print "%s watcher %s wants to subscribe to your presence information. Press (a) for allow, (d) for deny or (p) for polite blocking:" % (pending[0].status.capitalize(), pending[0])
             if command == "pypjua_event":
                 event_name, args = data
             if command == "user_input":
@@ -347,6 +345,10 @@ def read_queue(username, domain, password, display_name, xcap_root):
                     if watcher != '':
                         watcher = 'sip:' + watcher
                         remove_watcher(watcher)
+                elif key == 's':
+                    if prules is not None:
+                        print "Presence rules document:"
+                        print prules.toxml(pretty_print=True)
                 print_prules()
             if command == "eof":
                 command = "end"
