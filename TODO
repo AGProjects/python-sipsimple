@@ -44,7 +44,6 @@ Command line clients
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
 - Combine msrp/rtp in one script
 - Documentation
-- toggle logging at runtime
  
 Applications
 ------------

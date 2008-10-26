@@ -4,6 +4,8 @@ import sys
 import traceback
 import os
 import signal
+import termios
+import select
 from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
@@ -35,12 +37,36 @@ configuration.read_settings("General", GeneralConfig)
 queue = Queue()
 packet_count = 0
 start_time = None
+old = None
 user_quit = True
 lock = allocate_lock()
+do_siptrace = False
+
+def termios_restore():
+    global old
+    if old is not None:
+        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
+
+def getchar():
+    global old
+    fd = sys.stdin.fileno()
+    if os.isatty(fd):
+        old = termios.tcgetattr(fd)
+        new = termios.tcgetattr(fd)
+        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
+        new[6][termios.VMIN] = '\000'
+        try:
+            termios.tcsetattr(fd, termios.TCSADRAIN, new)
+            if select.select([fd], [], [], None)[0]:
+                return sys.stdin.read(10)
+        finally:
+            termios_restore()
+    else:
+        return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, pjsip_logging
-    if event_name == "siptrace":
+    global start_time, packet_count, queue, pjsip_logging, do_siptrace
+    if event_name == "siptrace" and do_siptrace:
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
@@ -57,8 +83,8 @@ def event_handler(event_name, **kwargs):
     elif pjsip_logging:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, route, expires, do_siptrace, pjsip_logging, max_registers):
-    global user_quit, lock, queue
+def read_queue(e, username, domain, password, display_name, route, expires, max_registers):
+    global user_quit, lock, queue, do_siptrace, pjsip_logging
     lock.acquire()
     printed = False
     try:
@@ -92,6 +118,14 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_s
                 elif event_name == "Invitation_state":
                     if args["state"] == "INCOMING":
                         args["obj"].end()
+            if command == "user_input":
+                key = data
+                if key == 's':
+                    do_siptrace = not do_siptrace
+                    print "SIP tracing is now %s" % ("activated" if do_siptrace else "deactivated")
+                if key == 'l':
+                    pjsip_logging = not pjsip_logging
+                    print "PJSIP logging is now %s" % ("activated" if pjsip_logging else "deactivated")
             if command == "eof":
                 reg.unregister()
             if command == "quit":
@@ -106,10 +140,11 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_s
         lock.release()
 
 def do_register(**kwargs):
-    global user_quit, lock, queue, pjsip_logging
-    pjsip_logging = kwargs["pjsip_logging"]
+    global user_quit, lock, queue, pjsip_logging, do_siptrace
+    pjsip_logging = kwargs.pop("pjsip_logging")
     ctrl_d_pressed = False
     outbound_proxy = kwargs.pop("outbound_proxy")
+    do_siptrace = kwargs.pop("do_siptrace")
     if outbound_proxy is None:
         proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
     else:
@@ -119,17 +154,18 @@ def do_register(**kwargs):
     except RuntimeError, e:
         print e.message
         return
-    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, do_siptrace=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     try:
         while True:
-            try:
-                raw_input()
-            except EOFError:
+            char = getchar()
+            if char == "\x04":
                 if not ctrl_d_pressed:
                     queue.put(("eof", None))
                     ctrl_d_pressed = True
+            else:
+                queue.put(("user_input", char))
     except KeyboardInterrupt:
         if user_quit:
             print "Ctrl+C pressed, exiting instantly!"
