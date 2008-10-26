@@ -13,7 +13,7 @@ version = "0.2.3"
 
 title = "Python SIP User Agent"
 description = "Python SIP SIMPLE User Agent library using PJSIP"
-scripts = ['scripts/'+x for x in os.listdir('scripts') if re.match('^sip_.*\\.py$', x)]
+scripts = ['scripts/'+x for x in os.listdir('scripts') if re.match('^sip_.*\\.py$', x) or re.match('^xcap_.*\\.py$', x)]
 data_files = ['scripts/ring_inbound.wav', 'scripts/ring_outbound.wav']
 
 if data_files_dir:
