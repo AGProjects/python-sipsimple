@@ -63,6 +63,7 @@ user_quit = True
 lock = allocate_lock()
 string = None
 getstr_event = Event()
+show_xml = False
 
 sip_uri = None
 xcap_client = None
@@ -128,7 +129,7 @@ def get_prules():
                             break
 
 def allow_watcher(watcher):
-    global prules, prules_etag, allow_rule, allow_rule_identities
+    global prules, prules_etag, allow_rule, allow_rule_identities, show_xml
     for i in xrange(3):
         if prules is None:
             get_prules()
@@ -148,6 +149,9 @@ def allow_watcher(watcher):
                 prules = None
             else:
                 prules_etag = res.etag
+                if show_xml:
+                    print "Presence rules document:"
+                    print prules.toxml(pretty_print=True)
                 print "Watcher %s is now authorized" % watcher
                 break
         sleep(0.1)
@@ -174,6 +178,9 @@ def block_watcher(watcher):
                 prules = None
             else:
                 prules_etag = res.etag
+                if show_xml:
+                    print "Presence rules document:"
+                    print prules.toxml(pretty_print=True)
                 print "Watcher %s is now denied authorization" % watcher
                 break
         sleep(0.1)
@@ -200,6 +207,9 @@ def polite_block_watcher(watcher):
                 prules = None
             else:
                 prules_etag = res.etag
+                if show_xml:
+                    print "Presence rules document:"
+                    print prules.toxml(pretty_print=True)
                 print "Watcher %s is now politely blocked" % watcher
                 break
         sleep(0.1)
@@ -231,6 +241,9 @@ def remove_watcher(watcher):
                 prules = None
             else:
                 prules_etag = res.etag
+                if show_xml:
+                    print "Presence rules document:"
+                    print prules.toxml(pretty_print=True)
                 print "Watcher %s has been removed from the rules" % watcher
                 break
         sleep(0.1)
@@ -299,6 +312,9 @@ def read_queue(username, domain, password, display_name, xcap_root):
             xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password, auth=None)
         print 'Retrieving current presence rules from %s' % xcap_root
         get_prules()
+        if show_xml:
+            print "Presence rules document:"
+            print prules.toxml(pretty_print=True)
         print_prules()
         
         while True:
@@ -347,8 +363,10 @@ def read_queue(username, domain, password, display_name, xcap_root):
         lock.release()
 
 def do_xcap_pres_rules(**kwargs):
-    global user_quit, lock, queue, string, getstr_event, old
+    global user_quit, lock, queue, string, getstr_event, old, show_xml
     ctrl_d_pressed = False
+
+    show_xml = kwargs.pop('show_xml')
 
     start_new_thread(read_queue,(), kwargs)
     atexit.register(termios_restore)
@@ -394,8 +412,8 @@ def parse_options():
     parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file. If not supplied, the section Account will be read.", metavar="NAME")
     parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP address of the user in the form user@domain")
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
-    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-x", "--xcap-root", type="string", dest="xcap_root", help = 'The XCAP root to use to access the pres-rules document for authorizing subscriptions to presence.')
+    parser.add_option("-s", "--show-xml", action="store_true", dest="show_xml", help = 'Show the presence rules XML whenever it is changed and at start-up.')
     options, args = parser.parse_args()
     
     if options.account_name is None:
@@ -407,7 +425,7 @@ def parse_options():
     configuration.read_settings(account_section, AccountConfig)
     if not AccountConfig.use_presence_agent:
         raise RuntimeError("Presence is not enabled for this account. Please set presence=True in the config file")
-    default_options = dict(sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, xcap_root=AccountConfig.xcap_root)
+    default_options = dict(sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, xcap_root=AccountConfig.xcap_root, show_xml=False)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):
