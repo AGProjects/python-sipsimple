@@ -243,15 +243,15 @@ def print_prules():
     print 'Allowed watchers:'
     if allow_rule_identities is not None:
         for identity in allow_rule_identities:
-            print '\t%s' % identity
+            print '\t%s' % str(identity).replace('sip:', '')
     print 'Blocked watchers:'
     if block_rule_identities is not None:
         for identity in block_rule_identities:
-            print '\t%s' % identity
+            print '\t%s' % str(identity).replace('sip:', '')
     print 'Polite-blocked watchers:'
     if polite_block_rule_identities is not None:
         for identity in polite_block_rule_identities:
-            print '\t%s' % identity
+            print '\t%s' % str(identity).replace('sip:', '')
     print "Press (a) to allow, (d) to deny, (p) to politely block a new watcher or (r) to remove a watcher from the rules"
     
 
@@ -297,7 +297,7 @@ def read_queue(username, domain, password, display_name, xcap_root):
         
         if xcap_root is not None:
             xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password, auth=None)
-        print 'Fetching current rules'
+        print 'Retrieving current presence rules from %s' % xcap_root
         get_prules()
         print_prules()
         
@@ -313,16 +313,24 @@ def read_queue(username, domain, password, display_name, xcap_root):
                 key = data
                 if key == 'a':
                     watcher = getstr('watcher')
-                    allow_watcher(watcher)
+                    if watcher != '':
+                        watcher = 'sip:' + watcher
+                        allow_watcher(watcher)
                 elif key == 'd':
                     watcher = getstr('watcher')
-                    block_watcher(watcher)
+                    if watcher != '':
+                        watcher = 'sip:' + watcher
+                        block_watcher(watcher)
                 elif key == 'p':
                     watcher = getstr('watcher')
-                    polite_block_watcher(watcher)
+                    if watcher != '':
+                        watcher = 'sip:' + watcher
+                        polite_block_watcher(watcher)
                 elif key == 'r':
                     watcher = getstr('watcher')
-                    remove_watcher(watcher)
+                    if watcher != '':
+                        watcher = 'sip:' + watcher
+                        remove_watcher(watcher)
                 print_prules()
             if command == "eof":
                 command = "end"
