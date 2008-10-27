@@ -59,11 +59,11 @@ class Engine(object):
         self._lock = allocate_lock()
         self._thread_stopping = False
         self._thread_started = True
-        start_new_thread(self.run, (self,))
+        start_new_thread(self._run, (self,))
 
     # worker thread
     @staticmethod
-    def run(self):
+    def _run(self):
         self._thread_running = True
         try:
             self._lock.acquire()
