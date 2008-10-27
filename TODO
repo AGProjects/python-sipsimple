@@ -18,6 +18,7 @@ Python PJSIP bindings
 - Add feature to send OPTIONS method and parse the replies
 - Handle incomming REFER to msrp focus
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
+- Configurable RTP port range
 - API documentation
 
 
