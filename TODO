@@ -43,14 +43,21 @@ Command line clients
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
 - Combine msrp/rtp in one script
 - Documentation
+- sip_msrp_chat_server (act as a conference server)
+- sip_msrp_chat_client (invite people to chat using REFER and resource-list)
+- sip_subscribe_conference_info
+
  
 Applications
 ------------
 
-- Non-blocking XCAP client library
-- Non-blocking MSRP client library
-- Conference-info payload
+- MSRP client library
+- MSRP focus
+- MSRP mixer
+- Conference-info event package
+- MSRP multiparty chat
 - Is-composing payload
+
 - MWI payload
 - Xcap-diff payload
 - Buddylist library
