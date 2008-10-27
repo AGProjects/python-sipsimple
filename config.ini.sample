@@ -10,16 +10,13 @@ user_agent=ag-projects.com/sipclient
 ; ip and port for SIP signalling
 ; 0.0.0.0 or any or ip:port or ip
 listen_udp=any
+; rtp_port_range=8000 8100
 
 ; publish presence on the LAN using multicast DNS, it appears as another
 ; active account in the user interface
 ; bonjour=true
 ; Display name for bonjour
 ; bonjour_name=
-
-; rtp_port_range=8000 8100
-audio=false
-; video=false
 
 ; protocol tracing
 ; pjsip_trace=false
@@ -99,8 +96,8 @@ use_presence_agent=true
 ; SIP transport can be udp, tcp, tls, detected from the DNS NAPTR record
 ; sip_transport=auto
 
-; refresh periods
-; sip_register_period=600
-; sip_subscribe_period=600
-; sip_publish_period=600
+; refresh interval
+; sip_register_interval=600
+; sip_subscribe_interval=600
+; sip_publish_interval=600
 
