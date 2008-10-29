@@ -510,6 +510,7 @@ cdef extern from "pjsip_simple.h":
     struct pjsip_evsub_user:
         void on_evsub_state(pjsip_evsub *sub, pjsip_event *event) with gil
         void on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+        void on_client_refresh(pjsip_evsub *sub) with gil
     int pjsip_evsub_init_module(pjsip_endpoint *endpt)
     int pjsip_evsub_register_pkg(pjsip_module *pkg_mod, pj_str_t *event_name, unsigned int expires, unsigned int accept_cnt, pj_str_t *accept)
     int pjsip_evsub_create_uac(pjsip_dialog *dlg, pjsip_evsub_user *user_cb, pj_str_t *event, int option, pjsip_evsub **p_evsub)
@@ -2105,6 +2106,7 @@ cdef class Subscription:
             c_add_event("Subscription_state", dict(obj=self, state=self.state))
         else:
             c_add_event("Subscription_state", dict(obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text)))
+        return 0
 
     cdef int _cb_notify(self, pjsip_rx_data *rdata) except -1:
         cdef pjsip_msg_body *c_body = rdata.msg_info.msg.body
@@ -2113,27 +2115,31 @@ cdef class Subscription:
                                                     body=PyString_FromStringAndSize(<char *> c_body.data, c_body.len),
                                                     content_type=pj_str_to_str(c_body.content_type.type),
                                                     content_subtype=pj_str_to_str(c_body.content_type.subtype)))
+        return 0
+
+    cdef int _cb_refresh(self) except -1:
+        self._do_sub(0, self.expires)
+        return 0
 
     def subscribe(self):
         if self.state != "TERMINATED":
             raise RuntimeError("A subscription is already active")
-        self._do_sub(1)
+        self._do_sub(1, self.expires)
 
     def unsubscribe(self):
         if self.state == "TERMINATED":
             raise RuntimeError("No subscribtion is active")
-        self._do_sub(0)
+        self._do_sub(0, 0)
 
-    cdef int _do_sub(self, bint subscribe) except -1:
+    cdef int _do_sub(self, bint first_subscribe, unsigned int expires) except -1:
         global _subs_cb
         cdef pjsip_tx_data *c_tdata
         cdef int status
-        cdef int c_expires
         cdef PJSTR c_to, c_to_req, c_contact_uri
         cdef GenericStringHeader header
         cdef PJSIPUA ua = c_get_ua()
         try:
-            if subscribe:
+            if first_subscribe:
                 c_to = PJSTR(self.to_uri.as_str())
                 c_to_req = PJSTR(self.to_uri.as_str(True))
                 c_contact_uri = ua.c_create_contact_uri(self.credentials.token)
@@ -2151,10 +2157,7 @@ cdef class Subscription:
                     if status != 0:
                         raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
                 pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
-                c_expires = self.expires
-            else:
-                c_expires = 0
-            status = pjsip_evsub_initiate(self.c_obj, NULL, c_expires, &c_tdata)
+            status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
             if status != 0:
                 raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
             pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
@@ -2188,6 +2191,12 @@ cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int 
     cdef PJSIPUA ua = c_get_ua()
     subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
     subscription._cb_notify(rdata)
+
+cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil:
+    cdef Subscription subscription
+    cdef PJSIPUA ua = c_get_ua()
+    subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+    subscription._cb_refresh()
 
 cdef class SDPAttribute:
     cdef pjmedia_sdp_attr c_obj
@@ -3194,6 +3203,7 @@ cdef pypjua_event *_event_queue_tail = NULL
 cdef pjsip_evsub_user _subs_cb
 _subs_cb.on_evsub_state = cb_Subscription_cb_state
 _subs_cb.on_rx_notify = cb_Subscription_cb_notify
+_subs_cb.on_client_refresh = cb_Subscription_cb_refresh
 cdef pjsip_inv_callback _inv_cb
 _inv_cb.on_state_changed = cb_Invitation_cb_state
 _inv_cb.on_new_session = cb_new_Invitation
