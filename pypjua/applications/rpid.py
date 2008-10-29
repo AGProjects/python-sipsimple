@@ -43,7 +43,7 @@ __all__ = ['_namespace_',
 _namespace_ = 'urn:ietf:params:xml:ns:pidf:rpid'
 
 
-# Mixin types for extenisibility
+# Mixin types for extensibility
 class ActivityElement(object): pass
 class MoodElement(object): pass
 class PlaceIsElement(object): pass

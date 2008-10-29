@@ -1,0 +1,63 @@
+sipclient (0.2.3) unstable; urgency=low
+
+  * Updated MacOSX installation procedure from sources
+  * Added fink installation from binary packages
+  * Update the server software the client is tested against
+  * Put version in default User-Agent header
+  * Renamed obsolete setting name presence to use_presence_agent
+  * Improved documentation
+  * Define log directory in config file
+  * More comments about settings from sample config file
+  * Update linux install procedure with debian package installation instructions
+  * Use the etag returned after an XCAP PUT so as not to need a GET afterwards
+  * Change the name of the config option presence to use_presence_agent and document it
+  * Fix buggy interconnections between conference bridge slots
+  * Make the sip_subscribe_winfo script also use the listen_udp option
+  * Do a GET after a HTTP error in PUT for pres-rules  
+  * Ported new-style SRV lookup to sip_msrp_file_transfer script
+  * Ported new-style SRV lookup to sip_msrp_im_session script
+  * Change order of display (available accounts, current account)
+  * Record audio files to the history directory
+  * Fix sip_subscribe_winfo when polite-blocking and change output
+  * Add xcap_pres_rules script
+  * Toggle logging at runtime in sip_register
+  * Better description of what the scripts do
+  * Make sip_register script exit after a number of REGISTERs
+  * Print current pres rules when sip_subscribe_winfo starts
+  * Add polite-block option to sip_subscribe_winfo script
+  * Added PJSIP version string to default User-Agent header
+  * Fix for bug in accepting SDP streams
+  * Added LICENSE file to MANIFEST.in
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Wed, 29 Oct 2008 19:46:25 +0100
+
+sipclient (0.2.2) unstable; urgency=low
+
+  * Small bug fixes
+  * Recording capability added
+  * Make sip_subscribe_rls script accept multipart/related content-type
+  * Allow setting basic presence in sip_publish_presence script
+
+ -- Lucian Stanescu <luci@ag-projects.com>  Wed, 15 Oct 2008 17:39:34 +0200
+
+sipclient (0.2.1) unstable; urgency=low
+
+  * Include the xml schemas
+  * Include Debian packages instructions in docs/INSTALL.linux
+  * A minimal configuration file is generated if not found
+  * Add 'Supported' header when subscribing to RLS services URIs
+  * Added local IP address and port to listen on for UDP packets to
+    configuration file
+  * Added registerless "bonjour" account to relevant scripts
+  * Improved SRV lookup procedure and do full lookup for outbound proxy
+  * Do not consider 404 an error when getting the pres-rules document in sip_subscribe_winfo
+  * Make the UDP limit 64K
+
+ -- Lucian Stanescu <luci@ag-projects.com>  Mon, 13 Oct 2008 17:29:48 +0200
+
+sipclient (0.2) unstable; urgency=low
+
+  * Initial release
+
+ -- Lucian Stanescu <luci@ag-projects.com>  Mon, 13 Oct 2008 10:29:08 +0200
+
