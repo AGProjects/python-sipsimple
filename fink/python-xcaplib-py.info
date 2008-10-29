@@ -1,6 +1,6 @@
 Info2: <<
 Package: python-xcaplib-py%type_pkg[python]
-Version: 1.0.7
+Version: 1.0.8
 Revision: 1
 Distribution: (%type_pkg[python] = 24) 10.4
 Type: python (2.4 2.5)
@@ -14,7 +14,7 @@ Depends: python%type_pkg[python], twisted2-py%type_pkg[python], python-applicati
 # Unpack Phase:
 Source: http://download.ag-projects.com/OpenXCAP/clients/python-xcaplib_%v.tar.gz
 SourceDirectory: python-xcaplib
-Source-MD5: 4a7b1788b6110e46e41e3392fc06c10b
+Source-MD5: 6ece396ef76bde1dce2f3f043b8a7faa
 
 # Compile Phase:
 CompileScript: python%type_raw[python] setup.py build

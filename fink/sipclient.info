@@ -9,11 +9,11 @@ License: GPL
 Maintainer: Ruud Klaver <ruud@ag-projects.com>
 
 # Dependencies:
-Depends: python25, dnspython-py25, lxml-py25, python-application-py25, setuptools-py25
+Depends: python25, dnspython-py25, lxml-py25, python-application-py25, setuptools-py25, python-xcaplib-py25
 
 # Unpack Phase:
 Source: http://download.ag-projects.com/SipClient/sipclient_%v.tar.gz
-Source-MD5: 9d7804cd5ea6bc1e4b8b61cdd795341a
+Source-MD5: b1d75c76a9772dd55b1c8c622f980067
 SourceDirectory: sipclient-%v
 
 # Compile Phase:
