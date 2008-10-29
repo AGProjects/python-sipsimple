@@ -5,7 +5,7 @@ sipclient (0.2.3) unstable; urgency=low
   * Update the server software the client is tested against
   * Put version in default User-Agent header
   * Renamed obsolete setting name presence to use_presence_agent
-  * Improve documentation
+  * Improved documentation
   * Define log directory in config file
   * More comments about settings from sample config file
   * Update linux install procedure with debian package installation instructions
@@ -18,8 +18,18 @@ sipclient (0.2.3) unstable; urgency=low
   * Ported new-style SRV lookup to sip_msrp_im_session script
   * Change order of display (available accounts, current account)
   * Record audio files to the history directory
+  * Fix sip_subscribe_winfo when polite-blocking and change output
+  * Add xcap_pres_rules script
+  * Toggle logging at runtime in sip_register
+  * Better description of what the scripts do
+  * Make sip_register script exit after a number of REGISTERs
+  * Print current pres rules when sip_subscribe_winfo starts
+  * Add polite-block option to sip_subscribe_winfo script
+  * Added PJSIP version string to default User-Agent header
+  * Fix for bug in accepting SDP streams
+  * Added LICENSE file to MANIFEST.in
 
- -- Adrian Georgescu <ag@ag-projects.com>  Tue, 21 Oct 2008 00:37:02 +0200
+ -- Adrian Georgescu <ag@ag-projects.com>  Wed, 29 Oct 2008 19:46:25 +0100
 
 sipclient (0.2.2) unstable; urgency=low
 
