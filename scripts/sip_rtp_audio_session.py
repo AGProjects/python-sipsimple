@@ -81,7 +81,7 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, pjsip_logging
+    global start_time, packet_count, queue, do_pjsip_trace
     if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -96,7 +96,7 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
-    elif pjsip_logging:
+    elif do_pjsip_trace:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 class RingingThread(Thread):
@@ -123,7 +123,7 @@ class RingingThread(Thread):
             sleep(5)
 
 
-def read_queue(e, username, domain, password, display_name, route, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs, disable_sound, pjsip_logging, use_bonjour):
+def read_queue(e, username, domain, password, display_name, route, target_username, target_domain, do_siptrace, ec_tail_length, sample_rate, codecs, disable_sound, do_pjsip_trace, use_bonjour):
     global user_quit, lock, queue
     lock.acquire()
     inv = None
@@ -281,9 +281,9 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         lock.release()
 
 def do_invite(**kwargs):
-    global user_quit, lock, queue, pjsip_logging
+    global user_quit, lock, queue, do_pjsip_trace
     ctrl_d_pressed = False
-    pjsip_logging = kwargs["pjsip_logging"]
+    do_pjsip_trace = kwargs["do_pjsip_trace"]
     outbound_proxy = kwargs.pop("outbound_proxy")
     if kwargs["use_bonjour"]:
         kwargs["route"] = None
@@ -342,7 +342,7 @@ def parse_options():
     parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
-    parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_pjsip_trace", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
@@ -354,7 +354,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_pjsip_trace=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     if not retval["use_bonjour"]:

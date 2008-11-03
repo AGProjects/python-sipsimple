@@ -477,7 +477,7 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global packet_count, start_time, queue, pjsip_logging
+    global packet_count, start_time, queue, do_pjsip_trace
     if event_name == "Publication_state":
         if kwargs["state"] == "unpublished":
             queue.put(("print", "Unpublished: %(code)d %(reason)s" % kwargs))
@@ -499,10 +499,10 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
-    elif pjsip_logging:
+    elif do_pjsip_trace:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, route, expires, do_siptrace, pjsip_logging):
+def read_queue(e, username, domain, password, display_name, route, expires, do_siptrace, do_pjsip_trace):
     global user_quit, lock, queue, pub, sip_uri, pidf, person, tuple
     lock.acquire()
     try:
@@ -569,9 +569,9 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_s
         lock.release()
 
 def do_publish(**kwargs):
-    global user_quit, lock, queue, pjsip_logging, string, getstr_event, old
+    global user_quit, lock, queue, do_pjsip_trace, string, getstr_event, old
     ctrl_d_pressed = False
-    pjsip_logging = kwargs["pjsip_logging"]
+    do_pjsip_trace = kwargs["do_pjsip_trace"]
 
     outbound_proxy = kwargs.pop("outbound_proxy")
     if outbound_proxy is None:
@@ -637,7 +637,7 @@ def parse_options():
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in PUBLISH. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
-    parser.add_option("-l", "--log-pjsip", action="store_true", dest="pjsip_logging", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_pjsip_trace", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
     
     if options.account_name is None:
@@ -649,7 +649,7 @@ def parse_options():
     configuration.read_settings(account_section, AccountConfig)
     if not AccountConfig.use_presence_agent:
         raise RuntimeError("Presence is not enabled for this account. Please set presence=True in the config file")
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, pjsip_logging=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, do_pjsip_trace=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):
