@@ -83,7 +83,8 @@ End-user experience
 
 - Play a soft beep tone while on hold every 30 seconds
 - Play a beep after we closed a session
-- Mute other applications during INVITE
+- Play a special beep when receiving a call while engaged in another call
+- Mute other applications that access the soundcard on receiving INVITE
 
 
 Enrollment 

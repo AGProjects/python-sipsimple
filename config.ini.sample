@@ -18,7 +18,7 @@ listen_udp=any
 ; Display name for bonjour
 ; bonjour_name=
 
-; protocol tracing
+; tracing and logging
 ; trace_pjsip=false
 ; trace_sip=false
 ; trace_xcap_headers=false
@@ -38,13 +38,7 @@ log_directory=~/.sipclient/log
 sample_rate=32
 echo_cancellation_tail_length=200
 disable-sound=false
-comfort_noise=true
 codec_list=speex,g711,ilbc,gsm,g722
-
-
-[Video]
-; video codec list
-; codec_list=h264
 
 
 [Account]
