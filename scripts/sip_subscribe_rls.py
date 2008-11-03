@@ -28,6 +28,13 @@ from pypjua.clients.clientconfig import get_path
 from pypjua.clients.lookup import *
 
 
+class GeneralConfig(ConfigSection):
+    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    listen_udp = datatypes.NetworkAddress("any")
+    trace_pjsip = False
+    trace_sip = False
+
+
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname}
     sip_address = None
@@ -39,6 +46,7 @@ class AccountConfig(ConfigSection):
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 enrollment.verify_account_config()
 configuration = ConfigFile("config.ini")
+configuration.read_settings("General", GeneralConfig)
 
 
 queue = Queue()
@@ -372,7 +380,7 @@ def do_subscribe(**kwargs):
     else:
         initial_events['presence'] = ['multipart/related']
 
-    e = Engine(event_handler, do_trace_sip=kwargs['do_trace_sip'], auto_sound=False, initial_events=initial_events)
+    e = Engine(event_handler, do_trace_sip=kwargs['do_trace_sip'], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"), initial_events=initial_events)
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
@@ -423,7 +431,7 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, do_trace_sip=False, do_trace_pjsip=False)
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, do_trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):
