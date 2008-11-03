@@ -281,7 +281,7 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_pjsip_trace
+    global start_time, packet_count, queue, do_trace_pjsip
     if event_name == "Subscription_state":
         if kwargs["state"] == "ACTIVE":
             #queue.put(("print", "SUBSCRIBE was successful"))
@@ -311,10 +311,10 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
-    elif do_pjsip_trace:
+    elif do_trace_pjsip:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, presentity_username, presentity_domain, route, expires, content_type, do_siptrace, do_pjsip_trace):
+def read_queue(e, username, domain, password, display_name, presentity_username, presentity_domain, route, expires, content_type, do_trace_sip, do_trace_pjsip):
     global user_quit, lock, queue
     lock.acquire()
     try:
@@ -353,9 +353,9 @@ def read_queue(e, username, domain, password, display_name, presentity_username,
         lock.release()
 
 def do_subscribe(**kwargs):
-    global user_quit, lock, queue, do_pjsip_trace
+    global user_quit, lock, queue, do_trace_pjsip
     ctrl_d_pressed = False
-    do_pjsip_trace = kwargs["do_pjsip_trace"]
+    do_trace_pjsip = kwargs["do_trace_pjsip"]
     outbound_proxy = kwargs.pop("outbound_proxy")
     if outbound_proxy is None:
         proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
@@ -372,7 +372,7 @@ def do_subscribe(**kwargs):
     else:
         initial_events['presence'] = ['multipart/related']
 
-    e = Engine(event_handler, do_siptrace=kwargs['do_siptrace'], auto_sound=False, initial_events=initial_events)
+    e = Engine(event_handler, do_trace_sip=kwargs['do_trace_sip'], auto_sound=False, initial_events=initial_events)
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
@@ -412,8 +412,8 @@ def parse_options():
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in SUBSCRIBE. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-c", "--content-type", type="string", dest="content_type", help = '"Content-Type" the UA expects to receving in a NOTIFY for this subscription. For the known events this does not need to be specified, but may be overridden".')
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_pjsip_trace", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
     
     if options.account_name is None:
@@ -423,7 +423,7 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, do_siptrace=False, do_pjsip_trace=False)
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, do_trace_sip=False, do_trace_pjsip=False)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):

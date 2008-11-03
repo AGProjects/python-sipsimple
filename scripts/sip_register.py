@@ -17,8 +17,10 @@ from pypjua.clients import enrollment
 from pypjua.clients.lookup import *
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"listen_udp": datatypes.NetworkAddress}
+    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
     listen_udp = datatypes.NetworkAddress("any")
+    trace_pjsip = False
+    trace_sip = False
 
 
 class AccountConfig(ConfigSection):
@@ -40,7 +42,7 @@ start_time = None
 old = None
 user_quit = True
 lock = allocate_lock()
-do_siptrace = False
+do_trace_sip = False
 
 def termios_restore():
     global old
@@ -65,8 +67,10 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_pjsip_trace, do_siptrace
-    if event_name == "siptrace" and do_siptrace:
+    global start_time, packet_count, queue, do_trace_pjsip, do_trace_sip
+    if event_name == 'siptrace':
+        print do_trace_sip
+    if event_name == "siptrace" and do_trace_sip:
         if start_time is None:
             start_time = kwargs["timestamp"]
         packet_count += 1
@@ -80,11 +84,11 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
-    elif do_pjsip_trace:
+    elif do_trace_pjsip:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 def read_queue(e, username, domain, password, display_name, route, expires, max_registers):
-    global user_quit, lock, queue, do_siptrace, do_pjsip_trace
+    global user_quit, lock, queue, do_trace_sip, do_trace_pjsip
     lock.acquire()
     printed = False
     try:
@@ -121,11 +125,11 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
             if command == "user_input":
                 key = data
                 if key == 's':
-                    do_siptrace = not do_siptrace
-                    print "SIP tracing is now %s" % ("activated" if do_siptrace else "deactivated")
+                    do_trace_sip = not do_trace_sip
+                    print "SIP tracing is now %s" % ("activated" if do_trace_sip else "deactivated")
                 if key == 'l':
-                    do_pjsip_trace = not do_pjsip_trace
-                    print "PJSIP logging is now %s" % ("activated" if do_pjsip_trace else "deactivated")
+                    do_trace_pjsip = not do_trace_pjsip
+                    print "PJSIP logging is now %s" % ("activated" if do_trace_pjsip else "deactivated")
             if command == "eof":
                 reg.unregister()
             if command == "quit":
@@ -140,11 +144,11 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
         lock.release()
 
 def do_register(**kwargs):
-    global user_quit, lock, queue, do_pjsip_trace, do_siptrace
-    do_pjsip_trace = kwargs.pop("do_pjsip_trace")
+    global user_quit, lock, queue, do_trace_pjsip, do_trace_sip
+    do_trace_pjsip = kwargs.pop("do_trace_pjsip")
     ctrl_d_pressed = False
     outbound_proxy = kwargs.pop("outbound_proxy")
-    do_siptrace = kwargs.pop("do_siptrace")
+    do_trace_sip = kwargs.pop("do_trace_sip")
     if outbound_proxy is None:
         proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
     else:
@@ -154,7 +158,7 @@ def do_register(**kwargs):
     except RuntimeError, e:
         print e.message
         return
-    e = Engine(event_handler, do_siptrace=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, do_trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     try:
@@ -191,8 +195,8 @@ def parse_options():
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_pjsip_trace", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     parser.add_option("-r", "--max-registers", type="int", dest="max_registers", help="Max number of REGISTERs sent (default 1).")
     options, args = parser.parse_args()
     
@@ -203,7 +207,7 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, do_pjsip_trace=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1], max_registers=1)
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1], max_registers=1)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):

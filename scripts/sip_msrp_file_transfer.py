@@ -31,8 +31,10 @@ from pypjua.clients.clientconfig import get_path
 from pypjua.clients.lookup import *
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"listen_udp": datatypes.NetworkAddress}
+    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
     listen_udp = datatypes.NetworkAddress("any")
+    trace_pjsip = False
+    trace_sip = False
 
 re_ip_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
@@ -328,7 +330,7 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_pjsip_trace
+    global start_time, packet_count, queue, do_trace_pjsip
     if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -343,10 +345,10 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
-    elif do_pjsip_trace:
+    elif do_trace_pjsip:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, route, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_siptrace, disable_sound, fd, do_pjsip_trace, use_bonjour):
+def read_queue(e, username, domain, password, display_name, route, target_username, target_domain, dump_msrp, use_msrp_relay, auto_msrp_relay, msrp_relay_ip, msrp_relay_port, do_trace_sip, disable_sound, fd, do_trace_pjsip, use_bonjour):
     global user_quit, lock, queue
     lock.acquire()
     inv = None
@@ -500,8 +502,8 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         lock.release()
 
 def do_invite(**kwargs):
-    global user_quit, lock, queue, do_pjsip_trace
-    do_pjsip_trace = kwargs["do_pjsip_trace"]
+    global user_quit, lock, queue, do_trace_pjsip
+    do_trace_pjsip = kwargs["do_trace_pjsip"]
     ctrl_d_pressed = False
     outbound_proxy = kwargs.pop("outbound_proxy")
     if kwargs["use_bonjour"]:
@@ -516,7 +518,7 @@ def do_invite(**kwargs):
         except RuntimeError, e:
             print e.message
             return
-    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=not kwargs["disable_sound"], ec_tail_length=0, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, do_trace_sip=kwargs["do_trace_sip"], auto_sound=not kwargs["disable_sound"], ec_tail_length=0, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
@@ -571,10 +573,10 @@ def parse_options():
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-m", "--trace-msrp", action="store_true", dest="dump_msrp", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_pjsip_trace", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
@@ -586,7 +588,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_siptrace=False, disable_sound=AudioConfig.disable_sound, do_pjsip_trace=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, dump_msrp=False, msrp_relay_ip=None, msrp_relay_port=None, do_trace_sip=GeneralConfig.trace_sip, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     if not retval["use_bonjour"]:

@@ -16,8 +16,10 @@ from pypjua import *
 from pypjua.clients import enrollment
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"listen_udp": datatypes.NetworkAddress}
+    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
     listen_udp = datatypes.NetworkAddress("any")
+    trace_pjsip = False
+    trace_sip = False
 
 re_host_port = re.compile("^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
 class SIPProxyAddress(tuple):
@@ -54,7 +56,7 @@ user_quit = True
 lock = allocate_lock()
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_pjsip_trace
+    global start_time, packet_count, queue, do_trace_pjsip
     if event_name == "siptrace":
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -69,10 +71,10 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "\n".join(buf)))
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
-    elif do_pjsip_trace:
+    elif do_trace_pjsip:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
-def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_siptrace, message, do_pjsip_trace):
+def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port, target_username, target_domain, do_trace_sip, message, do_trace_pjsip):
     global user_quit, lock, queue
     lock.acquire()
     printed = False
@@ -153,10 +155,10 @@ def read_queue(e, username, domain, password, display_name, proxy_ip, proxy_port
         lock.release()
 
 def do_message(**kwargs):
-    global user_quit, lock, queue, do_pjsip_trace
-    do_pjsip_trace = kwargs["do_pjsip_trace"]
+    global user_quit, lock, queue, do_trace_pjsip
+    do_trace_pjsip = kwargs["do_trace_pjsip"]
     ctrl_d_pressed = False
-    e = Engine(event_handler, do_siptrace=kwargs["do_siptrace"], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, do_trace_sip=kwargs["do_trace_sip"], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     try:
@@ -196,9 +198,9 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "proxy_ip", "proxy_port", 5060), help="Outbound SIP proxy to use. By default a lookup is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_siptrace", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="do_trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-m", "--message", type="string", dest="message", help="Contents of the message to send. This disables reading the message from standard input.")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_pjsip_trace", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
     
     if options.account_name is None:
@@ -208,7 +210,7 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_siptrace=False, message=None, do_pjsip_trace=False, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(proxy_ip=AccountConfig.outbound_proxy[0], proxy_port=AccountConfig.outbound_proxy[1], sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, do_trace_sip=GeneralConfig.trace_sip, message=None, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
     if not all([options.sip_address, options.password]):
