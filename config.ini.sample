@@ -19,11 +19,13 @@ listen_udp=any
 ; bonjour_name=
 
 ; protocol tracing
-; pjsip_trace=false
-; sip_trace=false
-; xcap_trace=false
-; msrp_trace=false
-; rtp_trace=false
+; trace_pjsip=false
+; trace_sip=false
+; trace_xcap_headers=false
+; trace_xcap_body=false
+; trace_msrp_headers=false
+; trace_msrp_body=false
+; trace_rtp=false
 
 ; history directory for saving audio sessions and IM chats
 history_directory=~/.sipclient/history
