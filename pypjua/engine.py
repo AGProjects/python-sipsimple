@@ -14,7 +14,7 @@ class Engine(object):
                              "auto_sound": True,
                              "ec_tail_length": 50,
                              "user_agent": "ag-projects/sipclient-%s-pjsip-%s" % (__version__, PJ_VERSION),
-                             "do_siptrace": False,
+                             "trace_sip": False,
                              "sample_rate": 32,
                              "playback_dtmf": True,
                              "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"],

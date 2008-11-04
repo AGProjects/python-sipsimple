@@ -1085,7 +1085,7 @@ cdef class PJSIPUA:
     cdef PJSTR c_trace_module_name
     cdef pjsip_module c_event_module
     cdef PJSTR c_event_module_name
-    cdef bint c_do_siptrace
+    cdef bint c_trace_sip
     cdef GenericStringHeader c_user_agent_hdr
     cdef list c_events
     cdef list c_wav_files
@@ -1139,7 +1139,7 @@ cdef class PJSIPUA:
             status = pjsip_endpt_add_capability(self.c_pjsip_endpoint.c_obj, &self.c_module, PJSIP_H_ALLOW, NULL, 1, &c_message_method.pj_str)
             if status != 0:
                 raise RuntimeError("Could not add MESSAGE method to supported methods: %s" % pj_status_to_str(status))
-            self.c_do_siptrace = bool(kwargs["do_siptrace"])
+            self.c_trace_sip = bool(kwargs["trace_sip"])
             self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
             self.c_trace_module.name = self.c_trace_module_name.pj_str
             self.c_trace_module.id = -1
@@ -1165,13 +1165,13 @@ cdef class PJSIPUA:
             self._do_dealloc()
             raise
 
-    property do_siptrace:
+    property trace_sip:
 
         def __get__(self):
-            return bool(self.c_do_siptrace)
+            return bool(self.c_trace_sip)
 
         def __set__(self, value):
-            self.c_do_siptrace = bool(value)
+            self.c_trace_sip = bool(value)
 
     property events:
 
@@ -1441,7 +1441,7 @@ cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) except 0 with gil:
 
 cdef int cb_trace_rx(pjsip_rx_data *rdata) except 0 with gil:
     cdef PJSIPUA c_ua = c_get_ua()
-    if c_ua.c_do_siptrace:
+    if c_ua.c_trace_sip:
         c_add_event("siptrace", dict(received=True,
                                      source_ip=rdata.pkt_info.src_name,
                                      source_port=rdata.pkt_info.src_port,
@@ -1452,7 +1452,7 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) except 0 with gil:
 
 cdef int cb_trace_tx(pjsip_tx_data *tdata) except 0 with gil:
     cdef PJSIPUA c_ua = c_get_ua()
-    if c_ua.c_do_siptrace:
+    if c_ua.c_trace_sip:
         c_add_event("siptrace", dict(received=False,
                                      source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
                                      source_port=tdata.tp_info.transport.local_name.port,
