@@ -18,7 +18,7 @@
 from collections import deque
 import re
 
-#from twisted.protocols.basic import LineReceiver
+from twisted.protocols.basic import LineReceiver
 
 class MSRPError(Exception):
     pass
@@ -356,89 +356,89 @@ class MSRPData(object):
     def encode(self):
         return self.encode_start() + self.encode_end("$")
 
-#class MSRPProtocol(LineReceiver):
-#    MAX_LENGTH = 16384
-#    MAX_LINES = 64
-#
-#    def __init__(self):
-#        self.peer = None
-#        self._reset()
-#
-#    def _reset(self):
-#        self.data = None
-#        self.line_count = 0
-#
-#    def connectionMade(self):
-#        self.peer = self.factory.get_peer(self)
-#
-#    def lineReceived(self, line):
-#        if self.data: 
-#            if len(line) == 0:
-#                self.term_buf_len = 12 + len(self.data.transaction_id)
-#                self.term_buf = ""
-#                self.term = re.compile("^(.*)\r\n-------%s([$#+])\r\n(.*)$" % re.escape(self.data.transaction_id), re.DOTALL)
-#                self.peer.data_start(self.data)
-#                self.setRawMode()
-#            else:
-#                match = self.term.match(line)
-#                if match:
-#                    continuation = match.group(1)
-#                    self.peer.data_start(self.data)
-#                    self.peer.data_end(continuation)
-#                    self._reset()
-#                else:
-#                    self.line_count += 1
-#                    if self.line_count > self.MAX_LINES:
-#                        self._reset()
-#                        return
-#                    try:
-#                        hname, hval = line.split(": ", 2)
-#                    except ValueError:
-#                        return # let this pass silently, we'll just not read this line
-#                    else:
-#                        self.data.add_header(MSRPHeader(hname, hval))
-#        else: # we received a new message
-#            try:
-#                msrp, transaction_id, rest = line.split(" ", 2)
-#            except ValueError:
-#                return # drop connection?
-#            if msrp != "MSRP":
-#                return # drop connection?
-#            method, code, comment = None, None, None
-#            rest_sp = rest.split(" ", 1)
-#            try:
-#                if len(rest_sp[0]) != 3:
-#                    raise ValueError
-#                code = int(rest_sp[0])
-#            except ValueError: # we have a request
-#                method = rest_sp[0]
-#            else: # we have a response
-#                if len(rest_sp) > 1:
-#                    comment = rest_sp[1]
-#            self.data = MSRPData(transaction_id, method, code, comment)
-#            self.term = re.compile("^-------%s([$#+])$" % re.escape(transaction_id))
-#
-#    def lineLengthExceeded(self, line):
-#        self._reset()
-#
-#    def rawDataReceived(self, data):
-#        match_data = self.term_buf + data
-#        match = self.term.match(match_data)
-#        if match: # we got the last data for this message
-#            contents, continuation, extra = match.groups()
-#            contents = contents[len(self.term_buf):]
-#            if contents:
-#                self.peer.write_chunk(contents)
-#            self.peer.data_end(continuation)
-#            self._reset()
-#            self.setLineMode(extra)
-#        else:
-#            self.peer.write_chunk(data)
-#            self.term_buf = match_data[-self.term_buf_len:]
-#
-#    def connectionLost(self, reason):
-#        if self.peer:
-#            self.peer.connection_lost(reason.value)
+class MSRPProtocol(LineReceiver):
+   MAX_LENGTH = 16384
+   MAX_LINES = 64
+
+   def __init__(self):
+       self.peer = None
+       self._reset()
+
+   def _reset(self):
+       self.data = None
+       self.line_count = 0
+
+   def connectionMade(self):
+       self.peer = self.factory.get_peer(self)
+
+   def lineReceived(self, line):
+       if self.data: 
+           if len(line) == 0:
+               self.term_buf_len = 12 + len(self.data.transaction_id)
+               self.term_buf = ""
+               self.term = re.compile("^(.*)\r\n-------%s([$#+])\r\n(.*)$" % re.escape(self.data.transaction_id), re.DOTALL)
+               self.peer.data_start(self.data)
+               self.setRawMode()
+           else:
+               match = self.term.match(line)
+               if match:
+                   continuation = match.group(1)
+                   self.peer.data_start(self.data)
+                   self.peer.data_end(continuation)
+                   self._reset()
+               else:
+                   self.line_count += 1
+                   if self.line_count > self.MAX_LINES:
+                       self._reset()
+                       return
+                   try:
+                       hname, hval = line.split(": ", 2)
+                   except ValueError:
+                       return # let this pass silently, we'll just not read this line
+                   else:
+                       self.data.add_header(MSRPHeader(hname, hval))
+       else: # we received a new message
+           try:
+               msrp, transaction_id, rest = line.split(" ", 2)
+           except ValueError:
+               return # drop connection?
+           if msrp != "MSRP":
+               return # drop connection?
+           method, code, comment = None, None, None
+           rest_sp = rest.split(" ", 1)
+           try:
+               if len(rest_sp[0]) != 3:
+                   raise ValueError
+               code = int(rest_sp[0])
+           except ValueError: # we have a request
+               method = rest_sp[0]
+           else: # we have a response
+               if len(rest_sp) > 1:
+                   comment = rest_sp[1]
+           self.data = MSRPData(transaction_id, method, code, comment)
+           self.term = re.compile("^-------%s([$#+])$" % re.escape(transaction_id))
+
+   def lineLengthExceeded(self, line):
+       self._reset()
+
+   def rawDataReceived(self, data):
+       match_data = self.term_buf + data
+       match = self.term.match(match_data)
+       if match: # we got the last data for this message
+           contents, continuation, extra = match.groups()
+           contents = contents[len(self.term_buf):]
+           if contents:
+               self.peer.write_chunk(contents)
+           self.peer.data_end(continuation)
+           self._reset()
+           self.setLineMode(extra)
+       else:
+           self.peer.write_chunk(data)
+           self.term_buf = match_data[-self.term_buf_len:]
+
+   def connectionLost(self, reason):
+       if self.peer:
+           self.peer.connection_lost(reason.value)
 
 _re_uri = re.compile("^(?P<scheme>.*?)://(((?P<user>.*?)@)?(?P<host>.*?)(:(?P<port>[0-9]+?))?)(/(?P<session_id>.*?))?;(?P<transport>.*?)(;(?P<parameters>.*))?$")
 def parse_uri(uri_str):
