@@ -261,7 +261,6 @@ def main():
     except RuntimeError, e:
         sys.exit("Error: %s" % str(e))
     except KeyboardInterrupt:
-        print 'keyboard!'
         pass
     except Exception, ex:
         traceback.print_exc()

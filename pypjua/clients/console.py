@@ -30,7 +30,6 @@ class Console(recvline.HistoricRecvLine):
             self.pn = 0
             self.lineBuffer = []
             self.lineBufferIndex = 0
-
             self.terminal.nextLine()
             self.terminal.write(self.ps[self.pn])
         else:
