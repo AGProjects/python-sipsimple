@@ -45,33 +45,21 @@ sudo easy_install -U setuptools
 Make sure the /usr/local/bin/easy_install script installed by setuptools is
 called. If you have an old easy_install script in /usr/bin/ remove it.
 
+sudo fink install gnutls26
+sudo fink install mercurial-py25
 sudo apt-get install libxml2 libxslt
 sudo easy_install lxml
 sudo easy_install cython
 sudo easy_install python-application
 sudo easy_install dnspython
-
-An alternative method to install the above python packages is to download,
-unpack and run (as root):
-
-sudo python setup.py install
-
-for each of them in the directories where they were unpacked.
+sudo easy_install python-gnutls
 
 Install Twisted >=8.1.0 from http://twistedmatrix.com/trac/
-
 Extract the Twisted tar archive and run:
-
 sudo python setup.py install
 
-Install mercurial version control system used by eventlet.
-
-sudo fink install mercurial-py25
-
 Download and install eventlet:
-
 LC_CTYPE= hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
-
 cd eventlet_twisted
 sudo python setup.py install
 
@@ -80,7 +68,6 @@ http://download.ag-projects.com/OpenXCAP/clients/
 
 cd python-xcaplib
 sudo python setup.py install
-
 
 Step 2. Compile PJSIP C library
 
