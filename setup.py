@@ -88,7 +88,7 @@ setup(name         = "sipclient",
           "Programming Language :: Python",
           "Programming Language :: C"
       ],
-      packages     = ["pypjua", "pypjua.clients", "pypjua.applications"],
+      packages     = ["pypjua", "pypjua.clients", "pypjua.applications", "pypjua.msrplib"],
       package_data = {
           'pypjua.applications' : ['xml-schemas/*']
       },
