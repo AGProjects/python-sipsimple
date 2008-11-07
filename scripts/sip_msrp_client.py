@@ -261,7 +261,7 @@ def main():
         sys.exit("Error: %s" % str(e))
     except KeyboardInterrupt:
         pass
-    except Exception, ex:
+    except Exception:
         traceback.print_exc()
         sys.exit(1)
 
@@ -270,6 +270,8 @@ def spawn_with_notify(func):
     def wrap():
         try:
             func()
+        except BaseException, ex:
+            ch.send_exception(ex)
         finally:
             ch.send(None)
     spawn(wrap)
