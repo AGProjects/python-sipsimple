@@ -26,14 +26,15 @@ class Console(recvline.HistoricRecvLine):
         self.keyHandlers[CTRL_BACKSLASH] = self.handle_QUIT
 
     def handle_INT(self):
-        self.pn = 0
-        self.lineBuffer = []
-        self.lineBufferIndex = 0
+        if self.lineBuffer:
+            self.pn = 0
+            self.lineBuffer = []
+            self.lineBufferIndex = 0
 
-        self.terminal.nextLine()
-        self.terminal.write("KeyboardInterrupt")
-        self.terminal.nextLine()
-        self.terminal.write(self.ps[self.pn])
+            self.terminal.nextLine()
+            self.terminal.write(self.ps[self.pn])
+        else:
+            self.terminal.loseConnection()
 
     def handle_EOF(self):
         #print 'EOF', `self.lineBuffer`
