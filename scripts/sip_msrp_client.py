@@ -213,8 +213,7 @@ def init_console():
         restore_std_output()
     finally:
         termios.tcsetattr(fd, termios.TCSANOW, oldSettings)
-        os.write(fd, "\r")
-        os.system('setterm -initialize')
+        os.write(fd, "\r\x1b[!p\x1b[?3;4l\x1b[4l\x1b>") # \r + setterm -initialize
 
 class RelayData:
     def __init__(self, domain, port, username, password, do_srv):
