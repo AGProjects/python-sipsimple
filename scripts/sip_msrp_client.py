@@ -5,11 +5,16 @@ import os
 import termios
 import tty
 import traceback
-from optparse import Values
+import re
+import random
+import string
+from optparse import Values, OptionValueError, OptionParser
 from pprint import pformat
 from contextlib import contextmanager
 
 from application.system import default_host_ip
+from application.configuration import ConfigSection, ConfigFile, datatypes
+from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed
 
 from eventlet.api import spawn
@@ -21,9 +26,38 @@ from pypjua.clients import msrp_protocol
 from pypjua.msrplib import relay_connect
 from pypjua.clients.consolebuffer import get_console, hook_std_output, restore_std_output
 from pypjua.clients.clientconfig import get_path
+from pypjua.clients import enrollment
 from pypjua.enginebuffer import log_dropped_event, EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
+from pypjua.clients.lookup import IPAddressOrHostname
 
-from sip_msrp_im_session import parse_options, random_string
+class GeneralConfig(ConfigSection):
+    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    listen_udp = datatypes.NetworkAddress("any")
+    trace_pjsip = False
+    trace_sip = False
+
+
+class AccountConfig(ConfigSection):
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname}
+    sip_address = None
+    password = None
+    display_name = None
+    outbound_proxy = None
+
+
+class AudioConfig(ConfigSection):
+    _datatypes = {"disable_sound": datatypes.Boolean}
+    disable_sound = False
+
+
+process._system_config_directory = os.path.expanduser("~/.sipclient")
+enrollment.verify_account_config()
+configuration = ConfigFile("config.ini")
+configuration.read_settings("Audio", AudioConfig)
+configuration.read_settings("General", GeneralConfig)
+
+def random_string(length):
+    return "".join(random.choice(string.letters + string.digits) for i in xrange(length))
 
 def log_events(channel):
     while True:
@@ -206,6 +240,102 @@ def spawn_with_notify(func):
             ch.send(None)
     spawn(wrap)
     return ch
+
+re_host_port = re.compile("^((?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(?P<host>[a-zA-Z0-9\-\.]+))(:(?P<port>\d+))?$")
+def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port, allow_host):
+    match = re_host_port.match(value)
+    if match is None:
+        raise OptionValueError("Could not parse supplied address: %s" % value)
+    if match.group("ip") is None:
+        if allow_host:
+            setattr(parser.values, host_name, match.group("host"))
+        else:
+            raise OptionValueError("Not a IP address: %s" % match.group("host"))
+    else:
+        setattr(parser.values, host_name, match.group("ip"))
+    if match.group("port") is None:
+        setattr(parser.values, port_name, default_port)
+    else:
+        setattr(parser.values, port_name, int(match.group("port")))
+
+def parse_outbound_proxy(option, opt_str, value, parser):
+    try:
+        parser.values.outbound_proxy = IPAddressOrHostname(value)
+    except ValueError, e:
+        raise OptionValueError(e.message)
+
+def parse_options():
+    retval = {}
+    description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."
+    usage = "%prog [options] [target-user@target-domain.com]"
+    parser = OptionParser(usage=usage, description=description)
+    parser.print_usage = parser.print_help
+    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
+    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP login account")
+    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
+    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
+    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
+    parser.add_option("-m", "--trace-msrp", action="store_true", help="Dump the raw contents of incoming and outgoing MSRP messages (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="store_true", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-r", "--msrp-relay", type="string", action="callback", callback=lambda option, opt_str, value, parser: parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855, True), help='MSRP relay to use. By default the MSRP relay will be discovered through the domain part of the SIP URI using SRV records. Use this option with "none" as argument will disable using a MSRP relay', metavar="IP[:PORT]")
+    parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
+    options, args = parser.parse_args()
+
+    retval["use_bonjour"] = options.account_name == "bonjour"
+    if not retval["use_bonjour"]:
+        if options.account_name is None:
+            account_section = "Account"
+        else:
+            account_section = "Account_%s" % options.account_name
+        if account_section not in configuration.parser.sections():
+            raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
+        configuration.read_settings(account_section, AccountConfig)
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address,
+                           password=AccountConfig.password, display_name=AccountConfig.display_name,
+                           trace_msrp=False, msrp_relay_ip=None, msrp_relay_port=None,
+                           trace_sip=GeneralConfig.trace_sip, disable_sound=AudioConfig.disable_sound,
+                           trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0],
+                           local_port=GeneralConfig.listen_udp[1])
+    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
+
+    if not retval["use_bonjour"]:
+        if not all([options.sip_address, options.password]):
+            raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
+    for attr in default_options:
+        retval[attr] = getattr(options, attr)
+    try:
+        if retval["use_bonjour"]:
+            options.msrp_relay_ip = "none"
+            retval["username"], retval["domain"] = None, None
+        else:
+            retval["username"], retval["domain"] = options.sip_address.split("@")
+    except ValueError:
+        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
+    else:
+        del retval["sip_address"]
+    if args:
+        try:
+            retval["target_username"], retval["target_domain"] = args[0].split("@")
+        except ValueError:
+            retval["target_username"], retval["target_domain"] = args[0], retval['domain']
+    else:
+        retval["target_username"], retval["target_domain"] = None, None
+    retval["auto_msrp_relay"] = options.msrp_relay_ip is None
+    if retval["auto_msrp_relay"]:
+        retval["use_msrp_relay"] = True
+    else:
+        retval["use_msrp_relay"] = options.msrp_relay_ip.lower() != "none"
+    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
+    accounts.sort()
+    print "Accounts available: %s" % ', '.join(accounts)
+    if options.account_name is None:
+        print "Using default account: %s" % options.sip_address
+    else:
+        if not retval["use_bonjour"]:
+            print "Using account '%s': %s" % (options.account_name, options.sip_address)
+    return retval
+
 
 if __name__ == "__main__":
     spawn_with_notify(main).receive()
