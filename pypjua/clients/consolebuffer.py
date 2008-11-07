@@ -39,6 +39,7 @@ class ConsoleBuffer:
         else:
             __original_sys_stderr__.write('\r%s\n' % msg)
 
+    # XXX: remove from here
     def write(self, msg, header=None, set_header=True):
         if header is not None:
             if header != self.last_header:
@@ -50,7 +51,7 @@ class ConsoleBuffer:
             self.last_header = None
         self._write(msg)
 
-    def write_(self, msg):
+    def stdwrite(self, msg):
         if msg.endswith('\n'):
             msg = msg[:-1]
         return self.write(msg)
@@ -85,8 +86,8 @@ class FileProxy(object):
         return getattr(self.original, item)
 
 def hook_std_output(console):
-    sys.stdout = FileProxy(sys.stdout, console.write_)
-    sys.stderr = FileProxy(sys.stderr, console.write_)
+    sys.stdout = FileProxy(sys.stdout, console.stdwrite)
+    sys.stderr = FileProxy(sys.stderr, console.stdwrite)
 
 def restore_std_output():
     sys.stdout = __original_sys_stdout__
@@ -95,14 +96,14 @@ def restore_std_output():
 if __name__ == '__main__':
     from twisted.internet import reactor
     reactor.callLater(2, lambda : sys.stdout.write('Async output\n-------\n'))
-    reactor.callLater(4, lambda : 1/0)
+    reactor.callLater(4, lambda : 2/0) # async stacktrace
 
-    def write_traffic():
-        console.write('header1', '10.1.1.1:222 -> 10.2.2.2:111')
-        console.write('header2', '10.1.1.1:222 -> 10.2.2.2:111')
-        console.write('header3', '10.1.1.1:222 -> 10.2.2.2:111')
-        console.write('header4', '10.1.1.1:222 -> 10.2.2.2:111')
-
+#     def write_traffic():
+#         console.write('header1', '10.1.1.1:222 -> 10.2.2.2:111')
+#         console.write('header2', '10.1.1.1:222 -> 10.2.2.2:111')
+#         console.write('header3', '10.1.1.1:222 -> 10.2.2.2:111')
+#         console.write('header4', '10.1.1.1:222 -> 10.2.2.2:111')
+#
     reactor.callLater(3, write_traffic)
 
     fd = sys.__stdin__.fileno()
@@ -112,6 +113,8 @@ if __name__ == '__main__':
         console = get_console()
         hook_std_output(console)
         for type, value in console:
+            if (type, value)==('line', '1/0'):
+                1/0
             console.write('%s %r' % (type, value))
     finally:
         restore_std_output()
