@@ -52,8 +52,24 @@ class EngineBuffer(Engine):
         return obj
 
 class RegistrationBuffer(Registration):
-    pass
 
+    def register(self, *args, **kwargs):
+        Registration.register(self, *args, **kwargs)
+        while True:
+            event_name, params = self.channel.receive()
+            if 'Registration_state' == event_name:
+                if params.get('state') in ['registered', 'unregistered']:
+                    return params
+            log_dropped_event(event_name, params)
+
+    def unregister(self, *args, **kwargs):
+        Registration.unregister(self, *args, **kwargs)
+        while True:
+            event_name, params = self.channel.receive()
+            if 'Registration_state' == event_name:
+                if params.get('state') == 'unregistered':
+                    return params
+            log_dropped_event(event_name, params)
 
 class Ringer:
 
