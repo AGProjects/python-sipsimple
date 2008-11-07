@@ -226,6 +226,10 @@ cdef extern from "pjmedia.h":
     int pjmedia_transport_udp_create(pjmedia_endpt *endpt, char *name, int port, unsigned int options, pjmedia_transport **p_tp)
     int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info)
     int pjmedia_transport_close(pjmedia_transport *tp)
+    int pjmedia_transport_media_create(pjmedia_transport *tp, pj_pool_t *sdp_pool, unsigned int options, pjmedia_sdp_session *rem_sdp, unsigned int media_index)
+    int pjmedia_transport_encode_sdp(pjmedia_transport *tp, pj_pool_t *sdp_pool, pjmedia_sdp_session *sdp, pjmedia_sdp_session *rem_sdp, unsigned int media_index)
+    int pjmedia_transport_media_start(pjmedia_transport *tp, pj_pool_t *tmp_pool, pjmedia_sdp_session *sdp_local, pjmedia_sdp_session *sdp_remote, unsigned int media_index)
+    int pjmedia_transport_media_stop(pjmedia_transport *tp)
     int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt, pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
 
     # stream
@@ -1092,6 +1096,8 @@ cdef class PJSIPUA:
     cdef list c_rec_files
     cdef object c_sent_messages
     cdef pj_time_val c_max_timeout
+    cdef int c_rtp_port_start
+    cdef int c_rtp_port_stop
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -1161,6 +1167,7 @@ cdef class PJSIPUA:
             self.c_user_agent_hdr = GenericStringHeader("User-Agent", kwargs["user_agent"])
             for event, accept_types in kwargs["initial_events"].iteritems():
                 self.add_event(event, accept_types)
+            self.rtp_port_range = kwargs["rtp_port_range"]
         except:
             self._do_dealloc()
             raise
@@ -1229,6 +1236,24 @@ cdef class PJSIPUA:
 
         def __get__(self):
             return self.c_pjsip_endpoint.c_udp_transport.local_name.port
+
+    property rtp_port_range:
+
+        def __get__(self):
+            return (self.c_rtp_port_start, self.c_rtp_port_stop)
+
+        def __set__(self, value):
+            cdef int c_rtp_port_start
+            cdef int c_rtp_port_stop
+            cdef int port
+            c_rtp_port_start, c_rtp_port_stop = value
+            for port in value:
+                if port < 0 or port > 65535:
+                    raise RuntimeError("RTP port values should be between 0 and 65535")
+            if c_rtp_port_stop <= c_rtp_port_start:
+                raise RuntimeError("Second RTP port should be a larger number than first RTP port")
+            self.c_rtp_port_start = c_rtp_port_start
+            self.c_rtp_port_stop = c_rtp_port_stop
 
     def connect_audio_stream(self, MediaStream stream):
         cdef AudioStream c_audio_stream = stream.c_stream
@@ -2501,6 +2526,85 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
 cdef SDPMedia c_reject_sdp(SDPMedia remote_media):
     return SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
 
+cdef class MediaTransport:
+    cdef pjmedia_transport *c_obj
+    cdef pj_pool_t *c_pool
+    cdef readonly int local_rtp_port
+    cdef readonly object state
+
+    def __cinit__(self):
+        cdef object pool_name = "MediaTransport_%d" % id(self)
+        cdef pjmedia_transport_info info
+        cdef int i
+        cdef int status
+        cdef PJSIPUA ua = c_get_ua()
+        self.state = "CINIT"
+        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        if self.c_pool == NULL:
+            raise MemoryError()
+        for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
+            status = pjmedia_transport_udp_create(ua.c_pjmedia_endpoint.c_obj, NULL, i, 0, &self.c_obj)
+            if status != PJ_ERRNO_START_SYS + EADDRINUSE:
+                break
+        if status != 0:
+            raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
+        pjmedia_transport_info_init(&info)
+        status = pjmedia_transport_get_info(self.c_obj, &info)
+        if status != 0:
+            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
+        self.local_rtp_port = pj_sockaddr_get_port(&info.sock_info.rtp_addr_name)
+        self.state = "INIT"
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+        except RuntimeError:
+            return
+        if self.state == "ESTABLISHED":
+            pjmedia_transport_media_stop(self.c_obj)
+        if self.c_obj != NULL:
+            pjmedia_transport_close(self.c_obj)
+        if self.c_pool != NULL:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+
+    cdef int _update_local_sdp(self, SDPSession local_sdp, unsigned int sdp_index, pjmedia_sdp_session *c_remote_sdp) except -1:
+        cdef int status
+        status = pjmedia_transport_media_create(self.c_obj, self.c_pool, 0, c_remote_sdp, sdp_index)
+        if status != 0:
+            raise RuntimeError("Could not create media transport: %s" % pj_status_to_str(status))
+        status = pjmedia_transport_encode_sdp(self.c_obj, self.c_pool, &local_sdp.c_obj, c_remote_sdp, sdp_index)
+        if status != 0:
+            raise RuntimeError("Could not update SDP for media transport: %s" % pj_status_to_str(status))
+        # TODO: work the changes back into the local_sdp object, but we don't need to do that yet.
+        return 0
+
+    def set_LOCAL(self, SDPSession local_sdp, unsigned int sdp_index):
+        if local_sdp is None:
+            raise RuntimeError("local_sdp argument cannot be None")
+        if self.state != "INIT":
+            raise RuntimeError('set_LOCAL can only be called in the "INIT" state')
+        local_sdp._to_c()
+        self._update_local_sdp(local_sdp, sdp_index, NULL)
+        self.state = "LOCAL"
+
+    def set_ESTABLISHED(self, SDPSession local_sdp, unsigned int sdp_index, SDPSession remote_sdp):
+        cdef int status
+        cdef PJSIPUA = c_get_ua()
+        if None in [local_sdp, remote_sdp]:
+            raise RuntimeError("SDP arguments cannot be None")
+        if self.state not in ["INIT", "LOCAL"]:
+            raise RuntimeError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states')
+        local_sdp._to_c()
+        remote_sdp._to_c()
+        if self.state == "INIT":
+            self._update_local_sdp(local_sdp, sdp_index, &remote_sdp.c_obj)
+        status = pjmedia_transport_media_start(self.c_obj, self.c_pool, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
+        if status != 0:
+            raise RuntimeError("Could not start media transport: %s" % pj_status_to_str(status))
+        self.state = "ESTABLISHED"
+
+
 cdef dict _stream_map = {"message": MSRPStream, "audio": AudioStream}
 
 _re_msrp_uri = re.compile("^(?P<scheme>(msrp)|(msrps))://(((?P<user>.*?)@)?(?P<host>.*?)(:(?P<port>[0-9]+?))?)(/(?P<session_id>.*?))?;(?P<transport>.*?)(;(?P<parameters>.*))?$")
@@ -2640,7 +2744,7 @@ cdef class AudioStream:
         cdef int status, i
         cdef PJSIPUA ua = c_get_ua()
         if self.c_transport == NULL:
-            for i in xrange(40000, 40100, 2):
+            for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
                 status = pjmedia_transport_udp_create(ua.c_pjmedia_endpoint.c_obj, NULL, i, 0, &self.c_transport)
                 if status != PJ_ERRNO_START_SYS + EADDRINUSE:
                     break
