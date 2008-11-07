@@ -93,12 +93,18 @@ class ServerProtocol(insults.ServerProtocol):
 
 
 if __name__ == '__main__':
+
+    class MyConsole(Console):
+        def handle_EOF(self):
+            self.terminal.loseConnection()
+            reactor.callLater(0, reactor.stop)
+
     #log.startLogging(file('child.log', 'w'))
     fd = sys.__stdin__.fileno()
     oldSettings = termios.tcgetattr(fd)
     tty.setraw(fd)
     try:
-        p = ServerProtocol(Console)
+        p = ServerProtocol(MyConsole)
         stdio.StandardIO(p)
         reactor.run()
     finally:
