@@ -51,13 +51,6 @@ def encode_chunk(chunk):
     contflag = getattr(chunk, 'contflag', '$')
     return chunk.encode_start() + data + chunk.encode_end(contflag)
 
-def make_bodiless_request():
-    msrpdata = msrp.MSRPData(method="SEND", transaction_id=random_string(12))
-    msrpdata.add_header(msrp.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
-    msrpdata.add_header(msrp.FromPathHeader(self.local_uri_path[-1:]))
-    msrpdata.add_header(msrp.MessageIDHeader(str(random_string(10))))
-    msrpdata.data = ''
-    msrpdata.contflag = '$'
 
 class Message(str):
     pass
@@ -73,9 +66,17 @@ class MSRPBuffer(BaseBuffer):
         self.remote_uri_path = [msrp.parse_uri(uri) for uri in uri_path]
         self.send_message("")
 
+    def make_bodiless_request(self):
+        msrpdata = msrp.MSRPData(method="SEND", transaction_id=random_string(12))
+        msrpdata.add_header(msrp.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
+        msrpdata.add_header(msrp.FromPathHeader(self.local_uri_path[-1:]))
+        msrpdata.add_header(msrp.MessageIDHeader(str(random_string(10))))
+        msrpdata.data = ''
+        msrpdata.contflag = '$'
+
     def send_bodiless_request(self):
         # MSRPRelay can't accept it right now
-        self.send_chunk(make_bodiless_request())
+        self.send_chunk(self.make_bodiless_request())
 
     def send_message(self, msg):
         msrpdata = msrp.MSRPData(method="SEND", transaction_id=random_string(12))
