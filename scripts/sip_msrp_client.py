@@ -52,7 +52,7 @@ def start(opts):
     ch = Channel()
     spawn(log_events, ch)
     e = EngineBuffer(ch,
-                     do_trace_sip=opts.do_trace_sip,
+                     trace_sip=opts.trace_sip,
                      auto_sound=not opts.disable_sound,
                      ec_tail_length=0,
                      local_ip=opts.local_ip,

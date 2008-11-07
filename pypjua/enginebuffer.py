@@ -21,7 +21,7 @@ class EngineBuffer(Engine):
         if default_channel is not None:
             self.default_channel_ref = ref(default_channel)
         handler = EventHandler(self._handle_event,
-                               do_trace_pjsip=kwargs.pop('do_trace_pjsip', False))
+                               trace_pjsip=kwargs.pop('trace_pjsip', False))
         return Engine.__init__(self, handler, **kwargs)
 
     def _handle_event(self, event_name, kwargs):
@@ -125,10 +125,10 @@ class InvitationBuffer(Invitation):
 class EventHandler:
     """Call handle_event in the reactor's thread / mainloop gthread. Filter out siptrace and log messages."""
 
-    def __init__(self, handle_event, do_trace_pjsip=False):
+    def __init__(self, handle_event, trace_pjsip=False):
         """handle_event will be called in the main thread / mainloop gthread and therefore must not block"""
         self.handle_event = handle_event
-        self.do_trace_pjsip = do_trace_pjsip
+        self.trace_pjsip = trace_pjsip
         self.start_time = None
         self.packet_count = 0
         from twisted.internet import reactor
@@ -160,6 +160,6 @@ class EventHandler:
             sys.stderr.write('\n'.join(buf))
         elif event_name != "log":
             self.handle_event(event_name, kwargs)
-        elif self.do_trace_pjsip:
+        elif self.trace_pjsip:
             sys.stderr.write("%(timestamp)s (%(level)d) %(sender)14s: %(message)s\n" % kwargs)
 
