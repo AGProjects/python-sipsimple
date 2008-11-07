@@ -1,3 +1,4 @@
+import os
 import tty
 import sys
 import termios
@@ -102,3 +103,6 @@ if __name__ == '__main__':
     finally:
         termios.tcsetattr(fd, termios.TCSANOW, oldSettings)
         #os.write(fd, "\r\x1bc\r")
+        os.write(fd, '\r')
+        os.system('setterm -initialize 2> /dev/null')
+

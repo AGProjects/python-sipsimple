@@ -95,3 +95,5 @@ if __name__ == '__main__':
         restore_std_output()
         termios.tcsetattr(fd, termios.TCSANOW, oldSettings)
         os.write(fd, "\r")
+        os.system('setterm -initialize')
+
