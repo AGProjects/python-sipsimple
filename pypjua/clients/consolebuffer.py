@@ -27,15 +27,28 @@ class _Console(Console):
 
 class ConsoleBuffer:
 
+    last_header = None
+
     def recv(self):
         res = self.channel.receive()
         return res
 
-    def write(self, msg):
+    def _write(self, msg):
         if self.protocol.terminalProtocol:
             self.protocol.terminalProtocol.addOutput(msg, async=True)
         else:
             __original_sys_stderr__.write('\r%s\n' % msg)
+
+    def write(self, msg, header=None, set_header=True):
+        if header is not None:
+            if header != self.last_header:
+                self._write('')
+                self._write(header)
+        if set_header:
+            self.last_header = header
+        else:
+            self.last_header = None
+        self._write(msg)
 
     def write_(self, msg):
         if msg.endswith('\n'):
@@ -83,6 +96,15 @@ if __name__ == '__main__':
     from twisted.internet import reactor
     reactor.callLater(2, lambda : sys.stdout.write('Async output\n-------\n'))
     reactor.callLater(4, lambda : 1/0)
+
+    def write_traffic():
+        console.write('header1', '10.1.1.1:222 -> 10.2.2.2:111')
+        console.write('header2', '10.1.1.1:222 -> 10.2.2.2:111')
+        console.write('header3', '10.1.1.1:222 -> 10.2.2.2:111')
+        console.write('header4', '10.1.1.1:222 -> 10.2.2.2:111')
+
+    reactor.callLater(3, write_traffic)
+
     fd = sys.__stdin__.fileno()
     oldSettings = termios.tcgetattr(fd)
     tty.setraw(fd)
