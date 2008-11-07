@@ -29,17 +29,29 @@ class Peer:
     def connection_lost(self, reason):
         spawn(self.channel.send_exception, (reason.type, reason.value, reason.tb))
 
+def format_address(addr):
+    return "%s:%s" % (addr.host, addr.port)
 
 class Protocol(msrp.MSRPProtocol):
+
+    log_func = None
 
     def connectionMade(self):
         self.peer = Peer(self.channel)
 
+    def _header(self):
+        params = (format_address(self.transport.getHost()), format_address(self.transport.getPeer()))
+        return '%s <- %s' % params
+
     def rawDataReceived(self, data):
         msrp.MSRPProtocol.rawDataReceived(self, data)
+        if self.log_func:
+            self.log_func(data, self._header(), set_header=False)
 
     def lineReceived(self, line):
         msrp.MSRPProtocol.lineReceived(self, line)
+        if self.log_func:
+            self.log_func(line, self._header())
 
     def connectionLost(self, reason):
        if self.peer:
@@ -58,9 +70,16 @@ class Message(str):
 class MSRPBuffer(BaseBuffer):
     protocol_class = Protocol
 
-    def __init__(self, local_uri_path):
+    def __init__(self, local_uri_path, log_func=None):
         self.local_uri_path = local_uri_path
         self.chunks = {} # maps message_id to StringIO instance that represents contents of the message
+        self.log_func = log_func
+
+    def build_protocol(self):
+        p = BaseBuffer.build_protocol(self)
+        p.log_func = self.log_func
+        del self.log_func
+        return p
 
     def set_remote_uri(self, uri_path):
         self.remote_uri_path = [msrp.parse_uri(uri) for uri in uri_path]
@@ -89,11 +108,15 @@ class MSRPBuffer(BaseBuffer):
         msrpdata.contflag = '$'
         self.send_chunk(msrpdata)
 
+    def _header(self):
+        params = (format_address(self.transport.getHost()), format_address(self.transport.getPeer()))
+        return '%s -> %s' % params
+
     def send_chunk(self, chunk):
         data = encode_chunk(chunk)
-        #print '\nSENDING MSRPData'
-        #print data
         self.write(data)
+        if self.protocol.log_func:
+            self.protocol.log_func(data, self._header(), False)
 
     def recv_chunk(self):
         """Receive and return one MSRP chunk"""
@@ -153,7 +176,7 @@ def keep_common_items(mydict, otherdict):
         if otherdict.get(k) not in [v, None]:
             del mydict[k]
 
-def relay_connect(local_uri_path, relay):
+def relay_connect(local_uri_path, relay, log_func=None):
     real_relay_ip = relay.domain
     if relay.do_srv:
         try:
@@ -167,14 +190,15 @@ def relay_connect(local_uri_path, relay):
     #from twisted.internet import ssl
     #cred = ssl.ClientContextFactory()
     from twisted.internet import reactor
-    conn = BufferCreator(reactor, MSRPBuffer, local_uri_path).connectTLS(real_relay_ip, relay.port, cred)
+    Buf = BufferCreator(reactor, MSRPBuffer, local_uri_path, log_func)
+    conn = Buf.connectTLS(real_relay_ip, relay.port, cred)
     #conn = BufferCreator(reactor, MSRPBuffer, local_uri_path).connectSSL(real_relay_ip, relay.port, cred)
     msrpdata = msrp.MSRPData(method="AUTH", transaction_id=random_string(12))
     relay_uri = msrp.URI(host=relay.domain, port=relay.port, use_tls=True)
     msrpdata.add_header(msrp.ToPathHeader([relay_uri]))
     msrpdata.add_header(msrp.FromPathHeader(local_uri_path))
     #print msrpdata.encode()
-    conn.write(msrpdata.encode())
+    conn.send_chunk(msrpdata)
     response = conn.recv_chunk()
     if response.code != 401:
         raise RuntimeError("Expected 401 response from relay")
@@ -184,7 +208,7 @@ def relay_connect(local_uri_path, relay):
     msrpdata.transaction_id = random_string(12)
     msrpdata.add_header(msrp.AuthorizationHeader(auth))
     #print msrpdata.encode()
-    conn.write(msrpdata.encode())
+    conn.send_chunk(msrpdata)
     response = conn.recv_chunk()
     if response.code != 200:
         raise RuntimeError("Failed to log on to MSRP relay: %(code)s %(comment)s" % response.__dict__)
