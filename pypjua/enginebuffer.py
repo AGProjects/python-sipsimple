@@ -47,10 +47,9 @@ class EngineBuffer(Engine):
         return obj
 
     def Invitation(self, *args, **kwargs):
-        obj = InvitationBuffer(*args, **kwargs)
-        obj.channel = self.register_channel(obj)
+        obj = InvitationBuffer(Invitation(*args, **kwargs))
+        obj.channel = self.register_channel(obj._obj)
         return obj
-
 
 class RegistrationBuffer(Registration):
     pass
@@ -91,11 +90,19 @@ class SIPDisconnect(Exception):
         except KeyError:
             raise AttributeError('No key %s in params' % item)
 
-class InvitationBuffer(Invitation):
+class Proxy(object):
+
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __getattr__(self, item):
+        return getattr(self._obj, item)
+
+class InvitationBuffer(Proxy):
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
-        Invitation.invite(self, *args, **kwargs)
+        self._obj.invite(*args, **kwargs)
         try:
             while True:
                 event_name, params = self.channel.receive()
@@ -137,10 +144,11 @@ class EventHandler:
     def event_handler_threadsafe(self, event_name, **kwargs):
         try:
             callFromThread = self.reactor.callFromThread
+            event_handler = self.event_handler
         except AttributeError:
             pass
         else:
-            callFromThread(self.event_handler, event_name, kwargs)
+            callFromThread(event_handler, event_name, kwargs)
 
     __call__ = event_handler_threadsafe
 
