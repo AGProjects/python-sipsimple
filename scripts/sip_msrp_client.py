@@ -78,6 +78,7 @@ def print_messages(msrp, other_uri):
 def start(opts):
     ch = Channel()
     credentials = Credentials(opts.uri, opts.password)
+    logger = Logger(opts.trace_msrp)
     e = EngineBuffer(ch,
                      trace_sip=opts.trace_sip,
                      auto_sound=not opts.disable_sound,
@@ -86,25 +87,43 @@ def start(opts):
                      local_port=opts.local_port)
     e.start()
     try:
-        with init_console() as console:
-            if opts.target_username is None:
-                register(e, credentials, opts.route)
-            else:
-                spawn(log_events, ch)
-                msrp = invite(e, credentials, opts.target_uri, opts.route, opts.relay, console.write)
-                loop(msrp, console)
+        if opts.target_username is None:
+            register(e, credentials, opts.route)
+            inv, msrp = accept_incoming(ch, opts.relay, logger.write)
+        else:
+            inv, msrp = invite(e, credentials, opts.target_uri, opts.route, opts.relay, logger.write)
+        spawn(log_events, ch)
+        try:
+            with init_console() as console:
+                for type, value in console:
+                    if type == 'line' and value:
+                        msrp.send_message(value)
+        except SIPDisconnect, ex:
+            sys.stderr.write('Session ended: %s' % ex)
+        finally:
+            msrp.loseConnection()
+            inv.end()
     finally:
         e.stop()
 
-def loop(msrp, console):
-    try:
-        for type, value in console:
-            if type == 'line':
-                msrp.send_message(value)
-    except SIPDisconnect, ex:
-        console.write('Session ended: %s' % ex)
-    finally:
-        msrp.loseConnection()
+class Logger:
+
+    def __init__(self, enabled=True):
+        self.enabled = enabled
+        self.last_header = ''
+
+    def write(self, msg, header=None, set_header=True):
+        if not self.enabled:
+            return
+        if header is not None:
+            if header != self.last_header:
+                sys.stderr.write('')
+                sys.stderr.write(header)
+        if set_header:
+            self.last_header = header
+        else:
+            self.last_header = None
+        sys.stderr.write(msg)
 
 def register(e, credentials, route):
     reg = e.Registration(credentials, route=route)
@@ -142,7 +161,7 @@ def invite(e, credentials, target_uri, route, relay, log_func):
         print 'Remote User Agent is "%s"' % other_user_agent
     inv.raise_on_disconnect()
     spawn(print_messages, msrp, '%s@%s' % (inv.callee_uri.user, inv.callee_uri.host))
-    return msrp
+    return inv, msrp
 
 def wait_for_incoming(channel):
     while True:
@@ -153,7 +172,7 @@ def wait_for_incoming(channel):
             if params.has_key("streams") and len(params["streams"]) == 1:
                 msrp_stream = params["streams"].pop()
                 if msrp_stream.media_type == "message" and "text/plain" in msrp_stream.remote_info[1]:
-                    return InvitationBuffer(params['obj'])
+                    return params
                 else:
                     print "Not an MSRP chat session, rejecting."
                     obj.end()
@@ -162,6 +181,25 @@ def wait_for_incoming(channel):
                 obj.end()
         log_dropped_event(event_name, params)
 
+def accept_incoming(channel, relay, log_func):
+    print 'Waiting for incoming connections...'
+    while True:
+        params = wait_for_incoming(channel)
+        inv = InvitationBuffer(params['obj'])
+        #type, value = console.recv()
+        #console.write('result=%r' % [type, value])
+        #if value.lower() == "n":
+            #    inv.end()
+        if True or value.lower() == "y":
+            other_party = inv.caller_uri
+            msrp_stream = inv.proposed_streams.pop()
+            local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
+            msrp = relay_connect(local_uri_path, relay, log_func)
+            msrp.set_remote_uri(msrp_stream.remote_info[0])
+            msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
+            inv.accept([msrp_stream])
+            spawn(print_messages, msrp, '%s@%s' % (inv.caller_uri.user, inv.caller_uri.host))
+            return inv, msrp
 
 @contextmanager
 def init_console():
@@ -171,10 +209,8 @@ def init_console():
     try:
         console = get_console()
         hook_std_output(console)
-        try:
-            yield console
-        finally:
-            restore_std_output()
+        yield console
+        restore_std_output()
     finally:
         termios.tcsetattr(fd, termios.TCSANOW, oldSettings)
         os.write(fd, "\r")
