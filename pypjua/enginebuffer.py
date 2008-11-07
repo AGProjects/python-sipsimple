@@ -12,6 +12,7 @@ def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
 
 def log_dropped_event(name, kwargs):
+    return
     sys.stderr.write('DROPPED %s\n' % format_event(name, kwargs))
 
 class EngineBuffer(Engine):
