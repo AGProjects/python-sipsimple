@@ -18,7 +18,7 @@ Step 1. Install dependencies
 You must install the C compiling environment, python 2.5 and the following
 packages:
 
-gnutls26 libxml2 libxslt subversion 
+gnutls libxml2 libxslt subversion 
 
 
 Step 2. Install dependencies

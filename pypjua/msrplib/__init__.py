@@ -211,10 +211,10 @@ def relay_connect(local_uri_path, relay, log_func=None):
     conn.send_chunk(msrpdata)
     response = conn.recv_chunk()
     if response.code != 200:
-        raise RuntimeError("Failed to log on to MSRP relay: %(code)s %(comment)s" % response.__dict__)
+        raise RuntimeError("Failed to reserve session at MSRP relay: %(code)s %(comment)s" % response.__dict__)
     use_path = response.headers["Use-Path"].decoded[0]
     conn.local_uri_path = [use_path, local_uri_path[0]]
-    print 'Reserved session at MSRP relay %s:%d, Use-Path %s' % (real_relay_ip, relay.port, use_path)
+    print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % (real_relay_ip, relay.port, use_path)
     return conn
 
 def random_string(length):
