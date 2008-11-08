@@ -1,75 +1,62 @@
 
-A. Fink installation
---------------------
+Installation procedure for SIP SIMPLE client on MacOSX
+------------------------------------------------------
 
-A ready to install fink package is available for MacOSX 10.5 (Leopard) on an
-Intel architecture.
+The software works on MacOSx 10.5 Leopard on Intel CPUs only.
 
-First download and install fink from http://www.finkproject.org
-
-Add these lines at the end of /sw/etc/apt/sources.list:
-
-deb http://ag-projects.com/fink local main
-deb http://ag-projects.com/fink stable main crypto
-deb http://ag-projects.com/fink unstable main crypto
-
-Then install the software:
-
-sudo apt-get update 
-sudo apt-get install sipclient
+Step 1. Prerequisites
+Step 2. Install dependencies
+Step 3. Compile PJSIP C library
+Step 4. Build and install SIP SIMPLE client
 
 
-B. Installation from sources
-----------------------------
+Step 1. Prerequisites
+---------------------
 
-The installation procedure includes 4 steps described below:
+a. Install Apple Developer tools.
 
-Step 1. Install dependencies
-Step 2. Compile PJSIP C library
-Step 3. Build the Python library
-Step 4. Install the library system wide
-
-
-Step 1. Install dependencies
-
-The software works on MacOSx 10.5 or newer on Intel CPUs only. You must have
-installed the Apple Developer tools before proceeding to the next steps.
-
-First download and install fink from http://www.finkproject.org
-You need to open a new console for the new PATH settings to take effect.
-
-Upgrade the setuptools package:
+b. Upgrade the setuptools Python package provided by MacOSX:
 
 sudo easy_install -U setuptools
+sudo mv /usr/bin/easy_install /usr/bin/easy_install.old
 
-Make sure the /usr/local/bin/easy_install script installed by setuptools is
-called. If you have an old easy_install script in /usr/bin/ remove it.
+c. Install fink from http://www.finkproject.org
+
+
+Step 2. Install dependencies
+----------------------------
+
+Install C dependencies available from fink project:
 
 sudo fink install gnutls26
-sudo fink install mercurial-py25
 sudo apt-get install libxml2 libxslt
-sudo easy_install lxml
-sudo easy_install cython
-sudo easy_install python-application
-sudo easy_install dnspython
-sudo easy_install python-gnutls
 
-Install Twisted >=8.1.0 from http://twistedmatrix.com/trac/
-Extract the Twisted tar archive and run:
-sudo python setup.py install
+Install python dependencies using easy_install:
 
-Download and install eventlet:
-LC_CTYPE= hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+sudo easy_install -U python-gnutls
+sudo easy_install -U lxml
+sudo easy_install -U cython
+sudo easy_install -U python-application
+sudo easy_install -U dnspython
+sudo easy_install -U twisted
+sudo easy_install -U py
+sudo easy_install -U mercurial
+
+Install eventlet from source code. Source code is availble using mercurial:
+
+hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
-Install the python-xcaplib library from:
+Install the python-xcaplib from source code, source code is available at:
 http://download.ag-projects.com/OpenXCAP/clients/
 
 cd python-xcaplib
 sudo python setup.py install
 
-Step 2. Compile PJSIP C library
+
+Step 3. Compile PJSIP C library
+-------------------------------
 
 Check out the PJSIP project in the pypjua main directory:
 
@@ -84,69 +71,15 @@ make distclean
 make
 
 
-Step 3. Build the Python library
+Step 4. Build and install SIP SIMPLE client
+-------------------------------------------
 
 Go to the main pypjua directory and build the library by running:
 
 sh ./build_inplace
 
 
-Step 4. Install the library system wide
-
-To install the library and the command line tools system wide:
+Install the library and comand line tools:
 
 sudo python setup.py install
-
-The command line tools are installed in the system executable path and
-starting with sip_.
-
-
-C. Building the fink package
-----------------------------
-
-You must have installed the Apple Developer tools before proceeding to the
-next steps. 
-
-Download and install fink from http://www.finkproject.org
-
-sudo fink configure
-
-- Activate the "unstable" tree
-- In the mirror selection dialog select an appropriate set of mirrors and
-  select (3) Never use "Master" source mirrors when prompted.
-
-Set in /sw/etc/fink.conf:
-
-SelfUpdateMethod: rsync
-
-fink selfupdate
-
-sudo apt-get install \
-blt-dev blt-shlibs db44-aes db44-aes-shlibs expat-shlibs expat1 \
-expat1-shlibs gdbm3 gdbm3-shlibs gettext-tools glib glib-shlibs gmp-shlibs \
-libgettextpo2-shlibs libjpeg libjpeg-bin libjpeg-shlibs libmpfr1-shlibs \
-libncursesw5 libncursesw5-shlibs libxml2 libxml2-bin libxml2-shlibs libxslt \
-libxslt-bin libxslt-shlibs pkgconfig python25 python25-shlibs \
-python25-socket readline5 readline5-shlibs sqlite3-dev sqlite3-shlibs \
-system-openssl-dev tcltk tcltk-dev tcltk-shlibs
-
-fink install lxml-py25 setuptools-py25 twisted2-py25
-
-When asked choose db44-aes-shlibs: Shared Libraries for db44-aes
-
-Go to pypjua/fink directory, edit the versions of the changed packages and their
-md5 checksums then copy the package descriptions to local fink directory.
-
-sudo cp pypjua/fink/*.info /sw/fink/dists/local/main/finkinfo/
-
-fink index
-
-fink install sipclient
-
-Check the installed packages:
-
-fink list sipclient dnspython-py25 python-application-py25 python-xcaplib-py25
-
-Rsync the /sw/fink tree to a web server and follow the client installation
-procedure from chapter A (Fink installation).
 
