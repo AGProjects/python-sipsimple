@@ -36,7 +36,7 @@ bunzip2 gnutls-2.6.0.tar.bz2; tar xvf gnutls-2.6.0.tar; cd gnutls-2.6.0
 ./configure; make; sudo make install; cd ..
 
 # Install libxml2
-curl ftp://ftp.gnome.org/pub/GNOME/sources/libxml2/2.6/libxml2-2.6.30.tar.gz -o libxml.tar.gz
+curl ftp://ftp.gnome.org/pub/GNOME/sources/libxml2/2.6/libxml2-2.6.30.tar.gz -o libxml2-2.6.30.tar.gz
 tar zxvf libxml2-2.6.30.tar.gz; cd libxml2-2.6.30
 ./configure --prefix /usr ; make; sudo make install; cd ..
 

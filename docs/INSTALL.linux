@@ -37,15 +37,14 @@ sudo easy_install -U twisted
 sudo easy_install -U py
 sudo easy_install -U mercurial
 
-Install eventlet from source code. Source code is availble using mercurial:
+#Install eventlet from source code. Source code is availble using mercurial:
 
-hg clone
-http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
-Install the python-xcaplib from source code, source code is available at:
-http://download.ag-projects.com/OpenXCAP/clients/
+#Install the python-xcaplib from source code, source code is available at:
+#http://download.ag-projects.com/OpenXCAP/clients/
 
 cd python-xcaplib
 sudo python setup.py install
