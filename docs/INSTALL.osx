@@ -90,7 +90,7 @@ Go to the main pypjua directory and build the library by running:
 
 sh ./build_inplace
 
-Install the library and comand line tools system wide:
+Install the library and comand line tools:
 
 sudo python setup.py install
 

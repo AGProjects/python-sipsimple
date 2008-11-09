@@ -2,8 +2,8 @@
 Debian installation
 -------------------
 
-For Debian testing or unstable on an i386 architecture there is an official
-public repository provided by AG Projects.
+For Debian and Ubuntu on an i386 architecture there is an official public
+repository provided by AG Projects.
 
 Install the AG Projects debian software signing key:
 

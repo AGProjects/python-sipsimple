@@ -37,15 +37,13 @@ sudo easy_install -U twisted
 sudo easy_install -U py
 sudo easy_install -U mercurial
 
-#Install eventlet from source code. Source code is availble using mercurial:
+#Install eventlet from source code. Source code is available using mercurial:
 
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
-#Install the python-xcaplib from source code, source code is available at:
-#http://download.ag-projects.com/OpenXCAP/clients/
-
+#Install the python-xcaplib from http://download.ag-projects.com/OpenXCAP/clients/
 cd python-xcaplib
 sudo python setup.py install
 
@@ -73,20 +71,12 @@ make distclean
 make HOST_CFLAGS=-fPIC
 
 
-Step 3. Build the Python library
-
-Go to the main pypjua directory and build the library by running:
-
-sh ./build_inplace
-
-
 Step 4. Build and install SIP SIMPLE client
 -------------------------------------------
 
 Go to the main pypjua directory and build the library by running:
 
 sh ./build_inplace
-
 
 Install the library and comand line tools:
 

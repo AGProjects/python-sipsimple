@@ -9,13 +9,13 @@ Homepage: http://www.ag-projects.com/SipClient
 
 Package: sipclient
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.0.9), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.0.9), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib, python-codespeak-lib
 Provides: ${python:Provides}
 Description: Python SIP client
  SipClient is Python software library built on top of PJSIP that together
  with an elegant middleware allows for easy development of Client/Server or
  Peer-to-Peer Internet communications end-points based on SIP protocol with
- rich Presence, Interactive Messaging (IM) and File Transfer capabilities.
+ rich Presence, instant messaging (IM) and file transfer capabilities.
  .
- Homepage: http://ag-projects.com/SipClient
+ Homepage: http://SipSimpleClient.com/
 XB-Python-Version: ${python:Versions}
