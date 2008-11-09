@@ -1,0 +1,81 @@
+
+Installation procedure for SIP SIMPLE client on Nokia 810 (Maemo)
+-----------------------------------------------------------------
+
+The installation procedure includes 4 steps described below:
+
+Note. Presence and Instant Messaging (IM) functionality work. Getting audio
+to work requires modifications to the audio driver.
+
+Step 1. Prerequisites
+Step 2. Install dependencies
+Step 3. Compile PJSIP C library
+Step 4. Build and install SIP SIMPLE client
+
+
+Step 1. Prerequisites
+---------------------
+
+Step 1. Install dependencies
+
+Install the diablo sdk and debfarm catalogues referenced from:
+
+http://www.gronmayer.com/it/index.php
+
+
+Step 2. Install dependencies
+----------------------------
+
+apt-get install libc6-dev subversion python2.5-cython python2.5-libxml2 \
+libxslt1-dev zlib1g-dev flash-and-reboot initfs-flasher \
+kernel-diablo-flasher libasound2-dev libgnutls26 libgnutls-dev
+
+easy_install -U setuptools
+easy_install -U dnspython
+easy_install -U python-application
+easy_install -U twisted
+easy_install -U lxml
+easy_install -U py
+easy_install -U python-gnutls
+easy_install -U mercurial
+
+Install the python-xcaplib library from:
+http://download.ag-projects.com/OpenXCAP/clients/
+cd  python-xcaplib
+python setup.py install
+
+hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+cd eventlet_twisted
+python setup.py install
+
+
+Step 3. Compile PJSIP C library
+-------------------------------
+
+Check out the PJSIP project in the pypjua main directory:
+
+svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+
+Go to the PJSIP directory and compile it (after changing the UDP message limit to 64K):
+
+cd pjsip
+grep  PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
+make distclean
+./configure
+make
+
+
+Step 4. Build and install SIP SIMPLE client
+-------------------------------------------
+
+Step 4. Build and install SIP SIMPLE client
+-------------------------------------------
+
+Go to the main pypjua directory and build the library by running:
+
+sh ./build_inplace
+
+Install the library and comand line tools:
+
+sudo python setup.py install
+
