@@ -4,8 +4,39 @@ Installation procedure for SIP SIMPLE client on Nokia 810 (Maemo)
 
 The installation procedure includes 4 steps described below:
 
-Note. Presence and Instant Messaging (IM) functionality work. Getting audio
-to work requires modifications to the audio driver.
+Notes:
+
+1. SIP signalling and presence work.
+2. Instant Messaging (IM) functionality based on MSRP requires pylib, which
+curently does not compile:
+
+Nokia-N810-36-5:/media/mmc1/work/sipclient-0.2.3# easy_install -U py
+Searching for py
+Reading http://pypi.python.org/simple/py/
+Reading http://pylib.org
+Reading http://codespeak.net/py/0.9.2/download.html
+Reading http://codespeak.net/py
+Reading http://pypi.python.org/simple/py/XXX
+Best match: py 0.9.2
+Downloading http://pypi.python.org/packages/source/p/py/py-0.9.2.zip#md5=8447b2ba4c7b4062fcd08aab33
+Processing py-0.9.2.zip
+Running py-0.9.2/setup.py -q bdist_egg --dist-dir /var/tmp/easy_install-7Yb7nC/py-0.9.2/egg-dist-tm
+py/c-extension/greenlet/greenlet.c:254:2: #error "greenlet needs to be ported to this platform, or
+py/c-extension/greenlet/greenlet.c: In function `initgreenlet':
+py/c-extension/greenlet/greenlet.c:907: error: `slp_switch' undeclared (first use in this function)
+py/c-extension/greenlet/greenlet.c:907: error: (Each undeclared identifier is reported only once
+py/c-extension/greenlet/greenlet.c:907: error: for each function it appears in.)
+py/c-extension/greenlet/greenlet.c: At top level:
+py/c-extension/greenlet/greenlet.c:195: warning: 'slp_restore_state' defined but not used
+py/c-extension/greenlet/greenlet.c:212: warning: 'slp_save_state' defined but not used
+error: Setup script exited with error: command 'gcc' failed with exit status 1
+
+3. Getting audio to work requires modifications to the audio driver. A
+patch exists for an older version of maemo and pjsip, it needs to be
+re-worked.
+
+http://lists.pjsip.org/pipermail/pjsip_lists.pjsip.org/2008-April/002350.html
+
 
 Step 1. Prerequisites
 Step 2. Install dependencies
