@@ -65,9 +65,9 @@ The source code is available only using darcs version control tool from
 http://www.darcs.net
 
 Darcs is not available for ARM processors, you must obtain the source code
-on a separate Linux machine and copy the software directory to your Nokia
-tablet. See INSTALL.linux for more information about obtaining the source
-code using darcs.
+on a separate machine using darcs and copy the software directory
+sipsimpleclient to your Nokia tablet. See INSTALL.linux for more information
+about obtaining the source code using darcs.
 
 
 Step 3. Install dependencies

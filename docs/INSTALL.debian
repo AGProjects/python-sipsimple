@@ -29,18 +29,19 @@ You need the following packages before trying to build a debian package:
 
 sudo apt-get install subversion devscripts python-dnspython \
 python-setuptools python-lxml cython python-application python-twisted \
-build-essential libasound2-dev \ python-setuptools cdbs debhelper \
+build-essential libasound2-dev python-setuptools cdbs debhelper \
 python-all-dev python-support
 
 To obtain the latest source code install darcs version control tool from
+
 http://www.darcs.net
 
-You must run the next step once:
+Run the next step once:
 
 darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
 
-The software is downloaded under sipsimpleclient directory. Use the next
-step to update it. To update an existing darcs repository:
+The software is downloaded under the sipsimpleclient directory. Use the next
+step to update it later. To update an existing darcs repository:
 
 cd sipsimpleclient
 darcs pull
