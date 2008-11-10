@@ -49,10 +49,13 @@ Step 1. Prerequisites
 
 Nokia tablet N810 with Maemo 4.1 (Diablo) installed.
 
-Using the web browser on the Nokia tablet, install the diablo sdk and
+Using the web browser on the Nokia tablet, install the Diablo extras and
 debfarm catalogues referenced from:
 
 http://www.gronmayer.com/it/index.php
+
+If you cannot find a package that needs to be installed at next step you
+should come back here to find which repository contains it.
 
 
 Step 2. Obtain the latest SIP SIMPLE client source code
@@ -73,10 +76,9 @@ Step 3. Install dependencies
 Login to Nokia tablet as root.
 
 apt-get install libc6-dev subversion python2.5-cython python2.5-libxml2 \
-libxslt1-dev zlib1g-dev flash-and-reboot initfs-flasher \
+libxslt1-dev zlib1g-dev flash-and-reboot initfs-flasher python2.5-setuptools \
 kernel-diablo-flasher libasound2-dev libgnutls26 libgnutls-dev
 
-easy_install -U setuptools
 easy_install -U dnspython
 easy_install -U python-application
 easy_install -U twisted
