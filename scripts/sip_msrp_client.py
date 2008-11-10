@@ -19,11 +19,12 @@ from twisted.internet.error import ConnectionDone, ConnectionClosed
 
 from eventlet.api import spawn
 from eventlet.channel import channel as Channel
+from eventlet.twistedutil.protocol import BufferCreator
 
 from pypjua import Credentials, MediaStream, Route, SIPURI
 from pypjua.clients.lookup import lookup_srv
 from pypjua.clients import msrp_protocol
-from pypjua.msrplib import relay_connect
+from pypjua.msrplib import relay_connect, MSRPBuffer
 from pypjua.clients.consolebuffer import get_console, hook_std_output, restore_std_output
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
@@ -141,10 +142,9 @@ def register(e, credentials, route):
 
 def invite(e, credentials, target_uri, route, relay, log_func):
     local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
-    msrp = relay_connect(local_uri_path, relay, log_func)
     inv = e.Invitation(credentials, target_uri, route=route)
     stream = MediaStream("message")
-    stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
+    stream.set_local_info([str(uri) for uri in local_uri_path], ["text/plain"])
     invite_response = inv.invite([stream], ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav")))
     code = invite_response.get('code')
     if invite_response['state'] != 'ESTABLISHED':
@@ -156,6 +156,15 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
     print "Session negotiated to: %s" % " ".join(remote_uri_path)
+    if relay is not None:
+        msrp = relay_connect(local_uri_path, relay, log_func)
+    else:
+        from twisted.internet import reactor
+        Buf = BufferCreator(reactor, MSRPBuffer, local_uri_path, log_func)
+        remote_uri_path_parsed = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
+        from gnutls.interfaces.twisted import X509Credentials
+        cred = X509Credentials(None, None)
+        msrp = Buf.connectTLS(remote_uri_path_parsed[0].host, remote_uri_path_parsed[0].port or 2855, cred)
     msrp.set_remote_uri(remote_uri_path)
     if other_user_agent is not None:
         print 'Remote User Agent is "%s"' % other_user_agent
@@ -194,7 +203,15 @@ def accept_incoming(channel, relay, log_func):
             other_party = inv.caller_uri
             msrp_stream = inv.proposed_streams.pop()
             local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
-            msrp = relay_connect(local_uri_path, relay, log_func)
+            #remote_uri_path = [msrp.parse_uri(uri) for uri in uri_path]
+            #remote_uri_path = msrp.parse_uri(msrp_stream.remote_info[0]
+            if relay is not None:
+                msrp = relay_connect(local_uri_path, relay, log_func)
+            else:
+                not_implemented
+                #from twisted.internet import reactor
+                #Buf = BufferCreator(reactor, MSRPBuffer, local_uri_path, log_func)
+                #conn = Buf.connectTLS(remote_uri_path[0].host, remote_uri_path[0].port or 2855)
             msrp.set_remote_uri(msrp_stream.remote_info[0])
             msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
             inv.accept([msrp_stream])
@@ -359,7 +376,7 @@ def parse_options():
         retval["target_username"], retval["target_domain"] = None, None
     retval["auto_msrp_relay"] = options.msrp_relay_ip is None
     if retval["auto_msrp_relay"]:
-        retval["use_msrp_relay"] = True
+        retval["use_msrp_relay"] = retval['target_username'] is None
     else:
         retval["use_msrp_relay"] = options.msrp_relay_ip.lower() != "none"
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
