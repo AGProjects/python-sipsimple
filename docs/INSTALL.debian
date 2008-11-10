@@ -30,7 +30,6 @@ You need the following packages before trying to build a debian package:
 apt-get install subversion python-dnspython python-setuptools python-lxml \
 cython python-application python-twisted build-essential libasound2-dev \
 python-setuptools cdbs debhelper python-all-dev python-support cython
-
 Check out the PJSIP project from the pypjua main directory:
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip

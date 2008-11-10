@@ -28,14 +28,14 @@ Use the appropriate package manager for your Linux OS or use the
 easy_install script provided in python-setuptools package to install the
 following packages:
 
-sudo easy_install -U python-gnutls
-sudo easy_install -U lxml
-sudo easy_install -U cython
-sudo easy_install -U python-application
-sudo easy_install -U dnspython
-sudo easy_install -U twisted
-sudo easy_install -U py
-sudo easy_install -U mercurial
+sudo easy_install -U python-gnutls       # http://pypi.python.org/simple/python-gnutls/
+sudo easy_install -U lxml                # http://codespeak.net/lxml
+sudo easy_install -U cython              # http://www.cython.org
+sudo easy_install -U python-application  # http://pypi.python.org/simple/python-application
+sudo easy_install -U dnspython           # http://www.dnspython.org
+sudo easy_install -U twisted             # http://twistedmatrix.com/trac/
+sudo easy_install -U py                  # http://codespeak.net/py
+sudo easy_install -U mercurial           # http://www.selenic.com/mercurial
 
 #Install eventlet from source code. Source code is available using mercurial:
 
