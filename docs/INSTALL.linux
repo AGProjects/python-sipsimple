@@ -17,10 +17,11 @@ Step 1. Prerequisites
 You must install the C compiling environment, python 2.5 and the following
 packages: 
 
-gnutls>=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9, 
-subversion >=1.5.1
+gnutls>=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9
 
-Install darcs version control tool from http://www.darcs.net
+Install subversion, mercurial and darcs version control tools.
+
+Darcs is available at http://darcs.net
 
 
 Step 2. Obtain the latest SIP SIMPLE client source code
@@ -31,7 +32,7 @@ You must run the next step once.
 darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
 
 The software is downloaded under sipsimpleclient directory. Use the next
-step to update it. To update an existing darcs repository:
+step to update it:
 
 cd sipsimpleclient
 darcs pull
@@ -43,14 +44,14 @@ Step 3. Install dependencies
 Use the appropriate package manager for your Linux distribution to install
 the following packages, notice the minimum version numbers:
 
-python-gnutls       # http://pypi.python.org/simple/python-gnutls/      >=1.1.6
-python-lxml         # http://codespeak.net/lxml                         >=2.1.2
-cython              # http://www.cython.org                             >=0.10
-python-application  # http://pypi.python.org/simple/python-application  >=1.0.9
-dnspython           # http://www.dnspython.org                          >=1.6.0        
-twisted             # http://twistedmatrix.com/trac/                    >=8.1.0
-pylib               # http://codespeak.net/py                           >=0.9.2
-mercurial           # http://www.selenic.com/mercurial                  >=1.0.2
+python-gnutls       http://pypi.python.org/simple/python-gnutls/      >=1.1.6
+python-lxml         http://codespeak.net/lxml                         >=2.1.2
+cython              http://www.cython.org                             >=0.10
+python-application  http://pypi.python.org/simple/python-application  >=1.0.9
+dnspython           http://www.dnspython.org                          >=1.6.0        
+twisted             http://twistedmatrix.com/trac/                    >=8.1.0
+pylib               http://codespeak.net/py                           >=0.9.2
+mercurial           http://www.selenic.com/mercurial                  >=1.0.2
 
 Alternatively, you can use the easy_install script provided by the
 python-setuptools package to install the same packages:

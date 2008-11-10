@@ -28,7 +28,7 @@ You must run the next step once.
 darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
 
 The software is downloaded under sipsimpleclient directory. Use the next
-step to update it. To update an existing darcs repository:
+step to update it:
 
 cd sipsimpleclient
 darcs pull
