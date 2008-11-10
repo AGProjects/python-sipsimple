@@ -14,8 +14,8 @@ Step 5. Build and install SIP SIMPLE client
 Step 1. Prerequisites
 ---------------------
 
-a. MacOSx 10.5 Leopard installed on Intel CPU.
-b. Install Apple Developer tools.
+a. MacOSx 10.5 Leopard installed on Intel CPU
+b. Install Apple Developer tools
 c. Install Fink from http://www.finkproject.org
 d. Install darcs version control tool from http://www.darcs.net
 
@@ -44,7 +44,7 @@ sudo apt-get install libxml2 libxslt
 
 # Install Python dependencies
 
-sudo easy_install -U setuptools
+sudo easy_install --script-dir /usr/bin -U setuptools
 sudo easy_install -U cython
 sudo easy_install -U python-application
 sudo easy_install -U dnspython
