@@ -27,14 +27,37 @@ Building the Debian package
 
 You need the following packages before trying to build a debian package:
 
-apt-get install subversion python-dnspython python-setuptools python-lxml \
-cython python-application python-twisted build-essential libasound2-dev \
-python-setuptools cdbs debhelper python-all-dev python-support cython
-Check out the PJSIP project from the pypjua main directory:
+sudo apt-get install subversion devscripts python-dnspython \
+python-setuptools python-lxml cython python-application python-twisted \
+build-essential libasound2-dev \ python-setuptools cdbs debhelper \
+python-all-dev python-support
 
+To obtain the latest source code install darcs version control tool from
+http://www.darcs.net
+
+You must run the next step once:
+
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+
+The software is downloaded under sipsimpleclient directory. Use the next
+step to update it. To update an existing darcs repository:
+
+cd sipsimpleclient
+darcs pull
+
+Change directory to the main software directory. Check out the PJSIP project
+under the main software directory. It will expand under pjsip directory.
+
+cd sipsimpleclient
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-Go to the PJSIP directory and compile it:
+If you have obtained the svn sources already you can update them using svn
+update command.
+
+cd pjsip
+svn update
+
+Go to pjsip directory and build pjsip library:
 
 cd pjsip
 make distclean

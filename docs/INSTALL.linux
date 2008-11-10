@@ -2,26 +2,39 @@
 Installation procedure for SIP SIMPLE client on Linux
 -----------------------------------------------------
 
-The installation procedure includes 4 steps described below:
+The installation procedure includes 5 steps described below:
 
 Step 1. Prerequisites
-Step 2. Install dependencies
-Step 3. Compile PJSIP C library
-Step 4. Build and install SIP SIMPLE client
+Step 2. Obtain the latest SIP SIMPLE client source code
+Step 3. Install dependencies
+Step 4. Compile PJSIP C library
+Step 5. Build and install SIP SIMPLE client
 
 
 Step 1. Prerequisites
 ---------------------
 
-Step 1. Install dependencies
-
 You must install the C compiling environment, python 2.5 and the following
-packages:
+packages: gnutls26 libxml2 libxslt subversion python-setuptools
 
-gnutls26 libxml2 libxslt subversion python-setuptools
+Install darcs version control tool from http://www.darcs.net
 
 
-Step 2. Install dependencies
+Step 2. Obtain the latest SIP SIMPLE client source code
+-------------------------------------------------------
+
+You must run the next step once.
+
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+
+The software is downloaded under sipsimpleclient directory. Use the next
+step to update it. To update an existing darcs repository:
+
+cd sipsimpleclient
+darcs pull
+
+
+Step 3. Install dependencies
 ----------------------------
 
 Use the appropriate package manager for your Linux OS or use the
@@ -48,17 +61,23 @@ cd python-xcaplib
 sudo python setup.py install
 
 
-Step 3. Compile PJSIP C library
+Step 4. Compile PJSIP C library
 -------------------------------
 
-Check out the PJSIP project under this project main directory:
+cd sipsimpleclient
+
+Check out the PJSIP project under the main software directory. It will
+expand under pjsip directory.
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-If you have checked out the sources already you can update them with 'svn
-update' command;
+If you have obtained the svn sources already you can update them using svn 
+update command.                                                         
 
-Go to the PJSIP directory and compile it (after changing the UDP message limit to 64K):
+cd pjsip
+svn update
+
+Go to pjsip directory and build the pjsip library:
 
 cd pjsip
 grep  PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
@@ -74,12 +93,12 @@ make distclean
 make HOST_CFLAGS=-fPIC
 
 
-Step 4. Build and install SIP SIMPLE client
+Step 5. Build and install SIP SIMPLE client
 -------------------------------------------
 
 Go to the main project directory and build the library by running:
 
-cd .. 
+cd sipsimpleclient
 sh ./build_inplace
 
 Install the library and comand line tools:
