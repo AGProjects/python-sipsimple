@@ -86,7 +86,7 @@ tar xvzf *.tar.gz
 Change to the distribution directory and:
 
 ln -s ../../pjsip pjsip
-./build_inplace
+sh ./build_inplace
 dpkg-buildpackage
 
 You will now have a Debian package in the upper level directory.
