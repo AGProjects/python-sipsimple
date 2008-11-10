@@ -49,7 +49,8 @@ Step 1. Prerequisites
 
 Nokia tablet N810 with Maemo 4.1 (Diablo) installed.
 
-Install the diablo sdk and debfarm catalogues referenced from:
+Using the web browser on the Nokia tablet, install the diablo sdk and
+debfarm catalogues referenced from:
 
 http://www.gronmayer.com/it/index.php
 
