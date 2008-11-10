@@ -2,13 +2,19 @@
 Installation procedure for SIP SIMPLE client on Nokia 810 (Maemo)
 -----------------------------------------------------------------
 
-The installation procedure includes 4 steps described below:
+The installation procedure includes 5 steps described below:
+
+Step 1. Prerequisites
+Step 2. Obtain the latest SIP SIMPLE client source code
+Step 3. Install dependencies
+Step 4. Compile PJSIP C library
+Step 5. Build and install SIP SIMPLE client
 
 Notes:
 
 1. SIP signalling and presence work.
 2. Instant Messaging (IM) functionality based on MSRP requires pylib, which
-curently does not compile:
+curently does not compile yet on ARM processor:
 
 Nokia-N810-36-5:/media/mmc1/work/sipclient-0.2.3# easy_install -U py
 Searching for py
@@ -39,23 +45,31 @@ http://lists.pjsip.org/pipermail/pjsip_lists.pjsip.org/2008-April/002350.html
 
 
 Step 1. Prerequisites
-Step 2. Install dependencies
-Step 3. Compile PJSIP C library
-Step 4. Build and install SIP SIMPLE client
-
-
-Step 1. Prerequisites
 ---------------------
 
-Step 1. Install dependencies
+Nokia tablet N810 with Maemo 4.1 (Diablo) installed.
 
 Install the diablo sdk and debfarm catalogues referenced from:
 
 http://www.gronmayer.com/it/index.php
 
 
-Step 2. Install dependencies
+Step 2. Obtain the latest SIP SIMPLE client source code
+-------------------------------------------------------
+
+The source code is available only using darcs version control tool from
+http://www.darcs.net
+
+Darcs is not available for ARM processors, you must obtain the source code
+on a separate Linux machine and copy the software directory to your Nokia
+tablet. See INSTALL.linux for more information about obtaining the source
+code using darcs.
+
+
+Step 3. Install dependencies
 ----------------------------
+
+Login to Nokia tablet as root.
 
 apt-get install libc6-dev subversion python2.5-cython python2.5-libxml2 \
 libxslt1-dev zlib1g-dev flash-and-reboot initfs-flasher \
@@ -80,12 +94,21 @@ cd eventlet_twisted
 python setup.py install
 
 
-Step 3. Compile PJSIP C library
+Step 4. Compile PJSIP C library
 -------------------------------
 
-Check out the PJSIP project in the pypjua main directory:
+cd sipsimpleclient
+
+Check out the PJSIP project under the main software directory. It will
+expand under pjsip directory.
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+
+If you have obtained the svn sources already you can update them using svn 
+update command.                                                         
+
+cd pjsip
+svn update
 
 Go to the PJSIP directory and compile it (after changing the UDP message limit to 64K):
 
@@ -96,10 +119,7 @@ make distclean
 make
 
 
-Step 4. Build and install SIP SIMPLE client
--------------------------------------------
-
-Step 4. Build and install SIP SIMPLE client
+Step 5. Build and install SIP SIMPLE client
 -------------------------------------------
 
 Go to the main pypjua directory and build the library by running:
