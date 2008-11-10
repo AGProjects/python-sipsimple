@@ -15,7 +15,10 @@ Step 1. Prerequisites
 ---------------------
 
 You must install the C compiling environment, python 2.5 and the following
-packages: gnutls26 libxml2 libxslt subversion python-setuptools
+packages: 
+
+gnutls>=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9, 
+subversion >=1.5.1
 
 Install darcs version control tool from http://www.darcs.net
 
@@ -41,14 +44,14 @@ Use the appropriate package manager for your Linux OS or use the
 easy_install script provided in python-setuptools package to install the
 following packages:
 
-sudo easy_install -U python-gnutls       # http://pypi.python.org/simple/python-gnutls/
-sudo easy_install -U lxml                # http://codespeak.net/lxml
-sudo easy_install -U cython              # http://www.cython.org
-sudo easy_install -U python-application  # http://pypi.python.org/simple/python-application
-sudo easy_install -U dnspython           # http://www.dnspython.org
-sudo easy_install -U twisted             # http://twistedmatrix.com/trac/
-sudo easy_install -U py                  # http://codespeak.net/py
-sudo easy_install -U mercurial           # http://www.selenic.com/mercurial
+sudo easy_install -U python-gnutls       # http://pypi.python.org/simple/python-gnutls/      >=1.1.6
+sudo easy_install -U lxml                # http://codespeak.net/lxml                         >=2.1.2
+sudo easy_install -U cython              # http://www.cython.org                             >=0.10
+sudo easy_install -U python-application  # http://pypi.python.org/simple/python-application  >=1.0.9
+sudo easy_install -U dnspython           # http://www.dnspython.org                          >=1.6.0        
+sudo easy_install -U twisted             # http://twistedmatrix.com/trac/                    >=8.1.0
+sudo easy_install -U py                  # http://codespeak.net/py                           >=0.9.2
+sudo easy_install -U mercurial           # http://www.selenic.com/mercurial                  >=1.0.2
 
 # Install eventlet from source code. Source code is available using mercurial:
 
