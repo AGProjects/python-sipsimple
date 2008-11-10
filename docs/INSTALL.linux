@@ -96,7 +96,6 @@ Go to pjsip directory and build the pjsip library:
 
 cd pjsip
 ([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
-make distclean
 ./configure
 make
 
@@ -104,7 +103,6 @@ Note that, on some platforms like amd64 you may need to supply -fPIC flag to
 the compiler, otherwise although the compilation will succeed, later attempt
 to use the library will not. 
 
-make distclean
 make HOST_CFLAGS=-fPIC
 
 
