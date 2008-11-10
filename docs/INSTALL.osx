@@ -2,10 +2,13 @@
 Installation procedure for SIP SIMPLE client on MacOSX
 ------------------------------------------------------
 
+The installation procedure includes 5 steps described below:
+
 Step 1. Prerequisites
-Step 2. Install dependencies
-Step 3. Compile PJSIP C library
-Step 4. Build and install SIP SIMPLE client
+Step 2. Obtain the latest SIP SIMPLE client source code
+Step 3. Install dependencies
+Step 4. Compile PJSIP C library
+Step 5. Build and install SIP SIMPLE client
 
 
 Step 1. Prerequisites
@@ -14,9 +17,24 @@ Step 1. Prerequisites
 a. MacOSx 10.5 Leopard installed on Intel CPU.
 b. Install Apple Developer tools.
 c. Install Fink from http://www.finkproject.org
+d. Install darcs version control tool from http://www.darcs.net
 
 
-Step 2. Install dependencies
+Step 2. Obtain the latest SIP SIMPLE client source code
+-------------------------------------------------------
+
+You must run the next step once.
+
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+
+The software is downloaded under sipsimpleclient directory. Use the next
+step to update it. To update an existing darcs repository:
+
+cd sipsimpleclient
+darcs pull
+
+
+Step 3. Install dependencies
 ----------------------------
 
 # Install C dependencies
@@ -46,14 +64,23 @@ cd python-xcaplib
 sudo python setup.py install
 
 
-Step 3. Compile PJSIP C library
+Step 4. Compile PJSIP C library
 -------------------------------
 
-Check out the PJSIP project under the pypjua main directory:
+cd sipsimpleclient
+
+Check out the PJSIP project under the main software directory. It will
+expand under pjsip directory.
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
-Go to the PJSIP directory and compile it (after changing the UDP message limit to 64K):
+If you have obtained the svn sources already you can update them using svn 
+update command.                                                         
+
+cd pjsip
+svn update
+
+Go to pjsip directory and build the pjsip library:
 
 cd pjsip
 ([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
@@ -62,7 +89,7 @@ make distclean
 make
 
 
-Step 4. Build and install SIP SIMPLE client
+Step 5. Build and install SIP SIMPLE client
 -------------------------------------------
 
 Go to the main pypjua directory and build the library by running:
