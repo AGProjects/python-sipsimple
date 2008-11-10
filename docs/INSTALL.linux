@@ -18,7 +18,7 @@ Step 1. Install dependencies
 You must install the C compiling environment, python 2.5 and the following
 packages:
 
-gnutls libxml2 libxslt subversion 
+gnutls26 libxml2 libxslt subversion python-setuptools
 
 
 Step 2. Install dependencies
@@ -37,13 +37,13 @@ sudo easy_install -U twisted             # http://twistedmatrix.com/trac/
 sudo easy_install -U py                  # http://codespeak.net/py
 sudo easy_install -U mercurial           # http://www.selenic.com/mercurial
 
-#Install eventlet from source code. Source code is available using mercurial:
+# Install eventlet from source code. Source code is available using mercurial:
 
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
-#Install the python-xcaplib from http://download.ag-projects.com/OpenXCAP/clients/
+# Install the python-xcaplib from http://download.ag-projects.com/OpenXCAP/clients/
 cd python-xcaplib
 sudo python setup.py install
 
@@ -51,9 +51,12 @@ sudo python setup.py install
 Step 3. Compile PJSIP C library
 -------------------------------
 
-Check out the PJSIP project in the pypjua main directory:
+Check out the PJSIP project under this project main directory:
 
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+
+If you have checked out the sources already you can update them with 'svn
+update' command;
 
 Go to the PJSIP directory and compile it (after changing the UDP message limit to 64K):
 
@@ -74,8 +77,9 @@ make HOST_CFLAGS=-fPIC
 Step 4. Build and install SIP SIMPLE client
 -------------------------------------------
 
-Go to the main pypjua directory and build the library by running:
+Go to the main project directory and build the library by running:
 
+cd .. 
 sh ./build_inplace
 
 Install the library and comand line tools:

@@ -44,13 +44,14 @@ make
 Note that, on some platforms (as seen on amd64) you may need to supply -fPIC
 flag to compiler, otherwise although the compilation will succeed, later
 attempts to use the library will not.
-make distclean
 
+make distclean
 make HOST_CFLAGS=-fPIC
 
-Go back to the software root directory and make a source distribution
+Go back to the sipsimpleclient directory and make a source distribution
 tarball:
 
+cd ..
 debuild clean
 python setup.py sdist
 
