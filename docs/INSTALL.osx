@@ -11,48 +11,27 @@ Step 4. Build and install SIP SIMPLE client
 Step 1. Prerequisites
 ---------------------
 
-MacOSx 10.5 Leopard installed on Intel CPU.
-Apple Developer tools.
+a. MacOSx 10.5 Leopard installed on Intel CPU.
+b. Install Apple Developer tools.
+c. Install Fink from http://www.finkproject.org
 
 
 Step 2. Install dependencies
 ----------------------------
 
-# Install C dependencies 
+# Install C dependencies
 
-# Install libgpg-error
-curl ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.6.tar.bz2 -o libgpg-error-1.6.tar.bz2
-bunzip2 libgpg-error-1.6.tar.bz2; tar xvf libgpg-error-1.6.tar; cd libgpg-error-1.6
-./configure; make; sudo make install; cd ..
-
-# Install libgcrypt
-curl ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.1.tar.bz2 -o libgcrypt-1.4.1.tar.bz2
-bunzip2 libgcrypt-1.4.1.tar.bz2; tar xvf libgcrypt-1.4.1.tar; cd libgcrypt-1.4.1
-./configure ; make; sudo make install; cd ..
-
-# Install gnutls
-curl http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.6.0.tar.bz2 -o gnutls-2.6.0.tar.bz2
-bunzip2 gnutls-2.6.0.tar.bz2; tar xvf gnutls-2.6.0.tar; cd gnutls-2.6.0
-./configure; make; sudo make install; cd ..
-
-# Install libxml2
-curl ftp://ftp.gnome.org/pub/GNOME/sources/libxml2/2.6/libxml2-2.6.30.tar.gz -o libxml2-2.6.30.tar.gz
-tar zxvf libxml2-2.6.30.tar.gz; cd libxml2-2.6.30
-./configure --prefix /usr ; make; sudo make install; cd ..
-
-# Install libxslt
-curl ftp://ftp.gnome.org/pub/GNOME/sources/libxslt/1.1/libxslt-1.1.22.tar.gz -o libxslt-1.1.22.tar.gz
-tar zxvf libxslt-1.1.22.tar.gz
-cd libxslt-1.1.22
-./configure --prefix /usr ; make; sudo make install; cd ..
+sudo fink install gnutls26
+sudo apt-get install libxml2 libxslt
 
 # Install Python dependencies
-sudo easy_install --script-dir /usr/bin -U setuptools
-sudo easy_install -U python-gnutls
-sudo easy_install -U lxml
+
+sudo easy_install -U setuptools
 sudo easy_install -U cython
 sudo easy_install -U python-application
 sudo easy_install -U dnspython
+sudo easy_install -U python-gnutls
+sudo easy_install -U lxml
 sudo easy_install -U twisted
 sudo easy_install -U py
 sudo easy_install -U mercurial

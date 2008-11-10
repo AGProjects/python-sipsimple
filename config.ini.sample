@@ -37,7 +37,7 @@ log_directory=~/.sipclient/log
 [Audio]
 sample_rate=32
 echo_cancellation_tail_length=200
-disable-sound=false
+disable_sound=false
 codec_list=speex,g711,ilbc,gsm,g722
 
 
