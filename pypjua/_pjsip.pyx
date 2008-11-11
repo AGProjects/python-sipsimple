@@ -149,7 +149,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_snd_port_create(pj_pool_t *pool, int rec_id, int play_id, int clock_rate, int channel_count, int samples_per_frame, int bits_per_sample, int options, pjmedia_snd_port **p_port)
     int pjmedia_snd_port_connect(pjmedia_snd_port *snd_port, pjmedia_port *port)
     int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port)
-    int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, int tail_ms, int options)
+    int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options)
     int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port)
 
     # conference bridge
@@ -854,7 +854,7 @@ cdef class PJMEDIAConferenceBridge:
                 retval.append(PJMEDIASoundDevice(i, c_info.name))
         return retval
 
-    cdef int _set_sound_devices(self, int playback_index, int recording_index, int tail_length) except -1:
+    cdef int _set_sound_devices(self, int playback_index, int recording_index, unsigned int tail_length) except -1:
         cdef int status
         self._destroy_snd_port(1)
         self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
@@ -889,6 +889,20 @@ cdef class PJMEDIAConferenceBridge:
             pjmedia_conf_destroy(self.c_obj)
             if self.c_tonegen != NULL:
                 pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
+
+    cdef int _change_ec_tail_length(self, unsigned int tail_length) except -1:
+        cdef int status
+        status = pjmedia_snd_port_disconnect(self.c_snd)
+        if status != 0:
+            raise RuntimeError("Could not disconnect sound device: %s" % pj_status_to_str(status))
+        status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
+        if status != 0:
+            pjmedia_snd_port_connect(self.c_snd, pjmedia_conf_get_master_port(self.c_obj))
+            raise RuntimeError("Could not set echo cancellation: %s" % pj_status_to_str(status))
+        status = pjmedia_snd_port_connect(self.c_snd, pjmedia_conf_get_master_port(self.c_obj))
+        if status != 0:
+            raise RuntimeError("Could not connect sound device: %s" % pj_status_to_str(status))
+        return 0
 
     cdef int _connect_playback_slot(self, unsigned int slot) except -1:
         cdef unsigned int output_slot
@@ -1105,6 +1119,7 @@ cdef class PJSIPUA:
     cdef pj_time_val c_max_timeout
     cdef int c_rtp_port_start
     cdef int c_rtp_port_stop
+    cdef readonly unsigned int ec_tail_length
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -1139,8 +1154,9 @@ cdef class PJSIPUA:
                 raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
             self.codecs = kwargs["initial_codecs"]
             self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["playback_dtmf"])
+            self.ec_tail_length = kwargs["ec_tail_length"]
             if kwargs["auto_sound"]:
-                self.auto_set_sound_devices(kwargs["ec_tail_length"])
+                self.auto_set_sound_devices()
             self.c_module_name = PJSTR("mod-pypjua")
             self.c_module.name = self.c_module_name.pj_str
             self.c_module.id = -1
@@ -1207,11 +1223,21 @@ cdef class PJSIPUA:
         def __get__(self):
             return self.c_conf_bridge._get_sound_devices(False)
 
-    def set_sound_devices(self, PJMEDIASoundDevice playback_device, PJMEDIASoundDevice recording_device, tail_length = 50):
-        self.c_conf_bridge._set_sound_devices(playback_device.c_index, recording_device.c_index, tail_length)
+    def set_sound_devices(self, PJMEDIASoundDevice playback_device, PJMEDIASoundDevice recording_device, tail_length = None):
+        cdef unsigned int c_tail_length = self.ec_tail_length
+        if tail_length is not None:
+            c_tail_length = tail_length
+        self.c_conf_bridge._set_sound_devices(playback_device.c_index, recording_device.c_index, c_tail_length)
+        if tail_length is not None:
+            self.ec_tail_length = c_tail_length
 
-    def auto_set_sound_devices(self, tail_length = 50):
-        self.c_conf_bridge._set_sound_devices(-1, -1, tail_length)
+    def auto_set_sound_devices(self, tail_length = None):
+        cdef unsigned int c_tail_length = self.ec_tail_length
+        if tail_length is not None:
+            c_tail_length = tail_length
+        self.c_conf_bridge._set_sound_devices(-1, -1, c_tail_length)
+        if tail_length is not None:
+            self.ec_tail_length = c_tail_length
 
     property codecs:
 

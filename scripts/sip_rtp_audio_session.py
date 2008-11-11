@@ -254,6 +254,16 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             want_quit = False
                         elif data.lower() == "y":
                             inv.accept([inv.proposed_streams.pop()])
+                if data in ",<":
+                    if ec_tail_length > 0:
+                        ec_tail_length = max(0, ec_tail_length - 10)
+                        e.auto_set_sound_devices(ec_tail_length)
+                    print "Set echo cancellation tail length to %d ms" % ec_tail_length
+                elif data in ".>":
+                    if ec_tail_length < 500:
+                        ec_tail_length = min(500, ec_tail_length + 10)
+                        e.auto_set_sound_devices(ec_tail_length)
+                    print "Set echo cancellation tail length to %d ms" % ec_tail_length
             if command == "play_wav":
                 e.play_wav_file(get_path(data))
             if command == "eof":
