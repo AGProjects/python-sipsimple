@@ -6,7 +6,6 @@ Python PJSIP bindings
 - Return list of SIP headers of the response in the event handler
 - Means to query RTP statistics
 - Handle multipart bodies
-- More advanced conference bridge control
 - Fix high CPU usage
 - TCP/TLS
 - STUN/ICE
@@ -20,6 +19,17 @@ Python PJSIP bindings
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
 - Configurable RTP port range
 - API documentation
+
+
+Audio
+-----
+
+- Adjust echo cancelation tail length in real time
+- More advanced conference bridge control
+- Play a soft beep tone while on hold every 30 seconds
+- Play a beep after we closed a session
+- Play a special beep when receiving a call while engaged in another call
+- Implement Automatic Gain Control AGC in PJSIP media engine
 
 
 Command line clients
@@ -52,7 +62,6 @@ Command line clients
 Applications
 ------------
 
-- MSRP client library
 - MSRP focus
 - MSRP mixer
 - Conference-info event package
@@ -81,11 +90,8 @@ Sessions
 End-user experience
 -------------------
 
-- Play a soft beep tone while on hold every 30 seconds
-- Play a beep after we closed a session
-- Play a special beep when receiving a call while engaged in another call
 - Mute other applications that access the soundcard on receiving INVITE
-- Implement Automatic Gain Control AGC in PJSIP media engine
+
 
 Enrollment 
 ----------
