@@ -24,7 +24,6 @@ Python PJSIP bindings
 Audio
 -----
 
-- Adjust echo cancelation tail length in real time
 - More advanced conference bridge control
 - Play a soft beep tone while on hold every 30 seconds
 - Play a beep after we closed a session
