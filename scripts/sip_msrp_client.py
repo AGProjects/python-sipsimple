@@ -142,6 +142,9 @@ def register(e, credentials, route):
 
 def invite(e, credentials, target_uri, route, relay, log_func):
     local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
+    if relay is not None:
+        msrp = relay_connect(local_uri_path, relay, log_func)
+        local_uri_path = msrp.local_uri_path
     inv = e.Invitation(credentials, target_uri, route=route)
     stream = MediaStream("message")
     stream.set_local_info([str(uri) for uri in local_uri_path], ["text/plain"])
@@ -156,9 +159,7 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
     print "Session negotiated to: %s" % " ".join(remote_uri_path)
-    if relay is not None:
-        msrp = relay_connect(local_uri_path, relay, log_func)
-    else:
+    if relay is None:
         from twisted.internet import reactor
         Buf = BufferCreator(reactor, MSRPBuffer, local_uri_path, log_func)
         remote_uri_path_parsed = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
