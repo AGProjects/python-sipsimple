@@ -2,8 +2,6 @@ import string
 import random
 from copy import copy
 from StringIO import StringIO
-import dns.resolver
-from dns.exception import DNSException
 
 from eventlet.api import spawn
 from eventlet.twistedutil.protocol import BaseBuffer, BufferCreator
@@ -46,7 +44,7 @@ class Protocol(msrp.MSRPProtocol):
     def rawDataReceived(self, data):
         msrp.MSRPProtocol.rawDataReceived(self, data)
         if self.log_func:
-            self.log_func(data, self._header(), set_header=False)
+            self.log_func(data, self._header(), reset_header=True)
 
     def lineReceived(self, line):
         msrp.MSRPProtocol.lineReceived(self, line)
@@ -190,27 +188,15 @@ def keep_common_items(mydict, otherdict):
             del mydict[k]
 
 def relay_connect(local_uri_path, relay, log_func=None):
-    real_relay_ip = relay.domain
-    if relay.do_srv:
-        try:
-            answers = dns.resolver.query("_msrps._tcp.%s" % relay.domain, "SRV")
-            real_relay_ip = str(answers[0].target).rstrip(".")
-            relay.port = answers[0].port
-        except DNSException:
-            print 'SRV lookup failed, trying normal A record lookup...'
     from gnutls.interfaces.twisted import X509Credentials
     cred = X509Credentials(None, None)
-    #from twisted.internet import ssl
-    #cred = ssl.ClientContextFactory()
     from twisted.internet import reactor
     Buf = BufferCreator(reactor, MSRPBuffer, local_uri_path, log_func)
-    conn = Buf.connectTLS(real_relay_ip, relay.port, cred)
-    #conn = BufferCreator(reactor, MSRPBuffer, local_uri_path).connectSSL(real_relay_ip, relay.port, cred)
+    conn = Buf.connectTLS(relay.host, relay.port, cred)
     msrpdata = msrp.MSRPData(method="AUTH", transaction_id=random_string(12))
     relay_uri = msrp.URI(host=relay.domain, port=relay.port, use_tls=True)
     msrpdata.add_header(msrp.ToPathHeader([relay_uri]))
     msrpdata.add_header(msrp.FromPathHeader(local_uri_path))
-    #print msrpdata.encode()
     conn.send_chunk(msrpdata)
     response = conn.recv_chunk()
     if response.code != 401:
@@ -220,14 +206,13 @@ def relay_connect(local_uri_path, relay, log_func=None):
                                               str(relay_uri), **www_authenticate.decoded)
     msrpdata.transaction_id = random_string(12)
     msrpdata.add_header(msrp.AuthorizationHeader(auth))
-    #print msrpdata.encode()
     conn.send_chunk(msrpdata)
     response = conn.recv_chunk()
     if response.code != 200:
         raise RuntimeError("Failed to reserve session at MSRP relay: %(code)s %(comment)s" % response.__dict__)
     use_path = response.headers["Use-Path"].decoded[0]
     conn.local_uri_path = [use_path, local_uri_path[0]]
-    print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % (real_relay_ip, relay.port, use_path)
+    print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % (relay.host, relay.port, use_path)
     return conn
 
 def random_string(length):

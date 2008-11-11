@@ -15,6 +15,7 @@ SETTERM_INITIALIZE = '\x1b[!p\x1b[?3;4l\x1b[4l\x1b>'
 
 class Console(recvline.HistoricRecvLine):
     #Copied from twisted.conch.manhole.Manhole but removed interpreter-related stuff
+    ps = ['>>> ', '... ']
 
     def initializeScreen(self):
         self.terminal.write(self.ps[self.pn])
@@ -80,6 +81,9 @@ class Console(recvline.HistoricRecvLine):
         if self._needsNewline():
             self.terminal.nextLine()
         self.terminal.write(self.ps[self.pn])
+
+    def set_ps(self, ps):
+        self.ps[0] = ps
 
 class ServerProtocol(insults.ServerProtocol):
 
