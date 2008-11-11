@@ -8,7 +8,7 @@ from twisted.internet.error import ConnectionDone
 from twisted.internet import stdio
 from pypjua.clients.console import Console, ServerProtocol, CTRL_C, CTRL_D, CTRL_BACKSLASH, terminal_initialize
 from eventlet.channel import channel as Channel
-from eventlet.api import spawn, sleep
+from eventlet.api import spawn, sleep, GreenletExit
 from eventlet.green.thread import allocate_lock
 
 class ChannelProxy:
@@ -180,7 +180,7 @@ class ConsoleBuffer:
                         else:
                             break
                     except ConnectionDone:
-                        break
+                        raise GreenletExit
 
     def write(self, msg):
         self.writecount += 1
