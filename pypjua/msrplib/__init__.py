@@ -122,16 +122,29 @@ class MSRPBuffer(BaseBuffer):
         """Receive and return one MSRP chunk"""
         data = ''
         func, msrpdata = self.channel.receive()
-        assert func == 'data_start', (func, `msrpdata`)
-        func, param = self.channel.receive()
-        while func=='write_chunk':
-            data += param
+        try:
+            assert func == 'data_start', (func, `msrpdata`)
             func, param = self.channel.receive()
-        assert func == 'data_end', (func, `param`)
-        assert param in "$+#", `param`
-        msrpdata.data = data
-        msrpdata.contflag = param
+            while func=='write_chunk':
+                data += param
+                func, param = self.channel.receive()
+            assert func == 'data_end', (func, `param`)
+            assert param in "$+#", `param`
+            msrpdata.data = data
+            msrpdata.contflag = param
+        except AssertionError:
+            if msrpdata.method == 'SEND':
+                self.send_response(msrpdata, 400, 'Bad Request')
+        else:
+            if msrpdata.method == 'SEND':
+                self.send_response(msrpdata, 200, 'OK')
         return msrpdata
+
+    def send_response(self, chunk, code, comment):
+        response = msrp.MSRPData(transaction_id=chunk.transaction_id, code=code, comment=comment)
+        response.add_header(msrp.ToPathHeader(self.local_uri_path[:-1] + self.remote_uri_path))
+        response.add_header(msrp.FromPathHeader(self.local_uri_path[-1:]))
+        self.send_chunk(response)
 
     def append_chunk(self, chunk):
         """Update internal `chunks' structure with a new chunk data.
