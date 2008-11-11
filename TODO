@@ -85,7 +85,7 @@ End-user experience
 - Play a beep after we closed a session
 - Play a special beep when receiving a call while engaged in another call
 - Mute other applications that access the soundcard on receiving INVITE
-
+- Implement Automatic Gain Control AGC in PJSIP media engine
 
 Enrollment 
 ----------
