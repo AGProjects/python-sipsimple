@@ -106,15 +106,18 @@ class MSRPBuffer(BaseBuffer):
         msrpdata.contflag = '$'
         self.send_chunk(msrpdata)
 
-    def _header(self):
-        params = (format_address(self.transport.getHost()), format_address(self.transport.getPeer()))
-        return '%s -> %s' % params
+    def __getattr__(self, item):
+        if item=='_log_header':
+            params = (format_address(self.transport.getHost()), format_address(self.transport.getPeer()))
+            self._log_header = '%s -> %s' % params
+            return self._log_header
+        return BaseBuffer.__getattr__(self, item)
 
     def send_chunk(self, chunk):
         data = encode_chunk(chunk)
         self.write(data)
         if self.protocol.log_func:
-            self.protocol.log_func(data, self._header(), False)
+            self.protocol.log_func(data, self._log_header, False)
 
     def recv_chunk(self):
         """Receive and return one MSRP chunk"""
