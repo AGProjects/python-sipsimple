@@ -35,8 +35,16 @@ Audio
 Command line clients
 --------------------
 
-- Append pjsip messages to .sipclient/log/user@domain/pjsip.txt
-- Append SIP messages to .sipclient/log/user@domain/sip.txt
+Based on trace_x configuration options:
+ - Append PJSIP messages to .sipclient/log/user@domain/trace_pjsip.txt
+ - Append SIP messages to .sipclient/log/user@domain/trac_sip.txt
+ - Append MSRP messages to .sipclient/log/user@domain/trace_msrp.txt
+ - Append XCAP messages to .sipclient/log/user@domain/trace_xcap.txt
+ - Add timestamp and packet counters as for SIP trace for all other prorocols
+- print source of incomming NOTIFYs in sip_subscribe_x scripts
+- sip_subscribe_presence to a list of URIs
+- xcap_rls_services script, with service-uri as parameter default is user-buddies@samedomain
+- xcap_pidf_manipulation script
 - Publish service and status when starting/stopping rtp/msrp session script
 - Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
   other codes. For invite scripts the code is based on the response for the
@@ -44,16 +52,10 @@ Command line clients
   call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
   scripts, used for scripting alarms
-- Add option to log the output of the scripts to a log file or syslog
-- sip_subscribe_presence to a list of URIs
-- print source of incomming NOTIFYs
-- xcap_rls_services script
-- xcap_pidf_manipulation script
 - Handle multiple incomming sessions (waiting for the re-INVITE)
 - Conference established sessions
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
 - Combine msrp/rtp in one script
-- Documentation
 - sip_msrp_chat_server (act as a conference server)
 - sip_msrp_chat_client (invite people to chat using REFER and resource-list)
 - sip_subscribe_conference_info
@@ -68,7 +70,7 @@ Applications
 - MSRP multiparty chat
 - Is-composing payload
 
-- MWI payload
+- Message-summary payload
 - Xcap-diff payload
 - Buddylist library
 - Bonjour discovery
