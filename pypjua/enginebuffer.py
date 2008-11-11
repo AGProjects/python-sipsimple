@@ -83,7 +83,8 @@ class Ringer:
         self.gthread = None
 
     def start(self):
-        self.gthread = spawn(self._run)
+        if self.gthread is None:
+            self.gthread = spawn(self._run)
 
     def stop(self):
         if self.gthread is not None:
