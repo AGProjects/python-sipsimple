@@ -21,10 +21,8 @@ listen_udp=any
 ; tracing and logging
 ; trace_pjsip=false
 ; trace_sip=false
-; trace_xcap_headers=false
-; trace_xcap_body=false
-; trace_msrp_headers=false
-; trace_msrp_body=false
+; trace_xcap=false
+; trace_msrp=false
 ; trace_rtp=false
 
 ; history directory for saving audio sessions and IM chats
