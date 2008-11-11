@@ -17,20 +17,23 @@ def log_dropped_event(name, kwargs):
 
 class EngineBuffer(Engine):
 
-    def __init__(self, default_channel=None, **kwargs):
+    def __init__(self, default_channel, **kwargs):
         self.channels = WeakValueDictionary() # maps obj -> channel
-        if default_channel is not None:
-            self.default_channel_ref = ref(default_channel)
+        self.default_channel_ref = ref(default_channel)
         handler = EventHandler(self._handle_event,
                                trace_pjsip=kwargs.pop('trace_pjsip', False))
         return Engine.__init__(self, handler, **kwargs)
+
+    @property
+    def channel(self):
+        return self.default_channel_ref and self.default_channel_ref()
 
     def _handle_event(self, event_name, kwargs):
         try:
             obj = kwargs['obj']
             channel = self.channels[obj]
         except KeyError:
-            channel = self.default_channel_ref()
+            channel = self.channel
         if channel is None:
             log_dropped_event(event_name, kwargs)
         else:
