@@ -11,6 +11,8 @@ CTRL_D = '\x04'
 CTRL_BACKSLASH = '\x1c'
 CTRL_L = '\x0c'
 
+SETTERM_INITIALIZE = '\x1b[!p\x1b[?3;4l\x1b[4l\x1b>'
+
 class Console(recvline.HistoricRecvLine):
     #Copied from twisted.conch.manhole.Manhole but removed interpreter-related stuff
 
@@ -36,7 +38,6 @@ class Console(recvline.HistoricRecvLine):
             self.terminal.loseConnection()
 
     def handle_EOF(self):
-        #print 'EOF', `self.lineBuffer`
         self.terminal.loseConnection()
         #if self.lineBuffer:
             #self.terminal.write('\a')
@@ -90,6 +91,10 @@ class ServerProtocol(insults.ServerProtocol):
             pass
         self.write('\n')
 
+def terminal_initialize(fd):
+    # the same effect as calling setterm -initialize
+    # QQQ is the sequence is valid for all terminals?
+    os.write(fd, '\r' + SETTERM_INITIALIZE)
 
 if __name__ == '__main__':
 
@@ -108,7 +113,5 @@ if __name__ == '__main__':
         reactor.run()
     finally:
         termios.tcsetattr(fd, termios.TCSANOW, oldSettings)
-        #os.write(fd, "\r\x1bc\r")
-        os.write(fd, '\r')
-        os.system('setterm -initialize 2> /dev/null')
+        terminal_initialize(fd)
 
