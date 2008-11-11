@@ -139,12 +139,12 @@ class InvitationBuffer(Proxy):
                 ringer.stop()
         return params
 
-    def raise_on_disconnect(self):
+    def call_on_disconnect(self, func):
         def wait_for_disconnect(current):
             while True:
                 event_name, params = self.channel.receive()
                 if event_name == 'Invitation_state' and params['state']=='DISCONNECTED':
-                    greenlib.switch(current, exc=SIPDisconnect(params))
+                    func(SIPDisconnect(params))
                     break
                 else:
                     log_dropped_event(event_name, params)

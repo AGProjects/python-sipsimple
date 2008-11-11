@@ -62,16 +62,18 @@ def log_events(channel):
         event_name, kwargs = channel.receive()
         log_dropped_event(event_name, kwargs)
 
-def print_messages(msrp, other_uri):
+def print_messages(msrp, other_uri, send_exception):
     try:
         while True:
             message = msrp.recv_chunk()
             if message.method == 'SEND':
                 sys.stdout.write('%s> %s' % (other_uri, message.data))
-    except ConnectionDone:
+    except ConnectionDone, ex:
         sys.stdout.write('MSRP connection closed cleanly')
+        send_exception(ex)
     except ConnectionClosed, ex:
         sys.stdout.write('MSRP disconnected: %s' % ex)
+        send_exception(ex)
 
 def action(env, e, options, console):
     credentials = Credentials(options.uri, options.password)
@@ -80,15 +82,14 @@ def action(env, e, options, console):
         register(e, credentials, options.route)
         console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
         sip, msrp = accept_incoming(e, options.relay, logger.write_traffic, console)
-        me = sip.callee_uri
-        other = sip.caller_uri
     else:
         sip, msrp = invite(e, credentials, options.target_uri, options.route, options.relay, logger.write_traffic)
-        me = sip.caller_uri
-        other = sip.callee_uri
-    console.set_ps('%s@%s to %s@%s> ' % (me.user, me.host, other.user, other.host))
+    console.set_ps('%s@%s to %s@%s> ' % (sip.me_uri.user, sip.me_uri.host, sip.other_uri.user, sip.other_uri.host))
     env.sip = sip
+    env.sip.call_on_disconnect(console.channel.send_exception)
     env.msrp = msrp
+    env.job = None
+    spawn(print_messages, msrp, '%s@%s' % (sip.other_uri.user, sip.other_uri.host), console.channel.send_exception)
 
 def start(options, console):
     ch = Channel()
@@ -104,7 +105,7 @@ def start(options, console):
         env = Values()
         env.sip = None
         env.msrp = None
-        job = spawn(action, env, e, options, console)
+        env.job = spawn(action, env, e, options, console)
 
         sleep(1)
         spawn(ch.send, ('test', {}))
@@ -116,8 +117,8 @@ def start(options, console):
         except SIPDisconnect, ex:
             sys.stderr.write('Session ended: %s' % ex)
         finally:
-            if job:
-                kill(job)
+            if env.job:
+                kill(env.job)
             if env.sip:
                 env.sip.end()
             if env.msrp:
@@ -168,8 +169,8 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     msrp.set_remote_uri(remote_uri_path)
     if other_user_agent is not None:
         print 'Remote User Agent is "%s"' % other_user_agent
-    inv.raise_on_disconnect()
-    spawn(print_messages, msrp, '%s@%s' % (inv.callee_uri.user, inv.callee_uri.host))
+    inv.me_uri = inv.callee_uri
+    inv.other_uri = inv.caller_uri
     return inv, msrp
 
 def wait_for_incoming(e):
@@ -195,17 +196,14 @@ def accept_incoming(e, relay, log_func, console):
     print 'Waiting for incoming connections...'
     while True:
         inv, params = wait_for_incoming(e)
+        # XXX must stop asking question if disconnected here
         if console:
             response = console.ask_question('Accept incoming session from %s? [yn]' % inv.caller_uri, 'yYnN')
-            if response is None:
-                return
         else:
             response = 'y'
         if response.lower() == "y":
             msrp_stream = inv.proposed_streams.pop()
             local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
-            #remote_uri_path = [msrp.parse_uri(uri) for uri in uri_path]
-            #remote_uri_path = msrp.parse_uri(msrp_stream.remote_info[0]
             if relay is not None:
                 msrp = relay_connect(local_uri_path, relay, log_func)
             else:
@@ -216,7 +214,8 @@ def accept_incoming(e, relay, log_func, console):
             msrp.set_remote_uri(msrp_stream.remote_info[0])
             msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
             inv.accept([msrp_stream])
-            spawn(print_messages, msrp, '%s@%s' % (inv.caller_uri.user, inv.caller_uri.host))
+            inv.me_uri = inv.callee_uri
+            inv.other_uri = inv.caller_uri
             return inv, msrp
         else:
             inv.end()
