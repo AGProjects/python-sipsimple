@@ -77,13 +77,19 @@ cdef extern from "pjlib.h":
     int pj_thread_register(char *thread_name, long *thread_desc, pj_thread_t **thread)
 
     # sockets
+    enum:
+        PJ_INET6_ADDRSTRLEN
     struct pj_ioqueue_t
+    struct pj_addr_hdr:
+        unsigned int sa_family
     struct pj_sockaddr:
-        pass
+        pj_addr_hdr addr
     struct pj_sockaddr_in:
         pass
     int pj_sockaddr_in_init(pj_sockaddr_in *addr, pj_str_t *cp, int port)
     int pj_sockaddr_get_port(pj_sockaddr *addr)
+    char *pj_sockaddr_print(pj_sockaddr *addr, char *buf, int size, unsigned int flags)
+    int pj_sockaddr_has_addr(pj_sockaddr *addr)
 
     # time
     struct pj_time_val:
@@ -222,6 +228,7 @@ cdef extern from "pjmedia.h":
     struct pjmedia_transport
     struct pjmedia_transport_info:
         pjmedia_sock_info sock_info
+        pj_sockaddr src_rtp_name
     void pjmedia_transport_info_init(pjmedia_transport_info *info)
     int pjmedia_transport_udp_create(pjmedia_endpt *endpt, char *name, int port, unsigned int options, pjmedia_transport **p_tp)
     int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info)
@@ -1071,7 +1078,7 @@ cdef object c_retrieve_nameservers():
 cdef class EventPackage
 cdef class Invitation
 cdef class MediaStream
-cdef class AudioStream
+cdef class OldAudioStream
 cdef class WaveFile
 cdef class RecordingWaveFile
 
@@ -1256,15 +1263,15 @@ cdef class PJSIPUA:
             self.c_rtp_port_stop = c_rtp_port_stop
 
     def connect_audio_stream(self, MediaStream stream):
-        cdef AudioStream c_audio_stream = stream.c_stream
-        if c_audio_stream.c_stream == NULL:
-            raise RuntimeError("Audio stream has not been fully negotiated yet")
+        cdef OldAudioStream c_audio_stream = stream.c_stream
+        #if c_audio_stream.c_stream == NULL:
+        #    raise RuntimeError("Audio stream has not been fully negotiated yet")
         self.c_conf_bridge._connect_conv_slot(c_audio_stream.c_conf_slot)
 
     def disconnect_audio_stream(self, MediaStream stream):
-        cdef AudioStream c_audio_stream = stream.c_stream
-        if c_audio_stream.c_stream == NULL:
-            raise RuntimeError("Audio stream has not been fully negotiated yet")
+        cdef OldAudioStream c_audio_stream = stream.c_stream
+        #if c_audio_stream.c_stream == NULL:
+        #    raise RuntimeError("Audio stream has not been fully negotiated yet")
         self.c_conf_bridge._disconnect_slot(c_audio_stream.c_conf_slot)
 
     def play_wav_file(self, file_name):
@@ -2526,15 +2533,16 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
 cdef SDPMedia c_reject_sdp(SDPMedia remote_media):
     return SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
 
-cdef class MediaTransport:
+cdef class RTPTransport:
     cdef pjmedia_transport *c_obj
     cdef pj_pool_t *c_pool
-    cdef readonly int local_rtp_port
+    cdef readonly object remote_rtp_port_sdp
+    cdef readonly object remote_rtp_address_sdp
     cdef readonly object state
 
     def __cinit__(self):
-        cdef object pool_name = "MediaTransport_%d" % id(self)
-        cdef pjmedia_transport_info info
+        cdef object pool_name = "RTPTransport_%d" % id(self)
+        cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
         cdef int i
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
@@ -2548,11 +2556,6 @@ cdef class MediaTransport:
                 break
         if status != 0:
             raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
-        pjmedia_transport_info_init(&info)
-        status = pjmedia_transport_get_info(self.c_obj, &info)
-        if status != 0:
-            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
-        self.local_rtp_port = pj_sockaddr_get_port(&info.sock_info.rtp_addr_name)
         self.state = "INIT"
 
     def __dealloc__(self):
@@ -2567,6 +2570,56 @@ cdef class MediaTransport:
             pjmedia_transport_close(self.c_obj)
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+
+    cdef int _get_info(self, pjmedia_transport_info *info) except -1:
+        cdef int status
+        pjmedia_transport_info_init(info)
+        status = pjmedia_transport_get_info(self.c_obj, info)
+        if status != 0:
+            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
+        return 0
+
+    property local_rtp_port:
+
+        def __get__(self):
+            cdef pjmedia_transport_info info
+            self._get_info(&info)
+            if info.sock_info.rtp_addr_name.addr.sa_family != 0:
+                return pj_sockaddr_get_port(&info.sock_info.rtp_addr_name)
+            else:
+                return None
+
+    property local_rtp_address:
+
+        def __get__(self):
+            cdef pjmedia_transport_info info
+            cdef char buf[PJ_INET6_ADDRSTRLEN]
+            self._get_info(&info)
+            if pj_sockaddr_has_addr(&info.sock_info.rtp_addr_name):
+                return pj_sockaddr_print(&info.sock_info.rtp_addr_name, buf, PJ_INET6_ADDRSTRLEN, 0)
+            else:
+                return None
+
+    property remote_rtp_port_received:
+
+        def __get__(self):
+            cdef pjmedia_transport_info info
+            self._get_info(&info)
+            if info.src_rtp_name.addr.sa_family != 0:
+                return pj_sockaddr_get_port(&info.src_rtp_name)
+            else:
+                return None
+
+    property remote_rtp_address_received:
+
+        def __get__(self):
+            cdef pjmedia_transport_info info
+            cdef char buf[PJ_INET6_ADDRSTRLEN]
+            self._get_info(&info)
+            if pj_sockaddr_has_addr(&info.src_rtp_name):
+                return pj_sockaddr_print(&info.src_rtp_name, buf, PJ_INET6_ADDRSTRLEN, 0)
+            else:
+                return None
 
     cdef int _update_local_sdp(self, SDPSession local_sdp, unsigned int sdp_index, pjmedia_sdp_session *c_remote_sdp) except -1:
         cdef int status
@@ -2602,10 +2655,140 @@ cdef class MediaTransport:
         status = pjmedia_transport_media_start(self.c_obj, self.c_pool, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
         if status != 0:
             raise RuntimeError("Could not start media transport: %s" % pj_status_to_str(status))
+        if remote_sdp.media[sdp_index].connection is None:
+            if remote_sdp.connection is not None:
+                self.remote_rtp_address_sdp = remote_sdp.connection.address
+        else:
+            self.remote_rtp_address_sdp = remote_sdp.media[sdp_index].connection.address
+        self.remote_rtp_port_sdp = remote_sdp.media[sdp_index].port
         self.state = "ESTABLISHED"
 
 
-cdef dict _stream_map = {"message": MSRPStream, "audio": AudioStream}
+cdef class AudioTransport:
+    cdef pjmedia_stream *c_obj
+    cdef pjmedia_stream_info c_stream_info
+    cdef readonly RTPTransport transport
+    cdef pj_pool_t *c_pool
+    cdef SDPSession c_local_sdp
+    cdef unsigned int c_sdp_index
+    cdef unsigned int c_conf_slot
+
+    def __cinit__(self, RTPTransport transport, SDPSession remote_sdp = None, unsigned int sdp_index = 0):
+        cdef object pool_name = "AudioTransport_%d" % id(self)
+        cdef pjmedia_transport_info info
+        cdef pjmedia_sdp_session *c_local_sdp
+        cdef int status
+        cdef PJSIPUA ua = c_get_ua()
+        self.transport = transport
+        self.c_sdp_index = sdp_index
+        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        if self.c_pool == NULL:
+            raise MemoryError()
+        transport._get_info(&info)
+        status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint.c_obj, self.c_pool, 1, &info.sock_info, &c_local_sdp)
+        if status != 0:
+            raise RuntimeError("Could not generate SDP for audio session: %s" % pj_status_to_str(status))
+        self.c_local_sdp = c_make_SDPSession(c_local_sdp)
+        if remote_sdp is None:
+            self.transport.set_LOCAL(self.c_local_sdp, 0)
+        else:
+            if sdp_index != 0:
+                self.c_local_sdp.media = (sdp_index+1) * self.c_local_sdp.media
+            self.transport.set_ESTABLISHED(self.c_local_sdp, sdp_index, remote_sdp)
+            self._start_stream(ua, &self.c_local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+        except RuntimeError:
+            return
+        if self.c_obj != NULL:
+            ua.c_conf_bridge._disconnect_slot(self.c_conf_slot)
+            pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
+            pjmedia_stream_destroy(self.c_obj)
+        if self.c_pool != NULL:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+
+    property codec:
+
+        def __get__(self):
+            if self.c_obj == NULL:
+                return None
+            else:
+                return pj_str_to_str(self.c_stream_info.fmt.encoding_name)
+
+    property sample_rate:
+
+        def __get__(self):
+            if self.c_obj == NULL:
+                return None
+            else:
+                return self.c_stream_info.fmt.clock_rate
+
+    def get_local_media(self):
+        return c_make_SDPMedia(self.c_local_sdp.c_obj.media[self.c_sdp_index])
+
+    def set_sdp(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
+        cdef PJSIPUA ua = c_get_ua()
+        if self.transport.state != "LOCAL":
+            raise RuntimeError("Remote SDP is already known.")
+        self.transport.set_ESTABLISHED(local_sdp, sdp_index, remote_sdp)
+        self._start_stream(ua, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
+
+    cdef int _start_stream(self, PJSIPUA ua, pjmedia_sdp_session *local_sdp, pjmedia_sdp_session *remote_sdp, unsigned int sdp_index) except -1:
+        cdef pjmedia_port *media_port
+        cdef int status
+        status = pjmedia_stream_info_from_sdp(&self.c_stream_info, self.c_pool, ua.c_pjmedia_endpoint.c_obj, local_sdp, remote_sdp, sdp_index)
+        if status != 0:
+            raise RuntimeError("Could not parse SDP for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &self.c_stream_info, self.transport.c_obj, NULL, &self.c_obj)
+        if status != 0:
+            raise RuntimeError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_set_dtmf_callback(self.c_obj, cb_AudioTransport_cb_dtmf, <void *> self)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_obj)
+            self.c_obj = NULL
+            raise RuntimeError("Could not set DTMF callback for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_start(self.c_obj)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_obj)
+            self.c_obj = NULL
+            raise RuntimeError("Could not start RTP for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_stream_get_port(self.c_obj, &media_port)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_obj)
+            self.c_obj = NULL
+            raise RuntimeError("Could not get audio port for audio session: %s" % pj_status_to_str(status))
+        status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.c_pool, media_port, NULL, &self.c_conf_slot)
+        if status != 0:
+            pjmedia_stream_destroy(self.c_obj)
+            self.c_obj = NULL
+            raise RuntimeError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
+        return 0
+
+    def send_dtmf(self, digit):
+        cdef pj_str_t c_digit
+        cdef int status
+        cdef PJSIPUA ua = c_get_ua()
+        if self.c_obj == NULL:
+            raise RuntimeError("Stream was not started yet")
+        if len(digit) != 1 or digit not in "0123456789*#ABCD":
+            raise RuntimeError("Not a valid DTMF digit: %s" % digit)
+        str_to_pj_str(digit, &c_digit)
+        status = pjmedia_stream_dial_dtmf(self.c_obj, &c_digit)
+        if status != 0:
+            raise RuntimeError("Could not send DTMF digit on audio stream: %s" % pj_status_to_str(status))
+        ua.c_conf_bridge._playback_dtmf(ord(digit))
+
+
+cdef void cb_AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:
+    cdef AudioTransport audio_stream = <object> user_data
+    cdef PJSIPUA ua = c_get_ua()
+    c_add_event("AudioTransport_dtmf", dict(obj=audio_stream, digit=chr(digit)))
+    ua.c_conf_bridge._playback_dtmf(digit)
+
+cdef dict _stream_map = {"message": MSRPStream, "audio": OldAudioStream}
 
 _re_msrp_uri = re.compile("^(?P<scheme>(msrp)|(msrps))://(((?P<user>.*?)@)?(?P<host>.*?)(:(?P<port>[0-9]+?))?)(/(?P<session_id>.*?))?;(?P<transport>.*?)(;(?P<parameters>.*))?$")
 cdef class MSRPStream:
@@ -2690,10 +2873,8 @@ cdef class MSRPStream:
         self.c_local_info = [list(uri_path), list(accept_types), list(accept_wrapped_types)]
 
 
-cdef class AudioStream:
-    cdef pjmedia_transport *c_transport
-    cdef pjmedia_stream *c_stream
-    cdef pj_pool_t *c_pool
+cdef class OldAudioStream:
+    cdef AudioTransport c_audio_transport
     cdef unsigned int c_conf_slot
     cdef readonly object local_ip
     cdef readonly object local_port
@@ -2702,148 +2883,32 @@ cdef class AudioStream:
     cdef readonly object codec
     cdef readonly object sample_rate
 
-    def __dealloc__(self):
-        cdef PJSIPUA ua
-        try:
-            ua = c_get_ua()
-        except RuntimeError:
-            return
-        if self.c_stream != NULL:
-            ua.c_conf_bridge._disconnect_slot(self.c_conf_slot)
-            pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
-            pjmedia_stream_destroy(self.c_stream)
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-        if self.c_transport != NULL:
-            pjmedia_transport_close(self.c_transport)
-
-    cdef int _get_transport_info(self, pjmedia_transport_info *info) except -1:
-        cdef int status
-        pjmedia_transport_info_init(info)
-        status = pjmedia_transport_get_info(self.c_transport, info)
-        if status != 0:
-            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
-        return 0
-
     # mandatory methods
     def has_remote_sdp(self):
-        return self.remote_port is not None
+        return self.c_audio_transport.c_obj != NULL
 
     def set_remote_sdp(self, SDPSession remote_sdp, unsigned int sdp_index):
-        if remote_sdp.media[sdp_index].connection is not None:
-            self.remote_ip = remote_sdp.media[sdp_index].connection.address
-        elif remote_sdp.connection is not None:
-            self.remote_ip = remote_sdp.connection.address
-        self.remote_port = remote_sdp.media[sdp_index].port
+        pass
 
     def get_local_sdp(self):
-        cdef pjmedia_transport_info info
-        cdef SDPSession sdp_session
-        cdef pjmedia_sdp_session *c_sdp_session
-        cdef pj_pool_t *pool
-        cdef object pool_name = "AudioSession_sdp_%d" % id(self)
-        cdef int status, i
-        cdef PJSIPUA ua = c_get_ua()
-        if self.c_transport == NULL:
-            for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
-                status = pjmedia_transport_udp_create(ua.c_pjmedia_endpoint.c_obj, NULL, i, 0, &self.c_transport)
-                if status != PJ_ERRNO_START_SYS + EADDRINUSE:
-                    break
-            if status != 0:
-                raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
-        pjmedia_transport_info_init(&info)
-        status = pjmedia_transport_get_info(self.c_transport, &info)
-        if status != 0:
-            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
-        pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
-        if pool == NULL:
-            raise MemoryError()
-        try:
-            status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint.c_obj, pool, 1, &info.sock_info, &c_sdp_session)
-            if status != 0:
-                raise RuntimeError("Could not generate SDP for audio session: %s" % pj_status_to_str(status))
-            sdp_session = c_make_SDPSession(c_sdp_session)
-        finally:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
-        self.local_ip = sdp_session.connection.address
-        self.local_port = sdp_session.media[0].port
-        return sdp_session.media[0]
+        self.c_audio_transport = AudioTransport(RTPTransport())
+        return self.c_audio_transport.get_local_media()
 
     def sdp_done(self, SDPSession remote_sdp, SDPSession local_sdp, unsigned int sdp_index, Invitation inv):
-        cdef pjmedia_stream_info stream_info
-        cdef pjmedia_port *media_port
-        cdef object pool_name = "AudioSession_%d" % id(self)
-        cdef int status
-        cdef PJSIPUA ua = c_get_ua()
-        if self.c_stream != NULL:
-            return 0
-        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
-        if self.c_pool == NULL:
-            raise MemoryError()
-        remote_sdp._to_c()
-        local_sdp._to_c()
-        status = pjmedia_stream_info_from_sdp(&stream_info, self.c_pool, ua.c_pjmedia_endpoint.c_obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
-        if status != 0:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise RuntimeError("Could not parse SDP for audio session: %s" % pj_status_to_str(status))
-        self.codec = pj_str_to_str(stream_info.fmt.encoding_name)
-        self.sample_rate = stream_info.fmt.clock_rate
-        status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &stream_info, self.c_transport, NULL, &self.c_stream)
-        if status != 0:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise RuntimeError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
-        status = pjmedia_stream_set_dtmf_callback(self.c_stream, cb_AudioStream_cb_dtmf, <void *> inv)
-        if status != 0:
-            pjmedia_stream_destroy(self.c_stream)
-            self.c_stream = NULL
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise RuntimeError("Could not set DTMF callback for audio session: %s" % pj_status_to_str(status))
-        status = pjmedia_stream_start(self.c_stream)
-        if status != 0:
-            pjmedia_stream_destroy(self.c_stream)
-            self.c_stream = NULL
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise RuntimeError("Could not start RTP for audio session: %s" % pj_status_to_str(status))
-        status = pjmedia_stream_get_port(self.c_stream, &media_port)
-        if status != 0:
-            pjmedia_stream_destroy(self.c_stream)
-            self.c_stream = NULL
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise RuntimeError("Could not get audio port for audio session: %s" % pj_status_to_str(status))
-        status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.c_pool, media_port, NULL, &self.c_conf_slot)
-        if status != 0:
-            pjmedia_stream_destroy(self.c_stream)
-            self.c_stream = NULL
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-            raise RuntimeError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
-        return 0
+        self.c_audio_transport.set_sdp(local_sdp, remote_sdp, sdp_index)
+        self.c_conf_slot = self.c_audio_transport.c_conf_slot
+        self.local_ip = self.c_audio_transport.transport.local_rtp_address
+        self.local_port = self.c_audio_transport.transport.local_rtp_port
+        self.remote_ip = self.c_audio_transport.transport.remote_rtp_address_sdp
+        self.remote_port = self.c_audio_transport.transport.remote_rtp_port_sdp
+        self.codec = self.c_audio_transport.codec
+        self.sample_rate = self.c_audio_transport.sample_rate
 
     # proxied methods
 
     def send_dtmf(self, digit):
-        cdef pj_str_t c_digit
-        cdef int status
-        cdef PJSIPUA ua = c_get_ua()
-        if len(digit) != 1 or digit not in "0123456789*#ABCD":
-            raise RuntimeError("Not a valid DTMF digit: %s" % digit)
-        str_to_pj_str(digit, &c_digit)
-        status = pjmedia_stream_dial_dtmf(self.c_stream, &c_digit)
-        if status != 0:
-            raise RuntimeError("Could not send DTMF digit on audio stream: %s" % pj_status_to_str(status))
-        ua.c_conf_bridge._playback_dtmf(ord(digit))
+        self.c_audio_transport.send_dtmf(digit)
 
-
-cdef void cb_AudioStream_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:
-    cdef Invitation inv = <object> user_data
-    cdef MediaStream media_stream
-    cdef AudioStream audio_stream
-    cdef PJSIPUA ua = c_get_ua()
-    for media_stream in inv.c_current_streams:
-        if isinstance(media_stream.c_stream, AudioStream):
-            audio_stream = media_stream.c_stream
-            if audio_stream.c_stream == stream:
-                break
-    c_add_event("MediaStream_dtmf", dict(obj=media_stream, invitation=inv, digit=chr(digit)))
-    ua.c_conf_bridge._playback_dtmf(digit)
 
 cdef class MediaStream:
     cdef unsigned int c_sdp_index
