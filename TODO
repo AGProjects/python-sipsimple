@@ -107,6 +107,9 @@ Enrollment
 Middleware
 ----------
 
+- rename lookup_srv to rename_rfc3263, add NAPTR lookup to it and pass a
+  list of supported transports by the SIP library to select from (default is
+  udp).
 - Configuration framerwork based on ua-profile event package
 - Notification bus
 - Logging

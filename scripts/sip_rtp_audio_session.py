@@ -140,7 +140,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
             if use_bonjour:
                 print "Using bonjour"
                 print "Listening on local interface %s:%d" % (e.local_ip, e.local_port)
-                print "Press Ctrl-D to stop the program, h to hang-up or r to toggle audio recording"
+                print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, < and > to adjust echo cancellation"
                 print "Waiting for incoming session..."
             else:
                 reg = Registration(credentials, route=route)
