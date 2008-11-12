@@ -2568,10 +2568,10 @@ cdef class RTPTransport:
     cdef readonly object remote_rtp_address_sdp
     cdef readonly object state
 
-    def __cinit__(self, local_ip = None, use_ipv6 = False):
+    def __cinit__(self, local_ip = None):
         cdef object pool_name = "RTPTransport_%d" % id(self)
         cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
-        cdef int af
+        cdef int af = pj_AF_INET()
         cdef pj_str_t c_local_ip
         cdef pj_str_t *c_local_ip_p = &c_local_ip
         cdef int i
@@ -2581,13 +2581,11 @@ cdef class RTPTransport:
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError()
-        if use_ipv6:
-            af = pj_AF_INET6()
-        else:
-            af = pj_AF_INET()
         if local_ip is None:
             c_local_ip_p = NULL
         else:
+            if ":" in local_ip:
+                af = pj_AF_INET6()
             str_to_pj_str(local_ip, &c_local_ip)
         for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
             status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, i, 0, &self.c_obj)
