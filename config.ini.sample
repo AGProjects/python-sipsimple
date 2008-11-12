@@ -18,23 +18,26 @@ rtp_port_range=8000 8100
 ; Display name for bonjour
 ; bonjour_name=
 
-; tracing and logging
+; Log directory
+log_directory=~/.sipclient/log
+
+; Logging
 trace_pjsip=false
 trace_sip=false
 trace_xcap=false
 trace_msrp=false
 trace_rtp=false
 
-; history directory for saving audio sessions and IM chats
+; History directory for saving audio and IM sessions
 history_directory=~/.sipclient/history
 
-; log directory
-log_directory=~/.sipclient/log
+; File transfer directory for saving incomming files
+file_transfer_directory=~/.sipclient/file_transfers
 
 
 [Audio]
 sample_rate=32
-echo_cancellation_tail_length=50
+echo_cancellation_tail_length=100
 disable_sound=false
 codec_list=speex,g711,ilbc,gsm,g722
 
@@ -57,8 +60,7 @@ display_name=
 ; xcap root used to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
 
-; from whom to accept invitations for IM chat sessions
-; im_allow_invitations_from=buddy_list|everyone
+; file_transfer_auto_accept=false
 
 ; overwrite default DNS lookup with a fixed address: hostname|ip:port
 ; msrp_relay_address=auto
