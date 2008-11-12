@@ -12,19 +12,17 @@ from pprint import pformat
 import dns.resolver
 from dns.exception import DNSException
 
-from application.system import default_host_ip
 from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed
 
 from eventlet.api import spawn, kill, sleep
 from eventlet.channel import channel as Channel
-from eventlet.twistedutil.protocol import BufferCreator
 
 from pypjua import Credentials, MediaStream, Route, SIPURI
 from pypjua.clients.lookup import lookup_srv
 from pypjua.clients import msrp_protocol
-from pypjua.msrplib import relay_connect, MSRPBuffer
+from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, new_local_uri
 from pypjua.clients.consolebuffer import setup_console, TrafficLogger
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
@@ -141,13 +139,15 @@ def register(e, credentials, route):
             print "REGISTER failed: %(code)d %(reason)s" % params
 
 def invite(e, credentials, target_uri, route, relay, log_func):
-    local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
-    if relay is not None:
-        msrp = relay_connect(local_uri_path, relay, log_func)
-        local_uri_path = msrp.local_uri_path
+    if relay is None:
+        local_uri = new_local_uri(12345)
+        full_local_path = [local_uri]
+    else:
+        msrp = msrp_relay_connect(relay, log_func)
+        full_local_path = msrp.full_local_path
     inv = e.Invitation(credentials, target_uri, route=route)
     stream = MediaStream("message")
-    stream.set_local_info([str(uri) for uri in local_uri_path], ["text/plain"])
+    stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
     invite_response = inv.invite([stream], ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav")))
     code = invite_response.get('code')
     if invite_response['state'] != 'ESTABLISHED':
@@ -158,17 +158,15 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     print "MSRP chat from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
+    full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
     print "Session negotiated to: %s" % " ".join(remote_uri_path)
     if relay is None:
-        from twisted.internet import reactor
-        Buf = BufferCreator(reactor, MSRPBuffer, local_uri_path, log_func)
-        remote_uri_path_parsed = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
-        from gnutls.interfaces.twisted import X509Credentials
-        cred = X509Credentials(None, None)
-        msrp = Buf.connectTLS(remote_uri_path_parsed[0].host, remote_uri_path_parsed[0].port or 2855, cred)
-    msrp.set_remote_uri(remote_uri_path)
+        msrp = msrp_connect(full_remote_path, log_func, local_uri)
+    else:
+        msrp.set_full_remote_path(full_remote_path)
     if other_user_agent is not None:
         print 'Remote User Agent is "%s"' % other_user_agent
+    msrp.bind()
     inv.me_uri = inv.callee_uri
     inv.other_uri = inv.caller_uri
     return inv, msrp
@@ -203,19 +201,27 @@ def accept_incoming(e, relay, log_func, console):
             response = 'y'
         if response.lower() == "y":
             msrp_stream = inv.proposed_streams.pop()
-            local_uri_path = [msrp_protocol.URI(host=default_host_ip, port=12345, session_id=random_string(12))]
             if relay is not None:
-                msrp = relay_connect(local_uri_path, relay, log_func)
+                msrp = msrp_relay_connect(relay, log_func)
+                full_local_path = msrp.full_local_path
             else:
-                not_implemented
-                #from twisted.internet import reactor
-                #Buf = BufferCreator(reactor, MSRPBuffer, local_uri_path, log_func)
-                #conn = Buf.connectTLS(remote_uri_path[0].host, remote_uri_path[0].port or 2855)
-            msrp.set_remote_uri(msrp_stream.remote_info[0])
-            msrp_stream.set_local_info([str(uri) for uri in msrp.local_uri_path], ["text/plain"])
+                msrp = None
+                channel = Channel()
+                def on_connect(buffer):
+                    listener.stopListening()
+                    channel.send(buffer)
+                local_uri, listener = msrp_listen(on_connect, log_func)
+                full_local_path = [local_uri]
+                print 'listening on %s' % (listener.getHost(), )
+            msrp_stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
             inv.accept([msrp_stream])
             inv.me_uri = inv.callee_uri
             inv.other_uri = inv.caller_uri
+            if msrp is None:
+                msrp = channel.receive()
+            full_remote_path = [msrp_protocol.parse_uri(uri) for uri in msrp_stream.remote_info[0]]
+            msrp.set_full_remote_path(full_remote_path)
+            msrp.accept_binding()
             return inv, msrp
         else:
             inv.end()
@@ -229,6 +235,10 @@ class RelaySettings:
         self.password = password
 
     @property
+    def uri(self):
+        return msrp_protocol.URI(host=self.domain, port=self.port, use_tls=True)
+
+    @property
     def domain(self):
         return self.host
 
@@ -240,6 +250,10 @@ class RelaySettings_SRV(object):
         self.username = username
         self.password = password
         self.fallback_to_A = fallback_to_A
+
+    @property
+    def uri(self):
+        return msrp_protocol.URI(host=self.domain, port=self.port, use_tls=True)
 
     @staticmethod
     def _srv_lookup(domain):
