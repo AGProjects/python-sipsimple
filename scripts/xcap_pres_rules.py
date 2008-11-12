@@ -17,7 +17,7 @@ from optparse import OptionParser, OptionValueError
 from time import sleep
 from application.process import process
 from application.configuration import *
-from urllib2 import HTTPError, URLError
+from urllib2 import URLError
 
 from pypjua import *
 from pypjua.clients import enrollment
@@ -31,6 +31,7 @@ from pypjua.clients.clientconfig import get_path
 from pypjua.clients.lookup import *
 
 from xcaplib.client import XCAPClient
+from xcaplib.error import HTTPError
 
 class Boolean(int):
     def __new__(typ, value):
@@ -87,12 +88,12 @@ def get_prules():
     try:
         doc = xcap_client.get('pres-rules')
     except URLError, e:
-        if e.code != 404:
-            print "Cannot obtain 'pres-rules' document: %s" % str(e)
+        print "Cannot obtain 'pres-rules' document: %s" % str(e)
+    except HTTPError, e:
+        if e.response.status != 404:
+            print "Cannot obtain 'pres-rules' document: %s %s" % (e.response.status, e.response.reason)
         else:
             prules = PresRules()
-    except HTTPError, e:
-        print "Cannot obtain 'pres-rules' document: %s" % str(e)
     else:
         try:
             prules = PresRules.parse(doc)
