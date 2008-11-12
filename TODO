@@ -34,12 +34,20 @@ Audio
 Command line clients
 --------------------
 
-Based on trace_x configuration options:
+Logging, based on trace_x configuration options:
  - Append PJSIP messages to .sipclient/log/user@domain/trace_pjsip.txt
  - Append SIP messages to .sipclient/log/user@domain/trac_sip.txt
  - Append MSRP messages to .sipclient/log/user@domain/trace_msrp.txt
  - Append XCAP messages to .sipclient/log/user@domain/trace_xcap.txt
  - Add timestamp and packet counters as for SIP trace for all other prorocols
+ - Toggle logging at run time
+
+- Add key command to start a call when starting in receiving mode (c)
+- Add ? command key to display the available key commands
+- Add functionality to msrp client script to send/receive files
+- sip_msrp_chat_server (act as a conference server)
+- sip_subscribe_conference_info
+
 - print source of incomming NOTIFYs in sip_subscribe_x scripts
 - sip_subscribe_presence to a list of URIs
 - xcap_rls_services script, with service-uri as parameter default is user-buddies@samedomain
@@ -55,10 +63,6 @@ Based on trace_x configuration options:
 - Conference established sessions
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
 - Combine msrp/rtp in one script
-- sip_msrp_chat_server (act as a conference server)
-- sip_msrp_chat_client (invite people to chat using REFER and resource-list)
-- sip_subscribe_conference_info
-
  
 Applications
 ------------
