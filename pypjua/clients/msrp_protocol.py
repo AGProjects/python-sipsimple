@@ -508,15 +508,18 @@ class URI(object):
         """MSRP URI comparison according to section 6.1 of RFC 4975"""
         if self is other:
             return True
-        if self.use_tls != other.use_tls:
-            return False
-        if self.host.lower() != other.host.lower():
-            return False
-        if self.port != other.port:
-            return False
-        if self.session_id != other.session_id:
-            return False
-        if self.transport.lower() != other.transport.lower():
+        try:
+            if self.use_tls != other.use_tls:
+                return False
+            if self.host.lower() != other.host.lower():
+                return False
+            if self.port != other.port:
+                return False
+            if self.session_id != other.session_id:
+                return False
+            if self.transport.lower() != other.transport.lower():
+                return False
+        except AttributeError:
             return False
         return True
 
