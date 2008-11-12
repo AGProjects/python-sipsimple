@@ -86,6 +86,8 @@ cdef extern from "pjlib.h":
         pj_addr_hdr addr
     struct pj_sockaddr_in:
         pass
+    int pj_AF_INET()
+    int pj_AF_INET6()
     int pj_sockaddr_in_init(pj_sockaddr_in *addr, pj_str_t *cp, int port)
     int pj_sockaddr_get_port(pj_sockaddr *addr)
     char *pj_sockaddr_print(pj_sockaddr *addr, char *buf, int size, unsigned int flags)
@@ -230,7 +232,7 @@ cdef extern from "pjmedia.h":
         pjmedia_sock_info sock_info
         pj_sockaddr src_rtp_name
     void pjmedia_transport_info_init(pjmedia_transport_info *info)
-    int pjmedia_transport_udp_create(pjmedia_endpt *endpt, char *name, int port, unsigned int options, pjmedia_transport **p_tp)
+    int pjmedia_transport_udp_create3(pjmedia_endpt *endpt, int af, char *name, pj_str_t *addr, int port, unsigned int options, pjmedia_transport **p_tp)
     int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info)
     int pjmedia_transport_close(pjmedia_transport *tp)
     int pjmedia_transport_media_create(pjmedia_transport *tp, pj_pool_t *sdp_pool, unsigned int options, pjmedia_sdp_session *rem_sdp, unsigned int media_index)
@@ -2566,9 +2568,12 @@ cdef class RTPTransport:
     cdef readonly object remote_rtp_address_sdp
     cdef readonly object state
 
-    def __cinit__(self):
+    def __cinit__(self, local_ip = None, use_ipv6 = False):
         cdef object pool_name = "RTPTransport_%d" % id(self)
         cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
+        cdef int af
+        cdef pj_str_t c_local_ip
+        cdef pj_str_t *c_local_ip_p = &c_local_ip
         cdef int i
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
@@ -2576,8 +2581,16 @@ cdef class RTPTransport:
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError()
+        if use_ipv6:
+            af = pj_AF_INET6()
+        else:
+            af = pj_AF_INET()
+        if local_ip is None:
+            c_local_ip_p = NULL
+        else:
+            str_to_pj_str(local_ip, &c_local_ip)
         for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
-            status = pjmedia_transport_udp_create(ua.c_pjmedia_endpoint.c_obj, NULL, i, 0, &self.c_obj)
+            status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, i, 0, &self.c_obj)
             if status != PJ_ERRNO_START_SYS + EADDRINUSE:
                 break
         if status != 0:
