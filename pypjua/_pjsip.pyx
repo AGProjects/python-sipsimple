@@ -2678,7 +2678,7 @@ cdef class RTPTransport:
         self._update_local_sdp(local_sdp, sdp_index, NULL)
         self.state = "LOCAL"
 
-    def set_ESTABLISHED(self, SDPSession local_sdp, unsigned int sdp_index, SDPSession remote_sdp):
+    def set_ESTABLISHED(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
         cdef int status
         cdef PJSIPUA = c_get_ua()
         if None in [local_sdp, remote_sdp]:
@@ -2731,7 +2731,7 @@ cdef class AudioTransport:
         else:
             if sdp_index != 0:
                 self.c_local_sdp.media = (sdp_index+1) * self.c_local_sdp.media
-            self.transport.set_ESTABLISHED(self.c_local_sdp, sdp_index, remote_sdp)
+            self.transport.set_ESTABLISHED(self.c_local_sdp, remote_sdp, sdp_index)
             self._start_stream(ua, &self.c_local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
 
     def __dealloc__(self):
@@ -2770,7 +2770,7 @@ cdef class AudioTransport:
         cdef PJSIPUA ua = c_get_ua()
         if self.transport.state != "LOCAL":
             raise RuntimeError("Remote SDP is already known.")
-        self.transport.set_ESTABLISHED(local_sdp, sdp_index, remote_sdp)
+        self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
         self._start_stream(ua, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
 
     cdef int _start_stream(self, PJSIPUA ua, pjmedia_sdp_session *local_sdp, pjmedia_sdp_session *remote_sdp, unsigned int sdp_index) except -1:
