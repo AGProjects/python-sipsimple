@@ -478,6 +478,14 @@ class URI(object):
         else:
             self.parameters = parameters
 
+    def __repr__(self):
+        params = [self.host, self.use_tls, self.user, self.port, self.session_id, self.transport, self.parameters]
+        defaults = [False, None, None, None, 'tcp', {}]
+        while defaults and params[-1]==defaults[-1]:
+            del params[-1]
+            del defaults[-1]
+        return '%s(%s)' % (self.__class__.__name__, ', '.join(`x` for x in params))
+
     def __str__(self):
         uri_str = []
         if self.use_tls:
