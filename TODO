@@ -42,6 +42,7 @@ Logging, based on trace_x configuration options:
  - Add timestamp and packet counters as for SIP trace for all other prorocols
  - Toggle logging at run time
 
+- Add auto-accept option for sip_msrp_file_transfer client
 - Add key command to start a call when starting in receiving mode (c)
 - Add ? command key to display the available key commands
 - Add functionality to msrp client script to send/receive files
