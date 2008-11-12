@@ -97,6 +97,7 @@ Go to pjsip directory and build the pjsip library:
 cd pjsip
 ([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
 ./configure
+make distclean
 make
 
 Note that, on some platforms like amd64 you may need to supply -fPIC flag to
@@ -112,6 +113,7 @@ Step 5. Build and install SIP SIMPLE client
 Go to the main project directory and build the library by running:
 
 cd sipsimpleclient
+touch pypjua/_pjsip.pyx
 sh ./build_inplace
 
 Install the library and comand line tools:

@@ -62,6 +62,7 @@ Go to pjsip directory and build pjsip library:
 
 cd pjsip
 ./configure
+make distclean
 make
 
 Note that, on some platforms (as seen on amd64) you may need to supply -fPIC
@@ -85,6 +86,7 @@ tar xvzf *.tar.gz
 Change to the distribution directory and:
 
 ln -s ../../pjsip pjsip
+touch pypjua/_pjsip.pyx
 sh ./build_inplace
 dpkg-buildpackage
 
