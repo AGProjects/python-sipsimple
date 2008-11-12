@@ -92,12 +92,12 @@ def get_prules():
     try:
         doc = xcap_client.get('pres-rules')
     except URLError, e:
-        if e.code != 404:
-            print "Cannot obtain 'pres-rules' document: %s" % str(e)
+        print "Cannot obtain 'pres-rules' document: %s" % str(e)
+    except HTTPError, e:
+        if e.response.status != 404:
+            print "Cannot obtain 'pres-rules' document: %s %s" % (e.response.status, e.response.reason)
         else:
             prules = PresRules()
-    except HTTPError, e:
-        print "Cannot obtain 'pres-rules' document: %s" % str(e)
     else:
         try:
             prules = PresRules.parse(doc)
