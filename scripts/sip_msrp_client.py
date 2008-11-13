@@ -6,6 +6,7 @@ import traceback
 import re
 import random
 import string
+import datetime
 from optparse import OptionValueError, OptionParser, Values
 from ConfigParser import NoSectionError
 from pprint import pformat
@@ -16,17 +17,17 @@ from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed
 
-from eventlet.api import spawn, kill, sleep
+from eventlet.api import spawn, kill, GreenletExit
 from eventlet.channel import channel as Channel
 
 from pypjua import Credentials, MediaStream, Route, SIPURI
 from pypjua.clients.lookup import lookup_srv
 from pypjua.clients import msrp_protocol
-from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, new_local_uri
+from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, msrp_accept, new_local_uri
 from pypjua.clients.consolebuffer import setup_console, TrafficLogger
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
-from pypjua.enginebuffer import log_dropped_event, EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
+from pypjua.enginebuffer import log_event, EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
 
 class GeneralConfig(ConfigSection):
@@ -42,7 +43,6 @@ class AccountConfig(ConfigSection):
     display_name = None
     outbound_proxy = None
 
-
 class AudioConfig(ConfigSection):
     _datatypes = {"disable_sound": datatypes.Boolean}
     disable_sound = False
@@ -55,17 +55,15 @@ enrollment.verify_account_config()
 def random_string(length):
     return "".join(random.choice(string.letters + string.digits) for i in xrange(length))
 
-def log_events(channel):
-    while True:
-        event_name, kwargs = channel.receive()
-        log_dropped_event(event_name, kwargs)
+def format_time():
+    return datetime.datetime.now().strftime('%X')
 
 def print_messages(msrp, other_uri, send_exception):
     try:
         while True:
             message = msrp.recv_chunk()
             if message.method == 'SEND':
-                sys.stdout.write('%s> %s' % (other_uri, message.data))
+                sys.stdout.write('%s %s> %s' % (format_time(), other_uri, message.data))
     except ConnectionDone, ex:
         sys.stdout.write('MSRP connection closed cleanly')
         send_exception(ex)
@@ -74,20 +72,24 @@ def print_messages(msrp, other_uri, send_exception):
         send_exception(ex)
 
 def action(env, e, options, console):
-    credentials = Credentials(options.uri, options.password)
-    logger = TrafficLogger(console, lambda: options.trace_msrp)
-    if options.target_uri is None:
-        register(e, credentials, options.route)
-        console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
-        sip, msrp = accept_incoming(e, options.relay, logger.write_traffic, console)
-    else:
-        sip, msrp = invite(e, credentials, options.target_uri, options.route, options.relay, logger.write_traffic)
-    console.set_ps('%s@%s to %s@%s> ' % (sip.me_uri.user, sip.me_uri.host, sip.other_uri.user, sip.other_uri.host))
-    env.sip = sip
-    env.sip.call_on_disconnect(console.channel.send_exception)
-    env.msrp = msrp
-    env.job = None
-    spawn(print_messages, msrp, '%s@%s' % (sip.other_uri.user, sip.other_uri.host), console.channel.send_exception)
+    try:
+        credentials = Credentials(options.uri, options.password)
+        logger = TrafficLogger(console, lambda: options.trace_msrp)
+        if options.target_uri is None:
+            register(e, credentials, options.route)
+            console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
+            env.sip, env.msrp = accept_incoming(e, options.relay, logger.write_traffic, console)
+        else:
+            env.sip, env.msrp = invite(e, credentials, options.target_uri, options.route,
+                                       options.relay, logger.write_traffic)
+        frmt = '%s@%s' % (env.sip.other_uri.user, env.sip.other_uri.host)
+        spawn(print_messages, env.msrp, frmt, console.channel.send_exception)
+        me = env.sip.me_uri
+        other = env.sip.other_uri
+        console.set_ps('%s@%s to %s@%s> ' % (me.user, me.host, other.user, other.host))
+        env.sip.call_on_disconnect(console.channel.send_exception)
+    finally:
+        env.job = None
 
 def start(options, console):
     ch = Channel()
@@ -99,29 +101,25 @@ def start(options, console):
                      local_port=options.local_port)
     e.start()
     try:
-        spawn(log_events, ch)
         env = Values()
         env.sip = None
         env.msrp = None
         env.job = spawn(action, env, e, options, console)
 
-        sleep(1)
-        spawn(ch.send, ('test', {}))
         try:
             for type, value in console:
                 if type == 'line' and value:
                     if env.msrp:
                         env.msrp.send_message(value)
+                    else:
+                        print 'cannot send message: MSRP not connected'
         except SIPDisconnect, ex:
             sys.stderr.write('Session ended: %s' % ex)
         finally:
             if env.job:
                 kill(env.job)
-            if env.sip:
-                env.sip.end()
-            if env.msrp:
-                env.msrp.loseConnection()
     finally:
+        e.shutdown()
         e.stop()
 
 def register(e, credentials, route):
@@ -152,9 +150,11 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     code = invite_response.get('code')
     if invite_response['state'] != 'ESTABLISHED':
         try:
-            sys.exit('%(code)s %(reason)s' % invite_response)
+            print '%(code)s %(reason)s' % invite_response
+            raise GreenletExit
         except KeyError:
-            sys.exit(pformat(invite_response))
+            print pformat(invite_response)
+            raise GreenletExit
     print "MSRP chat from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
@@ -174,10 +174,11 @@ def invite(e, credentials, target_uri, route, relay, log_func):
 def wait_for_incoming(e):
     while True:
         event_name, params = e.channel.receive()
+        log_event('RECEIVED', event_name, params)
         if event_name == "Invitation_state" and params.get("state") == "INCOMING":
             obj = params.get('obj')
             obj = InvitationBuffer(obj)
-            obj.channel = e.register_channel(obj._obj)
+            e.register_obj(obj)
             if params.has_key("streams") and len(params["streams"]) == 1:
                 msrp_stream = params["streams"].pop()
                 if msrp_stream.media_type == "message" and "text/plain" in msrp_stream.remote_info[1]:
@@ -188,7 +189,7 @@ def wait_for_incoming(e):
             else:
                 print "Not an MSRP session, rejecting."
                 obj.end()
-        log_dropped_event(event_name, params)
+        log_event('DROPPED', event_name, params)
 
 def accept_incoming(e, relay, log_func, console):
     print 'Waiting for incoming connections...'
@@ -207,11 +208,7 @@ def accept_incoming(e, relay, log_func, console):
                 full_local_path = msrp.full_local_path
             else:
                 msrp = None
-                channel = Channel()
-                def on_connect(buffer):
-                    listener.stopListening()
-                    channel.send(buffer)
-                local_uri, listener = msrp_listen(on_connect, log_func)
+                msrp_channel, local_uri, listener = msrp_listen(log_func)
                 full_local_path = [local_uri]
                 print 'listening on %s' % (listener.getHost(), )
             msrp_stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
@@ -219,7 +216,7 @@ def accept_incoming(e, relay, log_func, console):
             inv.me_uri = inv.callee_uri
             inv.other_uri = inv.caller_uri
             if msrp is None:
-                msrp = channel.receive()
+                msrp = msrp_accept(msrp_channel)
             full_remote_path = [msrp_protocol.parse_uri(uri) for uri in msrp_stream.remote_info[0]]
             msrp.set_full_remote_path(full_remote_path)
             msrp.accept_binding()

@@ -1,6 +1,8 @@
 import sys
+import os
 from pprint import pformat
-from weakref import WeakValueDictionary, ref
+from inspect import currentframe
+from weakref import ref
 from pypjua import Engine, Registration, Invitation
 
 from eventlet.api import spawn, sleep, kill
@@ -11,14 +13,31 @@ from eventlet.support import greenlet
 def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
 
-def log_dropped_event(name, kwargs):
+def format_lineno(level=0):
+    frame = currentframe()
+    while level>=0:
+        if frame.f_back is None:
+            break
+        frame = frame.f_back
+        level -= 1
+    fname = os.path.basename(frame.f_code.co_filename)
+    lineno = frame.f_lineno
+    res = '%s:%s' % (fname, lineno)
+    co_name = frame.f_code.co_name
+    if co_name is not '<module>':
+        res += '(%s)' % co_name
+    return res
+
+def log_event(prefix, name, kwargs, calllevel=1):
     return
-    sys.stderr.write('DROPPED %s\n' % format_event(name, kwargs))
+    if prefix:
+        prefix+=' '
+    sys.stderr.write('%s:%s%s\n' % (format_lineno(calllevel), prefix, format_event(name, kwargs)))
 
 class EngineBuffer(Engine):
 
     def __init__(self, default_channel, **kwargs):
-        self.channels = WeakValueDictionary() # maps obj -> channel
+        self.objs = {} # maps pypjua_obj -> obj_buffer
         self.default_channel_ref = ref(default_channel)
         handler = EventHandler(self._handle_event,
                                trace_pjsip=kwargs.pop('trace_pjsip', False))
@@ -29,51 +48,82 @@ class EngineBuffer(Engine):
         return self.default_channel_ref and self.default_channel_ref()
 
     def _handle_event(self, event_name, kwargs):
+        log_event('RECEIVED', event_name, kwargs)
         try:
             obj = kwargs['obj']
-            channel = self.channels[obj]
+            channel = self.objs[obj].channel
         except KeyError:
             channel = self.channel
         if channel is None:
-            log_dropped_event(event_name, kwargs)
+            #print 'obj %r not found in %r' % (kwargs.get('obj'), pformat(self.objs))
+            log_event('DROPPED', event_name, kwargs)
         else:
             spawn(channel.send, (event_name, kwargs))
 
-    def register_channel(self, obj, channel=None):
+    def shutdown(self):
+        for obj in self.objs.values():
+            obj.shutdown()
+        self.objs.clear()
+
+    def register_obj(self, obj, channel=None):
+        if not hasattr(obj, '_obj'):
+            raise TypeError('Not a proxy: %r' % obj)
         if channel is None:
             channel = Channel()
-        self.channels[obj] = channel
+        self.objs[obj._obj] = obj
+        obj.channel = channel
         return channel
 
+    def unregister_obj(self, obj):
+        pypjua_obj = obj._obj
+        del self.objs[pypjua_obj]
+
     def Registration(self, *args, **kwargs):
-        obj = RegistrationBuffer(*args, **kwargs)
-        obj.channel = self.register_channel(obj)
+        obj = RegistrationBuffer(Registration(*args, **kwargs))
+        self.register_obj(obj)
         return obj
 
     def Invitation(self, *args, **kwargs):
         obj = InvitationBuffer(Invitation(*args, **kwargs))
-        obj.channel = self.register_channel(obj._obj)
+        self.register_obj(obj)
         return obj
 
-class RegistrationBuffer(Registration):
 
-    def register(self, *args, **kwargs):
-        Registration.register(self, *args, **kwargs)
+class Proxy(object):
+
+    def __init__(self, obj):
+        self._obj = obj
+
+    def __getattr__(self, item):
+        return getattr(self._obj, item)
+
+    def skip_to_event(self, state, event_name=None):
+        if event_name is None:
+            event_name = self.event_name
+        while True:
+            r_event_name, r_params = self.channel.receive()
+            if (r_event_name, r_params.get('state')) == (event_name, state):
+                log_event('MATCHED', r_event_name, r_params, 2)
+                return r_event_name, r_params
+            else:
+                log_event('DROPPED', r_event_name, r_params, 2)
+
+class RegistrationBuffer(Proxy):
+
+    def register(self):
+        self._obj.register()
         while True:
             event_name, params = self.channel.receive()
             if 'Registration_state' == event_name:
                 if params.get('state') in ['registered', 'unregistered']:
                     return params
-            log_dropped_event(event_name, params)
+            log_event('DROPPED', event_name, params)
 
-    def unregister(self, *args, **kwargs):
-        Registration.unregister(self, *args, **kwargs)
-        while True:
-            event_name, params = self.channel.receive()
-            if 'Registration_state' == event_name:
-                if params.get('state') == 'unregistered':
-                    return params
-            log_dropped_event(event_name, params)
+    def unregister(self):
+        self._obj.unregister()
+        return self.skip_to_event('unregistered', 'Registration_state')
+
+    shutdown = unregister
 
 class Ringer:
 
@@ -111,15 +161,9 @@ class SIPDisconnect(Exception):
         except KeyError:
             raise AttributeError('No key %s in params' % item)
 
-class Proxy(object):
-
-    def __init__(self, obj):
-        self._obj = obj
-
-    def __getattr__(self, item):
-        return getattr(self._obj, item)
-
 class InvitationBuffer(Proxy):
+
+    event_name = 'Invitation_state'
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
@@ -133,21 +177,28 @@ class InvitationBuffer(Proxy):
                 elif event_name == 'Invitation_state' and params['state']!='CALLING':
                     break
                 else:
-                    log_dropped_event(event_name, params)
+                    log_event('DROPPED', event_name, params)
         finally:
             if ringer:
                 ringer.stop()
         return params
 
+    def end(self, *args, **kwargs):
+        self._obj.end()
+        return self.skip_to_event('DISCONNECTED')[1]
+
+    def accept(self, *args, **kwargs):
+        self._obj.accept(*args, **kwargs)
+        return self.skip_to_event('ESTABLISHED')[1]
+
+    def shutdown(self):
+        if self._obj.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
+            self.end()
+
     def call_on_disconnect(self, func):
         def wait_for_disconnect(current):
-            while True:
-                event_name, params = self.channel.receive()
-                if event_name == 'Invitation_state' and params['state']=='DISCONNECTED':
-                    func(SIPDisconnect(params))
-                    break
-                else:
-                    log_dropped_event(event_name, params)
+            event_name, params = self.skip_to_event('DISCONNECTED')
+            func(SIPDisconnect(params))
         spawn(wait_for_disconnect, greenlet.getcurrent())
 
 class EventHandler:

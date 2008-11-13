@@ -5,8 +5,10 @@ from copy import copy
 from StringIO import StringIO
 from application.system import default_host_ip
 from gnutls.interfaces.twisted import X509Credentials
+from twisted.internet.error import AlreadyCalled
 
-from eventlet.api import spawn
+from eventlet.api import spawn, exc_after, TimeoutError
+from eventlet.channel import channel as Channel
 from eventlet.twistedutil.protocol import BaseBuffer, BufferCreator, SpawnFactory
 
 from pypjua.clients import msrp_protocol
@@ -246,6 +248,18 @@ def keep_common_items(mydict, otherdict):
 class Error(Exception):
     pass
 
+class MSRPTimeout(Error):
+    seconds = 10
+
+class MSRPConnectTimeout(MSRPTimeout):
+    pass
+
+class MSRPRelayConnectTimeout(MSRPTimeout):
+    pass
+
+class MSRPIncomingConnectTimeout(MSRPTimeout):
+    pass
+
 class MSRPTransactError(Error):
     pass
 
@@ -255,7 +269,7 @@ class MSRPRelayAuthError(Error):
 def new_local_uri(port=0):
     return msrp_protocol.URI(host=default_host_ip, port=port, session_id=random_string(12))
 
-def msrp_connect(full_remote_path, log_func, local_uri):
+def _msrp_connect(full_remote_path, log_func, local_uri):
     from twisted.internet import reactor
     Buf = BufferCreator(reactor, MSRPBuffer, local_uri, log_func)
     if full_remote_path[0].use_tls:
@@ -268,7 +282,14 @@ def msrp_connect(full_remote_path, log_func, local_uri):
     msrp.set_full_remote_path(full_remote_path)
     return msrp
 
-def msrp_relay_connect(relaysettings, log_func):
+def msrp_connect(*args, **kwargs):
+    kwargs.setdefault('timeout_value', None) 
+    msrp = with_timeout(MSRPConnectTimeout.seconds, _msrp_connect, *args, **kwargs)
+    if msrp is None:
+        raise MSRPConnectTimeout
+    return msrp
+
+def _msrp_relay_connect(relaysettings, log_func):
     local_uri = new_local_uri()
     from gnutls.interfaces.twisted import X509Credentials
     cred = X509Credentials(None, None)
@@ -295,9 +316,15 @@ def msrp_relay_connect(relaysettings, log_func):
     #print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % (relaysettings.host, relaysettings.port, conn.local_uri)
     return conn
 
-def msrp_listen(handler, log_func=None):
-    local_uri = new_local_uri()
+def msrp_relay_connect(relaysettings, log_func):
+    msrp = with_timeout(MSRPRelayConnectTimeout.seconds, _msrp_relay_connect, relaysettings, log_func, timeout_value=None)
+    if msrp is None:
+        raise MSRPRelayConnectTimeout
+    return msrp
+
+def _msrp_listen(handler, log_func=None):
     from twisted.internet import reactor
+    local_uri = new_local_uri()
     factory = SpawnFactory(handler, MSRPBuffer, local_uri, log_func)
     if local_uri.use_tls:
         cred = X509Credentials(None, None)
@@ -307,6 +334,39 @@ def msrp_listen(handler, log_func=None):
     local_uri.port = port.getHost().port
     return local_uri, port
 
+def msrp_listen(log_func=None):
+    msrp = None
+    channel = Channel()
+    def on_connect(buffer):
+        listener.stopListening()
+        channel.send(buffer)
+    local_uri, listener = _msrp_listen(on_connect, log_func)
+    return channel, local_uri, listener
+
+def msrp_accept(channel):
+    msrp = with_timeout(MSRPIncomingConnectTimeout.seconds, channel.receive, timeout_value=None)
+    if msrp is None:
+        raise MSRPIncomingConnectTimeout
+    return msrp
+
 def random_string(length):
     return "".join(random.choice(string.letters + string.digits) for i in xrange(length))
+
+# XXX integrate this with eventlet
+def with_timeout(seconds, func, *args, **kwds):
+    has_timeout_value = "timeout_value" in kwds
+    timeout_value = kwds.pop("timeout_value", None)
+    timeout = exc_after(seconds, TimeoutError())
+    try:
+        try:
+            return func(*args, **kwds)
+        except TimeoutError:
+            if has_timeout_value:
+                return timeout_value
+            raise
+    finally:
+        try:
+            timeout.cancel()
+        except AlreadyCalled:
+            pass
 
