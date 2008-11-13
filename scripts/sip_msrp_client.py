@@ -196,7 +196,8 @@ def accept_incoming(e, relay, log_func, console):
         inv, params = wait_for_incoming(e)
         # XXX must stop asking question if disconnected here
         if console:
-            response = console.ask_question('Accept incoming session from %s? [yn]' % inv.caller_uri, 'yYnN')
+            q = 'Incoming MSRP session from %s, do you want to accept? (y/n)' % inv.caller_uri
+            response = console.ask_question(q, 'yYnN')
         else:
             response = 'y'
         if response.lower() == "y":
