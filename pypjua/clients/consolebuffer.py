@@ -145,7 +145,7 @@ class ConsoleBuffer:
             raise ConnectionDone
         self.terminalProtocol.clearInputLine()
         self.terminalProtocol.recv_char = True
-        # because it's a modal dialog box that steals focus, wait for at least 1 second
+        # because it's like a modal dialog box that steals focus, wait for at least 1 second
         # since the last keypress to avoid accidental input
         self.terminalProtocol.barrier()
         try:
@@ -245,12 +245,18 @@ class _WriteProxy(object):
     def __init__(self, original, console):
         self.original = original
         self.console = console
+        self.state = None
 
     def __getattr__(self, item):
         return getattr(self.original, item)
 
     def write(self, data):
-        return self.console.write(data)
+        if data=='\n' and self.state=='after write':
+            self.state = 'skipped'
+            return
+        else:
+            self.state = 'after write'
+            return self.console.write(data)
 
 def hook_std_output(console):
     sys.stderr = _WriteProxy(__original_sys_stderr__, console)
