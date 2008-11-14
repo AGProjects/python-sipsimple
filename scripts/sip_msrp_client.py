@@ -89,7 +89,7 @@ def action(env, e, options, console):
         console.set_ps('%s@%s to %s@%s> ' % (me.user, me.host, other.user, other.host))
         env.sip.call_on_disconnect(console.channel.send_exception)
     except (DNSLookupError, MSRPError), ex:
-        print ex
+        console.channel.send_exception(ex)
     finally:
         env.job = None
 
@@ -117,6 +117,8 @@ def start(options, console):
                         print 'cannot send message: MSRP not connected'
         except SIPDisconnect, ex:
             sys.stderr.write('Session ended: %s' % ex)
+        except (DNSLookupError, MSRPError), ex:
+            print ex
         finally:
             if env.job:
                 kill(env.job)
