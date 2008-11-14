@@ -120,6 +120,8 @@ def start(options, console):
         finally:
             if env.job:
                 kill(env.job)
+            if env.msrp:
+                env.msrp.loseConnection()
     finally:
         e.shutdown()
         e.stop()
