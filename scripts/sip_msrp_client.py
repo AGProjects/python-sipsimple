@@ -80,6 +80,8 @@ def action(env, e, options, console):
             console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
             env.sip, env.msrp = accept_incoming(e, options.relay, logger.write_traffic, console)
         else:
+            print "MSRP chat from %s to %s through proxy %s:%d" % (options.uri, options.target_uri, options.route.host,
+                                                                   options.route.port)
             env.sip, env.msrp = invite(e, credentials, options.target_uri, options.route,
                                        options.relay, logger.write_traffic)
         frmt = '%s@%s' % (env.sip.other_uri.user, env.sip.other_uri.host)
@@ -161,7 +163,6 @@ def invite(e, credentials, target_uri, route, relay, log_func):
         except KeyError:
             print pformat(invite_response)
             raise GreenletExit
-    print "MSRP chat from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
     full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
