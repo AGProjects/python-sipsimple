@@ -245,10 +245,10 @@ def keep_common_items(mydict, otherdict):
         if otherdict.get(k) not in [v, None]:
             del mydict[k]
 
-class Error(Exception):
+class MSRPError(Exception):
     pass
 
-class MSRPTimeout(Error):
+class MSRPTimeout(MSRPError):
     seconds = 10
 
 class MSRPConnectTimeout(MSRPTimeout):
@@ -260,10 +260,10 @@ class MSRPRelayConnectTimeout(MSRPTimeout):
 class MSRPIncomingConnectTimeout(MSRPTimeout):
     pass
 
-class MSRPTransactError(Error):
+class MSRPTransactError(MSRPError):
     pass
 
-class MSRPRelayAuthError(Error):
+class MSRPRelayAuthError(MSRPError):
     pass
 
 def new_local_uri(port=0):

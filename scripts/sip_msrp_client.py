@@ -15,7 +15,7 @@ from dns.exception import DNSException
 
 from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
-from twisted.internet.error import ConnectionDone, ConnectionClosed
+from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError
 
 from eventlet.api import spawn, kill, GreenletExit
 from eventlet.channel import channel as Channel
@@ -23,7 +23,7 @@ from eventlet.channel import channel as Channel
 from pypjua import Credentials, MediaStream, Route, SIPURI
 from pypjua.clients.lookup import lookup_srv
 from pypjua.clients import msrp_protocol
-from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, msrp_accept, new_local_uri
+from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, msrp_accept, new_local_uri, MSRPError
 from pypjua.clients.consolebuffer import setup_console, TrafficLogger
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
@@ -88,6 +88,8 @@ def action(env, e, options, console):
         other = env.sip.other_uri
         console.set_ps('%s@%s to %s@%s> ' % (me.user, me.host, other.user, other.host))
         env.sip.call_on_disconnect(console.channel.send_exception)
+    except (DNSLookupError, MSRPError), ex:
+        print ex
     finally:
         env.job = None
 
