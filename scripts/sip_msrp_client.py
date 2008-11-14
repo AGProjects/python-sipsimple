@@ -149,7 +149,7 @@ def invite(e, credentials, target_uri, route, relay, log_func):
         local_uri = new_local_uri(12345)
         full_local_path = [local_uri]
     else:
-        msrp = msrp_relay_connect(relay, log_func)
+        msrp = my_msrp_relay_connect(relay, log_func)
         full_local_path = msrp.full_local_path
     inv = e.Invitation(credentials, target_uri, route=route)
     stream = MediaStream("message")
@@ -198,6 +198,13 @@ def wait_for_incoming(e):
                 obj.end()
         log_event('DROPPED', event_name, params)
 
+def my_msrp_relay_connect(relay, log_func):
+    print 'Reserving session at MSRP relay...'
+    msrp = msrp_relay_connect(relay, log_func)
+    params = (msrp.getPeer().host, msrp.getPeer().port, str(msrp.local_path[0]))
+    print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % params
+    return msrp
+
 def accept_incoming(e, relay, log_func, console):
     print 'Waiting for incoming connections...'
     while True:
@@ -213,7 +220,7 @@ def accept_incoming(e, relay, log_func, console):
             try:
                 msrp_stream = inv.proposed_streams.pop()
                 if relay is not None:
-                    msrp = msrp_relay_connect(relay, log_func)
+                    msrp = my_msrp_relay_connect(relay, log_func)
                     full_local_path = msrp.full_local_path
                 else:
                     msrp = None
