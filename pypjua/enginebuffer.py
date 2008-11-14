@@ -184,7 +184,7 @@ class InvitationBuffer(Proxy):
         return params
 
     def end(self, *args, **kwargs):
-        self._obj.end()
+        self._obj.end(*args, **kwargs)
         return self.skip_to_event('DISCONNECTED')[1]
 
     def accept(self, *args, **kwargs):

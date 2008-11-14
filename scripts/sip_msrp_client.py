@@ -202,25 +202,31 @@ def accept_incoming(e, relay, log_func, console):
         else:
             response = 'y'
         if response.lower() == "y":
-            msrp_stream = inv.proposed_streams.pop()
-            if relay is not None:
-                msrp = msrp_relay_connect(relay, log_func)
-                full_local_path = msrp.full_local_path
-            else:
-                msrp = None
-                msrp_channel, local_uri, listener = msrp_listen(log_func)
-                full_local_path = [local_uri]
-                print 'listening on %s' % (listener.getHost(), )
-            msrp_stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
-            inv.accept([msrp_stream])
-            inv.me_uri = inv.callee_uri
-            inv.other_uri = inv.caller_uri
-            if msrp is None:
-                msrp = msrp_accept(msrp_channel)
-            full_remote_path = [msrp_protocol.parse_uri(uri) for uri in msrp_stream.remote_info[0]]
-            msrp.set_full_remote_path(full_remote_path)
-            msrp.accept_binding()
-            return inv, msrp
+            OK = False
+            try:
+                msrp_stream = inv.proposed_streams.pop()
+                if relay is not None:
+                    msrp = msrp_relay_connect(relay, log_func)
+                    full_local_path = msrp.full_local_path
+                else:
+                    msrp = None
+                    msrp_channel, local_uri, listener = msrp_listen(log_func)
+                    full_local_path = [local_uri]
+                    print 'listening on %s' % (listener.getHost(), )
+                msrp_stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
+                inv.accept([msrp_stream])
+                inv.me_uri = inv.callee_uri
+                inv.other_uri = inv.caller_uri
+                if msrp is None:
+                    msrp = msrp_accept(msrp_channel)
+                full_remote_path = [msrp_protocol.parse_uri(uri) for uri in msrp_stream.remote_info[0]]
+                msrp.set_full_remote_path(full_remote_path)
+                msrp.accept_binding()
+                OK = True
+                return inv, msrp
+            finally:
+                if not OK:
+                    inv.end(488)
         else:
             inv.end()
 
