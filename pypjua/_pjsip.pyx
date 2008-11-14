@@ -1379,7 +1379,7 @@ cdef class PJSIPUA:
             status = pjsip_inv_verify_request(rdata, &options, NULL, NULL, self.c_pjsip_endpoint.c_obj, &tdata)
             if status == 0:
                 inv = Invitation()
-                inv._init_incoming(self, rdata)
+                inv._init_incoming(self, rdata, options)
         elif method_name == "MESSAGE":
             message_params = dict()
             message_params["to_uri"] = c_make_SIPURI(<pjsip_name_addr *> rdata.msg_info.to_hdr.uri)
@@ -3020,7 +3020,7 @@ cdef class Invitation:
         else:
             self.state = "INVALID"
 
-    cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+    cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
         cdef pjmedia_sdp_session *c_remote_sdp
         cdef SDPSession remote_sdp
@@ -3040,7 +3040,7 @@ cdef class Invitation:
             status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri.pj_str, &self.c_dlg)
             if status != 0:
                 raise RuntimeError("Could not create dialog for new INTIVE session: %s" % pj_status_to_str(status))
-            status = pjsip_inv_create_uas(self.c_dlg, rdata, NULL, 0, &self.c_obj)
+            status = pjsip_inv_create_uas(self.c_dlg, rdata, NULL, inv_options, &self.c_obj)
             if status != 0:
                 raise RuntimeError("Could not create new INTIVE session: %s" % pj_status_to_str(status))
             self.c_obj.mod_data[ua.c_module.id] = <void *> self
