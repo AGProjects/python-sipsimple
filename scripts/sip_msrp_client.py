@@ -236,7 +236,8 @@ def accept_incoming(e, relay, log_func, console):
 
 class RelaySettings:
     "Container for MSRP relay settings"
-    def __init__(self, host, port, username, password):
+    def __init__(self, domain, host, port, username, password):
+        self.domain = domain
         self.host = host
         self.port = port
         self.username = username
@@ -245,10 +246,6 @@ class RelaySettings:
     @property
     def uri(self):
         return msrp_protocol.URI(host=self.domain, port=self.port, use_tls=True)
-
-    @property
-    def domain(self):
-        return self.host
 
 class RelaySettings_SRV(object):
     "Container for MSRP relay settings that are obtained through SRV lookup on first request"
@@ -461,7 +458,7 @@ def parse_options():
         options.relay = RelaySettings_SRV(options.sip_address.domain, 2855, options.sip_address.username,
                                           options.password, fallback_to_A)
     else:
-        options.relay = RelaySettings(options.msrp_relay_ip, options.msrp_relay_port,
+        options.relay = RelaySettings(options.sip_address.domain, options.msrp_relay_ip, options.msrp_relay_port,
                                       options.sip_address.username, options.password)
 
     if options.use_bonjour:
