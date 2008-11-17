@@ -1148,6 +1148,8 @@ cdef class PJSIPUA:
         pj_log_set_log_func(cb_log)
         try:
             self.c_pjlib = PJLIB()
+            self.c_check_thread()
+            pj_srand(random.getrandbits(32)) # rely on python seed for now
             self.c_caching_pool = PJCachingPool()
             self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
             self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_port"])
@@ -3510,5 +3512,3 @@ _inv_cb.on_new_session = cb_new_Invitation
 _inv_cb.on_rx_offer = cb_Invitation_cb_sdp_offer
 _inv_cb.on_media_update = cb_Invitation_cb_sdp_done
 _inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_change
-
-pj_srand(random.getrandbits(32)) # rely on python seed for now
