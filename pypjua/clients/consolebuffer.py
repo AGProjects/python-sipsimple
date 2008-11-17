@@ -270,7 +270,7 @@ def restore_std_output():
 def setup_console():
     fd = sys.__stdin__.fileno()
     oldSettings = termios.tcgetattr(fd)
-    tty.setraw(fd)
+    tty.setcbreak(fd)
     try:
         console = get_console()
         hook_std_output(console)
