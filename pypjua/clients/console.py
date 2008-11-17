@@ -82,8 +82,12 @@ class Console(recvline.HistoricRecvLine):
             self.terminal.nextLine()
         self.terminal.write(self.ps[self.pn])
 
-    def set_ps(self, ps):
+    def set_ps(self, ps, draw=False):
         self.ps[0] = ps
+        if draw:
+            self.terminal.eraseLine()
+            self.terminal.cursorBackward(len(self.lineBuffer) + len(self.ps[self.pn]))
+            self.drawInputLine()
 
 class ServerProtocol(insults.ServerProtocol):
 

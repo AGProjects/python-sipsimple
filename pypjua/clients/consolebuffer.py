@@ -194,9 +194,7 @@ class ConsoleBuffer:
 
     def set_ps(self, ps, draw=True):
         if self.terminalProtocol:
-            self.terminalProtocol.set_ps(ps)
-            if draw:
-                self.terminalProtocol.drawInputLine
+            self.terminalProtocol.set_ps(ps, draw)
 
     def __iter__(self):
         return self
