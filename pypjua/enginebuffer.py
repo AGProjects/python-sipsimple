@@ -159,6 +159,12 @@ class SIPDisconnect(Exception):
     def __init__(self, params):
         self.params = params
 
+    def __str__(self):
+        if self.code==200:
+            return self.reason
+        else:
+            return "%(code)s %(reason)s" % self.params
+
     def __getattr__(self, item):
         try:
             return self.params[item]
