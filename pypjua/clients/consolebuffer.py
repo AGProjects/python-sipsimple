@@ -171,9 +171,9 @@ class ConsoleBuffer:
     def ask_question(self, question, allowed, help=None, help_keys='hH?'):
         with self.channel.locked_output():
             with self.new_prompt(question):
+                if help is not None and '?' not in allowed:
+                    allowed += help_keys
                 while True:
-                    if help is not None and '?' not in allowed:
-                        allowed += help_keys
                     try:
                         type, value = self.recv_char(allowed)
                         if type=='key':
