@@ -213,9 +213,9 @@ class ConsoleBuffer:
 
 class TrafficLogger:
 
-    def __init__(self, console, is_enabled):
+    def __init__(self, console, is_enabled_func=lambda: True):
         self.console = console
-        self.is_enabled = is_enabled
+        self.is_enabled = is_enabled_func
         self.last_header = None
         self.last_writecount = None
 
