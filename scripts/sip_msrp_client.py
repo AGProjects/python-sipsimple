@@ -9,7 +9,6 @@ import string
 import datetime
 from optparse import OptionValueError, OptionParser, Values
 from ConfigParser import NoSectionError
-from pprint import pformat
 import dns.resolver
 from dns.exception import DNSException
 
@@ -24,10 +23,10 @@ from pypjua import Credentials, MediaStream, Route, SIPURI
 from pypjua.clients.lookup import lookup_srv
 from pypjua.clients import msrp_protocol
 from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, msrp_accept, new_local_uri, MSRPError
-from pypjua.clients.consolebuffer import setup_console, TrafficLogger
+from pypjua.clients.consolebuffer import setup_console, TrafficLogger, CTRL_D
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
-from pypjua.enginebuffer import log_event, EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
+from pypjua.enginebuffer import EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
 
 class GeneralConfig(ConfigSection):
@@ -85,24 +84,30 @@ def action(env, e, options, console):
         credentials = Credentials(options.uri, options.password)
         logger = TrafficLogger(console, lambda: options.trace_msrp)
         if options.target_uri is None:
-            register(e, credentials, options.route)
-            console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
+            #register(e, credentials, options.route)
+            #console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
             env.sip, env.msrp = accept_incoming(e, options.relay, logger.write_traffic, console)
         else:
-            print "MSRP chat from %s to %s through proxy %s:%d" % (options.uri, options.target_uri, options.route.host,
-                                                                   options.route.port)
-            env.sip, env.msrp = invite(e, credentials, options.target_uri, options.route,
-                                       options.relay, logger.write_traffic)
-        frmt = '%s@%s' % (env.sip.other_uri.user, env.sip.other_uri.host)
-        spawn(print_messages, env.msrp, frmt, console.channel.send_exception)
+            params = (options.uri, options.target_uri, options.route.host, options.route.port)
+            try:
+                env.sip, env.msrp = invite(e, credentials, options.target_uri, options.route, options.relay, logger.write_traffic)
+            except GreenletExit:
+                console.channel.send_exception(ConnectionDone())
+                raise
+        env.print_messages = spawn(print_messages, env.msrp, env.sip.other_uri, console.channel.send_exception)
         me = env.sip.me_uri
         other = env.sip.other_uri
         console.set_ps('%s@%s to %s@%s> ' % (me.user, me.host, other.user, other.host))
-        env.sip.call_on_disconnect(console.channel.send_exception)
+#         def on_disconnect(*args, **kwargs):
+#             print '###########'
+#             print 'on_disconnecti %r %r' (args, kwargs)
+#         env.sip.call_on_disconnect(on_disconnect)
+#         #env.sip.call_on_disconnect(lambda name, params: console.channel.send_exception(SIPDisconnect(params)))
     except (DNSLookupError, MSRPError), ex:
         console.channel.send_exception(ex)
     finally:
         env.job = None
+        console.enable()
 
 def start(options, console):
     ch = Channel()
@@ -117,17 +122,48 @@ def start(options, console):
         env = Values()
         env.sip = None
         env.msrp = None
-        env.job = spawn(action, env, e, options, console)
+        env.job = None
 
+        credentials = Credentials(options.uri, options.password)
+        if options.target_uri is None:
+            register(e, credentials, options.route)
+            console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
+
+        env.job = spawn(action, env, e, options, console)
+        console.disable()
         try:
             for type, value in console:
-                if type == 'line' and value:
-                    if env.msrp:
+                if value == (CTRL_D, None):
+                    break
+                if (type, value) == ('line', ''):
+                    console.copy_input_line()
+                elif type == 'line' and value:
+                    if value.startswith(':'):
+                        if value==':end sip':
+                            if env.sip:
+                                env.sip.shutdown()
+                                env.sip = None
+                            else:
+                                print 'SIP session is not active'
+                        elif value==':end msrp':
+                            if env.msrp and env.print_messages:
+                                print 'Disconnecting MSRP connection...'
+                                kill(env.print_messages)
+                                env.print_messages = None
+                                env.msrp.loseConnection()
+                                env.msrp = None
+                                print 'Disconnected MSRP connection.'
+                            else:
+                                print 'MSRP not connected'
+                    elif env.msrp:
                         env.msrp.send_message(value)
+                        echo_message(options.uri, value)
                     else:
                         print 'cannot send message: MSRP not connected'
+            console.set_ps('') # QQQ otherwise prompt gets printed once somehow
         except SIPDisconnect, ex:
-            sys.stderr.write('Session ended: %s' % ex)
+            print '######## catched SIPDisconnect'
+            print ex
         except (DNSLookupError, MSRPError), ex:
             print ex
         finally:
@@ -141,17 +177,9 @@ def start(options, console):
 
 def register(e, credentials, route):
     reg = e.Registration(credentials, route=route)
-    print 'Registering "%s" at %s:%d'  % (credentials.uri, route.host, route.port)
     params = reg.register()
-    if params.get("state") == "registered":
-        print "REGISTERED Contact: %s (expires in %d seconds)" % (params["contact_uri"], params["expires"])
-        if len(params["contact_uri_list"]) > 1:
-            contacts = ["%s (expires in %d seconds)" % contact_tup for contact_tup in params["contact_uri_list"] if
-                        contact_tup[0] != params["contact_uri"]]
-            print "Other registered contacts:\n%s" % "\n".join(contacts)
-    elif params.get("state") == "unregistered":
-        if params["code"] / 100 != 2:
-            print "REGISTER failed: %(code)d %(reason)s" % params
+    if params['state']=='unregistered' and params['code']/100!=2:
+        raise GreenletExit
 
 def invite(e, credentials, target_uri, route, relay, log_func):
     if relay is None:
@@ -166,12 +194,7 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     invite_response = inv.invite([stream], ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav")))
     code = invite_response.get('code')
     if invite_response['state'] != 'ESTABLISHED':
-        try:
-            print '%(code)s %(reason)s' % invite_response
-            raise GreenletExit
-        except KeyError:
-            print pformat(invite_response)
-            raise GreenletExit
+        raise GreenletExit
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
     full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
@@ -190,10 +213,10 @@ def invite(e, credentials, target_uri, route, relay, log_func):
 def wait_for_incoming(e):
     while True:
         event_name, params = e.channel.receive()
-        log_event('RECEIVED', event_name, params)
+        e.logger.log_event('RECEIVED', event_name, params)
         if event_name == "Invitation_state" and params.get("state") == "INCOMING":
             obj = params.get('obj')
-            obj = InvitationBuffer(obj)
+            obj = InvitationBuffer(obj, e.logger)
             e.register_obj(obj)
             if params.has_key("streams") and len(params["streams"]) == 1:
                 msrp_stream = params["streams"].pop()
@@ -205,7 +228,7 @@ def wait_for_incoming(e):
             else:
                 print "Not an MSRP session, rejecting."
                 obj.end()
-        log_event('DROPPED', event_name, params)
+        e.logger.log_event('DROPPED', event_name, params)
 
 def my_msrp_relay_connect(relay, log_func):
     print 'Reserving session at MSRP relay...'
@@ -221,7 +244,7 @@ def accept_incoming(e, relay, log_func, console):
         # XXX must stop asking question if disconnected here
         if console:
             q = 'Incoming MSRP session from %s, do you want to accept? (y/n)' % inv.caller_uri
-            response = console.ask_question(q, 'yYnN')
+            response = console.ask_question(q, list('yYnN') + [CTRL_D])
         else:
             response = 'y'
         if response.lower() == "y":
@@ -295,7 +318,6 @@ class RelaySettings_SRV(object):
                     self.host, self.port = self.domain, self.default_port
                 raise
         return object.__getattribute__(self, item)
-
 
 def main():
     try:
