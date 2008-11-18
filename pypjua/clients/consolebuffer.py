@@ -84,7 +84,7 @@ class _Console(Console):
     @contextmanager
     def new_prompt(self, new_ps):
         self.terminal.eraseLine()
-        self.terminal.cursorBackward(len(self.lineBuffer) + len(self.ps[self.pn]))
+        self.cursorToBOL()
         lineBuffer = self.lineBuffer[:]
         lineBufferIndex = self.lineBufferIndex
         ps = self.ps[0]
@@ -111,9 +111,14 @@ class _Console(Console):
             finally:
                 self.channel.throw_away = False
 
+    def cursorToBOL(self):
+        pos = len(self.lineBuffer) + len(self.ps[self.pn])
+        if pos>0:
+            self.terminal.cursorBackward(pos)
+
     def clearInputLine(self):
         self.terminal.eraseLine()
-        self.terminal.cursorBackward(len(self.lineBuffer) + len(self.ps[self.pn]))
+        self.cursorToBOL()
         self.lineBuffer = []
         self.drawInputLine()
 
