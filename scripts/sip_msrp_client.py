@@ -59,7 +59,7 @@ def format_time():
 
 def format_useruri(uri):
     if uri.display:
-        return '%s (%s@%s)' % (uri.display, uri.user, uri.host)
+        return '%s <%s@%s>' % (uri.display, uri.user, uri.host)
     else:
         return '%s@%s' % (uri.user, uri.host)
 
