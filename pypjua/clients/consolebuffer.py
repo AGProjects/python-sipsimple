@@ -10,7 +10,7 @@ from twisted.internet import stdio
 from twisted.conch import recvline
 from twisted.conch.insults import insults
 from eventlet.coros import queue as Channel
-from eventlet.api import spawn, sleep, GreenletExit
+from eventlet.api import spawn, sleep, GreenletExit, getcurrent, get_hub
 from eventlet.green.thread import allocate_lock
 
 CTRL_C = '\x03'
@@ -296,7 +296,8 @@ class ConsoleBuffer:
         self.writecount += 1
         if self.terminalProtocol:
             self.terminalProtocol.addOutput(msg, async=True)
-            sleep(0.01) # this flushes stdout
+            if getcurrent() is not get_hub().greenlet:
+                sleep(0.01) # this flushes stdout
         else:
             if not msg.endswith('\n'):
                 msg += '\n'
