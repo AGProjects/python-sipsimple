@@ -299,18 +299,6 @@ def main():
         traceback.print_exc()
         sys.exit(1)
 
-def spawn_with_notify(func):
-    ch = Channel()
-    def wrap():
-        try:
-            func()
-        except BaseException, ex:
-            ch.send_exception(ex)
-        finally:
-            ch.send(None)
-    spawn(wrap)
-    return ch
-
 re_host_port = re.compile("^((?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(?P<host>[a-zA-Z0-9\-\.]+))(:(?P<port>\d+))?$")
 def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port, allow_host=True):
     if value.lower() in ['auto', 'srv']:
@@ -480,5 +468,5 @@ def parse_options():
     return options
 
 if __name__ == "__main__":
-    spawn_with_notify(main).receive()
+    main()
 
