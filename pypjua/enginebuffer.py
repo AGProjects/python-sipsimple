@@ -187,14 +187,13 @@ class RegistrationBuffer(BaseBuffer):
         self.logger.write('%s %s at %s:%s' % x)
 
     def log_state_registered(self, params={}):
-        x = (params.get("contact_uri"), params.get("expires"))
-        self.logger.write("Registered contact: %s (expires in %d seconds)" % x)
+        self.logger.write("Registered SIP contact address: %s" % params.get("contact_uri"))
 
     def log_other_contacts(self, params):
         if len(params.get("contact_uri_list", 0)) > 1:
             contacts = ["%s (expires in %d seconds)" % contact_tup for contact_tup in params["contact_uri_list"] if
                         contact_tup[0] != params["contact_uri"]]
-            self.logger.write("Other registered contacts:\n%s" % "\n".join(contacts))
+            self.logger.write("SIP contacts addresses registered by other devices:\n%s" % "\n".join(contacts))
 
     def register(self):
         assert self.state != 'registered', self.state

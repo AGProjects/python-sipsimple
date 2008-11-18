@@ -29,7 +29,7 @@ Audio
 - Play a beep after we closed a session
 - Play a special beep when receiving a call while engaged in another call
 - Implement Automatic Gain Control AGC in PJSIP media engine
-
+- Play a soft beep when IM is received or sent
 
 Command line clients
 --------------------
