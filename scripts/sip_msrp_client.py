@@ -58,12 +58,21 @@ def random_string(length):
 def format_time():
     return datetime.datetime.now().strftime('%X')
 
+def format_useruri(uri):
+    if uri.display:
+        return '%s (%s@%s)' % (uri.display, uri.user, uri.host)
+    else:
+        return '%s@%s' % (uri.user, uri.host)
+
+def echo_message(uri, message):
+    print '%s %s: %s' % (format_time(), format_useruri(uri), message)
+
 def print_messages(msrp, other_uri, send_exception):
     try:
         while True:
             message = msrp.recv_chunk()
             if message.method == 'SEND':
-                sys.stdout.write('%s %s> %s' % (format_time(), other_uri, message.data))
+                echo_message(other_uri, message.data)
     except ConnectionDone, ex:
         sys.stdout.write('MSRP connection closed cleanly')
         send_exception(ex)
