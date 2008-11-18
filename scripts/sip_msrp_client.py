@@ -174,8 +174,8 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     if other_user_agent is not None:
         print 'Remote User Agent is "%s"' % other_user_agent
     msrp.bind()
-    inv.me_uri = inv.callee_uri
-    inv.other_uri = inv.caller_uri
+    inv.me_uri = inv.caller_uri
+    inv.other_uri = inv.callee_uri
     return inv, msrp
 
 def wait_for_incoming(e):
