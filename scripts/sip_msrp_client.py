@@ -18,7 +18,7 @@ from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError
 
 from eventlet.api import spawn, kill, GreenletExit
-from eventlet.channel import channel as Channel
+from eventlet.coros import queue as Channel
 
 from pypjua import Credentials, MediaStream, Route, SIPURI
 from pypjua.clients.lookup import lookup_srv
