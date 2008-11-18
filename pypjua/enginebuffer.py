@@ -182,6 +182,7 @@ class BaseBuffer(object):
 class RegistrationBuffer(BaseBuffer):
 
     def log_state_default(self, params=None):
+        return
         x = (self.state.capitalize(), self.credentials.uri, self.route.host, self.route.port)
         self.logger.write('%s %s at %s:%s' % x)
 
