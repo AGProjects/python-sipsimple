@@ -8,7 +8,7 @@ from gnutls.interfaces.twisted import X509Credentials
 from twisted.internet.error import AlreadyCalled
 
 from eventlet.api import spawn, exc_after, TimeoutError
-from eventlet.channel import channel as Channel
+from eventlet.coros import queue as Channel
 from eventlet.twistedutil.protocol import BaseBuffer, BufferCreator, SpawnFactory
 
 from pypjua.clients import msrp_protocol
