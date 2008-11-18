@@ -141,7 +141,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                 print "Using bonjour"
                 print "Listening on local interface %s:%d" % (e.local_ip, e.local_port)
                 print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, < and > to adjust the echo cancellation"
-                print "Waiting for incoming session..."
+                print 'Waiting for incoming SIP session requests...'
             else:
                 reg = Registration(credentials, route=route)
                 print 'Registering "%s" at %s:%d' % (credentials.uri, route.host, route.port)

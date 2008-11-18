@@ -298,7 +298,7 @@ class InvitationBuffer(BaseBuffer):
         self.logger.write('%s %s %s%s' % (self.state.capitalize(), self.session_name, self._format_brief(), reason))
 
     def log_state_CALLING(self, params=None):
-        self.logger.write('Initiating %s %s...' % (self.session_name, self._format_full()))
+        self.logger.write('Initiating SIP %s %s...' % (self.session_name, self._format_full()))
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)

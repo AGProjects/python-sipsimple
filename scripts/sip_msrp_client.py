@@ -198,13 +198,13 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
     full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
-    print "Session negotiated to: %s" % " ".join(remote_uri_path)
+    print "MSRP session negotiated to: %s" % " ".join(remote_uri_path)
     if relay is None:
         msrp = msrp_connect(full_remote_path, log_func, local_uri)
     else:
         msrp.set_full_remote_path(full_remote_path)
     if other_user_agent is not None:
-        print 'Remote User Agent is "%s"' % other_user_agent
+        print 'Remote SIP User Agent is "%s"' % other_user_agent
     msrp.bind()
     inv.me_uri = inv.caller_uri
     inv.other_uri = inv.callee_uri
@@ -238,6 +238,7 @@ def my_msrp_relay_connect(relay, log_func):
     return msrp
 
 def accept_incoming(e, relay, log_func, console):
+    print "Press Ctrl-D to quit"
     print 'Waiting for incoming SIP session requests...'
     while True:
         inv, params = wait_for_incoming(e)
