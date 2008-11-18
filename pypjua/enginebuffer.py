@@ -189,6 +189,8 @@ class RegistrationBuffer(BaseBuffer):
     def log_state_registered(self, params={}):
         x = (params.get("contact_uri"), params.get("expires"))
         self.logger.write("Registered contact: %s (expires in %d seconds)" % x)
+
+    def log_other_contacts(self, params):
         if len(params.get("contact_uri_list", 0)) > 1:
             contacts = ["%s (expires in %d seconds)" % contact_tup for contact_tup in params["contact_uri_list"] if
                         contact_tup[0] != params["contact_uri"]]
