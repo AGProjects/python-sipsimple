@@ -278,8 +278,8 @@ class InvitationBuffer(BaseBuffer):
         if not hasattr(self, '_session_name'):
             result = []
             for s in (self.proposed_streams or {}):
-                media_name = {'message': 'MSRP Chat',
-                              'audio':   'Voice Call'}.get(s.media_type, s.media_type)
+                media_name = {'message': 'IM session',
+                              'audio':   'voice session'}.get(s.media_type, s.media_type)
                 result.append(media_name)
             if result:
                 self._session_name = '/'.join(result)

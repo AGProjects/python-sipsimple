@@ -71,6 +71,12 @@ hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
+To update the eventlet_twisted repository at a later date:
+
+cd eventlet_twisted
+hg pull
+hg update
+
 # Download and install python-xcaplib from http://download.ag-projects.com/OpenXCAP/clients/
 cd python-xcaplib
 sudo python setup.py install

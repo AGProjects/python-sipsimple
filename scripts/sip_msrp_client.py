@@ -238,12 +238,12 @@ def my_msrp_relay_connect(relay, log_func):
     return msrp
 
 def accept_incoming(e, relay, log_func, console):
-    print 'Waiting for incoming connections...'
+    print 'Waiting for incoming SIP session requests...'
     while True:
         inv, params = wait_for_incoming(e)
         # XXX must stop asking question if disconnected here
         if console:
-            q = 'Incoming MSRP session from %s, do you want to accept? (y/n)' % inv.caller_uri
+            q = 'Incoming IM session request from %s, do you accept? (y/n)' % inv.caller_uri
             response = console.ask_question(q, list('yYnN') + [CTRL_D])
         else:
             response = 'y'
