@@ -295,8 +295,6 @@ def main():
             start(options, console)
     except RuntimeError, e:
         sys.exit(str(e))
-    except KeyboardInterrupt:
-        pass
     except Exception:
         traceback.print_exc()
         sys.exit(1)
