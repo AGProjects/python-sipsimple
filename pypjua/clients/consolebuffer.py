@@ -191,6 +191,7 @@ class ConsoleBuffer:
         self.writecount += 1
         if self.terminalProtocol:
             self.terminalProtocol.addOutput(msg, async=True)
+            sleep(0.01) # this flushes stdout
         else:
             if not msg.endswith('\n'):
                 msg += '\n'
