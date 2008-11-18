@@ -60,9 +60,13 @@ class EngineBuffer(Engine):
         else:
             spawn(channel.send, (event_name, kwargs))
 
-    def shutdown(self):
+    def shutdown(self, quiet=True):
         for obj in self.objs.values():
-            obj.shutdown()
+            try:
+                obj.shutdown()
+            except:
+                if not quiet:
+                    raise
         self.objs.clear()
 
     def register_obj(self, obj, channel=None):
