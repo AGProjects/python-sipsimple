@@ -27,6 +27,7 @@ def format_lineno(level=0):
         res += '(%s)' % co_name
     return res
 
+
 class EngineLogger:
 
     log_file = None
@@ -114,12 +115,16 @@ class EngineBuffer(Engine):
 
 class MyQueue(queue):
 
-    _monitor = None
+    monitor = None
 
     def send(self, result=None, exc=None):
-        if self._monitor:
-            self._monitor(result, exc)
+        if self.monitor:
+            self.monitor(result, exc)
         return queue.send(self, result, exc)
+
+    def set_monitor(self, func):
+        self.monitor = func
+
 
 class BaseBuffer(object):
 
@@ -166,14 +171,6 @@ class BaseBuffer(object):
             else:
                 self.logger.log_event('DROPPED', r_event_name, r_params, 2)
 
-    def call_on_event(self, state, event_name, func, *args, **kwargs):
-        def monitor(value, exc):
-            if value is not None:
-                r_event_name, r_params = value
-                r_state = r_params.get('state')
-                if (r_event_name, r_state)==(event_name, state):
-                    func(r_state, r_event_name, *args, **kwargs)
-        self.channel._monitor = monitor
 
 class RegistrationBuffer(BaseBuffer):
     # XXX when unregistered because of error, the client will stay unregistered.
@@ -225,6 +222,7 @@ class RegistrationBuffer(BaseBuffer):
 
     shutdown = unregister
 
+
 class Ringer:
 
     delay = 5
@@ -250,6 +248,7 @@ class Ringer:
             self.play_wav(*self.args, **self.kwargs)
             sleep(self.delay)
 
+
 class SIPDisconnect(Exception):
 
     def __init__(self, params):
@@ -267,6 +266,7 @@ class SIPDisconnect(Exception):
         except KeyError:
             raise AttributeError('No key %s in params' % item)
 
+
 def _format_reason(params):
     if (params.get('code'), params.get('reason'))==(200, 'OK'):
         return '' # boring
@@ -281,6 +281,23 @@ def _format_reason(params):
     if reason:
         reason = ' (%s)' % reason
     return reason
+
+
+class DisconnectNotifier(object):
+
+    def __init__(self):
+        self.funcs = []
+
+    def __call__(self, value, _exc):
+        if value is not None:
+            event_name, params = value
+            if (params or {}).get('state')=='DISCONNECTED':
+                for func in self.funcs:
+                    func(params)
+
+    def add_func(self, func):
+        self.funcs.append(func)
+
 
 class InvitationBuffer(BaseBuffer):
 
@@ -347,11 +364,13 @@ class InvitationBuffer(BaseBuffer):
         if self._obj.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
             self.end(*args)
 
-    def call_on_disconnect(self, func, *args, **kwargs):
-        def log_and_call_func(state, event_name):
-            print '\n\ncall on disconnect\n\n'
-            func(state, event_name)
-        self.call_on_event('DISCONNECTED', None, log_and_call_func)
+    def init_channel(self, channel):
+        super(InvitationBuffer, self).init_channel(channel)
+        self.channel.monitor = DisconnectNotifier()
+
+    def call_on_disconnect(self, func):
+        self.channel.monitor.add_func(func)
+
 
 class EventHandler:
     """Call handle_event in the reactor's thread / mainloop gthread. Filter out siptrace and log messages."""

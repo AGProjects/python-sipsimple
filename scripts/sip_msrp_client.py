@@ -16,7 +16,7 @@ from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError
 
-from eventlet.api import spawn, kill, GreenletExit
+from eventlet.api import spawn, kill, GreenletExit, getcurrent
 from eventlet.coros import queue as Channel
 
 from pypjua import Credentials, MediaStream, Route, SIPURI
@@ -84,8 +84,6 @@ def action(env, e, options, console):
         credentials = Credentials(options.uri, options.password)
         logger = TrafficLogger(console, lambda: options.trace_msrp)
         if options.target_uri is None:
-            #register(e, credentials, options.route)
-            #console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
             env.sip, env.msrp = accept_incoming(e, options.relay, logger.write_traffic, console)
         else:
             params = (options.uri, options.target_uri, options.route.host, options.route.port)
@@ -243,12 +241,14 @@ def accept_incoming(e, relay, log_func, console):
     while True:
         inv, params = wait_for_incoming(e)
         # XXX must stop asking question if disconnected here
+        current = getcurrent()
+        inv.call_on_disconnect(lambda params: kill(current))
         if console:
             q = 'Incoming IM session request from %s, do you accept? (y/n)' % inv.caller_uri
             response = console.ask_question(q, list('yYnN') + [CTRL_D])
         else:
             response = 'y'
-        if response.lower() == "y":
+        if response.lower() == "y" and inv.proposed_streams:
             OK = False
             try:
                 msrp_stream = inv.proposed_streams.pop()
