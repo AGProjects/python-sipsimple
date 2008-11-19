@@ -9,6 +9,8 @@ from eventlet.coros import queue
 
 from pypjua import Engine, Registration, Invitation
 
+# QQQ: separate logging part from InvitationBuffer and RegstrationBuffer
+
 def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
 
@@ -243,7 +245,6 @@ class Ringer:
             self.gthread = None
 
     def _run(self):
-        sys.stdout.write('Ringing...\n')
         while True:
             self.play_wav(*self.args, **self.kwargs)
             sleep(self.delay)
@@ -268,8 +269,8 @@ class SIPDisconnect(Exception):
 
 
 def _format_reason(params):
-    if (params.get('code'), params.get('reason'))==(200, 'OK'):
-        return '' # boring
+    if (params.get('code'), params.get('reason'))==(200, 'OK'): # boring
+        return ''
     reason = ''
     if params:
         if 'code' in params and params['code']!=200:
@@ -303,24 +304,25 @@ class InvitationBuffer(BaseBuffer):
 
     event_name = 'Invitation_state'
 
-    def _format_brief(self):
-        return 'to %s' % self.callee_uri
-
     @property
     def session_name(self):
         if not hasattr(self, '_session_name'):
-            result = []
+            streams = []
             for s in (self.proposed_streams or {}):
-                media_name = {'message': 'IM session',
-                              'audio':   'voice session'}.get(s.media_type, s.media_type)
-                result.append(media_name)
-            if result:
-                self._session_name = '/'.join(result)
+                media_name = {'message': 'IM',
+                              'audio':   'Voice'}.get(s.media_type, s.media_type)
+                streams.append(media_name)
+            if streams:
+                streams = ' (%s)' % '/'.join(streams)
             else:
-                self._session_name = 'session'
+                streams = ''
+            self._session_name = 'SIP session' + streams
         return self._session_name
 
-    def _format_full(self):
+    def _format_to(self):
+        return 'to %s' % self.callee_uri
+
+    def _format_fromtoproxy(self):
         result = 'from %s to %s' % (self.caller_uri, self.callee_uri)
         if self.route:
             result += " through proxy %s:%d" % (self.route.host, self.route.port)
@@ -328,10 +330,24 @@ class InvitationBuffer(BaseBuffer):
 
     def log_state_default(self, params=None):
         reason = _format_reason(params)
-        self.logger.write('%s %s %s%s' % (self.state.capitalize(), self.session_name, self._format_brief(), reason))
+        self.logger.write('%s %s %s%s' % (self.state.capitalize(), self.session_name, self._format_to(), reason))
 
     def log_state_CALLING(self, params=None):
-        self.logger.write('Initiating SIP %s %s...' % (self.session_name, self._format_full()))
+        try:
+            self.__last_calling_message
+        except AttributeError:
+            self.__last_calling_message = None
+        msg = 'Initiating %s %s...' % (self.session_name, self._format_fromtoproxy())
+        if msg != self.__last_calling_message:
+            self.logger.write(msg)
+            self.__last_calling_message = msg
+
+    def log_ringing(self, params):
+        agent = params.get('headers', {}).get('User-Agent', '')
+        contact = params.get('headers', {}).get('Contact', '')
+        if agent:
+            contact += ' (%s)' % agent
+        self.logger.write('Ringing %s...' % contact)
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
@@ -340,6 +356,7 @@ class InvitationBuffer(BaseBuffer):
             while True:
                 event_name, params = self.channel.receive()
                 if event_name == 'Invitation_ringing':
+                    self.log_ringing(params)
                     if ringer:
                         ringer.start()
                 elif event_name == 'Invitation_state' and params['state']!='CALLING':
