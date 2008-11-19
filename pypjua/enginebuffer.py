@@ -326,9 +326,9 @@ class InvitationBuffer(BaseBuffer):
         self._obj.accept(*args, **kwargs)
         return self.skip_to_event('ESTABLISHED')[1]
 
-    def shutdown(self):
+    def shutdown(self, *args):
         if self._obj.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
-            self.end()
+            self.end(*args)
 
     def call_on_disconnect(self, func, *args, **kwargs):
         def log_and_call_func(state, event_name):
