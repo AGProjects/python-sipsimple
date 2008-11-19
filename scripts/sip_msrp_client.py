@@ -418,6 +418,7 @@ def parse_options():
                       help=help, default=MSRP_RELAY_DEFAULT, dest='msrp_relay_ip', metavar='IP[:PORT]')
     parser.add_option("-S", "--disable-sound", action="store_true", default=AudioConfig.disable_sound,
                       help="Do not initialize the soundcard (by default the soundcard is enabled).")
+
     options, args = parser.parse_args()
 
     if options.account_name is None:
@@ -461,6 +462,14 @@ def parse_options():
         sys.exit()
 
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
+
+    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
+    accounts.sort()
+    print "Accounts available: %s" % ', '.join(accounts)
+    if options.account_name is None:
+        print "Using default account: %s" % options.sip_address
+    else:
+        print "Using account '%s': %s" % (options.account_name, options.sip_address)
 
     if not options.use_bonjour:
         if not all([options.sip_address, options.password]):
