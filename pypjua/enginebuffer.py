@@ -253,6 +253,8 @@ class SIPDisconnect(Exception):
             raise AttributeError('No key %s in params' % item)
 
 def _format_reason(params):
+    if (params.get('code'), params.get('reason'))==(200, 'OK'):
+        return '' # boring
     reason = ''
     if params:
         if 'code' in params and params['code']!=200:
