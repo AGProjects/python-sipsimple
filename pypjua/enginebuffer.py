@@ -180,14 +180,33 @@ class BaseBuffer(object):
         self.channel._monitor = monitor
 
 class RegistrationBuffer(BaseBuffer):
+    # XXX when unregistered because of error, the client will stay unregistered.
+    # XXX this class or pypjua itself should try re-register after some time?
 
-    def log_state_default(self, params=None):
-        return
-        x = (self.state.capitalize(), self.credentials.uri, self.route.host, self.route.port)
-        self.logger.write('%s %s at %s:%s' % x)
+    registered_count = 0
 
-    def log_state_registered(self, params={}):
-        self.logger.write("Registered SIP contact address: %s" % params.get("contact_uri"))
+    def log_state_default(self, params):
+        x = (self.state.capitalize(), self.credentials.uri, self.route.host, self.route.port, _format_reason(params))
+        self.logger.write('%s %s at %s:%s%s' % x)
+
+    def log_state_registering(self, params):
+        if self.registered_count<=0:
+            return self.log_state_default(params)
+
+    def log_state_unregistering(self, params):
+        pass
+
+    def log_state_unregistered(self, params):
+        if params.get('code')!=200:
+            self.registered_count = 0
+            return self.log_state_default(params)
+
+    def log_state_registered(self, params):
+        if self.registered_count <= 0 or params.get('code')!=200:
+            self.registered_count = 0
+            x = (params.get("contact_uri"), params.get("expires"), _format_reason(params))
+            self.logger.write("Registered SIP contact address: %s (expires in %d seconds)%s" % x)
+        self.registered_count += 1
 
     def log_other_contacts(self, params):
         if len(params.get("contact_uri_list", 0)) > 1:
