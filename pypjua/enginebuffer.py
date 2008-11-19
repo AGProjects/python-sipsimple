@@ -147,7 +147,7 @@ class BaseBuffer(object):
 
     def log_my_state(self, params=None):
         try:
-            func = getattr(self, 'log_state_%s' % self.state)
+            func = getattr(self, 'log_state_%s' % self.state.lower())
         except AttributeError:
             return self.log_state_default(params)
         else:
@@ -259,7 +259,7 @@ class SIPDisconnect(Exception):
         try:
             return self.params[item]
         except KeyError:
-            raise AttributeError('No key %s in params' % item)
+            raise AttributeError('No key %r in params' % item)
 
 
 def _format_reason(params):
@@ -293,25 +293,38 @@ class DisconnectNotifier(object):
     def add_func(self, func):
         self.funcs.append(func)
 
+def format_streams(streams):
+    result = []
+    for s in (streams or []):
+        media_name = {'message': 'IM',
+                      'audio':   'Voice'}.get(s.media_type, s.media_type)
+        result.append(media_name)
+    return '/'.join(result)
 
 class InvitationBuffer(BaseBuffer):
 
     event_name = 'Invitation_state'
 
+    def set_streams_desc(self, params=None):
+        if params and params.get('streams'):
+            streams = params['streams']
+        elif self.proposed_streams:
+            streams = self.proposed_streams
+        else:
+            self._streams_txt = ''
+            return
+
     @property
     def session_name(self):
-        if not hasattr(self, '_session_name'):
-            streams = []
-            for s in (self.proposed_streams or {}):
-                media_name = {'message': 'IM',
-                              'audio':   'Voice'}.get(s.media_type, s.media_type)
-                streams.append(media_name)
-            if streams:
-                streams = ' (%s)' % '/'.join(streams)
-            else:
-                streams = ''
-            self._session_name = 'SIP session' + streams
-        return self._session_name
+        try:
+            self._streams
+        except AttributeError:
+            self._streams = format_streams(self.proposed_streams)
+        if self._streams:
+            streams = ' (%s)' % self._streams
+        else:
+            streams = ''
+        return 'SIP session' + streams
 
     def _format_to(self):
         return 'to %s' % self.callee_uri
@@ -322,11 +335,14 @@ class InvitationBuffer(BaseBuffer):
             result += " through proxy %s:%d" % (self.route.host, self.route.port)
         return result
 
-    def log_state_default(self, params=None):
+    def _format_state_default(self, params):
         reason = _format_reason(params)
-        self.logger.write('%s %s %s%s' % (self.state.capitalize(), self.session_name, self._format_to(), reason))
+        return '%s %s %s%s' % (self.state.capitalize(), self.session_name, self._format_to(), reason)
 
-    def log_state_CALLING(self, params=None):
+    def log_state_default(self, params):
+        self.logger.write(self._format_state_default(params))
+
+    def log_state_calling(self, params):
         try:
             self.__last_calling_message
         except AttributeError:
@@ -335,6 +351,9 @@ class InvitationBuffer(BaseBuffer):
         if msg != self.__last_calling_message:
             self.logger.write(msg)
             self.__last_calling_message = msg
+
+    def log_state_incoming(self, params):
+        self._streams = format_streams(params.get('streams'))
 
     def log_ringing(self, params):
         agent = params.get('headers', {}).get('User-Agent', '')

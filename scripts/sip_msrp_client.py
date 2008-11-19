@@ -208,6 +208,12 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     inv.other_uri = inv.callee_uri
     return inv, msrp
 
+def acceptable_session(params):
+    if params.has_key("streams") and len(params["streams"]) == 1:
+        msrp_stream = params["streams"].pop()
+        if msrp_stream.media_type == "message" and "text/plain" in msrp_stream.remote_info[1]:
+            return True
+
 def wait_for_incoming(e):
     while True:
         event_name, params = e.channel.receive()
@@ -216,16 +222,13 @@ def wait_for_incoming(e):
             obj = params.get('obj')
             obj = InvitationBuffer(obj, e.logger)
             e.register_obj(obj)
-            if params.has_key("streams") and len(params["streams"]) == 1:
-                msrp_stream = params["streams"].pop()
-                if msrp_stream.media_type == "message" and "text/plain" in msrp_stream.remote_info[1]:
-                    return obj, params
-                else:
-                    print "Not an MSRP chat session, rejecting."
-                    obj.end()
+            obj.log_state_incoming(params)
+            if acceptable_session(params):
+                return obj, params
             else:
-                print "Not an MSRP session, rejecting."
-                obj.end()
+                obj.logger.write(obj._format_state_default(params))
+                obj.shutdown(488)
+                # XXX need to unregister obj here
         e.logger.log_event('DROPPED', event_name, params)
 
 def my_msrp_relay_connect(relay, log_func):
@@ -240,11 +243,10 @@ def accept_incoming(e, relay, log_func, console):
     print 'Waiting for incoming SIP session requests...'
     while True:
         inv, params = wait_for_incoming(e)
-        # XXX must stop asking question if disconnected here
         current = getcurrent()
         inv.call_on_disconnect(lambda params: kill(current))
         if console:
-            q = 'Incoming IM session request from %s, do you accept? (y/n)' % inv.caller_uri
+            q = 'Incoming %s request from %s, do you accept? (y/n) ' % (inv.session_name, inv.caller_uri)
             response = console.ask_question(q, list('yYnN') + [CTRL_D])
         else:
             response = 'y'

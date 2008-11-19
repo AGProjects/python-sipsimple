@@ -120,7 +120,7 @@ class MSRPBuffer(BaseBuffer):
         ExpectedFrom =  self.local_path + self.remote_path + [self.remote_uri]
         assert ToPath == ExpectedTo, (ToPath, ExpectedTo)
         assert FromPath == ExpectedFrom, (FromPath, ExpectedFrom)
-        # if chunk has body, put it in the buffer
+        # XXX if chunk has body, put it in the buffer
 
     def deliver_chunk(self, chunk):
         self.send_chunk(chunk)
