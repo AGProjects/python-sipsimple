@@ -96,11 +96,7 @@ def action(env, e, options, console):
         me = env.sip.me_uri
         other = env.sip.other_uri
         console.set_ps('%s@%s to %s@%s> ' % (me.user, me.host, other.user, other.host))
-#         def on_disconnect(*args, **kwargs):
-#             print '###########'
-#             print 'on_disconnecti %r %r' (args, kwargs)
-#         env.sip.call_on_disconnect(on_disconnect)
-#         #env.sip.call_on_disconnect(lambda name, params: console.channel.send_exception(SIPDisconnect(params)))
+        env.sip.call_on_disconnect(lambda params: console.channel.send_exception(SIPDisconnect(params)))
     except (DNSLookupError, MSRPError), ex:
         console.channel.send_exception(ex)
     finally:
