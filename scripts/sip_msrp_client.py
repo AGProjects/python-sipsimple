@@ -273,9 +273,9 @@ def accept_incoming(e, relay, log_func, console):
                 return inv, msrp
             finally:
                 if not OK:
-                    inv.end(488)
+                    inv.shutdown(488)
         else:
-            inv.end()
+            inv.shutdown()
 
 class RelaySettings:
     "Container for MSRP relay settings"
