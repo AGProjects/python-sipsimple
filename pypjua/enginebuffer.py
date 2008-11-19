@@ -138,11 +138,7 @@ class BaseBuffer(object):
     def receive(self):
         return self.channel.receive()
 
-    last_logged_state = None
     def log_my_state(self, params=None):
-        if self.last_logged_state == self.state:
-            return
-        self.last_logged_state = self.state
         try:
             func = getattr(self, 'log_state_%s' % self.state)
         except AttributeError:
