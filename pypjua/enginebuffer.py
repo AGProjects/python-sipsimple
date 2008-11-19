@@ -341,7 +341,7 @@ class InvitationBuffer(BaseBuffer):
         contact = params.get('headers', {}).get('Contact', '')
         if agent:
             contact += ' (%s)' % agent
-        self.logger.write('Ringing %s...' % contact)
+        self.logger.write('Ringing from %s' % contact)
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
