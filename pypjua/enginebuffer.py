@@ -304,6 +304,21 @@ def format_streams(streams):
 class InvitationBuffer(BaseBuffer):
 
     event_name = 'Invitation_state'
+    outgoing = 1
+
+    @property
+    def me(self):
+        if self.outgoing:
+            return self.caller_uri
+        else:
+            return self.callee_uri
+
+    @property
+    def other(self):
+        if self.outgoing:
+            return self.callee_uri
+        else:
+            return self.caller_uri
 
     def set_streams_desc(self, params=None):
         if params and params.get('streams'):
@@ -327,10 +342,10 @@ class InvitationBuffer(BaseBuffer):
         return 'SIP session' + streams
 
     def _format_to(self):
-        return 'to %s' % self.callee_uri
+        return 'to %s' % self.other
 
     def _format_fromtoproxy(self):
-        result = 'from %s to %s' % (self.caller_uri, self.callee_uri)
+        result = 'from %s to %s' % (self.me, self.other)
         if self.route:
             result += " through proxy %s:%d" % (self.route.host, self.route.port)
         return result
@@ -363,6 +378,7 @@ class InvitationBuffer(BaseBuffer):
         self.logger.write('Ringing from %s' % contact)
 
     def invite(self, *args, **kwargs):
+        self.outgoing = 1
         ringer = kwargs.pop('ringer', None)
         self._obj.invite(*args, **kwargs)
         try:
@@ -387,6 +403,7 @@ class InvitationBuffer(BaseBuffer):
         return params
 
     def accept(self, *args, **kwargs):
+        self.outgoing = 0
         self._obj.accept(*args, **kwargs)
         return self.skip_to_event('ESTABLISHED')[1]
 
