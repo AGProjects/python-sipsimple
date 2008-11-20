@@ -78,17 +78,18 @@ cd ..
 debuild clean
 python setup.py sdist
 
-Go to the dist directory and untar the tarball just created:
+# Go to the dist directory and untar the tarball just created:
 
 cd dist
 tar xvzf *.tar.gz
 
-Change to the distribution directory and:
+# Change to the distribution directory and:
 
+cd sipclient-0.X.X
 ln -s ../../pjsip pjsip
 touch pypjua/_pjsip.pyx
 sh ./build_inplace
-dpkg-buildpackage
+debuild
 
 You will now have a Debian package in the upper level directory.
 
