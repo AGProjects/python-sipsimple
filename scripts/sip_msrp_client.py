@@ -7,7 +7,7 @@ import re
 import random
 import string
 import datetime
-from optparse import OptionValueError, OptionParser, Values
+from optparse import OptionValueError, OptionParser
 from ConfigParser import NoSectionError
 import dns.resolver
 from dns.exception import DNSException
@@ -17,7 +17,7 @@ from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError
 
 from eventlet.api import spawn, kill, GreenletExit, getcurrent
-from eventlet.coros import queue as Channel
+from eventlet.coros import event, queue
 
 from pypjua import Credentials, MediaStream, Route, SIPURI
 from pypjua.clients.lookup import lookup_srv
@@ -66,45 +66,195 @@ def format_useruri(uri):
 def echo_message(uri, message):
     print '%s %s: %s' % (format_time(), format_useruri(uri), message)
 
-def print_messages(msrp, other_uri, send_exception):
-    try:
-        while True:
-            message = msrp.recv_chunk()
-            if message.method == 'SEND':
-                echo_message(other_uri, message.data)
-    except ConnectionDone, ex:
-        sys.stdout.write('MSRP connection closed cleanly')
-        send_exception(ex)
-    except ConnectionClosed, ex:
-        sys.stdout.write('MSRP disconnected: %s' % ex)
-        send_exception(ex)
+def set_nosessions_ps(console, myuri):
+    console.set_ps('%s@%s> ' % (myuri.user, myuri.host))
 
-def action(env, e, options, console):
-    try:
-        credentials = Credentials(options.uri, options.password)
-        logger = TrafficLogger(console, lambda: options.trace_msrp)
-        if options.target_uri is None:
-            env.sip, env.msrp = accept_incoming(e, options.relay, logger.write_traffic, console)
+class Session:
+
+    def __init__(self, session_manager, credentials, console, write_traffic, sip=None, msrp=None):
+        self.myman = session_manager
+        self.credentials = credentials
+        self.console = console
+        self.write_traffic = write_traffic
+        self.sip = sip
+        self.msrp = msrp
+        self.invite_job = None
+        self.print_messages_job = None
+        if self.msrp:
+            self.start_print_messages()
+
+    def close(self):
+        self.stop_invite()
+        if self.sip:
+            self.sip.shutdown()
+        self.close_msrp()
+        self.stop_print_messages()
+
+    @property
+    def me(self):
+        return self.credentials.uri
+
+    @property
+    def other(self):
+        return self.sip and self.sip.remote_uri
+
+    def start_invite(self, e, target_uri, route, relay):
+        assert not self.invite_job, self.invite_job
+        self.invite_job = spawn(self._invite, e, target_uri, route, relay)
+
+    def stop_invite(self):
+        if self.invite_job:
+            kill(self.invite_job)
+            self.invite_job = None
+
+    def update_ps(self):
+        if self.other:
+            self.console.set_ps('to %s@%s: ' % (self.other.user, self.other.host))
         else:
-            params = (options.uri, options.target_uri, options.route.host, options.route.port)
-            try:
-                env.sip, env.msrp = invite(e, credentials, options.target_uri, options.route, options.relay, logger.write_traffic)
-            except GreenletExit:
-                console.channel.send_exception(ConnectionDone())
-                raise
-        env.print_messages = spawn(print_messages, env.msrp, env.sip.other_uri, console.channel.send_exception)
-        me = env.sip.me_uri
-        other = env.sip.other_uri
-        console.set_ps('%s@%s to %s@%s> ' % (me.user, me.host, other.user, other.host))
-        env.sip.call_on_disconnect(lambda params: console.channel.send_exception(SIPDisconnect(params)))
-    except (DNSLookupError, MSRPError), ex:
-        console.channel.send_exception(ex)
-    finally:
-        env.job = None
-        console.enable()
+            set_nosessions_ps(self.console, self.me)
+
+    def _invite(self, e, target_uri, route, relay):
+        try:
+            self.sip, self.msrp = invite(e, self.credentials, target_uri, route, relay, self.write_traffic)
+            self.start_print_messages()
+            self.update_ps()
+            self.sip.call_on_disconnect(self._on_disconnect)
+        except (DNSLookupError, MSRPError, SIPDisconnect), ex:
+            #print 'catched: %r' % (ex, )
+            self.myman.disconnect(self)
+        except:
+            self.myman.disconnect(self)
+            raise
+        finally:
+            #self.console.enable() #QQQ
+            self.invite_job = None
+
+    def _on_disconnect(self, params):
+        self.myman.disconnect(self)
+
+    def start_print_messages(self):
+        assert not self.print_messages_job, self.print_messages_job
+        self.print_messages_job = spawn(self._print_messages)
+
+    def stop_print_messages(self):
+        if self.print_messages_job:
+            kill(self.print_messages_job)
+            self.print_messages_job = None
+
+    def _print_messages(self):
+        try:
+            while self.msrp:
+                message = self.msrp.recv_chunk()
+                if message.method == 'SEND':
+                    echo_message(self.other, message.data)
+        except ConnectionDone, ex:
+            print 'MSRP connection closed cleanly'
+            self.myman.disconnect(self)
+        except ConnectionClosed, ex:
+            print 'MSRP disconnected: %s' % ex
+            self.myman.disconnect(self)
+        finally:
+            self.msrp = None
+
+    def close_msrp(self):
+        if self.msrp:
+            print 'Disconnecting MSRP connection...'
+            self.msrp.loseConnection()
+            self.msrp = None
+            print 'Disconnected MSRP connection.'
+        self.stop_print_messages()
+
+    def send_message(self, msg):
+        if self.msrp:
+            self.msrp.send_message(msg)
+            echo_message(self.me, msg)
+        else:
+            print 'MSRP is not connected'
+
+
+class SessionManager:
+
+    def __init__(self, credentials, console, write_traffic):
+        self.credentials = credentials
+        self.console = console
+        self.write_traffic = write_traffic
+        self.sessions = []
+        self.accept_incoming_job = None
+        self.current_session = None
+
+    def close(self):
+        self.stop_accept_incoming
+        for session in self.sessions:
+            session.close()
+
+    def close_current_session(self):
+        session = self.current_session
+        if session:
+            self.disconnect(session)
+            session.close()
+
+    def update_ps(self):
+        if self.current_session:
+            self.current_session.update_ps()
+        else:
+            set_nosessions_ps(self.console, self.credentials.uri)
+
+    def disconnect(self, session):
+        try:
+            index = self.sessions.index(session)
+        except ValueError:
+            pass
+        else:
+            del self.sessions[index]
+            if self.current_session is session and self.sessions:
+                self.current_session = self.sessions[index % len(self.sessions)]
+            else:
+                self.current_session = None
+                self.on_last_disconnect()
+            self.update_ps()
+
+    def on_last_disconnect(self):
+        pass
+
+    def start_accept_incoming(self, e, relay):
+        assert not self.accept_incoming_job, self.accept_incoming_job
+        self.accept_incoming_job = spawn(self._accept_incoming, e, relay)
+
+    def stop_accept_incoming(self):
+        if self.accept_incoming_job:
+            kill(self.accept_incoming_job)
+            self.accept_incoming_job = None
+
+    def _accept_incoming(self, e, relay):
+        while True:
+            sip, msrp = accept_incoming(e, relay, self.write_traffic, self.console)
+            s = Session(self, self.credentials, self.console, self.write_traffic, sip, msrp)
+            self.sessions.append(s)
+            self.current_session = s
+            self.current_session.update_ps()
+
+    def new_outgoing(self, e, target_uri, route, relay):
+        s = Session(self, self.credentials, self.console, self.write_traffic)
+        s.start_invite(e, target_uri, route, relay)
+        self.sessions.append(s)
+        self.current_session = s
+        return s
+
+    def send_message(self, msg):
+        if self.current_session:
+            self.current_session.send_message(msg)
+            return True
+        else:
+            print 'No active session'
+
+
+class SessionManager_Caller(SessionManager):
+
+    def on_last_disconnect(self):
+        self.console.channel.send_exception(ConnectionDone())
 
 def start(options, console):
-    ch = Channel()
+    ch = queue()
     e = EngineBuffer(ch,
                      trace_sip=options.trace_sip,
                      auto_sound=not options.disable_sound,
@@ -113,58 +263,42 @@ def start(options, console):
                      local_port=options.local_port)
     e.start()
     try:
-        env = Values()
-        env.sip = None
-        env.msrp = None
-        env.job = None
-
         credentials = Credentials(options.uri, options.password)
         if options.target_uri is None:
             register(e, credentials, options.route)
             console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
+            SessionManagerClass = SessionManager
+        else:
+            SessionManagerClass = SessionManager_Caller
 
-        env.job = spawn(action, env, e, options, console)
-        console.disable()
+        logger = TrafficLogger(console, lambda: options.trace_msrp)
+        man = SessionManagerClass(credentials, console, logger.write_traffic)
+        man.start_accept_incoming(e, options.relay)
+        if options.target_uri is not None:
+            man.new_outgoing(e, options.target_uri, options.route, options.relay)
+            #console.disable()
         try:
             for type, value in console:
                 if value == (CTRL_D, None):
-                    break
+                    if man.current_session:
+                        man.close_current_session()
+                        if not man.current_session and options.target_uri:
+                            break
+                    else:
+                        break
                 if (type, value) == ('line', ''):
                     console.copy_input_line()
                 elif type == 'line' and value:
                     if value.startswith(':'):
                         if value==':end sip':
-                            if env.sip:
-                                env.sip.shutdown()
-                                env.sip = None
-                            else:
-                                print 'SIP session is not active'
+                            man.current_session.end_sip()
                         elif value==':end msrp':
-                            if env.msrp and env.print_messages:
-                                print 'Disconnecting MSRP connection...'
-                                kill(env.print_messages)
-                                env.print_messages = None
-                                env.msrp.loseConnection()
-                                env.msrp = None
-                                print 'Disconnected MSRP connection.'
-                            else:
-                                print 'MSRP not connected'
-                    elif env.msrp:
-                        env.msrp.send_message(value)
-                        echo_message(options.uri, value)
+                            man.current_session.end_msrp()
                     else:
-                        print 'cannot send message: MSRP not connected'
+                        man.send_message(value)
             console.set_ps('') # QQQ otherwise prompt gets printed once somehow
-        except SIPDisconnect, ex:
-            print '######## catched SIPDisconnect'
-            print ex
-        except (DNSLookupError, MSRPError), ex:
-            print ex
         finally:
-            if env.job:
-                kill(env.job)
-            if env.msrp:
-                env.msrp.loseConnection()
+            man.close()
     finally:
         e.shutdown()
         e.stop()
@@ -188,7 +322,7 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     invite_response = inv.invite([stream], ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav")))
     code = invite_response.get('code')
     if invite_response['state'] != 'ESTABLISHED':
-        raise GreenletExit
+        raise SIPDisconnect(invite_response)
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
     remote_uri_path = invite_response["streams"].pop().remote_info[0]
     full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
@@ -200,8 +334,7 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     if other_user_agent is not None:
         print 'Remote SIP User Agent is "%s"' % other_user_agent
     msrp.bind()
-    inv.me_uri = inv.caller_uri
-    inv.other_uri = inv.callee_uri
+    inv.remote_uri = inv.callee_uri
     return inv, msrp
 
 def acceptable_session(params):
@@ -240,13 +373,22 @@ def accept_incoming(e, relay, log_func, console):
     while True:
         inv, params = wait_for_incoming(e)
         current = getcurrent()
-        inv.call_on_disconnect(lambda params: kill(current))
-        if console:
-            q = 'Incoming %s request from %s, do you accept? (y/n) ' % (inv.session_name, inv.caller_uri)
-            response = console.ask_question(q, list('yYnN') + [CTRL_D])
-        else:
-            response = 'y'
-        if response.lower() == "y" and inv.proposed_streams:
+        result = event()
+        def _asker():
+            try:
+                if console:
+                    q = 'Incoming %s request from %s, do you accept? (y/n) ' % (inv.session_name, inv.caller_uri)
+                    response = console.ask_question(q, list('yYnN') + [CTRL_D])
+                else:
+                    response = 'y'
+            except BaseException, ex:
+                result.send(exc=ex) # QQQ does not work?
+            else:
+                result.send(response)
+        asker = spawn(_asker)
+        inv.call_on_disconnect(lambda params: kill(asker))
+        response = result.wait()
+        if response and response.lower() == "y" and inv.proposed_streams:
             OK = False
             try:
                 msrp_stream = inv.proposed_streams.pop()
@@ -260,8 +402,7 @@ def accept_incoming(e, relay, log_func, console):
                     print 'listening on %s' % (listener.getHost(), )
                 msrp_stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
                 inv.accept([msrp_stream])
-                inv.me_uri = inv.callee_uri
-                inv.other_uri = inv.caller_uri
+                inv.remote_uri = inv.caller_uri
                 if msrp is None:
                     msrp = msrp_accept(msrp_channel)
                 full_remote_path = [msrp_protocol.parse_uri(uri) for uri in msrp_stream.remote_info[0]]
