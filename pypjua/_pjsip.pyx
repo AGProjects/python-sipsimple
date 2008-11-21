@@ -1660,34 +1660,32 @@ cdef class Credentials:
             return self.c_uri.copy()
 
 
-# TODO: make this dynamic
 cdef class Route:
     cdef pjsip_route_hdr c_route_set
     cdef pjsip_route_hdr c_route_hdr
     cdef pjsip_sip_uri c_sip_uri
-    cdef PJSTR c_host
-    cdef readonly int port
+    cdef public object host
+    cdef public int port
 
     def __cinit__(self, host, port=5060):
-        cdef int status
-        self.c_host = PJSTR(host)
+        self.host = host
         self.port = port
         pjsip_route_hdr_init(NULL, <void *> &self.c_route_hdr)
         pjsip_sip_uri_init(&self.c_sip_uri, 0)
-        self.c_sip_uri.host = self.c_host.pj_str
-        self.c_sip_uri.port = port
         self.c_sip_uri.lr_param = 1
         self.c_route_hdr.name_addr.uri = <pjsip_uri *> &self.c_sip_uri
         pj_list_init(<pj_list_type *> &self.c_route_set)
         pj_list_push_back(<pj_list_type *> &self.c_route_set, <pj_list_type *> &self.c_route_hdr)
 
-    property host:
-
-        def __get__(self):
-            return self.c_host.str
-
     def __repr__(self):
-        return '<Route to "%s:%d">' % (self.c_host.str, self.port)
+        return '<Route to "%s:%d">' % (self.host, self.port)
+
+    cdef int _to_c(self) except -1:
+        str_to_pj_str(self.host, &self.c_sip_uri.host)
+        if self.port < 0 or self.port > 65535:
+            raise RuntimeError("Invalid port: %d" % self.port)
+        self.c_sip_uri.port = self.port
+
 
 def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route = None):
     cdef pjsip_tx_data *tdata
@@ -1714,6 +1712,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
         raise RuntimeError("Could not create MESSAGE request: %s" % pj_status_to_str(status))
     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
     if route is not None:
+        route._to_c()
         pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
     content_type_pj = PJSTR(content_type)
     content_subtype_pj = PJSTR(content_subtype)
@@ -1849,6 +1848,7 @@ cdef class Registration:
         if status != 0:
             raise RuntimeError("Could not set registration credentials: %s" % pj_status_to_str(status))
         if self.route is not None:
+            self.route._to_c()
             status = pjsip_regc_set_route_set(self.c_obj, &self.route.c_route_set)
             if status != 0:
                 raise RuntimeError("Could not set route set on registration: %s" % pj_status_to_str(status))
@@ -2049,6 +2049,7 @@ cdef class Publication:
         if status != 0:
             raise RuntimeError("Could not set publication credentials: %s" % pj_status_to_str(status))
         if self.route is not None:
+            self.route._to_c()
             status = pjsip_publishc_set_route_set(self.c_obj, &self.route.c_route_set)
             if status != 0:
                 raise RuntimeError("Could not set route set on publication: %s" % pj_status_to_str(status))
@@ -2326,6 +2327,7 @@ cdef class Subscription:
                 if status != 0:
                     raise RuntimeError("Could not set SUBSCRIBE credentials: %s" % pj_status_to_str(status))
                 if self.route is not None:
+                    self.route._to_c()
                     status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
                     if status != 0:
                         raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
@@ -3144,6 +3146,7 @@ cdef class Invitation:
             if status != 0:
                 raise RuntimeError("Could not set credentials for INVITE session: %s" % pj_status_to_str(status))
             if self.route is not None:
+                self.route._to_c()
                 status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
                 if status != 0:
                     raise RuntimeError("Could not set route for INVITE session: %s" % pj_status_to_str(status))
