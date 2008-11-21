@@ -1614,50 +1614,39 @@ cdef class EventPackage:
             return self.c_event.str
 
 
-# TODO: make this dynamic
+cdef PJSTR _Credentials_scheme_digest = PJSTR("digest")
+cdef PJSTR _Credentials_realm_wildcard = PJSTR("*")
+
 cdef class Credentials:
-    cdef SIPURI c_uri
-    cdef readonly object password
+    cdef pjsip_cred_info c_obj
+    cdef public SIPURI uri
+    cdef public object password
     cdef readonly object token
-    cdef PJSTR c_domain_req_url
-    cdef PJSTR c_req_url
-    cdef PJSTR c_aor_url
-    cdef pjsip_cred_info c_cred
-    cdef PJSTR c_scheme
 
     def __cinit__(self, SIPURI uri, password, token = None):
         cdef SIPURI req_uri
-        cdef int status
-        if uri is None:
-            raise RuntimeError("SIP URI parameter cannot be None")
-        if uri.user is None:
-            raise RuntimeError("SIP URI parameter needs to have username set")
-        if uri.port != 0:
-            raise RuntimeError("SIP URI parameter has port set")
-        self.c_uri = uri.copy()
-        req_uri = SIPURI(uri.host, user=uri.user)
+        self.uri = uri
         self.password = password
         if token is None:
             self.token = "".join([random.choice(string.letters + string.digits) for i in xrange(10)])
         else:
             self.token = token
-        self.c_scheme = PJSTR("digest")
-        self.c_domain_req_url = PJSTR(str(SIPURI(host=uri.host)))
-        self.c_req_url = PJSTR(str(req_uri))
-        self.c_aor_url = PJSTR(str(self.c_uri))
-        str_to_pj_str(uri.host, &self.c_cred.realm)
-        self.c_cred.scheme = self.c_scheme.pj_str
-        str_to_pj_str(uri.user, &self.c_cred.username)
-        self.c_cred.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
-        str_to_pj_str(password, &self.c_cred.data)
+        self.c_obj.realm = _Credentials_realm_wildcard.pj_str
+        self.c_obj.scheme = _Credentials_scheme_digest.pj_str
+        self.c_obj.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
 
     def __repr__(self):
-        return "<Credentials for '%s'>" % self.c_aor_url.str
+        return "<Credentials for '%s'>" % self.uri
 
-    property uri:
+    cdef int _to_c(self) except -1:
+        if self.uri is not None and self.uri.user is None:
+            raise RuntimeError("Credentials URI does not have username set")
+        str_to_pj_str(self.uri.user, &self.c_obj.username)
+        str_to_pj_str(self.password, &self.c_obj.data)
+        return 0
 
-        def __get__(self):
-            return self.c_uri.copy()
+    def copy(self):
+        return Credentials(self.uri.copy(), self.password, self.token)
 
 
 cdef class Route:
@@ -1685,6 +1674,10 @@ cdef class Route:
         if self.port < 0 or self.port > 65535:
             raise RuntimeError("Invalid port: %d" % self.port)
         self.c_sip_uri.port = self.port
+        return 0
+
+    def copy(self):
+        return Route(self.host, self.port)
 
 
 def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route = None):
@@ -1692,22 +1685,25 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     cdef int status
     cdef PJSTR message_method_name = PJSTR("MESSAGE")
     cdef pjsip_method message_method
-    cdef PJSTR to_uri_to, to_uri_req, content_type_pj, content_subtype_pj, body_pj
+    cdef PJSTR from_uri, to_uri_to, to_uri_req, content_type_pj, content_subtype_pj, body_pj
     cdef tuple saved_data
     cdef char test_buf[1300]
     cdef int size
     cdef PJSIPUA ua = c_get_ua()
     if credentials is None:
         raise RuntimeError("credentials parameter cannot be None")
+    if credentials.uri is None:
+        raise RuntimeError("No SIP URI set on credentials")
     if to_uri is None:
         raise RuntimeError("to_uri parameter cannot be None")
+    from_uri = PJSTR(credentials.uri._as_str(0))
     to_uri_to = PJSTR(to_uri._as_str(0))
     to_uri_req = PJSTR(to_uri._as_str(1))
     if to_uri_req.str in ua.c_sent_messages:
         raise RuntimeError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
     message_method.id = PJSIP_OTHER_METHOD
     message_method.name = message_method_name.pj_str
-    status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &credentials.c_aor_url.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
+    status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
     if status != 0:
         raise RuntimeError("Could not create MESSAGE request: %s" % pj_status_to_str(status))
     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
@@ -1725,7 +1721,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     if size == -1:
         pjsip_tx_data_dec_ref(tdata)
         raise RuntimeError("MESSAGE request exceeds 1300 bytes")
-    saved_data = credentials, to_uri_req, to_uri.copy()
+    saved_data = credentials.copy(), to_uri_req, to_uri.copy()
     status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
     if status != 0:
         pjsip_tx_data_dec_ref(tdata)
@@ -1758,7 +1754,8 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
                 status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint.c_obj, rdata.tp_info.pool, 0)
                 if status != 0:
                     raise RuntimeError("Could not init auth: %s" % pj_status_to_str(status))
-                status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials.c_cred)
+                credentials._to_c()
+                status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials.c_obj)
                 if status != 0:
                     raise RuntimeError("Could not set auth credentials: %s" % pj_status_to_str(status))
                 status = pjsip_auth_clt_reinit_req(&auth, rdata, tsx.last_tx, &tdata)
@@ -1819,8 +1816,8 @@ cdef class Registration:
     cdef pjsip_regc *c_obj
     cdef readonly object state
     cdef unsigned int c_expires
-    cdef readonly Credentials credentials
-    cdef readonly Route route
+    cdef Credentials c_credentials
+    cdef Route c_route
     cdef pjsip_tx_data *c_tx_data
     cdef bint c_want_register
     cdef pj_timer_entry c_timer
@@ -1829,27 +1826,34 @@ cdef class Registration:
 
     def __cinit__(self, Credentials credentials, route = None, expires = 300, extra_headers = {}):
         cdef int status
+        cdef PJSTR request_uri, fromto_uri
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
             raise RuntimeError("credentials parameter cannot be None")
+        if credentials.uri is None:
+            raise RuntimeError("No SIP URI set on credentials")
         self.state = "unregistered"
         self.c_expires = expires
-        self.credentials = credentials
-        self.route = route
+        self.c_credentials = credentials.copy()
+        self.c_credentials._to_c()
+        if route is not None:
+            self.c_route = route.copy()
+            self.c_route._to_c()
         self.c_want_register = 0
         self.c_contact_uri = ua.c_create_contact_uri(credentials.token)
+        request_uri = PJSTR(str(SIPURI(credentials.uri.host)))
+        fromto_uri = PJSTR(credentials.uri._as_str(0))
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create client registration: %s" % pj_status_to_str(status))
-        status = pjsip_regc_init(self.c_obj, &credentials.c_domain_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, 1, &self.c_contact_uri.pj_str, expires)
+        status = pjsip_regc_init(self.c_obj, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, 1, &self.c_contact_uri.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init registration: %s" % pj_status_to_str(status))
-        status = pjsip_regc_set_credentials(self.c_obj, 1, &credentials.c_cred)
+        status = pjsip_regc_set_credentials(self.c_obj, 1, &self.c_credentials.c_obj)
         if status != 0:
             raise RuntimeError("Could not set registration credentials: %s" % pj_status_to_str(status))
-        if self.route is not None:
-            self.route._to_c()
-            status = pjsip_regc_set_route_set(self.c_obj, &self.route.c_route_set)
+        if self.c_route is not None:
+            status = pjsip_regc_set_route_set(self.c_obj, &self.c_route.c_route_set)
             if status != 0:
                 raise RuntimeError("Could not set route set on registration: %s" % pj_status_to_str(status))
         self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
@@ -1866,7 +1870,7 @@ cdef class Registration:
             pjsip_regc_destroy(self.c_obj)
 
     def __repr__(self):
-        return "<Registration for '%s'>" % self.credentials.c_aor_url.str
+        return "<Registration for '%s'>" % self.c_credentials.uri
 
     property expires:
 
@@ -1897,6 +1901,16 @@ cdef class Registration:
 
         def __get__(self):
             return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
+
+    property credentials:
+
+        def __get__(self):
+            return self.c_credentials.copy()
+
+    property route:
+
+        def __get__(self):
+            return self.c_route.copy()
 
     cdef int _cb_response(self, pjsip_regc_cbparam *param) except -1:
         cdef pj_time_val c_delay
@@ -2016,8 +2030,8 @@ cdef class Publication:
     cdef readonly object state
     cdef readonly object event
     cdef unsigned int c_expires
-    cdef readonly Credentials credentials
-    cdef readonly Route route
+    cdef Credentials c_credentials
+    cdef Route c_route
     cdef pjsip_tx_data *c_tx_data
     cdef PJSTR c_content_type
     cdef PJSTR c_content_subtype
@@ -2028,29 +2042,36 @@ cdef class Publication:
 
     def __cinit__(self, Credentials credentials, event, route = None, expires = 300, extra_headers = {}):
         cdef int status
+        cdef PJSTR request_uri, fromto_uri
         cdef pj_str_t c_event
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
             raise RuntimeError("credentials parameter cannot be None")
+        if credentials.uri is None:
+            raise RuntimeError("No SIP URI set on credentials")
         self.state = "unpublished"
         self.c_expires = expires
-        self.credentials = credentials
-        self.route = route
+        self.c_credentials = credentials.copy()
+        if route is not None:
+            self.c_route = route.copy()
+            self.c_route._to_c()
         self.event = event
         self.c_new_publish = 0
+        request_uri = PJSTR(credentials.uri._as_str(1))
+        fromto_uri = PJSTR(credentials.uri._as_str(0))
+        self.c_credentials._to_c()
         status = pjsip_publishc_create(ua.c_pjsip_endpoint.c_obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not create publication: %s" % pj_status_to_str(status))
         str_to_pj_str(event, &c_event)
-        status = pjsip_publishc_init(self.c_obj, &c_event, &credentials.c_req_url.pj_str, &credentials.c_aor_url.pj_str, &credentials.c_aor_url.pj_str, expires)
+        status = pjsip_publishc_init(self.c_obj, &c_event, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, expires)
         if status != 0:
             raise RuntimeError("Could not init publication: %s" % pj_status_to_str(status))
-        status = pjsip_publishc_set_credentials(self.c_obj, 1, &credentials.c_cred)
+        status = pjsip_publishc_set_credentials(self.c_obj, 1, &self.c_credentials.c_obj)
         if status != 0:
             raise RuntimeError("Could not set publication credentials: %s" % pj_status_to_str(status))
-        if self.route is not None:
-            self.route._to_c()
-            status = pjsip_publishc_set_route_set(self.c_obj, &self.route.c_route_set)
+        if self.c_route is not None:
+            status = pjsip_publishc_set_route_set(self.c_obj, &self.c_route.c_route_set)
             if status != 0:
                 raise RuntimeError("Could not set route set on publication: %s" % pj_status_to_str(status))
         self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
@@ -2067,7 +2088,7 @@ cdef class Publication:
             pjsip_publishc_destroy(self.c_obj)
 
     def __repr__(self):
-        return "<Publication for '%s'>" % self.credentials.c_aor_url.str
+        return "<Publication for '%s'>" % self.c_credentials.uri
 
     property expires:
 
@@ -2085,6 +2106,16 @@ cdef class Publication:
 
         def __get__(self):
             return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
+
+    property credentials:
+
+        def __get__(self):
+            return self.c_credentials.copy()
+
+    property route:
+
+        def __get__(self):
+            return self.c_route.copy()
 
     cdef int _cb_response(self, pjsip_publishc_cbparam *param) except -1:
         cdef pj_time_val c_delay
@@ -2220,8 +2251,8 @@ cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *
 cdef class Subscription:
     cdef pjsip_evsub *c_obj
     cdef pjsip_dialog *c_dlg
-    cdef readonly Credentials credentials
-    cdef readonly Route route
+    cdef Credentials c_credentials
+    cdef Route c_route
     cdef readonly unsigned int expires
     cdef readonly SIPURI c_to_uri
     cdef PJSTR c_event
@@ -2234,10 +2265,15 @@ cdef class Subscription:
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
             raise RuntimeError("credentials parameter cannot be None")
+        if credentials.uri is None:
+            raise RuntimeError("No SIP URI set on credentials")
         if to_uri is None:
             raise RuntimeError("to_uri parameter cannot be None")
-        self.credentials = credentials
-        self.route = route
+        self.c_credentials = credentials.copy()
+        self.c_credentials._to_c()
+        if route is not None:
+            self.c_route = route.copy()
+            self.c_route._to_c()
         self.expires = expires
         self.c_to_uri = to_uri.copy()
         self.c_event = PJSTR(event)
@@ -2274,6 +2310,16 @@ cdef class Subscription:
         def __get__(self):
             return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
 
+    property credentials:
+
+        def __get__(self):
+            return self.c_credentials.copy()
+
+    property route:
+
+        def __get__(self):
+            return self.c_route.copy()
+
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
         self.state = pjsip_evsub_get_state_name(self.c_obj)
         if tsx == NULL:
@@ -2309,26 +2355,26 @@ cdef class Subscription:
         global _subs_cb
         cdef pjsip_tx_data *c_tdata
         cdef int status
-        cdef PJSTR c_to, c_to_req, c_contact_uri
+        cdef PJSTR c_from, c_to, c_to_req, c_contact_uri
         cdef GenericStringHeader header
         cdef PJSIPUA ua = c_get_ua()
         try:
             if first_subscribe:
+                c_from = PJSTR(self.c_credentials.uri._as_str(0))
                 c_to = PJSTR(self.c_to_uri._as_str(0))
                 c_to_req = PJSTR(self.c_to_uri._as_str(1))
-                c_contact_uri = ua.c_create_contact_uri(self.credentials.token)
-                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &self.credentials.c_aor_url.pj_str, &c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
+                c_contact_uri = ua.c_create_contact_uri(self.c_credentials.token)
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_from.pj_str, &c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
                 if status != 0:
                     raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
                 status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
                 if status != 0:
                     raise RuntimeError("Could not create SUBSCRIBE: %s" % pj_status_to_str(status))
-                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.credentials.c_cred)
+                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
                 if status != 0:
                     raise RuntimeError("Could not set SUBSCRIBE credentials: %s" % pj_status_to_str(status))
-                if self.route is not None:
-                    self.route._to_c()
-                    status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
+                if self.c_route is not None:
+                    status = pjsip_dlg_set_route_set(self.c_dlg, &self.c_route.c_route_set)
                     if status != 0:
                         raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
                 pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
@@ -2959,10 +3005,10 @@ cdef void cb_AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int
 cdef class Invitation:
     cdef pjsip_inv_session *c_obj
     cdef pjsip_dialog *c_dlg
-    cdef readonly Credentials credentials
+    cdef Credentials c_credentials
     cdef SIPURI c_caller_uri
     cdef SIPURI c_callee_uri
-    cdef readonly Route route
+    cdef Route c_route
     cdef readonly object state
     cdef readonly object sdp_state
     cdef int c_is_ending
@@ -2979,11 +3025,17 @@ cdef class Invitation:
             if None in args:
                 raise TypeError("Positional arguments cannot be None")
             try:
-                self.credentials, self.c_callee_uri = args
+                self.c_credentials, self.c_callee_uri = args
             except ValueError:
                 raise TypeError("Expected 2 positional arguments")
-            self.c_caller_uri = self.credentials.c_uri
-            self.route = route
+            if self.c_credentials.uri is None:
+                raise RuntimeError("No SIP URI set on credentials")
+            self.c_credentials = self.c_credentials.copy()
+            self.c_credentials._to_c()
+            self.c_caller_uri = self.c_credentials.uri
+            if route is not None:
+                self.c_route = route.copy()
+                self.c_route._to_c()
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
@@ -3040,6 +3092,16 @@ cdef class Invitation:
 
         def __get__(self):
             return self.c_callee_uri.copy()
+
+    property credentials:
+
+        def __get__(self):
+            return self.c_credentials.copy()
+
+    property route:
+
+        def __get__(self):
+            return self.c_route.copy()
 
     def get_active_local_sdp(self):
         cdef pjmedia_sdp_session *sdp
@@ -3130,7 +3192,7 @@ cdef class Invitation:
         caller_uri = PJSTR(self.c_caller_uri._as_str(0))
         callee_uri = PJSTR(self.c_callee_uri._as_str(0))
         callee_target = PJSTR(self.c_callee_uri._as_str(1))
-        contact_uri = ua.c_create_contact_uri(self.credentials.token)
+        contact_uri = ua.c_create_contact_uri(self.c_credentials.token)
         try:
             status = pjsip_dlg_create_uac(pjsip_ua_instance(), &caller_uri.pj_str, &contact_uri.pj_str, &callee_uri.pj_str, &callee_target.pj_str, &self.c_dlg)
             if status != 0:
@@ -3142,12 +3204,11 @@ cdef class Invitation:
             if status != 0:
                 raise RuntimeError("Could not create outgoing INVITE session: %s" % pj_status_to_str(status))
             self.c_obj.mod_data[ua.c_module.id] = <void *> self
-            status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.credentials.c_cred)
+            status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
             if status != 0:
                 raise RuntimeError("Could not set credentials for INVITE session: %s" % pj_status_to_str(status))
-            if self.route is not None:
-                self.route._to_c()
-                status = pjsip_dlg_set_route_set(self.c_dlg, &self.route.c_route_set)
+            if self.c_route is not None:
+                status = pjsip_dlg_set_route_set(self.c_dlg, &self.c_route.c_route_set)
                 if status != 0:
                     raise RuntimeError("Could not set route for INVITE session: %s" % pj_status_to_str(status))
             status = pjsip_inv_invite(self.c_obj, &tdata)
