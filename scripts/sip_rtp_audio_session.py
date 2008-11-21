@@ -129,10 +129,12 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
     global user_quit, lock, queue
     lock.acquire()
     inv = None
+    audio = None
     ringer = None
     printed = False
     rec_file = None
     want_quit = target_username is not None
+    other_user_agent = None
     try:
         if not use_bonjour:
             credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
@@ -149,7 +151,9 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         else:
             inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
             print "Call from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
-            inv.invite([MediaStream("audio")])
+            audio = AudioTransport(RTPTransport(e.local_ip))
+            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media()]))
+            inv.set_state_CALLING()
             print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, < and > to adjust the echo cancellation"
         while True:
             command, data = queue.get()
@@ -172,38 +176,42 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             print "Unregistered: %(code)d %(reason)s" % args
                         user_quit = False
                         command = "quit"
-                if event_name == "Invitation_ringing":
-                    if ringer is None:
-                        print "Ringing..."
-                        ringer = RingingThread(False)
                 elif event_name == "Invitation_state":
-                    if args["state"] == "INCOMING":
+                    if args["prev_sdp_state"] != "DONE" and args["sdp_state"] == "DONE":
+                        if args["obj"] is inv and args["sdp_negotiated"]:
+                            audio.start(inv.get_active_local_sdp(), inv.get_active_remote_sdp(), 0)
+                            e.connect_audio_transport(audio)
+                            print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
+                            print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                    if args["state"] == "EARLY":
+                        if "headers" in args and "User-Agent" in args["headers"]:
+                            other_user_agent = args["headers"].get("User-Agent")
+                        if ringer is None:
+                            print "Ringing..."
+                            ringer = RingingThread(target_username is None)
+                    elif args["state"] == "INCOMING":
                         print "Incoming session..."
                         if inv is None:
-                            if args.has_key("streams") and len(args["streams"]) == 1 and args["streams"].pop().media_type == "audio":
+                            remote_sdp = args["obj"].get_offered_remote_sdp()
+                            if remote_sdp is not None and len(remote_sdp.media) == 1 and remote_sdp.media[0].media == "audio":
                                 inv = args["obj"]
                                 other_user_agent = args["headers"].get("User-Agent")
                                 if ringer is None:
                                     ringer = RingingThread(True)
-                                print 'Incoming audio session from "%s", do you want to accept? (y/n)' % inv.caller_uri.as_str()
+                                inv.set_state_EARLY()
+                                print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(inv.caller_uri)
                             else:
                                 print "Not an audio call, rejecting."
-                                args["obj"].end()
+                                args["obj"].set_state_DISCONNECTED()
                         else:
                             print "Rejecting."
-                            args["obj"].end()
-                    elif args["state"] == "ESTABLISHED":
-                        if "headers" in args:
-                            other_user_agent = args["headers"].get("User-Agent")
+                            args["obj"].set_state_DISCONNECTED()
+                    elif args["prev_state"] != "CONFIRMED" and args["state"] == "CONFIRMED":
                         if ringer is not None:
                             ringer.stop()
                             ringer = None
-                        audio_stream = args["streams"].pop()
-                        e.connect_audio_stream(audio_stream)
-                        print 'Media negotiation done, using "%s" codec at %dHz' % (audio_stream.codec, audio_stream.sample_rate)
-                        print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio_stream.local_ip, audio_stream.local_port, audio_stream.remote_ip, audio_stream.remote_port)
-                        if other_user_agent is not None:
-                            print 'Remote User Agent is "%s"' % other_user_agent
+                            if other_user_agent is not None:
+                                print 'Remote User Agent is "%s"' % other_user_agent
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
                             if rec_file is not None:
@@ -213,7 +221,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
-                            if args.has_key("code") and args["code"] / 100 != 2:
+                            if "code" in args and args["code"] / 100 != 2:
                                 print "Session ended: %(code)d %(reason)s" % args
                                 if args["code"] in [301, 302]:
                                     print "Received redirect request to %s" % args["headers"]["Contact"]
@@ -222,6 +230,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             if want_quit:
                                 command = "unregister"
                             else:
+                                audio = None
                                 inv = None
             if command == "user_input":
                 if inv is not None:
@@ -229,8 +238,8 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                     if data.lower() == "h":
                         command = "end"
                         want_quit = target_username is not None
-                    elif data in "0123456789*#ABCD" and inv.state == "ESTABLISHED":
-                        inv.current_streams.pop().send_dtmf(data)
+                    elif data in "0123456789*#ABCD" and audio is not None and audio.is_started:
+                        audio.send_dtmf(data)
                     elif data.lower() == "r":
                         if rec_file is None:
                             src = '%s@%s' % (inv.caller_uri.user, inv.caller_uri.host)
@@ -248,12 +257,15 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             rec_file.stop()
                             print 'Stopped recording audio to "%s"' % rec_file.file_name
                             rec_file = None
-                    elif inv.state == "INCOMING":
+                    elif inv.state in ["INCOMING", "EARLY"]:
                         if data.lower() == "n":
                             command = "end"
                             want_quit = False
                         elif data.lower() == "y":
-                            inv.accept([inv.proposed_streams.pop()])
+                            remote_sdp = inv.get_offered_remote_sdp()
+                            audio = AudioTransport(RTPTransport(e.local_ip), remote_sdp, 0)
+                            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media()], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time))
+                            inv.set_state_CONNECTING()
                 if data in ",<":
                     if ec_tail_length > 0:
                         ec_tail_length = max(0, ec_tail_length - 10)
@@ -271,7 +283,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                 want_quit = True
             if command == "end":
                 try:
-                    inv.end()
+                    inv.set_state_DISCONNECTED()
                 except:
                     command = "unregister"
             if command == "unregister":
