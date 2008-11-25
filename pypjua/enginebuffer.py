@@ -437,8 +437,10 @@ class InvitationBuffer(BaseBuffer):
         return self.skip_to_event('ESTABLISHED')[1]
 
     def shutdown(self, *args):
-        if self._obj.state not in ["DISCONNECTING", "DISCONNECTED", "INVALID"]:
+        try:
             self.end(*args)
+        except RuntimeError: # QQQ use more descriptive exception type here
+            pass
 
     def init_channel(self, channel):
         super(InvitationBuffer, self).init_channel(channel)
