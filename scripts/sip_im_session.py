@@ -79,11 +79,12 @@ class Session:
     msrp_closed_by_me = False
     ending_msrp_connection_only = False
 
-    def __init__(self, session_manager, credentials, console, write_traffic, sip=None, msrp=None):
+    def __init__(self, session_manager, credentials, console, write_traffic, play_wav_func, sip=None, msrp=None):
         self.myman = session_manager
         self.credentials = credentials
         self.console = console
         self.write_traffic = write_traffic
+        self.play_wav_func = play_wav_func
         self.sip = sip
         if sip is not None:
             self.sip.call_on_disconnect(self._on_disconnect)
@@ -92,6 +93,14 @@ class Session:
         self.read_msrp_job = None
         if self.msrp is not None:
             self.start_read_msrp()
+
+    def _on_message_received(self, message):
+        echo_message(format_useruri(self.other), message)
+        self.play_wav_func(get_path("Message_Received.wav"))
+
+    def _on_message_sent(self, message):
+        echo_message(format_useruri(self.me), message)
+        self.play_wav_func(get_path("Message_Sent.wav"))
 
     def shutdown(self):
         if self.sip:
@@ -167,7 +176,7 @@ class Session:
             while self.msrp and self.msrp.connected:
                 message = self.msrp.recv_chunk()
                 if message.method == 'SEND':
-                    echo_message(format_useruri(self.other), message.data)
+                    self._on_message_received(message.data)
         except ConnectionDone, ex:
             if not self.msrp_closed_by_me:
                 print 'MSRP connection %s was closed by remote host' % self.msrp.next_host()
@@ -199,7 +208,7 @@ class Session:
     def send_message(self, msg):
         if self.msrp and self.msrp.connected:
             self.msrp.send_message(msg)
-            echo_message(format_useruri(self.me), msg)
+            self._on_message_sent(msg)
             return True
         else:
             raise UserCommandError('MSRP is not connected')
@@ -280,13 +289,13 @@ class SessionManager:
     def _accept_incoming(self, e, relay):
         while True:
             sip, msrp = accept_incoming(e, relay, self.write_traffic, self.console, self.incoming_filter)
-            s = Session(self, self.credentials, self.console, self.write_traffic, sip, msrp)
+            s = Session(self, self.credentials, self.console, self.write_traffic, e.play_wav_file, sip, msrp)
             self.sessions.append(s)
             self.current_session = s
             self.current_session.update_ps()
 
     def new_outgoing(self, e, target_uri, route, relay):
-        s = Session(self, self.credentials, self.console, self.write_traffic)
+        s = Session(self, self.credentials, self.console, self.write_traffic, e.play_wav_file)
         s.start_invite(e, target_uri, route, relay)
         self.sessions.append(s)
         self.current_session = s
