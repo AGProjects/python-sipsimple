@@ -68,8 +68,6 @@ def getchar():
 
 def event_handler(event_name, **kwargs):
     global start_time, packet_count, queue, do_trace_pjsip, trace_sip
-    if event_name == 'siptrace':
-        print trace_sip
     if event_name == "siptrace" and trace_sip:
         if start_time is None:
             start_time = kwargs["timestamp"]
