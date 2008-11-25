@@ -146,8 +146,9 @@ class BaseBuffer(object):
         return self.channel.receive()
 
     def log_my_state(self, params=None):
+        state = params.get('state', self.state)
         try:
-            func = getattr(self, 'log_state_%s' % self.state.lower())
+            func = getattr(self, 'log_state_%s' % state.lower())
         except AttributeError:
             return self.log_state_default(params)
         else:
@@ -181,7 +182,7 @@ class RegistrationBuffer(BaseBuffer):
     registered_count = 0
 
     def log_state_default(self, params):
-        x = (self.state.capitalize(), self.credentials.uri, self.route.host, self.route.port, _format_reason(params))
+        x = (params.get('state').capitalize(), self.credentials.uri, self.route.host, self.route.port, _format_reason(params))
         self.logger.write('%s %s at %s:%s%s' % x)
 
     def log_state_registering(self, params):
