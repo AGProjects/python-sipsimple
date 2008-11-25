@@ -9,8 +9,8 @@ from twisted.internet.error import ConnectionDone
 from twisted.internet import stdio
 from twisted.conch import recvline
 from twisted.conch.insults import insults
-from eventlet.coros import queue as Channel
-from eventlet.api import spawn, sleep, GreenletExit, getcurrent, get_hub
+from eventlet.coros import queue
+from eventlet.api import spawn, sleep, GreenletExit
 from eventlet.green.thread import allocate_lock
 
 CTRL_C = '\x03'
@@ -42,37 +42,37 @@ class ChannelProxy:
         self.output = output
         self.gthread = spawn(self._run)
         self.lock = allocate_lock()
-        self.ex = None
+        self.exc = None
         self.throw_away = False
 
     def receive(self):
-        return self.output.receive()
+        return self.output.wait()
 
     def send(self, x):
         return self.source.send(x)
 
-    def send_exception(self, ex):
-        self.ex = ex
-        return self.source.send_exception(ex)
+    def send_exception(self, *args):
+        self.exc = args
+        return self.source.send_exception(*args)
 
     def _run(self):
         while True:
             try:
-                res = self.source.receive()
-            except BaseException, ex:
+                res = self.source.wait()
+            except:
                 if not self.throw_away:
-                    spawn(self.output.send_exception, ex)
+                    self.output.send_exception(*sys.exc_info())
             else:
                 if not self.throw_away:
-                    spawn(self.output.send, res)
+                    self.output.send(res)
 
     def switch_output(self, new_output=None):
         old_output = self.output
         if new_output is None:
-            new_output = Channel()
+            new_output = queue()
         self.output = new_output
-        if self.ex is not None:
-            spawn(self.output.send_exception, self.ex)
+        if self.exc is not None:
+            self.output.send_exception(*self.exc)
         return old_output
 
     @contextmanager
@@ -87,7 +87,7 @@ class ChannelProxy:
 
 class ConsoleProtocol(recvline.HistoricRecvLine):
 
-    channel = ChannelProxy(Channel(), Channel())
+    channel = ChannelProxy(queue(), queue())
     send_keys = [CTRL_D]
     recv_char = False
     last_keypress_time = time.time()
@@ -154,7 +154,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
     def keystrokeReceived(self, keyID, modifier):
         self.last_keypress_time = time.time()
         if keyID in self.send_keys or self.recv_char:
-            spawn(self.channel.send, ('key', (keyID, modifier)))
+            self.channel.send(('key', (keyID, modifier)))
         elif self.receiving>0:
             super(ConsoleProtocol, self).keystrokeReceived(keyID, modifier)
 
@@ -170,7 +170,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
         self.cursorToBOL()
         self.lineBuffer = []
         self.lineBufferIndex = 0
-        spawn(self.channel.send, ('line', line))
+        self.channel.send(('line', line))
 
     @contextmanager
     def new_prompt(self, new_ps):
@@ -305,8 +305,6 @@ class ConsoleBuffer:
         self.writecount += 1
         if self.terminalProtocol:
             self.terminalProtocol.addOutput(msg, async=True)
-            if getcurrent() is not get_hub().greenlet:
-                sleep(0.01) # this flushes stdout
         else:
             if not msg.endswith('\n'):
                 msg += '\n'

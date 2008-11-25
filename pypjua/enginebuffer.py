@@ -54,21 +54,24 @@ class EngineLogger:
 
 class EngineBuffer(Engine):
 
-    def __init__(self, default_channel=None, **kwargs):
+    def __init__(self, default_dest=None, **kwargs):
         self.logger = kwargs.pop('logger', EngineLogger(log_file=sys.stderr))
         self.objs = {} # maps pypjua_obj -> obj_buffer
-        self.default_channel_ref = default_channel and ref(default_channel)
+        self.default_dest_ref = default_dest and ref(default_dest)
         handler = EventHandler(self._handle_event,
                                trace_pjsip=kwargs.pop('trace_pjsip', False))
         return Engine.__init__(self, handler, **kwargs)
 
     @property
-    def channel(self):
-        return self.default_channel_ref and self.default_channel_ref()
+    def dest(self):
+        return self.default_dest_ref and self.default_dest_ref()
+
+    def _wait(self):
+        return self.dest.wait()
 
     def handle_event(self, event_name, kwargs):
-        if self.channel:
-            spawn(self.channel.send, (event_name, kwargs))
+        if self.dest:
+            self.dest.send((event_name, kwargs))
         else:
             self.logger.log_event('DROPPED (obj=%r)', kwargs.get('obj'), event_name, kwargs)
 
@@ -93,12 +96,11 @@ class EngineBuffer(Engine):
                     raise
         self.objs.clear()
 
-    def register_obj(self, obj, channel=None):
+    def register_obj(self, obj, queue=None):
         if not hasattr(obj, '_obj'):
             raise TypeError('Not a proxy: %r' % obj)
         self.objs[obj._obj] = obj
-        obj.init_channel(channel)
-        return channel
+        obj.set_queue(queue)
 
     def unregister_obj(self, obj):
         pypjua_obj = obj._obj
@@ -137,13 +139,13 @@ class BaseBuffer(object):
     def __getattr__(self, item):
         return getattr(self._obj, item)
 
-    def init_channel(self, channel):
-        if channel is None:
-            channel = MyQueue()
-        self.channel = channel
+    def set_queue(self, queue):
+        if queue is None:
+            queue = MyQueue()
+        self._queue = queue
 
-    def receive(self):
-        return self.channel.receive()
+    def _wait(self):
+        return self._queue.wait()
 
     def log_my_state(self, params=None):
         state = params.get('state', self.state)
@@ -159,7 +161,7 @@ class BaseBuffer(object):
 
     def handle_event(self, event_name, kwargs):
         self.log_my_state(kwargs)
-        spawn(self.channel.send, (event_name, kwargs))
+        self._queue.send((event_name, kwargs))
 
     def skip_to_event(self, state, event_name=None):
         if event_name is None:
@@ -167,7 +169,7 @@ class BaseBuffer(object):
         if self.state == state:
             return event_name, None
         while True:
-            r_event_name, r_params = self.receive()
+            r_event_name, r_params = self._wait()
             if (r_event_name, r_params.get('state')) == (event_name, state):
                 self.logger.log_event('MATCHED', r_event_name, r_params, 2)
                 return r_event_name, r_params
@@ -214,7 +216,7 @@ class RegistrationBuffer(BaseBuffer):
         assert self.state != 'registered', self.state
         self._obj.register()
         while True:
-            event_name, params = self.channel.receive()
+            event_name, params = self._wait()
             if 'Registration_state' == event_name:
                 if params.get('state') in ['registered', 'unregistered']:
                     return params
@@ -293,6 +295,13 @@ class DisconnectNotifier(object):
 
     def add_func(self, func):
         self.funcs.append(func)
+
+    def remove_func(self, func):
+        try:
+            self.funcs.remove(func)
+            return True
+        except ValueError:
+            pass
 
 def format_streams(streams):
     result = []
@@ -412,7 +421,7 @@ class InvitationBuffer(BaseBuffer):
         self._obj.invite(*args, **kwargs)
         try:
             while True:
-                event_name, params = self.channel.receive()
+                event_name, params = self._wait()
                 if event_name == 'Invitation_ringing':
                     self.log_ringing(params)
                     if ringer:
@@ -442,12 +451,15 @@ class InvitationBuffer(BaseBuffer):
         except RuntimeError: # QQQ use more descriptive exception type here
             pass
 
-    def init_channel(self, channel):
-        super(InvitationBuffer, self).init_channel(channel)
-        self.channel.monitor = DisconnectNotifier()
+    def set_queue(self, queue):
+        super(InvitationBuffer, self).set_queue(queue)
+        self._queue.monitor = DisconnectNotifier()
 
     def call_on_disconnect(self, func):
-        self.channel.monitor.add_func(func)
+        self._queue.monitor.add_func(func)
+
+    def cancel_call_on_disconnect(self, func):
+        self._queue.monitor.remove_func(func)
 
 
 class EventHandler:

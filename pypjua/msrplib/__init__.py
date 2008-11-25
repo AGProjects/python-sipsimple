@@ -7,8 +7,8 @@ from application.system import default_host_ip
 from gnutls.interfaces.twisted import X509Credentials
 from twisted.internet.error import AlreadyCalled
 
-from eventlet.api import spawn, exc_after, TimeoutError
-from eventlet.coros import queue as Channel
+from eventlet.api import exc_after, TimeoutError
+from eventlet.coros import event
 from eventlet.twistedutil.protocol import BaseBuffer, BufferCreator, SpawnFactory
 
 from pypjua.clients import msrp_protocol
@@ -21,16 +21,16 @@ class Peer:
         self.channel = channel
 
     def data_start(self, data):
-        spawn(self.channel.send, ('data_start', data))
+        self.channel.send(('data_start', data))
 
     def data_end(self, continuation):
-        spawn(self.channel.send, ('data_end', continuation))
+        self.channel.send(('data_end', continuation))
 
     def write_chunk(self, contents):
-        spawn(self.channel.send, ('write_chunk', contents))
+        self.channel.send(('write_chunk', contents))
 
     def connection_lost(self, reason):
-        spawn(self.channel.send_exception, (reason.type, reason.value, reason.tb))
+        self.channel.send_exception((reason.type, reason.value, reason.tb))
 
 def format_address(addr):
     return "%s:%s" % (addr.host, addr.port)
@@ -40,7 +40,7 @@ class MSRPProtocol(msrp_protocol.MSRPProtocol):
     log_func = None
 
     def connectionMade(self):
-        self.peer = Peer(self.channel)
+        self.peer = Peer(self._queue)
 
     def _header(self):
         params = (format_address(self.transport.getHost()), format_address(self.transport.getPeer()))
@@ -91,6 +91,11 @@ class MSRPBuffer(BaseBuffer):
         self.chunks = {} # maps message_id to StringIO instance that represents contents of the message
         self.log_func = log_func
 
+    def next_host(self):
+        if self.local_path:
+            return self.local_path[0]
+        return self.full_remote_path[0]
+
     @property
     def full_local_path(self):
         "suitable to put into INVITE"
@@ -102,6 +107,10 @@ class MSRPBuffer(BaseBuffer):
             raise TypeError('Not all elements are MSRP URI: %r' % full_remote_path)
         self.remote_uri = full_remote_path[-1]
         self.remote_path = full_remote_path[:-1]
+
+    @property
+    def full_remote_path(self):
+        return self.remote_path + [self.remote_uri]
 
     def build_protocol(self):
         p = BaseBuffer.build_protocol(self)
@@ -179,13 +188,13 @@ class MSRPBuffer(BaseBuffer):
     def recv_chunk(self):
         """Receive and return one MSRP chunk"""
         data = ''
-        func, msrpdata = self.channel.receive()
+        func, msrpdata = self._wait()
         try:
             assert func == 'data_start', (func, `msrpdata`)
-            func, param = self.channel.receive()
+            func, param = self._wait()
             while func=='write_chunk':
                 data += param
-                func, param = self.channel.receive()
+                func, param = self._wait()
             assert func == 'data_end', (func, `param`)
             assert param in "$+#", `param`
             msrpdata.data = data
@@ -283,7 +292,7 @@ def _msrp_connect(full_remote_path, log_func, local_uri):
     return msrp
 
 def msrp_connect(*args, **kwargs):
-    kwargs.setdefault('timeout_value', None) 
+    kwargs.setdefault('timeout_value', None)
     msrp = with_timeout(MSRPConnectTimeout.seconds, _msrp_connect, *args, **kwargs)
     if msrp is None:
         raise MSRPConnectTimeout
@@ -336,15 +345,17 @@ def _msrp_listen(handler, log_func=None):
 
 def msrp_listen(log_func=None):
     msrp = None
-    channel = Channel()
+    result = event()
     def on_connect(buffer):
-        listener.stopListening()
-        channel.send(buffer)
+        try:
+            result.send(buffer)
+        finally:
+            listener.stopListening()
     local_uri, listener = _msrp_listen(on_connect, log_func)
-    return channel, local_uri, listener
+    return result.wait, local_uri, listener
 
-def msrp_accept(channel):
-    msrp = with_timeout(MSRPIncomingConnectTimeout.seconds, channel.receive, timeout_value=None)
+def msrp_accept(get_buffer_func):
+    msrp = with_timeout(MSRPIncomingConnectTimeout.seconds, get_buffer_func, timeout_value=None)
     if msrp is None:
         raise MSRPIncomingConnectTimeout
     return msrp
