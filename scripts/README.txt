@@ -8,7 +8,7 @@ of events:
 
  * sip_register - REGISTER a SIP end-point with a SIP REGISTRAR
  * sip_audio_session - Setup a voice audio session (VoIP)
- * sip_msrp_im_session - Setup an IM session using MSRP protocol
+ * sip_im_session - Setup an IM session using MSRP protocol
  * sip_msrp_file_transfer - File Transfer session using MSRP protocol
  * sip_message - Send text message in page mode using MESSAGE method
  * sip_publish_presence - PUBLISH presence to a SIP Presence Agent
