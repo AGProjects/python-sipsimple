@@ -7,7 +7,7 @@ import re
 import random
 import string
 import datetime
-from optparse import OptionValueError, OptionParser
+from optparse import OptionValueError, OptionParser, SUPPRESS_HELP
 from ConfigParser import NoSectionError
 import dns.resolver
 from dns.exception import DNSException
@@ -660,7 +660,7 @@ def parse_options():
                       help=help, default=MSRP_RELAY_DEFAULT, dest='msrp_relay_ip', metavar='IP[:PORT]')
     parser.add_option("-S", "--disable-sound", action="store_true", default=AudioConfig.disable_sound,
                       help="Do not initialize the soundcard (by default the soundcard is enabled).")
-    parser.add_option("-y", '--accept-all', action='store_true', default=False, help='Accept all incoming sessions')
+    parser.add_option("-y", '--accept-all', action='store_true', default=False, help=SUPPRESS_HELP)
 
     options, args = parser.parse_args()
 
