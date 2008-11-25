@@ -481,12 +481,15 @@ def accept_incoming(e, relay, log_func, console, incoming_filter):
     while True:
         inv, params = wait_for_incoming(e)
         asker = spawn_link(incoming_filter, inv, params)
+        ringer=Ringer(e.play_wav_file, get_path("ring_inbound.wav"))
+        ringer.start()
         def killer(_params):
             asker.kill()
         inv.call_on_disconnect(killer)
         ERROR = 488
         try:
             response = asker.wait()
+            ringer.stop()
             if response==True and inv.proposed_streams:
                 msrp_stream = inv.proposed_streams.pop()
                 if relay is not None:
@@ -515,6 +518,7 @@ def accept_incoming(e, relay, log_func, console, incoming_filter):
             else:
                 ERROR = 486
         finally:
+            ringer.stop()
             inv.cancel_call_on_disconnect(killer)
             if ERROR is not None:
                 inv.shutdown(ERROR)
