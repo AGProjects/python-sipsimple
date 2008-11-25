@@ -29,6 +29,8 @@ from pypjua.clients import enrollment
 from pypjua.enginebuffer import EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
 
+CTRL_S = '\x13'
+
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
     listen_udp = datatypes.NetworkAddress("any")
@@ -252,6 +254,14 @@ class SessionManager:
                 self.on_last_disconnect()
             self.update_ps()
 
+    def switch(self):
+        if len(self.sessions)<2:
+            print "There's no other session to switch to."
+        else:
+            index = 1+self.sessions.index(self.current_session)
+            self.current_session = self.sessions[index % len(self.sessions)]
+            self.update_ps()
+
     def on_invited(self, session):
         pass
 
@@ -318,16 +328,21 @@ def start(options, console):
         e.stop()
         sleep(0.1) # flush the output
 
+def get_commands(man):
+    return {'end sip': man.end_sip,
+            'end msrp': man.end_msrp,
+            'switch': man.switch}
+
+def get_shortcuts(man):
+    return {CTRL_S: man.switch}
+
 def start_caller(e, options, console, credentials, logger):
     man = SessionManager_Caller(credentials, console, logger.write_traffic, incoming_filter=lambda *args: False)
     man.new_outgoing(e, options.target_uri, options.route, options.relay)
     console.disable()
-
-    commands = {'end sip': man.end_sip,
-                'end msrp': man.end_msrp}
     try:
         while True:
-            x = readloop(console, man)
+            x = readloop(console, man, get_commands(man), get_shortcuts(man))
             if x == CTRL_D and man.current_session:
                 man.close_current_session()
                 if not man.current_session:
@@ -354,7 +369,7 @@ def start_listener(e, options, console, credentials, logger):
     print "Press Ctrl-D to quit"
     try:
         while True:
-            x = readloop(console, man)
+            x = readloop(console, man, get_commands(man), get_shortcuts(man))
             if x == CTRL_D:
                 if man.current_session:
                     man.close_current_session()
@@ -366,12 +381,15 @@ def start_listener(e, options, console, credentials, logger):
         console_next_line(console)
         man.close()
 
-def readloop(console, man):
-    commands = {'end sip': man.end_sip,
-                'end msrp': man.end_msrp}
+def readloop(console, man, commands, shortcuts):
+    console.terminalProtocol.send_keys.extend(shortcuts.keys())
     for type, value in console:
-        if value == (CTRL_D, None):
-            return CTRL_D
+        if type == 'key':
+            key = value[0]
+            if key in shortcuts:
+                shortcuts[key]()
+            elif key==CTRL_D:
+                return CTRL_D
         elif type == 'line':
             echoed = []
             def echo():
