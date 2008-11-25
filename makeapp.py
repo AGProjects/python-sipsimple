@@ -7,7 +7,7 @@ Usage:
 
 from setuptools import setup
 
-APP = ['scripts/sip_rtp_audio_session.py']
+APP = ['scripts/sip_audio_session.py']
 DATA_FILES = []
 OPTIONS = {'argv_emulation': True,
            'site_packages': True,

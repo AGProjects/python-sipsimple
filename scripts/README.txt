@@ -7,7 +7,7 @@ and file transfer sessions, publish and subscribe to presence or other type
 of events:
 
  * sip_register - REGISTER a SIP end-point with a SIP REGISTRAR
- * sip_rtp_audio_session - Setup a voice audio session (VoIP)
+ * sip_audio_session - Setup a voice audio session (VoIP)
  * sip_msrp_im_session - Setup an IM session using MSRP protocol
  * sip_msrp_file_transfer - File Transfer session using MSRP protocol
  * sip_message - Send text message in page mode using MESSAGE method
