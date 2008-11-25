@@ -341,15 +341,16 @@ class InvitationBuffer(BaseBuffer):
 
     @property
     def session_name(self):
-        try:
-            self._streams
-        except AttributeError:
-            self._streams = format_streams(self.proposed_streams)
-        if self._streams:
-            streams = ' (%s)' % self._streams
-        else:
-            streams = ''
-        return 'SIP session' + streams
+#        try:
+#            self._streams
+#        except AttributeError:
+#            self._streams = format_streams(self.proposed_streams)
+#        if self._streams:
+#            streams = ' (%s)' % self._streams
+#        else:
+#            streams = ''
+#        return 'SIP session' + streams
+        return 'SIP session'
 
     def _format_to(self):
         return 'to %s' % self.other
@@ -363,11 +364,13 @@ class InvitationBuffer(BaseBuffer):
     def _get_verb(self, state):
         if not self.established and self.disconnecting:
             if self.outgoing:
-                return {'DISCONNECTED': 'Cancelled',
-                        'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
+#                return {'DISCONNECTED': 'Cancelled',
+#                        'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
+                return 'Cancelled'
             else:
-                return {'DISCONNECTED': 'Rejected',
-                        'DISCONNECTING': 'Rejecting'}.get(state, state).capitalize()
+#                return {'DISCONNECTED': 'Rejected',
+#                        'DISCONNECTING': 'Rejecting'}.get(state, state).capitalize()
+                return 'Rejected'
         return state.capitalize()
 
     def _format_state_default(self, params):
@@ -409,36 +412,37 @@ class InvitationBuffer(BaseBuffer):
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
-        self._obj.invite(*args, **kwargs)
+        self._obj.set_state_CALLING(*args, **kwargs)
         try:
             while True:
                 event_name, params = self._wait()
-                if event_name == 'Invitation_ringing':
+                if event_name == 'Invitation_state' and params['state'] == 'EARLY':
                     self.log_ringing(params)
                     if ringer:
                         ringer.start()
-                elif event_name == 'Invitation_state' and params['state']!='CALLING':
+                elif event_name == 'Invitation_state' and params['state'] == 'CONFIRMED':
                     break
-                else:
+                elif event_name == 'Invitation_state' and params['state'] == 'DISCONNECTED':
                     self.logger.log_event('DROPPED', event_name, params)
+                    break
         finally:
             if ringer:
                 ringer.stop()
         return params
 
     def end(self, *args, **kwargs):
-        self._obj.end(*args, **kwargs)
+        self._obj.set_state_DISCONNECTED(*args, **kwargs)
         params = self.skip_to_event('DISCONNECTED')[1]
         return params
 
     def accept(self, *args, **kwargs):
         self.outgoing = 0
-        self._obj.accept(*args, **kwargs)
-        return self.skip_to_event('ESTABLISHED')[1]
+        self._obj.set_state_CONNECTING(*args, **kwargs)
+        return self.skip_to_event('CONFIRMED')[1]
 
-    def shutdown(self, *args):
+    def shutdown(self, *args, **kwargs):
         try:
-            self.end(*args)
+            self.end(*args, **kwargs)
         except RuntimeError: # QQQ use more descriptive exception type here
             pass
 

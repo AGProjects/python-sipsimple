@@ -19,7 +19,7 @@ from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupEr
 from eventlet.api import spawn, kill, GreenletExit, sleep, with_timeout
 from eventlet.coros import queue, spawn_link
 
-from pypjua import Credentials, MediaStream, Route, SIPURI
+from pypjua import *
 from pypjua.clients.lookup import lookup_srv
 from pypjua.clients import msrp_protocol
 from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, msrp_accept, new_local_uri, MSRPError
@@ -428,6 +428,16 @@ def register(e, credentials, route):
     if params['state']=='unregistered' and params['code']/100!=2:
         raise GreenletExit
 
+def make_msrp_sdp_media(uri_path, accept_types):
+    attributes = []
+    attributes.append(SDPAttribute("path", " ".join([str(uri) for uri in uri_path])))
+    attributes.append(SDPAttribute("accept-types", " ".join(accept_types)))
+    if uri_path[-1].use_tls:
+        transport = "TCP/TLS/MSRP"
+    else:
+        transport = "TCP/MSRP"
+    return SDPMedia("message", uri_path[-1].port, transport, formats=["*"], attributes=attributes)
+
 def invite(e, credentials, target_uri, route, relay, log_func):
     if relay is None:
         local_uri = new_local_uri(12345)
@@ -436,15 +446,21 @@ def invite(e, credentials, target_uri, route, relay, log_func):
         msrp = my_msrp_relay_connect(relay, log_func)
         full_local_path = msrp.full_local_path
     inv = e.Invitation(credentials, target_uri, route=route)
-    stream = MediaStream("message")
-    stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
-    invite_response = inv.invite([stream], ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav")))
-    code = invite_response.get('code')
-    if invite_response['state'] != 'ESTABLISHED':
+    local_sdp = SDPSession(e.local_ip, connection=SDPConnection(e.local_ip), media=[make_msrp_sdp_media(full_local_path, ["text/plain"])])
+    inv.set_offered_local_sdp(local_sdp)
+    invite_response = inv.invite(ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav")))
+    if invite_response['state'] != 'CONFIRMED':
         raise SIPDisconnect(invite_response)
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
-    remote_uri_path = invite_response["streams"].pop().remote_info[0]
-    full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
+    remote_sdp = inv.get_active_remote_sdp()
+    full_remote_path = None
+    for attr in remote_sdp.media[0].attributes:
+        if attr.name == "path":
+            remote_uri_path = attr.value.split()
+            full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
+            break
+    if full_remote_path is None:
+        raise RuntimeError("No MSRP URI path attribute found in remote SDP")
     print "MSRP session negotiated to: %s" % " ".join(remote_uri_path)
     if relay is None:
         msrp = msrp_connect(full_remote_path, log_func, local_uri)
@@ -456,11 +472,16 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     inv.remote_uri = inv.callee_uri
     return inv, msrp
 
-def acceptable_session(params):
-    if params.has_key("streams") and len(params["streams"]) == 1:
-        msrp_stream = params["streams"].pop()
-        if msrp_stream.media_type == "message" and "text/plain" in msrp_stream.remote_info[1]:
-            return True
+def acceptable_session(inv):
+    remote_sdp = inv.get_offered_remote_sdp()
+    check = 0
+    if remote_sdp is not None and len(remote_sdp.media) == 1 and remote_sdp.media[0].media == "message":
+        for attr in remote_sdp.media[0].attributes:
+            if attr.name == "accept-types" and "text/plain" in attr.value.split():
+                check += 1
+            elif attr.name == "path":
+                check += 1
+    return check == 2
 
 def wait_for_incoming(e):
     while True:
@@ -471,7 +492,8 @@ def wait_for_incoming(e):
             obj = InvitationBuffer(obj, e.logger, outgoing=0)
             e.register_obj(obj)
             obj.log_state_incoming(params)
-            if acceptable_session(params):
+            if acceptable_session(obj):
+                obj.set_state_EARLY()
                 return obj, params
             else:
                 obj.logger.write(obj._format_state_default(params))
@@ -499,8 +521,8 @@ def accept_incoming(e, relay, log_func, console, incoming_filter):
         try:
             response = asker.wait()
             ringer.stop()
-            if response==True and inv.proposed_streams:
-                msrp_stream = inv.proposed_streams.pop()
+            remote_sdp = inv.get_offered_remote_sdp()
+            if response==True and remote_sdp is not None:
                 if relay is not None:
                     msrp = my_msrp_relay_connect(relay, log_func)
                     full_local_path = msrp.full_local_path
@@ -509,9 +531,14 @@ def accept_incoming(e, relay, log_func, console, incoming_filter):
                     msrp_buffer_func, local_uri, listener = msrp_listen(log_func)
                     full_local_path = [local_uri]
                     print 'listening on %s' % (listener.getHost(), )
-                msrp_stream.set_local_info([str(uri) for uri in full_local_path], ["text/plain"])
+                for attr in remote_sdp.media[0].attributes:
+                    if attr.name == "path":
+                        full_remote_path = [msrp_protocol.parse_uri(uri) for uri in attr.value.split()]
+                        break
+                local_sdp = SDPSession(e.local_ip, connection=SDPConnection(e.local_ip), media=[make_msrp_sdp_media(full_local_path, ["text/plain"])])
+                inv.set_offered_local_sdp(local_sdp)
                 try:
-                    inv.accept([msrp_stream])
+                    inv.accept()
                 except RuntimeError:
                     # the session may be already cancelled by the other party at this moment
                     # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
@@ -519,7 +546,6 @@ def accept_incoming(e, relay, log_func, console, incoming_filter):
                 inv.remote_uri = inv.caller_uri
                 if msrp is None:
                     msrp = msrp_accept(msrp_buffer_func)
-                full_remote_path = [msrp_protocol.parse_uri(uri) for uri in msrp_stream.remote_info[0]]
                 msrp.set_full_remote_path(full_remote_path)
                 msrp.accept_binding()
                 ERROR = None
