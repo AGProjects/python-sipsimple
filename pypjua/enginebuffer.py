@@ -305,7 +305,16 @@ def format_streams(streams):
 class InvitationBuffer(BaseBuffer):
 
     event_name = 'Invitation_state'
-    outgoing = 1
+    established = 0
+    disconnecting = 0
+
+    def __init__(self, obj, logger, outgoing=1):
+        BaseBuffer.__init__(self, obj, logger)
+        self.outgoing = outgoing
+
+    @property
+    def connected(self):
+        return self.state=='ESTABLISHED'
 
     @property
     def me(self):
@@ -351,25 +360,45 @@ class InvitationBuffer(BaseBuffer):
             result += " through proxy %s:%d" % (self.route.host, self.route.port)
         return result
 
+    def _get_verb(self, state):
+        if not self.established and self.disconnecting:
+            if self.outgoing:
+                return {'DISCONNECTED': 'Cancelled',
+                        'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
+            else:
+                return {'DISCONNECTED': 'Rejected',
+                        'DISCONNECTING': 'Rejecting'}.get(state, state).capitalize()
+        return state.capitalize()
+
     def _format_state_default(self, params):
         reason = _format_reason(params)
-        return '%s %s %s%s' % (self.state.capitalize(), self.session_name, self._format_to(), reason)
+        state = params['state']
+        return '%s %s %s%s' % (self._get_verb(state), self.session_name, self._format_to(), reason)
 
     def log_state_default(self, params):
         self.logger.write(self._format_state_default(params))
 
+    def log_state_disconnecting(self, params):
+        self.disconnecting = 1
+        self.log_state_default(params)
+
     def log_state_calling(self, params):
+        self.outgoing = 1
         try:
             self.__last_calling_message
         except AttributeError:
             self.__last_calling_message = None
         msg = 'Initiating %s %s...' % (self.session_name, self._format_fromtoproxy())
-        if msg != self.__last_calling_message:
+        if msg != self.__last_calling_message: # filter out successive Calling messages
             self.logger.write(msg)
             self.__last_calling_message = msg
 
     def log_state_incoming(self, params):
         self._streams = format_streams(params.get('streams'))
+
+    def log_state_established(self, params):
+        self.established = 1
+        self.log_state_default(params)
 
     def log_ringing(self, params):
         agent = params.get('headers', {}).get('User-Agent', '')
@@ -379,7 +408,6 @@ class InvitationBuffer(BaseBuffer):
         self.logger.write('Ringing from %s' % contact)
 
     def invite(self, *args, **kwargs):
-        self.outgoing = 1
         ringer = kwargs.pop('ringer', None)
         self._obj.invite(*args, **kwargs)
         try:
