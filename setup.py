@@ -5,6 +5,7 @@ from distutils import sysconfig
 from distutils.command.build_scripts import build_scripts
 import re
 import os
+import glob
 
 # cannot import pypjua here
 exec(file('pypjua/clients/setupconfig.py').read())
@@ -14,7 +15,7 @@ version = "0.2.3"
 title = "SIP SIMPLE client"
 description = "Python SIP SIMPLE client library using PJSIP"
 scripts = ['scripts/'+x for x in os.listdir('scripts') if re.match('^sip_.*\\.py$', x) or re.match('^xcap_.*\\.py$', x)]
-data_files = ['scripts/ring_inbound.wav', 'scripts/ring_outbound.wav']
+data_files = glob.glob('scripts/*.wav')
 
 if data_files_dir:
     data_files = [(data_files_dir, data_files)]
