@@ -472,7 +472,7 @@ def main():
                 print '-------------- catched an exception'
                 traceback.print_exc()
 
-    def send_ex():
+    def exit():
         def func1():
             print "Sending exception to console's channel"
             console.channel.send_exception(ConnectionDone())
