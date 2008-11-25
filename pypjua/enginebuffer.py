@@ -339,15 +339,6 @@ class InvitationBuffer(BaseBuffer):
         else:
             return self.caller_uri
 
-    def set_streams_desc(self, params=None):
-        if params and params.get('streams'):
-            streams = params['streams']
-        elif self.proposed_streams:
-            streams = self.proposed_streams
-        else:
-            self._streams_txt = ''
-            return
-
     @property
     def session_name(self):
         try:
