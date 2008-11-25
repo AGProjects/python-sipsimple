@@ -96,6 +96,11 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
     ps = ['']
     ps_init = ['']
 
+    def drawInputLine(self, line=None):
+        if line is None:
+            line= ''.join(self.lineBuffer)
+        self.terminal.write(self.ps[self.pn] + line)
+
     def initializeScreen(self):
         self.terminal.write(self.ps[self.pn])
         self.setInsertMode()
@@ -224,6 +229,10 @@ class ConsoleBuffer:
     def terminal(self):
         return self.protocol.terminalProtocol.terminal
 
+    @property
+    def lineBuffer(self):
+        return self.terminalProtocol.lineBuffer
+
     def _receive(self):
         self.terminalProtocol.receiving += 1
         try:
@@ -319,12 +328,15 @@ class ConsoleBuffer:
         except ConnectionDone:
             raise StopIteration
 
-    def copy_input_line(self):
+    def copy_input_line(self, line=None):
         self.terminalProtocol.ps[0] = self.terminalProtocol.ps_init[0]
         self.terminalProtocol.cursorToBOL()
         self.terminal.eraseLine()
-        self.terminalProtocol.drawInputLine()
+        self.terminalProtocol.drawInputLine(line)
         self.terminal.nextLine()
+
+    def clear_input_line(self):
+        self.terminalProtocol.clearInputLine()
 
     def disable(self):
         self.terminalProtocol.receiving -= 1
@@ -335,6 +347,7 @@ class ConsoleBuffer:
         self.terminal.eraseLine()
         self.terminalProtocol.ps[0] = self.terminalProtocol.ps_init[0]
         self.terminalProtocol.drawInputLine()
+
 
 class TrafficLogger:
 
