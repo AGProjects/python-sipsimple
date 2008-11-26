@@ -3121,7 +3121,7 @@ cdef class Invitation:
 
     def get_offered_remote_sdp(self):
         cdef pjmedia_sdp_session *sdp
-        if self.sdp_state == "REMOTE_OFFER":
+        if self.state != "DISCONNECTED" and self.sdp_state == "REMOTE_OFFER":
             pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
@@ -3129,13 +3129,15 @@ cdef class Invitation:
 
     def get_offered_local_sdp(self):
         cdef pjmedia_sdp_session *sdp
-        if self.sdp_state == "LOCAL_OFFER":
+        if self.state != "DISCONNECTED" and self.sdp_state == "LOCAL_OFFER":
             pjmedia_sdp_neg_get_neg_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
             return self.c_local_sdp_proposed
 
     def set_offered_local_sdp(self, value):
+        if self.state == "DISCONNECTED":
+            raise RuntimeError("Session was already disconnected")
         if self.sdp_state == "LOCAL_OFFER":
             raise RuntimeError("Local SDP is already being proposed")
         else:
