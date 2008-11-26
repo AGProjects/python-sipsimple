@@ -39,9 +39,14 @@ Step 3. Install dependencies
 
 # Install C dependencies
 
-(remove the two "unstable" items from the Trees line of the /sw/etc/fink.conf)
+# Gnutls version 2.4. must be installed. Gnutls version 2.6 from fink
+# unstable tree does not work. To install version 2.4 remove the two
+# "unstable" items from the 'Trees' line of the /sw/etc/fink.conf
 sudo fink install gnutls26
-(place back the "unstable" items)
+
+# Place back the "unstable" items if you have removed them above
+
+# Install libxml libraries:
 sudo apt-get install libxml2 libxslt
 
 # Install Python dependencies
@@ -49,25 +54,42 @@ sudo apt-get install libxml2 libxslt
 sudo easy_install --script-dir /usr/bin -U setuptools
 sudo easy_install -U cython python-application dnspython lxml twisted py mercurial
 
+# Download and install python-gnutls
+
 darcs get http://devel.ag-projects.com/repositories/python-gnutls
 cd python-gnutls
 sudo python setup.py install
+
+# To update python-gnutls at a later date:
+
+cd python-gnutls
+darcs pull
+sudo python setup.py install
+
+# Download and install eventlet for twisted:
 
 export LC_CTYPE=
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
-To update the eventlet_twisted repository at a later date:
+# To update eventlet_twisted at a later date:
 
 export LC_CTYPE=
 cd eventlet_twisted
 hg pull
 hg update
 
-#Install the python-xcaplib from http://download.ag-projects.com/OpenXCAP/clients/
+# Download and install python-xcaplib:
+
+darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+cd python-xcaplib
+sudo python setup.py install
+
+# To update python-xcaplib repository at a later date:
 
 cd python-xcaplib
+darcs pull
 sudo python setup.py install
 
 
