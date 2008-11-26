@@ -185,6 +185,7 @@ class Session:
         finally:
             if not self.ending_msrp_connection_only:
                 self.sip.shutdown()
+                self.myman.disconnect(self)
 
     def close_msrp(self):
         if self.msrp and self.msrp.connected:
