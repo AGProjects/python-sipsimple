@@ -142,7 +142,7 @@ class Mood(XMLMultipleChoiceElement, PersonExtension):
     def _build_element(self, element, nsmap):
         values = self.values
         if 'unknown' in values and len(values) > 1:
-            raise BuilderError("Cannot have any other activities if the `unknown' activity is specified")
+            raise BuilderError("Cannot have any other moods if the `unknown' mood is specified")
         for note in self.notes:
             note.to_element(parent=element, nsmap=nsmap)
         XMLMultipleChoiceElement._build_element(self, element, nsmap)
