@@ -485,7 +485,6 @@ def main():
         def func1():
             print "Sending exception to console's channel"
             console.channel.send_exception(ConnectionDone())
-            raise GreenletExit
         spawn(func1)
 
     def help():
