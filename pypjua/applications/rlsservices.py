@@ -204,9 +204,11 @@ class RLSServices(XMLListApplication):
     _parser_opts = {'remove_blank_text': True}
 
     def __init__(self, services=[]):
+        self._services = {}
         self[:] = services
 
     def _parse_element(self, element):
+        self._services = {}
         for child in element:
             if child.tag == Service.qname:
                 self.append(Service.from_element(child, xml_meta=self._xml_meta))
@@ -218,4 +220,18 @@ class RLSServices(XMLListApplication):
     def _before_add(self, service):
         if not isinstance(service, Service):
             raise TypeError("found %s, expected %s" % (service.__class__.__name__, Service.__name__))
+        if service.uri in self._services:
+            raise ValueError("Cannot have more than one service with the same uri: %s" % service.uri)
+        self._services[service.uri] = service
         return service
+    
+    def _before_del(self, service):
+        del self._services[service.uri]
+
+    # it also makes sense to be able to get a Service by its uri
+    def __getitem__(self, key):
+        if isinstance(key, basestring):
+            return self._services[key]
+        else:
+            return super(RLSServices, self).__getitem__(key)
+
