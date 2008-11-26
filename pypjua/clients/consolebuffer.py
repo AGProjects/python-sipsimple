@@ -423,8 +423,17 @@ def setup_console():
         termios.tcsetattr(fd, termios.TCSANOW, oldSettings)
         terminal_initialize(fd)
 
+def _fix():
+    s = [16640, 5, 191, 35387, 15, 15,
+         ['\x03', '\x1c', '\x7f', '\x15', '\x04', '\x00', '\x01', '\x00', '\x11', '\x13', '\x1a',
+          '\x00', '\x12', '\x0f', '\x17', '\x16', '\x00', '\x00', '\x00', '\x00', '\x00', '\x00',
+          '\x00', '\x00', '\x00', '\x00', '\x00', '\x00', '\x00', '\x00', '\x00', '\x00']]
+    termios.tcsetattr(sys.__stdin__.fileno(), termios.TCSANOW, s)
+    terminal_initialize(sys.__stdin__.fileno())
 
 def main():
+    if sys.argv[1:] == ['fix']:
+        return _fix()
     from twisted.internet import reactor
     from eventlet import api
     from application import log
