@@ -427,7 +427,7 @@ def parse_options():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
     if not AccountConfig.use_presence_agent:
-        raise RuntimeError("Presence is not enabled for this account. Please set presence=True in the config file")
+        raise RuntimeError("Presence is not enabled for this account. Please set use_presence_agent=True in the config file")
     default_options = dict(sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, xcap_root=AccountConfig.xcap_root, show_xml=False)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     

@@ -650,7 +650,7 @@ def parse_options():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
     if not AccountConfig.use_presence_agent:
-        raise RuntimeError("Presence is not enabled for this account. Please set presence=True in the config file")
+        raise RuntimeError("Presence is not enabled for this account. Please set use_presence_agent=True in the config file")
     default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
     
