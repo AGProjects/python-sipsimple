@@ -136,7 +136,7 @@ class Session:
 
     def update_ps(self):
         if self.other:
-            self.console.set_ps('to %s@%s: ' % (self.other.user, self.other.host))
+            self.console.set_ps('Chat to %s@%s: ' % (self.other.user, self.other.host))
         else:
             set_nosessions_ps(self.console, self.me)
 
