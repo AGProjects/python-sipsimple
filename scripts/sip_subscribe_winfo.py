@@ -17,7 +17,7 @@ from optparse import OptionParser, OptionValueError
 from time import sleep
 from application.process import process
 from application.configuration import *
-from urllib2 import HTTPError, URLError
+from urllib2 import URLError
 
 from pypjua import *
 from pypjua.clients import enrollment
@@ -31,6 +31,7 @@ from pypjua.clients.clientconfig import get_path
 from pypjua.clients.lookup import *
 
 from xcaplib.client import XCAPClient
+from xcaplib.error import HTTPError
 
 class Boolean(int):
     def __new__(typ, value):
