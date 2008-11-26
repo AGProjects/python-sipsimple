@@ -47,13 +47,14 @@ presence or other type of events:
  * sip_register - REGISTER a SIP end-point with a SIP REGISTRAR
  * sip_audio_session - Setup a voice audio session (VoIP)
  * sip_im_session - Setup an IM session using MSRP protocol
- * sip_msrp_file_transfer - File Transfer session using MSRP protocol
  * sip_message - Send text message in page mode using MESSAGE method
  * sip_publish_presence - PUBLISH presence to a SIP Presence Agent
  * sip_subscribe_presence - SUBSCRIBE to presence information
  * sip_subscribe_winfo - SUBSCRIBE to watcher list on a SIP Presence Agent
  * sip_subscribe_rls - SUBSCRIBE to lists managed by Resource List Server
  * xcapclient - Manage presence policy and buddy lists on an XCAP server
+ * xcap_pres_rules - Manage content of pres-rules XCAP document
+ * xcap_rls_services - Manage content of RLS services XCAP document
 
 Some scripts can be used to setup audio (VoIP), interactive messaging (IM)
 and file transfer sessions. Other scripts can be used to publish presence
@@ -151,7 +152,7 @@ Support
 
 The project is supported via this wiki collaboration system provided at:
 
-http://pypjua.org
+http://SipSimpleClient.com
 
 To open ticket please Register first. The ticketing support system is
 available only for registered users. Please beware that the support is
