@@ -44,7 +44,7 @@ class GeneralConfig(ConfigSection):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname, "use_presence_agent": Boolean}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname, "use_presence_agent": datatypes.Boolean}
     sip_address = None
     password = None
     display_name = None
