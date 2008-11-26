@@ -10,7 +10,7 @@ import glob
 # cannot import pypjua here
 exec(file('pypjua/clients/setupconfig.py').read())
 
-version = "0.2.3"
+version = "0.3.0"
 
 title = "SIP SIMPLE client"
 description = "Python SIP SIMPLE client library using PJSIP"
