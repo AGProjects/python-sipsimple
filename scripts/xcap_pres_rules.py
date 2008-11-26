@@ -42,11 +42,10 @@ class Boolean(int):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname, "xcap_root": str, "use_presence_agent": Boolean}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "xcap_root": str, "use_presence_agent": Boolean}
     sip_address = None
     password = None
     display_name = None
-    outbound_proxy = None
     xcap_root = None
     use_presence_agent = True
 
