@@ -39,7 +39,7 @@ Step 3. Install dependencies
 
 # Install C dependencies
 
-(remove the two "unstable" items from the Trees line of the /etc/sw/fink.conf)
+(remove the two "unstable" items from the Trees line of the /sw/etc/fink.conf)
 sudo fink install gnutls26
 (place back the "unstable" items)
 sudo apt-get install libxml2 libxslt
