@@ -3,7 +3,7 @@ from pprint import pformat
 from weakref import ref
 
 from eventlet.api import spawn, sleep, kill
-from eventlet.coros import queue
+from eventlet.coros import multievent
 
 from pypjua import Engine, Registration, Invitation
 from pypjua.clients.dbgutil import format_lineno
@@ -100,14 +100,14 @@ class EngineBuffer(Engine):
         return obj
 
 
-class MyQueue(queue):
+class MyQueue(multievent):
 
     monitor = None
 
     def send(self, result=None, exc=None):
         if self.monitor:
             self.monitor(result, exc)
-        return queue.send(self, result, exc)
+        return multievent.send(self, result, exc)
 
     def set_monitor(self, func):
         self.monitor = func
