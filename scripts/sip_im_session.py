@@ -294,7 +294,7 @@ class SessionManager:
             self.current_session = s
             self.current_session.update_ps()
 
-    def new_outgoing(self, e, target_uri, route, relay):
+    def start_new_outgoing(self, e, target_uri, route, relay):
         s = Session(self, self.credentials, self.console, self.write_traffic, e.play_wav_file)
         s.start_invite(e, target_uri, route, relay)
         self.sessions.append(s)
@@ -347,7 +347,7 @@ def get_shortcuts(man):
 
 def start_caller(e, options, console, credentials, logger):
     man = SessionManager_Caller(credentials, console, logger.write_traffic, incoming_filter=lambda *args: False)
-    man.new_outgoing(e, options.target_uri, options.route, options.relay)
+    man.start_new_outgoing(e, options.target_uri, options.route, options.relay)
     console.disable()
     try:
         while True:
@@ -402,6 +402,9 @@ def readloop(console, man, commands, shortcuts):
         elif type == 'line':
             echoed = []
             def echo():
+                """Echo user input line, once. Note, that man.send_message() may do echo
+                itself (it indicates if it did it in a return value).
+                """
                 if not echoed:
                     console.copy_input_line(value)
                     echoed.append(1)
@@ -415,7 +418,7 @@ def readloop(console, man, commands, shortcuts):
             except UserCommandError, ex:
                 echo()
                 print ex
-            echo()
+            echo() # will get there without echoing if user pressed enter on an empty line
 
 def console_next_line(console):
     console.copy_input_line()
@@ -512,15 +515,17 @@ def accept_incoming(e, relay, log_func, console, incoming_filter):
     while True:
         inv, params = wait_for_incoming(e)
         asker = spawn_link(incoming_filter, inv, params)
-        ringer=Ringer(e.play_wav_file, get_path("ring_inbound.wav"))
-        ringer.start()
         def killer(_params):
             asker.kill()
         inv.call_on_disconnect(killer)
         ERROR = 488
         try:
-            response = asker.wait()
-            ringer.stop()
+            ringer=Ringer(e.play_wav_file, get_path("ring_inbound.wav"))
+            ringer.start()
+            try:
+                response = asker.wait()
+            finally:
+                ringer.stop()
             remote_sdp = inv.get_offered_remote_sdp()
             if response==True and remote_sdp is not None:
                 if relay is not None:
@@ -553,7 +558,6 @@ def accept_incoming(e, relay, log_func, console, incoming_filter):
             else:
                 ERROR = 486
         finally:
-            ringer.stop()
             inv.cancel_call_on_disconnect(killer)
             if ERROR is not None:
                 inv.shutdown(ERROR)
