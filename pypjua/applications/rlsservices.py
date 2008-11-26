@@ -189,6 +189,8 @@ class Service(XMLElement):
         self.list.to_element(parent=element, nsmap=nsmap)
         self.packages.to_element(parent=element, nsmap=nsmap)
 
+RLSServicesMeta.register(Service)
+
 class RLSServices(XMLListApplication):
     accept_types = ['application/rls-services+xml']
     build_types = ['application/rls-services+xml']
@@ -235,3 +237,4 @@ class RLSServices(XMLListApplication):
         else:
             return super(RLSServices, self).__getitem__(key)
 
+RLSServicesMeta.register(RLSServices)
