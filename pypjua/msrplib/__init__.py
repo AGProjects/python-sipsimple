@@ -4,7 +4,6 @@ from collections import deque
 from copy import copy
 from StringIO import StringIO
 from application.system import default_host_ip
-from gnutls.interfaces.twisted import X509Credentials
 from twisted.internet.error import AlreadyCalled
 
 from eventlet.api import exc_after, TimeoutError
@@ -282,6 +281,7 @@ def _msrp_connect(full_remote_path, log_func, local_uri):
     from twisted.internet import reactor
     Buf = BufferCreator(reactor, MSRPBuffer, local_uri, log_func)
     if full_remote_path[0].use_tls:
+        from gnutls.interfaces.twisted import X509Credentials
         cred = X509Credentials(None, None)
         msrp = Buf.connectTLS(full_remote_path[0].host, full_remote_path[0].port or 2855, cred)
     else:
@@ -336,6 +336,7 @@ def _msrp_listen(handler, log_func=None):
     local_uri = new_local_uri()
     factory = SpawnFactory(handler, MSRPBuffer, local_uri, log_func)
     if local_uri.use_tls:
+        from gnutls.interfaces.twisted import X509Credentials
         cred = X509Credentials(None, None)
         port = reactor.listenTLS(0, factory, cred)
     else:
