@@ -106,7 +106,9 @@ class MyQueue(multievent):
 
     def send(self, result=None, exc=None):
         if self.monitor:
-            self.monitor(result, exc)
+            # send must be non-blocking: it will be called from the mainloop greenlet
+            # hence, use spawn to be sure
+            spawn(self.monitor, result, exc)
         return multievent.send(self, result, exc)
 
     def set_monitor(self, func):
