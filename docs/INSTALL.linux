@@ -56,14 +56,7 @@ mercurial           http://www.selenic.com/mercurial                  >=1.0.2
 Alternatively, you can use the easy_install script provided by the
 python-setuptools package to install the same packages:
 
-sudo easy_install -U python-gnutls
-sudo easy_install -U lxml
-sudo easy_install -U cython
-sudo easy_install -U python-application
-sudo easy_install -U dnspython
-sudo easy_install -U twisted
-sudo easy_install -U py
-sudo easy_install -U mercurial
+sudo easy_install -U python-gnutls lxml cython python-application dnspython twisted py mercurial
 
 # Download and install eventlet using mercurial version control:
 

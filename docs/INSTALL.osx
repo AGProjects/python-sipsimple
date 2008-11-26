@@ -47,27 +47,23 @@ sudo apt-get install libxml2 libxslt
 # Install Python dependencies
 
 sudo easy_install --script-dir /usr/bin -U setuptools
-sudo easy_install -U cython
-sudo easy_install -U python-application
-sudo easy_install -U dnspython
-sudo easy_install -U lxml
-sudo easy_install -U twisted
-sudo easy_install -U py
-sudo easy_install -U mercurial
+sudo easy_install -U cython python-application dnspython lxml twisted py mercurial
 
 darcs get http://devel.ag-projects.com/repositories/python-gnutls
 cd python-gnutls
 sudo python setup.py install
 
-LC_CTYPE= hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+export LC_CTYPE=
+hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
 To update the eventlet_twisted repository at a later date:
 
+export LC_CTYPE=
 cd eventlet_twisted
-LC_CTYPE= hg pull
-LC_CTYPE= hg update
+hg pull
+hg update
 
 #Install the python-xcaplib from http://download.ag-projects.com/OpenXCAP/clients/
 
