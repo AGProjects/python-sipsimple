@@ -1,34 +1,17 @@
 import sys
-import os
 from pprint import pformat
-from inspect import currentframe
 from weakref import ref
 
 from eventlet.api import spawn, sleep, kill
 from eventlet.coros import queue
 
 from pypjua import Engine, Registration, Invitation
+from pypjua.clients.dbgutil import format_lineno
 
 # QQQ: separate logging part from InvitationBuffer and RegstrationBuffer
 
 def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
-
-def format_lineno(level=0):
-    frame = currentframe()
-    while level>=0:
-        if frame.f_back is None:
-            break
-        frame = frame.f_back
-        level -= 1
-    fname = os.path.basename(frame.f_code.co_filename)
-    lineno = frame.f_lineno
-    res = '%s:%s' % (fname, lineno)
-    co_name = frame.f_code.co_name
-    if co_name is not '<module>':
-        res += '(%s)' % co_name
-    return res
-
 
 class EngineLogger:
 
