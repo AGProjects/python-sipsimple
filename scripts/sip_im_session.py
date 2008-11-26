@@ -255,13 +255,13 @@ class SessionManager:
             pass
         else:
             del self.sessions[index]
-            if self.sessions:
-                if self.current_session is session:
-                    self.current_session = self.sessions[index % len(self.sessions)]
-            else:
-                self.current_session = None
-                self.on_last_disconnect()
-            self.update_ps()
+        if self.sessions:
+            if self.current_session is session:
+                self.current_session = self.sessions[index % len(self.sessions)]
+        else:
+            self.current_session = None
+            self.on_last_disconnect()
+        self.update_ps()
 
     def switch(self):
         if len(self.sessions)<2:
