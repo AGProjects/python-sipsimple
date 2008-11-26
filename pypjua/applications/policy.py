@@ -364,10 +364,11 @@ class RuleSet(XMLListApplication):
             child.to_element(parent=element, nsmap=nsmap)
 
     def _before_add(self, rule):
-        if self._rules.get(rule.id) is None:
-            self._rules[rule.id] = rule
-        else:
+        if not isinstance(rule, Rule):
+            raise TypeError("found %s, expected %s" % (rule.__class__.__name__, Rule.__name__))
+        if rule.id in self._rules:
             raise ValueError("Cannot have more than one Rule with the same id: %s" % rule.id)
+        self._rules[rule.id] = rule
         return rule
 
     def _before_del(self, rule):

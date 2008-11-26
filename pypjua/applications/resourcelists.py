@@ -229,8 +229,7 @@ class ResourceLists(XMLListApplication):
 
     def __init__(self, lists=[]):
         self._lists = {}
-        for rlist in lists:
-            self.append(rlist)
+        self[:] = lists
 
     def _parse_element(self, element):
         self._lists = {}
@@ -244,10 +243,11 @@ class ResourceLists(XMLListApplication):
             rlist.to_element(parent=element, nsmap=nsmap)
 
     def _before_add(self, rlist):
-        if self._lists.get(rlist.name) is None:
-            self._lists[rlist.name] = rlist
-        else:
+        if not isinstance(rlist, List):
+            raise TypeError("found %s, expected %s" % (rlist.__class__.__name__, List.__name__))
+        if rlist.name in self._lists:
             raise ValueError("Cannot have more than one list with the same name at this level: %s" % rlist.name)
+        self._lists[rlist.name] = rlist
         return rlist
 
     def _before_del(self, rlist):
