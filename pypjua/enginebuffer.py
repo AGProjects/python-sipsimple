@@ -401,15 +401,15 @@ class InvitationBuffer(BaseBuffer):
         try:
             while True:
                 event_name, params = self._wait()
-                if event_name == 'Invitation_state' and params['state'] == 'EARLY':
-                    self.log_ringing(params)
-                    if ringer:
-                        ringer.start()
-                elif event_name == 'Invitation_state' and params['state'] == 'CONFIRMED':
-                    break
-                elif event_name == 'Invitation_state' and params['state'] == 'DISCONNECTED':
-                    self.logger.log_event('DROPPED', event_name, params)
-                    break
+                if event_name == 'Invitation_state':
+                    state = params['state']
+                    if state == 'EARLY':
+                        self.log_ringing(params)
+                        if ringer:
+                            ringer.start()
+                    elif state in ['CONFIRMED', 'DISCONNECTED']:
+                        self.logger.log_event('INVITE result', event_name, params)
+                        break
         finally:
             if ringer:
                 ringer.stop()
