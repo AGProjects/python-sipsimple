@@ -323,7 +323,7 @@ class InvitationBuffer(BaseBuffer):
 
     @property
     def connected(self):
-        return self.state=='ESTABLISHED'
+        return self.state == 'CONFIRMED'
 
     @property
     def me(self):
