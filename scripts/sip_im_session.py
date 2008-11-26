@@ -2,7 +2,6 @@
 from __future__ import with_statement
 import sys
 import os
-import traceback
 import re
 import random
 import string
@@ -608,9 +607,6 @@ def main():
             start(options, console)
     except RuntimeError, e:
         sys.exit(str(e))
-    except Exception:
-        traceback.print_exc()
-        sys.exit(1)
 
 re_host_port = re.compile("^((?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(?P<host>[a-zA-Z0-9\-\.]+))(:(?P<port>\d+))?$")
 def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port, allow_host=True):
