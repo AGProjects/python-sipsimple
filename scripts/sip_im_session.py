@@ -28,7 +28,7 @@ from pypjua.clients import enrollment
 from pypjua.enginebuffer import EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
 
-CTRL_S = '\x13'
+KEY_NEXT_SESSION = '\x0e'
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
@@ -343,7 +343,7 @@ def get_commands(man):
             'switch': man.switch}
 
 def get_shortcuts(man):
-    return {CTRL_S: man.switch}
+    return {KEY_NEXT_SESSION: man.switch}
 
 def start_caller(e, options, console, credentials, logger):
     man = SessionManager_Caller(credentials, console, logger.write_traffic, incoming_filter=lambda *args: False)
