@@ -375,7 +375,7 @@ def start_listener(e, options, console, credentials, logger):
     man = SessionManager(credentials, console, logger.write_traffic, incoming_filter)
     man.start_accept_incoming(e, options.relay)
     print 'Waiting for incoming SIP session requests...'
-    print "Press Ctrl-D to quit"
+    print "Press Ctrl-d to quit or Control-n to switch between active sessions"
     try:
         while True:
             x = readloop(console, man, get_commands(man), get_shortcuts(man))

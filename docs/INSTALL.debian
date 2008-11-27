@@ -95,7 +95,8 @@ You will now have a Debian package in the upper level directory.
 
 The package depends on python-xcaplib. To build a debian package for
 python-xcaplib, download the software and use debuild or dpkg-buildpackage
-command.
+command. See INSTALL.linux for more information about the location of
+python-xcaplib software.
 
 
 Notes
