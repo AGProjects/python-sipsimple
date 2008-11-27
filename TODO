@@ -29,7 +29,6 @@ Audio
 - Play a beep after we closed a session
 - Play a special beep when receiving a call while engaged in another call
 - Implement Automatic Gain Control AGC in PJSIP media engine
-- Play a soft beep when IM is received or sent
 
 Command line clients
 --------------------
@@ -51,7 +50,6 @@ Logging, based on trace_x configuration options:
 
 - print source of incomming NOTIFYs in sip_subscribe_x scripts
 - sip_subscribe_presence to a list of URIs
-- xcap_rls_services script, with service-uri as parameter default is user-buddies@samedomain
 - xcap_pidf_manipulation script
 - Publish service and status when starting/stopping rtp/msrp session script
 - Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for

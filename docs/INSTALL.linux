@@ -17,11 +17,21 @@ Step 1. Prerequisites
 You must install the C compiling environment, python 2.5 and the following
 packages: 
 
-gnutls>=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9
+gnutls >=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9
 
-Install subversion, mercurial and darcs version control tools.
+Install subversion, mercurial and darcs version control tools. Darcs is
+available from http://darcs.net or as a package for some Linux
+distributions.
 
-Darcs is available at http://darcs.net
+For the server side you need a SIP account from a service provider or to
+setup your own SIP infrastructure using the following elements:
+
+OpenSIPS  >= 1.4.2 from http://opensips.org
+OpenXCAP  >= 1.0.6 from http://openxcap.org
+MSRPRelay >= 1.0.0 from http://msrprelay.org
+
+A SIP account with all SIP SIMPLE client features can be obtained for free
+from http://sip2sip.info 
 
 
 Step 2. Obtain the latest SIP SIMPLE client source code
