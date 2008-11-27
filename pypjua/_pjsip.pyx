@@ -1211,58 +1211,54 @@ cdef class PJSIPUA:
         pj_log_set_level(PJ_LOG_MAX_LEVEL)
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
         pj_log_set_log_func(cb_log)
-        try:
-            self.c_pjlib = PJLIB()
-            self.c_check_thread()
-            pj_srand(random.getrandbits(32)) # rely on python seed for now
-            self.c_caching_pool = PJCachingPool()
-            self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
-            self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_port"])
-            status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
-            if status != 0:
-                raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
-            self.codecs = kwargs["initial_codecs"]
-            self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["playback_dtmf"])
-            self.ec_tail_length = kwargs["ec_tail_length"]
-            if kwargs["auto_sound"]:
-                self.auto_set_sound_devices()
-            self.c_module_name = PJSTR("mod-pypjua")
-            self.c_module.name = self.c_module_name.pj_str
-            self.c_module.id = -1
-            self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
-            self.c_module.on_rx_request = cb_PJSIPUA_rx_request
-            status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
-            if status != 0:
-                raise RuntimeError("Could not load application module: %s" % pj_status_to_str(status))
-            status = pjsip_endpt_add_capability(self.c_pjsip_endpoint.c_obj, &self.c_module, PJSIP_H_ALLOW, NULL, 1, &c_message_method.pj_str)
-            if status != 0:
-                raise RuntimeError("Could not add MESSAGE method to supported methods: %s" % pj_status_to_str(status))
-            self.c_trace_sip = bool(kwargs["trace_sip"])
-            self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
-            self.c_trace_module.name = self.c_trace_module_name.pj_str
-            self.c_trace_module.id = -1
-            self.c_trace_module.priority = 0
-            self.c_trace_module.on_rx_request = cb_trace_rx
-            self.c_trace_module.on_rx_response = cb_trace_rx
-            self.c_trace_module.on_tx_request = cb_trace_tx
-            self.c_trace_module.on_tx_response = cb_trace_tx
-            status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_trace_module)
-            if status != 0:
-                raise RuntimeError("Could not load sip trace module: %s" % pj_status_to_str(status))
-            self.c_event_module_name = PJSTR("mod-pypjua-events")
-            self.c_event_module.name = self.c_event_module_name.pj_str
-            self.c_event_module.id = -1
-            self.c_event_module.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE
-            status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
-            if status != 0:
-                raise RuntimeError("Could not load events module: %s" % pj_status_to_str(status))
-            self.c_user_agent_hdr = GenericStringHeader("User-Agent", kwargs["user_agent"])
-            for event, accept_types in kwargs["initial_events"].iteritems():
-                self.add_event(event, accept_types)
-            self.rtp_port_range = kwargs["rtp_port_range"]
-        except:
-            self._do_dealloc()
-            raise
+        self.c_pjlib = PJLIB()
+        self.c_check_thread()
+        pj_srand(random.getrandbits(32)) # rely on python seed for now
+        self.c_caching_pool = PJCachingPool()
+        self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
+        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_port"])
+        status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
+        if status != 0:
+            raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
+        self.codecs = kwargs["initial_codecs"]
+        self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["playback_dtmf"])
+        self.ec_tail_length = kwargs["ec_tail_length"]
+        if kwargs["auto_sound"]:
+            self.auto_set_sound_devices()
+        self.c_module_name = PJSTR("mod-pypjua")
+        self.c_module.name = self.c_module_name.pj_str
+        self.c_module.id = -1
+        self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
+        self.c_module.on_rx_request = cb_PJSIPUA_rx_request
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
+        if status != 0:
+            raise RuntimeError("Could not load application module: %s" % pj_status_to_str(status))
+        status = pjsip_endpt_add_capability(self.c_pjsip_endpoint.c_obj, &self.c_module, PJSIP_H_ALLOW, NULL, 1, &c_message_method.pj_str)
+        if status != 0:
+            raise RuntimeError("Could not add MESSAGE method to supported methods: %s" % pj_status_to_str(status))
+        self.c_trace_sip = bool(kwargs["trace_sip"])
+        self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
+        self.c_trace_module.name = self.c_trace_module_name.pj_str
+        self.c_trace_module.id = -1
+        self.c_trace_module.priority = 0
+        self.c_trace_module.on_rx_request = cb_trace_rx
+        self.c_trace_module.on_rx_response = cb_trace_rx
+        self.c_trace_module.on_tx_request = cb_trace_tx
+        self.c_trace_module.on_tx_response = cb_trace_tx
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_trace_module)
+        if status != 0:
+            raise RuntimeError("Could not load sip trace module: %s" % pj_status_to_str(status))
+        self.c_event_module_name = PJSTR("mod-pypjua-events")
+        self.c_event_module.name = self.c_event_module_name.pj_str
+        self.c_event_module.id = -1
+        self.c_event_module.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
+        if status != 0:
+            raise RuntimeError("Could not load events module: %s" % pj_status_to_str(status))
+        self.c_user_agent_hdr = GenericStringHeader("User-Agent", kwargs["user_agent"])
+        for event, accept_types in kwargs["initial_events"].iteritems():
+            self.add_event(event, accept_types)
+        self.rtp_port_range = kwargs["rtp_port_range"]
 
     property trace_sip:
 
@@ -1379,11 +1375,8 @@ cdef class PJSIPUA:
         return rec_file
 
     def __dealloc__(self):
-        self.c_check_thread()
-        self._do_dealloc()
-
-    cdef int _do_dealloc(self) except -1:
         global _ua, _event_queue_lock
+        self.c_check_thread()
         cdef RecordingWaveFile rec_file
         for rec_file in self.c_rec_files:
             rec_file.stop()
