@@ -23,8 +23,8 @@ Install subversion, mercurial and darcs version control tools. Darcs is
 available from http://darcs.net or as a package for some Linux
 distributions.
 
-For the server side you need a SIP account from a service provider or to
-setup your own SIP infrastructure using the following elements:
+You need a SIP account from a service provider or to setup your own SIP
+infrastructure using the following elements:
 
 OpenSIPS  >= 1.4.2 from http://opensips.org
 OpenXCAP  >= 1.0.6 from http://openxcap.org

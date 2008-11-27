@@ -19,8 +19,8 @@ b. Install Apple Developer tools
 c. Install Fink from http://www.finkproject.org
 d. Install darcs version control tool from http://www.darcs.net
 
-For the server side you need a SIP account from a service provider or to
-setup your own SIP infrastructure using the following elements:
+You need a SIP account from a service provider or to setup your own SIP
+infrastructure using the following elements:
 
 OpenSIPS  >= 1.4.2 from http://opensips.org
 OpenXCAP  >= 1.0.6 from http://openxcap.org
