@@ -154,13 +154,42 @@ def remove_buddy(buddy):
     else:
         print "Could not remove buddy %s" % buddy
    
+def delete_service():
+    global rls_services, rls_services_etag, buddy_service, show_xml
+    for i in xrange(3):
+        if rls_services is None:
+            get_rls_services()
+        if rls_services is not None:
+            if buddy_service.uri in rls_services:
+                rls_services.remove(buddy_service.uri)
+                try:
+                    res = xcap_client.put('rls-services', rls_services.toxml(pretty_print=True), etag=rls_services_etag)
+                except HTTPError, e:
+                    print "Cannot PUT 'rls-services' document: %s" % str(e)
+                    rls_services = None
+                else:
+                    rls_services_etag = res.etag
+                    if show_xml:
+                        print "RLS Services document:"
+                        print rls_services.toxml(pretty_print=True)
+                    print "Service %s has been removed" % buddy_service.uri
+                    queue.put(("quit", None))
+                    break
+            else:
+                print "No such service: %s" % buddy_service.uri
+                queue.put(("quit", None))
+                break
+        sleep(0.1)
+    else:
+        print "Could not delete service %s" % buddy_service.uri
+   
 
 def print_rls_services():
     global rls_services, rls_services_etag, buddy_service, show_xml
     print '\nBuddies:'
     for buddy in buddy_service.list:
         print '\t%s' % str(buddy).replace('sip:', '')
-    print "Press (a) to add or (r) to remove a buddy. (s) will show the RLS services xml."
+    print "Press (a) to add or (r) to remove a buddy. (s) will show the RLS services xml. (d) will delete the currently selected service."
     
 
 def termios_restore():
@@ -240,7 +269,11 @@ def read_queue(username, domain, password, display_name, xcap_root):
                     if rls_services is not None:
                         print "RLS services document:"
                         print rls_services.toxml(pretty_print=True)
-                print_rls_services()
+                elif key == 'd':
+                    delete_service()
+                
+                if key != 'd':
+                    print_rls_services()
             if command == "eof":
                 command = "end"
                 want_quit = True
