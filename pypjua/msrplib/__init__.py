@@ -154,17 +154,17 @@ class MSRPBuffer(BaseBuffer):
         msrpdata.add_header(msrp_protocol.FromPathHeader([self.local_uri]))
         return msrpdata
 
-    def make_message(self, msg):
+    def make_message(self, msg, content_type='text/plain'):
         chunk = self.make_request(method="SEND", transaction_id=random_string(12))
         chunk.add_header(msrp_protocol.MessageIDHeader(str(random_string(10))))
         chunk.add_header(msrp_protocol.ByteRangeHeader((1, len(msg), len(msg))))
-        chunk.add_header(msrp_protocol.ContentTypeHeader("text/plain"))
+        chunk.add_header(msrp_protocol.ContentTypeHeader(content_type))
         chunk.data = msg
         chunk.contflag = '$'
         return chunk
 
-    def send_message(self, msg):
-        chunk = self.make_message(msg)
+    def send_message(self, msg, content_type='text/plain'):
+        chunk = self.make_message(msg, content_type)
         self.send_chunk(chunk)
         return chunk
 
