@@ -179,11 +179,11 @@ def getchar():
         try:
             termios.tcsetattr(fd, termios.TCSADRAIN, new)
             if select.select([fd], [], [], None)[0]:
-                return sys.stdin.read(10)
+                return sys.stdin.read(4192)
         finally:
             termios_restore()
     else:
-        return os.read(fd, 10)
+        return os.read(fd, 4192)
 
 def getstr(prompt='selection'):
     global string, getstr_event
@@ -266,29 +266,31 @@ def do_xcap_rls_services(**kwargs):
     
     try:
         while True:
-            char = getchar()
-            if char == "\x04":
-                if not ctrl_d_pressed:
-                    queue.put(("eof", None))
-                    ctrl_d_pressed = True
-            else:
-                if string is not None:
-                    if char == "\x7f":
-                        if len(string) > 0:
-                            char = "\x08"
-                            sys.stdout.write("\x08 \x08")
-                            sys.stdout.flush()
-                            string = string[:-1]
-                    else:
-                        if old is not None:
-                            sys.stdout.write(char)
-                            sys.stdout.flush()
-                        if char == "\x0A":
-                            getstr_event.set()
-                        else:
-                            string += char
+            for char in getchar():
+                if char == "\x04":
+                    if not ctrl_d_pressed:
+                        queue.put(("eof", None))
+                        ctrl_d_pressed = True
+                        break
                 else:
-                    queue.put(("user_input", char))
+                    if string is not None:
+                        if char == "\x7f":
+                            if len(string) > 0:
+                                char = "\x08"
+                                sys.stdout.write("\x08 \x08")
+                                sys.stdout.flush()
+                                string = string[:-1]
+                        else:
+                            if old is not None:
+                                sys.stdout.write(char)
+                                sys.stdout.flush()
+                            if char == "\x0A":
+                                getstr_event.set()
+                                break
+                            else:
+                                string += char
+                    else:
+                        queue.put(("user_input", char))
     except KeyboardInterrupt:
         if user_quit:
             print "Ctrl+C pressed, exiting instantly!"
