@@ -223,12 +223,18 @@ def read_queue(username, domain, password, display_name, xcap_root):
                 if key == 'a':
                     buddy = getstr('new buddy')
                     if buddy != '':
-                        buddy = 'sip:' + buddy
+                        if '@' not in buddy:
+                            buddy = 'sip:%s@%s' % (buddy, domain)
+                        else:
+                            buddy = 'sip:%s' % buddy
                         add_buddy(buddy)
                 elif key == 'r':
                     buddy = getstr('buddy to delete')
                     if buddy != '':
-                        buddy = 'sip:' + buddy
+                        if '@' not in buddy:
+                            buddy = 'sip:%s@%s' % (buddy, domain)
+                        else:
+                            buddy = 'sip:%s' % buddy
                         remove_buddy(buddy)
                 elif key == 's':
                     if rls_services is not None:
