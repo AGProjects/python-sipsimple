@@ -1212,7 +1212,7 @@ cdef class PJSIPUA:
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
         pj_log_set_log_func(cb_log)
         self.c_pjlib = PJLIB()
-        self.c_check_thread()
+        self.c_check_self()
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
@@ -1263,33 +1263,40 @@ cdef class PJSIPUA:
     property trace_sip:
 
         def __get__(self):
+            self.c_check_self()
             return bool(self.c_trace_sip)
 
         def __set__(self, value):
+            self.c_check_self()
             self.c_trace_sip = bool(value)
 
     property events:
 
         def __get__(self):
+            self.c_check_self()
             return dict([(pkg.event, pkg.accept_types) for pkg in self.c_events])
 
     def add_event(self, event, accept_types):
         cdef EventPackage pkg
+        self.c_check_self()
         pkg = EventPackage(self, event, accept_types)
         self.c_events.append(pkg)
 
     property playback_devices:
 
         def __get__(self):
+            self.c_check_self()
             return self.c_conf_bridge._get_sound_devices(True)
 
     property recording_devices:
 
         def __get__(self):
+            self.c_check_self()
             return self.c_conf_bridge._get_sound_devices(False)
 
     def set_sound_devices(self, PJMEDIASoundDevice playback_device, PJMEDIASoundDevice recording_device, tail_length = None):
         cdef unsigned int c_tail_length = self.ec_tail_length
+        self.c_check_self()
         if tail_length is not None:
             c_tail_length = tail_length
         self.c_conf_bridge._set_sound_devices(playback_device.c_index, recording_device.c_index, c_tail_length)
@@ -1298,6 +1305,7 @@ cdef class PJSIPUA:
 
     def auto_set_sound_devices(self, tail_length = None):
         cdef unsigned int c_tail_length = self.ec_tail_length
+        self.c_check_self()
         if tail_length is not None:
             c_tail_length = tail_length
         self.c_conf_bridge._set_sound_devices(-1, -1, c_tail_length)
@@ -1307,9 +1315,11 @@ cdef class PJSIPUA:
     property codecs:
 
         def __get__(self):
+            self.c_check_self()
             return self.c_pjmedia_endpoint.c_codecs[:]
 
         def __set__(self, val):
+            self.c_check_self()
             if not isinstance(val, list):
                 raise TypeError("codecs attribute should be a list")
             new_codecs = val[:]
@@ -1328,22 +1338,26 @@ cdef class PJSIPUA:
     property local_ip:
 
         def __get__(self):
+            self.c_check_self()
             return pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host)
 
     property local_port:
 
         def __get__(self):
+            self.c_check_self()
             return self.c_pjsip_endpoint.c_udp_transport.local_name.port
 
     property rtp_port_range:
 
         def __get__(self):
+            self.c_check_self()
             return (self.c_rtp_port_start, self.c_rtp_port_stop)
 
         def __set__(self, value):
             cdef int c_rtp_port_start
             cdef int c_rtp_port_stop
             cdef int port
+            self.c_check_self()
             c_rtp_port_start, c_rtp_port_stop = value
             for port in value:
                 if port < 0 or port > 65535:
@@ -1354,28 +1368,35 @@ cdef class PJSIPUA:
             self.c_rtp_port_stop = c_rtp_port_stop
 
     def connect_audio_transport(self, AudioTransport transport):
+        self.c_check_self()
         if transport.c_obj == NULL:
             raise RuntimeError("Cannot connect an AudioTransport that was not started yet")
         self.c_conf_bridge._connect_conv_slot(transport.c_conf_slot)
 
     def disconnect_audio_transport(self, AudioTransport transport):
+        self.c_check_self()
         if transport.c_obj == NULL:
             raise RuntimeError("Cannot disconnect an AudioTransport that was not started yet")
         self.c_conf_bridge._disconnect_slot(transport.c_conf_slot)
 
     def play_wav_file(self, file_name):
-        self.c_check_thread()
+        self.c_check_self()
         self.c_wav_files.append(WaveFile(self.c_pjsip_endpoint, self.c_conf_bridge, file_name))
 
     def rec_wav_file(self, file_name):
         cdef RecordingWaveFile rec_file
-        self.c_check_thread()
+        self.c_check_self()
         rec_file = RecordingWaveFile(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, self.c_conf_bridge, file_name)
         self.c_rec_files.append(rec_file)
         return rec_file
 
     def __dealloc__(self):
+        self.dealloc()
+
+    def dealloc(self):
         global _ua, _event_queue_lock
+        if _ua == NULL:
+            return
         self.c_check_thread()
         cdef RecordingWaveFile rec_file
         for rec_file in self.c_rec_files:
@@ -1403,16 +1424,23 @@ cdef class PJSIPUA:
 
     def poll(self):
         cdef int status
-        self.c_check_thread()
+        self.c_check_self()
         with nogil:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &self.c_max_timeout)
         if status != 0:
             raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
 
+    cdef int c_check_self(self) except -1:
+        global _ua
+        if _ua == NULL:
+            raise RuntimeError("The PJSIPUA is no longer running")
+        self.c_check_thread()
+
     cdef int c_check_thread(self) except -1:
         if not pj_thread_is_registered():
             self.c_threads.append(PJSIPThread())
+        return 0
 
     cdef PJSTR c_create_contact_uri(self, object username):
         return PJSTR(str(SIPURI(host=pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host), user=username, port=self.c_pjsip_endpoint.c_udp_transport.local_name.port)))

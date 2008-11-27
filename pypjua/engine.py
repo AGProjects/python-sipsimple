@@ -49,6 +49,7 @@ class Engine(object):
             self._lock.acquire()
             del self._thread_stopping
             del self._lock
+            self._ua.dealloc()
             del self._ua
 
     def start(self):
