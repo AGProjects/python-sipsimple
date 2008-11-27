@@ -1,13 +1,11 @@
 import traceback
 from thread import start_new_thread, allocate_lock
 
-from application.python.util import Singleton
-
 from pypjua._pjsip import PJSIPUA, PJ_VERSION
 from pypjua import __version__
 
 class Engine(object):
-    __metaclass__ = Singleton
+    _instance = None
     _done_init = False
     init_options_defaults = {"local_ip": None,
                              "local_port": None,
@@ -24,6 +22,11 @@ class Engine(object):
                                                 "presence.winfo": ["application/watcherinfo+xml"],
                                                 "xcap-diff": ["application/xcap-diff+xml"]}}
 
+    def __new__(cls, *args, **kwargs):
+        if Engine._instance is None:
+            Engine._instance = object.__new__(cls)
+        return Engine._instance
+
     def __init__(self, event_handler = None, **kwargs):
         if not Engine._done_init:
             self.init_options = Engine.init_options_defaults.copy()
@@ -39,11 +42,6 @@ class Engine(object):
             self._thread_started = False
             self._thread_running = False
             Engine._done_init = True
-
-    @classmethod
-    def _shutdown(cls):
-        if cls.instance is not None:
-            cls.instance.stop()
 
     def stop(self):
         if self._thread_running:
@@ -107,7 +105,7 @@ class Engine(object):
 class EngineHelper(object):
 
     def __del__(self):
-        if Engine.instance is not None:
-            Engine().stop()
+        if Engine._instance is not None:
+            Engine.stop(Engine._instance)
 
 _helper = EngineHelper()
