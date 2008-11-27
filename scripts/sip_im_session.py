@@ -21,7 +21,7 @@ from eventlet.coros import queue, spawn_link
 from pypjua import *
 from pypjua.clients.lookup import lookup_srv
 from pypjua.clients import msrp_protocol
-from pypjua.msrplib import msrp_relay_connect, msrp_connect, msrp_listen, msrp_accept, new_local_uri, MSRPError
+from pypjua.msrplib import MSRPConnector, MSRPError
 from pypjua.clients.consolebuffer import setup_console, TrafficLogger, CTRL_D
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
@@ -67,21 +67,23 @@ def format_useruri(uri):
 def echo_message(uri, message):
     print '%s %s: %s' % (format_time(), uri, message)
 
-def set_nosessions_ps(console, myuri):
-    console.set_ps('%s@%s> ' % (myuri.user, myuri.host))
+#def set_nosessions_ps(console, myuri):
+#    console.set_ps('%s@%s> ' % (myuri.user, myuri.host))
+
+def format_nosessions_ps(myuri):
+    return '%s@%s> ' % (myuri.user, myuri.host)
 
 class UserCommandError(Exception):
     pass
 
-class Session:
+class ChatSession:
 
     msrp_closed_by_me = False
     ending_msrp_connection_only = False
 
-    def __init__(self, session_manager, credentials, console, write_traffic, play_wav_func, sip=None, msrp=None):
+    def __init__(self, session_manager, credentials, write_traffic, play_wav_func=None, sip=None, msrp=None):
         self.myman = session_manager
         self.credentials = credentials
-        self.console = console
         self.write_traffic = write_traffic
         self.play_wav_func = play_wav_func
         self.sip = sip
@@ -95,11 +97,25 @@ class Session:
 
     def _on_message_received(self, message):
         echo_message(format_useruri(self.other), message)
-        self.play_wav_func(get_path("Message_Received.wav"))
+        if self.play_wav_func:
+            self.play_wav_func(get_path("Message_Received.wav"))
 
-    def _on_message_sent(self, message):
+    def _on_message_sent(self, message, content_type):
         echo_message(format_useruri(self.me), message)
-        self.play_wav_func(get_path("Message_Sent.wav"))
+        if self.play_wav_func:
+            self.play_wav_func(get_path("Message_Sent.wav"))
+
+    def _report_disconnect(self):
+        if self.myman:
+            self.myman.disconnect(self)
+
+    def _report_invited(self):
+        if self.myman:
+            self.myman.on_invited(self)
+
+    def _update_ps(self):
+        if self.myman:
+            self.myman.update_ps()
 
     def shutdown(self):
         if self.sip:
@@ -127,39 +143,51 @@ class Session:
 
     def start_invite(self, e, target_uri, route, relay):
         assert not self.invite_job, self.invite_job
-        self.invite_job = spawn(self._invite, e, target_uri, route, relay)
+        self.invite_job = spawn_link(self._invite, e, target_uri, route, relay)
 
     def stop_invite(self):
         if self.invite_job:
-            invite_job = self.invite_job
-            kill(invite_job)
+            self.invite_job.kill()
 
-    def update_ps(self):
+    def format_ps(self):
         if self.other:
-            self.console.set_ps('Chat to %s@%s: ' % (self.other.user, self.other.host))
+            return 'Chat to %s@%s: ' % (self.other.user, self.other.host)
         else:
-            set_nosessions_ps(self.console, self.me)
+            return format_nosessions_ps(self.me)
+
+    def make_sdp_media(self, uri):
+        return make_msrp_sdp_media(uri, ['text/plain'])
 
     def _invite(self, e, target_uri, route, relay):
         try:
-            self.sip, self.msrp = invite(e, self.credentials, target_uri, route, relay, self.write_traffic)
+            self.sip, self.msrp = invite(e, self.credentials, target_uri, route, relay,
+                                         self.write_traffic, self.make_sdp_media)
         except SIPDisconnect:
-            self.myman.disconnect(self)
-        except (DNSLookupError, MSRPError), ex:
+            self._report_disconnect()
+        except InviteErrors, ex:
             print ex
-            self.myman.disconnect(self)
+            self._report_disconnect()
+        except GreenletExit:
+            self._report_disconnect()
+            raise
         except:
-            self.myman.disconnect(self)
+            import traceback
+            traceback.print_exc()
+            self._report_disconnect()
             raise
         else:
             self.start_read_msrp()
-            self.update_ps()
-            self.sip.call_on_disconnect(self._on_disconnect)
-            self.myman.on_invited(self)
+            self._update_ps()
+            if self.sip.state!='CONFIRMED':
+                # XXX call_on_disconnect should reliably handle this case
+                self._report_disconnect()
+            else:
+                self.sip.call_on_disconnect(self._on_disconnect)
+                self._report_invited()
 
     def _on_disconnect(self, params):
         self.close_msrp()
-        self.myman.disconnect(self)
+        self._report_disconnect()
 
     def start_read_msrp(self):
         assert not self.read_msrp_job, self.read_msrp_job
@@ -185,7 +213,7 @@ class Session:
         finally:
             if not self.ending_msrp_connection_only:
                 self.sip.shutdown()
-                self.myman.disconnect(self)
+                self._report_disconnect()
 
     def close_msrp(self):
         if self.msrp and self.msrp.connected:
@@ -205,10 +233,10 @@ class Session:
             with_timeout(1, self.read_msrp_job.wait, timeout_value=1)
             self.close_msrp()
 
-    def send_message(self, msg):
+    def send_message(self, msg, content_type='text/plain'):
         if self.msrp and self.msrp.connected:
-            self.msrp.send_message(msg)
-            self._on_message_sent(msg)
+            self.msrp.send_message(msg, content_type)
+            self._on_message_sent(msg, content_type)
             return True
         else:
             raise UserCommandError('MSRP is not connected')
@@ -244,9 +272,10 @@ class SessionManager:
 
     def update_ps(self):
         if self.current_session:
-            self.current_session.update_ps()
+            ps = self.current_session.format_ps()
         else:
-            set_nosessions_ps(self.console, self.credentials.uri)
+            ps = format_nosessions_ps(self.credentials.uri)
+        self.console.set_ps(ps)
 
     def disconnect(self, session):
         try:
@@ -287,15 +316,30 @@ class SessionManager:
             self.accept_incoming_job = None
 
     def _accept_incoming(self, e, relay):
+        handler = IncomingSessionHandler()
+        inbound_ringer = Ringer(e.play_wav_file, get_path("ring_inbound.wav"))
+        def new_chat_session(sip, msrp):
+            return ChatSession(self, self.credentials, self.write_traffic, e.play_wav_file, sip, msrp)
+        connector = NoisyMSRPConnector(relay, self.write_traffic)
+        #file = IncomingFileTransferHandler(relay, e.local_ip, self.console, make_chat_session, inbound_ringer)
+        #handler.add_handler(file)
+        chat = IncomingChatHandler(connector, e.local_ip, self.console, new_chat_session, inbound_ringer)
+        handler.add_handler(chat)
         while True:
-            sip, msrp = accept_incoming(e, relay, self.write_traffic, self.console, self.incoming_filter)
-            s = Session(self, self.credentials, self.console, self.write_traffic, e.play_wav_file, sip, msrp)
-            self.sessions.append(s)
-            self.current_session = s
-            self.current_session.update_ps()
+            try:
+                s = wait_for_incoming(e, handler)
+                self.sessions.append(s)
+                self.current_session = s
+                self.update_ps()
+            except GreenletExit:
+                raise
+            except:
+                import traceback
+                traceback.print_exc()
+                sleep(1)
 
     def start_new_outgoing(self, e, target_uri, route, relay):
-        s = Session(self, self.credentials, self.console, self.write_traffic, e.play_wav_file)
+        s = ChatSession(self, self.credentials, self.write_traffic, e.play_wav_file)
         s.start_invite(e, target_uri, route, relay)
         self.sessions.append(s)
         self.current_session = s
@@ -402,8 +446,8 @@ def readloop(console, man, commands, shortcuts):
         elif type == 'line':
             echoed = []
             def echo():
-                """Echo user input line, once. Note, that man.send_message() may do echo
-                itself (it indicates if it did it in a return value).
+                """Echo user's input line, once. Note, that man.send_message() may do echo
+                itself (it indicates if it did it in the return value).
                 """
                 if not echoed:
                     console.copy_input_line(value)
@@ -418,7 +462,8 @@ def readloop(console, man, commands, shortcuts):
             except UserCommandError, ex:
                 echo()
                 print ex
-            echo() # will get there without echoing if user pressed enter on an empty line
+            # will get there without echoing if user pressed enter on an empty line; let's echo it
+            echo()
 
 def console_next_line(console):
     console.copy_input_line()
@@ -441,20 +486,21 @@ def make_msrp_sdp_media(uri_path, accept_types):
         transport = "TCP/MSRP"
     return SDPMedia("message", uri_path[-1].port, transport, formats=["*"], attributes=attributes)
 
-def invite(e, credentials, target_uri, route, relay, log_func):
-    if relay is None:
-        local_uri = new_local_uri(12345)
-        full_local_path = [local_uri]
-    else:
-        msrp = my_msrp_relay_connect(relay, log_func)
-        full_local_path = msrp.full_local_path
+InviteErrors = (DNSLookupError, MSRPError)
+
+def invite(e, credentials, target_uri, route, relay, log_func, make_media_func):
+    msrp_connector = NoisyMSRPConnector(relay, log_func)
+    full_local_path = msrp_connector.outgoing_prepare()
     inv = e.Invitation(credentials, target_uri, route=route)
-    local_sdp = SDPSession(e.local_ip, connection=SDPConnection(e.local_ip), media=[make_msrp_sdp_media(full_local_path, ["text/plain"])])
+    local_sdp = SDPSession(e.local_ip, connection=SDPConnection(e.local_ip),
+                           media=[make_media_func(full_local_path)])
     inv.set_offered_local_sdp(local_sdp)
     invite_response = inv.invite(ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav")))
     if invite_response['state'] != 'CONFIRMED':
         raise SIPDisconnect(invite_response)
     other_user_agent = invite_response.get("headers", {}).get("User-Agent")
+    if other_user_agent is not None:
+        print 'Remote SIP User Agent is "%s"' % other_user_agent
     remote_sdp = inv.get_active_remote_sdp()
     full_remote_path = None
     for attr in remote_sdp.media[0].attributes:
@@ -465,102 +511,200 @@ def invite(e, credentials, target_uri, route, relay, log_func):
     if full_remote_path is None:
         raise RuntimeError("No MSRP URI path attribute found in remote SDP")
     print "MSRP session negotiated to: %s" % " ".join(remote_uri_path)
-    if relay is None:
-        msrp = msrp_connect(full_remote_path, log_func, local_uri)
-    else:
-        msrp.set_full_remote_path(full_remote_path)
-    if other_user_agent is not None:
-        print 'Remote SIP User Agent is "%s"' % other_user_agent
-    msrp.bind()
+    msrp_connector.outgoing_complete(full_remote_path)
     inv.remote_uri = inv.callee_uri
-    return inv, msrp
+    return inv, msrp_connector.msrp
 
-def acceptable_session(inv):
-    remote_sdp = inv.get_offered_remote_sdp()
-    check = 0
-    if remote_sdp is not None and len(remote_sdp.media) == 1 and remote_sdp.media[0].media == "message":
-        for attr in remote_sdp.media[0].attributes:
-            if attr.name == "accept-types" and "text/plain" in attr.value.split():
-                check += 1
-            elif attr.name == "path":
-                check += 1
-    return check == 2
+class SilentRinger:
 
-def wait_for_incoming(e):
+    def start(self):
+        pass
+
+    def stop(self):
+        pass
+
+def consult_user(inv, ask_func):
+    """Ask user about the invite. Return True if the user has accepted it.
+    If the user didn't accept it or any other error happened, shutdown
+    inv with error response.
+    """
+    asker = spawn_link(ask_func, inv)
+    def killer(_params):
+        asker.kill()
+    inv.call_on_disconnect(killer) #
+    ERROR = 488 # Not Acceptable Here
+    try:
+        response = asker.wait()
+        if response == True:
+            ERROR = None
+            return True
+        elif response == False:
+            ERROR = 486 # Busy Here
+        # note, that wait() may also GreenletExit()
+    finally:
+        if ERROR is not None:
+            inv.shutdown(ERROR)
+
+class IncomingMSRPHandler:
+
+    def __init__(self, connector, local_ip):
+        self.connector = connector
+        self.local_ip = local_ip # XXX use msrp local ip when available. come up with something good when it's not
+
+    # public API: call is_acceptable() first, if it returns True, you can call handle()
+
+    def _prepare_attrdict(self, inv):
+        remote_sdp = inv.get_offered_remote_sdp()
+        if not hasattr(inv, '_attrdict'):
+            if remote_sdp is not None and len(remote_sdp.media) == 1 and remote_sdp.media[0].media == "message":
+                inv._attrdict = dict((x.name, x.value) for x in remote_sdp.media[0].attributes)
+
+    def is_acceptable(self, inv):
+        self._prepare_attrdict(inv)
+        attrs = inv._attrdict
+        if 'path' not in attrs:
+            return False
+        if 'accept-types' not in attrs:
+            return False
+        return True
+
+    def handle(self, inv):
+        if consult_user(inv, self._ask_user)==True:
+            msrp = self.accept(inv)
+            if msrp is not None:
+                return self._make_session(inv, msrp)
+
+    def accept(self, inv):
+        ERROR = 488
+        try:
+            remote_sdp = inv.get_offered_remote_sdp()
+            full_remote_path = [msrp_protocol.parse_uri(uri) for uri in inv._attrdict['path'].split()]
+            full_local_path = self.connector.incoming_prepare()
+            local_sdp = self.make_local_SDPSession(inv, full_local_path)
+            inv.set_offered_local_sdp(local_sdp)
+            try:
+                inv.accept()
+            except RuntimeError:
+                # the session may be already cancelled by the other party at this moment
+                # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
+                pass
+            else:
+                inv.remote_uri = inv.caller_uri
+                self.connector.incoming_accept(full_remote_path)
+                ERROR = None
+                return self.connector.msrp
+        finally:
+            if ERROR is not None:
+                inv.shutdown(ERROR)
+
+class IncomingChatHandler(IncomingMSRPHandler):
+
+    def __init__(self, connector, local_ip, console, make_session_func, ringer=SilentRinger()):
+        IncomingMSRPHandler.__init__(self, connector, local_ip)
+        self.console = console
+        self._make_session = make_session_func
+        self.ringer = ringer
+
+    def is_acceptable(self, inv):
+        if not IncomingMSRPHandler.is_acceptable(self, inv):
+            return False
+        attrs = inv._attrdict
+        if 'sendonly' in attrs:
+            return False
+        if 'recvonly' in attrs:
+            return False
+        if 'text/plain' not in attrs.get('accept-types', ''):
+            return False
+        return True
+
+    def _ask_user(self, inv):
+        q = 'Incoming %s request from %s, do you accept? (y/n) ' % (inv.session_name, inv.caller_uri)
+        self.ringer.start()
+        try:
+            return self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
+        finally:
+            self.ringer.stop()
+
+    def make_local_SDPSession(self, inv, full_local_path):
+        return SDPSession(self.local_ip, connection=SDPConnection(self.local_ip),
+                          media=[make_msrp_sdp_media(full_local_path, ["text/plain"])])
+
+
+class IncomingFileTransferHandler(IncomingMSRPHandler):
+
+    def __init__(self, connector, local_ip, console, make_session_func, ringer=SilentRinger()):
+        IncomingMSRPHandler.__init__(self, connector, local_ip)
+        self.console = console
+        self._make_session = make_session_func
+        self.ringer = ringer
+
+    def is_acceptable(self, inv):
+        if not IncomingMSRPHandler.__init__(self, inv):
+            return False
+        attrs = inv._attrdict
+        if 'sendonly' not in attrs:
+            return False
+        if 'recvonly' in attrs:
+            return False
+        return True
+
+    def _format_fileinfo(self, inv):
+        attrs = inv._attrdict
+        return str(attrs)
+        result = []
+
+    def _ask_user(self, inv):
+        q = 'Incoming file transfer:\n%s\nfrom %s, do you accept? (y/n) ' % (self._format_fileinfo(inv), inv.caller_uri)
+        self.ringer.start()
+        try:
+            return self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
+        finally:
+            self.ringer.stop()
+
+    def make_local_SDPSession(self, inv, full_local_path):
+        return SDPSession(self.local_ip, connection=SDPConnection(self.local_ip),
+                          media=[make_msrp_sdp_media(full_local_path, ["text/plain"])]) # XXX fix content-type
+
+
+def wait_for_incoming(e, handler):
     while True:
         event_name, params = e._wait()
         e.logger.log_event('RECEIVED', event_name, params)
         if event_name == "Invitation_state" and params.get("state") == "INCOMING":
             obj = params.get('obj')
             obj = InvitationBuffer(obj, e.logger, outgoing=0)
-            e.register_obj(obj)
+            e.register_obj(obj) # XXX unregister_obj is never called
             obj.log_state_incoming(params)
-            if acceptable_session(obj):
-                obj.set_state_EARLY()
-                return obj, params
-            else:
-                obj.logger.write(obj._format_state_default(params))
-                obj.shutdown(488)
-                # XXX need to unregister obj here
+            session = handler.handle(obj)
+            if session is not None:
+                return session
         e.logger.log_event('DROPPED', event_name, params)
 
-def my_msrp_relay_connect(relay, log_func):
-    print 'Reserving session at MSRP relay...'
-    msrp = msrp_relay_connect(relay, log_func)
-    params = (msrp.getPeer().host, msrp.getPeer().port, str(msrp.local_path[0]))
-    print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % params
-    return msrp
+class IncomingSessionHandler:
 
-def accept_incoming(e, relay, log_func, console, incoming_filter):
-    while True:
-        inv, params = wait_for_incoming(e)
-        asker = spawn_link(incoming_filter, inv, params)
-        def killer(_params):
-            asker.kill()
-        inv.call_on_disconnect(killer)
-        ERROR = 488
-        try:
-            ringer=Ringer(e.play_wav_file, get_path("ring_inbound.wav"))
-            ringer.start()
-            try:
-                response = asker.wait()
-            finally:
-                ringer.stop()
-            remote_sdp = inv.get_offered_remote_sdp()
-            if response==True and remote_sdp is not None:
-                if relay is not None:
-                    msrp = my_msrp_relay_connect(relay, log_func)
-                    full_local_path = msrp.full_local_path
-                else:
-                    msrp = None
-                    msrp_buffer_func, local_uri, listener = msrp_listen(log_func)
-                    full_local_path = [local_uri]
-                    print 'listening on %s' % (listener.getHost(), )
-                for attr in remote_sdp.media[0].attributes:
-                    if attr.name == "path":
-                        full_remote_path = [msrp_protocol.parse_uri(uri) for uri in attr.value.split()]
-                        break
-                local_sdp = SDPSession(e.local_ip, connection=SDPConnection(e.local_ip), media=[make_msrp_sdp_media(full_local_path, ["text/plain"])])
-                inv.set_offered_local_sdp(local_sdp)
-                try:
-                    inv.accept()
-                except RuntimeError:
-                    # the session may be already cancelled by the other party at this moment
-                    # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
-                    break
-                inv.remote_uri = inv.caller_uri
-                if msrp is None:
-                    msrp = msrp_accept(msrp_buffer_func)
-                msrp.set_full_remote_path(full_remote_path)
-                msrp.accept_binding()
-                ERROR = None
-                return inv, msrp
-            else:
-                ERROR = 486
-        finally:
-            inv.cancel_call_on_disconnect(killer)
-            if ERROR is not None:
-                inv.shutdown(ERROR)
+    def __init__(self):
+        self.handlers = []
+
+    def add_handler(self, handler):
+        self.handlers.append(handler)
+
+    def handle(self, inv):
+        for handler in self.handlers:
+            if handler.is_acceptable(inv):
+                inv.set_state_EARLY()
+                return handler.handle(inv)
+        inv.shutdown(488) # Not Acceptable Here
+
+
+class NoisyMSRPConnector(MSRPConnector):
+
+    def _relay_connect(self):
+        print 'Reserving session at MSRP relay %s:%d...' % (self.relay.host, self.relay.port)
+        msrp = MSRPConnector._relay_connect(self)
+        params = (msrp.getPeer().host, msrp.getPeer().port, str(msrp.local_path[0]))
+        print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % params
+        return msrp
+
 
 class RelaySettings:
     "Container for MSRP relay settings"
