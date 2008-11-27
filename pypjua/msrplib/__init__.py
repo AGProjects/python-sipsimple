@@ -247,6 +247,52 @@ class MSRPBuffer(BaseBuffer):
             if message is not None:
                 return message
 
+
+class MSRPConnector:
+# make it re-usable, do not hold references to MSRPBuffer or other stuff
+# produced by msrp_ functions
+
+    def __init__(self, relay, log_func):
+        self.relay = relay
+        self.log_func = log_func
+
+    def incoming_prepare(self):
+        if self.relay is None:
+            self.msrp = None
+            self.msrp_buffer_func, local_uri, listener = msrp_listen(self.log_func)
+            full_local_path = [local_uri]
+            print 'Listening on %s' % (listener.getHost(), ) # XXX move it to NoisyMSRPConnection in sip_im_session.py
+        else:
+            self.msrp = self._relay_connect()
+            full_local_path = self.msrp.full_local_path
+        return full_local_path
+
+    def incoming_accept(self, full_remote_path):
+        if self.msrp is None:
+            self.msrp = msrp_accept(self.msrp_buffer_func)
+        self.msrp.set_full_remote_path(full_remote_path)
+        self.msrp.accept_binding()
+
+    def outgoing_prepare(self):
+        if self.relay is None:
+            self.local_uri = new_local_uri(12345)
+            full_local_path = [self.local_uri]
+        else:
+            self.msrp = self._relay_connect(self.relay, self.log_func)
+            full_local_path = self.msrp.full_local_path
+        return full_local_path
+
+    def outgoing_complete(self, full_remote_path):
+        if self.relay is None:
+            self.msrp = msrp_connect(full_remote_path, self.log_func, self.local_uri)
+        else:
+            self.msrp.set_full_remote_path(full_remote_path)
+        self.msrp.bind()
+
+    def _relay_connect(self):
+        return msrp_relay_connect(self.relay, self.log_func)
+
+
 def keep_common_items(mydict, otherdict):
     "Remove items from mydict that have different values in otherdict"
     for k, v in mydict.items():
