@@ -227,7 +227,7 @@ def getstr(prompt='selection'):
     return ret
 
 def read_queue(username, domain, password, display_name, xcap_root):
-    global user_quit, lock, queue, sip_uri, xcap_client
+    global user_quit, lock, queue, sip_uri, xcap_client, service_uri
     lock.acquire()
     try:
         sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -239,6 +239,7 @@ def read_queue(username, domain, password, display_name, xcap_root):
         if show_xml and rls_services is not None:
             print "RLS services document:"
             print rls_services.toxml(pretty_print=True)
+        print 'Managing service URI %s' % service_uri
         print_rls_services()
         
         while True:
