@@ -23,7 +23,9 @@ class EngineLogger:
 
     def write(self, txt):
         if self.log_file:
-           self.log_file.write(txt)
+            if txt and not txt.endswith('\n'):
+                txt += '\n'
+            self.log_file.write(txt)
 
     log_message = write
 
