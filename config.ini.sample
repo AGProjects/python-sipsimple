@@ -35,7 +35,7 @@ history_directory=~/.sipclient/history
 file_transfer_directory=~/.sipclient/file_transfers
 
 ; Automatically accept incomming file transfer requests
-; file_transfer_auto_accept=false
+; auto_accept_file_transfers=false
 
 
 [Audio]
