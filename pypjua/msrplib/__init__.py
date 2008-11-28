@@ -278,7 +278,7 @@ class MSRPConnector:
             self.local_uri = new_local_uri(12345)
             full_local_path = [self.local_uri]
         else:
-            self.msrp = self._relay_connect(self.relay, self.log_func)
+            self.msrp = self._relay_connect()
             full_local_path = self.msrp.full_local_path
         return full_local_path
 
