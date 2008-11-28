@@ -17,7 +17,6 @@ Python PJSIP bindings
 - Add feature to send OPTIONS method and parse the replies
 - Handle incomming REFER to msrp focus
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
-- Configurable RTP port range
 - API documentation
 
 
@@ -28,26 +27,22 @@ Audio
 - Play a soft beep tone while on hold every 30 seconds
 - Play a beep after we closed a session
 - Play a special beep when receiving a call while engaged in another call
-- Implement Automatic Gain Control AGC in PJSIP media engine
+- Implement Automatic Gain Control in PJSIP media engine
+
 
 Command line clients
 --------------------
 
 Logging, based on trace_x configuration options:
- - Append PJSIP messages to .sipclient/log/user@domain/trace_pjsip.txt
- - Append SIP messages to .sipclient/log/user@domain/trac_sip.txt
- - Append MSRP messages to .sipclient/log/user@domain/trace_msrp.txt
- - Append XCAP messages to .sipclient/log/user@domain/trace_xcap.txt
+ - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt
+ - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt
+ - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt
  - Add timestamp and packet counters as for SIP trace for all other prorocols
- - Toggle logging at run time
+ - Toggle sip logging at run time
 
-- Add auto-accept option for sip_msrp_file_transfer client
-- Add key command to start a call when starting in receiving mode (c)
-- Add ? command key to display the available key commands
-- Add functionality to msrp client script to send/receive files
+- Add key command to start a session when starting in receiving mode (c)
 - sip_msrp_chat_server (act as a conference server)
 - sip_subscribe_conference_info
-
 - print source of incomming NOTIFYs in sip_subscribe_x scripts
 - sip_subscribe_presence to a list of URIs
 - xcap_pidf_manipulation script
@@ -56,13 +51,13 @@ Logging, based on trace_x configuration options:
   other codes. For invite scripts the code is based on the response for the
   initial INVITE, not for the BYE If RTP was not received with 6 seconds after
   call setup, consider the call has failed.
-- Add parameter to hangup after a number of seconds for sip_rtp and sip msrp
-  scripts, used for scripting alarms
+- Add parameter to hangup after a number of seconds for sip_audio_session
 - Handle multiple incomming sessions (waiting for the re-INVITE)
 - Conference established sessions
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
 - Combine msrp/rtp in one script
  
+
 Applications
 ------------
 
@@ -77,7 +72,6 @@ Applications
 - Buddylist library
 - Bonjour discovery
 - Lookup capabilities for SIP (RFC3263)
-- Lookup for MSRP relay
 - Lookup for ENUM
 - Documentation
 
@@ -85,10 +79,11 @@ Applications
 Sessions
 --------
 
-- Comfort noice generator
+- Comfort noise generator
 - Video (H.264)
 - Real time text over RTP (RFC4103)
-- Desktop sharing (VNC protocol?)
+- Desktop sharing (VNC protocol)
+- Bit pipe over MSRP
 
 
 End-user experience
@@ -100,8 +95,6 @@ End-user experience
 Enrollment 
 ----------
 
-- Create log directory on startup .sipclient/log/user@domain/
-- Create history directory on startup .sipclient/history/user@domain/
 - End-point certificate generator
 - Account creation
 - UA-profile XCAP application
@@ -113,29 +106,22 @@ Middleware
 - rename lookup_srv to rename_rfc3263, add NAPTR lookup to it and pass a
   list of supported transports by the SIP library to select from (default is
   udp).
-- Configuration framerwork based on ua-profile event package
-- Notification bus
-- Logging
+- Configuration framework based on ua-profile event package
+- Event bus
 - Environment detection: ambient and geo-location detection
 
 
 User interfaces
 ---------------
 
-- Stand-alone software library
+- Stand alone library
 - Command line clients
-- Minimalist GUI for MacOSX, SIP client in a dock icon
-- Full GUI for all supported OSs
+- GUI
 
 
 Packaging
 ---------
 
-- Python installer (done)
-- Fink packaging (done)
-- Debian packaging for i386
-- Debian packaging for 64 bit architectures
-- Windows build
 - MacOSX installer
 - Windows installer
 
@@ -147,4 +133,3 @@ Others
 - IPv6 support
 - Survive local IP address changes
 - P2PSIP overlay
-
