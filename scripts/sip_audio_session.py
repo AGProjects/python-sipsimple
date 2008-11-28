@@ -178,11 +178,15 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                         command = "quit"
                 elif event_name == "Invitation_state":
                     if args["prev_sdp_state"] != "DONE" and args["sdp_state"] == "DONE":
-                        if args["obj"] is inv and args["sdp_negotiated"]:
-                            audio.start(inv.get_active_local_sdp(), inv.get_active_remote_sdp(), 0)
-                            e.connect_audio_transport(audio)
-                            print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
-                            print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                        if args["obj"] is inv:
+                            if args["sdp_negotiated"]:
+                                audio.start(inv.get_active_local_sdp(), inv.get_active_remote_sdp(), 0)
+                                e.connect_audio_transport(audio)
+                                print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
+                                print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                            else:
+                                inv.set_state_DISCONNECTED()
+                                print "SDP negotiation failed"
                     if args["state"] == "EARLY":
                         if "headers" in args and "User-Agent" in args["headers"]:
                             other_user_agent = args["headers"].get("User-Agent")

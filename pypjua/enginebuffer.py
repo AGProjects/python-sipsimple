@@ -409,6 +409,9 @@ class InvitationBuffer(BaseBuffer):
                         self.log_ringing(params)
                         if ringer:
                             ringer.start()
+                    elif params['prev_sdp_state'] != "DONE" and params['sdp_state'] == "DONE" and not params['sdp_negotiated']:
+                        self.logger.write('SDP negotiation failed')
+                        self._obj.set_state_DISCONNECTED()
                     elif state in ['CONFIRMED', 'DISCONNECTED']:
                         self.logger.log_event('INVITE result', event_name, params)
                         break
