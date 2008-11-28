@@ -34,6 +34,9 @@ history_directory=~/.sipclient/history
 ; File transfer directory for saving incomming files
 file_transfer_directory=~/.sipclient/file_transfers
 
+; Automatically accept incomming file transfer requests
+; file_transfer_auto_accept=false
+
 
 [Audio]
 sample_rate=32
@@ -60,7 +63,6 @@ display_name=
 ; xcap root used to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
 
-; file_transfer_auto_accept=false
 
 ; overwrite the MSRP relay address, syntax: domain|hostname|hostname:port|ip:port
 ; msrp_relay=auto
