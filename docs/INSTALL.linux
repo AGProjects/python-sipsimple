@@ -69,25 +69,21 @@ python-setuptools package to install the same packages:
 sudo easy_install -U python-gnutls lxml cython python-application dnspython twisted py mercurial
 
 # Download and install eventlet for twisted:
-
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
 # To update the eventlet_twisted at a later date:
-
 cd eventlet_twisted
 hg pull
 hg update
 
 # Download and install python-xcaplib:
-
 darcs get http://devel.ag-projects.com/repositories/python-xcaplib
 cd python-xcaplib
 sudo python setup.py install
 
 # To update python-xcaplib repository at a later date:
-
 cd python-xcaplib
 darcs pull
 sudo python setup.py install

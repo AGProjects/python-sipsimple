@@ -21,7 +21,7 @@ rtp_port_range=8000 8100
 ; Log directory
 log_directory=~/.sipclient/log
 
-; Logging setting, must be set per account
+; Logging setting
 trace_pjsip=false
 trace_sip=false
 trace_xcap=false
