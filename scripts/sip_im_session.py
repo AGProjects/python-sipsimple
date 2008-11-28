@@ -212,12 +212,12 @@ class ChatSession(MSRPSession):
     def _on_message_received(self, message):
         echo_message(format_useruri(self.other), message.data)
         if self.play_wav_func:
-            self.play_wav_func(get_path("Message_Received.wav"))
+            self.play_wav_func(get_path("message_received.wav"))
 
     def _on_message_sent(self, message, content_type):
         echo_message(format_useruri(self.me), message)
         if self.play_wav_func:
-            self.play_wav_func(get_path("Message_Sent.wav"))
+            self.play_wav_func(get_path("message_sent.wav"))
 
     def start_invite(self, e, target_uri, route, relay):
         assert not self.invite_job, self.invite_job
