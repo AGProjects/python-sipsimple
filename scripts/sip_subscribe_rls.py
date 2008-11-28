@@ -379,7 +379,7 @@ def do_subscribe(**kwargs):
     if kwargs['content_type'] is not None:
         initial_events['presence'] = [kwargs['content_type']]
     else:
-        initial_events['presence'] = ['multipart/related']
+        initial_events['presence'] = ['multipart/related', 'application/rlmi+xml', 'application/pidf+xml']
 
     e = Engine(event_handler, trace_sip=kwargs['trace_sip'], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"), initial_events=initial_events)
     e.start()
