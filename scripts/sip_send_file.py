@@ -75,6 +75,10 @@ class PushFileSession(ChatSession):
 
 def main():
     options = parse_options()
+    if not options.target_uri:
+        sys.exit('Please provide target uri.')
+    if not options.args:
+        sys.exit('Please provide filename.')
     filename = options.args[0]
     ch = queue()
     e = EngineBuffer(ch,
