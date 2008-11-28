@@ -9,7 +9,6 @@ from pypjua.clients.sdputil import FileSelector
 from sip_im_session import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
 
 def get_file_mimetype(filename):
-    return 'text/plain'
     res = os.popen("file --brief --mime-type '%s'" % filename).read().strip()
     assert res, "Cannot get mime type using `file' command"
     return res
