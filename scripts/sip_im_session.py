@@ -303,6 +303,8 @@ class ReceiveFileSession(MSRPSession):
         else:
             return 'Inactive file transfer: '
 
+    def send_message(self, msg, content_type='text/plain'):
+        return True # QQQ temporarily disabled as it causes the sending script to crash
 
 def _helper(func):
     def current_func(self, *args, **kwargs):
