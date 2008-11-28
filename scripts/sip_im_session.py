@@ -364,6 +364,7 @@ def start(options, console):
     ch = queue()
     e = EngineBuffer(ch,
                      trace_sip=options.trace_sip,
+                     trace_pjsip=options.trace_pjsip,
                      auto_sound=not options.disable_sound,
                      ec_tail_length=0,
                      local_ip=options.local_ip,
