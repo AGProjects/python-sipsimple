@@ -694,13 +694,11 @@ class SIPAddress:
     def __bool__(self):
         return self.username and self.domain
 
-def parse_options():
+def parse_options(usage, description):
     configuration = ConfigFile(config_ini)
     configuration.read_settings("Audio", AudioConfig)
     configuration.read_settings("General", GeneralConfig)
 
-    description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."
-    usage = "%prog [options] [target-user@target-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account-name", type="string",

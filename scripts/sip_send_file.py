@@ -73,8 +73,11 @@ class PushFileSession(ChatSession):
         else:
             raise UserCommandError('MSRP is not connected')
 
+description = "Start a MSRP session file transfer to the specified target SIP address."
+usage = "%prog [options] target-user@target-domain.com filename"
+
 def main():
-    options = parse_options()
+    options = parse_options(usage, description)
     if not options.target_uri:
         sys.exit('Please provide target uri.')
     if not options.args:

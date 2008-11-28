@@ -142,9 +142,12 @@ def register(e, credentials, route):
     if params['state']=='unregistered' and params['code']/100!=2:
         raise GreenletExit # XXX fix
 
+description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."
+usage = "%prog [options] [target-user@target-domain.com]"
+
 def main():
     try:
-        options = parse_options()
+        options = parse_options(usage, description)
         with setup_console() as console:
             start(options, console)
     except RuntimeError, e:
