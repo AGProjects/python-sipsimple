@@ -7,7 +7,7 @@ from eventlet.api import sleep
 from pypjua import Credentials, SDPAttribute, SDPMedia
 from pypjua.enginebuffer import EngineBuffer, SIPDisconnect
 from pypjua.clients.sdputil import FileSelector
-from sip_im_session import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
+from pypjua.clients.im import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
 from gnutls.errors import GNUTLSError
 
 if sys.platform == 'darwin':
