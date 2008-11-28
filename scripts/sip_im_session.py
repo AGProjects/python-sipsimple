@@ -883,7 +883,7 @@ def parse_options():
             options.msrp_relay = 'none'
     if options.msrp_relay == 'srv':
         print 'Looking up MSRP relay %s...' % options.sip_address.domain
-        host, port, is_ip = lookup_srv(options.sip_address.domain, 2855, False, 2855, '_msrps._tcp')
+        host, port = lookup_srv(options.sip_address.domain, None, False, 2855, '_msrps._tcp')
         options.relay = RelaySettings(options.sip_address.domain, host, port,
                                       options.sip_address.username, options.password)
     elif options.msrp_relay == 'none':
