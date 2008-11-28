@@ -2,10 +2,23 @@
 Debian installation
 -------------------
 
-For Debian and Ubuntu on an i386 architecture there is an official public
-repository provided by AG Projects.
+Install dependencies:
 
-Install the AG Projects debian software signing key:
+sudo apt-get install mercurial
+
+# Download and install eventlet for twisted:
+hg clone
+http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+cd eventlet_twisted
+sudo python setup.py install
+
+# To update the eventlet_twisted at a later date:
+cd eventlet_twisted
+hg pull
+hg update
+
+For Debian and Ubuntu there is an official public repository provided by AG
+Projects. Install the AG Projects debian software signing key:
 
 wget http://download.ag-projects.com/agp-debian-gpg.key 
 sudo apt-key add agp-debian-gpg.key
@@ -16,7 +29,7 @@ Add these lines at the end of etc/apt/sources.list
 deb http://ag-projects.com/debian unstable main
 deb-src http://ag-projects.com/debian unstable main
 
-Then install the software:
+Install the software:
 
 sudo apt-get update
 sudo apt-get install sipclient
