@@ -321,6 +321,8 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         e.stop()
         if not user_quit:
             os.kill(os.getpid(), signal.SIGINT)
+        if trace_sip_file is not None:
+            trace_sip_file.close()
         lock.release()
 
 def do_invite(**kwargs):
