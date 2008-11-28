@@ -108,6 +108,7 @@ def event_handler(event_name, **kwargs):
         buf.append(kwargs["data"])
         buf.append('')
         trace_sip_file.write("\n".join(buf))
+        trace_sip_file.flush()
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
     elif do_trace_pjsip:
