@@ -817,7 +817,7 @@ def parse_options():
     help = ('Use the outbound SIP proxy; '
             'if "auto", discover the SIP proxy through SRV and A '
             'records lookup on the domain part of user SIP URI.')
-    parser.add_option("-o", "--outbound-proxy", type="string", default=AccountConfig.outbound_proxy,
+    parser.add_option("-o", "--outbound-proxy", type="string",
                       action="callback", callback=parse_outbound_proxy, help=help, metavar="IP[:PORT]")
 
     parser.add_option("-m", "--trace-msrp", action="store_true", default=False,
