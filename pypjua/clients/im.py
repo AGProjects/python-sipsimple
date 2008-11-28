@@ -744,7 +744,7 @@ def parse_options(usage, description):
     parser.add_option("-S", "--disable-sound", action="store_true", default=AudioConfig.disable_sound,
                       help="Do not initialize the soundcard (by default the soundcard is enabled).")
     #parser.add_option("-y", '--auto-accept-all', action='store_true', default=False, help=SUPPRESS_HELP)
-    parser.add_option('--auto-accept-files', action='store_true', default=False,
+    parser.add_option('--auto-accept-files', action='store_true',
                       help='Accept all incoming file transfers without bothering user.')
 
     options, args = parser.parse_args()
