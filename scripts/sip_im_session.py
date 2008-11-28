@@ -741,6 +741,7 @@ class RelaySettings_SRV(object):
 
     @staticmethod
     def _srv_lookup(domain):
+        print 'Looking up MSRP relay...'
         answers = dns.resolver.query("_msrps._tcp.%s" % domain, "SRV")
         host = str(answers[0].target).rstrip(".")
         port = answers[0].port
@@ -917,6 +918,7 @@ def parse_options():
         options.relay = None
     else:
         host, port, is_ip = options.msrp_relay
+        print 'Looking up MSRP relay...'
         host, port = lookup_srv(host, port, is_ip, 2855, '_msrps._tcp')
         options.relay = RelaySettings(options.sip_address.domain, host, port,
                                       options.sip_address.username, options.password)
