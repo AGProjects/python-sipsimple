@@ -72,7 +72,7 @@ use_presence_agent=true
 subscribe_rls_services=true
 
 ; MSRP settings
-msrp_relay_address=msrprelay.example.com
+msrp_relay=msrprelay.example.com
 
 For all available settings of the configuration file see  config.ini.sample
 
