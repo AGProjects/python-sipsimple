@@ -36,11 +36,13 @@ config_ini = os.path.join(process._system_config_directory, 'config.ini')
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress,
                   "trace_pjsip": datatypes.Boolean,
-                  "trace_sip": datatypes.Boolean}
+                  "trace_sip": datatypes.Boolean,
+                  "auto_accept_file_transfers": datatypes.Boolean}
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
     file_transfer_directory = os.path.join(process._system_config_directory, 'file_transfers')
+    auto_accept_file_transfers = False
 
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str,
@@ -317,11 +319,11 @@ def _helper(func):
 
 class SessionManager:
 
-    def __init__(self, credentials, console, write_traffic, incoming_filter=lambda inv, params: True):
+    def __init__(self, credentials, console, write_traffic, auto_accept_files=False):
         self.credentials = credentials
         self.console = console
         self.write_traffic = write_traffic
-        self.incoming_filter = incoming_filter
+        self.auto_accept_files = auto_accept_files
         self.sessions = []
         self.accept_incoming_job = None
         self.current_session = None
@@ -392,7 +394,9 @@ class SessionManager:
         def new_receivefile_session(sip, msrp):
             return ReceiveFileSession(self, self.credentials, self.write_traffic, e.play_wav_file, sip, msrp)
         connector = NoisyMSRPConnector(relay, self.write_traffic)
-        file = IncomingFileTransferHandler(connector, e.local_ip, self.console, new_receivefile_session, inbound_ringer)
+        file = IncomingFileTransferHandler(connector, e.local_ip, self.console,
+                                           new_receivefile_session, inbound_ringer,
+                                           auto_accept=self.auto_accept_files)
         handler.add_handler(file)
         chat = IncomingChatHandler(connector, e.local_ip, self.console, new_chat_session, inbound_ringer)
         handler.add_handler(chat)
@@ -578,11 +582,12 @@ class IncomingChatHandler(IncomingMSRPHandler):
 
 class IncomingFileTransferHandler(IncomingMSRPHandler):
 
-    def __init__(self, connector, local_ip, console, make_session_func, ringer=SilentRinger()):
+    def __init__(self, connector, local_ip, console, make_session_func, ringer=SilentRinger(), auto_accept=False):
         IncomingMSRPHandler.__init__(self, connector, local_ip)
         self.console = console
         self._make_session = make_session_func
         self.ringer = ringer
+        self.auto_accept = auto_accept
 
     def is_acceptable(self, inv):
         if not IncomingMSRPHandler.is_acceptable(self, inv):
@@ -599,6 +604,8 @@ class IncomingFileTransferHandler(IncomingMSRPHandler):
         return str(FileSelector.parse(attrs['file-selector']))
 
     def _ask_user(self, inv):
+        if self.auto_accept:
+            return True
         q = 'Incoming file transfer %s from %s, do you accept? (y/n) ' % (self._format_fileinfo(inv), inv.caller_uri)
         self.ringer.start()
         try:
@@ -736,7 +743,9 @@ def parse_options(usage, description):
                       action="callback", callback=parse_msrp_relay, help=help, metavar='IP[:PORT]')
     parser.add_option("-S", "--disable-sound", action="store_true", default=AudioConfig.disable_sound,
                       help="Do not initialize the soundcard (by default the soundcard is enabled).")
-    parser.add_option("-y", '--accept-all', action='store_true', default=False, help=SUPPRESS_HELP)
+    #parser.add_option("-y", '--auto-accept-all', action='store_true', default=False, help=SUPPRESS_HELP)
+    parser.add_option('--auto-accept-files', action='store_true', default=False,
+                      help='Accept all incoming file transfers without bothering user.')
 
     options, args = parser.parse_args()
 
@@ -757,7 +766,8 @@ def parse_options(usage, description):
                            password=AccountConfig.password,
                            display_name=AccountConfig.display_name,
                            local_ip=GeneralConfig.listen_udp[0],
-                           local_port=GeneralConfig.listen_udp[1])
+                           local_port=GeneralConfig.listen_udp[1],
+                           auto_accept_files=GeneralConfig.auto_accept_file_transfers)
     if options.show_config:
         print 'Configuration file: %s' % config_ini
         for config_section in [account_section, 'General', 'Audio']:

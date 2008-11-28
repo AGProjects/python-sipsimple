@@ -55,7 +55,7 @@ def get_shortcuts(man):
     return {KEY_NEXT_SESSION: man.switch}
 
 def start_caller(e, options, console, credentials, logger):
-    man = SessionManager_Caller(credentials, console, logger.write_traffic, incoming_filter=lambda *args: False)
+    man = SessionManager_Caller(credentials, console, logger.write_traffic)
     man.start_new_outgoing(e, options.target_uri, options.route, options.relay)
     console.disable()
     try:
@@ -74,14 +74,7 @@ def start_caller(e, options, console, credentials, logger):
 def start_listener(e, options, console, credentials, logger):
     register(e, credentials, options.route)
     console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
-    if options.accept_all:
-        def incoming_filter(inv, params):
-            return True
-    else:
-        def incoming_filter(inv, params):
-            q = 'Incoming %s request from %s, do you accept? (y/n) ' % (inv.session_name, inv.caller_uri)
-            return console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
-    man = SessionManager(credentials, console, logger.write_traffic, incoming_filter)
+    man = SessionManager(credentials, console, logger.write_traffic, options.auto_accept_files)
     man.start_accept_incoming(e, options.relay)
     print 'Waiting for incoming SIP session requests...'
     print "Press Ctrl-d to quit or Control-n to switch between active sessions"
