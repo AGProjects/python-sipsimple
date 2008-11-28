@@ -86,7 +86,6 @@ class MSRPSession:
 
     msrp_closed_by_me = False
     ending_msrp_connection_only = False
-    index = 0
 
     def __init__(self, session_manager, credentials, write_traffic, play_wav_func=None, sip=None, msrp=None):
         self.myman = session_manager
@@ -100,8 +99,6 @@ class MSRPSession:
         self.read_msrp_job = None
         if self.msrp is not None:
             self.start_read_msrp()
-        MSRPSession.index += 1
-        self.index = MSRPSession.index
 
     def _report_disconnect(self):
         if self.myman:
@@ -232,9 +229,9 @@ class ChatSession(MSRPSession):
 
     def format_ps(self):
         if self.other:
-            return '[%s] Chat to %s@%s: ' % (self.index, self.other.user, self.other.host)
+            return 'Chat to %s@%s: ' % (self.other.user, self.other.host)
         else:
-            return '[%s] Inactive chat: ' % self.index
+            return 'Inactive chat: '
 
     def make_sdp_media(self, uri):
         return make_msrp_sdp_media(uri, ['text/plain'])
@@ -302,9 +299,9 @@ class ReceiveFileSession(MSRPSession):
     def format_ps(self):
         if self.other:
             name = self.fileselector.name
-            return '[%s] File transfer %r from %s@%s: ' % (self.index, name, self.other.user, self.other.host)
+            return 'File transfer %r from %s@%s: ' % (name, self.other.user, self.other.host)
         else:
-            return '[%s] Inactive file transfer: ' % self.index
+            return 'Inactive file transfer: '
 
 
 def _helper(func):
@@ -339,7 +336,10 @@ class SessionManager:
 
     def update_ps(self):
         if self.current_session:
-            ps = self.current_session.format_ps()
+            prefix = ''
+            if len(self.sessions)>1:
+                prefix = '%s/%s ' % (1+self.sessions.index(self.current_session), len(self.sessions))
+            ps = prefix + self.current_session.format_ps()
         else:
             ps = format_nosessions_ps(self.credentials.uri)
         self.console.set_ps(ps)
