@@ -168,6 +168,10 @@ class MSRPBuffer(BaseBuffer):
         self.send_chunk(chunk)
         return chunk
 
+    def deliver_message(self, msg, content_type='text/plain'):
+        chunk = self.make_message(msg, content_type)
+        self.deliver_chunk(chunk)
+
     def __getattr__(self, item):
         if item=='_log_header':
             try:

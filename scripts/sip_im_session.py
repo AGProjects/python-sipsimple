@@ -1019,9 +1019,11 @@ def parse_options():
     if args:
         options.target_address = SIPAddress(args[0], default_domain = options.sip_address.domain)
         options.target_uri = SIPURI(user=options.target_address.username, host=options.target_address.domain)
+        del args[0]
     else:
         options.target_address = None
         options.target_uri = None
+    options.args = args
 
     if options.msrp_relay == 'auto':
         if options.target_uri is None:
