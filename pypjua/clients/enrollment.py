@@ -4,18 +4,22 @@ from application.process import process
 from application.configuration import *
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "history_directory": str, "log_directory": str, "file_transfer_directory": str}
+    _datatypes = {"sip_address": str}
     sip_address = None
+
+class GeneralConfig(ConfigSection):
+    _datatypes = {"history_directory": str, "log_directory": str, "file_transfer_directory": str}
     history_directory = '~/.sipclient/history'
     log_directory = '~/.sipclient/log'
     file_transfer_directory = '~/.sipclient/file_transfers'
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
+configuration.read_settings('General', GeneralConfig)
 
 def init_account(account):
     # create history directory of account
-    history_dir = os.path.join(os.path.expanduser(account.history_directory), account.sip_address)
+    history_dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), account.sip_address)
     if not os.access(history_dir, os.F_OK):
         try:
             os.makedirs(history_dir)
@@ -23,20 +27,12 @@ def init_account(account):
             print "History directory '%s' does not exist and cannot be created: %s" % (history_dir, str(e))
             sys.exit(1)
     # create log directory of account
-    log_dir = os.path.join(os.path.expanduser(account.log_directory), account.sip_address)
+    log_dir = os.path.join(os.path.expanduser(GeneralConfig.log_directory), account.sip_address)
     if not os.access(log_dir, os.F_OK):
         try:
             os.makedirs(log_dir)
         except OSError, e:
             print "Log directory '%s' does not exist and cannot be created: %s" % (log_dir, str(e))
-            sys.exit(1)
-    # create file_transfer directory
-    file_transfer_dir = os.path.expanduser(account.file_transfer_directory)
-    if not os.access(file_transfer_dir, os.F_OK):
-        try:
-            os.makedirs(file_transfer_dir)
-        except OSError, e:
-            print "File transfer directory '%s' does not exist and cannot be created: %s" % (file_transfer_dir, str(e))
             sys.exit(1)
 
 def verify_account_config():
@@ -46,6 +42,14 @@ def verify_account_config():
             os.mkdir(process._system_config_directory)
         except OSError, e:
             print "Configuration directory '%s' does not exist and cannot be created: %s" % (process._system_config_directory, str(e))
+            sys.exit(1)
+    # create file_transfer directory
+    file_transfer_dir = os.path.expanduser(GeneralConfig.file_transfer_directory)
+    if not os.access(file_transfer_dir, os.F_OK):
+        try:
+            os.makedirs(file_transfer_dir)
+        except OSError, e:
+            print "File transfer directory '%s' does not exist and cannot be created: %s" % (file_transfer_dir, str(e))
             sys.exit(1)
     # other, per account initiation
     for section in configuration.parser.sections():

@@ -42,6 +42,7 @@ class GeneralConfig(ConfigSection):
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
+    log_directory = '~/.sipclient/log'
 
 
 class AccountConfig(ConfigSection):
@@ -51,7 +52,6 @@ class AccountConfig(ConfigSection):
     display_name = None
     outbound_proxy = None
     use_presence_agent = True
-    log_directory = '~/.sipclient/log'
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -198,6 +198,7 @@ class MoodMenu(Menu):
                              'c': {"description": "clear all mood data", "handler": self._clear_moods},
                              'n': {"description": "set mood note", "handler": self._set_note},
                              'r': {"description": "set random mood", "handler": self._set_random}})
+        self.auto_random = False
 
     def _show_moods(self):
         buf = ["Moods:"]
@@ -313,7 +314,10 @@ class MoodMenu(Menu):
         publish_pidf()
         print "You are now " + ", ".join(values)
         self.exitTopLevel()
-
+    
+    def _set_auto_random(self):
+        if self.auto_random:
+            pass
 
 # Activities manipulation pidf
 class ActivitiesMenu(Menu):
@@ -580,7 +584,7 @@ def do_publish(**kwargs):
         print e.message
         return
 
-    logger = Logger(AccountConfig, trace_sip=kwargs['trace_sip'])
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     

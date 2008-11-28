@@ -46,6 +46,7 @@ class GeneralConfig(ConfigSection):
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
+    log_directory = '~/.sipclient/log'
 
 
 class AccountConfig(ConfigSection):
@@ -56,7 +57,6 @@ class AccountConfig(ConfigSection):
     outbound_proxy = None
     xcap_root = None
     use_presence_agent = True
-    log_directory = '~/.sipclient/log'
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -379,7 +379,7 @@ def do_subscribe(**kwargs):
         print e.message
         return
 
-    logger = Logger(AccountConfig, trace_sip=kwargs['trace_sip'])
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     

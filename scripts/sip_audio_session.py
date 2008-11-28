@@ -29,6 +29,8 @@ class GeneralConfig(ConfigSection):
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
+    history_directory = '~/.sipclient/history'
+    log_directory = '~/.sipclient/log'
 
 
 class AccountConfig(ConfigSection):
@@ -37,8 +39,6 @@ class AccountConfig(ConfigSection):
     password = None
     display_name = None
     outbound_proxy = None
-    history_directory = '~/.sipclient/history'
-    log_directory = '~/.sipclient/log'
 
 
 class AudioConfig(ConfigSection):
@@ -242,7 +242,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                         if rec_file is None:
                             src = '%s@%s' % (inv.caller_uri.user, inv.caller_uri.host)
                             dst = '%s@%s' % (inv.callee_uri.user, inv.callee_uri.host)
-                            dir = os.path.join(os.path.expanduser(AccountConfig.history_directory), '%s@%s' % (username, domain))
+                            dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain))
                             try:
                                 file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), src, dst))
                                 rec_file = e.rec_wav_file(file_name)
@@ -319,7 +319,7 @@ def do_invite(**kwargs):
             print e.message
             return
     
-    logger = Logger(AccountConfig, trace_sip=kwargs['trace_sip'])
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     

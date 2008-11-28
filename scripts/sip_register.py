@@ -22,6 +22,7 @@ class GeneralConfig(ConfigSection):
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
+    log_directory = '~/.sipclient/log'
 
 
 class AccountConfig(ConfigSection):
@@ -30,7 +31,6 @@ class AccountConfig(ConfigSection):
     password = None
     display_name = None
     outbound_proxy = None
-    log_directory = '~/.sipclient/log'
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -149,7 +149,7 @@ def do_register(**kwargs):
         print e.message
         return
     
-    logger = Logger(AccountConfig, trace_sip=kwargs.pop('trace_sip'))
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
     if logger.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     
