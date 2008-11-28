@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import sys
 import hashlib
 from eventlet.coros import queue
 from eventlet.api import sleep
@@ -8,8 +9,13 @@ from pypjua.enginebuffer import EngineBuffer, SIPDisconnect
 from pypjua.clients.sdputil import FileSelector
 from sip_im_session import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
 
+if sys.platform == 'darwin':
+    file_cmd = "file -b -I '%s'"
+else:
+    file_cmd = "file -b --mime-type '%s'"
+
 def get_file_mimetype(filename):
-    res = os.popen("file --brief --mime-type '%s'" % filename).read().strip()
+    res = os.popen(file_cmd % filename).read().strip()
     assert res, "Cannot get mime type using `file' command"
     return res
 
