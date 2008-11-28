@@ -46,8 +46,8 @@ class PushFileSession(ChatSession):
         ChatSession.__init__(self, None, credentials, None, play_wav_func)
         self.sdp = SDPOfferFactory(filename)
 
-    def _on_message_sent(self, message, content_type):
-        print 'sent %s bytes' % len(message)
+    def _on_message_delivered(self, message, content_type):
+        print 'Sent %s.' % self.sdp.fileselector
 
     def make_sdp_media(self, uri):
         return self.sdp.make_SDPMedia(uri)
@@ -61,7 +61,7 @@ class PushFileSession(ChatSession):
     def deliver_message(self, msg, content_type='text/plain'):
         if self.msrp and self.msrp.connected:
             self.msrp.deliver_message(msg, content_type)
-            self._on_message_sent(msg, content_type)
+            self._on_message_delivered(msg, content_type)
             return True
         else:
             raise UserCommandError('MSRP is not connected')
@@ -90,6 +90,7 @@ def main():
             print ex
             return
         s.deliver_message(file(filename).read(), s.sdp.fileselector.type)
+        s.close_msrp()
         # make deliver_message that waits for the response
         sleep(0.2)
     finally:
