@@ -18,6 +18,10 @@ sipclient (0.3.0) unstable; urgency=low
     and incoming file transfers
   * Added sip_im_send_file.py for sending files over SIP/MSRP in a batch mode
   * Removed sip_msrp_im_session.py and sip_msrp_file_transfer.py scripts
+  [ Lucian Stanescu ]
+  * Added creation of history, log and file transfer directories in enrollment
+  * Made sip traces get logged in <log_directory>/<sip_address>/sip_trace.txt
+  * Added xcap_rls_services script
 
  -- Adrian Georgescu <ag@ag-projects.com>  Fri, 28 Nov 2008 13:14:04 +0100
 
