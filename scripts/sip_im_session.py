@@ -37,11 +37,16 @@ class GeneralConfig(ConfigSection):
     trace_sip = False
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname}
+    _datatypes = {"sip_address": str,
+                  "password": str,
+                  "display_name": str,
+                  "outbound_proxy": IPAddressOrHostname,
+                  "msrp_relay": str}
     sip_address = None
     password = None
     display_name = None
     outbound_proxy = None
+    msrp_relay = "auto"
 
 class AudioConfig(ConfigSection):
     _datatypes = {"disable_sound": datatypes.Boolean}
@@ -758,35 +763,22 @@ def main():
     except RuntimeError, e:
         sys.exit(str(e))
 
-re_host_port = re.compile("^((?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(?P<host>[a-zA-Z0-9\-\.]+))(:(?P<port>\d+))?$")
-def parse_host_port(option, opt_str, value, parser, host_name, port_name, default_port, allow_host=True):
-    if value.lower() in ['auto', 'srv']:
-        return setattr(parser.values, host_name, value.lower())
-    elif value.lower() == 'none':
-        return setattr(parser.values, host_name, None)
-    match = re_host_port.match(value)
-    if match is None:
-        raise OptionValueError("Could not parse supplied address: %s" % value)
-    if match.group("ip") is None:
-        if allow_host:
-            setattr(parser.values, host_name, match.group("host"))
-        else:
-            raise OptionValueError("Not a IP address: %s" % match.group("host"))
-    else:
-        setattr(parser.values, host_name, match.group("ip"))
-    if match.group("port") is None:
-        setattr(parser.values, port_name, default_port)
-    else:
-        setattr(parser.values, port_name, int(match.group("port")))
-
 def parse_outbound_proxy(option, opt_str, value, parser):
     try:
         parser.values.outbound_proxy = IPAddressOrHostname(value)
     except ValueError, e:
         raise OptionValueError(e.message)
 
+def _parse_msrp_relay(value):
+    if value in ['auto', 'srv', 'none']:
+        return value
+    try:
+        return IPAddressOrHostname(value)
+    except ValueError, e:
+        raise OptionValueError(e.message)
+
 def parse_msrp_relay(option, opt_str, value, parser):
-    return parse_host_port(option, opt_str, value, parser, "msrp_relay_ip", "msrp_relay_port", 2855)
+    parser.values.msrp_relay = _parse_msrp_relay(value)
 
 class SIPAddress:
 
@@ -836,13 +828,13 @@ def parse_options():
                       help="Print PJSIP logging output.")
 
     help=('Use the MSRP relay; '
-          'if "srv", discover the relay through SRV lookup on domain part of the target SIP URI; '
-          '''if "auto", do SRV lookup first, but if not succeed, use user's domain as the relay's address; '''
+          'if "srv", do SRV lookup on domain part of the target SIP URI, '
+          'use user\'s domain if SRV lookup was not successful; '
           'if "none", the direct connection is performed; '
-          'default is auto for incoming connections and none for outgoing.')
-    MSRP_RELAY_DEFAULT = object()
-    parser.add_option("-r", "--msrp-relay", type='string', action="callback", callback=parse_msrp_relay,
-                      help=help, default=MSRP_RELAY_DEFAULT, dest='msrp_relay_ip', metavar='IP[:PORT]')
+          'if "auto", use "srv" for incoming connections and "none" for outgoing; '
+          'default is "auto".')
+    parser.add_option("-r", "--msrp-relay", type='string',
+                      action="callback", callback=parse_msrp_relay, help=help, metavar='IP[:PORT]')
     parser.add_option("-S", "--disable-sound", action="store_true", default=AudioConfig.disable_sound,
                       help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-y", '--accept-all', action='store_true', default=False, help=SUPPRESS_HELP)
@@ -861,6 +853,7 @@ def parse_options():
         raise RuntimeError(msg)
     configuration.read_settings(account_section, AccountConfig)
     default_options = dict(outbound_proxy=AccountConfig.outbound_proxy,
+                           msrp_relay=_parse_msrp_relay(AccountConfig.msrp_relay),
                            sip_address=AccountConfig.sip_address,
                            password=AccountConfig.password,
                            display_name=AccountConfig.display_name,
@@ -911,19 +904,21 @@ def parse_options():
         options.target_address = None
         options.target_uri = None
 
-    if options.msrp_relay_ip is MSRP_RELAY_DEFAULT:
+    if options.msrp_relay == 'auto':
         if options.target_uri is None:
-            options.msrp_relay_ip = 'auto'
+            options.msrp_relay = 'srv'
         else:
-            options.msrp_relay_ip = None
-    if options.msrp_relay_ip is None:
+            options.msrp_relay = 'none'
+    if options.msrp_relay == 'srv':
+        options.relay = RelaySettings_SRV(options.sip_address.domain, 2855,
+                                          options.sip_address.username, options.password, True)
+    elif options.msrp_relay == 'none':
         options.relay = None
-    elif options.msrp_relay_ip in ['auto', 'srv']:
-        fallback_to_A = options.msrp_relay_ip == 'auto'
-        options.relay = RelaySettings_SRV(options.sip_address.domain, 2855, options.sip_address.username,
-                                          options.password, fallback_to_A)
     else:
-        options.relay = RelaySettings(options.sip_address.domain, options.msrp_relay_ip, options.msrp_relay_port,
+        host, port, _is_ip = options.msrp_relay
+        if port is None:
+            port = 2855
+        options.relay = RelaySettings(options.sip_address.domain, host, port,
                                       options.sip_address.username, options.password)
 
     if options.use_bonjour:
