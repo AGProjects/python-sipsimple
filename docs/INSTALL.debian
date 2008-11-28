@@ -2,9 +2,21 @@
 Debian installation
 -------------------
 
-Install dependencies:
+For Debian and Ubuntu there is an official public repository provided by AG
+Projects. Install the AG Projects debian software signing key:
 
-sudo apt-get install mercurial
+wget http://download.ag-projects.com/agp-debian-gpg.key 
+sudo apt-key add agp-debian-gpg.key
+
+Add these lines at the end of etc/apt/sources.list
+
+# AG Projects software
+deb http://ag-projects.com/debian unstable main
+deb-src http://ag-projects.com/debian unstable main
+
+Install dependencies that are not yet available as debian package:
+
+sudo apt-get install mercurial python-setuptools
 
 # Download and install eventlet for twisted:
 hg clone
@@ -17,17 +29,9 @@ cd eventlet_twisted
 hg pull
 hg update
 
-For Debian and Ubuntu there is an official public repository provided by AG
-Projects. Install the AG Projects debian software signing key:
+You must have cython >=0.9.1 installed. To upgrade cython do:
 
-wget http://download.ag-projects.com/agp-debian-gpg.key 
-sudo apt-key add agp-debian-gpg.key
-
-Add these lines at the end of etc/apt/sources.list
-
-# AG Projects software
-deb http://ag-projects.com/debian unstable main
-deb-src http://ag-projects.com/debian unstable main
+sudo easy_install -U cython
 
 Install the software:
 
