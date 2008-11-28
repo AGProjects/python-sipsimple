@@ -1,27 +1,34 @@
 sipclient (0.3.0) unstable; urgency=low
 
+  * Renamed sip_rtp_audio_session to sip_audio_session
+  * Removed sip_msrp_im_session and sip_msrp_file_transfer scripts
+  * Added sip_im_session script, supporting chats with multiple other parties
+    and incoming file transfers
+  * Added sip_send_file for sending files over SIP/MSRP in a batch mode
+  * Added auto_accept_file_transfers General option
+  * Added rtp_port_range General option
+  * Added listen_udp General option
+  * Added file_transfer_directory General option
+  * Added history_directory General option
+  * Added log_directory General option
+  * Added msrp_relay SIP account option
+  * Play sounds when send and receive IM
+  * Added xcap_rls_services script
+  * Added rtp_port_range init and runtime option to Engine/PJSIPUA
+  * Added realtime echo cancellation adjustment to audio session script
   * Remodeled Invitation class to mirror PJSIP states and communicate with
     application by means of SDPSession objects
   * Adjusted audio and IM session scripts to use this new Invitation class
   * Implemented RTPTransport and AudioTransport classes, which wrap PJSIP
     media transport and audio stream functionality respectively
   * Refactored SIPURI, Credentials and Route classes to be dynamic
-  * Added rtp_port_range init and runtime option to Engine/PJSIPUA
-  * Added realtime echo cancellation adjustment to audio session script
   * Added foreign thread and deallocation checking to PyPJUA
   * Prevented PJLIB calles in import to improve Windows compatibility
-  * Renamed sip_rtp_audio_session.py to sip_audio_session.py
   * Removed dependency on python-application for PyPJUA
   * Added msrplib: MSRP protocol implementation powered by twisted/eventlet
   * Added twisted/eventlet wrapper for Engine
-  * Added sip_im_session.py script, supporting chats with multiple other parties
-    and incoming file transfers
-  * Added sip_im_send_file.py for sending files over SIP/MSRP in a batch mode
-  * Removed sip_msrp_im_session.py and sip_msrp_file_transfer.py scripts
-  [ Lucian Stanescu ]
   * Added creation of history, log and file transfer directories in enrollment
   * Made sip traces get logged in <log_directory>/<sip_address>/sip_trace.txt
-  * Added xcap_rls_services script
 
  -- Adrian Georgescu <ag@ag-projects.com>  Fri, 28 Nov 2008 13:14:04 +0100
 

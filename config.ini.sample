@@ -21,7 +21,7 @@ rtp_port_range=8000 8100
 ; Log directory
 log_directory=~/.sipclient/log
 
-; Logging
+; Logging setting, must be set per account
 trace_pjsip=false
 trace_sip=false
 trace_xcap=false
@@ -46,8 +46,7 @@ codec_list=speex,g711,ilbc,gsm,g722
 
 
 [Account]
-
-; credentials used for authentication to the SIP Proxy, XCAP server, MSRP relay
+; credentials used for authentication to the SIP Proxy, XCAP server and MSRP relay
 sip_address=
 password=
 
@@ -66,12 +65,6 @@ xcap_root=https://xcap.example.com/xcap-root/
 
 ; overwrite the MSRP relay address, syntax: domain|hostname|hostname:port|ip:port
 ; msrp_relay=auto
-
-; domain used for the multi-party MSRP chat server
-; im_chatserver_domain=conference.example.com
-
-; register contact with the SIP registrar
-; register=true
 
 ; enable publication and subscription to presence.winfo event package, if
 ; enabled the software will publish its state and authorize or block
