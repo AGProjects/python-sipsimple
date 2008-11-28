@@ -431,6 +431,8 @@ def parse_options():
     else:
         if not retval["use_bonjour"]:
             print "Using account '%s': %s" % (options.account_name, options.sip_address)
+    if retval['trace_sip']:
+        print "Logging SIP trace to file '%s'" % os.path.join(process._system_config_directory, 'log', '%s@%s' % (retval["username"], retval["domain"]), 'sip_trace.txt')
     return retval
 
 def main():
