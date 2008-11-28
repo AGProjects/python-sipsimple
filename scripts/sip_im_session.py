@@ -916,9 +916,8 @@ def parse_options():
     elif options.msrp_relay == 'none':
         options.relay = None
     else:
-        host, port, _is_ip = options.msrp_relay
-        if port is None:
-            port = 2855
+        host, port, is_ip = options.msrp_relay
+        host, port = lookup_srv(host, port, is_ip, 2855)
         options.relay = RelaySettings(options.sip_address.domain, host, port,
                                       options.sip_address.username, options.password)
 
