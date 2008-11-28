@@ -23,16 +23,16 @@ class IPAddressOrHostname(tuple):
                 raise ValueError("port is out of range: %d" % port)
         return host, port, is_ip
 
-def lookup_srv(host, port, is_ip, default_port):
+def lookup_srv(host, port, is_ip, default_port, service='_sip._udp'):
     if is_ip:
         return host, port or default_port
     else:
         if port is None:
             try:
-                srv_answers = dns.resolver.query("_sip._udp.%s" % host, "SRV")
+                srv_answers = dns.resolver.query("%s.%s" % (service, host), "SRV")
                 a_host = str(srv_answers[0].target).rstrip(".")
                 port = srv_answers[0].port
-                print 'Resolved DNS SRV record "_sip._udp.%s" --> %s:%d' % (host, a_host, port)
+                print 'Resolved DNS SRV record "%s.%s" --> %s:%d' % (service, host, a_host, port)
             except:
                 print "Domain %s has no DNS SRV record, attempting DNS A record lookup" % host
                 a_host = host
