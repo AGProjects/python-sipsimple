@@ -532,7 +532,8 @@ def readloop(console, man, commands, shortcuts):
                     commands[value[1:]]()
                 else:
                     if value:
-                        echoed = man.send_message(value)
+                        if man.send_message(value):
+                            echoed.append(1)
             except UserCommandError, ex:
                 echo()
                 print ex
