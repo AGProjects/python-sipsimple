@@ -1,3 +1,20 @@
+sipclient (0.3.0) unstable; urgency=low
+
+  * Remodeled Invitation class to mirror PJSIP states and communicate with
+    application by means of SDPSession objects
+  * Adjusted audio and IM session scripts to use this new Invitation class
+  * Implemented RTPTransport and AudioTransport classes, which wrap PJSIP
+    media transport and audio stream functionality respectively
+  * Refactored SIPURI, Credentials and Route classes to be dynamic
+  * Added rtp_port_range init and runtime option to Engine/PJSIPUA
+  * Added realtime echo cancellation adjustment to audio session script
+  * Added foreign thread and deallocation checking to PyPJUA
+  * Prevented PJLIB calles in import to improve Windows compatibility
+  * Renamed sip_rtp_audio_session.py to sip_audio_session.py
+  * Removed dependency on python-application for PyPJUA
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Fri, 28 Nov 2008 13:14:04 +0100
+
 sipclient (0.2.3) unstable; urgency=low
 
   * Updated MacOSX installation procedure from sources
