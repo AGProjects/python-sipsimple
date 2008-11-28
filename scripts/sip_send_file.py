@@ -6,6 +6,7 @@ from eventlet.coros import queue
 from eventlet.api import sleep
 from pypjua import Credentials, SDPAttribute, SDPMedia
 from pypjua.enginebuffer import EngineBuffer, SIPDisconnect
+from pypjua.clients.clientconfig import get_path
 from pypjua.clients.sdputil import FileSelector
 from pypjua.clients.im import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
 from gnutls.errors import GNUTLSError
@@ -55,6 +56,9 @@ class PushFileSession(ChatSession):
 
     def _on_message_delivered(self, message, content_type):
         print 'Sent %s.' % self.sdp.fileselector
+        if self.play_wav_func:
+            self.play_wav_func(get_path("message_sent.wav"))
+        sleep(0.5) # wait for wav
 
     def make_sdp_media(self, uri):
         return self.sdp.make_SDPMedia(uri)
@@ -86,7 +90,7 @@ def main():
     ch = queue()
     e = EngineBuffer(ch,
                      trace_sip=options.trace_sip,
-                     auto_sound=False,
+                     auto_sound=not options.disable_sound,
                      ec_tail_length=0,
                      local_ip=options.local_ip,
                      local_port=options.local_port)
