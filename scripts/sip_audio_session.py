@@ -37,6 +37,7 @@ class AccountConfig(ConfigSection):
     display_name = None
     outbound_proxy = None
     history_directory = '~/.sipclient/history'
+    log_directory = '~/.sipclient/log'
 
 
 class AudioConfig(ConfigSection):
@@ -91,10 +92,10 @@ def event_handler(event_name, **kwargs):
             return
         if trace_sip_file is None:
             try:
-                filename = os.path.join(process._system_config_directory, 'log', '%s@%s' % (sip_uri.user, sip_uri.host), 'sip_trace.txt')
+                filename = os.path.join(os.path.expanduser(AccountConfig.log_directory), '%s@%s' % (sip_uri.user, sip_uri.host), 'sip_trace.txt')
                 trace_sip_file = open(filename, 'a')
             except IOError, e:
-                queue.put(("print", "failed to create log file '%s'" % filename))
+                queue.put(("print", "failed to create log file '%s': %s" % (filename, e)))
                 return
         if start_time is None:
             start_time = kwargs["timestamp"]
@@ -430,7 +431,7 @@ def parse_options():
         if not retval["use_bonjour"]:
             print "Using account '%s': %s" % (options.account_name, options.sip_address)
     if retval['trace_sip']:
-        print "Logging SIP trace to file '%s'" % os.path.join(process._system_config_directory, 'log', '%s@%s' % (retval["username"], retval["domain"]), 'sip_trace.txt')
+        print "Logging SIP trace to file '%s'" % os.path.join(os.path.expanduser(AccountConfig.log_directory), '%s@%s' % (retval["username"], retval["domain"]), 'sip_trace.txt')
     return retval
 
 def main():
