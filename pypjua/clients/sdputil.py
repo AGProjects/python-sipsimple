@@ -43,7 +43,9 @@ class FileSelector(object):
 
     def format_sdp(self):
         res = []
-        for name in ['name', 'type', 'size', 'hash']:
+        if self.name:
+            res.append('name:"%s"' % self.name)
+        for name in ['type', 'size', 'hash']:
             value = getattr(self, name)
             if value is not None:
                 res.append('%s:%s' % (name, value))

@@ -22,7 +22,7 @@ class SDPOfferFactory:
 
     def __init__(self, filename):
         self.filename = filename
-        self.fileselector = FileSelector('"%s"' % filename,
+        self.fileselector = FileSelector(filename,
                                          get_file_mimetype(filename),
                                          os.stat(filename).st_size,
                                          read_sha1(filename))
