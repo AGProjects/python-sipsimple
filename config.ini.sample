@@ -63,7 +63,7 @@ xcap_root=https://xcap.example.com/xcap-root/
 ; file_transfer_auto_accept=false
 
 ; overwrite default DNS lookup with a fixed address: hostname|ip:port
-; msrp_relay_address=auto
+; msrp_relay=auto
 
 ; domain used for the multi-party MSRP chat server
 ; im_chatserver_domain=conference.example.com
