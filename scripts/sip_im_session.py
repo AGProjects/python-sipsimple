@@ -2,14 +2,12 @@
 from __future__ import with_statement
 import sys
 import os
-import re
 import random
 import string
 import datetime
+import glob
 from optparse import OptionValueError, OptionParser, SUPPRESS_HELP
 from ConfigParser import NoSectionError
-import dns.resolver
-from dns.exception import DNSException
 
 from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
@@ -27,15 +25,22 @@ from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
 from pypjua.enginebuffer import EngineBuffer, Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
+from pypjua.clients.sdputil import FileSelector
 
 KEY_NEXT_SESSION = '\x0e'
 MSRPErrors = (DNSLookupError, MSRPError, ConnectError, BindError)
 
+process._system_config_directory = os.path.expanduser("~/.sipclient")
+config_ini = os.path.join(process._system_config_directory, 'config.ini')
+
 class GeneralConfig(ConfigSection):
-    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    _datatypes = {"listen_udp": datatypes.NetworkAddress,
+                  "trace_pjsip": datatypes.Boolean,
+                  "trace_sip": datatypes.Boolean}
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
+    file_transfer_directory = os.path.join(process._system_config_directory, 'file_transfers')
 
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str,
@@ -53,9 +58,6 @@ class AudioConfig(ConfigSection):
     _datatypes = {"disable_sound": datatypes.Boolean}
     disable_sound = False
 
-
-process._system_config_directory = os.path.expanduser("~/.sipclient")
-config_ini = os.path.join(process._system_config_directory, 'config.ini')
 enrollment.verify_account_config()
 
 def random_string(length):
@@ -72,9 +74,6 @@ def format_useruri(uri):
 
 def echo_message(uri, message):
     print '%s %s: %s' % (format_time(), uri, message)
-
-#def set_nosessions_ps(console, myuri):
-#    console.set_ps('%s@%s> ' % (myuri.user, myuri.host))
 
 def format_nosessions_ps(myuri):
     return '%s@%s> ' % (myuri.user, myuri.host)
@@ -247,6 +246,7 @@ class ChatSession:
         else:
             raise UserCommandError('MSRP is not connected')
 
+
 def _helper(func):
     def current_func(self, *args, **kwargs):
         if self.current_session:
@@ -254,6 +254,152 @@ def _helper(func):
         else:
             raise UserCommandError('No active session')
     return current_func
+
+
+class ReceiveFileSession:
+
+    msrp_closed_by_me = False
+    ending_msrp_connection_only = False
+
+    def __init__(self, session_manager, credentials, write_traffic, sip, msrp):
+        self.myman = session_manager
+        self.credentials = credentials
+        self.write_traffic = write_traffic
+        self.sip = sip
+        self.sip.call_on_disconnect(self._on_disconnect)
+        self.remote_sdp = sip.get_offered_remote_sdp()
+        self.msrp = msrp
+        self.read_msrp_job = None
+        if self.msrp is not None:
+            self.start_read_msrp()
+
+    @property
+    def fileselector(self):
+        return FileSelector.parse(self.sip._attrdict['file-selector'])
+
+    def get_download_path(self, name):
+        path = os.path.join(GeneralConfig.file_transfer_directory, name)
+        if os.path.exists(path):
+            all = [int(x[len(path)+1:]) for x in glob.glob(path + '.*')]
+            if not all:
+                return path + '.1'
+            else:
+                return path + '.' + str(max(all)+1)
+        return path
+
+    def _save_file(self, message):
+        fro, to, length = message.headers['Byte-Range'].decoded
+        assert len(message.data)==length, (len(message.data), length) # check MSRP integrity
+        # check that SIP filesize and MSRP size match
+        assert self.fileselector.size == length, (self.fileselector.size, lenght)
+        path = self.get_download_path(self.fileselector.name)
+        print 'Saving %s to %s' % (self.fileselector, path)
+        assert not os.path.exists(path), path # get_download_path must return a new path
+        file(path, 'w+').write(message.data)
+
+    def _report_disconnect(self):
+        if self.myman:
+            self.myman.disconnect(self)
+
+    def _update_ps(self):
+        if self.myman:
+            self.myman.update_ps()
+
+    def shutdown(self):
+        if self.sip:
+            self.sip.cancel_call_on_disconnect(self._on_disconnect)
+            self.sip.shutdown()
+        self.shutdown_msrp()
+
+    @property
+    def me(self):
+        return self.credentials.uri
+
+    @property
+    def other(self):
+        if self.sip and self.sip.remote_uri:
+            self.__dict__['other'] = self.sip.remote_uri
+            return self.sip.remote_uri
+
+    def end_sip(self):
+        "Close SIP session but keep everything else intact. For debugging."
+        #[caller, callee] x [:end sip, :end msrp]
+        if self.sip:
+            self.sip.cancel_call_on_disconnect(self._on_disconnect)
+            self.sip.end()
+        self.stop_invite()
+
+    def format_ps(self):
+        if self.other:
+            return 'FileTransfer to %s@%s: ' % (self.other.user, self.other.host)
+        else:
+            return format_nosessions_ps(self.me)
+
+    def make_sdp_media(self, uri):
+        return make_msrp_sdp_media(uri, ['text/plain'])
+
+    def _on_disconnect(self, params):
+        self.close_msrp()
+        self._report_disconnect()
+
+    def start_read_msrp(self):
+        assert not self.read_msrp_job, self.read_msrp_job
+        self.read_msrp_job = spawn_link(self._read_msrp)
+
+    def stop_read_msrp(self):
+        if self.read_msrp_job:
+            self.read_msrp_job.kill()
+
+    def _read_msrp(self):
+        OK = False
+        try:
+            while self.msrp and self.msrp.connected:
+                message = self.msrp.recv_chunk()
+                if message.method == 'SEND':
+                    self._save_file(message)
+                    self._report_disconnect()
+        except ConnectionDone, ex:
+            if not self.msrp_closed_by_me:
+                print 'MSRP connection %s was closed by remote host' % self.msrp.next_host()
+        except ConnectionClosed, ex:
+            if not self.msrp_closed_by_me:
+                print 'MSRP connection %s was disconnected: %s' % (self.msrp.next_host(), ex)
+        except GreenletExit:
+            raise
+        except:
+            import traceback
+            traceback.print_exc()
+            raise
+        finally:
+            if not self.ending_msrp_connection_only:
+                self.sip.shutdown()
+                self._report_disconnect()
+
+    def close_msrp(self):
+        if self.msrp and self.msrp.connected:
+            print 'Closing MSRP connection %s' % self.msrp.next_host()
+            self.msrp.loseConnection()
+            self.msrp_closed_by_me = True
+        self.stop_read_msrp()
+
+    def end_msrp(self):
+        self.ending_msrp_connection_only = True
+        self.close_msrp()
+
+    def shutdown_msrp(self):
+        if self.msrp and self.msrp.connected:
+            #print 'Shutting down MSRP connection %s' % self.msrp.next_host()
+            # give remote side 1 second to close MSRP connection
+            with_timeout(1, self.read_msrp_job.wait, timeout_value=1)
+            self.close_msrp()
+
+    def send_message(self, msg, content_type='text/plain'):
+        if self.msrp and self.msrp.connected:
+            self.msrp.send_message(msg, content_type)
+            self._on_message_sent(msg, content_type)
+            return True
+        else:
+            raise UserCommandError('MSRP is not connected')
 
 class SessionManager:
 
@@ -326,9 +472,11 @@ class SessionManager:
         inbound_ringer = Ringer(e.play_wav_file, get_path("ring_inbound.wav"))
         def new_chat_session(sip, msrp):
             return ChatSession(self, self.credentials, self.write_traffic, e.play_wav_file, sip, msrp)
+        def new_receivefile_session(sip, msrp):
+            return ReceiveFileSession(self, self.credentials, self.write_traffic, sip, msrp)
         connector = NoisyMSRPConnector(relay, self.write_traffic)
-        #file = IncomingFileTransferHandler(relay, e.local_ip, self.console, make_chat_session, inbound_ringer)
-        #handler.add_handler(file)
+        file = IncomingFileTransferHandler(connector, e.local_ip, self.console, new_receivefile_session, inbound_ringer)
+        handler.add_handler(file)
         chat = IncomingChatHandler(connector, e.local_ip, self.console, new_chat_session, inbound_ringer)
         handler.add_handler(chat)
         while True:
@@ -646,7 +794,7 @@ class IncomingFileTransferHandler(IncomingMSRPHandler):
         self.ringer = ringer
 
     def is_acceptable(self, inv):
-        if not IncomingMSRPHandler.__init__(self, inv):
+        if not IncomingMSRPHandler.is_acceptable(self, inv):
             return False
         attrs = inv._attrdict
         if 'sendonly' not in attrs:
@@ -657,11 +805,10 @@ class IncomingFileTransferHandler(IncomingMSRPHandler):
 
     def _format_fileinfo(self, inv):
         attrs = inv._attrdict
-        return str(attrs)
-        result = []
+        return str(FileSelector.parse(attrs['file-selector']))
 
     def _ask_user(self, inv):
-        q = 'Incoming file transfer:\n%s\nfrom %s, do you accept? (y/n) ' % (self._format_fileinfo(inv), inv.caller_uri)
+        q = 'Incoming file transfer %s from %s, do you accept? (y/n) ' % (self._format_fileinfo(inv), inv.caller_uri)
         self.ringer.start()
         try:
             return self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
