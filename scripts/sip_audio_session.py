@@ -106,7 +106,7 @@ def event_handler(event_name, **kwargs):
         buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
         buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
         buf.append(kwargs["data"])
-        buf.append('')
+        buf.append('--')
         trace_sip_file.write("\n".join(buf))
         trace_sip_file.flush()
     elif event_name != "log":
