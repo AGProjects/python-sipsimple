@@ -81,10 +81,12 @@ def format_nosessions_ps(myuri):
 class UserCommandError(Exception):
     pass
 
-class ChatSession:
+
+class MSRPSession:
 
     msrp_closed_by_me = False
     ending_msrp_connection_only = False
+    index = 0
 
     def __init__(self, session_manager, credentials, write_traffic, play_wav_func=None, sip=None, msrp=None):
         self.myman = session_manager
@@ -95,20 +97,11 @@ class ChatSession:
         if sip is not None:
             self.sip.call_on_disconnect(self._on_disconnect)
         self.msrp = msrp
-        self.invite_job = None
         self.read_msrp_job = None
         if self.msrp is not None:
             self.start_read_msrp()
-
-    def _on_message_received(self, message):
-        echo_message(format_useruri(self.other), message)
-        if self.play_wav_func:
-            self.play_wav_func(get_path("Message_Received.wav"))
-
-    def _on_message_sent(self, message, content_type):
-        echo_message(format_useruri(self.me), message)
-        if self.play_wav_func:
-            self.play_wav_func(get_path("Message_Sent.wav"))
+        MSRPSession.index += 1
+        self.index = MSRPSession.index
 
     def _report_disconnect(self):
         if self.myman:
@@ -146,6 +139,89 @@ class ChatSession:
             self.sip.end()
         self.stop_invite()
 
+    def make_sdp_media(self, uri):
+        return make_msrp_sdp_media(uri, ['text/plain'])
+
+    def _on_disconnect(self, params):
+        self.close_msrp()
+        self._report_disconnect()
+
+    def start_read_msrp(self):
+        assert not self.read_msrp_job, self.read_msrp_job
+        self.read_msrp_job = spawn_link(self._read_msrp)
+
+    def stop_read_msrp(self):
+        if self.read_msrp_job:
+            self.read_msrp_job.kill()
+
+    def _read_msrp(self):
+        OK = False
+        try:
+            while self.msrp and self.msrp.connected:
+                message = self.msrp.recv_chunk()
+                if message.method == 'SEND':
+                    self._on_message_received(message)
+        except ConnectionDone, ex:
+            if not self.msrp_closed_by_me:
+                print 'MSRP connection %s was closed by remote host' % self.msrp.next_host()
+        except ConnectionClosed, ex:
+            if not self.msrp_closed_by_me:
+                print 'MSRP connection %s was disconnected: %s' % (self.msrp.next_host(), ex)
+        except GreenletExit:
+            raise
+        except:
+            import traceback
+            traceback.print_exc()
+            raise
+        finally:
+            if not self.ending_msrp_connection_only:
+                self.sip.shutdown()
+                self._report_disconnect()
+
+    def close_msrp(self):
+        if self.msrp and self.msrp.connected:
+            print 'Closing MSRP connection %s' % self.msrp.next_host()
+            self.msrp.loseConnection()
+            self.msrp_closed_by_me = True
+        self.stop_read_msrp()
+
+    def end_msrp(self):
+        self.ending_msrp_connection_only = True
+        self.close_msrp()
+
+    def shutdown_msrp(self):
+        if self.msrp and self.msrp.connected:
+            #print 'Shutting down MSRP connection %s' % self.msrp.next_host()
+            # give remote side 1 second to close MSRP connection
+            with_timeout(1, self.read_msrp_job.wait, timeout_value=1)
+            self.close_msrp()
+
+    def send_message(self, msg, content_type='text/plain'):
+        if self.msrp and self.msrp.connected:
+            self.msrp.send_message(msg, content_type)
+            self._on_message_sent(msg, content_type)
+            return True
+        else:
+            raise UserCommandError('MSRP is not connected')
+
+
+class ChatSession(MSRPSession):
+
+
+    def __init__(self, *args, **kwargs):
+        MSRPSession.__init__(self, *args, **kwargs)
+        self.invite_job = None
+
+    def _on_message_received(self, message):
+        echo_message(format_useruri(self.other), message.data)
+        if self.play_wav_func:
+            self.play_wav_func(get_path("Message_Received.wav"))
+
+    def _on_message_sent(self, message, content_type):
+        echo_message(format_useruri(self.me), message)
+        if self.play_wav_func:
+            self.play_wav_func(get_path("Message_Sent.wav"))
+
     def start_invite(self, e, target_uri, route, relay):
         assert not self.invite_job, self.invite_job
         self.invite_job = spawn_link(self._invite, e, target_uri, route, relay)
@@ -156,9 +232,9 @@ class ChatSession:
 
     def format_ps(self):
         if self.other:
-            return 'Chat to %s@%s: ' % (self.other.user, self.other.host)
+            return '[%s] Chat to %s@%s: ' % (self.index, self.other.user, self.other.host)
         else:
-            return format_nosessions_ps(self.me)
+            return '[%s] Inactive chat: ' % self.index
 
     def make_sdp_media(self, uri):
         return make_msrp_sdp_media(uri, ['text/plain'])
@@ -190,88 +266,14 @@ class ChatSession:
                 self.sip.call_on_disconnect(self._on_disconnect)
                 self._report_invited()
 
-    def _on_disconnect(self, params):
-        self.close_msrp()
+
+class ReceiveFileSession(MSRPSession):
+
+    active_after_connect = False
+
+    def _on_message_received(self, message):
+        self._save_file(message)
         self._report_disconnect()
-
-    def start_read_msrp(self):
-        assert not self.read_msrp_job, self.read_msrp_job
-        self.read_msrp_job = spawn_link(self._read_msrp)
-
-    def stop_read_msrp(self):
-        if self.read_msrp_job:
-            self.read_msrp_job.kill()
-
-    def _read_msrp(self):
-        OK = False
-        try:
-            while self.msrp and self.msrp.connected:
-                message = self.msrp.recv_chunk()
-                if message.method == 'SEND':
-                    self._on_message_received(message.data)
-        except ConnectionDone, ex:
-            if not self.msrp_closed_by_me:
-                print 'MSRP connection %s was closed by remote host' % self.msrp.next_host()
-        except ConnectionClosed, ex:
-            if not self.msrp_closed_by_me:
-                print 'MSRP connection %s was disconnected: %s' % (self.msrp.next_host(), ex)
-        finally:
-            if not self.ending_msrp_connection_only:
-                self.sip.shutdown()
-                self._report_disconnect()
-
-    def close_msrp(self):
-        if self.msrp and self.msrp.connected:
-            print 'Closing MSRP connection %s' % self.msrp.next_host()
-            self.msrp.loseConnection()
-            self.msrp_closed_by_me = True
-        self.stop_read_msrp()
-
-    def end_msrp(self):
-        self.ending_msrp_connection_only = True
-        self.close_msrp()
-
-    def shutdown_msrp(self):
-        if self.msrp and self.msrp.connected:
-            #print 'Shutting down MSRP connection %s' % self.msrp.next_host()
-            # give remote side 1 second to close MSRP connection
-            with_timeout(1, self.read_msrp_job.wait, timeout_value=1)
-            self.close_msrp()
-
-    def send_message(self, msg, content_type='text/plain'):
-        if self.msrp and self.msrp.connected:
-            self.msrp.send_message(msg, content_type)
-            self._on_message_sent(msg, content_type)
-            return True
-        else:
-            raise UserCommandError('MSRP is not connected')
-
-
-def _helper(func):
-    def current_func(self, *args, **kwargs):
-        if self.current_session:
-            return getattr(self.current_session, func)(*args, **kwargs)
-        else:
-            raise UserCommandError('No active session')
-    return current_func
-
-
-class ReceiveFileSession:
-
-    msrp_closed_by_me = False
-    ending_msrp_connection_only = False
-
-    def __init__(self, session_manager, credentials, write_traffic, sip, msrp):
-        self.myman = session_manager
-        self.credentials = credentials
-        self.write_traffic = write_traffic
-        self.sip = sip
-        self.sip.call_on_disconnect(self._on_disconnect)
-        self.remote_sdp = sip.get_offered_remote_sdp()
-        self.msrp = msrp
-        self.read_msrp_job = None
-        if self.msrp is not None:
-            self.start_read_msrp()
 
     @property
     def fileselector(self):
@@ -297,109 +299,22 @@ class ReceiveFileSession:
         assert not os.path.exists(path), path # get_download_path must return a new path
         file(path, 'w+').write(message.data)
 
-    def _report_disconnect(self):
-        if self.myman:
-            self.myman.disconnect(self)
-
-    def _update_ps(self):
-        if self.myman:
-            self.myman.update_ps()
-
-    def shutdown(self):
-        if self.sip:
-            self.sip.cancel_call_on_disconnect(self._on_disconnect)
-            self.sip.shutdown()
-        self.shutdown_msrp()
-
-    @property
-    def me(self):
-        return self.credentials.uri
-
-    @property
-    def other(self):
-        if self.sip and self.sip.remote_uri:
-            self.__dict__['other'] = self.sip.remote_uri
-            return self.sip.remote_uri
-
-    def end_sip(self):
-        "Close SIP session but keep everything else intact. For debugging."
-        #[caller, callee] x [:end sip, :end msrp]
-        if self.sip:
-            self.sip.cancel_call_on_disconnect(self._on_disconnect)
-            self.sip.end()
-        self.stop_invite()
-
     def format_ps(self):
         if self.other:
-            return 'FileTransfer to %s@%s: ' % (self.other.user, self.other.host)
+            name = self.fileselector.name
+            return '[%s] File transfer %r from %s@%s: ' % (self.index, name, self.other.user, self.other.host)
         else:
-            return format_nosessions_ps(self.me)
+            return '[%s] Inactive file transfer: ' % self.index
 
-    def make_sdp_media(self, uri):
-        return make_msrp_sdp_media(uri, ['text/plain'])
 
-    def _on_disconnect(self, params):
-        self.close_msrp()
-        self._report_disconnect()
-
-    def start_read_msrp(self):
-        assert not self.read_msrp_job, self.read_msrp_job
-        self.read_msrp_job = spawn_link(self._read_msrp)
-
-    def stop_read_msrp(self):
-        if self.read_msrp_job:
-            self.read_msrp_job.kill()
-
-    def _read_msrp(self):
-        OK = False
-        try:
-            while self.msrp and self.msrp.connected:
-                message = self.msrp.recv_chunk()
-                if message.method == 'SEND':
-                    self._save_file(message)
-                    self._report_disconnect()
-        except ConnectionDone, ex:
-            if not self.msrp_closed_by_me:
-                print 'MSRP connection %s was closed by remote host' % self.msrp.next_host()
-        except ConnectionClosed, ex:
-            if not self.msrp_closed_by_me:
-                print 'MSRP connection %s was disconnected: %s' % (self.msrp.next_host(), ex)
-        except GreenletExit:
-            raise
-        except:
-            import traceback
-            traceback.print_exc()
-            raise
-        finally:
-            if not self.ending_msrp_connection_only:
-                self.sip.shutdown()
-                self._report_disconnect()
-
-    def close_msrp(self):
-        if self.msrp and self.msrp.connected:
-            print 'Closing MSRP connection %s' % self.msrp.next_host()
-            self.msrp.loseConnection()
-            self.msrp_closed_by_me = True
-        self.stop_read_msrp()
-
-    def end_msrp(self):
-        self.ending_msrp_connection_only = True
-        self.close_msrp()
-
-    def shutdown_msrp(self):
-        if self.msrp and self.msrp.connected:
-            #print 'Shutting down MSRP connection %s' % self.msrp.next_host()
-            # give remote side 1 second to close MSRP connection
-            with_timeout(1, self.read_msrp_job.wait, timeout_value=1)
-            self.close_msrp()
-
-    def send_message(self, msg, content_type='text/plain'):
-        if self.msrp and self.msrp.connected:
-            self.msrp.send_message(msg, content_type)
-            self._on_message_sent(msg, content_type)
-            return True
+def _helper(func):
+    def current_func(self, *args, **kwargs):
+        if self.current_session:
+            return getattr(self.current_session, func)(*args, **kwargs)
         else:
-            raise UserCommandError('MSRP is not connected')
+            raise UserCommandError('No active session')
+    return current_func
+
 
 class SessionManager:
 
@@ -473,7 +388,7 @@ class SessionManager:
         def new_chat_session(sip, msrp):
             return ChatSession(self, self.credentials, self.write_traffic, e.play_wav_file, sip, msrp)
         def new_receivefile_session(sip, msrp):
-            return ReceiveFileSession(self, self.credentials, self.write_traffic, sip, msrp)
+            return ReceiveFileSession(self, self.credentials, self.write_traffic, e.play_wav_file, sip, msrp)
         connector = NoisyMSRPConnector(relay, self.write_traffic)
         file = IncomingFileTransferHandler(connector, e.local_ip, self.console, new_receivefile_session, inbound_ringer)
         handler.add_handler(file)
