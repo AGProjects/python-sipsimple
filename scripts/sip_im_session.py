@@ -13,7 +13,7 @@ from dns.exception import DNSException
 
 from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
-from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError
+from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError, BindError, ConnectError
 
 from eventlet.api import spawn, kill, GreenletExit, sleep, with_timeout
 from eventlet.coros import queue, spawn_link
@@ -29,6 +29,7 @@ from pypjua.enginebuffer import EngineBuffer, Ringer, SIPDisconnect, InvitationB
 from pypjua.clients.lookup import IPAddressOrHostname
 
 KEY_NEXT_SESSION = '\x0e'
+MSRPErrors = (DNSLookupError, MSRPError, ConnectError, BindError)
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
@@ -169,7 +170,7 @@ class ChatSession:
                                          self.write_traffic, self.make_sdp_media)
         except SIPDisconnect:
             self._report_disconnect()
-        except InviteErrors, ex:
+        except MSRPErrors, ex:
             print ex
             self._report_disconnect()
         except GreenletExit:
@@ -336,6 +337,8 @@ class SessionManager:
                 self.sessions.append(s)
                 self.current_session = s
                 self.update_ps()
+            except MSRPErrors, ex:
+                print ex
             except GreenletExit:
                 raise
             except:
@@ -491,8 +494,6 @@ def make_msrp_sdp_media(uri_path, accept_types):
     else:
         transport = "TCP/MSRP"
     return SDPMedia("message", uri_path[-1].port, transport, formats=["*"], attributes=attributes)
-
-InviteErrors = (DNSLookupError, MSRPError)
 
 def invite(e, credentials, target_uri, route, relay, log_func, make_media_func):
     msrp_connector = NoisyMSRPConnector(relay, log_func)
