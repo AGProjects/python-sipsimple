@@ -8,6 +8,7 @@ from pypjua import Credentials, SDPAttribute, SDPMedia
 from pypjua.enginebuffer import EngineBuffer, SIPDisconnect
 from pypjua.clients.sdputil import FileSelector
 from sip_im_session import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
+from gnutls.errors import GNUTLSError
 
 if sys.platform == 'darwin':
     file_cmd = "file -b -I '%s'"
@@ -50,6 +51,7 @@ class PushFileSession(ChatSession):
     def __init__(self, credentials, filename, play_wav_func=None):
         ChatSession.__init__(self, None, credentials, None, play_wav_func)
         self.sdp = SDPOfferFactory(filename)
+        self.stop_read_msrp()
 
     def _on_message_delivered(self, message, content_type):
         print 'Sent %s.' % self.sdp.fileselector
@@ -86,18 +88,15 @@ def main():
         credentials = Credentials(options.uri, options.password)
         s = PushFileSession(credentials, filename, e.play_wav_file)
         s.start_invite(e, options.target_uri, options.route, options.relay)
-        try:
-            if s.invite_job.wait() is not True:
-                return
-        except SIPDisconnect:
-            return
-        except MSRPErrors, ex:
-            print ex
-            return
-        s.deliver_message(file(filename).read(), s.sdp.fileselector.type)
+        if s.invite_job.wait() is not True:
+            sys.exit(0)
+        data = file(filename).read()
+        s.deliver_message(data, s.sdp.fileselector.type)
         s.close_msrp()
-        # make deliver_message that waits for the response
-        sleep(0.2)
+    except MSRPErrors, ex:
+        sys.exit(str(ex) or type(ex).__name__)
+    except (GNUTLSError, SIPDisconnect), ex:
+        sys.exit(str(ex) or type(ex).__name__)
     finally:
         e.shutdown()
         e.stop()
