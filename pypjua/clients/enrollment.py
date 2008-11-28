@@ -41,7 +41,7 @@ def verify_account_config():
             print "History directory '%s' does not exist and cannot be created: %s" % (history_dir, str(e))
             sys.exit(1)
     # create file_transfer directory
-    file_transfer_dir = os.path.join(process._system_config_directory, 'file_transfer')
+    file_transfer_dir = os.path.join(process._system_config_directory, 'file_transfers')
     if not os.access(file_transfer_dir, os.F_OK):
         try:
             os.mkdir(file_transfer_dir)
