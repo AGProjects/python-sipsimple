@@ -3,25 +3,40 @@ import sys
 from application.process import process
 from application.configuration import *
 
+class AccountConfig(ConfigSection):
+    _datatypes = {"sip_address": str, "history_directory": str, "log_directory": str, "file_transfer_directory": str}
+    sip_address = None
+    history_directory = '~/.sipclient/history'
+    log_directory = '~/.sipclient/log'
+    file_transfer_directory = '~/.sipclient/file_transfers'
+
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
 
-def init_account(sip_address):
+def init_account(account):
     # create history directory of account
-    history_dir = os.path.join(process._system_config_directory, 'history', sip_address)
+    history_dir = os.path.join(os.path.expanduser(account.history_directory), account.sip_address)
     if not os.access(history_dir, os.F_OK):
         try:
-            os.mkdir(history_dir)
+            os.makedirs(history_dir)
         except OSError, e:
             print "History directory '%s' does not exist and cannot be created: %s" % (history_dir, str(e))
             sys.exit(1)
     # create log directory of account
-    log_dir = os.path.join(process._system_config_directory, 'log', sip_address)
+    log_dir = os.path.join(os.path.expanduser(account.log_directory), account.sip_address)
     if not os.access(log_dir, os.F_OK):
         try:
-            os.mkdir(log_dir)
+            os.makedirs(log_dir)
         except OSError, e:
-            print "History directory '%s' does not exist and cannot be created: %s" % (log_dir, str(e))
+            print "Log directory '%s' does not exist and cannot be created: %s" % (log_dir, str(e))
+            sys.exit(1)
+    # create file_transfer directory
+    file_transfer_dir = os.path.expanduser(account.file_transfer_directory)
+    if not os.access(file_transfer_dir, os.F_OK):
+        try:
+            os.makedirs(file_transfer_dir)
+        except OSError, e:
+            print "File transfer directory '%s' does not exist and cannot be created: %s" % (file_transfer_dir, str(e))
             sys.exit(1)
 
 def verify_account_config():
@@ -32,34 +47,13 @@ def verify_account_config():
         except OSError, e:
             print "Configuration directory '%s' does not exist and cannot be created: %s" % (process._system_config_directory, str(e))
             sys.exit(1)
-    # create history directory
-    history_dir = os.path.join(process._system_config_directory, 'history')
-    if not os.access(history_dir, os.F_OK):
-        try:
-            os.mkdir(history_dir)
-        except OSError, e:
-            print "History directory '%s' does not exist and cannot be created: %s" % (history_dir, str(e))
-            sys.exit(1)
-    # create file_transfer directory
-    file_transfer_dir = os.path.join(process._system_config_directory, 'file_transfers')
-    if not os.access(file_transfer_dir, os.F_OK):
-        try:
-            os.mkdir(file_transfer_dir)
-        except OSError, e:
-            print "History directory '%s' does not exist and cannot be created: %s" % (file_transfer_dir, str(e))
-            sys.exit(1)
-    # create log directory
-    log_dir = os.path.join(process._system_config_directory, 'log')
-    if not os.access(log_dir, os.F_OK):
-        try:
-            os.mkdir(log_dir)
-        except OSError, e:
-            print "History directory '%s' does not exist and cannot be created: %s" % (log_dir, str(e))
-            sys.exit(1)
     # other, per account initiation
-    for sip_address in (configuration.get_option(section, 'sip_address') for section in configuration.parser.sections() if section.startswith('Account')):
-        if sip_address != '':
-            init_account(sip_address)
+    for section in configuration.parser.sections():
+        if not section.startswith('Account'):
+            continue
+        account = type('Account', (object, ConfigSection), AccountConfig.__dict__)
+        configuration.read_settings(section, account)
+        init_account(account)
     # create config file
     config_file = os.path.join(process._system_config_directory, "config.ini")
     if not os.access(config_file, os.F_OK):
