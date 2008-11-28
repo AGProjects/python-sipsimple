@@ -291,7 +291,7 @@ class ReceiveFileSession:
         fro, to, length = message.headers['Byte-Range'].decoded
         assert len(message.data)==length, (len(message.data), length) # check MSRP integrity
         # check that SIP filesize and MSRP size match
-        assert self.fileselector.size == length, (self.fileselector.size, lenght)
+        assert self.fileselector.size == length, (self.fileselector.size, length)
         path = self.get_download_path(self.fileselector.name)
         print 'Saving %s to %s' % (self.fileselector, path)
         assert not os.path.exists(path), path # get_download_path must return a new path
