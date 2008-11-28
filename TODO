@@ -44,7 +44,6 @@ Logging, based on trace_x configuration options:
 - sip_msrp_chat_server (act as a conference server)
 - sip_subscribe_conference_info
 - print source of incomming NOTIFYs in sip_subscribe_x scripts
-- sip_subscribe_presence to a list of URIs
 - xcap_pidf_manipulation script
 - Publish service and status when starting/stopping rtp/msrp session script
 - Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
