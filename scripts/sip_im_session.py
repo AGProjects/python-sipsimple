@@ -171,7 +171,7 @@ class ChatSession:
         except SIPDisconnect:
             self._report_disconnect()
         except MSRPErrors, ex:
-            print ex
+            print str(ex) or type(ex).__name__
             self._report_disconnect()
         except GreenletExit:
             self._report_disconnect()
