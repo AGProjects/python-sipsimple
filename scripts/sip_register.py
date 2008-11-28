@@ -13,6 +13,7 @@ from application.configuration import *
 from application.process import process
 from pypjua import *
 from pypjua.clients import enrollment
+from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
 
@@ -29,6 +30,7 @@ class AccountConfig(ConfigSection):
     password = None
     display_name = None
     outbound_proxy = None
+    log_directory = '~/.sipclient/log'
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -42,7 +44,7 @@ start_time = None
 old = None
 user_quit = True
 lock = allocate_lock()
-trace_sip = False
+logger = None
 
 def termios_restore():
     global old
@@ -67,26 +69,16 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_trace_pjsip, trace_sip
-    if event_name == "siptrace" and trace_sip:
-        if start_time is None:
-            start_time = kwargs["timestamp"]
-        packet_count += 1
-        if kwargs["received"]:
-            direction = "RECEIVED"
-        else:
-            direction = "SENDING"
-        buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
-        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
-        buf.append(kwargs["data"])
-        queue.put(("print", "\n".join(buf)))
+    global start_time, packet_count, queue, do_trace_pjsip
+    if event_name == "siptrace":
+        logger.log(event_name, **kwargs)
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
     elif do_trace_pjsip:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 def read_queue(e, username, domain, password, display_name, route, expires, max_registers):
-    global user_quit, lock, queue, trace_sip, do_trace_pjsip
+    global user_quit, lock, queue, do_trace_pjsip, logger
     lock.acquire()
     printed = False
     try:
@@ -123,7 +115,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
             if command == "user_input":
                 key = data
                 if key == 's':
-                    trace_sip = not trace_sip
+                    logger.trace_sip = not logger.trace_sip
                     print "SIP tracing is now %s" % ("activated" if trace_sip else "deactivated")
                 if key == 'l':
                     do_trace_pjsip = not do_trace_pjsip
@@ -137,16 +129,16 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
         traceback.print_exc()
     finally:
         e.stop()
+        logger.stop()
         if not user_quit:
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
 def do_register(**kwargs):
-    global user_quit, lock, queue, do_trace_pjsip, trace_sip
+    global user_quit, lock, queue, do_trace_pjsip, logger
     do_trace_pjsip = kwargs.pop("do_trace_pjsip")
     ctrl_d_pressed = False
     outbound_proxy = kwargs.pop("outbound_proxy")
-    trace_sip = kwargs.pop("trace_sip")
     if outbound_proxy is None:
         proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
     else:
@@ -156,6 +148,11 @@ def do_register(**kwargs):
     except RuntimeError, e:
         print e.message
         return
+    
+    logger = Logger(AccountConfig, trace_sip=kwargs.pop('trace_sip'))
+    if logger.trace_sip:
+        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    
     e = Engine(event_handler, trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)

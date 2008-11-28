@@ -20,6 +20,7 @@ from application.process import process
 from application.configuration import *
 from pypjua import *
 from pypjua.clients import enrollment
+from pypjua.clients.log import Logger
 
 from pypjua.applications import BuilderError
 from pypjua.applications.pidf import *
@@ -50,6 +51,7 @@ class AccountConfig(ConfigSection):
     display_name = None
     outbound_proxy = None
     use_presence_agent = True
+    log_directory = '~/.sipclient/log'
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -68,6 +70,7 @@ lock = allocate_lock()
 pub = None
 sip_uri = None
 string = None
+logger = None
 
 pidf = None
 person = None
@@ -479,7 +482,7 @@ def getchar():
         return os.read(fd, 4192)
 
 def event_handler(event_name, **kwargs):
-    global packet_count, start_time, queue, do_trace_pjsip
+    global packet_count, start_time, queue, do_trace_pjsip, logger
     if event_name == "Publication_state":
         if kwargs["state"] == "unpublished":
             queue.put(("print", "Unpublished: %(code)d %(reason)s" % kwargs))
@@ -488,17 +491,7 @@ def event_handler(event_name, **kwargs):
             #queue.put(("print", "PUBLISH was successful"))
             pass
     elif event_name == "siptrace":
-        if start_time is None:
-            start_time = kwargs["timestamp"]
-        packet_count += 1
-        if kwargs["received"]:
-            direction = "RECEIVED"
-        else:
-            direction = "SENDING"
-        buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
-        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
-        buf.append(kwargs["data"])
-        queue.put(("print", "\n".join(buf)))
+        logger.log(event_name, **kwargs)
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
     elif do_trace_pjsip:
@@ -566,12 +559,13 @@ def read_queue(e, username, domain, password, display_name, route, expires, trac
         traceback.print_exc()
     finally:
         e.stop()
+        logger.stop()
         if not user_quit:
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
 def do_publish(**kwargs):
-    global user_quit, lock, queue, do_trace_pjsip, string, getstr_event, old
+    global user_quit, lock, queue, do_trace_pjsip, string, getstr_event, old, logger
     ctrl_d_pressed = False
     do_trace_pjsip = kwargs["do_trace_pjsip"]
 
@@ -586,7 +580,11 @@ def do_publish(**kwargs):
         print e.message
         return
 
-    e = Engine(event_handler, trace_sip=kwargs['trace_sip'], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    logger = Logger(AccountConfig, trace_sip=kwargs['trace_sip'])
+    if kwargs['trace_sip']:
+        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    
+    e = Engine(event_handler, trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)

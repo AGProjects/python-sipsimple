@@ -19,6 +19,7 @@ from application.process import process
 from application.configuration import *
 from pypjua import *
 from pypjua.clients import enrollment
+from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
 from pypjua.clients.clientconfig import get_path
@@ -60,8 +61,7 @@ start_time = None
 old = None
 user_quit = True
 lock = allocate_lock()
-do_trace_sip = False
-trace_sip_file = None
+logger = None
 
 def termios_restore():
     global old
@@ -86,30 +86,9 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_trace_pjsip, do_trace_sip, trace_sip_file
+    global start_time, packet_count, queue, do_trace_pjsip, logger
     if event_name == "siptrace":
-        if not do_trace_sip:
-            return
-        if trace_sip_file is None:
-            try:
-                filename = os.path.join(os.path.expanduser(AccountConfig.log_directory), '%s@%s' % (sip_uri.user, sip_uri.host), 'sip_trace.txt')
-                trace_sip_file = open(filename, 'a')
-            except IOError, e:
-                queue.put(("print", "failed to create log file '%s': %s" % (filename, e)))
-                return
-        if start_time is None:
-            start_time = kwargs["timestamp"]
-        packet_count += 1
-        if kwargs["received"]:
-            direction = "RECEIVED"
-        else:
-            direction = "SENDING"
-        buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
-        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
-        buf.append(kwargs["data"])
-        buf.append('--\n')
-        trace_sip_file.write("\n".join(buf))
-        trace_sip_file.flush()
+        logger.log(event_name, **kwargs)
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
     elif do_trace_pjsip:
@@ -140,7 +119,7 @@ class RingingThread(Thread):
 
 
 def read_queue(e, username, domain, password, display_name, route, target_username, target_domain, trace_sip, ec_tail_length, sample_rate, codecs, disable_sound, do_trace_pjsip, use_bonjour):
-    global user_quit, lock, queue, do_trace_sip, sip_uri
+    global user_quit, lock, queue, sip_uri
     lock.acquire()
     inv = None
     audio = None
@@ -149,7 +128,6 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
     rec_file = None
     want_quit = target_username is not None
     other_user_agent = None
-    do_trace_sip = trace_sip
     try:
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -318,14 +296,13 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         traceback.print_exc()
     finally:
         e.stop()
+        logger.stop()
         if not user_quit:
             os.kill(os.getpid(), signal.SIGINT)
-        if trace_sip_file is not None:
-            trace_sip_file.close()
         lock.release()
 
 def do_invite(**kwargs):
-    global user_quit, lock, queue, do_trace_pjsip
+    global user_quit, lock, queue, do_trace_pjsip, logger
     ctrl_d_pressed = False
     do_trace_pjsip = kwargs["do_trace_pjsip"]
     outbound_proxy = kwargs.pop("outbound_proxy")
@@ -341,6 +318,11 @@ def do_invite(**kwargs):
         except RuntimeError, e:
             print e.message
             return
+    
+    logger = Logger(AccountConfig, trace_sip=kwargs['trace_sip'])
+    if kwargs['trace_sip']:
+        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    
     e = Engine(event_handler, trace_sip=True, initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
@@ -430,8 +412,6 @@ def parse_options():
     else:
         if not retval["use_bonjour"]:
             print "Using account '%s': %s" % (options.account_name, options.sip_address)
-    if retval['trace_sip']:
-        print "Logging SIP trace to file '%s'" % os.path.join(os.path.expanduser(AccountConfig.log_directory), '%s@%s' % (retval["username"], retval["domain"]), 'sip_trace.txt')
     return retval
 
 def main():

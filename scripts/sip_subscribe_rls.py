@@ -18,6 +18,7 @@ from application.process import process
 from application.configuration import *
 from pypjua import *
 from pypjua.clients import enrollment
+from pypjua.clients.log import Logger
 
 from pypjua.applications import ParserError
 from pypjua.applications.pidf import *
@@ -42,6 +43,7 @@ class AccountConfig(ConfigSection):
     display_name = None
     outbound_proxy = None
     use_presence_agent = True
+    log_directory = '~/.sipclient/log'
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -56,6 +58,7 @@ start_time = None
 old = None
 user_quit = True
 lock = allocate_lock()
+logger = None
 
 def format_note(note):
     text = "Note"
@@ -290,7 +293,7 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_trace_pjsip
+    global start_time, packet_count, queue, do_trace_pjsip, logger
     if event_name == "Subscription_state":
         if kwargs["state"] == "ACTIVE":
             #queue.put(("print", "SUBSCRIBE was successful"))
@@ -307,24 +310,14 @@ def event_handler(event_name, **kwargs):
         if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in PIDF.accept_types:
             queue.put(("print", "Received NOTIFY: %s" % kwargs))
     elif event_name == "siptrace":
-        if start_time is None:
-            start_time = kwargs["timestamp"]
-        packet_count += 1
-        if kwargs["received"]:
-            direction = "RECEIVED"
-        else:
-            direction = "SENDING"
-        buf = ["%s: Packet %d, +%s" % (direction, packet_count, (kwargs["timestamp"] - start_time))]
-        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
-        buf.append(kwargs["data"])
-        queue.put(("print", "\n".join(buf)))
+        logger.log(event_name, **kwargs)
     elif event_name != "log":
         queue.put(("pypjua_event", (event_name, kwargs)))
     elif do_trace_pjsip:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 def read_queue(e, username, domain, password, display_name, presentity_username, presentity_domain, route, expires, content_type, trace_sip, do_trace_pjsip):
-    global user_quit, lock, queue
+    global user_quit, lock, queue, logger
     lock.acquire()
     try:
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
@@ -357,12 +350,13 @@ def read_queue(e, username, domain, password, display_name, presentity_username,
         traceback.print_exc()
     finally:
         e.stop()
+        logger.stop()
         if not user_quit:
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
 def do_subscribe(**kwargs):
-    global user_quit, lock, queue, do_trace_pjsip
+    global user_quit, lock, queue, do_trace_pjsip, logger
     ctrl_d_pressed = False
     do_trace_pjsip = kwargs["do_trace_pjsip"]
     outbound_proxy = kwargs.pop("outbound_proxy")
@@ -381,6 +375,10 @@ def do_subscribe(**kwargs):
     else:
         initial_events['presence'] = ['multipart/related', 'application/rlmi+xml', 'application/pidf+xml']
 
+    logger = Logger(AccountConfig, trace_sip=kwargs['trace_sip'])
+    if kwargs['trace_sip']:
+        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    
     e = Engine(event_handler, trace_sip=kwargs['trace_sip'], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"), initial_events=initial_events)
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
