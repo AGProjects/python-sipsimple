@@ -726,36 +726,6 @@ class RelaySettings:
     def uri(self):
         return msrp_protocol.URI(host=self.domain, port=self.port, use_tls=True)
 
-class RelaySettings_SRV(object):
-    "Container for MSRP relay settings that are obtained through SRV lookup on first request"
-    def __init__(self, domain, default_port, username, password, fallback_to_A=False):
-        self.domain = domain
-        self.default_port = default_port
-        self.username = username
-        self.password = password
-        self.fallback_to_A = fallback_to_A
-
-    @property
-    def uri(self):
-        return msrp_protocol.URI(host=self.domain, port=self.port, use_tls=True)
-
-    @staticmethod
-    def _srv_lookup(domain):
-        print 'Looking up MSRP relay...'
-        answers = dns.resolver.query("_msrps._tcp.%s" % domain, "SRV")
-        host = str(answers[0].target).rstrip(".")
-        port = answers[0].port
-        return host, port
-
-    def __getattr__(self, item):
-        if item in ['host', 'port']:
-            try:
-                self.host, self.port = self._srv_lookup(self.domain)
-            except DNSException:
-                if self.fallback_to_A:
-                    self.host, self.port = self.domain, self.default_port
-                raise
-        return object.__getattribute__(self, item)
 
 def main():
     try:
@@ -912,13 +882,15 @@ def parse_options():
         else:
             options.msrp_relay = 'none'
     if options.msrp_relay == 'srv':
-        options.relay = RelaySettings_SRV(options.sip_address.domain, 2855,
-                                          options.sip_address.username, options.password, True)
+        print 'Looking up MSRP relay %s...' % options.sip_address.domain
+        host, port, is_ip = lookup_srv(options.sip_address.domain, 2855, False, 2855, '_msrps._tcp')
+        options.relay = RelaySettings(options.sip_address.domain, host, port,
+                                      options.sip_address.username, options.password)
     elif options.msrp_relay == 'none':
         options.relay = None
     else:
         host, port, is_ip = options.msrp_relay
-        print 'Looking up MSRP relay...'
+        print 'Looking up MSRP relay %s...' % host
         host, port = lookup_srv(host, port, is_ip, 2855, '_msrps._tcp')
         options.relay = RelaySettings(options.sip_address.domain, host, port,
                                       options.sip_address.username, options.password)
