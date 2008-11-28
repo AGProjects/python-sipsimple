@@ -265,8 +265,6 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             dst = '%s@%s' % (inv.callee_uri.user, inv.callee_uri.host)
                             dir = os.path.join(os.path.expanduser(AccountConfig.history_directory), '%s@%s' % (username, domain))
                             try:
-                                if not os.access(dir, os.F_OK):
-                                    os.makedirs(dir)        
                                 file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), src, dst))
                                 rec_file = e.rec_wav_file(file_name)
                                 print 'Recording audio to "%s"' % rec_file.file_name
