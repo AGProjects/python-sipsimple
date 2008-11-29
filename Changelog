@@ -1,5 +1,9 @@
 sipclient (0.3.0) unstable; urgency=low
 
+  * This version requires eventlet for twisted, which is not yet available as
+    debian package. See doc/INSTALL.x for how to manually install eventlet
+  * Purge the old debian package and/or remove any command line tools starting
+    with sip_ and  xcap_ from the path where they have been installed
   * Renamed sip_rtp_audio_session to sip_audio_session
   * Removed sip_msrp_im_session and sip_msrp_file_transfer scripts
   * Added sip_im_session script, supporting chats with multiple other parties
@@ -30,7 +34,7 @@ sipclient (0.3.0) unstable; urgency=low
   * Added creation of history, log and file transfer directories in enrollment
   * Made sip traces get logged in <log_directory>/<sip_address>/sip_trace.txt
 
- -- Adrian Georgescu <ag@ag-projects.com>  Fri, 28 Nov 2008 13:14:04 +0100
+ -- Adrian Georgescu <ag@ag-projects.com>  Sat, 29 Nov 2008 10:44:33 +0100
 
 sipclient (0.2.3) unstable; urgency=low
 
