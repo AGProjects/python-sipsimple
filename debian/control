@@ -3,7 +3,7 @@ Section: net
 Priority: extra
 Maintainer: Lucian Stanescu <luci@ag-projects.com>
 Uploaders: Ruud Klaver <ruud@ag-projects.com>, Adrian Georgescu <ag@ag-projects.com>, Denis Bilenko <denis@ag-projects.com>, Dan Pascu <dan@ag-projects.com>
-Build-Depends: cdbs (>= 0.4.47), debhelper (>= 7), python-all-dev (>= 2.5), python-support, cython, build-essential, libasound2-dev
+Build-Depends: cdbs (>= 0.4.47), debhelper (>= 7), python-all-dev (>= 2.5), python-support, cython, libasound2-dev
 Standards-Version: 3.8.0
 Homepage: http://www.ag-projects.com/SipClient
 
@@ -17,5 +17,4 @@ Description: Python SIP client
  Peer-to-Peer Internet communications end-points based on SIP protocol with
  rich Presence, instant messaging (IM) and file transfer capabilities.
  .
- Homepage: http://SipSimpleClient.com/
 XB-Python-Version: ${python:Versions}
