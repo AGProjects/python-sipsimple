@@ -2,6 +2,7 @@
 import os
 import sys
 import hashlib
+import traceback
 from eventlet.coros import queue
 from eventlet.api import sleep
 from pypjua import Credentials, SDPAttribute, SDPMedia
@@ -11,15 +12,17 @@ from pypjua.clients.sdputil import FileSelector
 from pypjua.clients.im import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
 from gnutls.errors import GNUTLSError
 
-if sys.platform == 'darwin':
-    file_cmd = "file -b -I '%s'"
-else:
-    file_cmd = "file -b --mime-type '%s'"
+file_cmd = "file -b --mime '%s'"
+
+# file --mime-type may not be available (as seen on darwin)
+# file --mime may return the charset or it may not
 
 def get_file_mimetype(filename):
-    res = os.popen(file_cmd % filename).read().strip()
-    assert res, "Cannot get mime type using `file' command"
-    return res
+    try:
+        return os.popen(file_cmd % filename).read().strip().split()[0].strip(';:,')
+    except Exception:
+        traceback.print_exc()
+        return 'application/octet-stream'
 
 def read_sha1(filename):
     hash = hashlib.sha1(file(filename).read())
