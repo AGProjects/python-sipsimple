@@ -6,8 +6,10 @@ DEB_COMPRESS_EXCLUDE := .py
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-clean::
-	-rm -rf build dist MANIFEST
-	-([ ! -d ./pjsip ] && ln -fs ../../pjsip ./pjsip) || true
+configure/sipclient::
+	make -C pypjua
+	-ln -fs ../../pjsip ./pjsip
 
-install/sipclient::
+clean::
+	make -C pypjua clean
+	-rm -rf build dist MANIFEST pjsip

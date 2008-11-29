@@ -86,24 +86,14 @@ attempts to use the library will not.
 
 make HOST_CFLAGS=-fPIC
 
-Go back to the sipsimpleclient directory and make a source distribution
-tarball:
+Go back to the sipsimpleclient directory make a source distribution
+tarball under dist directory and build the debian package:
 
 cd ..
-debuild clean
 python setup.py sdist
-
-# Go to the dist directory and untar the tarball just created:
-
 cd dist
 tar xvzf *.tar.gz
-
-# Change to the distribution directory and:
-
-cd sipclient-0.X.X
-ln -s ../../pjsip pjsip
-touch pypjua/_pjsip.pyx
-sh ./build_inplace
+cd sipclient-X.X.X
 debuild
 
 You will now have a Debian package in the upper level directory.
