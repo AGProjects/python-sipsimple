@@ -19,7 +19,8 @@ Install dependencies that are not yet available as debian package:
 sudo apt-get install mercurial python-setuptools
 
 # Download and install eventlet for twisted:
-hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+hg clone
+http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 sudo python setup.py install
 
