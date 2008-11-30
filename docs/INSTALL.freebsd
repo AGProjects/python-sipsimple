@@ -1,0 +1,152 @@
+
+Installation procedure for SIP SIMPLE client on FreeBSD
+-----------------------------------------------------
+
+The installation procedure includes 5 steps described below:
+
+Step 1. Prerequisites
+Step 2. Obtain the latest SIP SIMPLE client source code
+Step 3. Install dependencies
+Step 4. Compile PJSIP C library
+Step 5. Build and install SIP SIMPLE client
+
+
+Step 1. Prerequisites
+---------------------
+
+You must install the C compiling environment, python 2.5 and the following
+packages: 
+
+gnutls >=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9
+
+Install subversion, mercurial and darcs version control tools. Darcs is
+available a port or directly from http://darcs.net.
+
+portinstall devel/darcs devel/subversion lang/ghc devel/mercurial \
+security/gnutls textproc/libxml2 textproc/libxslt devel/py-setuptools \
+devel/gmake security/py-gnutls
+
+You need a SIP account from a service provider or to setup your own SIP
+infrastructure using the following elements:
+
+OpenSIPS  >= 1.4.2 from http://opensips.org
+OpenXCAP  >= 1.0.6 from http://openxcap.org
+MSRPRelay >= 1.0.0 from http://msrprelay.org
+
+A SIP account with all SIP SIMPLE client features can be obtained for free
+from http://sip2sip.info 
+
+
+Step 2. Obtain the latest SIP SIMPLE client source code
+-------------------------------------------------------
+
+You must run the next step once.
+
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+
+The software is downloaded under sipsimpleclient directory. Use the next
+step to update it:
+
+cd sipsimpleclient
+darcs pull
+
+
+Step 3. Install dependencies
+----------------------------
+
+For comfort, you can use the easy_install script provided by the
+python-setuptools package to install and/or update the dependencies:
+
+easy_install -U lxml cython python-application dnspython twisted py \
+mercurial zope.interface
+
+Or you can install the following packages from source, notice the 
+minimum version numbers:
+
+python-gnutls       http://pypi.python.org/simple/python-gnutls/      >=1.1.6
+python-lxml         http://codespeak.net/lxml                         >=2.1.2
+cython              http://www.cython.org                             >=0.10
+python-application  http://pypi.python.org/simple/python-application  >=1.0.9
+dnspython           http://www.dnspython.org                          >=1.6.0        
+twisted             http://twistedmatrix.com/trac/                    >=8.1.0
+pylib               http://codespeak.net/py                           >=0.9.2
+mercurial           http://www.selenic.com/mercurial                  >=1.0.2
+zope.interface
+
+
+# Download and install eventlet for twisted:
+hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+cd eventlet_twisted
+sudo python setup.py install
+
+# To update the eventlet_twisted at a later date:
+cd eventlet_twisted
+hg pull
+hg update
+
+# Download and install python-xcaplib:
+darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+cd python-xcaplib
+sudo python setup.py install
+
+# To update python-xcaplib repository at a later date:
+cd python-xcaplib
+darcs pull
+sudo python setup.py install
+
+
+Step 4. Compile PJSIP C library
+-------------------------------
+
+cd sipsimpleclient
+
+Check out the PJSIP project under the main software directory. It will
+expand under pjsip directory.
+
+svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+
+If you have obtained the svn sources already you can update them using svn 
+update command.                                                         
+
+cd pjsip
+svn update
+
+Go to pjsip directory and build the pjsip library:
+
+cd pjsip
+([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
+./configure
+gmake distclean
+gmake
+
+Note that, on some platforms like amd64 you may need to supply -fPIC flag to
+the compiler, otherwise although the compilation will succeed, later attempt
+to use the library will not. 
+
+gmake HOST_CFLAGS=-fPIC
+
+
+Step 5. Build and install SIP SIMPLE client
+-------------------------------------------
+
+Go to the main project directory and build the library by running:
+
+cd sipsimpleclient
+touch pypjua/_pjsip.pyx
+
+Open build_inplace and change make into gmake so that it reads:
+gmake -C pypjua && python setup.py build_ext --inplace && python setup.py clean
+
+Now build the library and command line tools with: 
+
+sh ./build_inplace
+
+Install the library and command line tools:
+
+sudo python setup.py install
+
+
+Notes
+-----
+
+- For testing the library see README.txt in the scripts directory
