@@ -28,10 +28,6 @@ cd eventlet_twisted
 hg pull
 hg update
 
-You must have cython >=0.9.1 installed. To upgrade cython do:
-
-sudo easy_install -U cython
-
 Install the software:
 
 sudo apt-get update
@@ -50,6 +46,11 @@ You need the following packages before trying to build a debian package:
 sudo apt-get install subversion devscripts python-dnspython \
 python-setuptools python-lxml cython python-application python-twisted \
 build-essential libasound2-dev cdbs debhelper python-all-dev python-support
+
+You must have cython version >=0.9.1 installed. If your Linux distribution
+has an older version, upgrade it using python setuptools:
+
+sudo easy_install -U cython
 
 Run the next step once:
 
@@ -78,16 +79,12 @@ Go to pjsip directory and build pjsip library:
 cd pjsip
 ./configure
 make distclean
-make
+# depending on your architecture chose one of the commands:
+make                      # on i386
+make HOST_CFLAGS=-fPIC    # on amd64
 
-Note that, on some platforms (as seen on amd64) you may need to supply -fPIC
-flag to compiler, otherwise although the compilation will succeed, later
-attempts to use the library will not.
-
-make HOST_CFLAGS=-fPIC
-
-Go back to the sipsimpleclient directory make a source distribution
-tarball under dist directory and build the debian package:
+Go back to the sipsimpleclient directory, make a source distribution tarball
+and build the debian package:
 
 cd ..
 python setup.py sdist

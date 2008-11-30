@@ -14,13 +14,15 @@ Step 5. Build and install SIP SIMPLE client
 Step 1. Prerequisites
 ---------------------
 
-You must install the C compiling environment, python 2.5 and the following
-packages: 
+Linux OS, both i386 or amd64 architectures are supported.
+
+Install the C compiling environment, python 2.5 and the following packages:
 
 gnutls >=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9
 
-Install subversion, mercurial and darcs version control tools. Darcs is
-available from http://darcs.net or as a package for some Linux
+Install subversion, mercurial and darcs version control tools. 
+
+Darcs is available from http://darcs.net or as a package for some Linux
 distributions.
 
 You need a SIP account from a service provider or to setup your own SIP
@@ -37,12 +39,12 @@ from http://sip2sip.info
 Step 2. Obtain the latest SIP SIMPLE client source code
 -------------------------------------------------------
 
-You must run the next step once.
+Run the next step once:
 
 darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
 
-The software is downloaded under sipsimpleclient directory. Use the next
-step to update it:
+The software is downloaded under sipsimpleclient directory. To update it at
+a later time:
 
 cd sipsimpleclient
 darcs pull
@@ -92,11 +94,10 @@ sudo python setup.py install
 Step 4. Compile PJSIP C library
 -------------------------------
 
+Go to the main project directory and check out the PJSIP project under pjsip
+directory.
+
 cd sipsimpleclient
-
-Check out the PJSIP project under the main software directory. It will
-expand under pjsip directory.
-
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
 If you have obtained the svn sources already you can update them using svn 
@@ -128,9 +129,6 @@ Go to the main project directory and build the library by running:
 cd sipsimpleclient
 touch pypjua/_pjsip.pyx
 sh ./build_inplace
-
-Install the library and comand line tools:
-
 sudo python setup.py install
 
 

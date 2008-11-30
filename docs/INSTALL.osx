@@ -14,7 +14,7 @@ Step 5. Build and install SIP SIMPLE client
 Step 1. Prerequisites
 ---------------------
 
-a. MacOSx 10.5 Leopard installed on Intel CPU
+a. MacOSx 10.5 Leopard on Intel CPU
 b. Install Apple Developer tools
 c. Install Fink from http://www.finkproject.org
 d. Install darcs version control tool from http://www.darcs.net
@@ -33,12 +33,12 @@ from http://sip2sip.info
 Step 2. Obtain the latest SIP SIMPLE client source code
 -------------------------------------------------------
 
-You must run the next step once.
+Run the next step once:
 
 darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
 
-The software is downloaded under sipsimpleclient directory. Use the next
-step to update it:
+The software is downloaded under sipsimpleclient directory. To update it at
+a later time:
 
 cd sipsimpleclient
 darcs pull
@@ -47,13 +47,13 @@ darcs pull
 Step 3. Install dependencies
 ----------------------------
 
-# Install C dependencies
+# Install gnutls:
 
-# Gnutls version 2.4. must be installed. Gnutls version 2.6 from fink
-# unstable tree does not work. To install version 2.4 remove the two
-# "unstable" items from the 'Trees' line of the /sw/etc/fink.conf
+# Gnutls version 2.4 must be installed. Gnutls version 2.6 from fink
+# unstable tree does not work. To install version 2.4 remove "unstable"
+# items from the 'Trees' line of the /sw/etc/fink.conf
+
 sudo fink install gnutls26
-# Place back the "unstable" items if you have removed them above
 
 # Install libxml libraries:
 sudo apt-get install libxml2 libxslt
@@ -98,11 +98,10 @@ sudo python setup.py install
 Step 4. Compile PJSIP C library
 -------------------------------
 
+Go to the main project directory and check out the PJSIP project under pjsip
+directory.
+
 cd sipsimpleclient
-
-Check out the PJSIP project under the main software directory. It will
-expand under pjsip directory.
-
 svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
 
 If you have obtained the svn sources already you can update them using svn 
@@ -123,12 +122,9 @@ make
 Step 5. Build and install SIP SIMPLE client
 -------------------------------------------
 
-Go to the main pypjua directory and build the library by running:
+Go to the main project directory and build the library:
 
+cd sipsimpleclient
 touch pypjua/_pjsip.pyx
 sh ./build_inplace
-
-Install the library and comand line tools:
-
 sudo python setup.py install
-
