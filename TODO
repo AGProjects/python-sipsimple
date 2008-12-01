@@ -7,7 +7,6 @@ Python PJSIP bindings
 - Means to query RTP statistics
 - Handle multipart bodies
 - Fix high CPU usage
-- TCP/TLS
 - STUN/ICE
 - Properly decrease reference counts of pjsip_tx_data structs
 - Split up .pyx file
