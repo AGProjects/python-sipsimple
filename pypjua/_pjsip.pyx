@@ -210,6 +210,7 @@ cdef extern from "pjmedia.h":
         pjmedia_sdp_attr *attr[PJMEDIA_MAX_SDP_ATTR]
         unsigned int media_count
         pjmedia_sdp_media *media[PJMEDIA_MAX_SDP_MEDIA]
+    pjmedia_sdp_media *pjmedia_sdp_media_clone(pj_pool_t *pool, pjmedia_sdp_media *rhs)
 
     # sdp negotiation
 
@@ -241,6 +242,9 @@ cdef extern from "pjmedia.h":
     int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt, pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
 
     # stream
+    enum pjmedia_dir:
+        PJMEDIA_DIR_ENCODING
+        PJMEDIA_DIR_DECODING
     struct pjmedia_codec_info:
         pj_str_t encoding_name
         unsigned int clock_rate
@@ -254,6 +258,8 @@ cdef extern from "pjmedia.h":
     int pjmedia_stream_start(pjmedia_stream *stream)
     int pjmedia_stream_dial_dtmf(pjmedia_stream *stream, pj_str_t *ascii_digit)
     int pjmedia_stream_set_dtmf_callback(pjmedia_stream *stream, void cb(pjmedia_stream *stream, void *user_data, int digit) with gil, void *user_data)
+    int pjmedia_stream_pause(pjmedia_stream *stream, pjmedia_dir dir)
+    int pjmedia_stream_resume(pjmedia_stream *stream, pjmedia_dir dir)
 
     # wav player
     int pjmedia_port_destroy(pjmedia_port *port)
@@ -595,6 +601,7 @@ cdef extern from "pjsip_ua.h":
         #void on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_session **p_offer)
         void on_media_update(pjsip_inv_session *inv, int status) with gil
         #void on_send_ack(pjsip_inv_session *inv, pjsip_rx_data *rdata)
+        void on_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session *offer, pjsip_rx_data *rdata) with gil
     int pjsip_inv_usage_init(pjsip_endpoint *endpt, pjsip_inv_callback *cb)
     int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify)
     int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
@@ -605,8 +612,9 @@ cdef extern from "pjsip_ua.h":
     int pjsip_inv_answer(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjmedia_sdp_session *local_sdp, pjsip_tx_data **p_tdata)
     int pjsip_inv_create_uac(pjsip_dialog *dlg, pjmedia_sdp_session *local_sdp, unsigned int options, pjsip_inv_session **p_inv)
     int pjsip_inv_invite(pjsip_inv_session *inv, pjsip_tx_data **p_tdata)
-    int pjsip_inv_set_sdp_answer(pjsip_inv_session *inv, pjmedia_sdp_session *sdp)
+    #int pjsip_inv_set_sdp_answer(pjsip_inv_session *inv, pjmedia_sdp_session *sdp)
     char *pjsip_inv_state_name(pjsip_inv_state state)
+    int pjsip_inv_reinvite(pjsip_inv_session *inv, pj_str_t *new_contact, pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata)
 
 # Python C imports
 
@@ -1800,14 +1808,14 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
                 raise exc
 
 cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
-    cdef pjsip_msg_body *c_body
+    cdef pjsip_msg_body *body
     cdef pjsip_hdr *hdr
     cdef char header_buf[1024]
     cdef int header_len
     cdef object full_header
     cdef dict headers = {}
     info_dict["headers"] = headers
-    c_body = rdata.msg_info.msg.body
+    body = rdata.msg_info.msg.body
     hdr = <pjsip_hdr *> (<pj_list *> &rdata.msg_info.msg.hdr).next
     while hdr != &rdata.msg_info.msg.hdr:
         header_len = pjsip_hdr_print_on(hdr, header_buf, 1024)
@@ -1821,10 +1829,10 @@ cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         else:
             headers[full_header[0]] = full_header[1]
         hdr = <pjsip_hdr *> (<pj_list *> hdr).next
-    if c_body == NULL:
+    if body == NULL:
         info_dict["body"] = None
     else:
-        info_dict["body"] = PyString_FromStringAndSize(<char *> c_body.data, c_body.len)
+        info_dict["body"] = PyString_FromStringAndSize(<char *> body.data, body.len)
     if rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
         info_dict["method"] = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
         info_dict["request_uri"] = c_make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
@@ -2592,6 +2600,13 @@ cdef class SDPMedia:
         else:
             return not eq
 
+    def get_direction(self):
+        cdef SDPAttribute attribute
+        for attribute in self.attributes:
+            if attribute.name in ["sendrecv", "sendonly", "recvonly", "inactive"]:
+                return attribute.name
+        return "sendrecv"
+
 
 cdef SDPMedia c_make_SDPMedia(pjmedia_sdp_media *pj_media):
     cdef SDPConnection connection
@@ -2721,6 +2736,7 @@ cdef class SDPSession:
             return bool(eq)
         else:
             return not eq
+
 
 cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
     cdef SDPConnection connection
@@ -2888,13 +2904,15 @@ cdef class AudioTransport:
     cdef pjmedia_stream_info c_stream_info
     cdef readonly RTPTransport transport
     cdef pj_pool_t *c_pool
-    cdef SDPSession c_local_sdp
+    cdef pjmedia_sdp_media *c_local_media
     cdef unsigned int c_conf_slot
+    cdef readonly object direction
 
     def __cinit__(self, RTPTransport transport, SDPSession remote_sdp = None, unsigned int sdp_index = 0):
         cdef object pool_name = "AudioTransport_%d" % id(self)
         cdef pjmedia_transport_info info
         cdef pjmedia_sdp_session *c_local_sdp
+        cdef SDPSession local_sdp
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if transport is None:
@@ -2907,13 +2925,14 @@ cdef class AudioTransport:
         status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint.c_obj, self.c_pool, 1, &info.sock_info, &c_local_sdp)
         if status != 0:
             raise RuntimeError("Could not generate SDP for audio session: %s" % pj_status_to_str(status))
-        self.c_local_sdp = c_make_SDPSession(c_local_sdp)
+        local_sdp = c_make_SDPSession(c_local_sdp)
         if remote_sdp is None:
-            self.transport.set_LOCAL(self.c_local_sdp, 0)
+            self.transport.set_LOCAL(local_sdp, 0)
         else:
             if sdp_index != 0:
-                self.c_local_sdp.media = (sdp_index+1) * self.c_local_sdp.media
-            self.transport.set_ESTABLISHED(self.c_local_sdp, remote_sdp, sdp_index)
+                local_sdp.media = (sdp_index+1) * local_sdp.media
+            self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
+        self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp.c_obj.media[sdp_index])
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -2947,8 +2966,16 @@ cdef class AudioTransport:
             else:
                 return self.c_stream_info.fmt.clock_rate
 
-    def get_local_media(self):
-        return c_make_SDPMedia(self.c_local_sdp.c_obj.media[0])
+    def get_local_media(self, is_offer, direction="sendrecv"):
+        cdef SDPAttribute attr
+        cdef SDPMedia local_media
+        if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
+            raise RuntimeError("Unknown direction: %s" % direction)
+        local_media = c_make_SDPMedia(self.c_local_media)
+        local_media.attributes = [attr for attr in local_media.attributes if attr.name not in ["sendrecv", "sendonly", "recvonly", "inactive"]]
+        if is_offer and direction != "sendrecv":
+            local_media.attributes.append(SDPAttribute(direction, ""))
+        return local_media
 
     def start(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
         cdef pjmedia_port *media_port
@@ -2991,6 +3018,9 @@ cdef class AudioTransport:
             pjmedia_stream_destroy(self.c_obj)
             self.c_obj = NULL
             raise RuntimeError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
+        self.direction = "sendrecv"
+        self.update_direction(local_sdp.media[sdp_index].get_direction())
+        self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp.c_obj.media[sdp_index])
         return 0
 
     def stop(self):
@@ -3001,6 +3031,31 @@ cdef class AudioTransport:
         pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
         pjmedia_stream_destroy(self.c_obj)
         self.c_obj = NULL
+
+    def update_direction(self, direction):
+        cdef int status1 = 0
+        cdef int status2 = 0
+        if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
+            raise RuntimeError("Unknown direction: %s" % direction)
+        if direction == self.direction:
+            return
+        if "send" in self.direction:
+            if "send" not in direction:
+                status1 = pjmedia_stream_pause(self.c_obj, PJMEDIA_DIR_ENCODING)
+        else:
+            if "send" in direction:
+                status1 = pjmedia_stream_resume(self.c_obj, PJMEDIA_DIR_ENCODING)
+        if "recv" in self.direction:
+            if "recv" not in direction:
+                status2 = pjmedia_stream_pause(self.c_obj, PJMEDIA_DIR_DECODING)
+        else:
+            if "recv" in direction:
+                status2 = pjmedia_stream_resume(self.c_obj, PJMEDIA_DIR_DECODING)
+        self.direction = direction
+        if status1 != 0:
+            raise RuntimeError("Could not pause or resume encoding: %s" % pj_status_to_str(status1))
+        if status2 != 0:
+            raise RuntimeError("Could not pause or resume decoding: %s" % pj_status_to_str(status2))
 
     def send_dtmf(self, digit):
         cdef pj_str_t c_digit
@@ -3035,13 +3090,15 @@ cdef class Invitation:
     cdef int c_is_ending
     cdef SDPSession c_local_sdp_proposed
     cdef int c_sdp_neg_status
+    cdef int c_has_active_sdp
 
     def __cinit__(self, *args, route=None):
         cdef PJSIPUA ua = c_get_ua()
         self.state = "NULL"
         self.sdp_state = "NULL"
         self.c_is_ending = 0
-        cdef c_sdp_neg_status = -1
+        self.c_sdp_neg_status = -1
+        self.c_has_active_sdp = 0
         if len(args) != 0:
             if None in args:
                 raise TypeError("Positional arguments cannot be None")
@@ -3092,6 +3149,7 @@ cdef class Invitation:
             raise
         self.c_caller_uri = c_make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
         self.c_callee_uri = c_make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
+        return 0
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -3126,7 +3184,7 @@ cdef class Invitation:
 
     def get_active_local_sdp(self):
         cdef pjmedia_sdp_session *sdp
-        if self.c_sdp_neg_status == 0 or self.state == "CONFIRMED":
+        if self.c_obj != NULL and self.c_has_active_sdp:
             pjmedia_sdp_neg_get_active_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
@@ -3134,7 +3192,7 @@ cdef class Invitation:
 
     def get_active_remote_sdp(self):
         cdef pjmedia_sdp_session *sdp
-        if self.c_sdp_neg_status == 0 or self.state == "CONFIRMED":
+        if self.c_obj != NULL and self.c_has_active_sdp:
             pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
@@ -3142,7 +3200,7 @@ cdef class Invitation:
 
     def get_offered_remote_sdp(self):
         cdef pjmedia_sdp_session *sdp
-        if self.state != "DISCONNECTED" and self.sdp_state == "REMOTE_OFFER":
+        if self.c_obj != NULL and self.sdp_state == "REMOTE_OFFER":
             pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
@@ -3150,7 +3208,7 @@ cdef class Invitation:
 
     def get_offered_local_sdp(self):
         cdef pjmedia_sdp_session *sdp
-        if self.state != "DISCONNECTED" and self.sdp_state == "LOCAL_OFFER":
+        if self.c_obj != NULL and self.sdp_state == "LOCAL_OFFER":
             pjmedia_sdp_neg_get_neg_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
@@ -3169,6 +3227,9 @@ cdef class Invitation:
         cdef object body
         cdef pjmedia_sdp_session *local_sdp
         cdef pjmedia_sdp_session *remote_sdp
+        cdef pjsip_tx_data *tdata
+        cdef int status
+        cdef PJSIPUA ua = c_get_ua()
         cdef dict event_dict = dict(obj=self, prev_state=self.state, prev_sdp_state=self.sdp_state)
         self.state = pjsip_inv_state_name(state)
         if rdata != NULL:
@@ -3176,16 +3237,28 @@ cdef class Invitation:
         self.sdp_state = event_dict["sdp_state"] = pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_get_state(self.c_obj.neg)).split("STATE_", 1)[1]
         if self.state == "DISCONNCTD":
             self.state = "DISCONNECTED"
+            self.c_obj.mod_data[ua.c_module.id] = NULL
             self.c_obj = NULL
         event_dict["state"] = self.state
         if self.sdp_state == "DONE" and event_dict["prev_sdp_state"] != "DONE":
             event_dict["sdp_negotiated"] = not bool(self.c_sdp_neg_status)
             self.c_local_sdp_proposed = None
+        if self.state == "CONFIRMED" and self.sdp_state == "REMOTE_OFFER":
+            status = pjsip_inv_initial_answer(self.c_obj, rdata, 100, NULL, NULL, &tdata)
+            if status != 0:
+                raise RuntimeError("Could not create initial (unused) response to INTIVE: %s" % pj_status_to_str(status))
+            pjsip_tx_data_dec_ref(tdata)
         if event_dict["prev_state"] != self.state or event_dict["prev_sdp_state"] != self.sdp_state:
             c_add_event("Invitation_state", event_dict)
+        return 0
 
     cdef int _cb_sdp_done(self, int status) except -1:
         self.c_sdp_neg_status = status
+        if status == 0:
+            self.c_has_active_sdp = 1
+        if self.state == "CONFIRMED" and self.sdp_state == "REMOTE_OFFER":
+                self._cb_state(NULL, PJSIP_INV_STATE_CONFIRMED)
+        return 0
 
     cdef int _send_msg(self, PJSIPUA ua, pjsip_tx_data *tdata, dict extra_headers) except -1:
         cdef int status
@@ -3248,31 +3321,39 @@ cdef class Invitation:
             raise
 
     def set_state_EARLY(self, int reply_code=180, dict extra_headers=None):
+        if self.state != "INCOMING":
+            raise RuntimeError("Can only transition to the EARLY state from the INCOMING state")
+        self._send_provisional_response(reply_code, extra_headers)
+
+    cdef int _send_provisional_response(self, int reply_code, dict extra_headers) except -1:
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
-        if self.state != "INCOMING":
-            raise RuntimeError("Can only transition to the EARLY state from the INCOMING state")
         if reply_code / 100 != 1:
             raise RuntimeError("Not a provisional response: %d" % reply_code)
         status = pjsip_inv_answer(self.c_obj, reply_code, NULL, NULL, &tdata)
         if status != 0:
             raise RuntimeError("Could not create %d reply to INVITE: %s" % (reply_code, pj_status_to_str(status)))
         self._send_msg(ua, tdata, extra_headers or {})
+        return 0
 
     def set_state_CONNECTING(self, dict extra_headers=None):
+        if self.state not in ["INCOMING", "EARLY"]:
+            raise RuntimeError("Can only transition to the EARLY state from the INCOMING or EARLY states")
+        self._send_response(extra_headers)
+
+    cdef int _send_response(self, dict extra_headers) except -1:
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
-        if self.state not in ["INCOMING", "EARLY"]:
-            raise RuntimeError("Can only transition to the EARLY state from the INCOMING or EARLY states")
         if self.c_local_sdp_proposed is None:
-            raise RuntimeError("Cannot set state to CONNECTING, local SDP has not been set yet.")
+            raise RuntimeError("Local SDP has not been set")
         self.c_local_sdp_proposed._to_c()
         status = pjsip_inv_answer(self.c_obj, 200, NULL, &self.c_local_sdp_proposed.c_obj, &tdata)
         if status != 0:
             raise RuntimeError("Could not create 200 reply to INVITE: %s" % pj_status_to_str(status))
         self._send_msg(ua, tdata, extra_headers or {})
+        return 0
 
     def set_state_DISCONNECTED(self, int reply_code=486, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
@@ -3290,6 +3371,34 @@ cdef class Invitation:
             raise RuntimeError("Could not create message to end INVITE session: %s" % pj_status_to_str(status))
         if tdata != NULL:
             self._send_msg(ua, tdata, extra_headers or {})
+
+    def respond_to_reinvite_provisionally(self, int reply_code=180, dict extra_headers=None):
+        if self.state != "CONFIRMED" or self.sdp_state != "REMOTE_OFFER":
+            raise RuntimeError("Can only send a provisional repsonse to a re-INVITE when we have received one")
+        self._send_provisional_response(reply_code, extra_headers)
+
+    def respond_to_reinvite(self, dict extra_headers=None):
+        if self.state != "CONFIRMED" or self.sdp_state != "REMOTE_OFFER":
+            raise RuntimeError("Can only send a repsonse to a re-INVITE when we have received one")
+        self._send_response(extra_headers)
+
+    def send_reinvite(self, dict extra_headers=None):
+        cdef pjsip_tx_data *tdata
+        cdef object sdp_state
+        cdef int status
+        cdef pjmedia_sdp_session *local_sdp = NULL
+        cdef PJSIPUA ua = c_get_ua()
+        if self.state != "CONFIRMED":
+            raise RuntimeError("Cannot send re-INVITE in CONFIRMED state")
+        if self.c_local_sdp_proposed is not None:
+            self.c_local_sdp_proposed._to_c()
+            local_sdp = &self.c_local_sdp_proposed.c_obj
+        status = pjsip_inv_reinvite(self.c_obj, NULL, local_sdp, &tdata)
+        if status != 0:
+            raise RuntimeError("Could not create re-INVITE message: %s" % pj_status_to_str(status))
+        self._send_msg(ua, tdata, extra_headers or {})
+        if self.c_local_sdp_proposed is not None:
+            self._cb_state(NULL, self.c_obj.state)
 
 
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
@@ -3318,6 +3427,33 @@ cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
         if inv.mod_data[ua.c_module.id] != NULL:
             invitation = <object> inv.mod_data[ua.c_module.id]
             invitation._cb_sdp_done(status)
+
+cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session *offer, pjsip_rx_data *rdata) with gil:
+    cdef Invitation invitation
+    cdef PJSIPUA ua = c_get_ua()
+    if _ua != NULL:
+        ua = <object> _ua
+        if inv.mod_data[ua.c_module.id] != NULL:
+            invitation = <object> inv.mod_data[ua.c_module.id]
+            invitation._cb_state(rdata, inv.state)
+
+cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
+    cdef Invitation invitation
+    cdef pjsip_rx_data *rdata = NULL
+    cdef PJSIPUA ua = c_get_ua()
+    if _ua != NULL:
+        ua = <object> _ua
+        if inv.mod_data[ua.c_module.id] != NULL:
+            invitation = <object> inv.mod_data[ua.c_module.id]
+            if invitation.state != "CONFIRMED" or invitation.sdp_state != "LOCAL_OFFER":
+                return
+            if e != NULL:
+                if e.type == PJSIP_EVENT_RX_MSG:
+                    rdata = e.body.rx_msg.rdata
+                elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                    rdata = e.body.tsx_state.src.rdata
+            if rdata != NULL:
+                invitation._cb_state(rdata, PJSIP_INV_STATE_CONFIRMED)
 
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!
@@ -3431,4 +3567,6 @@ _subs_cb.on_client_refresh = cb_Subscription_cb_refresh
 cdef pjsip_inv_callback _inv_cb
 _inv_cb.on_state_changed = cb_Invitation_cb_state
 _inv_cb.on_media_update = cb_Invitation_cb_sdp_done
+_inv_cb.on_rx_reinvite = cb_Invitation_cb_rx_reinvite
+_inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = cb_new_Invitation

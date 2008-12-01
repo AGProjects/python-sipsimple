@@ -128,6 +128,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
     rec_file = None
     want_quit = target_username is not None
     other_user_agent = None
+    on_hold = False
     try:
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -146,7 +147,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
             inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
             print "Call from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
             audio = AudioTransport(RTPTransport(e.local_ip))
-            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media()]))
+            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
             inv.set_state_CALLING()
             print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, < and > to adjust the echo cancellation"
         while True:
@@ -174,10 +175,13 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                     if args["prev_sdp_state"] != "DONE" and args["sdp_state"] == "DONE":
                         if args["obj"] is inv:
                             if args["sdp_negotiated"]:
-                                audio.start(inv.get_active_local_sdp(), inv.get_active_remote_sdp(), 0)
-                                e.connect_audio_transport(audio)
-                                print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
-                                print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                                if not audio.is_started:
+                                    audio.start(inv.get_active_local_sdp(), inv.get_active_remote_sdp(), 0)
+                                    e.connect_audio_transport(audio)
+                                    print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
+                                    print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                                else:
+                                    audio.update_direction(inv.get_active_local_sdp().media[0].get_direction())
                             else:
                                 inv.set_state_DISCONNECTED()
                                 print "SDP negotiation failed"
@@ -210,6 +214,19 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             ringer = None
                             if other_user_agent is not None:
                                 print 'Remote User Agent is "%s"' % other_user_agent
+                    elif args["state"] == "CONFIRMED" and args["sdp_state"] == "REMOTE_OFFER":
+                        # Just assume the call got placed on hold for now...
+                        prev_remote_direction = inv.get_active_remote_sdp().media[0].get_direction()
+                        remote_direction = inv.get_offered_remote_sdp().media[0].get_direction()
+                        if "recv" in prev_remote_direction and "recv" not in remote_direction:
+                            print "Remote party is placing us on hold"
+                        elif "recv" not in prev_remote_direction and "recv" in remote_direction:
+                            print "Remote party is taking us out of hold"
+                        local_sdp = inv.get_active_local_sdp()
+                        local_sdp.version += 1
+                        local_sdp.media[0] = audio.get_local_media(False)
+                        inv.set_offered_local_sdp(local_sdp)
+                        inv.respond_to_reinvite()
                     elif args["state"] == "DISCONNECTED":
                         if args["obj"] is inv:
                             if rec_file is not None:
@@ -253,6 +270,29 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             rec_file.stop()
                             print 'Stopped recording audio to "%s"' % rec_file.file_name
                             rec_file = None
+                    elif data == " ":
+                        if inv.sdp_state == "DONE":
+                            if not on_hold:
+                                on_hold = True
+                                print "Placing call on hold"
+                                if "send" in audio.direction:
+                                    new_direction = "sendonly"
+                                else:
+                                    new_direction = "inactive"
+                                e.disconnect_audio_transport(audio)
+                            else:
+                                on_hold = False
+                                print "Taking call out of hold"
+                                if "send" in audio.direction:
+                                    new_direction = "sendrecv"
+                                else:
+                                    new_direction = "recvonly"
+                                e.connect_audio_transport(audio)
+                            local_sdp = inv.get_active_local_sdp()
+                            local_sdp.version += 1
+                            local_sdp.media[0] = audio.get_local_media(True, new_direction)
+                            inv.set_offered_local_sdp(local_sdp)
+                            inv.send_reinvite()
                     elif inv.state in ["INCOMING", "EARLY"]:
                         if data.lower() == "n":
                             command = "end"
@@ -260,7 +300,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                         elif data.lower() == "y":
                             remote_sdp = inv.get_offered_remote_sdp()
                             audio = AudioTransport(RTPTransport(e.local_ip), remote_sdp, 0)
-                            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media()], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time))
+                            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(False)], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time))
                             inv.set_state_CONNECTING()
                 if data in ",<":
                     if ec_tail_length > 0:

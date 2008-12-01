@@ -1,0 +1,79 @@
+Index: pjsip/include/pjsip-ua/sip_inv.h
+===================================================================
+--- pjsip/include/pjsip-ua/sip_inv.h	(revision 2371)
++++ pjsip/include/pjsip-ua/sip_inv.h	(working copy)
+@@ -160,6 +160,24 @@
+ 			const pjmedia_sdp_session *offer);
+ 
+     /**
++     * This callback is optional, and is called when the invite session has
++     * received a re-INVITe from the peer. It overrides the on_rx_offer
++     * callback and works only for re-INVITEs. It allows more fine-grained
++     * control over the response to a re-INVITE, e.g. sending a provisional
++     * response first. Since UPDATE requests need to be answered immediately,
++     * any SDP offer received wihtin an UPDATE request still gets sent to
++     * on_rx_offer. Application may send a reply using the
++     * #pjsip_inv_initial_answer() and #pjsip_inv_answer() functions, as with
++     * the initial INVITE.
++     *
++     * @param inv	The invite session.
++     * @param offer	Remote offer.
++     * @param rdata The received re-INVITE request.
++     */
++    void (*on_rx_reinvite)(pjsip_inv_session *inv,
++    		const pjmedia_sdp_session *offer, pjsip_rx_data *rdata);
++
++    /**
+      * This callback is optional, and it is used to ask the application
+      * to create a fresh offer, when the invite session has received 
+      * re-INVITE without offer. This offer then will be sent in the
+@@ -601,9 +619,7 @@
+ 						pjsip_tx_data **p_tdata);
+ 
+ /**
+- * Create a response message to the initial INVITE request. This function
+- * can only be called for the initial INVITE request, as subsequent
+- * re-INVITE request will be answered automatically.
++ * Create a response message to an INVITE request.
+  *
+  * @param inv		The UAS invite session.
+  * @param st_code	The st_code contains the status code to be sent, 
+Index: pjsip/src/pjsip-ua/sip_inv.c
+===================================================================
+--- pjsip/src/pjsip-ua/sip_inv.c	(revision 2371)
++++ pjsip/src/pjsip-ua/sip_inv.c	(working copy)
+@@ -1567,7 +1567,12 @@
+ 
+ 	/* Inform application about remote offer. */
+ 
+-	if (mod_inv.cb.on_rx_offer && inv->notify) {
++	if (mod_inv.cb.on_rx_reinvite && inv->notify &&
++			msg->type == PJSIP_REQUEST_MSG &&
++            msg->line.req.method.id == PJSIP_INVITE_METHOD) {
++		(*mod_inv.cb.on_rx_reinvite)(inv, rem_sdp, rdata);
++	}
++    else if (mod_inv.cb.on_rx_offer && inv->notify) {
+ 
+ 	    (*mod_inv.cb.on_rx_offer)(inv, rem_sdp);
+ 
+@@ -1763,7 +1768,6 @@
+ 
+ /*
+  * Answer initial INVITE
+- * Re-INVITE will be answered automatically, and will not use this function.
+  */ 
+ PJ_DEF(pj_status_t) pjsip_inv_answer(	pjsip_inv_session *inv,
+ 					int st_code,
+@@ -3590,6 +3594,12 @@
+ 		return;
+ 	    }
+ 
++        if (rdata->msg_info.msg->body != NULL && mod_inv.cb.on_rx_reinvite
++        		&& inv->notify) {
++        	return;
++        }
++
++
+ 	    /* Create 2xx ANSWER */
+ 	    status = pjsip_dlg_create_response(dlg, rdata, 200, NULL, &tdata);
+ 	    if (status != PJ_SUCCESS)
