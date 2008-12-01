@@ -77,6 +77,7 @@ svn update
 Go to pjsip directory and build pjsip library:
 
 cd pjsip
+patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
 ./configure
 make distclean
 # depending on your architecture chose one of the commands:

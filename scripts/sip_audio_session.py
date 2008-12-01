@@ -137,7 +137,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
             if use_bonjour:
                 print "Using bonjour"
                 print "Listening on local interface %s:%d" % (e.local_ip, e.local_port)
-                print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, < and > to adjust the echo cancellation"
+                print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, SPACE to put the call on hold, < and > to adjust the echo cancellation"
                 print 'Waiting for incoming SIP session requests...'
             else:
                 reg = Registration(credentials, route=route)
@@ -149,7 +149,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
             audio = AudioTransport(RTPTransport(e.local_ip))
             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
             inv.set_state_CALLING()
-            print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, < and > to adjust the echo cancellation"
+            print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, SPACE to put the call on hold, < and > to adjust the echo cancellation"
         while True:
             command, data = queue.get()
             if command == "print":
@@ -163,7 +163,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
                             if len(args["contact_uri_list"]) > 1:
                                 print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
-                            print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, < and > to adjust the echo cancellation"
+                            print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, SPACE to put the call on hold, < and > to adjust the echo cancellation"
                             print "Waiting for incoming session..."
                             printed = True
                     elif args["state"] == "unregistered":
