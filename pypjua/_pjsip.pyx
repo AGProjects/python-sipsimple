@@ -2756,9 +2756,6 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
                       [c_make_SDPAttribute(pj_session.attr[i]) for i in range(pj_session.attr_count)],
                       [c_make_SDPMedia(pj_session.media[i]) for i in range(pj_session.media_count)])
 
-cdef SDPMedia c_reject_sdp(SDPMedia remote_media):
-    return SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
-
 cdef class RTPTransport:
     cdef pjmedia_transport *c_obj
     cdef pj_pool_t *c_pool
