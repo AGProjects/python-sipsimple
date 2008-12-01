@@ -153,7 +153,7 @@ def do_register(**kwargs):
     if logger.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     
-    e = Engine(event_handler, trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     try:

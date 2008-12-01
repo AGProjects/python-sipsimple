@@ -136,7 +136,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         if target_username is None:
             if use_bonjour:
                 print "Using bonjour"
-                print "Listening on local interface %s:%d" % (e.local_ip, e.local_port)
+                print "Listening on local interface %s:%d" % (e.local_ip, e.local_udp_port)
                 print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, SPACE to put the call on hold, < and > to adjust the echo cancellation"
                 print 'Waiting for incoming SIP session requests...'
             else:
@@ -363,7 +363,7 @@ def do_invite(**kwargs):
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     
-    e = Engine(event_handler, trace_sip=True, initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, trace_sip=True, initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)

@@ -8,7 +8,8 @@ class Engine(object):
     _instance = None
     _done_init = False
     init_options_defaults = {"local_ip": None,
-                             "local_port": None,
+                             "local_udp_port": 0,
+                             "local_tcp_port": None,
                              "auto_sound": True,
                              "ec_tail_length": 50,
                              "user_agent": "ag-projects/sipclient-%s-pjsip-%s" % (__version__, PJ_VERSION),

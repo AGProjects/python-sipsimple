@@ -448,8 +448,11 @@ cdef extern from "pjsip.h":
         int port
     struct pjsip_transport:
         pjsip_host_port local_name
+    struct pjsip_tpfactory:
+        pjsip_host_port addr_name
     int pjsip_transport_shutdown(pjsip_transport *tp)
-    int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, void *a_name, int async_cnt, pjsip_transport **p_transport)
+    int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, int async_cnt, pjsip_transport **p_transport)
+    int pjsip_tcp_transport_start2(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, int async_cnt, pjsip_tpfactory **p_tpfactory)
 
     # transaction layer
     enum pjsip_role_e:
@@ -690,9 +693,12 @@ cdef class PJSIPEndpoint:
     cdef pjsip_endpoint *c_obj
     cdef pj_pool_t *c_pool
     cdef pjsip_transport *c_udp_transport
+    cdef pjsip_tpfactory *c_tcp_transport
 
-    def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_port):
+    def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_udp_port, local_tcp_port):
         cdef int status
+        if local_udp_port is None:
+            raise RuntimeError('UDP transport is always needed, local_udp_port cannot be "None"')
         status = pjsip_endpt_create(&caching_pool.c_obj.factory, "pypjua",  &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not initialize PJSIP endpoint: %s" % pj_status_to_str(status))
@@ -717,24 +723,39 @@ cdef class PJSIPEndpoint:
         status = pjsip_inv_usage_init(self.c_obj, &_inv_cb)
         if status != 0:
             raise RuntimeError("Could not initialize invitation module: %s" % pj_status_to_str(status))
-        self._start_udp_transport(local_ip, local_port)
+        self._start_udp_transport(local_ip, local_udp_port)
+        if local_tcp_port is not None:
+            self._start_tcp_transport(local_ip, local_tcp_port)
         if nameservers:
             self._init_nameservers(nameservers)
 
-    cdef int _start_udp_transport(self, object local_ip, object local_port) except -1:
+    cdef int _make_local_addr(self, pj_sockaddr_in *local_addr, object local_ip, int local_port) except -1:
         cdef int status
-        cdef pj_str_t c_local_ip
-        cdef pj_str_t *c_p_local_ip = NULL
-        cdef pj_sockaddr_in c_local_addr
+        cdef pj_str_t pj_local_ip
+        cdef pj_str_t *p_local_ip = NULL
         if local_ip is not None and local_ip is not "0.0.0.0":
-            c_p_local_ip = &c_local_ip
-            str_to_pj_str(local_ip, c_p_local_ip)
-        status = pj_sockaddr_in_init(&c_local_addr, c_p_local_ip, local_port or 0)
+            p_local_ip = &pj_local_ip
+            str_to_pj_str(local_ip, p_local_ip)
+        status = pj_sockaddr_in_init(local_addr, p_local_ip, local_port)
         if status != 0:
             raise RuntimeError("Could not create local address: %s" % pj_status_to_str(status))
-        status = pjsip_udp_transport_start(self.c_obj, &c_local_addr, NULL, 1, &self.c_udp_transport)
+        return 0
+
+    cdef int _start_udp_transport(self, object local_ip, int local_port) except -1:
+        cdef pj_sockaddr_in local_addr
+        self._make_local_addr(&local_addr, local_ip, local_port)
+        status = pjsip_udp_transport_start(self.c_obj, &local_addr, NULL, 1, &self.c_udp_transport)
         if status != 0:
             raise RuntimeError("Could not create UDP transport: %s" % pj_status_to_str(status))
+        return 0
+
+    cdef int _start_tcp_transport(self, object local_ip, int local_port) except -1:
+        cdef pj_sockaddr_in local_addr
+        self._make_local_addr(&local_addr, local_ip, local_port)
+        status = pjsip_tcp_transport_start2(self.c_obj, &local_addr, NULL, 1, &self.c_tcp_transport)
+        if status != 0:
+            raise RuntimeError("Could not create TCP transport: %s" % pj_status_to_str(status))
+        return 0
 
     cdef int _init_nameservers(self, nameservers) except -1:
         cdef int status
@@ -1224,7 +1245,7 @@ cdef class PJSIPUA:
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
-        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_port"])
+        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"])
         status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
@@ -1349,11 +1370,19 @@ cdef class PJSIPUA:
             self.c_check_self()
             return pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host)
 
-    property local_port:
+    property local_udp_port:
 
         def __get__(self):
             self.c_check_self()
             return self.c_pjsip_endpoint.c_udp_transport.local_name.port
+
+    property local_tcp_port:
+
+        def __get__(self):
+            self.c_check_self()
+            if self.c_pjsip_endpoint.c_tcp_transport == NULL:
+                return None
+            return self.c_pjsip_endpoint.c_tcp_transport.addr_name.port
 
     property rtp_port_range:
 
@@ -1684,10 +1713,12 @@ cdef class Route:
     cdef pjsip_sip_uri c_sip_uri
     cdef public object host
     cdef public int port
+    cdef public object transport
 
-    def __cinit__(self, host, port=5060):
+    def __cinit__(self, host, port=5060, transport=None):
         self.host = host
         self.port = port
+        self.transport = transport
         pjsip_route_hdr_init(NULL, <void *> &self.c_route_hdr)
         pjsip_sip_uri_init(&self.c_sip_uri, 0)
         self.c_sip_uri.lr_param = 1
@@ -1696,17 +1727,26 @@ cdef class Route:
         pj_list_push_back(<pj_list_type *> &self.c_route_set, <pj_list_type *> &self.c_route_hdr)
 
     def __repr__(self):
-        return '<Route to "%s:%d">' % (self.host, self.port)
+        if self.transport is None:
+            return '<Route to "%s:%d">' % (self.host, self.port)
+        else:
+            return '<Route to "%s:%d" over "%s">' % (self.host, self.port, self.transport)
 
-    cdef int _to_c(self) except -1:
+    cdef int _to_c(self, PJSIPUA ua) except -1:
+        cdef object transport_lower
         str_to_pj_str(self.host, &self.c_sip_uri.host)
         if self.port < 0 or self.port > 65535:
             raise RuntimeError("Invalid port: %d" % self.port)
         self.c_sip_uri.port = self.port
+        if self.transport is not None:
+            transport_lower = self.transport.lower()
+            if transport_lower != "udp" and (ua.c_pjsip_endpoint.c_tcp_transport == NULL or transport_lower != "tcp"):
+                raise RuntimeError("Unknown transport: %s" % self.transport)
+            str_to_pj_str(self.transport, &self.c_sip_uri.transport_param)
         return 0
 
     def copy(self):
-        return Route(self.host, self.port)
+        return Route(self.host, self.port, self.transport)
 
 
 def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route = None):
@@ -1737,7 +1777,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
         raise RuntimeError("Could not create MESSAGE request: %s" % pj_status_to_str(status))
     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
     if route is not None:
-        route._to_c()
+        route._to_c(ua)
         pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
     content_type_pj = PJSTR(content_type)
     content_subtype_pj = PJSTR(content_subtype)
@@ -1867,7 +1907,7 @@ cdef class Registration:
         self.c_credentials._to_c()
         if route is not None:
             self.c_route = route.copy()
-            self.c_route._to_c()
+            self.c_route._to_c(ua)
         self.c_want_register = 0
         self.c_contact_uri = ua.c_create_contact_uri(credentials.token)
         request_uri = PJSTR(str(SIPURI(credentials.uri.host)))
@@ -2083,7 +2123,7 @@ cdef class Publication:
         self.c_credentials = credentials.copy()
         if route is not None:
             self.c_route = route.copy()
-            self.c_route._to_c()
+            self.c_route._to_c(ua)
         self.event = event
         self.c_new_publish = 0
         request_uri = PJSTR(credentials.uri._as_str(1))
@@ -2302,7 +2342,7 @@ cdef class Subscription:
         self.c_credentials._to_c()
         if route is not None:
             self.c_route = route.copy()
-            self.c_route._to_c()
+            self.c_route._to_c(ua)
         self.expires = expires
         self.c_to_uri = to_uri.copy()
         self.c_event = PJSTR(event)
@@ -3110,7 +3150,7 @@ cdef class Invitation:
             self.c_caller_uri = self.c_credentials.uri
             if route is not None:
                 self.c_route = route.copy()
-                self.c_route._to_c()
+                self.c_route._to_c(ua)
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata

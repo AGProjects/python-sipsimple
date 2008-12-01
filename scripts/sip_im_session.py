@@ -32,7 +32,7 @@ def start(options, console):
                      auto_sound=not options.disable_sound,
                      ec_tail_length=0,
                      local_ip=options.local_ip,
-                     local_port=options.local_port)
+                     local_udp_port=options.local_port)
     e.start()
     try:
         credentials = Credentials(options.uri, options.password)

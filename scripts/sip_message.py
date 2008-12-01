@@ -158,7 +158,7 @@ def do_message(**kwargs):
     global user_quit, lock, queue, do_trace_pjsip
     do_trace_pjsip = kwargs["do_trace_pjsip"]
     ctrl_d_pressed = False
-    e = Engine(event_handler, trace_sip=kwargs["trace_sip"], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, trace_sip=kwargs["trace_sip"], auto_sound=False, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     try:
