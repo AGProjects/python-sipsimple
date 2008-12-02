@@ -708,8 +708,8 @@ cdef class PJSIPEndpoint:
 
     def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_udp_port, local_tcp_port, local_tls_port):
         cdef int status
-        if local_udp_port is None:
-            raise RuntimeError('UDP transport is always needed, local_udp_port cannot be "None"')
+        if local_udp_port is None and local_tcp_port is None and local_tls_port is None:
+            raise RuntimeError("At least one active transport is needed")
         status = pjsip_endpt_create(&caching_pool.c_obj.factory, "pypjua",  &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not initialize PJSIP endpoint: %s" % pj_status_to_str(status))
@@ -734,7 +734,8 @@ cdef class PJSIPEndpoint:
         status = pjsip_inv_usage_init(self.c_obj, &_inv_cb)
         if status != 0:
             raise RuntimeError("Could not initialize invitation module: %s" % pj_status_to_str(status))
-        self._start_udp_transport(local_ip, local_udp_port)
+        if local_udp_port is not None:
+            self._start_udp_transport(local_ip, local_udp_port)
         if local_tcp_port is not None:
             self._start_tcp_transport(local_ip, local_tcp_port)
         if local_tls_port is not None:
@@ -1390,12 +1391,19 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            return pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host)
+            if self.c_pjsip_endpoint.c_udp_transport != NULL:
+                return pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host)
+            elif self.c_pjsip_endpoint.c_tcp_transport != NULL:
+                return pj_str_to_str(self.c_pjsip_endpoint.c_tcp_transport.addr_name.host)
+            else:
+                return pj_str_to_str(self.c_pjsip_endpoint.c_tls_transport.addr_name.host)
 
     property local_udp_port:
 
         def __get__(self):
             self.c_check_self()
+            if self.c_pjsip_endpoint.c_udp_transport == NULL:
+                return None
             return self.c_pjsip_endpoint.c_udp_transport.local_name.port
 
     property local_tcp_port:
@@ -1509,8 +1517,10 @@ cdef class PJSIPUA:
             self.c_threads.append(PJSIPThread())
         return 0
 
-    cdef PJSTR c_create_contact_uri(self, object username):
-        return PJSTR(str(SIPURI(host=pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host), user=username, port=self.c_pjsip_endpoint.c_udp_transport.local_name.port)))
+    cdef PJSTR c_create_contact_uri(self, object username, object transport):
+        if transport is None:
+            transport = "udp"
+        return PJSTR(str(SIPURI(host=self.local_ip, user=username, port=getattr(self, "local_%s_port" % transport), parameters={"transport": transport})))
 
     cdef int _rx_request(self, pjsip_rx_data *rdata) except 0:
         cdef int status
@@ -1770,7 +1780,7 @@ cdef class Route:
         self.c_sip_uri.port = self.port
         if self.transport is not None:
             transport_lower = self.transport.lower()
-            if transport_lower != "udp" and (ua.c_pjsip_endpoint.c_tcp_transport == NULL or transport_lower != "tcp") and (ua.c_pjsip_endpoint.c_tls_transport == NULL or transport_lower != "tls"):
+            if (ua.c_pjsip_endpoint.c_udp_transport == NULL or transport_lower != "udp") and (ua.c_pjsip_endpoint.c_tcp_transport == NULL or transport_lower != "tcp") and (ua.c_pjsip_endpoint.c_tls_transport == NULL or transport_lower != "tls"):
                 raise RuntimeError("Unknown transport: %s" % self.transport)
             str_to_pj_str(self.transport, &self.c_sip_uri.transport_param)
         return 0
@@ -1925,6 +1935,7 @@ cdef class Registration:
 
     def __cinit__(self, Credentials credentials, route = None, expires = 300, extra_headers = {}):
         cdef int status
+        cdef object transport
         cdef PJSTR request_uri, fromto_uri
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
@@ -1938,8 +1949,9 @@ cdef class Registration:
         if route is not None:
             self.c_route = route.copy()
             self.c_route._to_c(ua)
+            transport = self.c_route.transport
         self.c_want_register = 0
-        self.c_contact_uri = ua.c_create_contact_uri(credentials.token)
+        self.c_contact_uri = ua.c_create_contact_uri(credentials.token, transport)
         request_uri = PJSTR(str(SIPURI(credentials.uri.host)))
         fromto_uri = PJSTR(credentials.uri._as_str(0))
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
@@ -2454,6 +2466,7 @@ cdef class Subscription:
         global _subs_cb
         cdef pjsip_tx_data *c_tdata
         cdef int status
+        cdef object transport
         cdef PJSTR c_from, c_to, c_to_req, c_contact_uri
         cdef GenericStringHeader header
         cdef PJSIPUA ua = c_get_ua()
@@ -2462,7 +2475,9 @@ cdef class Subscription:
                 c_from = PJSTR(self.c_credentials.uri._as_str(0))
                 c_to = PJSTR(self.c_to_uri._as_str(0))
                 c_to_req = PJSTR(self.c_to_uri._as_str(1))
-                c_contact_uri = ua.c_create_contact_uri(self.c_credentials.token)
+                if self.c_route is not None:
+                    transport = self.c_route.transport
+                c_contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
                 status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_from.pj_str, &c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
                 if status != 0:
                     raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
@@ -3357,6 +3372,7 @@ cdef class Invitation:
 
     def set_state_CALLING(self, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
+        cdef object transport
         cdef PJSTR caller_uri
         cdef PJSTR callee_uri
         cdef PJSTR callee_target
@@ -3369,7 +3385,9 @@ cdef class Invitation:
         caller_uri = PJSTR(self.c_caller_uri._as_str(0))
         callee_uri = PJSTR(self.c_callee_uri._as_str(0))
         callee_target = PJSTR(self.c_callee_uri._as_str(1))
-        contact_uri = ua.c_create_contact_uri(self.c_credentials.token)
+        if self.c_route is not None:
+            transport = self.c_route.transport
+        contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
         try:
             status = pjsip_dlg_create_uac(pjsip_ua_instance(), &caller_uri.pj_str, &contact_uri.pj_str, &callee_uri.pj_str, &callee_target.pj_str, &self.c_dlg)
             if status != 0:
