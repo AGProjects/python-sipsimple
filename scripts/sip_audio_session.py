@@ -427,7 +427,7 @@ def parse_options():
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
-    parser.add_option("-T", "--transport", type="string", dest="transport", help="Transport to use. Default is UDP.")
+    parser.add_option("-T", "--transport", type="string", dest="transport", help="SIP transport (can be UDP, TCP or TLS). Default is UDP.")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
