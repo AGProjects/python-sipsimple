@@ -241,6 +241,14 @@ cdef extern from "pjmedia.h":
     int pjmedia_transport_media_stop(pjmedia_transport *tp)
     int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt, pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
 
+    # SRTP
+    enum pjmedia_srtp_use:
+        PJMEDIA_SRTP_MANDATORY
+    struct pjmedia_srtp_setting:
+        pjmedia_srtp_use use
+    void pjmedia_srtp_setting_default(pjmedia_srtp_setting *opt)
+    int pjmedia_transport_srtp_create(pjmedia_endpt *endpt, pjmedia_transport *tp, pjmedia_srtp_setting *opt, pjmedia_transport **p_tp)
+
     # stream
     enum pjmedia_dir:
         PJMEDIA_DIR_ENCODING
@@ -2820,17 +2828,19 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
 
 cdef class RTPTransport:
     cdef pjmedia_transport *c_obj
+    cdef pjmedia_transport *c_wrapped_transport
     cdef pj_pool_t *c_pool
     cdef readonly object remote_rtp_port_sdp
     cdef readonly object remote_rtp_address_sdp
     cdef readonly object state
 
-    def __cinit__(self, local_ip = None):
+    def __cinit__(self, local_ip=None, use_srtp=False, force_srtp=False):
         cdef object pool_name = "RTPTransport_%d" % id(self)
         cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
         cdef int af = pj_AF_INET()
         cdef pj_str_t c_local_ip
         cdef pj_str_t *c_local_ip_p = &c_local_ip
+        cdef pjmedia_srtp_setting srtp_setting
         cdef int i
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
@@ -2850,6 +2860,15 @@ cdef class RTPTransport:
                 break
         if status != 0:
             raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
+        if use_srtp:
+            self.c_wrapped_transport = self.c_obj
+            self.c_obj = NULL
+            pjmedia_srtp_setting_default(&srtp_setting)
+            if force_srtp:
+                srtp_setting.use = PJMEDIA_SRTP_MANDATORY
+            status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint.c_obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
+            if status != 0:
+                raise RuntimeError("Could not create SRTP media transport: %s" % pj_status_to_str(status))
         self.state = "INIT"
 
     def __dealloc__(self):
@@ -2862,6 +2881,9 @@ cdef class RTPTransport:
             pjmedia_transport_media_stop(self.c_obj)
         if self.c_obj != NULL:
             pjmedia_transport_close(self.c_obj)
+            self.c_wrapped_transport = NULL
+        if self.c_wrapped_transport != NULL:
+            pjmedia_transport_close(self.c_wrapped_transport)
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
 
