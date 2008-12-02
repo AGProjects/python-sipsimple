@@ -747,6 +747,8 @@ cdef class PJSIPEndpoint:
         cdef int status
         cdef pj_str_t pj_local_ip
         cdef pj_str_t *p_local_ip = NULL
+        if local_port < 0 or local_port > 65535:
+            raise RuntimeError("Invalid port: %d" % local_port)
         if local_ip is not None and local_ip is not "0.0.0.0":
             p_local_ip = &pj_local_ip
             str_to_pj_str(local_ip, p_local_ip)
