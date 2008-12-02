@@ -41,12 +41,26 @@ class AccountConfig(ConfigSection):
     outbound_proxy = None
 
 
+class SRTPOptions(dict):
+    def __new__(typ, value):
+        value_lower = value.lower()
+        if value_lower == "disabled":
+            return dict(use_srtp=False, force_srtp=False)
+        elif value_lower == "optional":
+            return dict(use_srtp=True, force_srtp=False)
+        elif value_lower == "mandatory":
+            return dict(use_srtp=True, force_srtp=True)
+        else:
+            raise ValueError('Unknown SRTP option: "%s"' % value)
+
+
 class AudioConfig(ConfigSection):
-    _datatypes = {"sample_rate": int, "echo_cancellation_tail_length": int,"codec_list": datatypes.StringList, "disable_sound": datatypes.Boolean}
+    _datatypes = {"sample_rate": int, "echo_cancellation_tail_length": int,"codec_list": datatypes.StringList, "disable_sound": datatypes.Boolean, "encryption": SRTPOptions}
     sample_rate = 32
     echo_cancellation_tail_length = 50
     codec_list = ["speex", "g711", "ilbc", "gsm", "g722"]
     disable_sound = False
+    encryption = dict(use_srtp=True, force_srtp=False)
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -146,7 +160,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         else:
             inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
             print "Call from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
-            audio = AudioTransport(RTPTransport(e.local_ip))
+            audio = AudioTransport(RTPTransport(e.local_ip, **AudioConfig.encryption))
             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
             inv.set_state_CALLING()
             print "Press Ctrl-d to quit, h to hang-up, r to record, SPACE to hold, < and > to adjust the echo cancellation"
@@ -299,7 +313,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             want_quit = False
                         elif data.lower() == "y":
                             remote_sdp = inv.get_offered_remote_sdp()
-                            audio = AudioTransport(RTPTransport(e.local_ip), remote_sdp, 0)
+                            audio = AudioTransport(RTPTransport(e.local_ip, **AudioConfig.encryption), remote_sdp, 0)
                             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(False)], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time))
                             inv.set_state_CONNECTING()
                 if data in ",<":
