@@ -3,23 +3,31 @@
 ; This file must reside in ~/.sipclient/config.ini
 
 [General]
-; User Agent name
-; software version will be automatically appended
+
+; User Agent name, software version will be automatically appended
 user_agent=ag-projects.com/sipclient
 
-; ip and port for SIP signalling
-; 0.0.0.0 or any or ip:port or ip
-listen_udp=any
+; IP used for SIP signalling
+; 0.0.0.0 or any or ip:port or ip 
+local_ip=any
+
+; Ports used for each support SIP transport, can be None (transport is
+; disabled), 0 (auto port allocation) or a valid port number.
+ 
+sip_local_udp_port=0
+; sip_local_tcp_port=None
+; sip_local_tls_port=None
+; sip_tls_ca_file=
+
+; Range of ports used for listening to RTP/RTCP streams
 rtp_port_range=8000 8100
 
-; publish presence on the LAN using multicast DNS, it appears as another
+; Publish presence on the LAN using multicast DNS, it appears as another
 ; active account in the user interface
 ; bonjour=true
+
 ; Display name for bonjour
 ; bonjour_name=
-
-; Log directory
-log_directory=~/.sipclient/log
 
 ; Logging setting
 trace_pjsip=false
@@ -27,6 +35,9 @@ trace_sip=false
 trace_xcap=false
 trace_msrp=false
 trace_rtp=false
+
+; Log directory
+log_directory=~/.sipclient/log
 
 ; History directory for saving audio and IM sessions
 history_directory=~/.sipclient/history
@@ -39,13 +50,27 @@ file_transfer_directory=~/.sipclient/file_transfers
 
 
 [Audio]
+
+; Audio sample rate can be 8, 16 or 32 (in KHz)
 sample_rate=32
+
+; Echo tail in miliseconds, must be adjusted depending on the distance
+; between the microphone and the loudspeakers of the device
 echo_cancellation_tail_length=100
+
+; Use dummy sound device, on platforms that do not have a sound card
 disable_sound=false
+
+; Supported audio codecs
 codec_list=speex,g711,ilbc,gsm,g722
 
+; Use sRTP to encrypt RTP streams using symmetric key, valid options and
+; optional (default), mandatory (calls fails if sRTP negotiation fails) and
+; disabled
+encryption=optional
 
 [Account]
+
 ; credentials used for authentication to the SIP Proxy, XCAP server and MSRP relay
 sip_address=
 password=
@@ -62,15 +87,14 @@ display_name=
 ; xcap root used to store buddy lists and presence policy
 xcap_root=https://xcap.example.com/xcap-root/
 
-
-; overwrite the MSRP relay address, syntax: domain|hostname|hostname:port|ip:port
+; MSRP relay address, syntax: domain|hostname|hostname:port|ip:port
 ; msrp_relay=auto
 
-; enable publication and subscription to presence.winfo event package, if
+; Enable publication and subscription to presence.winfo event package, if
 ; enabled the software will publish its state and authorize or block
-; watchers; subscribing to someone else's presence is enabled at all
-; times since this doesn't require any special capability in the provider
-use_presence_agent=true
+; watchers; subscribing to someone else's presence is enabled at all times
+; since this doesn't require any special capability in the provider
+; use_presence_agent=true
 
 ; useful for watchers in the same domain
 ; presence_accept_watchers_from_domains=
