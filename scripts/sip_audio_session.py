@@ -23,10 +23,14 @@ from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
 from pypjua.clients.clientconfig import get_path
+from pypjua.clients import TransportPort
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
-    listen_udp = datatypes.NetworkAddress("any")
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_local_udp_port": TransportPort, "sip_local_tcp_port": TransportPort, "sip_local_tls_port": TransportPort, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    local_ip = None
+    sip_local_udp_port = 0
+    sip_local_tcp_port = None
+    sip_local_tls_port = None
     trace_pjsip = False
     trace_sip = False
     history_directory = '~/.sipclient/history'
@@ -368,7 +372,7 @@ def do_invite(**kwargs):
         else:
             proxy_host, proxy_port, proxy_is_ip = outbound_proxy
         try:
-            kwargs["route"] = Route(*lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
+            kwargs["route"] = Route(transport=kwargs.pop("transport"), *lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
         except RuntimeError, e:
             print e.message
             return
@@ -377,7 +381,7 @@ def do_invite(**kwargs):
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     
-    e = Engine(event_handler, trace_sip=True, initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_port"))
+    e = Engine(event_handler, trace_sip=True, initial_codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
@@ -423,6 +427,7 @@ def parse_options():
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-T", "--transport", type="string", dest="transport", help="Transport to use. Default is UDP.")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
@@ -434,7 +439,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1])
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, transport="udp")
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     if not retval["use_bonjour"]:
