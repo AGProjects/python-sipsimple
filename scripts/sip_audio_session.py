@@ -232,8 +232,8 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                         if ringer is not None:
                             ringer.stop()
                             ringer = None
-                            if other_user_agent is not None:
-                                print 'Remote User Agent is "%s"' % other_user_agent
+                        if other_user_agent is not None:
+                            print 'Remote SIP User Agent is "%s"' % other_user_agent
                     elif args["state"] == "CONFIRMED" and args["sdp_state"] == "REMOTE_OFFER":
                         # Just assume the call got placed on hold for now...
                         prev_remote_direction = inv.get_active_remote_sdp().media[0].get_direction()
