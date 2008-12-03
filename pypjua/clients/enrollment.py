@@ -8,10 +8,10 @@ class AccountConfig(ConfigSection):
     sip_address = None
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"history_directory": str, "log_directory": str, "file_transfer_directory": str}
+    _datatypes = {"history_directory": str, "log_directory": str, "file_transfers_directory": str}
     history_directory = '~/.sipclient/history'
     log_directory = '~/.sipclient/log'
-    file_transfer_directory = '~/.sipclient/file_transfers'
+    file_transfers_directory = '~/.sipclient/file_transfers'
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
@@ -44,7 +44,7 @@ def verify_account_config():
             print "Configuration directory '%s' does not exist and cannot be created: %s" % (process._system_config_directory, str(e))
             sys.exit(1)
     # create file_transfer directory
-    file_transfer_dir = os.path.expanduser(GeneralConfig.file_transfer_directory)
+    file_transfer_dir = os.path.expanduser(GeneralConfig.file_transfers_directory)
     if not os.access(file_transfer_dir, os.F_OK):
         try:
             os.makedirs(file_transfer_dir)

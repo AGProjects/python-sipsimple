@@ -41,7 +41,7 @@ class GeneralConfig(ConfigSection):
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
-    file_transfer_directory = os.path.join(process._system_config_directory, 'file_transfers')
+    file_transfers_directory = os.path.join(process._system_config_directory, 'file_transfers')
     auto_accept_file_transfers = False
 
 class AccountConfig(ConfigSection):
@@ -279,7 +279,7 @@ class ReceiveFileSession(MSRPSession):
         return FileSelector.parse(self.sip._attrdict['file-selector'])
 
     def get_download_path(self, name):
-        path = os.path.join(GeneralConfig.file_transfer_directory, name)
+        path = os.path.join(GeneralConfig.file_transfers_directory, name)
         if os.path.exists(path):
             all = [int(x[len(path)+1:]) for x in glob.glob(path + '.*')]
             if not all:
