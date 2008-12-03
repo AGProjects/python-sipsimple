@@ -190,7 +190,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                         user_quit = False
                         command = "quit"
                 elif event_name == "Invitation_state":
-                    if args["prev_sdp_state"] != "DONE" and args["sdp_state"] == "DONE":
+                    if args["prev_sdp_state"] != "DONE" and args["sdp_state"] == "DONE" and args["state"] != "DISCONNECTED":
                         if args["obj"] is inv:
                             if args["sdp_negotiated"]:
                                 if not audio.is_started:
