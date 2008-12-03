@@ -2864,8 +2864,10 @@ cdef class RTPTransport:
     cdef readonly object remote_rtp_port_sdp
     cdef readonly object remote_rtp_address_sdp
     cdef readonly object state
+    cdef readonly object use_srtp
+    cdef readonly object srtp_forced
 
-    def __cinit__(self, local_ip=None, use_srtp=False, force_srtp=False):
+    def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False):
         cdef object pool_name = "RTPTransport_%d" % id(self)
         cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
         cdef int af = pj_AF_INET()
@@ -2876,15 +2878,17 @@ cdef class RTPTransport:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         self.state = "CINIT"
+        self.use_srtp = use_srtp
+        self.srtp_forced = srtp_forced
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError()
-        if local_ip is None:
+        if local_rtp_address is None:
             c_local_ip_p = NULL
         else:
-            if ":" in local_ip:
+            if ":" in local_rtp_address:
                 af = pj_AF_INET6()
-            str_to_pj_str(local_ip, &c_local_ip)
+            str_to_pj_str(local_rtp_address, &c_local_ip)
         for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
             status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, i, 0, &self.c_obj)
             if status != PJ_ERRNO_START_SYS + EADDRINUSE:
@@ -2895,7 +2899,7 @@ cdef class RTPTransport:
             self.c_wrapped_transport = self.c_obj
             self.c_obj = NULL
             pjmedia_srtp_setting_default(&srtp_setting)
-            if force_srtp:
+            if srtp_forced:
                 srtp_setting.use = PJMEDIA_SRTP_MANDATORY
             status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint.c_obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
             if status != 0:

@@ -49,11 +49,11 @@ class SRTPOptions(dict):
     def __new__(typ, value):
         value_lower = value.lower()
         if value_lower == "disabled":
-            return dict(use_srtp=False, force_srtp=False)
+            return dict(use_srtp=False, srtp_forced=False)
         elif value_lower == "optional":
-            return dict(use_srtp=True, force_srtp=False)
+            return dict(use_srtp=True, srtp_forced=False)
         elif value_lower == "mandatory":
-            return dict(use_srtp=True, force_srtp=True)
+            return dict(use_srtp=True, srtp_forced=True)
         else:
             raise ValueError('Unknown SRTP option: "%s"' % value)
 
@@ -64,7 +64,7 @@ class AudioConfig(ConfigSection):
     echo_cancellation_tail_length = 50
     codec_list = ["speex", "g711", "ilbc", "gsm", "g722"]
     disable_sound = False
-    encryption = dict(use_srtp=True, force_srtp=False)
+    encryption = dict(use_srtp=True, srtp_forced=False)
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
