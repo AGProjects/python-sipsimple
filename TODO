@@ -2,27 +2,30 @@
 Python PJSIP bindings
 ---------------------
 
-- Handle re-INVITEs and UPDATE
-- Return list of SIP headers of the response in the event handler
+- Handle UPDATE for re-INVITE
+- High level Invitation class that handles SDP as well
+- Cleanup Registration, Publication and Subscription to behave more like Invitation
 - Means to query RTP statistics
-- Handle multipart bodies
+- Handle sending and received of multipart bodies for Invitation
 - Fix high CPU usage
-- STUN/ICE
+- ICE (with STUN)
 - Properly decrease reference counts of pjsip_tx_data structs
 - Split up .pyx file
 - Fix remainig TODOs for PUBLISH/REGISTER
-- sRTP
+- Make all init_options passed to PJSIPUA attributes, set local_ip at runtime
 - zRTP
 - Add feature to send OPTIONS method and parse the replies
 - Handle incomming REFER to msrp focus
+- Add ability for application to request handling of arbitrary methods such as
+  OPTIONS, REGISTER and REFER (but not INVITE or NOTIFY...) and have it reply.
+- Registration requestion URI should be settable by application
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
-- API documentation
+- Current API documentation
 
 
 Audio
 -----
 
-- More advanced conference bridge control
 - Play a soft beep tone while on hold every 30 seconds
 - Play a beep after we closed a session
 - Play a special beep when receiving a call while engaged in another call
