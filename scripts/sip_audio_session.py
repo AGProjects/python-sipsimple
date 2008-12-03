@@ -206,11 +206,12 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                 inv.set_state_DISCONNECTED()
                                 print "SDP negotiation failed"
                     if args["state"] == "EARLY":
-                        if "headers" in args and "User-Agent" in args["headers"]:
-                            other_user_agent = args["headers"].get("User-Agent")
                         if ringer is None:
                             print "Ringing..."
                             ringer = RingingThread(target_username is None)
+                    elif args["state"] == "CONNECTING":
+                        if "headers" in args and "User-Agent" in args["headers"]:
+                            other_user_agent = args["headers"].get("User-Agent")
                     elif args["state"] == "INCOMING":
                         print "Incoming session..."
                         if inv is None:
