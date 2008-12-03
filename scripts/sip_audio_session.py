@@ -258,6 +258,8 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                 print "Session ended: %(code)d %(reason)s" % args
                                 if args["code"] in [301, 302]:
                                     print "Received redirect request to %s" % args["headers"]["Contact"]
+                            elif "error" in args:
+                                print "Session ended: %s" % args["error"]
                             else:
                                 print "Session ended"
                             if want_quit:

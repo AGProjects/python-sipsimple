@@ -306,6 +306,9 @@ cdef extern from "pjmedia-codec.h":
 cdef extern from "pjsip.h":
 
     # messages
+    enum pjsip_status_code:
+        PJSIP_SC_TSX_TIMEOUT
+        PJSIP_SC_TSX_TRANSPORT_ERROR
     struct pjsip_transport
     enum pjsip_uri_context_e:
         PJSIP_URI_IN_CONTACT_HDR
@@ -3346,6 +3349,8 @@ cdef class Invitation:
         self.sdp_state = event_dict["sdp_state"] = pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_get_state(self.c_obj.neg)).split("STATE_", 1)[1]
         if self.state == "DISCONNCTD":
             self.state = "DISCONNECTED"
+            if rdata == NULL and self.c_obj.cause in [PJSIP_SC_TSX_TRANSPORT_ERROR, PJSIP_SC_TSX_TIMEOUT]:
+                event_dict["error"] = pj_str_to_str(self.c_obj.cause_text)
             self.c_obj.mod_data[ua.c_module.id] = NULL
             self.c_obj = NULL
         event_dict["state"] = self.state
