@@ -11,6 +11,8 @@ class Engine(object):
                              "local_udp_port": 0,
                              "local_tcp_port": None,
                              "local_tls_port": None,
+                             "tls_verify_server": False,
+                             "tls_ca_file": None,
                              "auto_sound": True,
                              "ec_tail_length": 50,
                              "user_agent": "ag-projects/sipclient-%s-pjsip-%s" % (__version__, PJ_VERSION),

@@ -458,11 +458,15 @@ cdef extern from "pjsip.h":
         pjsip_host_port local_name
     struct pjsip_tpfactory:
         pjsip_host_port addr_name
-    struct pjsip_tls_setting
+    struct pjsip_tls_setting:
+        pj_str_t ca_list_file
+        int verify_server
+        pj_time_val timeout
     int pjsip_transport_shutdown(pjsip_transport *tp)
     int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned int async_cnt, pjsip_transport **p_transport)
     int pjsip_tcp_transport_start2(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned int async_cnt, pjsip_tpfactory **p_tpfactory)
     int pjsip_tls_transport_start(pjsip_endpoint *endpt, pjsip_tls_setting *opt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned async_cnt, pjsip_tpfactory **p_factory)
+    void pjsip_tls_setting_default(pjsip_tls_setting *tls_opt)
 
     # transaction layer
     enum pjsip_role_e:
@@ -706,7 +710,7 @@ cdef class PJSIPEndpoint:
     cdef pjsip_tpfactory *c_tcp_transport
     cdef pjsip_tpfactory *c_tls_transport
 
-    def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_udp_port, local_tcp_port, local_tls_port):
+    def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file):
         cdef int status
         if local_udp_port is None and local_tcp_port is None and local_tls_port is None:
             raise RuntimeError("At least one active transport is needed")
@@ -739,7 +743,7 @@ cdef class PJSIPEndpoint:
         if local_tcp_port is not None:
             self._start_tcp_transport(local_ip, local_tcp_port)
         if local_tls_port is not None:
-            self._start_tls_transport(local_ip, local_tls_port)
+            self._start_tls_transport(local_ip, local_tls_port, int(tls_verify_server), tls_ca_file)
         if nameservers:
             self._init_nameservers(nameservers)
 
@@ -773,10 +777,17 @@ cdef class PJSIPEndpoint:
             raise RuntimeError("Could not create TCP transport: %s" % pj_status_to_str(status))
         return 0
 
-    cdef int _start_tls_transport(self, object local_ip, int local_port) except -1:
+    cdef int _start_tls_transport(self, object local_ip, int local_port, int tls_verify_server, object tls_ca_file) except -1:
         cdef pj_sockaddr_in local_addr
+        cdef pjsip_tls_setting tls_setting
         self._make_local_addr(&local_addr, local_ip, local_port)
-        status = pjsip_tls_transport_start(self.c_obj, NULL, &local_addr, NULL, 1, &self.c_tls_transport)
+        pjsip_tls_setting_default(&tls_setting)
+        if tls_ca_file is not None:
+            str_to_pj_str(tls_ca_file, &tls_setting.ca_list_file)
+        tls_setting.verify_server = tls_verify_server
+        tls_setting.timeout.sec = 1 # This value needs to be reasonably low, as TLS negotiation hogs the PJSIP polling loop
+        tls_setting.timeout.msec = 0
+        status = pjsip_tls_transport_start(self.c_obj, &tls_setting, &local_addr, NULL, 1, &self.c_tls_transport)
         if status != 0:
             raise RuntimeError("Could not create TLS transport: %s" % pj_status_to_str(status))
         return 0
@@ -1270,7 +1281,7 @@ cdef class PJSIPUA:
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
-        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"])
+        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_verify_server"], kwargs["tls_ca_file"])
         status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
