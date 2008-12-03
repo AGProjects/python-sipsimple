@@ -198,6 +198,10 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                     e.connect_audio_transport(audio)
                                     print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
                                     print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                                    if audio.transport.srtp_active:
+                                        print "SRTP encryption is active"
+                                    else:
+                                        print "SRTP encryption is NOT active"
                                 else:
                                     audio.update_direction(inv.get_active_local_sdp().media[0].get_direction())
                             else:

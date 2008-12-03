@@ -228,9 +228,18 @@ cdef extern from "pjmedia.h":
     struct pjmedia_sock_info:
         pj_sockaddr rtp_addr_name
     struct pjmedia_transport
+    enum pjmedia_transport_type:
+        PJMEDIA_TRANSPORT_TYPE_SRTP
+    struct pjmedia_transport_specific_info:
+        pjmedia_transport_type type
+        char *buffer
     struct pjmedia_transport_info:
         pjmedia_sock_info sock_info
         pj_sockaddr src_rtp_name
+        int specific_info_cnt
+        pjmedia_transport_specific_info *spc_info
+    struct pjmedia_srtp_info:
+        int active
     void pjmedia_transport_info_init(pjmedia_transport_info *info)
     int pjmedia_transport_udp_create3(pjmedia_endpt *endpt, int af, char *name, pj_str_t *addr, int port, unsigned int options, pjmedia_transport **p_tp)
     int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info)
@@ -2971,6 +2980,19 @@ cdef class RTPTransport:
                 return pj_sockaddr_print(&info.src_rtp_name, buf, PJ_INET6_ADDRSTRLEN, 0)
             else:
                 return None
+
+    property srtp_active:
+
+        def __get__(self):
+            cdef pjmedia_transport_info info
+            cdef pjmedia_srtp_info *srtp_info
+            cdef int i
+            self._get_info(&info)
+            for i from 0 <= i < info.specific_info_cnt:
+                if info.spc_info[i].type == PJMEDIA_TRANSPORT_TYPE_SRTP:
+                    srtp_info = <pjmedia_srtp_info *> info.spc_info[i].buffer
+                    return bool(srtp_info.active)
+            return False
 
     cdef int _update_local_sdp(self, SDPSession local_sdp, unsigned int sdp_index, pjmedia_sdp_session *c_remote_sdp) except -1:
         cdef int status
