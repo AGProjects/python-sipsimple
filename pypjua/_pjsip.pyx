@@ -91,6 +91,7 @@ cdef extern from "pjlib.h":
     int pj_sockaddr_get_port(pj_sockaddr *addr)
     char *pj_sockaddr_print(pj_sockaddr *addr, char *buf, int size, unsigned int flags)
     int pj_sockaddr_has_addr(pj_sockaddr *addr)
+    int pj_sockaddr_init(int af, pj_sockaddr *addr, pj_str_t *cp, unsigned int port)
 
     # time
     struct pj_time_val:
@@ -125,12 +126,36 @@ cdef extern from "pjlib-util.h":
     struct pj_dns_resolver
     int pj_dns_resolver_set_ns(pj_dns_resolver *resolver, int count, pj_str_t *servers, int *ports)
 
+cdef extern from "pjnath.h":
+
+    # STUN
+    enum:
+        PJ_STUN_PORT
+    struct pj_stun_config:
+        pass
+    struct pj_stun_sock_cfg:
+        pj_sockaddr bound_addr
+    void pj_stun_config_init(pj_stun_config *cfg, pj_pool_factory *factory, unsigned int options, pj_ioqueue_t *ioqueue, pj_timer_heap_t *timer_heap)
+
+    # ICE
+    struct pj_ice_strans_cfg_stun:
+        pj_stun_sock_cfg cfg
+    struct pj_ice_strans_cfg:
+        int af
+        pj_stun_config stun_cfg
+        pj_ice_strans_cfg_stun stun
+    enum pj_ice_strans_op:
+        PJ_ICE_STRANS_OP_INIT
+        PJ_ICE_STRANS_OP_NEGOTIATION
+    void pj_ice_strans_cfg_default(pj_ice_strans_cfg *cfg)
+
 cdef extern from "pjmedia.h":
 
     # endpoint
     struct pjmedia_endpt
     int pjmedia_endpt_create(pj_pool_factory *pf, pj_ioqueue_t *ioqueue, int worker_cnt, pjmedia_endpt **p_endpt)
     int pjmedia_endpt_destroy(pjmedia_endpt *endpt)
+    pj_ioqueue_t *pjmedia_endpt_get_ioqueue(pjmedia_endpt *endpt)
 
     # codecs
     int pjmedia_codec_g711_init(pjmedia_endpt *endpt)
@@ -257,6 +282,11 @@ cdef extern from "pjmedia.h":
         pjmedia_srtp_use use
     void pjmedia_srtp_setting_default(pjmedia_srtp_setting *opt)
     int pjmedia_transport_srtp_create(pjmedia_endpt *endpt, pjmedia_transport *tp, pjmedia_srtp_setting *opt, pjmedia_transport **p_tp)
+
+    # ICE
+    struct pjmedia_ice_cb:
+        void on_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
+    int pjmedia_ice_create2(pjmedia_endpt *endpt, char *name, unsigned int comp_cnt, pj_ice_strans_cfg *cfg, pjmedia_ice_cb *cb, unsigned int options, pjmedia_transport **p_tp)
 
     # stream
     enum pjmedia_dir:
@@ -461,6 +491,7 @@ cdef extern from "pjsip.h":
     int pjsip_endpt_create_response(pjsip_endpoint *endpt, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
     int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata, pjsip_tx_data *tdata, void *token, void *cb)
     int pjsip_endpt_create_request(pjsip_endpoint *endpt, pjsip_method *method, pj_str_t *target, pj_str_t *frm, pj_str_t *to, pj_str_t *contact, pj_str_t *call_id, int cseq, pj_str_t *text, pjsip_tx_data **p_tdata)
+    pj_timer_heap_t *pjsip_endpt_get_timer_heap(pjsip_endpoint *endpt)
 
     # transports
     struct pjsip_host_port:
@@ -2875,20 +2906,23 @@ cdef class RTPTransport:
     cdef readonly object state
     cdef readonly object use_srtp
     cdef readonly object srtp_forced
+    cdef readonly object use_ice
 
-    def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False):
+    def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False):
         cdef object pool_name = "RTPTransport_%d" % id(self)
         cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
         cdef int af = pj_AF_INET()
         cdef pj_str_t c_local_ip
         cdef pj_str_t *c_local_ip_p = &c_local_ip
         cdef pjmedia_srtp_setting srtp_setting
+        cdef pj_ice_strans_cfg ice_cfg
         cdef int i
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         self.state = "CINIT"
         self.use_srtp = use_srtp
         self.srtp_forced = srtp_forced
+        self.use_ice = use_ice
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError()
@@ -2898,12 +2932,22 @@ cdef class RTPTransport:
             if ":" in local_rtp_address:
                 af = pj_AF_INET6()
             str_to_pj_str(local_rtp_address, &c_local_ip)
-        for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
-            status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, i, 0, &self.c_obj)
-            if status != PJ_ERRNO_START_SYS + EADDRINUSE:
-                break
-        if status != 0:
-            raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
+        if use_ice:
+            pj_ice_strans_cfg_default(&ice_cfg)
+            pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint.c_obj))
+            status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, c_local_ip_p, 0)
+            if status != 0:
+                raise RuntimeError("Could not init ICE bound address: %s" % pj_status_to_str(status))
+            status = pjmedia_ice_create2(ua.c_pjmedia_endpoint.c_obj, NULL, 2, &ice_cfg, NULL, 0, &self.c_obj)
+            if status != 0:
+                raise RuntimeError("Could not create ICE media transport: %s" % pj_status_to_str(status))
+        else:
+            for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
+                status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, i, 0, &self.c_obj)
+                if status != PJ_ERRNO_START_SYS + EADDRINUSE:
+                    break
+            if status != 0:
+                raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
         if use_srtp:
             self.c_wrapped_transport = self.c_obj
             self.c_obj = NULL
