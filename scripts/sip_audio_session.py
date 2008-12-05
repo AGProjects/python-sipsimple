@@ -292,7 +292,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                     if data.lower() == "h":
                         command = "end"
                         want_quit = target_username is not None
-                    elif data in "0123456789*#ABCD" and audio is not None and audio.is_started:
+                    elif data in "0123456789*#ABCD" and audio is not None and audio.is_running:
                         audio.send_dtmf(data)
                     elif data.lower() == "r":
                         if rec_file is None:

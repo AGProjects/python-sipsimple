@@ -3129,6 +3129,8 @@ cdef class AudioTransport:
     cdef pjmedia_sdp_media *c_local_media
     cdef unsigned int c_conf_slot
     cdef readonly object direction
+    cdef int c_started
+    cdef int c_offer
 
     def __cinit__(self, RTPTransport transport, SDPSession remote_sdp = None, unsigned int sdp_index = 0):
         cdef object pool_name = "AudioTransport_%d" % id(self)
@@ -3142,6 +3144,7 @@ cdef class AudioTransport:
         if transport.state != "INIT":
             raise RuntimeError('RTPTransport object provided is not in the "INIT" state')
         self.transport = transport
+        self.c_started = 0
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError()
@@ -3151,8 +3154,10 @@ cdef class AudioTransport:
             raise RuntimeError("Could not generate SDP for audio session: %s" % pj_status_to_str(status))
         local_sdp = c_make_SDPSession(c_local_sdp)
         if remote_sdp is None:
+            self.c_offer = 1
             self.transport.set_LOCAL(local_sdp, 0)
         else:
+            self.c_offer = 0
             if sdp_index != 0:
                 local_sdp.media = (sdp_index+1) * local_sdp.media
             self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
@@ -3169,10 +3174,15 @@ cdef class AudioTransport:
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
 
-    property is_started:
+    property is_active:
 
         def __get__(self):
             return bool(self.c_obj != NULL)
+
+    property is_started:
+
+        def __get__(self):
+            return bool(self.c_started)
 
     property codec:
 
@@ -3205,8 +3215,10 @@ cdef class AudioTransport:
         cdef pjmedia_port *media_port
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
-        if self.c_obj != NULL:
-            raise RuntimeError("This AudioTransport was already started")
+        if self.c_started:
+            raise RuntimeError("This AudioTransport was already started once")
+        if self.c_offer and self.transport.state != "LOCAL" or not self.c_offer and self.transport.state != "ESTABLISHED":
+            raise RuntimeError("RTPTransport object provided is in wrong state")
         if None in [local_sdp, remote_sdp]:
             raise RuntimeError("SDP arguments cannot be None")
         if local_sdp.media[sdp_index].port == 0 or remote_sdp.media[sdp_index].port == 0:
@@ -3245,12 +3257,13 @@ cdef class AudioTransport:
         self.direction = "sendrecv"
         self.update_direction(local_sdp.media[sdp_index].get_direction())
         self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp.c_obj.media[sdp_index])
+        self.c_started = 1
         return 0
 
     def stop(self):
         cdef PJSIPUA ua = c_get_ua()
         if self.c_obj == NULL:
-            raise RuntimeError("Stream was not started yet")
+            raise RuntimeError("Stream is not active")
         ua.c_conf_bridge._disconnect_slot(self.c_conf_slot)
         pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
         pjmedia_stream_destroy(self.c_obj)
@@ -3259,6 +3272,8 @@ cdef class AudioTransport:
     def update_direction(self, direction):
         cdef int status1 = 0
         cdef int status2 = 0
+        if self.c_obj == NULL:
+            raise RuntimeError("Stream is not active")
         if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
             raise RuntimeError("Unknown direction: %s" % direction)
         if direction == self.direction:
@@ -3286,7 +3301,7 @@ cdef class AudioTransport:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if self.c_obj == NULL:
-            raise RuntimeError("Stream was not started yet")
+            raise RuntimeError("Stream is not active")
         if len(digit) != 1 or digit not in "0123456789*#ABCD":
             raise RuntimeError("Not a valid DTMF digit: %s" % digit)
         str_to_pj_str(digit, &c_digit)
