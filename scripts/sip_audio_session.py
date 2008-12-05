@@ -14,7 +14,7 @@ from thread import start_new_thread, allocate_lock
 from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
-from time import sleep
+from time import sleep, time
 from application.process import process
 from application.configuration import *
 from pypjua import *
@@ -147,6 +147,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
     want_quit = target_username is not None
     other_user_agent = None
     on_hold = False
+    session_start_time = None
     try:
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -194,6 +195,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                         if args["obj"] is inv:
                             if args["sdp_negotiated"]:
                                 if not audio.is_started:
+                                    session_start_time = time()
                                     audio.start(inv.get_active_local_sdp(), inv.get_active_remote_sdp(), 0)
                                     e.connect_audio_transport(audio)
                                     print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
@@ -282,6 +284,10 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                     print 'Received redirect request to "%s"' % args["headers"]["Contact"]
                             else:
                                 print disc_msg
+                            if session_start_time is not None:
+                                duration = time() - session_start_time
+                                print "Session duration was %d minutes, %d seconds" % (duration / 60, duration)
+                                session_start_time = None
                             if want_quit:
                                 command = "unregister"
                             else:
