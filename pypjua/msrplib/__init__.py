@@ -118,7 +118,12 @@ class MSRPBuffer(BaseBuffer):
         return p
 
     def bind(self):
-        self.deliver_chunk(self.make_message('')) # XXX send bodiless instead
+        chunk = self.make_request(method="SEND", transaction_id=random_string(12))
+        # Byte-Range and Message-Id are neccessary because otherwise msrprelay does not work
+        chunk.add_header(msrp_protocol.ByteRangeHeader((1, 0, 0)))
+        chunk.add_header(msrp_protocol.MessageIDHeader(str(random_string(10))))
+        chunk.data = ''
+        self.deliver_chunk(chunk)
 
     def accept_binding(self):
         chunk = self.recv_chunk()
@@ -152,6 +157,7 @@ class MSRPBuffer(BaseBuffer):
         msrpdata = msrp_protocol.MSRPData(*args, **kwargs)
         msrpdata.add_header(msrp_protocol.ToPathHeader(self.local_path + self.remote_path + [self.remote_uri]))
         msrpdata.add_header(msrp_protocol.FromPathHeader([self.local_uri]))
+        msrpdata.contflag = '$'
         return msrpdata
 
     def make_message(self, msg, content_type='text/plain'):
