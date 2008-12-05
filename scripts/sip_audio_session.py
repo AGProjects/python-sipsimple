@@ -10,6 +10,7 @@ import select
 import termios
 import signal
 import datetime
+import re
 from thread import start_new_thread, allocate_lock
 from threading import Thread
 from Queue import Queue
@@ -488,7 +489,10 @@ def parse_options():
         try:
             retval["target_username"], retval["target_domain"] = args[0].split("@")
         except ValueError:
-            retval["target_username"], retval["target_domain"] = args[0], retval['domain']
+            if re.match("^\+?[0-9\-]+$", args[0]):
+                retval["target_username"], retval["target_domain"] = args[0].replace("-", ""), retval['domain']
+            else:
+                retval["target_username"], retval["target_domain"] = args[0], retval['domain']
     else:
         retval["target_username"], retval["target_domain"] = None, None
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
