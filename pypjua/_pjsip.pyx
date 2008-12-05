@@ -140,6 +140,8 @@ cdef extern from "pjnath.h":
     # ICE
     struct pj_ice_strans_cfg_stun:
         pj_stun_sock_cfg cfg
+        pj_str_t server
+        unsigned int port
     struct pj_ice_strans_cfg:
         int af
         pj_stun_config stun_cfg
@@ -2908,7 +2910,8 @@ cdef class RTPTransport:
     cdef readonly object srtp_forced
     cdef readonly object use_ice
 
-    def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False):
+    def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
+        global _RTPTransport_stun_list, _ice_cb
         cdef object pool_name = "RTPTransport_%d" % id(self)
         cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
         cdef int af = pj_AF_INET()
@@ -2935,10 +2938,13 @@ cdef class RTPTransport:
         if use_ice:
             pj_ice_strans_cfg_default(&ice_cfg)
             pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint.c_obj))
+            if ice_stun_address is not None:
+                str_to_pj_str(ice_stun_address, &ice_cfg.stun.server)
+                ice_cfg.stun.port = ice_stun_port
             status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, c_local_ip_p, 0)
             if status != 0:
                 raise RuntimeError("Could not init ICE bound address: %s" % pj_status_to_str(status))
-            status = pjmedia_ice_create2(ua.c_pjmedia_endpoint.c_obj, NULL, 2, &ice_cfg, NULL, 0, &self.c_obj)
+            status = pjmedia_ice_create2(ua.c_pjmedia_endpoint.c_obj, NULL, 2, &ice_cfg, &_ice_cb, 0, &self.c_obj)
             if status != 0:
                 raise RuntimeError("Could not create ICE media transport: %s" % pj_status_to_str(status))
         else:
@@ -2957,9 +2963,14 @@ cdef class RTPTransport:
             status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint.c_obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
             if status != 0:
                 raise RuntimeError("Could not create SRTP media transport: %s" % pj_status_to_str(status))
-        self.state = "INIT"
+        if ice_stun_address is None:
+            self.state = "INIT"
+        else:
+            _RTPTransport_stun_list.append(self)
+            self.state = "WAIT_STUN"
 
     def __dealloc__(self):
+        global _RTPTransport_stun_list
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
@@ -2974,6 +2985,8 @@ cdef class RTPTransport:
             pjmedia_transport_close(self.c_wrapped_transport)
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+        if self in _RTPTransport_stun_list:
+            _RTPTransport_stun_list.remove(self)
 
     cdef int _get_info(self, pjmedia_transport_info *info) except -1:
         cdef int status
@@ -2987,6 +3000,8 @@ cdef class RTPTransport:
 
         def __get__(self):
             cdef pjmedia_transport_info info
+            if self.state == "WAIT_STUN":
+                return None
             self._get_info(&info)
             if info.sock_info.rtp_addr_name.addr.sa_family != 0:
                 return pj_sockaddr_get_port(&info.sock_info.rtp_addr_name)
@@ -2998,6 +3013,8 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
+            if self.state == "WAIT_STUN":
+                return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.sock_info.rtp_addr_name):
                 return pj_sockaddr_print(&info.sock_info.rtp_addr_name, buf, PJ_INET6_ADDRSTRLEN, 0)
@@ -3008,6 +3025,8 @@ cdef class RTPTransport:
 
         def __get__(self):
             cdef pjmedia_transport_info info
+            if self.state == "WAIT_STUN":
+                return None
             self._get_info(&info)
             if info.src_rtp_name.addr.sa_family != 0:
                 return pj_sockaddr_get_port(&info.src_rtp_name)
@@ -3019,6 +3038,8 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
+            if self.state == "WAIT_STUN":
+                return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.src_rtp_name):
                 return pj_sockaddr_print(&info.src_rtp_name, buf, PJ_INET6_ADDRSTRLEN, 0)
@@ -3031,6 +3052,8 @@ cdef class RTPTransport:
             cdef pjmedia_transport_info info
             cdef pjmedia_srtp_info *srtp_info
             cdef int i
+            if self.state == "WAIT_STUN":
+                return None
             self._get_info(&info)
             for i from 0 <= i < info.specific_info_cnt:
                 if info.spc_info[i].type == PJMEDIA_TRANSPORT_TYPE_SRTP:
@@ -3081,6 +3104,21 @@ cdef class RTPTransport:
         self.state = "ESTABLISHED"
 
 
+cdef void cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil:
+    global _RTPTransport_stun_list
+    cdef RTPTransport rtp_transport
+    for rtp_transport in _RTPTransport_stun_list:
+        if rtp_transport.c_obj == tp and op == PJ_ICE_STRANS_OP_INIT:
+            if status == 0:
+                rtp_transport.state = "INIT"
+            c_add_event("RTPTransport_init", dict(succeeded=status==0))
+            _RTPTransport_stun_list.remove(rtp_transport)
+            return
+
+cdef pjmedia_ice_cb _ice_cb
+_ice_cb.on_ice_complete = cb_ice_complete
+_RTPTransport_stun_list = []
+
 cdef class AudioTransport:
     cdef pjmedia_stream *c_obj
     cdef pjmedia_stream_info c_stream_info
@@ -3099,6 +3137,8 @@ cdef class AudioTransport:
         cdef PJSIPUA ua = c_get_ua()
         if transport is None:
             raise RuntimeError("transport argument cannot be None")
+        if transport.state != "INIT":
+            raise RuntimeError('RTPTransport object provided is not in the "INIT" state')
         self.transport = transport
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
