@@ -257,6 +257,8 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
+                            if "headers" in args and "Server" in args["headers"]:
+                                print 'Remote server is "%s"' % args["headers"]["Server"]
                             if args["prev_state"] == "CONFIRMED":
                                 if "method" in args:
                                     if target_username is None:
