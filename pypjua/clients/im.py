@@ -13,7 +13,7 @@ from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError, BindError, ConnectError
 
-from eventlet.api import spawn, kill, GreenletExit, sleep, with_timeout
+from eventlet.api import spawn, kill, GreenletExit, sleep, timeout
 from eventlet.coros import spawn_link
 
 from pypjua import *
@@ -191,8 +191,9 @@ class MSRPSession:
     def shutdown_msrp(self):
         if self.msrp and self.msrp.connected:
             #print 'Shutting down MSRP connection %s' % self.msrp.next_host()
-            # give remote side 1 second to close MSRP connection
-            with_timeout(1, self.read_msrp_job.wait, timeout_value=1)
+            # since we have initiated the session's end, let the other side close MSRP connection
+            with timeout(3, None):
+                self.read_msrp_job.wait()
             self.close_msrp()
 
     def send_message(self, msg, content_type='text/plain'):

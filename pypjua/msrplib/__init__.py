@@ -1,12 +1,12 @@
+from __future__ import with_statement
 import string
 import random
 from collections import deque
 from copy import copy
 from StringIO import StringIO
 from application.system import default_host_ip
-from twisted.internet.error import AlreadyCalled
 
-from eventlet.api import exc_after, TimeoutError
+from eventlet.api import timeout
 from eventlet.coros import event
 from eventlet.twistedutil.protocol import BaseBuffer, BufferCreator, SpawnFactory
 
@@ -309,6 +309,10 @@ class MSRPError(Exception):
 class MSRPTimeout(MSRPError):
     seconds = 10
 
+    @classmethod
+    def ctxmgr(cls):
+        return timeout(cls.seconds, cls)
+
 class MSRPConnectTimeout(MSRPTimeout):
     pass
 
@@ -342,11 +346,8 @@ def _msrp_connect(full_remote_path, log_func, local_uri):
     return msrp
 
 def msrp_connect(*args, **kwargs):
-    kwargs.setdefault('timeout_value', None)
-    msrp = with_timeout(MSRPConnectTimeout.seconds, _msrp_connect, *args, **kwargs)
-    if msrp is None:
-        raise MSRPConnectTimeout
-    return msrp
+    with MSRPConnectTimeout.ctxmgr():
+        return _msrp_connect(*args, **kwargs)
 
 def _msrp_relay_connect(relaysettings, log_func):
     local_uri = new_local_uri()
@@ -375,11 +376,9 @@ def _msrp_relay_connect(relaysettings, log_func):
     #print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % (relaysettings.host, relaysettings.port, conn.local_uri)
     return conn
 
-def msrp_relay_connect(relaysettings, log_func):
-    msrp = with_timeout(MSRPRelayConnectTimeout.seconds, _msrp_relay_connect, relaysettings, log_func, timeout_value=None)
-    if msrp is None:
-        raise MSRPRelayConnectTimeout
-    return msrp
+def msrp_relay_connect(relaysettings, traffic_logger):
+    with MSRPRelayConnectTimeout.ctxmgr():
+        return _msrp_relay_connect(relaysettings, traffic_logger)
 
 def _msrp_listen(handler, log_func=None):
     from twisted.internet import reactor
@@ -406,29 +405,8 @@ def msrp_listen(log_func=None):
     return result.wait, local_uri, listener
 
 def msrp_accept(get_buffer_func):
-    msrp = with_timeout(MSRPIncomingConnectTimeout.seconds, get_buffer_func, timeout_value=None)
-    if msrp is None:
-        raise MSRPIncomingConnectTimeout
-    return msrp
+    with MSRPIncomingConnectTimeout.ctxmgr():
+        return get_buffer_func()
 
 def random_string(length):
     return "".join(random.choice(string.letters + string.digits) for i in xrange(length))
-
-# XXX integrate this with eventlet
-def with_timeout(seconds, func, *args, **kwds):
-    has_timeout_value = "timeout_value" in kwds
-    timeout_value = kwds.pop("timeout_value", None)
-    timeout = exc_after(seconds, TimeoutError())
-    try:
-        try:
-            return func(*args, **kwds)
-        except TimeoutError:
-            if has_timeout_value:
-                return timeout_value
-            raise
-    finally:
-        try:
-            timeout.cancel()
-        except AlreadyCalled:
-            pass
-
