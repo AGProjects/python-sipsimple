@@ -257,14 +257,28 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
-                            if "code" in args and args["code"] / 100 != 2:
-                                print "Session ended: %(code)d %(reason)s" % args
-                                if args["code"] in [301, 302]:
-                                    print "Received redirect request to %s" % args["headers"]["Contact"]
-                            elif "error" in args:
-                                print "Session ended: %s" % args["error"]
+                            if args["prev_state"] == "CONFIRMED":
+                                if "method" in args:
+                                    if target_username is None:
+                                        disc_party = inv.caller_uri
+                                    else:
+                                        disc_party = inv.callee_uri
+                                else:
+                                    if target_username is None:
+                                        disc_party = inv.callee_uri
+                                    else:
+                                        disc_party = inv.caller_uri
+                                disc_msg = 'Session disconnected by "%s"' % str(disc_party)
                             else:
-                                print "Session ended"
+                                disc_msg = "Session could not be established"
+                            if "code" in args and args["code"] / 100 != 2:
+                                print "%s: %d %s" % (disc_msg, args["code"], args["reason"])
+                                if args["code"] in [301, 302]:
+                                    print 'Received redirect request to "%s"' % args["headers"]["Contact"]
+                            elif "error" in args:
+                                print "%s: %s" % args["error"]
+                            else:
+                                print disc_msg
                             if want_quit:
                                 command = "unregister"
                             else:
