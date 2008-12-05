@@ -26,7 +26,9 @@ sip_tls_transport=1
 tls_ca_file=~/.sipclient/tls/ca.crt
 
 ; Verify that the X.509 common name of the target matches the hostname
-tls_verify_server=false
+sip_tls_verify_server=false
+msrp_tls_verify_server=false
+xcap_tls_verify_server=false
 
 ; Range of ports used for listening to RTP/RTCP streams
 rtp_port_range=8000 8100
@@ -80,7 +82,7 @@ encryption=optional
 
 ; By default sRTP is be used only over TLS secured signalling otherwise the
 ; encryption key may be compromissed
-encryption_over_non_tls_connections=false
+encryption_over_non_tls_sip_transport=false
 
 
 [Account]
@@ -91,6 +93,9 @@ password=
 
 ; Send all SIP messages through this proxy, can be a domain name, a hostname, an ip or ip:port
 outbound_proxy=
+
+; List of STUN servers that overwrite the ones found in the DNS, used for ICE negotiation
+stun_servers=
 
 ; enable or disable this account
 active=true
