@@ -318,6 +318,13 @@ class MSRPData(object):
             header.decoded
 
     @property
+    def content_type(self):
+        x = self.headers.get('Content-Type')
+        if x is None:
+            return x
+        return x.decoded
+
+    @property
     def failure_report(self):
         if "Failure-Report" in self.headers:
             return self.headers["Failure-Report"].decoded
