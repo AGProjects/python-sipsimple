@@ -46,7 +46,7 @@ class MSRPProtocol(msrp_protocol.MSRPProtocol):
 
     def lineReceived(self, line):
         if self.traffic_logger:
-            self.traffic_logger.report_in(line, self.transport, self._new_chunk)
+            self.traffic_logger.report_in(line+self.delimiter, self.transport, self._new_chunk)
         self._new_chunk = False
         msrp_protocol.MSRPProtocol.lineReceived(self, line)
 
