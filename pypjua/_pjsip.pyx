@@ -3111,6 +3111,8 @@ cdef void cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status
         if rtp_transport.c_obj == tp and op == PJ_ICE_STRANS_OP_INIT:
             if status == 0:
                 rtp_transport.state = "INIT"
+            else:
+                rtp_transport.state = "STUN_FAILED"
             c_add_event("RTPTransport_init", dict(succeeded=status==0))
             _RTPTransport_stun_list.remove(rtp_transport)
             return
