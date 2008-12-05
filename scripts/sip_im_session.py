@@ -11,7 +11,8 @@ from pypjua.clients.trafficlog import TrafficLogger
 from pypjua.clients.consolebuffer import setup_console, CTRL_D
 from pypjua.enginebuffer import EngineBuffer
 from pypjua.clients.im import SessionManager, parse_options, UserCommandError
-
+from pypjua.clients import enrollment
+enrollment.verify_account_config()
 
 KEY_NEXT_SESSION = '\x0e'
 

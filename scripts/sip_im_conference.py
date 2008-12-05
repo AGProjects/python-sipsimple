@@ -10,6 +10,8 @@ from pypjua.enginebuffer import EngineBuffer
 from pypjua.clients.trafficlog import TrafficLogger, hook_std_output
 from pypjua.clients.im import parse_options
 from pypjua.clients.chatroom import ChatRoom
+from pypjua.clients import enrollment
+enrollment.verify_account_config()
 
 def start(options):
     ch = queue()

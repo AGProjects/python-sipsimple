@@ -22,7 +22,6 @@ from pypjua.clients import msrp_protocol
 from pypjua.msrplib import MSRPConnector, MSRPError
 from pypjua.clients.consolebuffer import CTRL_D
 from pypjua.clients.clientconfig import get_path
-from pypjua.clients import enrollment
 from pypjua.enginebuffer import Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
 from pypjua.clients.sdputil import FileSelector
@@ -60,8 +59,6 @@ class AccountConfig(ConfigSection):
 class AudioConfig(ConfigSection):
     _datatypes = {"disable_sound": datatypes.Boolean}
     disable_sound = False
-
-enrollment.verify_account_config()
 
 def random_string(length):
     return "".join(random.choice(string.letters + string.digits) for i in xrange(length))
