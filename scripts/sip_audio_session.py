@@ -316,7 +316,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             local_sdp.media[0] = audio.get_local_media(True, new_direction)
                             inv.set_offered_local_sdp(local_sdp)
                             inv.send_reinvite()
-                    elif inv.state in ["INCOMING", "EARLY"]:
+                    elif inv.state in ["INCOMING", "EARLY"] and target_username is None:
                         if data.lower() == "n":
                             command = "end"
                             want_quit = False
