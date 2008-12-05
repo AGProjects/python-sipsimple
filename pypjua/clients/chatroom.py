@@ -56,7 +56,7 @@ class ChatRoom:
     def _on_message_received(self, session, message):
         for s in self.sessions:
             if s is not session:
-                s.send_chunk(message)
+                s.send_message(message.data, message.content_type)
 
     def close(self):
         self.stop_accept_incoming()

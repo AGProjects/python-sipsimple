@@ -28,6 +28,7 @@ class Peer:
         self.channel.send(('write_chunk', contents))
 
     def connection_lost(self, reason):
+        # QQQ why exception description is lost there?
         self.channel.send_exception((reason.type, reason.value, reason.tb))
 
 class MSRPProtocol(msrp_protocol.MSRPProtocol):

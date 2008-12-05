@@ -209,9 +209,10 @@ class MSRPSession:
 
     def send_message(self, msg, content_type='text/plain'):
         if self.msrp and self.msrp.connected:
-            from_ = '<%s>' % self.me
-            to = '<%s>' % self.other
-            msg = str(MessageCPIM(msg, content_type, from_=from_, to=to))
+            if content_type!='message/cpim':
+                from_ = '<%s>' % self.me
+                to = '<%s>' % self.other
+                msg = str(MessageCPIM(msg, content_type, from_=from_, to=to))
             self.msrp.send_message(msg, 'message/cpim')
             return True
         else:
