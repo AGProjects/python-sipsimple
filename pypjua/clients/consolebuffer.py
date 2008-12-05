@@ -530,7 +530,6 @@ def main():
                             else:
                                 print ex
                         if evaled_command is not None:
-                            params = args[1:]
                             if callable(evaled_command):
                                 evaled_command(*params)
                             else:
