@@ -62,7 +62,7 @@ class PushFileSession(ChatSession):
         print 'Sent %s.' % self.sdp.fileselector
         if self.play_wav_func:
             self.play_wav_func(get_path("message_sent.wav"))
-        sleep(0.5) # wait for wav
+            sleep(0.5) # QQQ wait for wav
 
     def make_sdp_media(self, uri):
         return self.sdp.make_SDPMedia(uri)
@@ -101,7 +101,7 @@ def main():
     e.start()
     try:
         credentials = Credentials(options.uri, options.password)
-        s = PushFileSession(credentials, filename, e.play_wav_file)
+        s = PushFileSession(credentials, filename, options.disable_sound and e.play_wav_file)
         s.start_invite(e, options.target_uri, options.route, options.relay)
         if s.invite_job.wait() is not True:
             sys.exit(0)
