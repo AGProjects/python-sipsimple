@@ -277,8 +277,6 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                 print "%s: %d %s" % (disc_msg, args["code"], args["reason"])
                                 if args["code"] in [301, 302]:
                                     print 'Received redirect request to "%s"' % args["headers"]["Contact"]
-                            elif "error" in args:
-                                print "%s: %s" % args["error"]
                             else:
                                 print disc_msg
                             if want_quit:

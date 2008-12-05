@@ -3479,8 +3479,9 @@ cdef class Invitation:
         self.sdp_state = event_dict["sdp_state"] = pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_get_state(self.c_obj.neg)).split("STATE_", 1)[1]
         if self.state == "DISCONNCTD":
             self.state = "DISCONNECTED"
-            if rdata == NULL and self.c_obj.cause in [PJSIP_SC_TSX_TRANSPORT_ERROR, PJSIP_SC_TSX_TIMEOUT]:
-                event_dict["error"] = pj_str_to_str(self.c_obj.cause_text)
+            if rdata == NULL and self.c_obj.cause > 0:
+                event_dict["code"] = self.c_obj.cause
+                event_dict["reason"] = pj_str_to_str(self.c_obj.cause_text)
             self.c_obj.mod_data[ua.c_module.id] = NULL
             self.c_obj = NULL
         event_dict["state"] = self.state
