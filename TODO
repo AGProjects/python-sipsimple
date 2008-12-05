@@ -8,7 +8,6 @@ Python PJSIP bindings
 - Means to query RTP statistics
 - Handle sending and received of multipart bodies for Invitation
 - Fix high CPU usage
-- ICE (with STUN)
 - Properly decrease reference counts of pjsip_tx_data structs
 - Split up .pyx file
 - Fix remainig TODOs for PUBLISH/REGISTER
