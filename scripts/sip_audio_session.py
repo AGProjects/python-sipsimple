@@ -257,9 +257,14 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
-                            if "headers" in args and "Server" in args["headers"]:
-                                print 'Remote server is "%s"' % args["headers"]["Server"]
-                            if args["prev_state"] == "CONFIRMED":
+                            if args["prev_state"] != "CONFIRMED":
+                                if "headers" in args:
+                                    if "Server" in args["headers"]:
+                                        print 'Remote SIP server is "%s"' % args["headers"]["Server"]
+                                    elif "User-Agent" in args["headers"]:
+                                        print 'Remote SIP User Agent is "%s"' % args["headers"]["User-Agent"]
+                                disc_msg = "Session could not be established"
+                            else:
                                 if "method" in args:
                                     if target_username is None:
                                         disc_party = inv.caller_uri
@@ -271,8 +276,6 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                     else:
                                         disc_party = inv.caller_uri
                                 disc_msg = 'Session disconnected by "%s"' % str(disc_party)
-                            else:
-                                disc_msg = "Session could not be established"
                             if "code" in args and args["code"] / 100 != 2:
                                 print "%s: %d %s" % (disc_msg, args["code"], args["reason"])
                                 if args["code"] in [301, 302]:
