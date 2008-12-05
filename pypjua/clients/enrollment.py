@@ -2,6 +2,7 @@ import os
 import sys
 from application.process import process
 from application.configuration import *
+from application import log
 
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str}
@@ -17,7 +18,15 @@ process._system_config_directory = os.path.expanduser("~/.sipclient")
 configuration = ConfigFile("config.ini")
 configuration.read_settings('General', GeneralConfig)
 
-def init_account(account):
+
+class EnrollmentError(RuntimeError): pass
+
+
+def init_account(name, account):
+    if account.sip_address is None:
+        #raise EnrollmentError("account %s does not have sip_address option defined" % account.sip_address and "'%s'" % account.sip_address or "default")
+        log.error("%s does not have sip_address option defined" % (name and "account '%s'" % name or "default account"))
+        return
     # create history directory of account
     history_dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), account.sip_address)
     if not os.access(history_dir, os.F_OK):
@@ -57,7 +66,7 @@ def verify_account_config():
             continue
         account = type('Account', (object, ConfigSection), AccountConfig.__dict__)
         configuration.read_settings(section, account)
-        init_account(account)
+        init_account(section[8:] or None, account)
     # create config file
     config_file = os.path.join(process._system_config_directory, "config.ini")
     if not os.access(config_file, os.F_OK):
