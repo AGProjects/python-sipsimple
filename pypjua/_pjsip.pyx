@@ -1296,6 +1296,7 @@ cdef class PJSIPUA:
     cdef pj_time_val c_max_timeout
     cdef int c_rtp_port_start
     cdef int c_rtp_port_stop
+    cdef int c_rtp_port_index
     cdef readonly unsigned int ec_tail_length
 
     def __cinit__(self, *args, **kwargs):
@@ -1499,6 +1500,7 @@ cdef class PJSIPUA:
                 raise RuntimeError("Second RTP port should be a larger number than first RTP port")
             self.c_rtp_port_start = c_rtp_port_start
             self.c_rtp_port_stop = c_rtp_port_stop
+            self.c_rtp_port_index = random.randrange(c_rtp_port_start, c_rtp_port_stop, 2) - 50
 
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
@@ -2948,9 +2950,10 @@ cdef class RTPTransport:
             if status != 0:
                 raise RuntimeError("Could not create ICE media transport: %s" % pj_status_to_str(status))
         else:
-            for i in xrange(ua.c_rtp_port_start, ua.c_rtp_port_stop, 2):
-                status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, i, 0, &self.c_obj)
+            for i in xrange(ua.c_rtp_port_index, ua.c_rtp_port_index + ua.c_rtp_port_stop - ua.c_rtp_port_start, 2):
+                status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
                 if status != PJ_ERRNO_START_SYS + EADDRINUSE:
+                    ua.c_rtp_port_index = (i + 2) % (ua.c_rtp_port_stop - ua.c_rtp_port_start)
                     break
             if status != 0:
                 raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
