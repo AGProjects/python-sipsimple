@@ -41,6 +41,7 @@ class EngineBuffer(Engine):
 
     def __init__(self, default_dest=None, **kwargs):
         self.logger = kwargs.pop('logger', EngineLogger(log_file=sys.stderr))
+        # XXX: clean up obj when all refs to the object disappear
         self.objs = {} # maps pypjua_obj -> obj_buffer
         self.default_dest_ref = default_dest and ref(default_dest)
         handler = EventHandler(self._handle_event,

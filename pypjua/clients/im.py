@@ -26,6 +26,7 @@ from pypjua.clients import enrollment
 from pypjua.enginebuffer import Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
 from pypjua.clients.sdputil import FileSelector
+from pypjua.clients.cpim import MessageCPIM, MessageCPIMParser
 
 KEY_NEXT_SESSION = '\x0e'
 MSRPErrors = (DNSLookupError, MSRPError, ConnectError, BindError, ConnectionClosed)
@@ -77,6 +78,17 @@ def format_useruri(uri):
 def echo_message(uri, message):
     print '%s %s: %s' % (format_time(), uri, message)
 
+def render_message(uri, message):
+    if message.content_type == 'message/cpim':
+        headers, text = MessageCPIMParser.parse_string(message.data)
+        if headers.get('From'):
+            uri = '%s (via %s)' % (headers['From'], uri)
+    elif message.content_type == 'text/plain':
+        text = message.data
+    else:
+        text = `message`
+    print '%s %s: %s' % (format_time(), uri, text)
+
 def format_nosessions_ps(myuri):
     return '%s@%s> ' % (myuri.user, myuri.host)
 
@@ -89,11 +101,10 @@ class MSRPSession:
     msrp_closed_by_me = False
     ending_msrp_connection_only = False
 
-    def __init__(self, session_manager, credentials, write_traffic, play_wav_func=None, sip=None, msrp=None):
+    def __init__(self, session_manager, credentials, traffic_logger, sip=None, msrp=None):
         self.myman = session_manager
         self.credentials = credentials
-        self.write_traffic = write_traffic
-        self.play_wav_func = play_wav_func
+        self.traffic_logger = traffic_logger
         self.sip = sip
         if sip is not None:
             self.sip.call_on_disconnect(self._on_disconnect)
@@ -101,6 +112,9 @@ class MSRPSession:
         self.read_msrp_job = None
         if self.msrp is not None:
             self.start_read_msrp()
+
+    def _on_message_received(self, message):
+        self.myman._on_message_received(self, message)
 
     def _report_disconnect(self):
         if self.myman:
@@ -137,9 +151,6 @@ class MSRPSession:
             self.sip.cancel_call_on_disconnect(self._on_disconnect)
             self.sip.end()
         self.stop_invite()
-
-    def make_sdp_media(self, uri):
-        return make_msrp_sdp_media(uri, ['text/plain'])
 
     def _on_disconnect(self, params):
         self.close_msrp()
@@ -198,29 +209,26 @@ class MSRPSession:
 
     def send_message(self, msg, content_type='text/plain'):
         if self.msrp and self.msrp.connected:
-            self.msrp.send_message(msg, content_type)
-            self._on_message_sent(msg, content_type)
+            from_ = '<%s>' % self.me
+            to = '<%s>' % self.other
+            msg = str(MessageCPIM(msg, content_type, from_=from_, to=to))
+            self.msrp.send_message(msg, 'message/cpim')
             return True
         else:
             raise UserCommandError('MSRP is not connected')
 
+    def send_chunk(self, chunk):
+        self.msrp.send_chunk(chunk)
 
 class ChatSession(MSRPSession):
-
 
     def __init__(self, *args, **kwargs):
         MSRPSession.__init__(self, *args, **kwargs)
         self.invite_job = None
 
     def _on_message_received(self, message):
-        echo_message(format_useruri(self.other), message.data)
-        if self.play_wav_func:
-            self.play_wav_func(get_path("message_received.wav"))
-
-    def _on_message_sent(self, message, content_type):
-        echo_message(format_useruri(self.me), message)
-        if self.play_wav_func:
-            self.play_wav_func(get_path("message_sent.wav"))
+        render_message(format_useruri(self.other), message)
+        MSRPSession._on_message_received(self, message)
 
     def start_invite(self, e, target_uri, route, relay):
         assert not self.invite_job, self.invite_job
@@ -237,12 +245,12 @@ class ChatSession(MSRPSession):
             return 'Inactive chat: '
 
     def make_sdp_media(self, uri):
-        return make_msrp_sdp_media(uri, ['text/plain'])
+        return make_msrp_sdp_media(uri, ['message/cpim'], ['text/plain'])
 
     def _invite(self, e, target_uri, route, relay):
         try:
             self.sip, self.msrp = invite(e, self.credentials, target_uri, route, relay,
-                                         self.write_traffic, self.make_sdp_media)
+                                         self.traffic_logger, self.make_sdp_media)
         except SIPDisconnect:
             self._report_disconnect()
         except MSRPErrors, ex:
@@ -273,6 +281,7 @@ class ReceiveFileSession(MSRPSession):
 
     def _on_message_received(self, message):
         self._save_file(message)
+        MSRPSession._on_message_received(self, message)
         self._report_disconnect()
 
     @property
@@ -292,12 +301,16 @@ class ReceiveFileSession(MSRPSession):
     def _save_file(self, message):
         fro, to, length = message.headers['Byte-Range'].decoded
         assert len(message.data)==length, (len(message.data), length) # check MSRP integrity
+        if message.content_type=='message/cpim':
+            headers, data = parse_message_cpim(message.data)
+        else:
+            data = message.data
         # check that SIP filesize and MSRP size match
-        assert self.fileselector.size == length, (self.fileselector.size, length)
+        assert self.fileselector.size == len(data), (self.fileselector.size, len(data))
         path = self.get_download_path(self.fileselector.name)
         print 'Saving %s to %s' % (self.fileselector, path)
         assert not os.path.exists(path), path # get_download_path must return a new path
-        file(path, 'w+').write(message.data)
+        file(path, 'w+').write(data)
 
     def format_ps(self):
         if self.other:
@@ -307,7 +320,7 @@ class ReceiveFileSession(MSRPSession):
             return 'Inactive file transfer: '
 
     def send_message(self, msg, content_type='text/plain'):
-        return True # QQQ temporarily disabled as it causes the sending script to crash
+        return False # QQQ temporarily disabled as it causes the sending script to crash
 
 def _helper(func):
     def current_func(self, *args, **kwargs):
@@ -320,14 +333,18 @@ def _helper(func):
 
 class SessionManager:
 
-    def __init__(self, credentials, console, write_traffic, auto_accept_files=False):
+    def __init__(self, engine, credentials, console, traffic_logger, auto_accept_files=False):
+        self.engine = engine
         self.credentials = credentials
         self.console = console
-        self.write_traffic = write_traffic
+        self.traffic_logger = traffic_logger
         self.auto_accept_files = auto_accept_files
         self.sessions = []
         self.accept_incoming_job = None
         self.current_session = None
+
+    def _on_message_received(self, session, message):
+        self.engine.play_wav_file(get_path("message_received.wav"))
 
     def close(self):
         self.stop_accept_incoming()
@@ -391,10 +408,10 @@ class SessionManager:
         handler = IncomingSessionHandler()
         inbound_ringer = Ringer(e.play_wav_file, get_path("ring_inbound.wav"))
         def new_chat_session(sip, msrp):
-            return ChatSession(self, self.credentials, self.write_traffic, e.play_wav_file, sip, msrp)
+            return ChatSession(self, self.credentials, self.traffic_logger, sip, msrp)
         def new_receivefile_session(sip, msrp):
-            return ReceiveFileSession(self, self.credentials, self.write_traffic, e.play_wav_file, sip, msrp)
-        connector = NoisyMSRPConnector(relay, self.write_traffic)
+            return ReceiveFileSession(self, self.credentials, self.traffic_logger, sip, msrp)
+        connector = NoisyMSRPConnector(relay, self.traffic_logger)
         file = IncomingFileTransferHandler(connector, e.local_ip, self.console,
                                            new_receivefile_session, inbound_ringer,
                                            auto_accept=self.auto_accept_files)
@@ -417,22 +434,34 @@ class SessionManager:
                 sleep(1)
 
     def start_new_outgoing(self, e, target_uri, route, relay):
-        s = ChatSession(self, self.credentials, self.write_traffic, e.play_wav_file)
+        s = ChatSession(self, self.credentials, self.traffic_logger)
         s.start_invite(e, target_uri, route, relay)
         self.sessions.append(s)
         self.current_session = s
         self.update_ps()
         return s
 
-    for x in ['send_message', 'end_sip', 'end_msrp']:
+    def send_message(self, message):
+        if not self.current_session:
+            raise UserCommandError('No active session')
+        session = self.current_session
+        if session.send_message(message):
+            echo_message(format_useruri(session.me), message)
+            self.engine.play_wav_file(get_path("message_sent.wav"))
+            return True # indicate that the message was sent
+
+    for x in ['end_sip', 'end_msrp']:
         exec "%s = _helper(%r)" % (x, x)
 
     del x
 
-def make_msrp_sdp_media(uri_path, accept_types):
+def make_msrp_sdp_media(uri_path, accept_types, accept_wrapped_types=None):
     attributes = []
     attributes.append(SDPAttribute("path", " ".join([str(uri) for uri in uri_path])))
-    attributes.append(SDPAttribute("accept-types", " ".join(accept_types)))
+    if accept_types is not None:
+        attributes.append(SDPAttribute("accept-types", " ".join(accept_types)))
+    if accept_wrapped_types is not None:
+        attributes.append(SDPAttribute("accept-wrapped-types", " ".join(accept_wrapped_types)))
     if uri_path[-1].use_tls:
         transport = "TCP/TLS/MSRP"
     else:
@@ -496,11 +525,13 @@ def consult_user(inv, ask_func):
         if ERROR is not None:
             inv.shutdown(ERROR)
 
-class IncomingMSRPHandler:
+class IncomingMSRPHandler(object):
 
-    def __init__(self, connector, local_ip):
+    def __init__(self, connector, local_ip, session_factory=None): # XXX get rid of local_ip here
         self.connector = connector
         self.local_ip = local_ip # XXX use msrp local ip when available. come up with something good when it's not
+        if session_factory is not None:
+            self.session_factory = session_factory
 
     # public API: call is_acceptable() first, if it returns True, you can call handle()
 
@@ -520,10 +551,9 @@ class IncomingMSRPHandler:
         return True
 
     def handle(self, inv):
-        if consult_user(inv, self._ask_user)==True:
-            msrp = self.accept(inv)
-            if msrp is not None:
-                return self._make_session(inv, msrp)
+        msrp = self.accept(inv)
+        if msrp is not None:
+            return self.session_factory(inv, msrp)
 
     def accept(self, inv):
         ERROR = 488
@@ -548,12 +578,17 @@ class IncomingMSRPHandler:
             if ERROR is not None:
                 inv.shutdown(ERROR)
 
-class IncomingChatHandler(IncomingMSRPHandler):
+class IncomingMSRPHandler_Interactive(IncomingMSRPHandler):
 
-    def __init__(self, connector, local_ip, console, make_session_func, ringer=SilentRinger()):
-        IncomingMSRPHandler.__init__(self, connector, local_ip)
+    def handle(self, inv):
+        if consult_user(inv, self._ask_user)==True:
+            return IncomingMSRPHandler.handle(self, inv)
+
+class IncomingChatHandler(IncomingMSRPHandler_Interactive):
+
+    def __init__(self, connector, local_ip, console, session_factory, ringer=SilentRinger()):
+        IncomingMSRPHandler.__init__(self, connector, local_ip, session_factory)
         self.console = console
-        self._make_session = make_session_func
         self.ringer = ringer
 
     def is_acceptable(self, inv):
@@ -564,7 +599,11 @@ class IncomingChatHandler(IncomingMSRPHandler):
             return False
         if 'recvonly' in attrs:
             return False
-        if 'text/plain' not in attrs.get('accept-types', ''):
+        accept_types = attrs.get('accept-types', '')
+        if 'message/cpim' not in accept_types and '*' not in accept_types:
+            return False
+        wrapped_types = attrs.get('accept-wrapped-types', '')
+        if 'text/plain' not in wrapped_types and '*' not in wrapped_types:
             return False
         return True
 
@@ -581,12 +620,11 @@ class IncomingChatHandler(IncomingMSRPHandler):
                           media=[make_msrp_sdp_media(full_local_path, ["text/plain"])])
 
 
-class IncomingFileTransferHandler(IncomingMSRPHandler):
+class IncomingFileTransferHandler(IncomingMSRPHandler_Interactive):
 
-    def __init__(self, connector, local_ip, console, make_session_func, ringer=SilentRinger(), auto_accept=False):
-        IncomingMSRPHandler.__init__(self, connector, local_ip)
+    def __init__(self, connector, local_ip, console, session_factory, ringer=SilentRinger(), auto_accept=False):
+        IncomingMSRPHandler.__init__(self, connector, local_ip, session_factory)
         self.console = console
-        self._make_session = make_session_func
         self.ringer = ringer
         self.auto_accept = auto_accept
 
@@ -632,6 +670,7 @@ def wait_for_incoming(e, handler):
             if session is not None:
                 return session
         e.logger.log_event('DROPPED', event_name, params)
+
 
 class IncomingSessionHandler:
 

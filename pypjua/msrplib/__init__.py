@@ -13,7 +13,6 @@ from eventlet.twistedutil.protocol import BaseBuffer, BufferCreator, SpawnFactor
 from pypjua.clients import msrp_protocol
 from pypjua.clients.digest import process_www_authenticate
 
-
 class Peer:
 
     def __init__(self, channel):
@@ -31,34 +30,32 @@ class Peer:
     def connection_lost(self, reason):
         self.channel.send_exception((reason.type, reason.value, reason.tb))
 
-def format_address(addr):
-    return "%s:%s" % (addr.host, addr.port)
-
 class MSRPProtocol(msrp_protocol.MSRPProtocol):
 
-    log_func = None
+    traffic_logger = None
+    _new_chunk = True
 
     def connectionMade(self):
         self.peer = Peer(self._queue)
 
-    def _header(self):
-        params = (format_address(self.transport.getHost()), format_address(self.transport.getPeer()))
-        return '%s <- %s' % params
-
     def rawDataReceived(self, data):
+        if self.traffic_logger:
+            self.traffic_logger.report_in(data, self.transport)
         msrp_protocol.MSRPProtocol.rawDataReceived(self, data)
-        if self.log_func:
-            self.log_func(data, self._header(), reset_header=True)
 
     def lineReceived(self, line):
+        if self.traffic_logger:
+            self.traffic_logger.report_in(line, self.transport, self._new_chunk)
+        self._new_chunk = False
         msrp_protocol.MSRPProtocol.lineReceived(self, line)
-        if self.log_func:
-            self.log_func(line, self._header())
 
     def connectionLost(self, reason):
        if self.peer:
            self.peer.connection_lost(reason)
 
+    def setLineMode(self, extra):
+        self._new_chunk = True
+        return msrp_protocol.MSRPProtocol.setLineMode(self, extra)
 
 def encode_chunk(chunk):
     data = getattr(chunk, 'data', '')
@@ -72,7 +69,7 @@ class Message(str):
 class MSRPBuffer(BaseBuffer):
     protocol_class = MSRPProtocol
 
-    def __init__(self, local_uri, log_func=None):
+    def __init__(self, local_uri, traffic_logger=None):
         if not isinstance(local_uri, msrp_protocol.URI):
             raise TypeError('Not MSRP URI instance: %r' % local_uri)
         # The following members define To-Path and From-Path headers as following:
@@ -88,7 +85,7 @@ class MSRPBuffer(BaseBuffer):
         self.remote_path = []
         self.buf = deque()
         self.chunks = {} # maps message_id to StringIO instance that represents contents of the message
-        self.log_func = log_func
+        self.traffic_logger = traffic_logger
 
     def next_host(self):
         if self.local_path:
@@ -113,8 +110,7 @@ class MSRPBuffer(BaseBuffer):
 
     def build_protocol(self):
         p = BaseBuffer.build_protocol(self)
-        p.log_func = self.log_func
-        del self.log_func
+        p.traffic_logger = self.traffic_logger
         return p
 
     def bind(self):
@@ -160,7 +156,7 @@ class MSRPBuffer(BaseBuffer):
         msrpdata.contflag = '$'
         return msrpdata
 
-    def make_message(self, msg, content_type='text/plain'):
+    def make_message(self, msg, content_type):
         chunk = self.make_request(method="SEND", transaction_id=random_string(12))
         chunk.add_header(msrp_protocol.MessageIDHeader(str(random_string(10))))
         chunk.add_header(msrp_protocol.ByteRangeHeader((1, len(msg), len(msg))))
@@ -169,7 +165,7 @@ class MSRPBuffer(BaseBuffer):
         chunk.contflag = '$'
         return chunk
 
-    def send_message(self, msg, content_type='text/plain'):
+    def send_message(self, msg, content_type):
         chunk = self.make_message(msg, content_type)
         self.send_chunk(chunk)
         return chunk
@@ -178,21 +174,14 @@ class MSRPBuffer(BaseBuffer):
         chunk = self.make_message(msg, content_type)
         self.deliver_chunk(chunk)
 
-    def __getattr__(self, item):
-        if item=='_log_header':
-            try:
-                params = (format_address(self.transport.getHost()), format_address(self.transport.getPeer()))
-                self._log_header = '%s -> %s' % params
-            except Exception, ex:
-                self._log_header = '<<<%s %s>>>' % (type(ex).__name__, ex)
-            return self._log_header
-        return BaseBuffer.__getattr__(self, item)
+    def write(self, data):
+        if self.traffic_logger:
+            self.traffic_logger.report_out(data, self.transport)
+        return self.transport.write(data)
 
     def send_chunk(self, chunk):
         data = encode_chunk(chunk)
         self.write(data)
-        if self.protocol.log_func:
-            self.protocol.log_func(data, self._log_header, False)
 
     def recv_chunk(self):
         """Receive and return one MSRP chunk"""
@@ -262,14 +251,14 @@ class MSRPConnector:
 # make it re-usable, do not hold references to MSRPBuffer or other stuff
 # produced by msrp_ functions
 
-    def __init__(self, relay, log_func):
+    def __init__(self, relay, traffic_logger):
         self.relay = relay
-        self.log_func = log_func
+        self.traffic_logger = traffic_logger
 
     def incoming_prepare(self):
         if self.relay is None:
             self.msrp = None
-            self.msrp_buffer_func, local_uri, listener = msrp_listen(self.log_func)
+            self.msrp_buffer_func, local_uri, listener = msrp_listen(self.traffic_logger)
             full_local_path = [local_uri]
             print 'Listening on %s' % (listener.getHost(), ) # XXX move it to NoisyMSRPConnection in sip_im_session.py
         else:
@@ -294,13 +283,13 @@ class MSRPConnector:
 
     def outgoing_complete(self, full_remote_path):
         if self.relay is None:
-            self.msrp = msrp_connect(full_remote_path, self.log_func, self.local_uri)
+            self.msrp = msrp_connect(full_remote_path, self.traffic_logger, self.local_uri)
         else:
             self.msrp.set_full_remote_path(full_remote_path)
         self.msrp.bind()
 
     def _relay_connect(self):
-        return msrp_relay_connect(self.relay, self.log_func)
+        return msrp_relay_connect(self.relay, self.traffic_logger)
 
 
 def keep_common_items(mydict, otherdict):
@@ -337,9 +326,9 @@ class MSRPRelayAuthError(MSRPError):
 def new_local_uri(port=0):
     return msrp_protocol.URI(host=default_host_ip, port=port, session_id=random_string(12))
 
-def _msrp_connect(full_remote_path, log_func, local_uri):
+def _msrp_connect(full_remote_path, traffic_logger, local_uri):
     from twisted.internet import reactor
-    Buf = BufferCreator(reactor, MSRPBuffer, local_uri, log_func)
+    Buf = BufferCreator(reactor, MSRPBuffer, local_uri, traffic_logger)
     if full_remote_path[0].use_tls:
         from gnutls.interfaces.twisted import X509Credentials
         cred = X509Credentials(None, None)
@@ -355,12 +344,12 @@ def msrp_connect(*args, **kwargs):
     with MSRPConnectTimeout.ctxmgr():
         return _msrp_connect(*args, **kwargs)
 
-def _msrp_relay_connect(relaysettings, log_func):
+def _msrp_relay_connect(relaysettings, traffic_logger):
     local_uri = new_local_uri()
     from gnutls.interfaces.twisted import X509Credentials
     cred = X509Credentials(None, None)
     from twisted.internet import reactor
-    Buf = BufferCreator(reactor, MSRPBuffer, local_uri, log_func)
+    Buf = BufferCreator(reactor, MSRPBuffer, local_uri, traffic_logger)
     conn = Buf.connectTLS(relaysettings.host, relaysettings.port, cred)
     local_uri.port = conn.getHost().port
     msrpdata = msrp_protocol.MSRPData(method="AUTH", transaction_id=random_string(12))
@@ -386,10 +375,10 @@ def msrp_relay_connect(relaysettings, traffic_logger):
     with MSRPRelayConnectTimeout.ctxmgr():
         return _msrp_relay_connect(relaysettings, traffic_logger)
 
-def _msrp_listen(handler, log_func=None):
+def _msrp_listen(handler, traffic_logger=None):
     from twisted.internet import reactor
     local_uri = new_local_uri()
-    factory = SpawnFactory(handler, MSRPBuffer, local_uri, log_func)
+    factory = SpawnFactory(handler, MSRPBuffer, local_uri, traffic_logger)
     if local_uri.use_tls:
         from gnutls.interfaces.twisted import X509Credentials
         cred = X509Credentials(None, None)
@@ -399,7 +388,7 @@ def _msrp_listen(handler, log_func=None):
     local_uri.port = port.getHost().port
     return local_uri, port
 
-def msrp_listen(log_func=None):
+def msrp_listen(traffic_logger=None):
     msrp = None
     result = event()
     def on_connect(buffer):
@@ -407,7 +396,7 @@ def msrp_listen(log_func=None):
             result.send(buffer)
         finally:
             listener.stopListening()
-    local_uri, listener = _msrp_listen(on_connect, log_func)
+    local_uri, listener = _msrp_listen(on_connect, traffic_logger)
     return result.wait, local_uri, listener
 
 def msrp_accept(get_buffer_func):

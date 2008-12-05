@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 from __future__ import with_statement
 import sys
-
 from twisted.internet.error import ConnectionDone
 
 from eventlet.api import GreenletExit, sleep
 from eventlet.coros import queue
 
 from pypjua import Credentials
-from pypjua.clients.consolebuffer import setup_console, TrafficLogger, CTRL_D
+from pypjua.clients.trafficlog import TrafficLogger
+from pypjua.clients.consolebuffer import setup_console, CTRL_D
 from pypjua.enginebuffer import EngineBuffer
-
 from pypjua.clients.im import SessionManager, parse_options, UserCommandError
 
 
@@ -36,11 +35,11 @@ def start(options, console):
     e.start()
     try:
         credentials = Credentials(options.uri, options.password)
-        logger = TrafficLogger(console, lambda: options.trace_msrp)
+        msrplogger = TrafficLogger(None, console, lambda: options.trace_msrp)
         if options.target_uri is None:
-            start_listener(e, options, console, credentials, logger)
+            start_listener(e, options, console, credentials, msrplogger)
         else:
-            start_caller(e, options, console, credentials, logger)
+            start_caller(e, options, console, credentials, msrplogger)
     finally:
         e.shutdown()
         e.stop()
@@ -54,8 +53,8 @@ def get_commands(man):
 def get_shortcuts(man):
     return {KEY_NEXT_SESSION: man.switch}
 
-def start_caller(e, options, console, credentials, logger):
-    man = SessionManager_Caller(credentials, console, logger.write_traffic)
+def start_caller(e, options, console, credentials, msrplogger):
+    man = SessionManager_Caller(e, credentials, console, msrplogger)
     man.start_new_outgoing(e, options.target_uri, options.route, options.relay)
     console.disable()
     try:
@@ -71,10 +70,10 @@ def start_caller(e, options, console, credentials, logger):
         console_next_line(console)
         man.close()
 
-def start_listener(e, options, console, credentials, logger):
+def start_listener(e, options, console, credentials, msrplogger):
     register(e, credentials, options.route)
     console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
-    man = SessionManager(credentials, console, logger.write_traffic, options.auto_accept_files)
+    man = SessionManager(e, credentials, console, msrplogger, options.auto_accept_files)
     man.start_accept_incoming(e, options.relay)
     print 'Waiting for incoming SIP session requests...'
     print "Press Ctrl-d to quit or Control-n to switch between active sessions"

@@ -53,7 +53,8 @@ class SDPOfferFactory:
 class PushFileSession(ChatSession):
 
     def __init__(self, credentials, filename, play_wav_func=None):
-        ChatSession.__init__(self, None, credentials, None, play_wav_func)
+        self.play_wav_func = play_wav_func
+        ChatSession.__init__(self, None, credentials, None)
         self.sdp = SDPOfferFactory(filename)
         self.stop_read_msrp()
 
@@ -68,7 +69,7 @@ class PushFileSession(ChatSession):
 
     def _invite(self, e, target_uri, route, relay):
         self.sip, self.msrp = invite(e, self.credentials, target_uri, route, relay,
-                                     self.write_traffic, self.make_sdp_media)
+                                     self.traffic_logger, self.make_sdp_media)
         self.sip.call_on_disconnect(self._on_disconnect)
         return True
 

@@ -311,6 +311,10 @@ class ConsoleBuffer:
             msg = msg.replace('\n', '\r\n')
             __original_sys_stderr__.write(msg)
 
+    def tell(self):
+        "not a real tell, but useful for some purposes (trafficlog module)"
+        return self.writecount
+
     def set_ps(self, ps, draw=None):
         if self.terminalProtocol:
             if draw is None:
@@ -345,29 +349,6 @@ class ConsoleBuffer:
         self.terminal.eraseLine()
         self.terminalProtocol.ps[0] = self.terminalProtocol.ps_init[0]
         self.terminalProtocol.drawInputLine()
-
-
-class TrafficLogger:
-
-    def __init__(self, console, is_enabled_func=lambda: True):
-        self.console = console
-        self.is_enabled = is_enabled_func
-        self.last_header = None
-        self.last_writecount = None
-
-    def write_traffic(self, msg, header, reset_header=False):
-        if not self.is_enabled():
-            return
-        if header is not None:
-            if header != self.last_header or self.last_writecount != self.console.writecount:
-                self.console.write('\n')
-                self.console.write(header)
-        self.console.write(msg)
-        self.last_writecount = self.console.writecount
-        if reset_header:
-            self.last_header = None
-        else:
-            self.last_header = header
 
 
 def get_console():
@@ -439,9 +420,10 @@ def main():
     from application import log
     from datetime import datetime
     import traceback
+    from pypjua.clients.trafficlog import TrafficLogger
 
     def traffic():
-        t = TrafficLogger(console)
+        t = TrafficLogger(console.write, console.get_writecount)
         t.write_traffic('data1', '10.1.1.1:222 -> 10.2.2.2:111')
         t.write_traffic('data2', '10.1.1.1:222 -> 10.2.2.2:111')
         api.sleep(2)
@@ -499,6 +481,9 @@ def main():
         print 'set_ps @>    # set prompt to @>'
         print 'disable      # disable the console for 5 seconds'
         print 'sys.exit()   # exit synchronously'
+
+    def write(*args):
+        return sys.stdout.write(*args)
 
     try:
         with setup_console() as console:
