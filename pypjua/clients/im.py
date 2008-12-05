@@ -68,23 +68,39 @@ def format_time():
 
 def format_useruri(uri):
     if uri.display:
-        return '%s <%s@%s>' % (uri.display, uri.user, uri.host)
+        return '%s (%s@%s)' % (uri.display, uri.user, uri.host)
     else:
         return '%s@%s' % (uri.user, uri.host)
 
-def echo_message(uri, message):
-    print '%s %s: %s' % (format_time(), uri, message)
+def format_display_user_host(display, user, host):
+    if display:
+        return '%s (%s@%s)' % (display, user, host)
+    else:
+        return '%s@%s' % (user, host)
+
+def format_uri(sip_uri, cpim_uri=None):
+    if cpim_uri is not None:
+        if (sip_uri.host, sip_uri.user) == (cpim_uri.user, cpim_uri.host):
+            return format_display_user_host(cpim_uri.display or sip_uri.display, sip_uri.user, sip_uri.host)
+        else:
+            # conference, pasting only header from cpim
+            return format_display_user_host(cpim_uri.display, cpim_uri.user, cpim_uri.host)
+    return format_display_user_host(sip_uri.display, sip_uri.user, sip_uri.host)
 
 def render_message(uri, message):
     if message.content_type == 'message/cpim':
         headers, text = MessageCPIMParser.parse_string(message.data)
-        if headers.get('From'):
-            uri = '%s (via %s)' % (headers['From'], uri)
-    elif message.content_type == 'text/plain':
-        text = message.data
+        cpim_uri = headers.get('From')
     else:
-        text = `message`
-    print '%s %s: %s' % (format_time(), uri, text)
+        cpim_uri = None
+        if message.content_type == 'text/plain':
+            text = message.data
+        else:
+            text = `message`
+    print '%s %s: %s' % (format_time(), format_uri(uri, cpim_uri), text)
+
+def echo_message(uri, message):
+    print '%s %s: %s' % (format_time(), format_uri(uri), message)
 
 def format_nosessions_ps(myuri):
     return '%s@%s> ' % (myuri.user, myuri.host)
@@ -225,7 +241,7 @@ class ChatSession(MSRPSession):
         self.invite_job = None
 
     def _on_message_received(self, message):
-        render_message(format_useruri(self.other), message)
+        render_message(self.other, message)
         MSRPSession._on_message_received(self, message)
 
     def start_invite(self, e, target_uri, route, relay):
@@ -444,7 +460,7 @@ class SessionManager:
             raise UserCommandError('No active session')
         session = self.current_session
         if session.send_message(message):
-            echo_message(format_useruri(session.me), message)
+            echo_message(session.me, message)
             self.engine.play_wav_file(get_path("message_sent.wav"))
             return True # indicate that the message was sent
 

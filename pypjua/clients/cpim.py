@@ -20,21 +20,51 @@ class MessageCPIM:
         result.append(self.msg)
         return '\r\n'.join(result)
 
-class Address:
+class Uri:
 
-    def __init__(self, uri, name=None):
-        self.uri = uri
-        self.name = name
+    def __init__(self, user, host, scheme=None):
+        self.user = user
+        self.host = host
+        self.scheme = scheme
 
     def __str__(self):
-        if self.name is None:
+        if self.scheme is None:
+            return '%s@%s' % (self.user, self.host)
+        else:
+            return '%s:%s@%s' % (self.scheme, self.user, self.host)
+
+    @classmethod
+    def parse(cls, s):
+        scheme_user, host = s.split('@')
+        if ':' in scheme_user:
+            scheme, user = scheme_user.split(':')
+        else:
+            scheme, user = None, scheme_user
+        return cls(user, host, scheme)
+
+class Address:
+
+    def __init__(self, uri, display=None):
+        self.uri = uri
+        self.display = display
+
+    @property
+    def user(self):
+        return self.uri.user
+
+    @property
+    def host(self):
+        return self.uri.host
+
+    def __str__(self):
+        if self.display is None:
             return '<%s>' % self.uri
         else:
-            return '%s <%s>' % (self.name, self.uri)
+            return '%s <%s>' % (self.display, self.uri)
 
     def __iter__(self):
         yield self.uri
-        yield self.name
+        yield self.display
 
     _re = re.compile('^([^>]+)?<(.*?)>$')
     @classmethod
@@ -48,13 +78,13 @@ class Address:
         m = cls._re.match(s)
         if not m:
             raise ValueError('Cannot parse message/cpim address: %r' % s)
-        name, uri = m.groups()
-        if name:
-            name = name.strip()
-        return cls(uri, name)
+        display, uri = m.groups()
+        if display:
+            display = display.strip()
+        uri = Uri.parse(uri)
+        return cls(uri, display)
 
 class MessageCPIMParser:
-
     _mapping = {'From': Address,
                 'To': Address,
                 'cc': Address}
