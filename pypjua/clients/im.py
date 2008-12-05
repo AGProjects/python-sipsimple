@@ -28,7 +28,7 @@ from pypjua.clients.lookup import IPAddressOrHostname
 from pypjua.clients.sdputil import FileSelector
 
 KEY_NEXT_SESSION = '\x0e'
-MSRPErrors = (DNSLookupError, MSRPError, ConnectError, BindError)
+MSRPErrors = (DNSLookupError, MSRPError, ConnectError, BindError, ConnectionClosed)
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 config_ini = os.path.join(process._system_config_directory, 'config.ini')
