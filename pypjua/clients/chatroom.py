@@ -2,7 +2,7 @@ from eventlet.api import spawn, kill, sleep, GreenletExit
 
 from pypjua import SDPAttribute, SDPMedia, SDPSession, SDPConnection
 from pypjua.clients.im import MSRPSession, IncomingMSRPHandler, MSRPErrors, NoisyMSRPConnector, wait_for_incoming
-from pypjua.clients.im import IncomingSessionHandler 
+from pypjua.clients.im import IncomingSessionHandler, UserCommandError
 
 class JoinHandler(IncomingMSRPHandler):
 
@@ -56,7 +56,14 @@ class ChatRoom:
     def _on_message_received(self, session, message):
         for s in self.sessions:
             if s is not session:
-                s.send_message(message.data, message.content_type)
+                try:
+                    # TODO: add the chunk to the other session's queue
+                    s.send_message(message.data, message.content_type)
+                except UserCommandError: # XXX rename to SessionError  or something
+                    pass
+                except:
+                    import traceback
+                    traceback.print_exc()
 
     def close(self):
         self.stop_accept_incoming()
