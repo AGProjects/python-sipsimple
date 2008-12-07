@@ -12,15 +12,12 @@ Python PJSIP bindings
 - Split up .pyx file
 - Fix remainig TODOs for PUBLISH/REGISTER
 - Make all init_options passed to PJSIPUA attributes, set local_ip at runtime
-- zRTP
 - Add feature to send OPTIONS method and parse the replies
-- Handle incomming REFER to msrp focus
 - Add ability for application to request handling of arbitrary methods such as
-  OPTIONS, REGISTER and REFER (but not INVITE or NOTIFY...) and have it reply.
+  OPTIONS, REGISTER and REFER, SUBSCRIBE (but not INVITE or NOTIFY...) and have it reply.
 - Registration requestion URI should be settable by application
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
-- Current API documentation
-
+- Write API documentation
 
 Audio
 -----
@@ -29,6 +26,7 @@ Audio
 - Play a beep after we closed a session
 - Play a special beep when receiving a call while engaged in another call
 - Implement Automatic Gain Control in PJSIP media engine
+- zRTP
 
 
 Command line clients
@@ -42,9 +40,7 @@ Logging, based on trace_x configuration options:
  - Toggle sip logging at run time
 
 - Add key command to start a session when starting in receiving mode (c)
-- sip_msrp_chat_server (act as a conference server)
-- sip_subscribe_conference_info
-- print source of incomming NOTIFYs in sip_subscribe_x scripts
+- Create sip_subscribe_conference_info script
 - xcap_pidf_manipulation script
 - Publish service and status when starting/stopping rtp/msrp session script
 - Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
@@ -67,13 +63,13 @@ Applications
 - MSRP multiparty chat
 - Is-composing payload
 
+- Lookup capabilities for SIP (RFC3263)
 - Message-summary payload
-- Xcap-diff payload
+- xcap-diff payload
 - Buddylist library
 - Bonjour discovery
-- Lookup capabilities for SIP (RFC3263)
 - Lookup for ENUM
-- Documentation
+- Write documentation
 
 
 Sessions
