@@ -1114,11 +1114,11 @@ cdef class SIPURI:
     cdef public dict parameters
     cdef public dict headers
 
-    def __init__(self, host, user=None, password=None, port=0, display=None, secure=False, parameters={}, headers={}):
+    def __init__(self, host, user=None, password=None, port=None, display=None, secure=False, parameters={}, headers={}):
         self.host = host
         self.user = user
         self.password = password
-        self.port = port
+        self.port = port or 0
         self.display = display
         self.secure = secure
         self.parameters = parameters
