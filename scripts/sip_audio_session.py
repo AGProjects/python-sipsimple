@@ -24,7 +24,7 @@ from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
 from pypjua.clients.clientconfig import get_path
-from pypjua.clients import TransportPort
+from pypjua.clients import TransportPort, parse_cmdline_uri
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"local_ip": datatypes.IPAddress, "sip_local_udp_port": TransportPort, "sip_local_tcp_port": TransportPort, "sip_local_tls_port": TransportPort, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
@@ -137,7 +137,7 @@ class RingingThread(Thread):
             sleep(5)
 
 
-def read_queue(e, username, domain, password, display_name, route, target_username, target_domain, trace_sip, ec_tail_length, sample_rate, codecs, disable_sound, do_trace_pjsip, use_bonjour):
+def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, disable_sound, do_trace_pjsip, use_bonjour):
     global user_quit, lock, queue, sip_uri
     lock.acquire()
     inv = None
@@ -145,7 +145,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
     ringer = None
     printed = False
     rec_file = None
-    want_quit = target_username is not None
+    want_quit = target_uri is not None
     other_user_agent = None
     on_hold = False
     session_start_time = None
@@ -153,7 +153,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
             credentials = Credentials(sip_uri, password)
-        if target_username is None:
+        if target_uri is None:
             if use_bonjour:
                 print "Using bonjour"
                 print "Listening on local interface %s:%d" % (e.local_ip, e.local_udp_port)
@@ -164,7 +164,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                 print 'Registering "%s" at %s:%d' % (credentials.uri, route.host, route.port)
                 reg.register()
         else:
-            inv = Invitation(credentials, SIPURI(user=target_username, host=target_domain), route=route)
+            inv = Invitation(credentials, target_uri, route=route)
             print "Call from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
             audio = AudioTransport(RTPTransport(e.local_ip, **AudioConfig.encryption))
             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
@@ -211,7 +211,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                     if args["state"] == "EARLY":
                         if ringer is None:
                             print "Ringing..."
-                            ringer = RingingThread(target_username is None)
+                            ringer = RingingThread(target_uri is None)
                     elif args["state"] == "CONNECTING":
                         if "headers" in args and "User-Agent" in args["headers"]:
                             other_user_agent = args["headers"].get("User-Agent")
@@ -269,12 +269,12 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                                 disc_msg = "Session could not be established"
                             else:
                                 if "method" in args:
-                                    if target_username is None:
+                                    if target_uri is None:
                                         disc_party = inv.caller_uri
                                     else:
                                         disc_party = inv.callee_uri
                                 else:
-                                    if target_username is None:
+                                    if target_uri is None:
                                         disc_party = inv.callee_uri
                                     else:
                                         disc_party = inv.caller_uri
@@ -299,7 +299,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                     data = data[0]
                     if data.lower() == "h":
                         command = "end"
-                        want_quit = target_username is not None
+                        want_quit = target_uri is not None
                     elif data in "0123456789*#ABCD" and audio is not None and audio.is_active:
                         audio.send_dtmf(data)
                     elif data.lower() == "r":
@@ -340,7 +340,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                             local_sdp.media[0] = audio.get_local_media(True, new_direction)
                             inv.set_offered_local_sdp(local_sdp)
                             inv.send_reinvite()
-                    elif inv.state in ["INCOMING", "EARLY"] and target_username is None:
+                    elif inv.state in ["INCOMING", "EARLY"] and target_uri is None:
                         if data.lower() == "n":
                             command = "end"
                             want_quit = False
@@ -370,7 +370,7 @@ def read_queue(e, username, domain, password, display_name, route, target_userna
                 except:
                     command = "unregister"
             if command == "unregister":
-                if target_username is None and not use_bonjour:
+                if target_uri is None and not use_bonjour:
                     reg.unregister()
                 else:
                     user_quit = False
@@ -486,15 +486,9 @@ def parse_options():
     else:
         del retval["sip_address"]
     if args:
-        try:
-            retval["target_username"], retval["target_domain"] = args[0].split("@")
-        except ValueError:
-            if re.match("^\+?[0-9\-]+$", args[0]):
-                retval["target_username"], retval["target_domain"] = args[0].replace("-", ""), retval['domain']
-            else:
-                retval["target_username"], retval["target_domain"] = args[0], retval['domain']
+        retval["target_uri"] = parse_cmdline_uri(args[0], retval["domain"])
     else:
-        retval["target_username"], retval["target_domain"] = None, None
+        retval["target_uri"] = None
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
     accounts.sort()
     print "Accounts available: %s" % ', '.join(accounts)
