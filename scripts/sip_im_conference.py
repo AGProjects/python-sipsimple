@@ -44,7 +44,7 @@ def start(options):
     get_hub().switch()
 
 def register(e, credentials, route):
-    reg = e.Registration(credentials, route=route, expires=30)
+    reg = e.Registration(credentials, route=route, expires=300)
     params = reg.register() # raise SIPError here
     if params['state']=='unregistered' and params['code']/100!=2:
         raise GreenletExit # XXX fix

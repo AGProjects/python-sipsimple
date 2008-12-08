@@ -130,7 +130,7 @@ def console_next_line(console):
     console.set_ps('', True) # QQQ otherwise prompt gets printed once somehow
 
 def register(e, credentials, route):
-    reg = e.Registration(credentials, route=route, expires=30)
+    reg = e.Registration(credentials, route=route, expires=300)
     params = reg.register()
     if params['state']=='unregistered' and params['code']/100!=2:
         raise GreenletExit # XXX fix
