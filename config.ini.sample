@@ -92,7 +92,11 @@ encryption_over_non_tls_sip_transport=false
 sip_address=
 password=
 
-; Send all SIP messages through this proxy, can be a domain name, a hostname, an ip or ip:port
+; Send all SIP messages through this proxy, can be in the following formats:
+;   host
+;   transport:host
+;   host:port
+;   transport:host:port
 outbound_proxy=
 
 ; List of STUN servers that overwrite the ones found in the DNS, used for ICE negotiation
