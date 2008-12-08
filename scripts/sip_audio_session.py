@@ -10,7 +10,6 @@ import select
 import termios
 import signal
 import datetime
-import re
 from thread import start_new_thread, allocate_lock
 from threading import Thread
 from Queue import Queue
@@ -39,7 +38,7 @@ class GeneralConfig(ConfigSection):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy}
     sip_address = None
     password = None
     display_name = None
@@ -165,7 +164,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                 reg.register()
         else:
             inv = Invitation(credentials, target_uri, route=route)
-            print "Call from %s to %s through proxy %s:%d" % (inv.caller_uri, inv.callee_uri, route.host, route.port)
+            print "Call from %s to %s through proxy %s:%s:%d" % (inv.caller_uri, inv.callee_uri, route.transport, route.host, route.port)
             audio = AudioTransport(RTPTransport(e.local_ip, **AudioConfig.encryption))
             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
             inv.set_state_CALLING()
@@ -396,12 +395,18 @@ def do_invite(**kwargs):
     if kwargs["use_bonjour"]:
         kwargs["route"] = None
     else:
-        if outbound_proxy is None:
-            proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
-        else:
-            proxy_host, proxy_port, proxy_is_ip = outbound_proxy
+        supported_transports = []
+        if GeneralConfig.sip_local_udp_port is not None:
+            supported_transports.append("udp")
+        if GeneralConfig.sip_local_tcp_port is not None:
+            supported_transports.append("tcp")
+        if GeneralConfig.sip_local_udp_port is not None:
+            supported_transports.append("tls")
         try:
-            kwargs["route"] = Route(transport=kwargs.pop("transport"), *lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
+            if outbound_proxy is None:
+                kwargs["route"] = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), supported_transports)[0]
+            else:
+                kwargs["route"] = lookup_routes_for_sip_uri(outbound_proxy, supported_transports)[0]
         except RuntimeError, e:
             print e.message
             return
@@ -432,7 +437,7 @@ def do_invite(**kwargs):
 
 def parse_outbound_proxy(option, opt_str, value, parser):
     try:
-        parser.values.outbound_proxy = IPAddressOrHostname(value)
+        parser.values.outbound_proxy = OutboundProxy(value)
     except ValueError, e:
         raise OptionValueError(e.message)
 
@@ -456,7 +461,6 @@ def parse_options():
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
-    parser.add_option("-T", "--transport", type="string", dest="transport", help="SIP transport (can be UDP, TCP or TLS). Default is UDP.")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
@@ -468,7 +472,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, transport="udp")
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     if not retval["use_bonjour"]:
