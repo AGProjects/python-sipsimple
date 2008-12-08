@@ -24,6 +24,7 @@ Python PJSIP bindings
 Audio
 -----
 
+- Add option and command to mute the microphone (useful for listen in conferences)
 - Play a soft beep tone while on hold every 30 seconds
 - Play a beep after we closed a session
 - Play a special beep when receiving a call while engaged in another call
