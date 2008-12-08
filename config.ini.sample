@@ -18,6 +18,7 @@ sip_local_udp_port=0
 sip_local_tcp_port=0
 sip_local_tls_port=0
 
+; enable/disable sip transports
 sip_udp_transport=1
 sip_tcp_transport=1
 sip_tls_transport=1
