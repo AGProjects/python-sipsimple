@@ -25,7 +25,7 @@ from pypjua.clients.clientconfig import get_path
 from pypjua.enginebuffer import Ringer, SIPDisconnect, InvitationBuffer
 from pypjua.clients.lookup import IPAddressOrHostname
 from pypjua.clients.sdputil import FileSelector
-from pypjua.clients.cpim import MessageCPIM, MessageCPIMParser
+from pypjua.clients.cpim import MessageCPIM, MessageCPIMParser, SIPAddress
 
 KEY_NEXT_SESSION = '\x0e'
 MSRPErrors = (DNSLookupError, MSRPError, ConnectError, BindError, ConnectionClosed)
@@ -223,9 +223,7 @@ class MSRPSession:
     def send_message(self, msg, content_type='text/plain'):
         if self.msrp and self.msrp.connected:
             if content_type!='message/cpim':
-                from_ = '<%s>' % self.me
-                to = '<%s>' % self.other
-                msg = str(MessageCPIM(msg, content_type, from_=from_, to=to))
+                msg = str(MessageCPIM(msg, content_type, from_=self.me, to=self.other))
             self.msrp.send_message(msg, 'message/cpim')
             return True
         else:
@@ -742,19 +740,6 @@ def _parse_msrp_relay(value):
 def parse_msrp_relay(option, opt_str, value, parser):
     parser.values.msrp_relay = _parse_msrp_relay(value)
 
-class SIPAddress:
-
-    def __init__(self, sip_address, default_domain=None):
-        if sip_address.lower().startswith('sip:'):
-            sip_address = sip_address[4:]
-        if '@' in sip_address:
-            self.username, self.domain = sip_address.split('@', 1)
-        else:
-            self.username, self.domain = sip_address, default_domain
-
-    def __bool__(self):
-        return self.username and self.domain
-
 def parse_options(usage, description):
     configuration = ConfigFile(config_ini)
     configuration.read_settings("Audio", AudioConfig)
@@ -858,10 +843,10 @@ def parse_options(usage, description):
     if not options.use_bonjour:
         if not all([options.sip_address, options.password]):
             raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    options.sip_address = SIPAddress(options.sip_address)
+    options.sip_address = SIPAddress.parse(options.sip_address)
     options.uri = SIPURI(user=options.sip_address.username, host=options.sip_address.domain, display=options.display_name)
     if args:
-        options.target_address = SIPAddress(args[0], default_domain = options.sip_address.domain)
+        options.target_address = SIPAddress.parse(args[0], default_domain = options.sip_address.domain)
         options.target_uri = SIPURI(user=options.target_address.username, host=options.target_address.domain)
         del args[0]
     else:
