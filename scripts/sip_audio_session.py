@@ -286,7 +286,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 print disc_msg
                             if session_start_time is not None:
                                 duration = time() - session_start_time
-                                print "Session duration was %d minutes, %d seconds" % (duration / 60, duration)
+                                print "Session duration was %d minutes, %d seconds" % (duration / 60, duration % 60)
                                 session_start_time = None
                             if want_quit:
                                 command = "unregister"
