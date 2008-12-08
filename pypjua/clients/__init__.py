@@ -31,3 +31,5 @@ def parse_cmdline_uri(uri, default_domain):
             return SIPURI(user=uri.replace("-", ""), host=default_domain)
         else:
             return SIPURI(user=uri, host=default_domain)
+
+__all__ = ["TransportPort", "parse_cmdline_uri"]
