@@ -121,7 +121,7 @@ cdef extern from "pjlib.h":
 
 cdef extern from "pjlib-util.h":
 
-    #init
+    # init
     int pjlib_util_init()
 
     # dns
@@ -131,6 +131,9 @@ cdef extern from "pjlib-util.h":
     int pj_dns_resolver_set_ns(pj_dns_resolver *resolver, int count, pj_str_t *servers, int *ports)
 
 cdef extern from "pjnath.h":
+
+    # init
+    int pjnath_init()
 
     # STUN
     enum:
@@ -736,6 +739,9 @@ cdef class PJLIB:
         status = pjlib_util_init()
         if status != 0:
             raise RuntimeError("Could not initialize PJLIB-UTIL: %s" % pj_status_to_str(status))
+        status = pjnath_init()
+        if status != 0:
+            raise RuntimeError("Could not initialize PJNATH: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
         if self.c_init_done:
