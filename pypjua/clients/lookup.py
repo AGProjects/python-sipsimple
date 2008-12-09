@@ -85,6 +85,9 @@ _transport_srv_service_map = {"udp": "_sip._udp",
 def lookup_routes_for_sip_uri(uri, supported_transports):
     if len(supported_transports) == 0:
         raise RuntimeError("No transports are supported")
+    for supported_transport in supported_transports:
+        if supported_transport not in _transport_srv_service_map:
+            raise RuntimeError("Unsupported transport: %s" % supported_transport)
     supported_transports = [transport.lower() for transport in supported_transports]
     if uri.secure:
         if "tls" not in supported_transports:
