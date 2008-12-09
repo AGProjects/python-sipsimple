@@ -144,6 +144,14 @@ cdef extern from "pjnath.h":
         pj_sockaddr bound_addr
     void pj_stun_config_init(pj_stun_config *cfg, pj_pool_factory *factory, unsigned int options, pj_ioqueue_t *ioqueue, pj_timer_heap_t *timer_heap)
 
+    # NAT detection
+    struct pj_stun_nat_detect_result:
+        int status
+        char *status_text
+        char *nat_type_name
+    ctypedef pj_stun_nat_detect_result *pj_stun_nat_detect_result_ptr_const "const pj_stun_nat_detect_result *"
+    int pj_stun_detect_nat_type(pj_sockaddr_in *server, pj_stun_config *stun_cfg, void *user_data, void pj_stun_nat_detect_cb(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil)
+
     # ICE
     struct pj_ice_strans_cfg_stun:
         pj_stun_sock_cfg cfg
@@ -1311,6 +1319,7 @@ cdef class PJSIPUA:
     cdef int c_rtp_port_stop
     cdef int c_rtp_port_index
     cdef readonly unsigned int ec_tail_length
+    cdef pj_stun_config c_stun_cfg
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -1383,6 +1392,7 @@ cdef class PJSIPUA:
         for event, accept_types in kwargs["initial_events"].iteritems():
             self.add_event(event, accept_types)
         self.rtp_port_range = kwargs["rtp_port_range"]
+        pj_stun_config_init(&self.c_stun_cfg, &self.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(self.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(self.c_pjsip_endpoint.c_obj))
 
     property trace_sip:
 
@@ -1537,6 +1547,18 @@ cdef class PJSIPUA:
         rec_file = RecordingWaveFile(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, self.c_conf_bridge, file_name)
         self.c_rec_files.append(rec_file)
         return rec_file
+
+    def detect_nat_type(self, stun_server_address, stun_server_port=PJ_STUN_PORT):
+        cdef pj_str_t c_stun_server_address
+        cdef pj_sockaddr_in stun_server
+        cdef int status
+        str_to_pj_str(stun_server_address, &c_stun_server_address)
+        status = pj_sockaddr_in_init(&stun_server, &c_stun_server_address, stun_server_port)
+        if status != 0:
+            raise RuntimeError("Could not init STUN server address: %s" % pj_status_to_str(status))
+        status = pj_stun_detect_nat_type(&stun_server, &self.c_stun_cfg, NULL, cb_detect_nat_type)
+        if status != 0:
+            raise RuntimeError("Could not start NAT type detection: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
         self.dealloc()
@@ -1730,6 +1752,16 @@ cdef class RecordingWaveFile:
         if self.pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
 
+
+cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil:
+    cdef PJSIPUA c_ua = c_get_ua()
+    cdef dict event_dict = dict()
+    event_dict["succeeded"] = res.status == 0
+    if res.status == 0:
+        event_dict["nat_type"] = res.nat_type_name
+    else:
+        event_dict["error"] = res.status_text
+    c_add_event("detect_nat_type", event_dict)
 
 cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) except 0 with gil:
     cdef PJSIPUA c_ua = c_get_ua()
