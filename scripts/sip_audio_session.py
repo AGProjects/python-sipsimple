@@ -23,14 +23,15 @@ from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
 from pypjua.clients.clientconfig import get_path
-from pypjua.clients import TransportPort, parse_cmdline_uri
+from pypjua.clients import parse_cmdline_uri
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_local_udp_port": TransportPort, "sip_local_tcp_port": TransportPort, "sip_local_tls_port": TransportPort, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
     local_ip = None
     sip_local_udp_port = 0
-    sip_local_tcp_port = None
-    sip_local_tls_port = None
+    sip_local_tcp_port = 0
+    sip_local_tls_port = 0
+    sip_transports = ["tls", "tcp", "udp"]
     trace_pjsip = False
     trace_sip = False
     history_directory = '~/.sipclient/history'
@@ -395,18 +396,12 @@ def do_invite(**kwargs):
     if kwargs["use_bonjour"]:
         kwargs["route"] = None
     else:
-        supported_transports = []
-        if GeneralConfig.sip_local_udp_port is not None:
-            supported_transports.append("udp")
-        if GeneralConfig.sip_local_tcp_port is not None:
-            supported_transports.append("tcp")
-        if GeneralConfig.sip_local_udp_port is not None:
-            supported_transports.append("tls")
         try:
+            # Only try the first Route for now
             if outbound_proxy is None:
-                kwargs["route"] = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), supported_transports)[0]
+                kwargs["route"] = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))[0]
             else:
-                kwargs["route"] = lookup_routes_for_sip_uri(outbound_proxy, supported_transports)[0]
+                kwargs["route"] = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))[0]
         except RuntimeError, e:
             print e.message
             return
@@ -472,9 +467,11 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port)
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
+    for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
+        setattr(options, "local_%s_port" % transport, None)
     if not retval["use_bonjour"]:
         if not all([options.sip_address, options.password]):
             raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")

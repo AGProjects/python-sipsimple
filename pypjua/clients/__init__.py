@@ -2,15 +2,6 @@ import re
 
 from pypjua import SIPURI
 
-class TransportPort(object):
-    def __new__(typ, value):
-        if value.lower() == "auto":
-            return 0
-        try:
-            return int(value)
-        except:
-            return None
-
 _re_sipuri = re.compile(r'^\s*"?(?P<display>.+?)?"?\s*<?(?P<scheme>sip|sips):((?P<user>[^@:\s]*)(:(?P<password>[^@\s]*))?@)?(?P<host>[^:;?>\s]+?)(:(?P<port>[0-9]*))?(?P<parameters>(;[^=\s]*=[^;?\s>]*?)+)?(?P<headers>\?[^=\s]*=[^&>\s]*?(&[^=\s]*=[^&>\s]*)*)?>?\s*$')
 _re_pstn_num = re.compile("^\+?[0-9\-]+$")
 
