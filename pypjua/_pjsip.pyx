@@ -1,3 +1,6 @@
+cdef extern from *:
+    ctypedef char *char_ptr_const "const char *"
+
 # system imports
 
 cdef extern from "stdlib.h":
@@ -20,6 +23,7 @@ cdef extern from "pjlib.h":
         PJ_ERR_MSG_SIZE
     enum:
         PJ_ERRNO_START_SYS
+        PJ_EBUG
 
     # init / shutdown
     int pj_init()
@@ -48,7 +52,7 @@ cdef extern from "pjlib.h":
         PJ_LOG_HAS_SENDER
     void pj_log_set_decor(int decor)
     void pj_log_set_level(int level)
-    void pj_log_set_log_func(void func(int level, char *data, int len))
+    void pj_log_set_log_func(void func(int level, char_ptr_const data, int len))
 
     # memory management
     struct pj_pool_t
@@ -168,8 +172,9 @@ cdef extern from "pjmedia.h":
         char *name
         int input_count
         int output_count
+    ctypedef pjmedia_snd_dev_info *pjmedia_snd_dev_info_ptr_const "const pjmedia_snd_dev_info *"
     int pjmedia_snd_get_dev_count()
-    pjmedia_snd_dev_info *pjmedia_snd_get_dev_info(int index)
+    pjmedia_snd_dev_info_ptr_const pjmedia_snd_get_dev_info(int index)
 
     # sound port
     struct pjmedia_port
@@ -237,6 +242,7 @@ cdef extern from "pjmedia.h":
         pjmedia_sdp_attr *attr[PJMEDIA_MAX_SDP_ATTR]
         unsigned int media_count
         pjmedia_sdp_media *media[PJMEDIA_MAX_SDP_MEDIA]
+    ctypedef pjmedia_sdp_session *pjmedia_sdp_session_ptr_const "const pjmedia_sdp_session *"
     pjmedia_sdp_media *pjmedia_sdp_media_clone(pj_pool_t *pool, pjmedia_sdp_media *rhs)
 
     # sdp negotiation
@@ -244,10 +250,10 @@ cdef extern from "pjmedia.h":
     enum:
         PJMEDIA_SDPNEG_NOANSCODEC
     struct pjmedia_sdp_neg
-    int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session **remote)
-    int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
-    int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session **remote)
-    int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session **local)
+    int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote)
+    int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local)
+    int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote)
+    int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local)
     int pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg)
     char *pjmedia_sdp_neg_state_str(int state)
 
@@ -375,6 +381,7 @@ cdef extern from "pjsip.h":
         pjsip_uri *uri
     struct pjsip_hdr:
         pass
+    ctypedef pjsip_hdr *pjsip_hdr_ptr_const "const pjsip_hdr*"
     struct pjsip_generic_string_hdr:
         pass
     struct pjsip_routing_hdr:
@@ -488,7 +495,7 @@ cdef extern from "pjsip.h":
         PJSIP_H_ACCEPT
         PJSIP_H_ALLOW
         PJSIP_H_SUPPORTED
-    pjsip_hdr *pjsip_endpt_get_capability(pjsip_endpoint *endpt, int htype, pj_str_t *hname)
+    pjsip_hdr_ptr_const pjsip_endpt_get_capability(pjsip_endpoint *endpt, int htype, pj_str_t *hname)
     int pjsip_endpt_add_capability(pjsip_endpoint *endpt, pjsip_module *mod, int htype, pj_str_t *hname, unsigned count, pj_str_t *tags)
     int pjsip_endpt_create_response(pjsip_endpoint *endpt, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
     int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata, pjsip_tx_data *tdata, void *token, void *cb)
@@ -663,7 +670,7 @@ cdef extern from "pjsip_ua.h":
         #void on_create_offer(pjsip_inv_session *inv, pjmedia_sdp_session **p_offer)
         void on_media_update(pjsip_inv_session *inv, int status) with gil
         #void on_send_ack(pjsip_inv_session *inv, pjsip_rx_data *rdata)
-        void on_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session *offer, pjsip_rx_data *rdata) with gil
+        void on_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
     int pjsip_inv_usage_init(pjsip_endpoint *endpt, pjsip_inv_callback *cb)
     int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify)
     int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
@@ -967,7 +974,7 @@ cdef class PJMEDIAConferenceBridge:
     cdef object _get_sound_devices(self, bint playback):
         cdef int i
         cdef int c_count
-        cdef pjmedia_snd_dev_info *c_info
+        cdef pjmedia_snd_dev_info_ptr_const c_info
         retval = []
         for i from 0 <= i < pjmedia_snd_get_dev_count():
             c_info = pjmedia_snd_get_dev_info(i)
@@ -1585,7 +1592,7 @@ cdef class PJSIPUA:
     cdef int _rx_request(self, pjsip_rx_data *rdata) except 0:
         cdef int status
         cdef pjsip_tx_data *tdata
-        cdef pjsip_hdr *hdr_add
+        cdef pjsip_hdr_ptr_const hdr_add
         cdef Invitation inv
         cdef dict message_params
         cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
@@ -2778,7 +2785,7 @@ cdef class SDPSession:
     cdef public list media
 
     def __cinit__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ", SDPConnection connection=None, start_time=0, stop_time=0, attributes=[], media=[]):
-        cdef unsigned int c_version_id = 2208988800
+        cdef unsigned int c_version_id = 2208988800UL
         cdef pj_time_val c_tv
         self.user = user
         pj_gettimeofday(&c_tv)
@@ -2883,7 +2890,7 @@ cdef class SDPSession:
             return not eq
 
 
-cdef SDPSession c_make_SDPSession(pjmedia_sdp_session *pj_session):
+cdef SDPSession c_make_SDPSession(pjmedia_sdp_session_ptr_const pj_session):
     cdef SDPConnection connection
     cdef int i
     if pj_session.conn != NULL:
@@ -2950,6 +2957,7 @@ cdef class RTPTransport:
             if status != 0:
                 raise RuntimeError("Could not create ICE media transport: %s" % pj_status_to_str(status))
         else:
+            status = PJ_EBUG
             for i in xrange(ua.c_rtp_port_index, ua.c_rtp_port_index + ua.c_rtp_port_stop - ua.c_rtp_port_start, 2):
                 status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
                 if status != PJ_ERRNO_START_SYS + EADDRINUSE:
@@ -3209,7 +3217,7 @@ cdef class AudioTransport:
         if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
             raise RuntimeError("Unknown direction: %s" % direction)
         local_media = c_make_SDPMedia(self.c_local_media)
-        local_media.attributes = [attr for attr in local_media.attributes if attr.name not in ["sendrecv", "sendonly", "recvonly", "inactive"]]
+        local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ["sendrecv", "sendonly", "recvonly", "inactive"]]
         if is_offer and direction != "sendrecv":
             local_media.attributes.append(SDPAttribute(direction, ""))
         return local_media
@@ -3425,7 +3433,7 @@ cdef class Invitation:
             return self.c_route.copy()
 
     def get_active_local_sdp(self):
-        cdef pjmedia_sdp_session *sdp
+        cdef pjmedia_sdp_session_ptr_const sdp
         if self.c_obj != NULL and self.c_has_active_sdp:
             pjmedia_sdp_neg_get_active_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -3433,7 +3441,7 @@ cdef class Invitation:
             return None
 
     def get_active_remote_sdp(self):
-        cdef pjmedia_sdp_session *sdp
+        cdef pjmedia_sdp_session_ptr_const sdp
         if self.c_obj != NULL and self.c_has_active_sdp:
             pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -3441,7 +3449,7 @@ cdef class Invitation:
             return None
 
     def get_offered_remote_sdp(self):
-        cdef pjmedia_sdp_session *sdp
+        cdef pjmedia_sdp_session_ptr_const sdp
         if self.c_obj != NULL and self.sdp_state == "REMOTE_OFFER":
             pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -3449,7 +3457,7 @@ cdef class Invitation:
             return None
 
     def get_offered_local_sdp(self):
-        cdef pjmedia_sdp_session *sdp
+        cdef pjmedia_sdp_session_ptr_const sdp
         if self.c_obj != NULL and self.sdp_state == "LOCAL_OFFER":
             pjmedia_sdp_neg_get_neg_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -3676,7 +3684,7 @@ cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
             invitation = <object> inv.mod_data[ua.c_module.id]
             invitation._cb_sdp_done(status)
 
-cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session *offer, pjsip_rx_data *rdata) with gil:
+cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil:
     cdef Invitation invitation
     cdef PJSIPUA ua = c_get_ua()
     if _ua != NULL:
@@ -3736,7 +3744,7 @@ cdef int c_event_queue_append(pypjua_event *event):
         pj_mutex_unlock(_event_queue_lock)
     return 0
 
-cdef void cb_log(int level, char *data, int len):
+cdef void cb_log(int level, char_ptr_const data, int len):
     cdef pypjua_event *event
     event = <pypjua_event *> malloc(sizeof(pypjua_event))
     if event != NULL:
