@@ -153,6 +153,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
             credentials = Credentials(sip_uri, password)
+            stun_servers = lookup_stun_servers_for_sip_uri(sip_uri)
+            if stun_servers:
+                e.detect_nat_type(*stun_servers[0])
         if target_uri is None:
             if use_bonjour:
                 print "Using bonjour"
@@ -294,6 +297,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             else:
                                 audio = None
                                 inv = None
+                elif event_name == "detect_nat_type":
+                    if args["succeeded"]:
+                        print "Detected NAT type: %s" % args["nat_type"]
             if command == "user_input":
                 if inv is not None:
                     data = data[0]
