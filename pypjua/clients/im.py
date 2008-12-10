@@ -14,7 +14,7 @@ from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError, BindError, ConnectError
 
 from eventlet.api import spawn, kill, GreenletExit, sleep, timeout
-from eventlet.coros import spawn_link
+from eventlet.coros import Job
 
 from pypjua import *
 from pypjua.clients.lookup import lookup_srv
@@ -171,7 +171,7 @@ class MSRPSession:
 
     def start_read_msrp(self):
         assert not self.read_msrp_job, self.read_msrp_job
-        self.read_msrp_job = spawn_link(self._read_msrp)
+        self.read_msrp_job = Job(self._read_msrp)
 
     def stop_read_msrp(self):
         if self.read_msrp_job:
@@ -244,7 +244,7 @@ class ChatSession(MSRPSession):
 
     def start_invite(self, e, target_uri, route, relay):
         assert not self.invite_job, self.invite_job
-        self.invite_job = spawn_link(self._invite, e, target_uri, route, relay)
+        self.invite_job = Job(self._invite, e, target_uri, route, relay)
 
     def stop_invite(self):
         if self.invite_job:
@@ -520,7 +520,7 @@ def consult_user(inv, ask_func):
     If the user didn't accept it or any other error happened, shutdown
     inv with error response.
     """
-    asker = spawn_link(ask_func, inv)
+    asker = Job(ask_func, inv)
     def killer(_params):
         asker.kill()
     inv.call_on_disconnect(killer) #
