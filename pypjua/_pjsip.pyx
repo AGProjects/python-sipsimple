@@ -1552,6 +1552,7 @@ cdef class PJSIPUA:
         cdef pj_str_t c_stun_server_address
         cdef pj_sockaddr_in stun_server
         cdef int status
+        self.c_check_self()
         str_to_pj_str(stun_server_address, &c_stun_server_address)
         status = pj_sockaddr_in_init(&stun_server, &c_stun_server_address, stun_server_port)
         if status != 0:
