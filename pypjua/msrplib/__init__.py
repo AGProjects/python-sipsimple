@@ -8,7 +8,7 @@ from application.system import default_host_ip
 
 from eventlet.api import timeout
 from eventlet.coros import event
-from eventlet.twistedutil.protocol import BaseBuffer, BufferCreator, SpawnFactory
+from eventlet.twistedutil.protocol import GreenTransportBase, GreenClientCreator, SpawnFactory
 
 from pypjua.clients import msrp_protocol
 from pypjua.clients.digest import process_www_authenticate
@@ -36,8 +36,16 @@ class MSRPProtocol(msrp_protocol.MSRPProtocol):
     traffic_logger = None
     _new_chunk = True
 
+    def __init__(self, gtransport, queue):
+        self.gtransport = gtransport
+        self._queue = queue
+        msrp_protocol.MSRPProtocol.__init__(self)
+
     def connectionMade(self):
+        self.gtransport.init_transport(self.transport)
+        del self.gtransport
         self.peer = Peer(self._queue)
+        del self._queue
 
     def rawDataReceived(self, data):
         if self.traffic_logger:
@@ -67,7 +75,7 @@ def encode_chunk(chunk):
 class Message(str):
     pass
 
-class MSRPBuffer(BaseBuffer):
+class MSRPTransport(GreenTransportBase):
     protocol_class = MSRPProtocol
 
     def __init__(self, local_uri, traffic_logger=None):
@@ -110,7 +118,7 @@ class MSRPBuffer(BaseBuffer):
         return self.remote_path + [self.remote_uri]
 
     def build_protocol(self):
-        p = BaseBuffer.build_protocol(self)
+        p = GreenTransportBase.build_protocol(self)
         p.traffic_logger = self.traffic_logger
         return p
 
@@ -249,7 +257,7 @@ class MSRPBuffer(BaseBuffer):
 
 
 class MSRPConnector:
-# make it re-usable, do not hold references to MSRPBuffer or other stuff
+# make it re-usable, do not hold references to MSRPTransport or other stuff
 # produced by msrp_ functions
 
     def __init__(self, relay, traffic_logger):
@@ -329,13 +337,13 @@ def new_local_uri(port=0):
 
 def _msrp_connect(full_remote_path, traffic_logger, local_uri):
     from twisted.internet import reactor
-    Buf = BufferCreator(reactor, MSRPBuffer, local_uri, traffic_logger)
+    creator = GreenClientCreator(reactor, MSRPTransport, local_uri, traffic_logger)
     if full_remote_path[0].use_tls:
         from gnutls.interfaces.twisted import X509Credentials
         cred = X509Credentials(None, None)
-        msrp = Buf.connectTLS(full_remote_path[0].host, full_remote_path[0].port or 2855, cred)
+        msrp = creator.connectTLS(full_remote_path[0].host, full_remote_path[0].port or 2855, cred)
     else:
-        msrp = Buf.connectTCP(full_remote_path[0].host, full_remote_path[0].port or 2855)
+        msrp = creator.connectTCP(full_remote_path[0].host, full_remote_path[0].port or 2855)
     # can't do the following, because local_uri was already used in the INVITE
     #msrp.local_uri.port = msrp.getHost().port
     msrp.set_full_remote_path(full_remote_path)
@@ -350,8 +358,8 @@ def _msrp_relay_connect(relaysettings, traffic_logger):
     from gnutls.interfaces.twisted import X509Credentials
     cred = X509Credentials(None, None)
     from twisted.internet import reactor
-    Buf = BufferCreator(reactor, MSRPBuffer, local_uri, traffic_logger)
-    conn = Buf.connectTLS(relaysettings.host, relaysettings.port, cred)
+    creator = GreenClientCreator(reactor, MSRPTransport, local_uri, traffic_logger)
+    conn = creator.connectTLS(relaysettings.host, relaysettings.port, cred)
     local_uri.port = conn.getHost().port
     msrpdata = msrp_protocol.MSRPData(method="AUTH", transaction_id=random_string(12))
     msrpdata.add_header(msrp_protocol.ToPathHeader([relaysettings.uri]))
@@ -379,7 +387,7 @@ def msrp_relay_connect(relaysettings, traffic_logger):
 def _msrp_listen(handler, traffic_logger=None):
     from twisted.internet import reactor
     local_uri = new_local_uri()
-    factory = SpawnFactory(handler, MSRPBuffer, local_uri, traffic_logger)
+    factory = SpawnFactory(handler, MSRPTransport, local_uri, traffic_logger)
     if local_uri.use_tls:
         from gnutls.interfaces.twisted import X509Credentials
         cred = X509Credentials(None, None)
