@@ -119,7 +119,7 @@ cd pjsip
 grep  PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
 make distclean
 patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
-./configure
+CFLAGS="-fPIC" ./configure
 make
 
 

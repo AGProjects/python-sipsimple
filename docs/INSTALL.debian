@@ -78,11 +78,8 @@ Go to pjsip directory and build pjsip library:
 
 cd pjsip
 patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
-./configure
+CFLAGS="-fPIC" ./configure
 make distclean
-# depending on your architecture chose one of the commands:
-make                      # on i386
-make HOST_CFLAGS=-fPIC    # on amd64
 
 Go back to the sipsimpleclient directory, make a source distribution tarball
 and build the debian package:

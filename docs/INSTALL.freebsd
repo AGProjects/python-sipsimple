@@ -115,7 +115,7 @@ Go to pjsip directory and build the pjsip library:
 
 cd pjsip
 ([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
-./configure
+CFLAGS="-fPIC" ./configure
 patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
 gmake distclean
 gmake
