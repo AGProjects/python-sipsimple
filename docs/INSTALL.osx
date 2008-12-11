@@ -55,12 +55,15 @@ Step 3. Install dependencies
 
 sudo fink install gnutls26
 
-# Install libxml libraries:
-sudo apt-get install libxml2 libxslt
+# Install lxml python module
+curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2alpha1.tar.gz
+tar -xzvf lxml-2.2alpha1.tar.gz
+cd lxml-2.2alpha1
+sudo python setup.py install --static-deps
 
 # Install Python dependencies
 sudo easy_install --script-dir /usr/bin -U setuptools
-sudo easy_install -U cython python-application dnspython lxml twisted py mercurial
+sudo easy_install -U cython python-application dnspython twisted py mercurial
 
 # Download and install python-gnutls
 darcs get http://devel.ag-projects.com/repositories/python-gnutls
