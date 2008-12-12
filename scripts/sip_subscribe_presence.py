@@ -265,7 +265,7 @@ def handle_pidf(pidf):
         for device in devices.values():
             buf.append("  Device id %s" % device.id)
             display_device(device, pidf, buf)
-    
+
     buf.append("-"*16)
 
     # push the data
@@ -333,7 +333,7 @@ def read_queue(e, username, domain, password, display_name, presentity_uri, rout
         sub = Subscription(credentials, presentity_uri, 'presence', route=route, expires=expires)
         print 'Subscribing to "%s" for the presence event, at %s:%s:%d' % (presentity_uri, route.transport, route.host, route.port)
         sub.subscribe()
-        
+
         while True:
             command, data = queue.get()
             if command == "print":
@@ -379,12 +379,12 @@ def do_subscribe(**kwargs):
     logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    
+
     e = Engine(event_handler, trace_sip=kwargs.pop('trace_sip'), auto_sound=False, initial_events=initial_events, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
-    
+
     try:
         while True:
             char = getchar()
@@ -400,7 +400,7 @@ def do_subscribe(**kwargs):
             queue.put(("quit", True))
         lock.acquire()
         return
-    
+
 def parse_outbound_proxy(option, opt_str, value, parser):
     try:
         parser.values.outbound_proxy = OutboundProxy(value)
@@ -423,7 +423,7 @@ def parse_options():
     parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
-    
+
     if options.account_name is None:
         account_section = "Account"
     else:
@@ -433,7 +433,7 @@ def parse_options():
     configuration.read_settings(account_section, AccountConfig)
     default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-    
+
     for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
         setattr(options, "local_%s_port" % transport, None)
     if not all([options.sip_address, options.password]):
@@ -450,7 +450,7 @@ def parse_options():
         retval["presentity_uri"] = parse_cmdline_uri(args[0], retval["domain"])
     else:
         retval["presentity_uri"] = SIPURI(user=retval["username"], host=retval["domain"])
-    
+
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
     accounts.sort()
     print "Accounts available: %s" % ', '.join(accounts)
@@ -458,7 +458,7 @@ def parse_options():
         print "Using default account: %s" % options.sip_address
     else:
         print "Using account '%s': %s" % (options.account_name, options.sip_address)
-    
+
     return retval
 
 def main():
