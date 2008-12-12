@@ -16,8 +16,7 @@ Step 1. Prerequisites
 
 a. MacOSx 10.5 Leopard on Intel CPU
 b. Install Apple Developer tools
-c. Install Fink from http://www.finkproject.org
-d. Install darcs version control tool from http://www.darcs.net
+c. Install darcs version control tool from http://www.darcs.net
 
 You need a SIP account from a service provider or to setup your own SIP
 infrastructure using the following elements:
@@ -47,23 +46,28 @@ darcs pull
 Step 3. Install dependencies
 ----------------------------
 
-# Install gnutls:
+# Install gnutls and its dependencies:
 
-# Gnutls version 2.4 must be installed. Gnutls version 2.6 from fink
-# unstable tree does not work. To install version 2.4 remove "unstable"
-# items from the 'Trees' line of the /sw/etc/fink.conf
+curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.6.tar.bz2
+tar -xjvf libgpg-error-1.6.tar.bz2
+cd libgpg-error-1.6
+CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+make
+make install
 
-sudo fink install gnutls26
+curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.1.tar.bz2
+tar -xjvf libgcrypt-1.4.1.tar.bz2
+cd libgcrypt-1.4.1
+CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
+make
+make install
 
-# Install lxml python module
-curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2alpha1.tar.gz
-tar -xzvf lxml-2.2alpha1.tar.gz
-cd lxml-2.2alpha1
-sudo python setup.py install --static-deps
-
-# Install Python dependencies
-sudo easy_install --script-dir /usr/bin -U setuptools
-sudo easy_install -U cython python-application dnspython twisted py mercurial
+curl -O ftp://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.6.2.tar.bz2
+tar -xjvf gnutls-2.6.2.tar.bz2
+cd gnutls-2.6.2
+CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
+make
+make install
 
 # Download and install python-gnutls
 darcs get http://devel.ag-projects.com/repositories/python-gnutls
@@ -74,6 +78,16 @@ sudo python setup.py install
 cd python-gnutls
 darcs pull
 sudo python setup.py install
+
+# Install lxml python module
+curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2alpha1.tar.gz
+tar -xzvf lxml-2.2alpha1.tar.gz
+cd lxml-2.2alpha1
+sudo python setup.py install --static-deps
+
+# Install other Python dependencies
+sudo easy_install --script-dir /usr/bin -U setuptools
+sudo easy_install -U cython python-application dnspython twisted py mercurial
 
 # Download and install eventlet for twisted:
 export LC_CTYPE=
