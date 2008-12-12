@@ -138,7 +138,7 @@ class RingingThread(Thread):
 
 
 def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, disable_sound, do_trace_pjsip, use_bonjour):
-    global user_quit, lock, queue, sip_uri
+    global user_quit, lock, queue
     lock.acquire()
     inv = None
     audio = None
