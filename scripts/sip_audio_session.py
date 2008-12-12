@@ -153,7 +153,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
             credentials = Credentials(sip_uri, password)
-            stun_servers = lookup_stun_servers_for_sip_uri(sip_uri)
+            stun_servers = lookup_service_for_sip_uri(sip_uri, "stun")
             if stun_servers:
                 e.detect_nat_type(*stun_servers[0])
         if target_uri is None:

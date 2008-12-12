@@ -75,24 +75,34 @@ def lookup_srv(host, port, is_ip, default_port, service='_sip._udp'):
             raise RuntimeError('Could not resolve "%s"' % a_host)
         return random.choice(a_answers).address, port
 
-def lookup_stun_servers_for_sip_uri(uri):
-    stun_servers = []
+_service_srv_record_map = {"stun": ("_stun._udp", 3478, False),
+                           "msrprelay": ("_msrps._tcp", 2855, True)}
+
+def lookup_service_for_sip_uri(uri, service):
     try:
-        srv_answers = dns.resolver.query("_stun._udp.%s" % uri.host, "SRV")
+        service_prefix, service_port, service_fallback = _service_srv_record_map[service]
+    except KeyError:
+        raise RuntimeError("Unknown service: %s" % service)
+    a_candidates = []
+    servers = []
+    try:
+        srv_answers = dns.resolver.query("%s.%s" % (service_prefix, uri.host), "SRV")
     except:
-        pass
+        if service_fallback:
+            a_candidates.append((uri.host, service_port))
     else:
         srv_answers = sorted(srv_answers, key=lambda x: x.priority)
         srv_answers.sort(key=lambda x: x.weight, reverse=True)
-        for srv_answer in srv_answers:
-            try:
-                a_answers = dns.resolver.query(srv_answer.target, "A")
-            except:
-                pass
-            else:
-                for a_answer in a_answers:
-                    stun_servers.append((a_answer.address, srv_answer.port))
-    return stun_servers
+        a_candidates = [(srv_answer.target, srv_answer.port) for srv_answer in srv_answers]
+    for a_host, a_port in a_candidates:
+        try:
+            a_answers = dns.resolver.query(a_host, "A")
+        except:
+            pass
+        else:
+            for a_answer in a_answers:
+                servers.append((a_answer.address, a_port))
+    return servers
 
 _naptr_service_transport_map = {"sips+d2t": "tls",
                                 "sip+d2t": "tcp",
@@ -204,4 +214,4 @@ def lookup_routes_for_sip_uri(uri, supported_transports):
                 routes.append(Route(answer.address, port=a_port, transport=a_transport))
     return routes
 
-__all__ = ["IPAddressOrHostname", "OutboundProxy", "lookup_srv", "lookup_stun_servers_for_sip_uri", "lookup_routes_for_sip_uri"]
+__all__ = ["IPAddressOrHostname", "OutboundProxy", "lookup_srv", "lookup_service_for_sip_uri", "lookup_routes_for_sip_uri"]
