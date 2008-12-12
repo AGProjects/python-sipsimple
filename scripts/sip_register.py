@@ -16,17 +16,22 @@ from pypjua.clients import enrollment
 from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
+from pypjua.clients import parse_cmdline_uri
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"listen_udp": datatypes.NetworkAddress, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
-    listen_udp = datatypes.NetworkAddress("any")
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    local_ip = None
+    sip_local_udp_port = 0
+    sip_local_tcp_port = 0
+    sip_local_tls_port = 0
+    sip_transports = ["tls", "tcp", "udp"]
     trace_pjsip = False
     trace_sip = False
     log_directory = '~/.sipclient/log'
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": IPAddressOrHostname}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy}
     sip_address = None
     password = None
     display_name = None
@@ -140,20 +145,15 @@ def do_register(**kwargs):
     ctrl_d_pressed = False
     outbound_proxy = kwargs.pop("outbound_proxy")
     if outbound_proxy is None:
-        proxy_host, proxy_port, proxy_is_ip = kwargs["domain"], None, False
+        kwargs["route"] = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))[0]
     else:
-        proxy_host, proxy_port, proxy_is_ip = outbound_proxy
-    try:
-        kwargs["route"] = Route(*lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
-    except RuntimeError, e:
-        print e.message
-        return
-    
+        kwargs["route"] = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))[0]
+
     logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
     if logger.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    
-    e = Engine(event_handler, trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_port"))
+
+    e = Engine(event_handler, trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     try:
@@ -174,7 +174,7 @@ def do_register(**kwargs):
 
 def parse_outbound_proxy(option, opt_str, value, parser):
     try:
-        parser.values.outbound_proxy = IPAddressOrHostname(value)
+        parser.values.outbound_proxy = OutboundProxy(value)
     except ValueError, e:
         raise OptionValueError(e.message)
 
@@ -194,7 +194,7 @@ def parse_options():
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     parser.add_option("-r", "--max-registers", type="int", dest="max_registers", help="Max number of REGISTERs sent (default 1).")
     options, args = parser.parse_args()
-    
+
     if options.account_name is None:
         account_section = "Account"
     else:
@@ -202,9 +202,11 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.listen_udp[0], local_port=GeneralConfig.listen_udp[1], max_registers=1)
+    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, max_registers=1)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-    
+
+    for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
+        setattr(options, "local_%s_port" % transport, None)
     if not all([options.sip_address, options.password]):
         raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
     for attr in default_options:
