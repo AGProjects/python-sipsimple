@@ -100,6 +100,7 @@ export LC_CTYPE=
 cd eventlet_twisted
 hg pull
 hg update
+sudo python setup.py install
 
 # Download and install python-xcaplib:
 darcs get http://devel.ag-projects.com/repositories/python-xcaplib
@@ -146,3 +147,4 @@ cd sipsimpleclient
 touch pypjua/_pjsip.pyx
 sh ./build_inplace
 sudo python setup.py install
+
