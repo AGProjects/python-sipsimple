@@ -40,110 +40,115 @@ The software is downloaded under sipsimpleclient directory. To update it at
 a later time:
 
 cd sipsimpleclient
-darcs pull
+darcs pull -a
 
 
 Step 3. Install dependencies
 ----------------------------
 
-# Install gnutls and its dependencies:
-
+# Download and install gnutls dependencies:
 curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.6.tar.bz2
 tar -xjvf libgpg-error-1.6.tar.bz2
 cd libgpg-error-1.6
 CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
 make
-make install
+sudo make install
+cd ..
 
 curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.1.tar.bz2
 tar -xjvf libgcrypt-1.4.1.tar.bz2
 cd libgcrypt-1.4.1
 CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
-make install
+sudo make install
+cd ..
 
+# Download and install gnutls:
 curl -O ftp://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.6.2.tar.bz2
 tar -xjvf gnutls-2.6.2.tar.bz2
 cd gnutls-2.6.2
 CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
 make
-make install
+sudo make install
+cd ..
 
-# Download and install python-gnutls
-darcs get http://devel.ag-projects.com/repositories/python-gnutls
-cd python-gnutls
-sudo python setup.py install
-
-# To update python-gnutls at a later date:
-cd python-gnutls
-darcs pull
-sudo python setup.py install
-
-# Install lxml python module
+# Download and install lxml python module
 curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2alpha1.tar.gz
 tar -xzvf lxml-2.2alpha1.tar.gz
 cd lxml-2.2alpha1
 sudo python setup.py install --static-deps
+cd ..
 
-# Install other Python dependencies
+# Download and install other Python dependencies
 sudo easy_install --script-dir /usr/bin -U setuptools
 sudo easy_install -U cython python-application dnspython twisted py mercurial
 
-# Download and install eventlet for twisted:
-export LC_CTYPE=
-hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
-cd eventlet_twisted
-sudo python setup.py install
+# Download and install/update python-gnutls
+if [ -d python-gnutls ]; then 
+	cd python-gnutls
+	darcs pull -a
+	sudo python setup.py install
+else
+	darcs get http://devel.ag-projects.com/repositories/python-gnutls
+	cd python-gnutls
+	sudo python setup.py install
+fi
+cd ..
 
-# To update eventlet_twisted at a later date:
+# Download and install/update eventlet for twisted:
 export LC_CTYPE=
-cd eventlet_twisted
-hg pull
-hg update
-sudo python setup.py install
+if [ -d eventlet_twisted ]; then
+	# Install eventlet the first time
+	cd eventlet_twisted
+	hg pull
+	hg update
+	sudo python setup.py install
+else
+	hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+	cd eventlet_twisted
+	sudo python setup.py install
+fi
+cd ..
 
 # Download and install python-xcaplib:
-darcs get http://devel.ag-projects.com/repositories/python-xcaplib
-cd python-xcaplib
-sudo python setup.py install
-
-# To update python-xcaplib repository at a later date:
-cd python-xcaplib
-darcs pull
-sudo python setup.py install
+if [ -d python-xcaplib ]; then
+	cd python-xcaplib
+	darcs pull -a
+	sudo python setup.py install
+else
+	darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+	cd python-xcaplib
+	sudo python setup.py install
+fi
+cd ..
 
 
 Step 4. Compile PJSIP C library
 -------------------------------
 
-Go to the main project directory and check out the PJSIP project under pjsip
-directory.
+Go to the main project directory and download/update the PJSIP project under
+pjsip directory.
 
 cd sipsimpleclient
-svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
-
-If you have obtained the svn sources already you can update them using svn 
-update command.                                                         
-
-cd pjsip
-svn update
-
-Go to pjsip directory and build the pjsip library:
-
-cd pjsip
-([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
-CFLAGS="-fPIC -arch ppc -arch i386" ./configure
-patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
+if [ -d pjsip ]; then
+	cd pjsip
+	svn update
+else 
+	svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+	cd pjsip
+	([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
+	patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
+fi
 make distclean
+CFLAGS="-fPIC -arch ppc -arch i386" ./configure
 make
-
+cd ..
 
 Step 5. Build and install SIP SIMPLE client
 -------------------------------------------
 
 Go to the main project directory and build the library:
 
-cd sipsimpleclient
 touch pypjua/_pjsip.pyx
 sh ./build_inplace
 sudo python setup.py install
