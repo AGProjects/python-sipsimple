@@ -390,33 +390,69 @@ cdef extern from "pjsip.h":
     struct pjsip_name_addr:
         pj_str_t display
         pjsip_uri *uri
-    struct pjsip_hdr:
-        pass
-    ctypedef pjsip_hdr *pjsip_hdr_ptr_const "const pjsip_hdr*"
-    struct pjsip_generic_string_hdr:
-        pass
-    struct pjsip_routing_hdr:
-        pjsip_name_addr name_addr
-    ctypedef pjsip_routing_hdr pjsip_route_hdr
-    struct pjsip_fromto_hdr:
-        pjsip_uri *uri
-    struct pjsip_contact_hdr:
-        pjsip_uri *uri
-        int expires
-    enum:
-        PJSIP_MAX_ACCEPT_COUNT
     struct pjsip_media_type:
         pj_str_t type
         pj_str_t subtype
-    struct pjsip_msg_body:
-        pjsip_media_type content_type
-        void *data
-        unsigned int len
+        pj_str_t param
     enum pjsip_method_e:
         PJSIP_OTHER_METHOD
     struct pjsip_method:
         pjsip_method_e id
         pj_str_t name
+    struct pjsip_host_port:
+        pj_str_t host
+        int port
+    struct pjsip_hdr:
+        pj_str_t name
+    ctypedef pjsip_hdr *pjsip_hdr_ptr_const "const pjsip_hdr*"
+    struct pjsip_generic_array_hdr:
+        unsigned int count
+        pj_str_t *values
+    struct pjsip_generic_string_hdr:
+        pj_str_t hvalue
+    struct pjsip_contact_hdr:
+        int star
+        pjsip_uri *uri
+        int q1000
+        int expires
+        pjsip_param other_param
+    struct pjsip_clen_hdr:
+        int len
+    struct pjsip_ctype_hdr:
+        pjsip_media_type media
+    struct pjsip_cseq_hdr:
+        int cseq
+        pjsip_method method
+    struct pjsip_generic_int_hdr:
+        int ivalue
+    struct pjsip_fromto_hdr:
+        pjsip_uri *uri
+        pj_str_t tag
+        pjsip_param other_param
+    struct pjsip_routing_hdr:
+        pjsip_name_addr name_addr
+        pjsip_param other_param
+    ctypedef pjsip_routing_hdr pjsip_route_hdr
+    struct pjsip_retry_after_hdr:
+        int ivalue
+        pjsip_param param
+        pj_str_t comment
+    struct pjsip_via_hdr:
+        pj_str_t transport
+        pjsip_host_port sent_by
+        int ttl_param
+        int rport_param
+        pj_str_t maddr_param
+        pj_str_t recvd_param
+        pj_str_t branch_param
+        pjsip_param other_param
+        pj_str_t comment
+    enum:
+        PJSIP_MAX_ACCEPT_COUNT
+    struct pjsip_msg_body:
+        pjsip_media_type content_type
+        void *data
+        unsigned int len
     struct pjsip_request_line:
         pjsip_method method
         pjsip_uri *uri
@@ -465,7 +501,6 @@ cdef extern from "pjsip.h":
         pjsip_rx_data_msg_info msg_info
     void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
-    int pjsip_hdr_print_on(void *hdr, char *buf, unsigned int len)
     void pjsip_generic_string_hdr_init2(pjsip_generic_string_hdr *hdr, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
@@ -514,9 +549,6 @@ cdef extern from "pjsip.h":
     pj_timer_heap_t *pjsip_endpt_get_timer_heap(pjsip_endpoint *endpt)
 
     # transports
-    struct pjsip_host_port:
-        pj_str_t host
-        int port
     struct pjsip_transport:
         pjsip_host_port local_name
     struct pjsip_tpfactory:
@@ -1993,28 +2025,98 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
             if exc is not None:
                 raise exc
 
+cdef dict c_pjsip_param_to_dict(pjsip_param *param_list):
+    cdef pjsip_param *param
+    cdef dict retval = {}
+    param = <pjsip_param *> (<pj_list *> param_list).next
+    while param != param_list:
+        retval[pj_str_to_str(param.name)] = pj_str_to_str(param.value)
+        param = <pjsip_param *> (<pj_list *> param).next
+    return retval
+
 cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
     cdef pjsip_msg_body *body
     cdef pjsip_hdr *hdr
-    cdef char header_buf[1024]
-    cdef int header_len
-    cdef object full_header
+    cdef object hdr_name
+    cdef int i
+    cdef pjsip_generic_array_hdr *array_hdr
+    cdef pjsip_generic_string_hdr *string_hdr
+    cdef pjsip_contact_hdr *contact_hdr
+    cdef pjsip_clen_hdr *clen_hdr
+    cdef pjsip_ctype_hdr *ctype_hdr
+    cdef pjsip_cseq_hdr *cseq_hdr
+    cdef pjsip_generic_int_hdr *int_hdr
+    cdef pjsip_fromto_hdr *fromto_hdr
+    cdef pjsip_routing_hdr *routing_hdr
+    cdef pjsip_retry_after_hdr *retry_after_hdr
+    cdef pjsip_via_hdr *via_hdr
+    cdef object hdr_data, hdr_multi
     cdef dict headers = {}
     info_dict["headers"] = headers
-    body = rdata.msg_info.msg.body
     hdr = <pjsip_hdr *> (<pj_list *> &rdata.msg_info.msg.hdr).next
     while hdr != &rdata.msg_info.msg.hdr:
-        header_len = pjsip_hdr_print_on(hdr, header_buf, 1024)
-        if header_len == -1:
-            header_len = 1024
-        full_header = PyString_FromStringAndSize(header_buf, header_len)
-        try:
-            full_header = full_header.split(": ", 1)
-        except:
-            pass
-        else:
-            headers[full_header[0]] = full_header[1]
+        hdr_data = None
+        hdr_multi = False
+        hdr_name = pj_str_to_str(hdr.name)
+        if hdr_name in ["Accept", "Allow", "Require", "Supported", "Unsupported"]:
+            array_hdr = <pjsip_generic_array_hdr *> hdr
+            hdr_data = []
+            for i from 0 <= i < array_hdr.count:
+                hdr_data.append(pj_str_to_str(array_hdr.values[i]))
+        elif hdr_name == "Contact":
+            hdr_multi = True
+            contact_hdr = <pjsip_contact_hdr *> hdr
+            hdr_data = (contact_hdr.star and None or c_make_SIPURI(contact_hdr.uri, 1), c_pjsip_param_to_dict(&contact_hdr.other_param))
+            if contact_hdr.q1000 != 0:
+                hdr_data[1]["q"] = contact_hdr.q1000 / 1000.0
+            if contact_hdr.expires != -1:
+                hdr_data[1]["expires"] = contact_hdr.expires
+        elif hdr_name == "Content-Length":
+            clen_hdr = <pjsip_clen_hdr *> hdr
+            hdr_data = clen_hdr.len
+        elif hdr_name == "Content-Type":
+            ctype_hdr = <pjsip_ctype_hdr *> hdr
+            hdr_data = ("%s/%s" % (pj_str_to_str(ctype_hdr.media.type), pj_str_to_str(ctype_hdr.media.subtype)), pj_str_to_str(ctype_hdr.media.param))
+        elif hdr_name == "CSeq":
+            cseq_hdr = <pjsip_cseq_hdr *> hdr
+            hdr_data = (cseq_hdr.cseq, pj_str_to_str(cseq_hdr.method.name))
+        elif hdr_name in ["Expires", "Max-Forwards", "Min-Expires"]:
+            int_hdr = <pjsip_generic_int_hdr *> hdr
+            hdr_data = int_hdr.ivalue
+        elif hdr_name in ["From", "To"]:
+            fromto_hdr = <pjsip_fromto_hdr *> hdr
+            hdr_data = (c_make_SIPURI(fromto_hdr.uri, 1), pj_str_to_str(fromto_hdr.tag), c_pjsip_param_to_dict(&fromto_hdr.other_param))
+        elif hdr_name in ["Record-Route", "Route"]:
+            hdr_multi = True
+            routing_hdr = <pjsip_routing_hdr *> hdr
+            hdr_data = (c_make_SIPURI(<pjsip_uri *> &routing_hdr.name_addr, 1), c_pjsip_param_to_dict(&routing_hdr.other_param))
+        elif hdr_name == "Retry-After":
+            retry_after_hdr = <pjsip_retry_after_hdr *> hdr
+            hdr_data = (retry_after_hdr.ivalue, retry_after_hdr.comment, c_pjsip_param_to_dict(&retry_after_hdr.param))
+        elif hdr_name == "Via":
+            hdr_multi = True
+            via_hdr = <pjsip_via_hdr *> hdr
+            hdr_data = (pj_str_to_str(via_hdr.transport), pj_str_to_str(via_hdr.sent_by.host), via_hdr.sent_by.port, pj_str_to_str(via_hdr.comment), c_pjsip_param_to_dict(&via_hdr.other_param))
+            if via_hdr.ttl_param != -1:
+                hdr_data[4]["ttl"] = via_hdr.ttl_param
+            if via_hdr.rport_param != -1:
+                hdr_data[4]["rport"] = via_hdr.rport_param
+            if via_hdr.maddr_param.slen > 0:
+                hdr_data[4]["maddr"] = pj_str_to_str(via_hdr.maddr_param)
+            if via_hdr.recvd_param.slen > 0:
+                hdr_data[4]["recvd"] = pj_str_to_str(via_hdr.recvd_param)
+            if via_hdr.branch_param.slen > 0:
+                hdr_data[4]["branch"] = pj_str_to_str(via_hdr.branch_param)
+        elif hdr_name not in ["Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"]: # skip these
+            string_hdr = <pjsip_generic_string_hdr *> hdr
+            hdr_data = pj_str_to_str(string_hdr.hvalue)
+        if hdr_data is not None:
+            if hdr_multi:
+                headers.setdefault(hdr_name, []).append(hdr_data)
+            else:
+                headers[hdr_name] = hdr_data
         hdr = <pjsip_hdr *> (<pj_list *> hdr).next
+    body = rdata.msg_info.msg.body
     if body == NULL:
         info_dict["body"] = None
     else:
