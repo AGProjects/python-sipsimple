@@ -2651,6 +2651,7 @@ cdef class SDPAttribute:
     cdef int _to_c(self) except -1:
         str_to_pj_str(self.name, &self.c_obj.name)
         str_to_pj_str(self.value, &self.c_obj.value)
+        return 0
 
     def __repr__(self):
         return '<SDPAttribute "%s: %s">' % (str(self.name), str(self.value))
@@ -2689,6 +2690,7 @@ cdef class SDPConnection:
         str_to_pj_str(self.net_type, &self.c_obj.net_type)
         str_to_pj_str(self.address_type, &self.c_obj.addr_type)
         str_to_pj_str(self.address, &self.c_obj.addr)
+        return 0
 
     def __repr__(self):
         return '<SDPConnection "%s %s %s">' % (str(self.net_type), str(self.address_type), str(self.address))
@@ -2772,6 +2774,7 @@ cdef class SDPMedia:
         for index, attr in enumerate(self.attributes):
             attr._to_c()
             self.c_obj.attr[index] = &attr.c_obj
+        return 0
 
     def __repr__(self):
         return '<SDPMedia "%s %d %s">' % (str(self.media), self.c_obj.desc.port, str(self.transport))
@@ -2877,6 +2880,7 @@ cdef class SDPSession:
         for index, media in enumerate(self.media):
             media._to_c()
             self.c_obj.media[index] = &media.c_obj
+        return 0
 
     property id:
 
@@ -3308,7 +3312,6 @@ cdef class AudioTransport:
         self.update_direction(local_sdp.media[sdp_index].get_direction())
         self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp.c_obj.media[sdp_index])
         self.c_started = 1
-        return 0
 
     def stop(self):
         cdef PJSIPUA ua = c_get_ua()
