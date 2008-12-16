@@ -2123,7 +2123,7 @@ cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
             hdr_data = (c_make_SIPURI(<pjsip_uri *> &routing_hdr.name_addr, 1), c_pjsip_param_to_dict(&routing_hdr.other_param))
         elif hdr_name == "Retry-After":
             retry_after_hdr = <pjsip_retry_after_hdr *> hdr
-            hdr_data = (retry_after_hdr.ivalue, retry_after_hdr.comment, c_pjsip_param_to_dict(&retry_after_hdr.param))
+            hdr_data = (retry_after_hdr.ivalue, pj_str_to_str(retry_after_hdr.comment), c_pjsip_param_to_dict(&retry_after_hdr.param))
         elif hdr_name == "Via":
             hdr_multi = True
             via_hdr = <pjsip_via_hdr *> hdr
