@@ -59,7 +59,7 @@ class EngineBuffer(Engine):
         if self.dest:
             self.dest.send((event_name, kwargs))
         else:
-            self.logger.log_event('DROPPED (obj=%r)', kwargs.get('obj'), event_name, kwargs)
+            self.logger.log_event('DROPPED (obj=%r)' % kwargs.get('obj'), event_name, kwargs)
 
     def _handle_event(self, event_name, kwargs):
         try:
