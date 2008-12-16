@@ -345,6 +345,7 @@ cdef extern from "pjmedia.h":
         short volume
     int pjmedia_tonegen_create(pj_pool_t *pool, unsigned int clock_rate, unsigned int channel_count, unsigned int samples_per_frame, unsigned int bits_per_sample, unsigned int options, pjmedia_port **p_port)
     int pjmedia_tonegen_play_digits(pjmedia_port *tonegen, unsigned int count, pjmedia_tone_digit digits[], unsigned int options)
+    int pjmedia_tonegen_stop(pjmedia_port *tonegen)
 
 cdef extern from "pjmedia-codec.h":
 
@@ -986,14 +987,14 @@ cdef class PJMEDIAConferenceBridge:
     cdef pjsip_endpoint *c_pjsip_endpoint
     cdef PJMEDIAEndpoint c_pjmedia_endpoint
     cdef pj_pool_t *c_pool, *c_tonegen_pool
-    cdef pjmedia_snd_port *c_snd
     cdef pjmedia_port *c_tonegen
+    cdef unsigned int c_tonegen_slot
+    cdef pjmedia_snd_port *c_snd
     cdef list c_pb_in_slots, c_conv_in_slots
     cdef list c_all_out_slots, c_conv_out_slots
 
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, playback_dtmf):
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint):
         cdef int status
-        cdef unsigned int tonegen_slot
         self.c_pjsip_endpoint = pjsip_endpoint.c_obj
         self.c_pjmedia_endpoint = pjmedia_endpoint
         status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
@@ -1003,19 +1004,30 @@ cdef class PJMEDIAConferenceBridge:
         self.c_all_out_slots = [0]
         self.c_pb_in_slots = []
         self.c_conv_out_slots = []
-        if playback_dtmf:
-            self.c_tonegen_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "dtmf_tonegen", 4096, 4096)
-            if self.c_tonegen_pool == NULL:
-                raise MemoryError("Could not allocate memory pool")
-            status = pjmedia_tonegen_create(self.c_tonegen_pool, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_tonegen)
-            if status != 0:
-                pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
-                raise RuntimeError("Could not create DTMF tone generator: %s" % pj_status_to_str(status))
-            status = pjmedia_conf_add_port(self.c_obj, self.c_tonegen_pool, self.c_tonegen, NULL, &tonegen_slot)
-            if status != 0:
-                pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
-                raise RuntimeError("Could not connect DTMF tone generator to conference bridge: %s" % pj_status_to_str(status))
-            self._connect_playback_slot(tonegen_slot)
+
+    cdef int _enable_playback_dtmf(self) except -1:
+        self.c_tonegen_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "dtmf_tonegen", 4096, 4096)
+        if self.c_tonegen_pool == NULL:
+            raise MemoryError("Could not allocate memory pool")
+        status = pjmedia_tonegen_create(self.c_tonegen_pool, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_tonegen)
+        if status != 0:
+            pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
+            raise RuntimeError("Could not create DTMF tone generator: %s" % pj_status_to_str(status))
+        status = pjmedia_conf_add_port(self.c_obj, self.c_tonegen_pool, self.c_tonegen, NULL, &self.c_tonegen_slot)
+        if status != 0:
+            pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
+            raise RuntimeError("Could not connect DTMF tone generator to conference bridge: %s" % pj_status_to_str(status))
+        self._connect_playback_slot(self.c_tonegen_slot)
+        return 0
+
+    cdef int _disable_playback_dtmf(self) except -1:
+        self._disconnect_slot(self.c_tonegen_slot)
+        pjmedia_tonegen_stop(self.c_tonegen)
+        pjmedia_conf_remove_port(self.c_obj, self.c_tonegen_slot)
+        self.c_tonegen = NULL
+        pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
+        self.c_tonegen_pool = NULL
+        return 0
 
     cdef object _get_sound_devices(self, bint playback):
         cdef int i
@@ -1034,7 +1046,8 @@ cdef class PJMEDIAConferenceBridge:
 
     cdef int _set_sound_devices(self, int playback_index, int recording_index, unsigned int tail_length) except -1:
         cdef int status
-        self._destroy_snd_port(1)
+        if self.c_snd != NULL:
+            self._destroy_snd_port(1)
         self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError("Could not allocate memory pool")
@@ -1052,21 +1065,22 @@ cdef class PJMEDIAConferenceBridge:
         return 0
 
     cdef int _destroy_snd_port(self, int disconnect) except -1:
-        if self.c_snd != NULL:
-            if disconnect:
-                pjmedia_snd_port_disconnect(self.c_snd)
-            pjmedia_snd_port_destroy(self.c_snd)
-            self.c_snd = NULL
-            pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_pool)
-            self.c_pool = NULL
+        if disconnect:
+            pjmedia_snd_port_disconnect(self.c_snd)
+        pjmedia_snd_port_destroy(self.c_snd)
+        pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_pool)
+        self.c_snd = NULL
+        self.c_pool = NULL
+        return 0
 
     def __dealloc__(self):
         cdef unsigned int slot
-        self._destroy_snd_port(1)
+        if self.c_tonegen != NULL:
+            self._disable_playback_dtmf()
+        if self.c_snd != NULL:
+            self._destroy_snd_port(1)
         if self.c_obj != NULL:
             pjmedia_conf_destroy(self.c_obj)
-            if self.c_tonegen != NULL:
-                pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
 
     cdef int _change_ec_tail_length(self, unsigned int tail_length) except -1:
         cdef int status
@@ -1142,6 +1156,7 @@ cdef class PJMEDIAConferenceBridge:
                 pjmedia_conf_disconnect_port(self.c_obj, other_slot, slot)
             for other_slot in self.c_all_out_slots + self.c_conv_out_slots:
                 pjmedia_conf_disconnect_port(self.c_obj, slot, other_slot)
+        return 0
 
     cdef int _playback_dtmf(self, char digit) except -1:
         cdef pjmedia_tone_digit tone
@@ -1155,6 +1170,7 @@ cdef class PJMEDIAConferenceBridge:
         status = pjmedia_tonegen_play_digits(self.c_tonegen, 1, &tone, 0)
         if status != 0:
             raise RuntimeError("Could not playback DTMF tone: %s" % pj_status_to_str(status))
+        return 0
 
 
 cdef class SIPURI:
@@ -1386,8 +1402,10 @@ cdef class PJSIPUA:
         if status != 0:
             raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
         self.codecs = kwargs["codecs"]
-        self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["playback_dtmf"])
+        self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint)
         self.ec_tail_length = kwargs["ec_tail_length"]
+        if kwargs["playback_dtmf"]:
+            self.c_conf_bridge._enable_playback_dtmf()
         if kwargs["auto_sound"]:
             self.auto_set_sound_devices()
         self.c_module_name = PJSTR("mod-pypjua")
@@ -1556,6 +1574,19 @@ cdef class PJSIPUA:
             self.c_rtp_port_start = c_rtp_port_start
             self.c_rtp_port_stop = c_rtp_port_stop
             self.c_rtp_port_index = random.randrange(c_rtp_port_start, c_rtp_port_stop, 2) - 50
+
+    property playback_dtmf:
+
+        def __get__(self):
+            return self.c_conf_bridge.c_tonegen != NULL
+
+        def __set__(self, value):
+            if bool(value) == (self.c_conf_bridge.c_tonegen != NULL):
+                return
+            if bool(value):
+                self.c_conf_bridge._enable_playback_dtmf()
+            else:
+                self.c_conf_bridge._disable_playback_dtmf()
 
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
