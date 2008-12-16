@@ -1,13 +1,13 @@
 from eventlet.api import spawn, kill, sleep, GreenletExit
 
 from pypjua import SDPAttribute, SDPMedia, SDPSession, SDPConnection
-from pypjua.clients.im import MSRPSession, IncomingMSRPHandler, MSRPErrors, NoisyMSRPConnector, wait_for_incoming
+from pypjua.clients.im import MSRPSession, IncomingMSRPHandler, MSRPErrors, MSRPAcceptFactory, wait_for_incoming
 from pypjua.clients.im import IncomingSessionHandler, UserCommandError
 
 class JoinHandler(IncomingMSRPHandler):
 
-    def __init__(self, connector, local_ip, session_factory):
-        IncomingMSRPHandler.__init__(self, connector, local_ip, session_factory)
+    def __init__(self, acceptor, local_ip, session_factory):
+        IncomingMSRPHandler.__init__(self, acceptor, local_ip, session_factory)
 
     def is_acceptable(self, inv):
         if not IncomingMSRPHandler.is_acceptable(self, inv):
@@ -99,8 +99,8 @@ class ChatRoom:
     def _accept_incoming(self, e, relay):
         def new_session(sip, msrp):
             return MSRPSession(self, self.credentials, self.traffic_logger, sip, msrp)
-        connector = NoisyMSRPConnector(relay, self.traffic_logger)
-        handler1 = JoinHandler(connector, e.local_ip, new_session)
+        acceptor = MSRPAcceptFactory.new(relay, self.traffic_logger)
+        handler1 = JoinHandler(acceptor, e.local_ip, new_session)
         handler = IncomingSessionHandler()
         handler.add_handler(handler1)
         while True:

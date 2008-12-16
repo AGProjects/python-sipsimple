@@ -13,13 +13,15 @@ from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError, BindError, ConnectError
 
-from eventlet.api import spawn, kill, GreenletExit, sleep, timeout
+from eventlet.api import GreenletExit, sleep, timeout
 from eventlet.coros import Job
+
+from msrplib import MSRPError
+from msrplib.connect import MSRPConnectFactory, MSRPAcceptFactory, MSRPRelaySettings
+from msrplib import protocol as msrp_protocol
 
 from pypjua import *
 from pypjua.clients.lookup import lookup_srv
-from pypjua.clients import msrp_protocol
-from pypjua.msrplib import MSRPConnector, MSRPError
 from pypjua.clients.consolebuffer import CTRL_D
 from pypjua.clients.clientconfig import get_path
 from pypjua.enginebuffer import Ringer, SIPDisconnect, InvitationBuffer
@@ -159,7 +161,6 @@ class MSRPSession:
 
     def end_sip(self):
         "Close SIP session but keep everything else intact. For debugging."
-        #[caller, callee] x [:end sip, :end msrp]
         if self.sip:
             self.sip.cancel_call_on_disconnect(self._on_disconnect)
             self.sip.end()
@@ -171,7 +172,7 @@ class MSRPSession:
 
     def start_read_msrp(self):
         assert not self.read_msrp_job, self.read_msrp_job
-        self.read_msrp_job = Job(self._read_msrp)
+        self.read_msrp_job = Job.spawn_new(self._read_msrp)
 
     def stop_read_msrp(self):
         if self.read_msrp_job:
@@ -181,7 +182,7 @@ class MSRPSession:
         OK = False
         try:
             while self.msrp and self.msrp.connected:
-                message = self.msrp.recv_chunk()
+                message = self.msrp.receive_chunk()
                 if message.method == 'SEND':
                     self._on_message_received(message)
         except ConnectionDone, ex:
@@ -244,7 +245,7 @@ class ChatSession(MSRPSession):
 
     def start_invite(self, e, target_uri, route, relay):
         assert not self.invite_job, self.invite_job
-        self.invite_job = Job(self._invite, e, target_uri, route, relay)
+        self.invite_job = Job.spawn_new(self._invite, e, target_uri, route, relay)
 
     def stop_invite(self):
         if self.invite_job:
@@ -409,12 +410,11 @@ class SessionManager:
 
     def start_accept_incoming(self, e, relay):
         assert not self.accept_incoming_job, self.accept_incoming_job
-        self.accept_incoming_job = spawn(self._accept_incoming, e, relay)
+        self.accept_incoming_job = Job.spawn_new(self._accept_incoming, e, relay)
 
     def stop_accept_incoming(self):
         if self.accept_incoming_job:
-            kill(self.accept_incoming_job)
-            self.accept_incoming_job = None
+            self.accept_incoming_job.kill()
 
     def _accept_incoming(self, e, relay):
         handler = IncomingSessionHandler()
@@ -423,12 +423,12 @@ class SessionManager:
             return ChatSession(self, self.credentials, self.traffic_logger, sip, msrp)
         def new_receivefile_session(sip, msrp):
             return ReceiveFileSession(self, self.credentials, self.traffic_logger, sip, msrp)
-        connector = NoisyMSRPConnector(relay, self.traffic_logger)
-        file = IncomingFileTransferHandler(connector, e.local_ip, self.console,
+        acceptor = MSRPAcceptFactory.new(relay, self.traffic_logger)
+        file = IncomingFileTransferHandler(acceptor, e.local_ip, self.console,
                                            new_receivefile_session, inbound_ringer,
                                            auto_accept=self.auto_accept_files)
         handler.add_handler(file)
-        chat = IncomingChatHandler(connector, e.local_ip, self.console, new_chat_session, inbound_ringer)
+        chat = IncomingChatHandler(acceptor, e.local_ip, self.console, new_chat_session, inbound_ringer)
         handler.add_handler(chat)
         while True:
             try:
@@ -480,9 +480,9 @@ def make_msrp_sdp_media(uri_path, accept_types, accept_wrapped_types=None):
         transport = "TCP/MSRP"
     return SDPMedia("message", uri_path[-1].port, transport, formats=["*"], attributes=attributes)
 
-def invite(e, credentials, target_uri, route, relay, log_func, make_media_func):
-    msrp_connector = NoisyMSRPConnector(relay, log_func)
-    full_local_path = msrp_connector.outgoing_prepare()
+def invite(e, credentials, target_uri, route, relay, traffic_logger, make_media_func):
+    msrp_connector = MSRPConnectFactory.new(relay, traffic_logger)
+    full_local_path = msrp_connector.prepare()
     inv = e.Invitation(credentials, target_uri, route=route)
     local_sdp = SDPSession(e.local_ip, connection=SDPConnection(e.local_ip),
                            media=[make_media_func(full_local_path)])
@@ -503,9 +503,9 @@ def invite(e, credentials, target_uri, route, relay, log_func, make_media_func):
     if full_remote_path is None:
         raise RuntimeError("No MSRP URI path attribute found in remote SDP")
     print "MSRP session negotiated to: %s" % " ".join(remote_uri_path)
-    msrp_connector.outgoing_complete(full_remote_path)
+    msrp = msrp_connector.complete(full_remote_path)
     inv.remote_uri = inv.callee_uri
-    return inv, msrp_connector.msrp
+    return inv, msrp
 
 class SilentRinger:
 
@@ -520,7 +520,7 @@ def consult_user(inv, ask_func):
     If the user didn't accept it or any other error happened, shutdown
     inv with error response.
     """
-    asker = Job(ask_func, inv)
+    asker = Job.spawn_new(ask_func, inv)
     def killer(_params):
         asker.kill()
     inv.call_on_disconnect(killer) #
@@ -539,8 +539,8 @@ def consult_user(inv, ask_func):
 
 class IncomingMSRPHandler(object):
 
-    def __init__(self, connector, local_ip, session_factory=None): # XXX get rid of local_ip here
-        self.connector = connector
+    def __init__(self, acceptor, local_ip, session_factory=None): # XXX get rid of local_ip here
+        self.acceptor = acceptor
         self.local_ip = local_ip # XXX use msrp local ip when available. come up with something good when it's not
         if session_factory is not None:
             self.session_factory = session_factory
@@ -572,7 +572,7 @@ class IncomingMSRPHandler(object):
         try:
             remote_sdp = inv.get_offered_remote_sdp()
             full_remote_path = [msrp_protocol.parse_uri(uri) for uri in inv._attrdict['path'].split()]
-            full_local_path = self.connector.incoming_prepare()
+            full_local_path = self.acceptor.prepare()
             local_sdp = self.make_local_SDPSession(inv, full_local_path)
             inv.set_offered_local_sdp(local_sdp)
             try:
@@ -583,9 +583,9 @@ class IncomingMSRPHandler(object):
                 pass
             else:
                 inv.remote_uri = inv.caller_uri
-                self.connector.incoming_accept(full_remote_path)
+                msrp = self.acceptor.complete(full_remote_path)
                 ERROR = None
-                return self.connector.msrp
+                return msrp
         finally:
             if ERROR is not None:
                 inv.shutdown(ERROR)
@@ -598,8 +598,8 @@ class IncomingMSRPHandler_Interactive(IncomingMSRPHandler):
 
 class IncomingChatHandler(IncomingMSRPHandler_Interactive):
 
-    def __init__(self, connector, local_ip, console, session_factory, ringer=SilentRinger()):
-        IncomingMSRPHandler.__init__(self, connector, local_ip, session_factory)
+    def __init__(self, acceptor, local_ip, console, session_factory, ringer=SilentRinger()):
+        IncomingMSRPHandler.__init__(self, acceptor, local_ip, session_factory)
         self.console = console
         self.ringer = ringer
 
@@ -634,8 +634,8 @@ class IncomingChatHandler(IncomingMSRPHandler_Interactive):
 
 class IncomingFileTransferHandler(IncomingMSRPHandler_Interactive):
 
-    def __init__(self, connector, local_ip, console, session_factory, ringer=SilentRinger(), auto_accept=False):
-        IncomingMSRPHandler.__init__(self, connector, local_ip, session_factory)
+    def __init__(self, acceptor, local_ip, console, session_factory, ringer=SilentRinger(), auto_accept=False):
+        IncomingMSRPHandler.__init__(self, acceptor, local_ip, session_factory)
         self.console = console
         self.ringer = ringer
         self.auto_accept = auto_accept
@@ -700,28 +700,16 @@ class IncomingSessionHandler:
         inv.shutdown(488) # Not Acceptable Here
 
 
-class NoisyMSRPConnector(MSRPConnector):
-
-    def _relay_connect(self):
-        print 'Reserving session at MSRP relay %s:%d...' % (self.relay.host, self.relay.port)
-        msrp = MSRPConnector._relay_connect(self)
-        params = (msrp.getPeer().host, msrp.getPeer().port, str(msrp.local_path[0]))
-        print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % params
-        return msrp
-
-
-class RelaySettings:
-    "Container for MSRP relay settings"
-    def __init__(self, domain, host, port, username, password):
-        self.domain = domain
-        self.host = host
-        self.port = port
-        self.username = username
-        self.password = password
-
-    @property
-    def uri(self):
-        return msrp_protocol.URI(host=self.domain, port=self.port, use_tls=True)
+# class NoisyMSRPConnector(MSRPConnector):
+#
+#
+#     def _relay_connect(self):
+#         print 'Reserving session at MSRP relay %s:%d...' % (self.relay.host, self.relay.port)
+#         msrp = MSRPConnector._relay_connect(self)
+#         params = (msrp.getPeer().host, msrp.getPeer().port, str(msrp.local_path[0]))
+#         print 'Reserved session at MSRP relay %s:%d, Use-Path: %s' % params
+#         return msrp
+#
 
 def parse_outbound_proxy(option, opt_str, value, parser):
     try:
@@ -862,17 +850,16 @@ def parse_options(usage, description):
     if options.msrp_relay == 'srv':
         print 'Looking up MSRP relay %s...' % options.sip_address.domain
         host, port = lookup_srv(options.sip_address.domain, None, False, 2855, '_msrps._tcp')
-        options.relay = RelaySettings(options.sip_address.domain, host, port,
-                                      options.sip_address.username, options.password)
+        options.relay = MSRPRelaySettings(domain=options.sip_address.domain, host=host, port=port,
+                                          username=options.sip_address.username, password=options.password)
     elif options.msrp_relay == 'none':
         options.relay = None
     else:
         host, port, is_ip = options.msrp_relay
         print 'Looking up MSRP relay %s...' % host
         host, port = lookup_srv(host, port, is_ip, 2855, '_msrps._tcp')
-        options.relay = RelaySettings(options.sip_address.domain, host, port,
-                                      options.sip_address.username, options.password)
-
+        options.relay = MSRPRelaySettings(domain=options.sip_address.domain, host=host, port=port,
+                                          username=options.sip_address.username, password=options.password)
     if options.use_bonjour:
         options.route = None
     else:
