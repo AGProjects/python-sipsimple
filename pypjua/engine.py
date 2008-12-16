@@ -20,11 +20,11 @@ class Engine(object):
                              "sample_rate": 32,
                              "playback_dtmf": True,
                              "rtp_port_range": (40000, 40100),
-                             "initial_codecs": ["speex", "g711", "ilbc", "gsm", "g722"],
-                             "initial_events": {"presence": ["application/pidf+xml"],
-                                                "message-summary": ["application/simple-message-summary"],
-                                                "presence.winfo": ["application/watcherinfo+xml"],
-                                                "xcap-diff": ["application/xcap-diff+xml"]}}
+                             "codecs": ["speex", "g711", "ilbc", "gsm", "g722"],
+                             "events": {"presence": ["application/pidf+xml"],
+                                        "message-summary": ["application/simple-message-summary"],
+                                        "presence.winfo": ["application/watcherinfo+xml"],
+                                        "xcap-diff": ["application/xcap-diff+xml"]}}
 
     def __new__(cls, *args, **kwargs):
         if Engine._instance is None:

@@ -372,15 +372,15 @@ def do_subscribe(**kwargs):
         kwargs["route"] = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))[0]
     else:
         kwargs["route"] = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))[0]
-    initial_events = Engine.init_options_defaults["initial_events"]
+    events = Engine.init_options_defaults["events"]
     if kwargs['content_type'] is not None:
-        initial_events['presence'] = [kwargs['content_type']]
+        events['presence'] = [kwargs['content_type']]
 
     logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
 
-    e = Engine(event_handler, trace_sip=kwargs.pop('trace_sip'), auto_sound=False, initial_events=initial_events, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
+    e = Engine(event_handler, trace_sip=kwargs.pop('trace_sip'), auto_sound=False, events=events, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start()
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)

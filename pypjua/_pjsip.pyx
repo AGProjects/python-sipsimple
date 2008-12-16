@@ -1385,7 +1385,7 @@ cdef class PJSIPUA:
         status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
-        self.codecs = kwargs["initial_codecs"]
+        self.codecs = kwargs["codecs"]
         self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, kwargs["playback_dtmf"])
         self.ec_tail_length = kwargs["ec_tail_length"]
         if kwargs["auto_sound"]:
@@ -1421,7 +1421,7 @@ cdef class PJSIPUA:
         if status != 0:
             raise RuntimeError("Could not load events module: %s" % pj_status_to_str(status))
         self.c_user_agent_hdr = GenericStringHeader("User-Agent", kwargs["user_agent"])
-        for event, accept_types in kwargs["initial_events"].iteritems():
+        for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
         self.rtp_port_range = kwargs["rtp_port_range"]
         pj_stun_config_init(&self.c_stun_cfg, &self.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(self.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(self.c_pjsip_endpoint.c_obj))
