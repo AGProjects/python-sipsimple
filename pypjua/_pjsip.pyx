@@ -1438,7 +1438,7 @@ cdef class PJSIPUA:
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
         if status != 0:
             raise RuntimeError("Could not load events module: %s" % pj_status_to_str(status))
-        self.c_user_agent_hdr = GenericStringHeader("User-Agent", kwargs["user_agent"])
+        self.user_agent = kwargs["user_agent"]
         for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
         self.rtp_port_range = kwargs["rtp_port_range"]
@@ -1587,6 +1587,16 @@ cdef class PJSIPUA:
                 self.c_conf_bridge._enable_playback_dtmf()
             else:
                 self.c_conf_bridge._disable_playback_dtmf()
+
+    property user_agent:
+
+        def __get__(self):
+            return self.c_user_agent_hdr.hvalue
+
+        def __set__(self, value):
+            cdef GenericStringHeader user_agent_hdr
+            user_agent_hdr = GenericStringHeader("User-Agent", value)
+            self.c_user_agent_hdr = user_agent_hdr
 
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
