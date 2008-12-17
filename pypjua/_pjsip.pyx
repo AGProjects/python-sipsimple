@@ -51,6 +51,7 @@ cdef extern from "pjlib.h":
         PJ_LOG_HAS_MICRO_SEC
         PJ_LOG_HAS_SENDER
     void pj_log_set_decor(int decor)
+    int pj_log_get_level()
     void pj_log_set_level(int level)
     void pj_log_set_log_func(void func(int level, char_ptr_const data, int len))
 
@@ -891,7 +892,6 @@ cdef class PJSIPEndpoint:
             raise RuntimeError("Could not create TLS transport: %s" % pj_status_to_str(status))
         return 0
 
-
     cdef int _init_nameservers(self, nameservers) except -1:
         cdef int status
         cdef pj_str_t c_servers_str[PJ_DNS_RESOLVER_MAX_NS]
@@ -1389,7 +1389,7 @@ cdef class PJSIPUA:
         if kwargs["sample_rate"] not in [8, 16, 32]:
             raise RuntimeError("Sample rate should be one of 8, 16 or 32kHz")
         self.c_event_handler = event_handler
-        pj_log_set_level(PJ_LOG_MAX_LEVEL)
+        self.log_level = kwargs["log_level"]
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
         pj_log_set_log_func(cb_log)
         self.c_pjlib = PJLIB()
@@ -1597,6 +1597,16 @@ cdef class PJSIPUA:
             cdef GenericStringHeader user_agent_hdr
             user_agent_hdr = GenericStringHeader("User-Agent", value)
             self.c_user_agent_hdr = user_agent_hdr
+
+    property log_level:
+
+        def __get__(self):
+            return pj_log_get_level()
+
+        def __set__(self, value):
+            if value < 0 or value > PJ_LOG_MAX_LEVEL:
+                raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
+            pj_log_set_level(value)
 
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
