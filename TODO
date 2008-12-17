@@ -10,7 +10,6 @@ Python PJSIP bindings
 - Fix high CPU usage
 - Properly decrease reference counts of pjsip_tx_data structs
 - Split up .pyx file
-- Use STUN to determine and log the type of NAT we are behind (PJNATH_NAT_DETECT)
 - Add option to use the STUN response for Contact header (default false)
 - Fix remainig TODOs for PUBLISH/REGISTER
 - Make all init_options passed to PJSIPUA attributes, set local_ip at runtime
