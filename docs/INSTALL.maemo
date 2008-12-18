@@ -41,15 +41,11 @@ about obtaining the source code using darcs.
 Step 3. Install dependencies
 ----------------------------
 
-Login to Nokia tablet as root.
-
+Login to Nokia tablet as root. Format the memory card as ext3 file system
+and mount it under /media/mmc1. Create a work directory /media/mmc1/work.
 Make room on the root file system:
 
 rm /home/user/MyDocs/.videos/* /home/user/MyDocs/.sounds/*
-
-Format the memory card as ext3 file system and mount it under /media/mmc1.
-
-Create a work directory /media/mmc1/work. 
 
 Open Application manager, go to Tools and add the following repositories:
 
@@ -84,21 +80,6 @@ python-gnutls mercurial cython lxml
 easy_install -U py
 
 cd /media/mmc1/work
-
-# Install GNU grep required to compile lxml
-wget http://ftp.gnu.org/gnu/grep/grep-2.5.tar.gz
-tar zxvf grep-2.5.tar.gz
-cd grep-2.5
-./configure
-make install
-cd ..
-
-# Download and install lxml python module
-curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta1.tar.gz
-tar -xzvf lxml-2.2beta1.tar.gz
-cd lxml-2.2beta1
-python setup.py install --static-deps
-cd ..
 
 # Download and install xcaplib
 wget http://download.ag-projects.com/OpenXCAP/clients/python-xcaplib_1.0.8.tar.gz
