@@ -6,3 +6,4 @@ include MANIFEST.in config.ini.sample AUTHORS LICENSE build_inplace Changelog
 recursive-include pypjua _pjsip.pyx Makefile
 recursive-include scripts *.wav
 recursive-include pypjua/applications/xml-schemas *.xsd
+recursive-include patches *.patch
