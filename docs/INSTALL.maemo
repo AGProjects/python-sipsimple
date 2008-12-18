@@ -2,6 +2,8 @@
 Installation procedure for SIP SIMPLE client on Nokia 810 (Maemo)
 -----------------------------------------------------------------
 
+This is work in progress, the software does not run yet 100% on the device.
+
 The installation procedure includes 5 steps described below:
 
 Step 1. Prerequisites
@@ -12,34 +14,8 @@ Step 5. Build and install SIP SIMPLE client
 
 Notes:
 
-1. SIP signalling and presence work.
-2. Instant Messaging (IM) functionality based on MSRP requires pylib, which
-curently does not compile yet on ARM processor:
-
-Nokia-N810-36-5:/media/mmc1/work/sipclient-0.2.3# easy_install -U py
-Searching for py
-Reading http://pypi.python.org/simple/py/
-Reading http://pylib.org
-Reading http://codespeak.net/py/0.9.2/download.html
-Reading http://codespeak.net/py
-Reading http://pypi.python.org/simple/py/XXX
-Best match: py 0.9.2
-Downloading http://pypi.python.org/packages/source/p/py/py-0.9.2.zip#md5=8447b2ba4c7b4062fcd08aab33
-Processing py-0.9.2.zip
-Running py-0.9.2/setup.py -q bdist_egg --dist-dir /var/tmp/easy_install-7Yb7nC/py-0.9.2/egg-dist-tm
-py/c-extension/greenlet/greenlet.c:254:2: #error "greenlet needs to be ported to this platform, or
-py/c-extension/greenlet/greenlet.c: In function `initgreenlet':
-py/c-extension/greenlet/greenlet.c:907: error: `slp_switch' undeclared (first use in this function)
-py/c-extension/greenlet/greenlet.c:907: error: (Each undeclared identifier is reported only once
-py/c-extension/greenlet/greenlet.c:907: error: for each function it appears in.)
-py/c-extension/greenlet/greenlet.c: At top level:
-py/c-extension/greenlet/greenlet.c:195: warning: 'slp_restore_state' defined but not used
-py/c-extension/greenlet/greenlet.c:212: warning: 'slp_save_state' defined but not used
-error: Setup script exited with error: command 'gcc' failed with exit status 1
-
-3. Getting audio to work requires modifications to the audio driver. A
-patch exists for an older version of maemo and pjsip, it needs to be
-re-worked.
+Getting audio to work requires modifications to the audio driver. A patch
+exists for an older version of maemo and pjsip, it needs to be re-worked.
 
 http://lists.pjsip.org/pipermail/pjsip_lists.pjsip.org/2008-April/002350.html
 
@@ -48,14 +24,6 @@ Step 1. Prerequisites
 ---------------------
 
 Nokia tablet N810 with Maemo 4.1 (Diablo) installed.
-
-Using the web browser on the Nokia tablet, install the Diablo extras and
-debfarm catalogues referenced from:
-
-http://www.gronmayer.com/it/index.php
-
-If you cannot find a package that needs to be installed at next step you
-should come back here to find which repository contains it.
 
 
 Step 2. Obtain the latest SIP SIMPLE client source code
@@ -75,23 +43,78 @@ Step 3. Install dependencies
 
 Login to Nokia tablet as root.
 
-apt-get install libc6-dev subversion python2.5-cython python2.5-libxml2 \
-libxslt1-dev zlib1g-dev flash-and-reboot initfs-flasher python2.5-setuptools \
-kernel-diablo-flasher libasound2-dev libgnutls26 libgnutls-dev
+Make room on the root file system:
 
-easy_install -U dnspython
-easy_install -U python-application
-easy_install -U twisted
-easy_install -U lxml
+rm /home/user/MyDocs/.videos/* /home/user/MyDocs/.sounds/*
+
+Format the memory card as ext3 file system and mount it under /media/mmc1.
+
+Create a work directory /media/mmc1/work. 
+
+Open Application manager, go to Tools and add the following repositories:
+
+Catalogue name: Chinook extras
+Web address: http://repository.maemo.org/extras/
+Distribution: chinook
+Components: free non-free
+
+Catalogue name: Diablo sdk  
+Web address: http://repository.maemo.org/       
+Distribution: diablo/sdk 
+Components: free non-free
+
+Catalogue name: Diablo extras devel
+Web address: http://repository.maemo.org/extras-devel/
+Distribution: diablo    
+Components: free non-free
+
+Catalogue name = Diablo extras     
+Web address: http://repository.maemo.org/extras/      
+Distribution: diablo
+Components: free non-free
+
+
+apt-get install wget gcc make libc6-dev python2.5-setuptools subversion \
+libgnutls26 libgnutls-dev libasound2-dev patch openssl libssl-dev libxslt1-dev
+
+easy_install -U setuptools twisted dnspython python-application \
+python-gnutls mercurial cython lxml
+
+# Next next command fails (because greenlet does not yet compile for ARM):
 easy_install -U py
-easy_install -U python-gnutls
-easy_install -U mercurial
 
-Install the python-xcaplib library from:
-http://download.ag-projects.com/OpenXCAP/clients/
+cd /media/mmc1/work
+
+# Install GNU grep required to compile lxml
+wget http://ftp.gnu.org/gnu/grep/grep-2.5.tar.gz
+tar zxvf grep-2.5.tar.gz
+cd grep-2.5
+./configure
+make install
+cd ..
+
+# Download and install lxml python module
+curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta1.tar.gz
+tar -xzvf lxml-2.2beta1.tar.gz
+cd lxml-2.2beta1
+python setup.py install --static-deps
+cd ..
+
+# Download and install xcaplib
+wget http://download.ag-projects.com/OpenXCAP/clients/python-xcaplib_1.0.8.tar.gz
+tar zxvf python-xcaplib_1.0.8.tar.gz
 cd  python-xcaplib
 python setup.py install
+cd ..
 
+# Download and install msrplib
+wget http://download.ag-projects.com/MSRPRelay/python-msrplib-0.0.1.tar.gz
+tar zxvf python-msrplib-0.0.1.tar.gz
+cd python-msrplib-0.0.1
+python setup.py install
+cd ..
+
+# Download and install eventlet twisted
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 python setup.py install
@@ -100,37 +123,32 @@ python setup.py install
 Step 4. Compile PJSIP C library
 -------------------------------
 
+Go to the main project directory and download/update the PJSIP project under
+pjsip directory.
+
 cd sipsimpleclient
-
-Check out the PJSIP project under the main software directory. It will
-expand under pjsip directory.
-
-svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
-
-If you have obtained the svn sources already you can update them using svn 
-update command.                                                         
-
-cd pjsip
-svn update
-
-Go to the PJSIP directory and compile it (after changing the UDP message limit to 64K):
-
-cd pjsip
-grep  PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
+if [ -d pjsip ]; then
+        cd pjsip
+        svn update
+else
+        svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
+        cd pjsip
+        ([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN
+        pjlib/include/pj/config_site.h >/dev/null) || echo '#define
+        PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
+        patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
+fi
 make distclean
-patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
 CFLAGS="-fPIC" ./configure
 make
+cd ..
 
 
 Step 5. Build and install SIP SIMPLE client
 -------------------------------------------
 
-Go to the main pypjua directory and build the library by running:
+Go to the main project directory and build the library:
 
-sh ./build_inplace
-
-Install the library and comand line tools:
-
+touch pypjua/_pjsip.pyx
 sudo python setup.py install
 

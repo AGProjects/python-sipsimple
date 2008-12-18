@@ -73,9 +73,9 @@ sudo make install
 cd ..
 
 # Download and install lxml python module
-curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2alpha1.tar.gz
-tar -xzvf lxml-2.2alpha1.tar.gz
-cd lxml-2.2alpha1
+curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta1.tar.gz
+tar -xzvf lxml-2.2beta1.tar.gz
+cd lxml-2.2beta1
 sudo python setup.py install --static-deps
 cd ..
 
@@ -150,6 +150,5 @@ Step 5. Build and install SIP SIMPLE client
 Go to the main project directory and build the library:
 
 touch pypjua/_pjsip.pyx
-sh ./build_inplace
 sudo python setup.py install
 
