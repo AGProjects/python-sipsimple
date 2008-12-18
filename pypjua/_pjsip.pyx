@@ -1578,9 +1578,11 @@ cdef class PJSIPUA:
     property playback_dtmf:
 
         def __get__(self):
+            self.c_check_self()
             return self.c_conf_bridge.c_tonegen != NULL
 
         def __set__(self, value):
+            self.c_check_self()
             if bool(value) == (self.c_conf_bridge.c_tonegen != NULL):
                 return
             if bool(value):
@@ -1591,9 +1593,11 @@ cdef class PJSIPUA:
     property user_agent:
 
         def __get__(self):
+            self.c_check_self()
             return self.c_user_agent_hdr.hvalue
 
         def __set__(self, value):
+            self.c_check_self()
             cdef GenericStringHeader user_agent_hdr
             user_agent_hdr = GenericStringHeader("User-Agent", value)
             self.c_user_agent_hdr = user_agent_hdr
@@ -1601,9 +1605,11 @@ cdef class PJSIPUA:
     property log_level:
 
         def __get__(self):
+            self.c_check_self()
             return pj_log_get_level()
 
         def __set__(self, value):
+            self.c_check_self()
             if value < 0 or value > PJ_LOG_MAX_LEVEL:
                 raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
             pj_log_set_level(value)
