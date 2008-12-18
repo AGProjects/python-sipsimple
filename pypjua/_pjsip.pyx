@@ -3333,7 +3333,7 @@ cdef class RTPTransport:
             ua = c_get_ua()
         except RuntimeError:
             return
-        if self.state == "ESTABLISHED":
+        if self.state in ["LOCAL", "ESTABLISHED"]:
             pjmedia_transport_media_stop(self.c_obj)
         if self.c_obj != NULL:
             pjmedia_transport_close(self.c_obj)
@@ -3432,6 +3432,8 @@ cdef class RTPTransport:
     def set_LOCAL(self, SDPSession local_sdp, unsigned int sdp_index):
         if local_sdp is None:
             raise RuntimeError("local_sdp argument cannot be None")
+        if self.state == "LOCAL":
+            return
         if self.state != "INIT":
             raise RuntimeError('set_LOCAL can only be called in the "INIT" state')
         local_sdp._to_c()
@@ -3443,6 +3445,8 @@ cdef class RTPTransport:
         cdef PJSIPUA = c_get_ua()
         if None in [local_sdp, remote_sdp]:
             raise RuntimeError("SDP arguments cannot be None")
+        if self.state == "ESTABLISHED":
+            return
         if self.state not in ["INIT", "LOCAL"]:
             raise RuntimeError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states')
         local_sdp._to_c()
@@ -3459,6 +3463,19 @@ cdef class RTPTransport:
             self.remote_rtp_address_sdp = remote_sdp.media[sdp_index].connection.address
         self.remote_rtp_port_sdp = remote_sdp.media[sdp_index].port
         self.state = "ESTABLISHED"
+
+    def set_INIT(self):
+        cdef int status
+        if self.state == "INIT":
+            return
+        if self.state not in ["LOCAL", "ESTABLISHED"]:
+            raise RuntimeError('set_INIT can only be called in the "LOCAL" and "ESTABLISHED" states')
+        status = pjmedia_transport_media_stop(self.c_obj)
+        if status != 0:
+            raise RuntimeError("Could not stop media transport: %s" % pj_status_to_str(status))
+        self.remote_rtp_address_sdp = None
+        self.remote_rtp_port_sdp = None
+        self.state = "INIT"
 
 
 cdef void cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil:
@@ -3530,6 +3547,7 @@ cdef class AudioTransport:
             self.stop()
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+        self.transport.set_INIT()
 
     property is_active:
 
