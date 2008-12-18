@@ -389,7 +389,7 @@ class InvitationBuffer(BaseBuffer):
 
     def log_ringing(self, params):
         agent = params.get('headers', {}).get('User-Agent', '')
-        contact = params.get('headers', {}).get('Contact', '')
+        contact = str(params.get('headers', {}).get('Contact', [['']])[0][0])
         if agent:
             contact += ' (%s)' % agent
         self.logger.write('Ringing from %s' % contact)
