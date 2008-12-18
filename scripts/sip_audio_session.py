@@ -10,6 +10,7 @@ import select
 import termios
 import signal
 import datetime
+import random
 from thread import start_new_thread, allocate_lock
 from threading import Thread
 from Queue import Queue
@@ -39,11 +40,14 @@ class GeneralConfig(ConfigSection):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "use_ice": datatypes.Boolean, "use_stun_for_ice": datatypes.Boolean, "stun_servers": datatypes.StringList}
     sip_address = None
     password = None
     display_name = None
     outbound_proxy = None
+    use_ice = False
+    use_stun_for_ice = False
+    stun_servers = []
 
 
 class SRTPOptions(dict):
@@ -137,7 +141,7 @@ class RingingThread(Thread):
             sleep(5)
 
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, disable_sound, do_trace_pjsip, use_bonjour):
+def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, disable_sound, do_trace_pjsip, use_bonjour, stun_servers, transport):
     global user_quit, lock, queue
     lock.acquire()
     inv = None
@@ -153,8 +157,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
             credentials = Credentials(sip_uri, password)
-            stun_servers = lookup_service_for_sip_uri(sip_uri, "stun")
-            if stun_servers:
+            if len(stun_servers) > 0:
                 e.detect_nat_type(*stun_servers[0])
         if target_uri is None:
             if use_bonjour:
@@ -169,7 +172,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
         else:
             inv = Invitation(credentials, target_uri, route=route)
             print "Call from %s to %s through proxy %s:%s:%d" % (inv.caller_uri, inv.callee_uri, route.transport, route.host, route.port)
-            audio = AudioTransport(RTPTransport(e.local_ip, **AudioConfig.encryption))
+            audio = AudioTransport(transport)
             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
             inv.set_state_CALLING()
             print "Press Ctrl-d to quit, h to hang-up, r to record, SPACE to hold, < and > to adjust the echo cancellation"
@@ -352,7 +355,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             want_quit = False
                         elif data.lower() == "y":
                             remote_sdp = inv.get_offered_remote_sdp()
-                            audio = AudioTransport(RTPTransport(e.local_ip, **AudioConfig.encryption), remote_sdp, 0)
+                            audio = AudioTransport(transport, remote_sdp, 0)
                             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(False)], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time))
                             inv.set_state_CONNECTING()
                 if data in ",<":
@@ -399,6 +402,7 @@ def do_invite(**kwargs):
     ctrl_d_pressed = False
     do_trace_pjsip = kwargs["do_trace_pjsip"]
     outbound_proxy = kwargs.pop("outbound_proxy")
+    kwargs["stun_servers"] = lookup_service_for_sip_uri(SIPURI(host=kwargs["domain"]), "stun")
     if kwargs["use_bonjour"]:
         kwargs["route"] = None
     else:
@@ -412,8 +416,40 @@ def do_invite(**kwargs):
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     
-    e = Engine(event_handler, trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
+    e = Engine(event_handler, trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], auto_sound=not kwargs["disable_sound"], local_ip=kwargs["local_ip"], local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start()
+    transport_kwargs = AudioConfig.encryption.copy()
+    transport_kwargs["use_ice"] = AccountConfig.use_ice
+    wait_for_stun = False
+    if AccountConfig.use_stun_for_ice:
+        if len(AccountConfig.stun_servers) > 0:
+            wait_for_stun = True
+            try:
+                random_stun = random.choice(AccountConfig.stun_servers)
+                transport_kwargs["ice_stun_address"], ice_stun_port = random_stun.split(":")
+            except:
+                transport_kwargs["ice_stun_address"] = random_stun
+                transport_kwargs["ice_stun_port"] = 3478
+            else:
+                transport_kwargs["ice_stun_port"] = int(ice_stun_port)
+        else:
+            if len(kwargs["stun_servers"]) > 0:
+                wait_for_stun = True
+                transport_kwargs["ice_stun_address"], transport_kwargs["ice_stun_port"] = random.choice(kwargs["stun_servers"])
+    kwargs["transport"] = RTPTransport(kwargs.pop("local_ip"), **transport_kwargs)
+    if wait_for_stun:
+        print "Waiting for STUN response for ICE from %s:%d" % (transport_kwargs["ice_stun_address"], transport_kwargs["ice_stun_port"])
+        while True:
+            command, data = queue.get()
+            if command == "print":
+                print data
+            elif command == "pypjua_event":
+                event_name, args = data
+                if event_name == "RTPTransport_init":
+                    if args["succeeded"]:
+                        break
+                    else:
+                        raise RuntimeError("STUN request failed")
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
     try:
