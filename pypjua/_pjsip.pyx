@@ -13,6 +13,7 @@ cdef extern from "string.h":
 cdef extern from "sys/errno.h":
     enum:
         EADDRINUSE
+        EBADF
 
 # PJSIP imports
 
@@ -555,6 +556,7 @@ cdef extern from "pjsip.h":
         pjsip_host_port local_name
     struct pjsip_tpfactory:
         pjsip_host_port addr_name
+        int destroy(pjsip_tpfactory *factory)
     struct pjsip_tls_setting:
         pj_str_t ca_list_file
         int verify_server
@@ -564,6 +566,7 @@ cdef extern from "pjsip.h":
     int pjsip_tcp_transport_start2(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned int async_cnt, pjsip_tpfactory **p_tpfactory)
     int pjsip_tls_transport_start(pjsip_endpoint *endpt, pjsip_tls_setting *opt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned async_cnt, pjsip_tpfactory **p_factory)
     void pjsip_tls_setting_default(pjsip_tls_setting *tls_opt)
+    int pjsip_transport_shutdown(pjsip_transport *tp)
 
     # transaction layer
     enum pjsip_role_e:
@@ -809,11 +812,12 @@ cdef class PJSIPEndpoint:
     cdef pjsip_transport *c_udp_transport
     cdef pjsip_tpfactory *c_tcp_transport
     cdef pjsip_tpfactory *c_tls_transport
+    cdef int c_tls_verify_server
+    cdef PJSTR c_tls_ca_file
+    cdef object c_local_ip_used
 
     def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file):
         cdef int status
-        if local_udp_port is None and local_tcp_port is None and local_tls_port is None:
-            raise RuntimeError("At least one active transport is needed")
         status = pjsip_endpt_create(&caching_pool.c_obj.factory, "pypjua",  &self.c_obj)
         if status != 0:
             raise RuntimeError("Could not initialize PJSIP endpoint: %s" % pj_status_to_str(status))
@@ -838,12 +842,16 @@ cdef class PJSIPEndpoint:
         status = pjsip_inv_usage_init(self.c_obj, &_inv_cb)
         if status != 0:
             raise RuntimeError("Could not initialize invitation module: %s" % pj_status_to_str(status))
+        self.c_local_ip_used = local_ip
         if local_udp_port is not None:
-            self._start_udp_transport(local_ip, local_udp_port)
+            self._start_udp_transport(local_udp_port)
         if local_tcp_port is not None:
-            self._start_tcp_transport(local_ip, local_tcp_port)
+            self._start_tcp_transport(local_tcp_port)
+        self.c_tls_verify_server = int(tls_verify_server)
+        if tls_ca_file is not None:
+            self.c_tls_ca_file = PJSTR(tls_ca_file)
         if local_tls_port is not None:
-            self._start_tls_transport(local_ip, local_tls_port, int(tls_verify_server), tls_ca_file)
+            self._start_tls_transport(local_tls_port)
         if nameservers:
             self._init_nameservers(nameservers)
 
@@ -861,35 +869,50 @@ cdef class PJSIPEndpoint:
             raise RuntimeError("Could not create local address: %s" % pj_status_to_str(status))
         return 0
 
-    cdef int _start_udp_transport(self, object local_ip, int local_port) except -1:
+    cdef int _start_udp_transport(self, int local_port) except -1:
         cdef pj_sockaddr_in local_addr
-        self._make_local_addr(&local_addr, local_ip, local_port)
+        self._make_local_addr(&local_addr, self.c_local_ip_used, local_port)
         status = pjsip_udp_transport_start(self.c_obj, &local_addr, NULL, 1, &self.c_udp_transport)
         if status != 0:
             raise RuntimeError("Could not create UDP transport: %s" % pj_status_to_str(status))
         return 0
 
-    cdef int _start_tcp_transport(self, object local_ip, int local_port) except -1:
+    cdef int _stop_udp_transport(self) except -1:
+        pjsip_transport_shutdown(self.c_udp_transport)
+        self.c_udp_transport = NULL
+        return 0
+
+    cdef int _start_tcp_transport(self, int local_port) except -1:
         cdef pj_sockaddr_in local_addr
-        self._make_local_addr(&local_addr, local_ip, local_port)
+        self._make_local_addr(&local_addr, self.c_local_ip_used, local_port)
         status = pjsip_tcp_transport_start2(self.c_obj, &local_addr, NULL, 1, &self.c_tcp_transport)
         if status != 0:
             raise RuntimeError("Could not create TCP transport: %s" % pj_status_to_str(status))
         return 0
 
-    cdef int _start_tls_transport(self, object local_ip, int local_port, int tls_verify_server, object tls_ca_file) except -1:
+    cdef int _stop_tcp_transport(self) except -1:
+        self.c_tcp_transport.destroy(self.c_tcp_transport)
+        self.c_tcp_transport = NULL
+        return 0
+
+    cdef int _start_tls_transport(self, local_port) except -1:
         cdef pj_sockaddr_in local_addr
         cdef pjsip_tls_setting tls_setting
-        self._make_local_addr(&local_addr, local_ip, local_port)
+        self._make_local_addr(&local_addr, self.c_local_ip_used, local_port)
         pjsip_tls_setting_default(&tls_setting)
-        if tls_ca_file is not None:
-            str_to_pj_str(tls_ca_file, &tls_setting.ca_list_file)
-        tls_setting.verify_server = tls_verify_server
         tls_setting.timeout.sec = 1 # This value needs to be reasonably low, as TLS negotiation hogs the PJSIP polling loop
         tls_setting.timeout.msec = 0
+        if self.c_tls_ca_file is not None:
+            tls_setting.ca_list_file = self.c_tls_ca_file.pj_str
+        tls_setting.verify_server = self.c_tls_verify_server
         status = pjsip_tls_transport_start(self.c_obj, &tls_setting, &local_addr, NULL, 1, &self.c_tls_transport)
         if status != 0:
             raise RuntimeError("Could not create TLS transport: %s" % pj_status_to_str(status))
+        return 0
+
+    cdef int _stop_tls_transport(self) except -1:
+        self.c_tls_transport.destroy(self.c_tls_transport)
+        self.c_tls_transport = NULL
         return 0
 
     cdef int _init_nameservers(self, nameservers) except -1:
@@ -911,6 +934,12 @@ cdef class PJSIPEndpoint:
             raise RuntimeError("Could not set DNS resolver at endpoint: %s" % pj_status_to_str(status))
 
     def __dealloc__(self):
+        if self.c_udp_transport != NULL:
+            self._stop_udp_transport()
+        if self.c_tcp_transport != NULL:
+            self._stop_tcp_transport()
+        if self.c_tls_transport != NULL:
+            self._stop_tls_transport()
         if self.c_obj != NULL:
             pjsip_endpt_destroy(self.c_obj)
 
@@ -1527,8 +1556,10 @@ cdef class PJSIPUA:
                 return pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host)
             elif self.c_pjsip_endpoint.c_tcp_transport != NULL:
                 return pj_str_to_str(self.c_pjsip_endpoint.c_tcp_transport.addr_name.host)
-            else:
+            elif self.c_pjsip_endpoint.c_tls_transport != NULL:
                 return pj_str_to_str(self.c_pjsip_endpoint.c_tls_transport.addr_name.host)
+            else:
+                return None
 
     property local_udp_port:
 
@@ -1538,6 +1569,28 @@ cdef class PJSIPUA:
                 return None
             return self.c_pjsip_endpoint.c_udp_transport.local_name.port
 
+    def set_local_udp_port(self, value):
+        cdef int port
+        cdef int old_port = -1
+        self.c_check_self()
+        if value is None:
+            if self.c_pjsip_endpoint.c_udp_transport == NULL:
+                return
+            self.c_pjsip_endpoint._stop_udp_transport()
+        else:
+            port = value
+            if self.c_pjsip_endpoint.c_udp_transport != NULL:
+                old_port = self.c_pjsip_endpoint.c_udp_transport.local_name.port
+                if old_port == value:
+                    return
+                self.c_pjsip_endpoint._stop_udp_transport()
+            try:
+                self.c_pjsip_endpoint._start_udp_transport(port)
+            except RuntimeError:
+                if old_port == -1:
+                    raise
+                self.c_pjsip_endpoint._start_udp_transport(old_port)
+
     property local_tcp_port:
 
         def __get__(self):
@@ -1546,6 +1599,28 @@ cdef class PJSIPUA:
                 return None
             return self.c_pjsip_endpoint.c_tcp_transport.addr_name.port
 
+    def set_local_tcp_port(self, value):
+        cdef int port
+        cdef int old_port = -1
+        self.c_check_self()
+        if value is None:
+            if self.c_pjsip_endpoint.c_tcp_transport == NULL:
+                return
+            self.c_pjsip_endpoint._stop_tcp_transport()
+        else:
+            port = value
+            if self.c_pjsip_endpoint.c_tcp_transport != NULL:
+                old_port = self.c_pjsip_endpoint.c_tcp_transport.addr_name.port
+                if old_port == value:
+                    return
+                self.c_pjsip_endpoint._stop_tcp_transport()
+            try:
+                self.c_pjsip_endpoint._start_tcp_transport(port)
+            except RuntimeError:
+                if old_port == -1:
+                    raise
+                self.c_pjsip_endpoint._start_tcp_transport(old_port)
+
     property local_tls_port:
 
         def __get__(self):
@@ -1553,6 +1628,28 @@ cdef class PJSIPUA:
             if self.c_pjsip_endpoint.c_tls_transport == NULL:
                 return None
             return self.c_pjsip_endpoint.c_tls_transport.addr_name.port
+
+    def set_local_tls_port(self, value):
+        cdef int port
+        cdef int old_port = -1
+        self.c_check_self()
+        if value is None:
+            if self.c_pjsip_endpoint.c_tls_transport == NULL:
+                return
+            self.c_pjsip_endpoint._stop_tls_transport()
+        else:
+            port = value
+            if self.c_pjsip_endpoint.c_tls_transport != NULL:
+                old_port = self.c_pjsip_endpoint.c_tls_transport.addr_name.port
+                if old_port == value:
+                    return
+                self.c_pjsip_endpoint._stop_tls_transport()
+            try:
+                self.c_pjsip_endpoint._start_tls_transport(port)
+            except RuntimeError:
+                if old_port == -1:
+                    raise
+                self.c_pjsip_endpoint._start_tls_transport(old_port)
 
     property rtp_port_range:
 
@@ -1613,6 +1710,49 @@ cdef class PJSIPUA:
             if value < 0 or value > PJ_LOG_MAX_LEVEL:
                 raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
             pj_log_set_level(value)
+
+    property tls_verify_server:
+
+        def __get__(self):
+            self.c_check_self()
+            return bool(self.c_pjsip_endpoint.c_tls_verify_server)
+
+    def set_tls_verify_server(self, value):
+        cdef int local_tls_port
+        cdef int tls_verify_server = int(value)
+        self.c_check_self()
+        if bool(tls_verify_server) == bool(self.c_pjsip_endpoint.c_tls_verify_server):
+            return
+        self.c_pjsip_endpoint.c_tls_verify_server = tls_verify_server
+        if self.c_pjsip_endpoint.c_tls_transport != NULL:
+            local_tls_port = self.c_pjsip_endpoint.c_tls_transport.addr_name.port
+            self.c_pjsip_endpoint._stop_tls_transport()
+            self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
+
+    property tls_ca_file:
+
+        def __get__(self):
+            self.c_check_self()
+            return self.c_pjsip_endpoint.c_tls_ca_file and self.c_pjsip_endpoint.c_tls_ca_file.str or None
+
+    def set_tls_ca_file(self, value):
+        cdef int local_tls_port
+        cdef PJSTR old_tls_ca_file = self.c_pjsip_endpoint.c_tls_ca_file
+        self.c_check_self()
+        if (value is None and old_tls_ca_file is None) or (old_tls_ca_file is not None and old_tls_ca_file.str == value):
+            return
+        if value is None:
+            self.c_pjsip_endpoint.c_tls_ca_file = None
+        else:
+            self.c_pjsip_endpoint.c_tls_ca_file = PJSTR(value)
+        if self.c_pjsip_endpoint.c_tls_transport != NULL:
+            local_tls_port = self.c_pjsip_endpoint.c_tls_transport.addr_name.port
+            self.c_pjsip_endpoint._stop_tls_transport()
+            try:
+                self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
+            except RuntimeError:
+                self.c_pjsip_endpoint.c_tls_ca_file = old_tls_ca_file
+                self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
 
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
@@ -1687,8 +1827,12 @@ cdef class PJSIPUA:
         self.c_check_self()
         with nogil:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &self.c_max_timeout)
-        if status != 0:
-            raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
+        IF UNAME_SYSNAME == "Darwin":
+            if status not in [0, PJ_ERRNO_START_SYS + EBADF]:
+                raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
+        ELSE:
+            if status != 0:
+                raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
         self._poll_log()
 
     cdef int c_check_self(self) except -1:
