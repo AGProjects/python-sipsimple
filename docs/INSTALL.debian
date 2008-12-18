@@ -45,7 +45,8 @@ You need the following packages before trying to build a debian package:
 
 sudo apt-get install subversion devscripts python-dnspython \
 python-setuptools python-lxml cython python-application python-twisted \
-build-essential libasound2-dev cdbs debhelper python-all-dev python-support
+build-essential libasound2-dev cdbs debhelper python-all-dev python-support \
+libssl-dev
 
 You must have cython version >=0.9.1 installed. If your Linux distribution
 has an older version, upgrade it using python setuptools:

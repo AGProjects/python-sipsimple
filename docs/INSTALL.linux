@@ -18,7 +18,8 @@ Linux OS, both i386 or amd64 architectures are supported.
 
 Install the C compiling environment, python 2.5 and the following packages:
 
-gnutls >=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24, python-setuptools =>0.6c9
+openssl, gnutls >=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24,
+python-setuptools =>0.6c9
 
 Install subversion, mercurial and darcs version control tools. 
 
