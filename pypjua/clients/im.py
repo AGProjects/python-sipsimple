@@ -12,6 +12,7 @@ from ConfigParser import NoSectionError
 from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
 from twisted.internet.error import ConnectionDone, ConnectionClosed, DNSLookupError, BindError, ConnectError
+from twisted.names.srvconnect import SRVConnector
 
 from eventlet.api import GreenletExit, sleep, timeout
 from eventlet.coros import Job
@@ -699,6 +700,15 @@ class IncomingSessionHandler:
                 return handler.handle(inv)
         inv.shutdown(488) # Not Acceptable Here
 
+class NoisySRVConnector(SRVConnector):
+
+    def pickServer(self):
+        host, port = SRVConnector.pickServer(self)
+        print 'Resolved _%s._%s.%s --> %s:%s' % (self.service, self.protocol, self.domain, host, port)
+        return host, port
+
+from msrplib.connect import ConnectBase
+ConnectBase.SRVConnectorClass = NoisySRVConnector
 
 # class NoisyMSRPConnector(MSRPConnector):
 #
@@ -848,18 +858,17 @@ def parse_options(usage, description):
         else:
             options.msrp_relay = 'none'
     if options.msrp_relay == 'srv':
-        print 'Looking up MSRP relay %s...' % options.sip_address.domain
-        host, port = lookup_srv(options.sip_address.domain, None, False, 2855, '_msrps._tcp')
-        options.relay = MSRPRelaySettings(domain=options.sip_address.domain, host=host, port=port,
+        options.relay = MSRPRelaySettings(domain=options.sip_address.domain,
                                           username=options.sip_address.username, password=options.password)
     elif options.msrp_relay == 'none':
         options.relay = None
     else:
-        host, port, is_ip = options.msrp_relay
-        print 'Looking up MSRP relay %s...' % host
-        host, port = lookup_srv(host, port, is_ip, 2855, '_msrps._tcp')
-        options.relay = MSRPRelaySettings(domain=options.sip_address.domain, host=host, port=port,
-                                          username=options.sip_address.username, password=options.password)
+        if is_ip or port is not None:
+            options.relay = MSRPRelaySettings(domain=options.sip_address.domain, host=host, port=port,
+                                              username=options.sip_address.username, password=options.password)
+        else:
+            options.relay = MSRPRelaySettings(domain=options.sip_address.domain,
+                                              username=options.sip_address.username, password=options.password)
     if options.use_bonjour:
         options.route = None
     else:
