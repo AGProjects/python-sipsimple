@@ -37,13 +37,9 @@ sudo apt-get install sipclient
 Building the Debian package
 ---------------------------
 
-Install subversion, mercurial and darcs version control tools.
-
-Darcs is available at http://darcs.net
-
 You need the following packages before trying to build a debian package:
 
-sudo apt-get install subversion devscripts python-dnspython \
+sudo apt-get install darcs subversion devscripts python-dnspython \
 python-setuptools python-lxml cython python-application python-twisted \
 build-essential libasound2-dev cdbs debhelper python-all-dev python-support \
 libssl-dev
