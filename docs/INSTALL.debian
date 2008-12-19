@@ -14,9 +14,10 @@ Add these lines at the end of etc/apt/sources.list
 deb http://ag-projects.com/debian unstable main
 deb-src http://ag-projects.com/debian unstable main
 
-Install dependencies that are not yet available as debian package:
+Install dependencies:
+sudo apt-get install mercurial python-setuptools python-msrplib
 
-sudo apt-get install mercurial python-setuptools
+Install dependencies that are not yet available as debian package:
 
 # Download and install eventlet for twisted:
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
