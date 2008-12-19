@@ -553,6 +553,7 @@ cdef extern from "pjsip.h":
 
     # transports
     struct pjsip_transport:
+        char *type_name
         pjsip_host_port local_name
     struct pjsip_tpfactory:
         pjsip_host_port addr_name
@@ -2009,7 +2010,8 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) except 0 with gil:
                                      source_port=rdata.pkt_info.src_port,
                                      destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                      destination_port=rdata.tp_info.transport.local_name.port,
-                                      data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len)))
+                                     data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
+                                     transport=rdata.tp_info.transport.type_name))
     return 0
 
 cdef int cb_trace_tx(pjsip_tx_data *tdata) except 0 with gil:
@@ -2020,7 +2022,8 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) except 0 with gil:
                                      source_port=tdata.tp_info.transport.local_name.port,
                                      destination_ip=tdata.tp_info.dst_name,
                                      destination_port=tdata.tp_info.dst_port,
-                                     data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start)))
+                                     data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
+                                     transport=tdata.tp_info.transport.type_name))
     return 0
 
 cdef class EventPackage:
