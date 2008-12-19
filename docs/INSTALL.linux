@@ -65,6 +65,7 @@ dnspython           http://www.dnspython.org                          >=1.6.0
 twisted             http://twistedmatrix.com/trac/                    >=8.1.0
 pylib               http://codespeak.net/py                           >=0.9.2
 mercurial           http://www.selenic.com/mercurial                  >=1.0.2
+python-msrplib      http://msrprelay.org
 
 Alternatively, you can use the easy_install script provided by the
 python-setuptools package to install the same packages:

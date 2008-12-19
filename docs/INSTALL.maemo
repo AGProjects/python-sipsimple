@@ -89,9 +89,9 @@ python setup.py install
 cd ..
 
 # Download and install msrplib
-wget http://download.ag-projects.com/MSRPRelay/python-msrplib-0.0.1.tar.gz
-tar zxvf python-msrplib-0.0.1.tar.gz
-cd python-msrplib-0.0.1
+wget http://download.ag-projects.com/MSRPRelay/python-msrplib_0.9.0.tar.gz
+tar zxvf python-msrplib_0.9.0.tar.gz
+cd python-msrplib_0.9.0
 python setup.py install
 cd ..
 
