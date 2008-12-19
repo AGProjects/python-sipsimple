@@ -99,6 +99,7 @@ cd ..
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 python setup.py install
+cd ..
 
 
 Step 4. Compile PJSIP C library

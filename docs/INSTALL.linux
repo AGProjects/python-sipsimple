@@ -65,32 +65,51 @@ dnspython           http://www.dnspython.org                          >=1.6.0
 twisted             http://twistedmatrix.com/trac/                    >=8.1.0
 pylib               http://codespeak.net/py                           >=0.9.2
 mercurial           http://www.selenic.com/mercurial                  >=1.0.2
-python-msrplib      http://msrprelay.org
+python-msrplib      http://msrprelay.org                              >=0.9.0
 
 Alternatively, you can use the easy_install script provided by the
 python-setuptools package to install the same packages:
 
 sudo easy_install -U python-gnutls lxml cython python-application dnspython twisted py mercurial
 
-# Download and install eventlet for twisted:
-hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
-cd eventlet_twisted
-sudo python setup.py install
-
-# To update the eventlet_twisted at a later date:
-cd eventlet_twisted
-hg pull
-hg update
+# Download and install/update eventlet for twisted:
+export LC_CTYPE=
+if [ -d eventlet_twisted ]; then
+        # Install eventlet the first time
+        cd eventlet_twisted
+        hg pull
+        hg update
+        sudo python setup.py install
+else
+        hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+        cd eventlet_twisted
+        sudo python setup.py install
+fi
+cd ..
 
 # Download and install python-xcaplib:
-darcs get http://devel.ag-projects.com/repositories/python-xcaplib
-cd python-xcaplib
-sudo python setup.py install
+if [ -d python-xcaplib ]; then
+        cd python-xcaplib
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+        sudo python setup.py install
+fi
+cd ..
 
-# To update python-xcaplib repository at a later date:
-cd python-xcaplib
-darcs pull
-sudo python setup.py install
+# Download and install python-msrplib:
+if [ -d python-msrplib ]; then
+        cd python-msrplib
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+        sudo python setup.py install
+fi
+cd ..
 
 
 Step 4. Compile PJSIP C library

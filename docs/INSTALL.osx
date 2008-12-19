@@ -122,6 +122,18 @@ else
 fi
 cd ..
 
+# Download and install python-msrplib:
+if [ -d python-msrplib ]; then
+	cd python-msrplib
+	darcs pull -a
+	sudo python setup.py install
+else
+	darcs get http://devel.ag-projects.com/repositories/python-msrplib
+	cd python-msrplib
+	sudo python setup.py install
+fi
+cd ..
+
 
 Step 4. Compile PJSIP C library
 -------------------------------
