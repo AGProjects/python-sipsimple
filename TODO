@@ -23,10 +23,11 @@ Python PJSIP bindings
 Audio
 -----
 
-- Add option and command to mute the microphone (useful for listen in conferences)
-- Play a soft beep tone while on hold every 30 seconds
-- Play a beep after we closed a session
-- Play a special beep when receiving a call while engaged in another call
+- Mute the microphone for a given session (useful for listen in conferences)
+- Play a tone while on hold every 30 seconds
+- Play a tone once after we closed a session
+- Play a tone when receiving a call while engaged in another call
+- Add comfort noise generator
 - Implement Automatic Gain Control in PJSIP media engine
 - zRTP
 
@@ -76,7 +77,6 @@ Applications
 Sessions
 --------
 
-- Comfort noise generator
 - Video (H.264)
 - Real time text over RTP (RFC4103)
 - Desktop sharing (VNC protocol)
