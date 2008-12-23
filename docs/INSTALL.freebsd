@@ -133,20 +133,9 @@ Step 5. Build and install SIP SIMPLE client
 
 Go to the main project directory and build the library by running:
 
-cd sipsimpleclient
-touch pypjua/_pjsip.pyx
-
-Open build_inplace and change make into gmake so that it reads:
-gmake -C pypjua && python setup.py build_ext --inplace && python setup.py clean
-
-Now build the library and command line tools with: 
-
-sh ./build_inplace
-
-Install the library and command line tools:
-
+cython pypjua/_pjsip.pyx
+sudo python setup.py clean
 sudo python setup.py install
-
 
 Notes
 -----

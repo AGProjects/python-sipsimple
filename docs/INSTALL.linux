@@ -142,7 +142,8 @@ Step 5. Build and install SIP SIMPLE client
 
 Go to the main project directory and build the library:
 
-touch pypjua/_pjsip.pyx
+cython pypjua/_pjsip.pyx
+sudo python setup.py clean
 sudo python setup.py install
 
 
