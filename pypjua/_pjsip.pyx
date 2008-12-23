@@ -4177,7 +4177,6 @@ cdef list c_get_clear_event_queue():
         free(event_free)
     return events
 
-PJ_VERSION = pj_get_version()
 cdef void *_ua = NULL
 cdef pj_mutex_t *_event_queue_lock = NULL
 cdef pypjua_event *_event_queue_head = NULL
@@ -4192,3 +4191,6 @@ _inv_cb.on_media_update = cb_Invitation_cb_sdp_done
 _inv_cb.on_rx_reinvite = cb_Invitation_cb_rx_reinvite
 _inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = cb_new_Invitation
+
+PJ_VERSION = pj_get_version()
+PYPJUA_REVISION = 1
