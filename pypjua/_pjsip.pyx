@@ -3550,7 +3550,6 @@ cdef class AudioTransport:
             self.stop()
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-        self.transport.set_INIT()
 
     property is_active:
 
@@ -3645,6 +3644,7 @@ cdef class AudioTransport:
         pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
         pjmedia_stream_destroy(self.c_obj)
         self.c_obj = NULL
+        self.transport.set_INIT()
 
     def update_direction(self, direction):
         cdef int status1 = 0

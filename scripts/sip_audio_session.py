@@ -298,6 +298,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             if want_quit:
                                 command = "unregister"
                             else:
+                                if audio is not None:
+                                    audio.stop()
                                 audio = None
                                 inv = None
                 elif event_name == "detect_nat_type":
