@@ -13,7 +13,6 @@ class Engine(object):
                              "local_tls_port": None,
                              "tls_verify_server": False,
                              "tls_ca_file": None,
-                             "auto_sound": True,
                              "ec_tail_length": 50,
                              "user_agent": "ag-projects/sipclient-%s-pjsip-%s" % (__version__, PJ_VERSION),
                              "log_level": 5,
@@ -57,10 +56,16 @@ class Engine(object):
             self._ua.dealloc()
             del self._ua
 
-    def start(self):
+    def start(self, auto_sound=True):
         if self._thread_started:
             raise RuntimeError("Worker thread was already started once")
         self._ua = PJSIPUA(self.event_handler, **self.init_options)
+        if auto_sound:
+            try:
+                self._ua.auto_set_sound_devices()
+            except RuntimeError:
+                self._ua = None
+                raise
         self._lock = allocate_lock()
         self._thread_stopping = False
         self._thread_started = True

@@ -29,11 +29,10 @@ def start(options, console):
     e = EngineBuffer(ch,
                      trace_sip=options.trace_sip,
                      trace_pjsip=options.trace_pjsip,
-                     auto_sound=not options.disable_sound,
                      ec_tail_length=0,
                      local_ip=options.local_ip,
                      local_udp_port=options.local_port)
-    e.start()
+    e.start(not options.disable_sound)
     try:
         credentials = Credentials(options.uri, options.password)
         msrplogger = TrafficLogger(None, console, lambda: options.trace_msrp)

@@ -581,8 +581,8 @@ def do_publish(**kwargs):
     if kwargs.pop('trace_sip'):
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
 
-    e = Engine(event_handler, trace_sip=True, auto_sound=False, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
-    e.start()
+    e = Engine(event_handler, trace_sip=True, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
+    e.start(False)
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
 

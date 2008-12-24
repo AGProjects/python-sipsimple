@@ -18,11 +18,10 @@ def start(options):
     e = EngineBuffer(ch,
                      trace_sip=options.trace_sip,
                      trace_pjsip=options.trace_pjsip,
-                     auto_sound=False,
                      ec_tail_length=0,
                      local_ip=options.local_ip,
                      local_udp_port=options.local_port)
-    e.start()
+    e.start(False)
     try:
         credentials = Credentials(options.uri, options.password)
         register(e, credentials, options.route)

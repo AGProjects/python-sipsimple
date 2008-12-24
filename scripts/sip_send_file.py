@@ -94,11 +94,10 @@ def main():
     ch = queue()
     e = EngineBuffer(ch,
                      trace_sip=options.trace_sip,
-                     auto_sound=not options.disable_sound,
                      ec_tail_length=0,
                      local_ip=options.local_ip,
                      local_udp_port=options.local_port)
-    e.start()
+    e.start(not options.disable_sound)
     try:
         credentials = Credentials(options.uri, options.password)
         s = PushFileSession(credentials, filename, options.disable_sound and e.play_wav_file)

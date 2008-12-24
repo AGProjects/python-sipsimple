@@ -1436,8 +1436,6 @@ cdef class PJSIPUA:
         self.ec_tail_length = kwargs["ec_tail_length"]
         if kwargs["playback_dtmf"]:
             self.c_conf_bridge._enable_playback_dtmf()
-        if kwargs["auto_sound"]:
-            self.auto_set_sound_devices()
         self.c_module_name = PJSTR("mod-pypjua")
         self.c_module.name = self.c_module_name.pj_str
         self.c_module.id = -1
