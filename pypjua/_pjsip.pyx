@@ -1755,6 +1755,11 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint.c_tls_ca_file = old_tls_ca_file
                 self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
 
+    property sample_rate:
+
+        def __get__(self):
+            return self.c_pjmedia_endpoint.c_sample_rate
+
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
         if transport.c_obj == NULL:
