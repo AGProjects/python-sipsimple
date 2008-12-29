@@ -7,7 +7,7 @@ Python PJSIP bindings
 - Cleanup Registration, Publication and Subscription to behave more like Invitation
 - Means to query RTP statistics
 - Handle sending and received of multipart bodies for Invitation
-- Fix high CPU usage
+- Fix the high CPU usage for media
 - Properly decrease reference counts of pjsip_tx_data structs
 - Split up .pyx file
 - Add option to use the STUN response for Contact header (default false)
@@ -20,6 +20,7 @@ Python PJSIP bindings
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
 - Write API documentation
 
+
 Audio
 -----
 
@@ -29,49 +30,56 @@ Audio
 - Play a tone when receiving a call while engaged in another call
 - Add comfort noise generator
 - Implement Automatic Gain Control in PJSIP media engine
+- Fine tune echo-cancelation for non speex codecs
 - zRTP
+
 
 Command line clients
 --------------------
 
-Logging, based on trace_x configuration options:
+- port the audio features of sip_audio_session into sip_im_session
+- replace sip_im_session and sip_audio_session with one script 'sip_session'
+- the default outbound invitation type is audio+text in this order (in SDP),
+- add an option to start a 'text only' session
+- an incoming session request must prompt the user to accept a) audio+text or b) text only
+- publish service and status changes from the sip_session script
+- friendly output of incoming NOTIFY for subscribe_presence script
+
+- logging, based on trace_x configuration options:
  - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt
  - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt
  - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt
  - Add timestamp and packet counters as for SIP trace for all other prorocols
  - Toggle sip logging at run time
 
-- Add key command to start a session when starting in receiving mode (c)
-- Create sip_subscribe_conference_info script
+- sip_subscribe_conference_info script
 - xcap_pidf_manipulation script
-- Publish service and status when starting/stopping rtp/msrp session script
 - Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
   other codes. For invite scripts the code is based on the response for the
   initial INVITE, not for the BYE If RTP was not received with 6 seconds after
   call setup, consider the call has failed.
 - Add parameter to hangup after a number of seconds for sip_audio_session
-- Handle multiple incomming sessions (waiting for the re-INVITE)
 - Conference established sessions
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
-- Combine msrp/rtp in one script
+- Handle incomming refer to a conference URI
  
 
 Applications
 ------------
 
+- Move non-sip application in separate python packages
+- Port greenlet to ARM processors
 - MSRP focus
 - MSRP mixer
 - Conference-info event package
 - MSRP multiparty chat
 - Is-composing payload
 
-- Lookup capabilities for SIP (RFC3263)
 - Message-summary payload
 - xcap-diff payload
 - Buddylist library
 - Bonjour discovery
 - Lookup for ENUM
-- Write documentation
 
 
 Sessions
@@ -79,32 +87,23 @@ Sessions
 
 - Video (H.264)
 - Real time text over RTP (RFC4103)
-- Desktop sharing (VNC protocol)
-- Bit pipe over MSRP
-
-
-End-user experience
--------------------
-
-- Mute other applications that access the soundcard on receiving INVITE
+- Desktop sharing
+- Generic bit pipe over MSRP
 
 
 Enrollment 
 ----------
 
 - End-point certificate generator
-- Account creation
+- SIP account creation
 - UA-profile XCAP application
 
 
 Middleware
 ----------
 
-- rename lookup_srv to rename_rfc3263, add NAPTR lookup to it and pass a
-  list of supported transports by the SIP library to select from (default is
-  udp).
 - Configuration framework based on ua-profile event package
-- Event bus
+- High level event bus
 - Environment detection: ambient and geo-location detection
 
 
@@ -119,6 +118,7 @@ User interfaces
 Packaging
 ---------
 
+- Linux installer
 - MacOSX installer
 - Windows installer
 
@@ -126,7 +126,11 @@ Packaging
 Others
 ------
 
-- Add doc strings to all classes and functions
 - IPv6 support
-- Survive local IP address changes
-- P2PSIP overlay
+- Survive IP address changes
+
+
+Documentation
+-------------
+
+- Add doc strings
