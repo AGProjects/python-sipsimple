@@ -4,11 +4,11 @@ import sys
 
 from eventlet.api import GreenletExit, sleep, get_hub
 from eventlet.coros import queue
+from msrplib.trafficlog import TrafficLogger
 
 from pypjua import Credentials
 from pypjua.enginebuffer import EngineBuffer
-from pypjua.clients.trafficlog import TrafficLogger, hook_std_output
-from pypjua.clients.im import parse_options
+from pypjua.clients.config import parse_options
 from pypjua.clients.chatroom import ChatRoom
 from pypjua.clients import enrollment
 enrollment.verify_account_config()
@@ -25,10 +25,9 @@ def start(options):
     try:
         credentials = Credentials(options.uri, options.password)
         register(e, credentials, options.route)
-        hook_std_output()
-        logger = TrafficLogger(None, sys.stdout, lambda: options.trace_msrp)
-        man = ChatRoom(credentials, logger)
-        man.start_accept_incoming(e, options.relay)
+        logger = TrafficLogger.to_file(is_enabled_func = lambda: options.trace_msrp)
+        room = ChatRoom(credentials, logger)
+        room.start_accept_incoming(e, options.relay)
         print 'Waiting for incoming SIP session requests...'
         try:
             get_hub().switch()

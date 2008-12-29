@@ -1,13 +1,12 @@
 from eventlet.api import spawn, kill, sleep, GreenletExit
+from eventlet.coros import queue, Job
+from msrplib.connect import MSRPAcceptFactory
 
 from pypjua import SDPAttribute, SDPMedia, SDPSession, SDPConnection
-from pypjua.clients.im import MSRPSession, IncomingMSRPHandler, MSRPErrors, MSRPAcceptFactory, wait_for_incoming
-from pypjua.clients.im import IncomingSessionHandler, UserCommandError
+from pypjua.clients.msrpsession import MSRPSession, IncomingMSRPHandler, MSRPSessionErrors
+from pypjua.enginebuffer import IncomingSessionHandler
 
 class JoinHandler(IncomingMSRPHandler):
-
-    def __init__(self, acceptor, local_ip, session_factory):
-        IncomingMSRPHandler.__init__(self, acceptor, local_ip, session_factory)
 
     def is_acceptable(self, inv):
         if not IncomingMSRPHandler.is_acceptable(self, inv):
@@ -40,8 +39,9 @@ class JoinHandler(IncomingMSRPHandler):
             transport = "TCP/MSRP"
         return SDPMedia("message", full_local_path[-1].port, transport, formats=["*"], attributes=attributes)
 
-    def make_local_SDPSession(self, inv, full_local_path):
-        return SDPSession(self.local_ip, connection=SDPConnection(self.local_ip),
+    def make_local_SDPSession(self, inv, full_local_path, acceptor):
+        local_ip = acceptor.getHost().host
+        return SDPSession(local_ip, connection=SDPConnection(local_ip),
                           media=[self.make_local_SDPMedia(full_local_path)])
 
 
@@ -52,40 +52,35 @@ class ChatRoom:
         self.traffic_logger = traffic_logger
         self.sessions = []
         self.accept_incoming_job = None
+        self.incoming_queue = queue()
+        self.message_dispatcher_job = Job.spawn(self._message_dispatcher)
 
-    def _on_message_received(self, session, message):
+    def _message_dispatcher(self):
+        """Read from self.incoming_queue and dispatch the messages to other participants"""
+        while True:
+            tag, session, message = self.incoming_queue.wait()
+            if tag == 'message':
+                self._dispatch_message(session, message)
+            else:
+                assert tag == 'disconnect', repr(tag)
+                self.sessions.remove(session)
+
+    def _dispatch_message(self, session, message):
         for s in self.sessions:
             if s is not session:
                 try:
                     # TODO: add the chunk to the other session's queue
                     s.send_message(message.data, message.content_type)
-                except UserCommandError: # XXX rename to SessionError  or something
-                    pass
                 except:
                     import traceback
                     traceback.print_exc()
 
     def close(self):
+        self.message_dispatcher_job.kill()
         self.stop_accept_incoming()
         for session in self.sessions:
             session.shutdown()
-            self.disconnect(session)
-
-    def disconnect(self, session):
-        try:
-            index = self.sessions.index(session)
-        except ValueError:
-            pass
-        else:
-            del self.sessions[index]
-        if not self.sessions:
-            self.on_last_disconnect()
-
-    def on_invited(self, session):
-        pass
-
-    def on_last_disconnect(self):
-        pass
+        self.sessions = []
 
     def start_accept_incoming(self, e, relay):
         assert not self.accept_incoming_job, self.accept_incoming_job
@@ -98,16 +93,17 @@ class ChatRoom:
 
     def _accept_incoming(self, e, relay):
         def new_session(sip, msrp):
-            return MSRPSession(self, self.credentials, self.traffic_logger, sip, msrp)
+            return MSRPSession(sip, msrp, self.incoming_queue, self.incoming_queue)
         acceptor = MSRPAcceptFactory.new(relay, self.traffic_logger)
-        handler1 = JoinHandler(acceptor, e.local_ip, new_session)
+        handler1 = JoinHandler(acceptor, new_session)
         handler = IncomingSessionHandler()
         handler.add_handler(handler1)
+        last_error = 0
         while True:
             try:
-                s = wait_for_incoming(e, handler)
+                s = handler.wait_and_handle(e)
                 self.sessions.append(s)
-            except MSRPErrors, ex:
+            except MSRPSessionErrors, ex:
                 print ex
                 sleep(1)
             except GreenletExit:

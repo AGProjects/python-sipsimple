@@ -2,11 +2,13 @@ import sys
 from pprint import pformat
 from weakref import ref
 
-from eventlet.api import spawn, sleep, kill
+from eventlet.api import sleep
 from eventlet.coros import multievent
+from eventlet import proc
 
 from pypjua import Engine, Registration, Invitation
 from pypjua.clients.dbgutil import format_lineno
+from pypjua.util import wrapdict
 
 # QQQ: separate logging part from InvitationBuffer and RegstrationBuffer
 
@@ -98,6 +100,40 @@ class EngineBuffer(Engine):
         self.register_obj(obj)
         return obj
 
+    def wait_incoming(self):
+        while True:
+            event_name, params = self._wait()
+            self.logger.log_event('RECEIVED', event_name, params)
+            if event_name == "Invitation_state" and params.get("state") == "INCOMING":
+                obj = params.get('obj')
+                obj = InvitationBuffer(obj, self.logger, outgoing=0)
+                self.register_obj(obj) # XXX unregister_obj is never called
+                obj.log_state_incoming(params)
+                return obj
+            self.logger.log_event('DROPPED', event_name, params)
+
+
+class IncomingSessionHandler:
+
+    def __init__(self):
+        self.handlers = []
+
+    def add_handler(self, handler):
+        self.handlers.append(handler)
+
+    def handle(self, inv):
+        for handler in self.handlers:
+            if handler.is_acceptable(inv):
+                return handler.handle(inv)
+        inv.shutdown(488) # Not Acceptable Here
+
+    def wait_and_handle(self, engine):
+        while True:
+            inv = engine.wait_incoming()
+            session = self.handle(inv)
+            if session is not None:
+                return session
+
 
 class MyQueue(multievent):
 
@@ -107,7 +143,7 @@ class MyQueue(multievent):
         if self.monitor:
             # send must be non-blocking: it will be called from the mainloop greenlet
             # hence, use spawn to be sure
-            spawn(self.monitor, result, exc)
+            proc.spawn(self.monitor, result, exc)
         return multievent.send(self, result, exc)
 
     def set_monitor(self, func):
@@ -121,6 +157,7 @@ class BaseBuffer(object):
         self.logger = logger
 
     def __getattr__(self, item):
+        assert item != '_obj'
         return getattr(self._obj, item)
 
     def set_queue(self, queue):
@@ -224,11 +261,11 @@ class Ringer:
 
     def start(self):
         if self.gthread is None:
-            self.gthread = spawn(self._run)
+            self.gthread = proc.spawn_link_raise(self._run)
 
     def stop(self):
         if self.gthread is not None:
-            kill(self.gthread)
+            self.gthread.kill()
             self.gthread = None
 
     def _run(self):
@@ -237,10 +274,17 @@ class Ringer:
             sleep(self.delay)
 
 
-class SIPDisconnect(Exception):
+class SessionError(RuntimeError):
+    pass
+
+
+class SIPError(SessionError):
 
     def __init__(self, params):
         self.params = params
+
+    def __str__(self):
+        return '%(state)s %(code)s %(reason)s' % wrapdict(self.params)
 
     def __getattr__(self, item):
         try:

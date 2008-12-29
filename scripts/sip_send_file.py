@@ -5,12 +5,15 @@ import hashlib
 import traceback
 from eventlet.coros import queue
 from eventlet.api import sleep
+from msrplib.connect import MSRPConnectFactory
+from msrplib.trafficlog import TrafficLogger
+
 from pypjua import Credentials, SDPAttribute, SDPMedia
-from pypjua.enginebuffer import EngineBuffer, SIPDisconnect
+from pypjua.enginebuffer import EngineBuffer, Ringer
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients.sdputil import FileSelector
-from pypjua.clients.im import parse_options, ChatSession, MSRPErrors, invite, UserCommandError
-from gnutls.errors import GNUTLSError
+from pypjua.clients.config import parse_options
+from pypjua.clients.msrpsession import MSRPSessionErrors, MSRPSession
 
 file_cmd = "file -b --mime '%s'"
 
@@ -49,40 +52,9 @@ class SDPOfferFactory:
             transport = "TCP/MSRP"
         return SDPMedia("message", uri_path[-1].port, transport, formats=["*"], attributes=attributes)
 
-
-class PushFileSession(ChatSession):
-
-    def __init__(self, credentials, filename, play_wav_func=None):
-        self.play_wav_func = play_wav_func
-        ChatSession.__init__(self, None, credentials, None)
-        self.sdp = SDPOfferFactory(filename)
-        self.stop_read_msrp()
-
-    def _on_message_delivered(self, message, content_type):
-        print 'Sent %s.' % self.sdp.fileselector
-        if self.play_wav_func:
-            self.play_wav_func(get_path("message_sent.wav"))
-            sleep(0.5) # QQQ wait for wav
-
-    def make_sdp_media(self, uri):
-        return self.sdp.make_SDPMedia(uri)
-
-    def _invite(self, e, target_uri, route, relay):
-        self.sip, self.msrp = invite(e, self.credentials, target_uri, route, relay,
-                                     self.traffic_logger, self.make_sdp_media)
-        self.sip.call_on_disconnect(self._on_disconnect)
-        return True
-
-    def deliver_message(self, msg, content_type='text/plain'):
-        if self.msrp and self.msrp.connected:
-            self.msrp.deliver_message(msg, content_type)
-            self._on_message_delivered(msg, content_type)
-            return True
-        else:
-            raise UserCommandError('MSRP is not connected')
-
 description = "Start a MSRP session file transfer to the specified target SIP address."
 usage = "%prog [options] target-user@target-domain.com filename"
+
 
 def main():
     options = parse_options(usage, description)
@@ -91,6 +63,8 @@ def main():
     if not options.args:
         sys.exit('Please provide filename.')
     filename = options.args[0]
+    source = file(filename)
+    sdp = SDPOfferFactory(filename)
     ch = queue()
     e = EngineBuffer(ch,
                      trace_sip=options.trace_sip,
@@ -100,16 +74,18 @@ def main():
     e.start(not options.disable_sound)
     try:
         credentials = Credentials(options.uri, options.password)
-        s = PushFileSession(credentials, filename, options.disable_sound and e.play_wav_file)
-        s.start_invite(e, options.target_uri, options.route, options.relay)
-        if s.invite_job.wait() is not True:
-            sys.exit(0)
-        data = file(filename).read()
-        s.deliver_message(data, s.sdp.fileselector.type)
-        s.close_msrp()
-    except MSRPErrors, ex:
-        sys.exit(str(ex) or type(ex).__name__)
-    except (GNUTLSError, SIPDisconnect), ex:
+        inv = e.Invitation(credentials, options.target_uri, route=options.route)
+        logger = TrafficLogger.to_file(is_enabled_func = lambda: options.trace_msrp)
+        msrp_connector = MSRPConnectFactory.new(options.relay, logger)
+        ringer = Ringer(e.play_wav_file, get_path("ring_outbound.wav"))
+        session = MSRPSession.invite(inv, msrp_connector, sdp.make_SDPMedia, ringer=ringer)
+        # XXX: msrpsession must accept file object
+        session.deliver_message(source.read(), sdp.fileselector.type)
+        print 'Sent %s.' % sdp.fileselector
+        if not options.disable_sound:
+            e.play_wav_file(get_path("message_sent.wav"))
+            sleep(0.5) # QQQ wait for wav
+    except MSRPSessionErrors, ex:
         sys.exit(str(ex) or type(ex).__name__)
     finally:
         e.shutdown()

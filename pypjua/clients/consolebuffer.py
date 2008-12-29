@@ -10,7 +10,7 @@ from twisted.internet import stdio
 from twisted.conch import recvline
 from twisted.conch.insults import insults
 from eventlet.coros import queue
-from eventlet.api import spawn, sleep, GreenletExit
+from eventlet import api
 from eventlet.green.thread import allocate_lock
 
 CTRL_C = '\x03'
@@ -19,6 +19,9 @@ CTRL_BACKSLASH = '\x1c'
 CTRL_L = '\x0c'
 
 SETTERM_INITIALIZE = '\x1b[!p\x1b[?3;4l\x1b[4l\x1b>'
+
+class EOF(BaseException):
+    """user pressed CTRL-D"""
 
 def terminal_initialize(fd):
     # the same effect as calling setterm -initialize
@@ -40,7 +43,7 @@ class ChannelProxy:
     def __init__(self, source, output):
         self.source = source
         self.output = output
-        self.gthread = spawn(self._run)
+        self.gthread = api.spawn(self._run)
         self.lock = allocate_lock()
         self.exc = None
         self.throw_away = False
@@ -92,6 +95,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
     recv_char = False
     last_keypress_time = time.time()
     receiving = 0
+    current = api.getcurrent() #### XXX not good, add link_eof function
 
     ps = ['']
     ps_init = ['']
@@ -153,8 +157,10 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
 
     def keystrokeReceived(self, keyID, modifier):
         self.last_keypress_time = time.time()
-        if keyID in self.send_keys or self.recv_char:
+        if self.recv_char:
             self.channel.send(('key', (keyID, modifier)))
+        elif keyID==CTRL_D:
+            api.kill(self.current, EOF())
         elif self.receiving>0:
             super(ConsoleProtocol, self).keystrokeReceived(keyID, modifier)
 
@@ -198,7 +204,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
         if since_last_keypress<seconds:
             self.channel.throw_away = True
             try:
-                sleep(seconds-since_last_keypress)
+                api.sleep(seconds-since_last_keypress)
             finally:
                 self.channel.throw_away = False
 
@@ -299,7 +305,7 @@ class ConsoleBuffer:
                         else:
                             break
                     except ConnectionDone:
-                        raise GreenletExit
+                        raise api.GreenletExit
 
     def write(self, msg):
         self.writecount += 1
@@ -416,7 +422,6 @@ def main():
     if sys.argv[1:] == ['fix']:
         return _fix()
     from twisted.internet import reactor
-    from eventlet import api
     from application import log
     from datetime import datetime
     import traceback
@@ -467,7 +472,7 @@ def main():
         def func1():
             print "Sending exception to console's channel"
             console.channel.send_exception(ConnectionDone())
-        spawn(func1)
+        api.spawn(func1)
 
     def help():
         print 'Type a command to execute or an expression to evaluate.'
@@ -522,10 +527,12 @@ def main():
                     if seconds is None:
                         run_command(command, params, globals(), locals())
                     else:
-                        reactor.callLater(seconds, spawn, run_command, command, params, globals(), locals())
+                        reactor.callLater(seconds, api.spawn, run_command, command, params, globals(), locals())
             if console.terminalProtocol.lineBuffer:
                 console.copy_input_line()
             console.write('clean exit')
+    except EOF:
+        print 'EOF'
     except:
         print 'exception exit'
         raise
