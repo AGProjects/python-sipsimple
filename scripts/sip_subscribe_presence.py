@@ -130,11 +130,11 @@ def display_person(person, pidf, buf):
     if person.place_is is not None:
         buf.append("    Place information:")
         if person.place_is.audio is not None:
-            buf.append("      Audio: %s" % person.place_is.audio.values[0])
+            buf.append("      Audio: %s" % person.place_is.audio.value)
         if person.place_is.video is not None:
-            buf.append("      Video: %s" % person.place_is.video.values[0])
+            buf.append("      Video: %s" % person.place_is.video.value)
         if person.place_is.text is not None:
-            buf.append("      Text: %s" % person.place_is.text.values[0])
+            buf.append("      Text: %s" % person.place_is.text.value)
     # display privacy
     if person.privacy is not None:
         text = "    Communication that is private: "
