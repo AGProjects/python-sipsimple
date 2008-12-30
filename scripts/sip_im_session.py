@@ -115,7 +115,7 @@ class ChatSession(object):
             return self.msrpsession.send_message(msg, content_type)
 
     def format_ps(self):
-        return 'Chat to %s: ' % self.sip.other
+        return 'Chat to %s: ' % format_uri(self.sip.other)
 
 
 def consult_user(inv, ask_func):
