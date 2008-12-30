@@ -343,7 +343,7 @@ class XMLSingleChoiceElement(XMLElement):
 
     def _build_element(self, element, nsmap):
         if self.value is not None:
-            if instanceof(self.value, str):
+            if isinstance(self.value, str):
                 try:
                     tag = (key for key, value in self._xml_value_maps.items() if value == self.value).next()
                 except StopIteration:
@@ -364,7 +364,7 @@ class XMLSingleChoiceElement(XMLElement):
     def _set_value(self, value):
         if value is None:
             self.__value = self._xml_default_value
-        elif instanceof(value, str):
+        elif isinstance(value, str):
             if value not in self._xml_values:
                 raise ValueError("Illegal value for element type %s; acceptable types are: %s" % (self.__class__.__name__, ', '.join(self._xml_values)))
         elif self._xml_ext_type is None or not isinstance(value, self._xml_ext_type):
