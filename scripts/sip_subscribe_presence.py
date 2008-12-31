@@ -245,7 +245,7 @@ def handle_pidf(pidf):
             printed_sep = False
     else:
         for person in persons.values():
-            buf.append("  Person id %s" % person.id)
+            buf.append("  Person id: %s" % person.id)
             display_person(person, pidf, buf)
         printed_sep = False
 
@@ -255,7 +255,7 @@ def handle_pidf(pidf):
         if not printed_sep:
             buf.append("  " + "-"*3)
         for service in services.values():
-            buf.append("  Service id %s" % service.id)
+            buf.append("  Service id: %s" % service.id)
             display_service(service, pidf, buf)
 
     # handle devices informaation
@@ -263,7 +263,7 @@ def handle_pidf(pidf):
         if not printed_sep:
             buf.append("  " + "-"*3)
         for device in devices.values():
-            buf.append("  Device id %s" % device.id)
+            buf.append("  Device id: %s" % device.id)
             display_device(device, pidf, buf)
 
     buf.append("-"*16)
