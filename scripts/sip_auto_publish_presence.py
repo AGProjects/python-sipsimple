@@ -73,8 +73,7 @@ string = None
 logger = None
 
 pidf = None
-person = None
-tuple = None
+user_agent = None
 
 def publish_pidf():
     try:
@@ -93,6 +92,24 @@ def random_note():
         return 'Fortune is not installed'
 
 def auto_publish(interval):
+    # initialize top level elements
+    tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
+    tuple.contact = Contact("sip:%s@%s" % (sip_uri.user, sip_uri.host))
+    tuple.contact.priority = 0
+    tuple.relationship = Relationship('self')
+    tuple.timestamp = Timestamp()
+    pidf.append(tuple)
+
+    person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
+    person.time_offset = TimeOffset()
+    person.timestamp = DMTimestamp()
+    pidf.append(person)
+
+    device = Device(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
+    device.notes.append(DMNote('Powered by %s' % user_agent, lang='en'))
+    device.timestamp = DMTimestamp()
+    pidf.append(device)
+        
     while True:
         # 50% chance that basic status will change
         if random.randint(0, 1) == 1:
@@ -101,6 +118,7 @@ def auto_publish(interval):
             else:
                 tuple.status.basic = Basic('open')
             tuple.timestamp = Timestamp()
+        
         
         # change person note
         if len(person.notes) > 0:
@@ -196,7 +214,7 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 def read_queue(e, username, domain, password, display_name, route, expires, do_trace_pjsip, interval):
-    global user_quit, lock, queue, pub, sip_uri, pidf, person, tuple
+    global user_quit, lock, queue, pub, sip_uri, pidf, user_agent
     lock.acquire()
     try:
         sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -205,15 +223,8 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
         # initialize PIDF
         pidf = PIDF(entity='%s@%s' % (username, domain))
 
-        tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
-        tuple.timestamp = Timestamp()
-        pidf.append(tuple)
+        user_agent = e.user_agent
 
-        person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
-        person.time_offset = TimeOffset()
-        person.timestamp = DMTimestamp()
-        pidf.append(person)
-        
         #initialize auto publisher
         start_new_thread(auto_publish, (interval,))
 
