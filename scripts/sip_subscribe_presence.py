@@ -149,7 +149,7 @@ def display_person(person, pidf, buf):
         buf.append(text)
     # display sphere
     if person.sphere is not None:
-        buf.append("    Current sphere: %s" % person.sphere.values[0])
+        buf.append("    Current sphere: %s" % person.sphere.value)
     # display status icon
     if person.status_icon is not None:
         buf.append("    Status icon: %s" % person.status_icon)
@@ -185,10 +185,10 @@ def display_service(service, pidf, buf):
         buf.append("    Service offered by device id: %s" % service.device_id)
     # display relationship
     if service.relationship is not None:
-        buf.append("    Relationship: %s" % service.relationship.values[0])
+        buf.append("    Relationship: %s" % service.relationship.value)
     # display service-class
     if service.service_class is not None:
-        buf.append("    Service class: %s" % service.service_class.values[0])
+        buf.append("    Service class: %s" % service.service_class.value)
     # display status icon
     if service.status_icon is not None:
         buf.append("    Status icon: %s" % service.status_icon)
