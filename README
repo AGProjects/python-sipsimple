@@ -29,11 +29,58 @@ rules, resource lists, RLS services using XCAP protocol.
 The software allows you to create elegant real-time communications
 applications without having to read the +1200 RFC documents behind it.
 
-The package will run on any UNIX platform.
+
+Background
+----------
+
+From RFC 3261: "SIP is an application-layer control protocol that can
+establish, modify, and terminate multimedia sessions (conferences) such as
+Internet telephony calls. SIP can also invite participants to already
+existing sessions, such as multicast conferences. Media can be added to (and
+removed from) an existing session. SIP transparently supports name mapping
+and redirection services, which supports personal mobility, users can
+maintain a single externally visible identifier regardless of their network
+location.
+
+SIP supports five facets of establishing and terminating multimedia
+communications:
+
+ * User location: determination of the end system to be used for
+   communication;
+ * User availability: determination of the willingness of the called party
+   to engage in communications;
+ * User capabilities: determination of the media and media parameters to be
+   used;
+ * Session setup: "ringing", establishment of session parameters at both
+   called and calling party;
+ * Session management: including transfer and termination of sessions,
+   modifying session parameters, and invoking services. "
 
 
-Testing
--------
+Features
+--------
+
+As a library with a high-level API, the toolkit can be used to add voice, IM
+and Presence functionality to any network devices as long as Python/C
+environment is supported by such platform.
+
+Additional to the SIP standards implemented by the underlying PJSIP library,
+this project implements:
+
+ * XCAP protocol RFC4825
+ * MSRP protocol RFC4975
+ * MSRP protocol relay extension RFC4976
+ * Rich presence data model and format RFC3856, RFC3863 , RFC4479
+ * XCAP-diff document modification event draft-ietf-simple-xcap-diff-09
+ * Watcher-info RFC3857, RFC3858
+ * Conference RFC4575
+ * Message summary RFC3842
+ * Presence rules RFC5025
+ * Resource-lists and RLS-services RFC4826
+ * PIDF manipulation RFC4827
+ * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-02
+ * Locating SIP services RFC3263
+ * MSRP ad-hoc multi-party chat sessions draft-ietf-simple-chat-03
 
 SIP SIMPLE client is closely developed together with and tested against the
 most popular SIP SIMPLE server software available today: OpenSIPs from
@@ -67,81 +114,6 @@ For testing, you can use your own infrastructure or register a free SIP
 SIMPLE account on http://SIP2SIP.info
 
 
-Supported platforms
--------------------
-
-As a library with a high-level API, the toolkit can be used to add voice, IM
-and Presence functionality to any network devices as long as Python/C
-environment is supported by such platform.
-
-
-Overview of SIP and Presence functionality
-------------------------------------------
-
-From RFC 3261: "SIP is an application-layer control protocol that can
-establish, modify, and terminate multimedia sessions (conferences) such as
-Internet telephony calls.  SIP can also invite participants to already
-existing sessions, such as multicast conferences.  Media can be added to
-(and removed from) an existing session.  SIP transparently supports name
-mapping and redirection services, which supports personal mobility, users
-can maintain a single externally visible identifier regardless of their
-network location.
-
-SIP supports five facets of establishing and terminating multimedia
-communications:
-
- * User location: determination of the end system to be used for
-   communication;
- * User availability: determination of the willingness of the called party
-   to engage in communications;
- * User capabilities: determination of the media and media parameters to be
-   used;
- * Session setup: "ringing", establishment of session parameters at both
-   called and calling party;
- * Session management: including transfer and termination of sessions,
-   modifying session parameters, and invoking services. "
-
-
-Traditionally, Presence was defined as 'the willingness and ability of a
-user to communicate with other users on the network'. Presence today is much
-broader and is redefined by Dean Willis as 'dynamically updated information
-about the state of selected entities, where the information, states,
-selection, and dynamically of update are variable and appropriate for the
-application'. The software contains rich presence functionality not
-available today in other SIP solutions.
-
-
-Normative references
---------------------
-
-Additional to the SIP standards implemented by the underlying PJSIP library,
-this project implements:
-
- * XCAP protocol RFC4825
- * MSRP protocol RFC4975
- * MSRP protocol relay extension RFC4976
- * PUBLISH method RFC3903
- * SIP Specific Event Notification (SUBSCRIBE and NOTIFY) RFC3265
- * Rich presence data model and format RFC3856, RFC3863 , RFC4479
- * XCAP-diff document modification event draft-ietf-simple-xcap-diff-09
- * Watcher-info RFC3857, RFC3858
- * Conference RFC4575
- * Message summary RFC3842
- * Presence rules RFC5025
- * Resource-lists and RLS-services RFC4826
- * PIDF manipulation RFC4827
- * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-02
- * Locating SIP services RFC3263
- * MSRP ad-hoc multi-party chat sessions draft-ietf-simple-chat-02
-
-
-License
--------
-
-This software is licensed according to the GNU General Public License. See
-LICENSE file for more details.
-
-
 Installation
 ------------
 
@@ -151,7 +123,7 @@ See docs/INSTALL.* files
 Support
 -------
 
-The project is supported via this wiki collaboration system provided at:
+The project is supported via the wiki collaboration system provided at:
 
 http://SipSimpleClient.com
 
