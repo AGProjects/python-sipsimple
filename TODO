@@ -2,23 +2,26 @@
 Python PJSIP bindings
 ---------------------
 
-- Handle UPDATE for re-INVITE
+- API documentation
 - High level Invitation class that handles SDP as well
 - Cleanup Registration, Publication and Subscription to behave more like Invitation
-- Means to query RTP statistics
-- Handle sending and received of multipart bodies for Invitation
-- Fix the high CPU usage for media
-- Properly decrease reference counts of pjsip_tx_data structs
-- Split up .pyx file
-- Add option to use the STUN response for Contact header (default false)
 - Fix remainig TODOs for PUBLISH/REGISTER
-- Make all init_options passed to PJSIPUA attributes, set local_ip at runtime
 - Add feature to send OPTIONS method and parse the replies
 - Add ability for application to request handling of arbitrary methods such as
   OPTIONS, REGISTER and REFER, SUBSCRIBE (but not INVITE or NOTIFY...) and have it reply.
+- Handle sending and received of multipart bodies for Invitation
+- Properly decrease reference counts of pjsip_tx_data structs
+- Split up .pyx file
+- Handle UPDATE for re-INVITE
+- Means to query RTP statistics
+- Fix the high CPU usage for media
+- Add option to use the STUN response for Contact header (default false)
+- Fix STUN blocking
+- Make all init_options passed to PJSIPUA attributes, set local_ip at runtime
 - Registration requestion URI should be settable by application
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
-- Write API documentation
+- Survive IP address changes
+- IPv6 support
 
 
 Audio
@@ -34,53 +37,68 @@ Audio
 - zRTP
 
 
+Instant Messaging
+-----------------
+
+- Move non-SIP applications to a separate python package
+- Port greenlet to ARM
+- MSRP focus
+- MSRP mixer
+- Conference-info event package
+- MSRP multiparty chat
+- Is-composing payload
+- xcap-diff payload
+- Message-summary payload
+
+
+Presence
+--------
+
+- Timed-status element http://tools.ietf.org/html/rfc4481
+- Contact information http://tools.ietf.org/html/rfc4482
+- Device capabilities http://tools.ietf.org/html/rfc5196
+- PIDF location (geopriv)
+- Buddylist library
+- Environment detection: ambient and geo-location detection
+
+
+Middleware
+----------
+
+- High level event bus
+- Bonjour
+- Lookup for ENUM
+- Enrollment
+
+
 Command line clients
 --------------------
 
-- port the audio features of sip_audio_session into sip_im_session
-- replace sip_im_session and sip_audio_session with one script 'sip_session'
-- the default outbound invitation type is audio+text in this order (in SDP),
-- add an option to start a 'text only' session
-- an incoming session request must prompt the user to accept a) audio+text or b) text only
-- publish service and status changes from the sip_session script
-- friendly output of incoming NOTIFY for subscribe_presence script
+- Port the audio features of sip_audio_session into sip_im_session
+- Replace sip_im_session and sip_audio_session with one script 'sip_session'
+- The default outbound invitation type is audio+text in this order (in SDP),
+  add an option to start a 'text only' session
+- An incoming session request must prompt the user to accept a) audio+text or b) text only
+- Conference established sessions
+- Add parameter to hangup after a number of seconds for sip_audio_session
 
-- logging, based on trace_x configuration options:
+- Logging, based on trace_x configuration options:
  - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt
  - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt
  - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt
  - Add timestamp and packet counters as for SIP trace for all other prorocols
  - Toggle sip logging at run time
 
+- Publish service and status changes from the sip_session script
 - sip_subscribe_conference_info script
 - xcap_pidf_manipulation script
 - Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for
   other codes. For invite scripts the code is based on the response for the
   initial INVITE, not for the BYE If RTP was not received with 6 seconds after
   call setup, consider the call has failed.
-- Add parameter to hangup after a number of seconds for sip_audio_session
-- Conference established sessions
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection
-- Handle incomming refer to a conference URI
+- Handle incoming REFER to a conference URI
  
-
-Applications
-------------
-
-- Move non-sip application in separate python packages
-- Port greenlet to ARM processors
-- MSRP focus
-- MSRP mixer
-- Conference-info event package
-- MSRP multiparty chat
-- Is-composing payload
-
-- Message-summary payload
-- xcap-diff payload
-- Buddylist library
-- Bonjour discovery
-- Lookup for ENUM
-
 
 Sessions
 --------
@@ -91,30 +109,6 @@ Sessions
 - Generic bit pipe over MSRP
 
 
-Enrollment 
-----------
-
-- End-point certificate generator
-- SIP account creation
-- UA-profile XCAP application
-
-
-Middleware
-----------
-
-- Configuration framework based on ua-profile event package
-- High level event bus
-- Environment detection: ambient and geo-location detection
-
-
-User interfaces
----------------
-
-- Stand alone library
-- Command line clients
-- GUI
-
-
 Packaging
 ---------
 
@@ -122,15 +116,3 @@ Packaging
 - MacOSX installer
 - Windows installer
 
-
-Others
-------
-
-- IPv6 support
-- Survive IP address changes
-
-
-Documentation
--------------
-
-- Add doc strings
