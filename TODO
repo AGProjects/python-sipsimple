@@ -3,22 +3,22 @@ Python PJSIP bindings
 ---------------------
 
 - API documentation
-- High level Invitation class that handles SDP as well
-- Cleanup Registration, Publication and Subscription to behave more like Invitation
+- Split up .pyx file logically into several files
+- Handle PJSIP and Pyrex/Cython compilation in setup.py
+- Properly decrease reference counts of pjsip_tx_data structs
 - Fix remainig TODOs for PUBLISH/REGISTER
+- Cleanup Registration, Publication and Subscription to behave more like Invitation
+- Registration requestion URI should be settable by application
+- High level Invitation class that handles SDP as well
 - Add feature to send OPTIONS method and parse the replies
 - Add ability for application to request handling of arbitrary methods such as
   OPTIONS, REGISTER and REFER, SUBSCRIBE (but not INVITE or NOTIFY...) and have it reply.
-- Handle sending and received of multipart bodies for Invitation
-- Properly decrease reference counts of pjsip_tx_data structs
-- Split up .pyx file
+- Handle sending and receiving of multipart bodies for Invitation
 - Handle UPDATE for re-INVITE
 - Means to query RTP statistics
-- Fix the high CPU usage for media
+- Fix high CPU usage for sound card access on OS X
 - Add option to use the STUN response for Contact header (default false)
-- Fix STUN blocking
-- Make all init_options passed to PJSIPUA attributes, set local_ip at runtime
-- Registration requestion URI should be settable by application
+- Make local_ip option settable at runtime
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
 - Survive IP address changes
 - IPv6 support
@@ -74,6 +74,7 @@ Middleware
 Command line clients
 --------------------
 
+- Fix STUN blocking
 - Port the audio features of sip_audio_session into sip_im_session
 - Replace sip_im_session and sip_audio_session with one script 'sip_session'
 - The default outbound invitation type is audio+text in this order (in SDP),
