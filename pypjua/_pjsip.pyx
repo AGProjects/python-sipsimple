@@ -3416,7 +3416,7 @@ cdef class RTPTransport:
             cdef pjmedia_srtp_info *srtp_info
             cdef int i
             if self.state == "WAIT_STUN":
-                return None
+                return False
             self._get_info(&info)
             for i from 0 <= i < info.specific_info_cnt:
                 if info.spc_info[i].type == PJMEDIA_TRANSPORT_TYPE_SRTP:
@@ -4196,4 +4196,4 @@ _inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = cb_new_Invitation
 
 PJ_VERSION = pj_get_version()
-PYPJUA_REVISION = 1
+PYPJUA_REVISION = 2
