@@ -3837,13 +3837,13 @@ cdef class Invitation:
         else:
             return self.c_local_sdp_proposed
 
-    def set_offered_local_sdp(self, value):
+    def set_offered_local_sdp(self, local_sdp):
         if self.state == "DISCONNECTED":
             raise RuntimeError("Session was already disconnected")
         if self.sdp_state == "LOCAL_OFFER":
             raise RuntimeError("Local SDP is already being proposed")
         else:
-            self.c_local_sdp_proposed = value
+            self.c_local_sdp_proposed = local_sdp
 
     cdef int _cb_state(self, pjsip_rx_data *rdata, pjsip_inv_state state) except -1:
         cdef dict headers
