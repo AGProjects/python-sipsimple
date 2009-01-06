@@ -3270,6 +3270,8 @@ cdef class RTPTransport:
     cdef readonly object use_srtp
     cdef readonly object srtp_forced
     cdef readonly object use_ice
+    cdef readonly object ice_stun_address
+    cdef readonly object ice_stun_port
 
     def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
         global _RTPTransport_stun_list, _ice_cb
@@ -3287,6 +3289,8 @@ cdef class RTPTransport:
         self.use_srtp = use_srtp
         self.srtp_forced = srtp_forced
         self.use_ice = use_ice
+        self.ice_stun_address = ice_stun_address
+        self.ice_stun_port = ice_stun_port
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError()
@@ -4196,4 +4200,4 @@ _inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = cb_new_Invitation
 
 PJ_VERSION = pj_get_version()
-PYPJUA_REVISION = 2
+PYPJUA_REVISION = 3
