@@ -3367,7 +3367,7 @@ cdef class RTPTransport:
 
         def __get__(self):
             cdef pjmedia_transport_info info
-            if self.state == "WAIT_STUN":
+            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
                 return None
             self._get_info(&info)
             if info.sock_info.rtp_addr_name.addr.sa_family != 0:
@@ -3380,7 +3380,7 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
-            if self.state == "WAIT_STUN":
+            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
                 return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.sock_info.rtp_addr_name):
@@ -3392,7 +3392,7 @@ cdef class RTPTransport:
 
         def __get__(self):
             cdef pjmedia_transport_info info
-            if self.state == "WAIT_STUN":
+            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
                 return None
             self._get_info(&info)
             if info.src_rtp_name.addr.sa_family != 0:
@@ -3405,7 +3405,7 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
-            if self.state == "WAIT_STUN":
+            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
                 return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.src_rtp_name):
@@ -3419,7 +3419,7 @@ cdef class RTPTransport:
             cdef pjmedia_transport_info info
             cdef pjmedia_srtp_info *srtp_info
             cdef int i
-            if self.state == "WAIT_STUN":
+            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
                 return False
             self._get_info(&info)
             for i from 0 <= i < info.specific_info_cnt:
@@ -4200,4 +4200,4 @@ _inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = cb_new_Invitation
 
 PJ_VERSION = pj_get_version()
-PYPJUA_REVISION = 3
+PYPJUA_REVISION = 4
