@@ -3497,7 +3497,7 @@ cdef void cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status
                 rtp_transport.state = "INIT"
             else:
                 rtp_transport.state = "STUN_FAILED"
-            c_add_event("RTPTransport_init", dict(succeeded=status==0))
+            c_add_event("RTPTransport_init", dict(obj=rtp_transport, succeeded=status==0, status=pj_status_to_str(status)))
             _RTPTransport_stun_list.remove(rtp_transport)
             return
 
@@ -4200,4 +4200,4 @@ _inv_cb.on_tsx_state_changed = cb_Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = cb_new_Invitation
 
 PJ_VERSION = pj_get_version()
-PYPJUA_REVISION = 4
+PYPJUA_REVISION = 5
