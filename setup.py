@@ -105,6 +105,7 @@ setup(name         = "sipclient",
                     library_dirs = lib_dirs,
                     define_macros = macros,
                     libraries = libs,
+                    extra_compile_args = ["-Wno-unused-variable"],
                     extra_link_args = extras)
       ],
 
