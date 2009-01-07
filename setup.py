@@ -98,9 +98,9 @@ setup(name         = "sipclient",
       scripts = scripts,
 
       ext_modules  = [
-          Extension(name = "pypjua._pjsip",
-                    sources = ["pypjua/_pjsip.c"],
-		            depends = ["pypjua/_pjsip.pyx"],
+          Extension(name = "pypjua.core",
+                    sources = ["pypjua/core.c"],
+		            depends = ["pypjua/core.pyx"],
 		            include_dirs = includes,
                     library_dirs = lib_dirs,
                     define_macros = macros,

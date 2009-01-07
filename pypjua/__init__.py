@@ -1,10 +1,15 @@
 __version__ = "0.3.0"
 
+_revision_required = 6
+from core import REVISION
+if REVISION != _revision_required:
+    raise ImportError("Wrong PyPJUA core revision %d (expected %d)" % (REVISION, _revision_required))
+
 from engine import Engine
-from _pjsip import SIPURI, Credentials, Route
-from _pjsip import Registration, Publication, Subscription, Invitation, send_message
-from _pjsip import SDPAttribute, SDPConnection, SDPMedia, SDPSession
-from _pjsip import RTPTransport, AudioTransport
+from core import SIPURI, Credentials, Route
+from core import Registration, Publication, Subscription, Invitation, send_message
+from core import SDPAttribute, SDPConnection, SDPMedia, SDPSession
+from core import RTPTransport, AudioTransport
 
 __all__ = ["Engine",
            "SIPURI", "Credentials", "Route",

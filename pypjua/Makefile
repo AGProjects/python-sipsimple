@@ -1,7 +1,7 @@
 %.c:	%.pyx
 	cython $<
 
-all:    _pjsip.c
+all:    core.c
 
 clean:
 	@rm -f *.c

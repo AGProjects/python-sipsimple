@@ -1,7 +1,7 @@
 import traceback
 from thread import start_new_thread, allocate_lock
 
-from pypjua._pjsip import PJSIPUA, PJ_VERSION
+from pypjua.core import PJSIPUA, PJ_VERSION
 from pypjua import __version__
 
 class Engine(object):

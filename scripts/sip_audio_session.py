@@ -541,10 +541,6 @@ def parse_options():
     return retval
 
 def main():
-    from pypjua._pjsip import PYPJUA_REVISION
-    revision_needed = 5
-    if PYPJUA_REVISION != revision_needed:
-        raise RuntimeError("Wrong PyPJUA revision %d (expected %d)" % (PYPJUA_REVISION, revision_needed))
     do_invite(**parse_options())
 
 if __name__ == "__main__":
