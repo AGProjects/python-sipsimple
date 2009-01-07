@@ -3846,10 +3846,6 @@ cdef class Invitation:
             self.c_local_sdp_proposed = local_sdp
 
     cdef int _cb_state(self, pjsip_rx_data *rdata, pjsip_inv_state state) except -1:
-        cdef dict headers
-        cdef object body
-        cdef pjmedia_sdp_session *local_sdp
-        cdef pjmedia_sdp_session *remote_sdp
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
