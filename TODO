@@ -2,7 +2,6 @@
 Python PJSIP bindings
 ---------------------
 
-- API documentation
 - Split up .pyx file logically into several files
 - Handle PJSIP and Pyrex/Cython compilation in setup.py
 - Properly decrease reference counts of pjsip_tx_data structs
