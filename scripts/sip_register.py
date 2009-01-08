@@ -110,7 +110,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                         if max_registers <= 0:
                             command = "eof"
                     elif args["state"] == "unregistered":
-                        if args["code"] / 100 != 2:
+                        if "code" in args and args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
                         user_quit = False
                         command = "quit"

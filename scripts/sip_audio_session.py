@@ -193,7 +193,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             print "Waiting for incoming session..."
                             printed = True
                     elif args["state"] == "unregistered":
-                        if args["code"] / 100 != 2:
+                        if "code" in args and args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
                         user_quit = False
                         command = "quit"
