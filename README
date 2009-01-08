@@ -15,7 +15,7 @@ Peer-to-Peer Internet communications end-points based on SIP SIMPLE
 protocols for voice, video, presence, instant messaging (IM) and file
 transfer capabilities.
 
-The goal of this project is to deliver the best Open Source Python library
+The goal of this project is to deliver the best open source Python library
 for rich featured SIP end-points, while hiding the complex underlying
 functionality behind an easy to use high-level application-programming
 interface. This package supports to the SDP negotiation, audio codecs and
@@ -44,19 +44,19 @@ address identifier, which can be in the form of a standard email address or
 an E.164 telephone number regardless of their physical network location.
 
 SIP allows the endpoints to negotiate any type of session they mutually
-understand (examples are ideo calls, instant messaging, file transfers,
-desktop sharing) and provides a generic event notification system with
-real-time publication and subscriptions about state changes that can be used
-for asynchronous services (e.g. presence and message waiting indicators,
-busy line appearance).
+understand like video calls, instant messaging(IM), file transfers, desktop
+sharing and provides a generic event notification system with real-time
+publication and subscriptions about state changes that can be used for
+asynchronous services like presence, message waiting indicators and busy
+line appearance.
 
 
 Features
 --------
 
 As a library with a high-level API, the toolkit can be used to add voice, IM
-and Presence functionality to any network devices as long as Python/C
-environment is supported by such platform.
+and Presence functionality to any devices as long as Python/C environment is
+supported by such platform.
 
 Additional to the SIP standards implemented by the underlying PJSIP library,
 this project implements:
