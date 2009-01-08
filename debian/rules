@@ -7,9 +7,7 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
 configure/sipclient::
-	make -C pypjua
 	-ln -fs ../../pjsip ./pjsip
 
 clean::
-	make -C pypjua clean
 	-rm -rf build dist MANIFEST pjsip
