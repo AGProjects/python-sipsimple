@@ -33,28 +33,22 @@ applications without having to read the +1200 RFC documents behind it.
 Background
 ----------
 
-From RFC 3261: "SIP is an application-layer control protocol that can
-establish, modify, and terminate multimedia sessions (conferences) such as
-Internet telephony calls. SIP can also invite participants to already
-existing sessions, such as multicast conferences. Media can be added to (and
-removed from) an existing session. SIP transparently supports name mapping
-and redirection services, which supports personal mobility, users can
-maintain a single externally visible identifier regardless of their network
-location.
+SIP stands for 'Sessions Initiation Protocol', an IETF standard described by
+RFC3261. SIP is an application-layer control protocol that can establish,
+modify and terminate multimedia sessions such as Internet telephony calls
+(VoIP). Media can be added to (and removed from) an existing session.
 
-SIP supports five facets of establishing and terminating multimedia
-communications:
+SIP transparently supports name mapping and redirection services, which
+supports personal mobility, users can maintain a single externally visible
+address identifier, which can be in the form of a standard email address or
+an E.164 telephone number regardless of their physical network location.
 
- * User location: determination of the end system to be used for
-   communication;
- * User availability: determination of the willingness of the called party
-   to engage in communications;
- * User capabilities: determination of the media and media parameters to be
-   used;
- * Session setup: "ringing", establishment of session parameters at both
-   called and calling party;
- * Session management: including transfer and termination of sessions,
-   modifying session parameters, and invoking services. "
+SIP allows the endpoints to negotiate any type of session they mutually
+understand (examples are ideo calls, instant messaging, file transfers,
+desktop sharing) and provides a generic event notification system with
+real-time publication and subscriptions about state changes that can be used
+for asynchronous services (e.g. presence and message waiting indicators,
+busy line appearance).
 
 
 Features
