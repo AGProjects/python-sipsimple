@@ -369,9 +369,14 @@ def do_subscribe(**kwargs):
     do_trace_pjsip = kwargs["do_trace_pjsip"]
     outbound_proxy = kwargs.pop("outbound_proxy")
     if outbound_proxy is None:
-        kwargs["route"] = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))[0]
+        routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
     else:
-        kwargs["route"] = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))[0]
+        routes = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))
+    # Only try the first Route for now
+    try:
+        kwargs["route"] = routes[0]
+    except IndexError:
+        raise RuntimeError("No route found to SIP proxy")
     events = Engine.init_options_defaults["events"]
     if kwargs['content_type'] is not None:
         events['presence'] = [kwargs['content_type']]
