@@ -187,8 +187,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         if not printed:
                             print "REGISTER was successful"
                             print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
-                            if len(args["contact_uri_list"]) > 1:
-                                print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
                             print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, SPACE to put the call on hold, < and > to adjust the echo cancellation"
                             print "Waiting for incoming session..."
                             printed = True
