@@ -2,13 +2,13 @@
 
 from distutils.core import setup
 from distutils.extension import Extension
-from distutils import sysconfig
 from distutils.command.build_scripts import build_scripts
 from Cython.Distutils import build_ext
 import re
 import os
 import glob
 
+from setup_pjsip import get_pjsip_extension_kwargs
 
 # cannot import pypjua here
 exec(file('pypjua/clients/setupconfig.py').read())
@@ -28,31 +28,9 @@ def filter_cmdline(line, prefix):
     return [arg.split(prefix, 1)[1] for arg in line.split() if arg.startswith(prefix)]
 
 build_mak_file = "pjsip/build.mak"
-sysconfig._variable_rx = re.compile("(?:.*\s+)?([a-zA-Z][a-zA-Z0-9_]+)\s*:?=\s*(.*)")
-build_mak = sysconfig.parse_makefile(build_mak_file)
-
-includes = filter_cmdline(build_mak["APP_CFLAGS"], "-I")
-lib_dirs = filter_cmdline(build_mak["APP_LDFLAGS"], "-L")
-macros = [tuple(define.split("=", 1)) for define in filter_cmdline(build_mak["APP_CFLAGS"], "-D")]
-libs = filter_cmdline(build_mak["APP_LDLIBS"], "-l")
-extras = sum((build_mak["APP_LDLIBS"].split()[index:index+2] for index, value in enumerate(build_mak["APP_LDLIBS"].split()) if value == "-framework"), [])
-depends = build_mak["APP_LIB_FILES"].split()
-
-re_conditionals = re.compile(r"ifneq \((.*),(.*)\)\nAPP_THIRD_PARTY_LIBS\s\+=\s-l(.*?)-\$\(TARGET_NAME\)\nAPP_THIRD_PARTY_LIB_FILES\s\+=\s\$\(PJ_DIR\)(.*?)-\$\(LIB_SUFFIX\)")
-re_findstring = re.compile(r"\$\(findstring\s(.*),(.*)\)")
-for left, right, lib, lib_file in re_conditionals.findall(open(build_mak_file).read()):
-    match = re_findstring.match(left)
-    if match:
-        to_find, find_in = match.groups()
-        if to_find in find_in:
-            left = "1"
-        else:
-            left = ""
-    if left != right:
-        libs.append("%s-%s" % (lib, build_mak["TARGET_NAME"]))
-        depends.append("%s%s-%s" % (build_mak["PJ_DIR"], lib_file, build_mak["LIB_SUFFIX"]))
-
-sysconfig._variable_rx = re.compile("([a-zA-Z][a-zA-Z0-9_]+)\s*=\s*(.*)")
+pypjua_core = Extension(name = "pypjua.core",
+                        sources = ["pypjua/core.pyx", "pypjua/core.pxd"] + glob.glob(os.path.join("pypjua", "core.*.pxi")),
+                        **get_pjsip_extension_kwargs(build_mak_file))
 
 
 if os.name == 'posix':
@@ -100,17 +78,7 @@ setup(name         = "sipclient",
       },
       data_files = data_files,
       scripts = scripts,
-      ext_modules  = [
-          Extension(name = "pypjua.core",
-                    sources = ["pypjua/core.pyx", "pypjua/core.pxd"] + glob.glob(os.path.join("pypjua", "core.*.pxi")),
-                    depends = depends,
-		            include_dirs = includes,
-                    library_dirs = lib_dirs,
-                    define_macros = macros,
-                    libraries = libs,
-                    extra_compile_args = ["-Wno-unused-variable"],
-                    extra_link_args = extras)
-      ],
+      ext_modules  = [pypjua_core],
       cmdclass = { 'build_scripts' : my_build_scripts,
                    'build_ext': build_ext }
 )
