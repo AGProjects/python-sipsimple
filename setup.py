@@ -3,12 +3,11 @@
 from distutils.core import setup
 from distutils.extension import Extension
 from distutils.command.build_scripts import build_scripts
-from Cython.Distutils import build_ext
 import re
 import os
 import glob
 
-from setup_pjsip import get_pjsip_extension_kwargs
+from setup_pjsip import PJSIP_build_ext
 
 # cannot import pypjua here
 exec(file('pypjua/clients/setupconfig.py').read())
@@ -22,16 +21,6 @@ data_files = glob.glob(os.path.join('scripts', '*.wav'))
 
 if data_files_dir:
     data_files = [(data_files_dir, data_files)]
-
-
-def filter_cmdline(line, prefix):
-    return [arg.split(prefix, 1)[1] for arg in line.split() if arg.startswith(prefix)]
-
-build_mak_file = "pjsip/build.mak"
-pypjua_core = Extension(name = "pypjua.core",
-                        sources = ["pypjua/core.pyx", "pypjua/core.pxd"] + glob.glob(os.path.join("pypjua", "core.*.pxi")),
-                        **get_pjsip_extension_kwargs(build_mak_file))
-
 
 if os.name == 'posix':
     class my_build_scripts(build_scripts):
@@ -74,11 +63,15 @@ setup(name         = "sipclient",
       ],
       packages     = ["pypjua", "pypjua.clients", "pypjua.applications"],
       package_data = {
+          "pypjua": ["svn_revision"],
           'pypjua.applications' : ['xml-schemas/*']
       },
       data_files = data_files,
       scripts = scripts,
-      ext_modules  = [pypjua_core],
+      ext_modules  = [
+            Extension(name = "pypjua.core",
+            sources = ["pypjua/core.pyx", "pypjua/core.pxd"] + glob.glob(os.path.join("pypjua", "core.*.pxi")))
+            ],
       cmdclass = { 'build_scripts' : my_build_scripts,
-                   'build_ext': build_ext }
+                   'build_ext': PJSIP_build_ext }
 )

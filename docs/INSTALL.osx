@@ -7,8 +7,7 @@ The installation procedure includes 5 steps described below:
 Step 1. Prerequisites
 Step 2. Obtain the latest SIP SIMPLE client source code
 Step 3. Install dependencies
-Step 4. Compile PJSIP C library
-Step 5. Build and install SIP SIMPLE client
+Step 4. Build and install SIP SIMPLE client
 
 
 Step 1. Prerequisites
@@ -135,32 +134,9 @@ fi
 cd ..
 
 
-Step 4. Compile PJSIP C library
--------------------------------
-
-Go to the main project directory and download/update the PJSIP project under
-pjsip directory.
-
-cd sipsimpleclient
-if [ -d pjsip ]; then
-	cd pjsip
-	svn update
-else 
-	svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
-	cd pjsip
-	([ -f pjlib/include/pj/config_site.h ] && grep PJSIP_MAX_PKT_LEN pjlib/include/pj/config_site.h >/dev/null) || echo '#define PJSIP_MAX_PKT_LEN 65536' >>pjlib/include/pj/config_site.h
-	patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
-fi
-make distclean
-CFLAGS="-fPIC -arch ppc -arch i386" ./configure
-make
-cd ..
-
-
-Step 5. Build and install SIP SIMPLE client
+Step 4. Build and install SIP SIMPLE client
 -------------------------------------------
 
 Go to the main project directory and build the library:
 
-sudo python setup.py clean --all
 sudo python setup.py install
