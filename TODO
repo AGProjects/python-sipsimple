@@ -2,6 +2,7 @@
 Python PJSIP bindings
 ---------------------
 
+- Add MSRP transport class
 - Handle PJSIP and Pyrex/Cython compilation in setup.py
 - Properly decrease reference counts of pjsip_tx_data structs
 - Fix remainig TODOs for PUBLISH/REGISTER
