@@ -4,10 +4,10 @@ Installation procedure for SIP SIMPLE client on Nokia 810 (Maemo)
 
 This is work in progress, the software does not run yet 100% on the device.
 
-The installation procedure includes 5 steps described below:
+The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
-Step 2. Obtain the latest SIP SIMPLE client source code
+Step 2. Download SIP SIMPLE client sources
 Step 3. Install dependencies
 Step 4. Build and install SIP SIMPLE client
 
@@ -25,16 +25,16 @@ Step 1. Prerequisites
 Nokia tablet N810 with Maemo 4.1 (Diablo) installed.
 
 
-Step 2. Obtain the latest SIP SIMPLE client source code
--------------------------------------------------------
+Step 2. Download SIP SIMPLE client sources
+------------------------------------------
 
 The source code is available only using darcs version control tool from
 http://www.darcs.net
 
-Darcs is not available for ARM processors, you must obtain the source code
-on a separate machine using darcs and copy the software directory
-sipsimpleclient to your Nokia tablet. See INSTALL.linux for more information
-about obtaining the source code using darcs.
+Darcs is not available in binary form for ARM processors, you must obtain
+the source code on a separate machine using darcs and copy the software
+directory sipsimpleclient to your Nokia tablet. See INSTALL.linux for more
+information about obtaining the source code using darcs.
 
 
 Step 3. Install dependencies
@@ -107,3 +107,4 @@ Step 4. Build and install SIP SIMPLE client
 Go to the main project directory and build the library:
 
 sudo python setup.py install
+

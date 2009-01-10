@@ -26,9 +26,6 @@ protocol, publication and subscription for rich presence information such as
 availability, moods, activities and geo-location, management for presence
 rules, resource lists, RLS services using XCAP protocol.
 
-The software allows you to create elegant real-time communications
-applications without having to read the +1200 RFC documents behind it.
-
 
 Background
 ----------
@@ -54,6 +51,9 @@ busy line appearance.
 Features
 --------
 
+The software allows you to create elegant real-time communications
+applications without having to read the +1200 RFC documents behind it.
+
 As a library with a high-level API, the toolkit can be used to add voice, IM
 and Presence functionality to any devices as long as Python/C environment is
 supported by such platform.
@@ -76,54 +76,23 @@ this project implements:
  * Locating SIP services RFC3263
  * MSRP ad-hoc multi-party chat sessions draft-ietf-simple-chat-03
 
-SIP SIMPLE client is closely developed together with and tested against the
-most popular SIP SIMPLE server software available today: OpenSIPs from
-http://opensips.org, OpenXCAP from http://openxcap.org and MSRPRelay from
-http://msrprelay.org.
 
-With the library, a set of command line tools are available for setting up
-real time voice, IM and file transfer sessions, publish and subscribe to
-presence or other type of events:
+Documentation
+-------------
 
- * sip_register - REGISTER a SIP end-point with a SIP REGISTRAR
- * sip_audio_session - Setup a voice audio session (VoIP)
- * sip_im_session - Setup IM session and receive files using MSRP protocol
- * sip_send_file - Send a file using MSRP protocol
- * sip_message - Send text message in page mode using MESSAGE method
- * sip_publish_presence - PUBLISH presence to a SIP Presence Agent
- * sip_subscribe_presence - SUBSCRIBE to presence information
- * sip_subscribe_winfo - SUBSCRIBE to watcher list on a SIP Presence Agent
- * sip_subscribe_rls - SUBSCRIBE to lists managed by Resource List Server
- * xcapclient - Manage presence policy and buddy lists on an XCAP server
- * xcap_pres_rules - Manage content of pres-rules XCAP document
- * xcap_rls_services - Manage content of RLS services XCAP document
-
-Some scripts can be used to setup audio (VoIP), interactive messaging (IM)
-and file transfer sessions. Other scripts can be used to publish presence
-information and subscribe to presence or other type of events. Running each
-script with --help argument displays the script capabilities and the
-required arguments.
-
-For testing, you can use your own infrastructure or register a free SIP
-SIMPLE account on http://SIP2SIP.info
-
-
-Installation
-------------
-
-See docs/INSTALL.* files
+For download and installation instructions, API description and other
+documentation see the files under docs/ directory.
 
 
 Support
 -------
 
-The project is supported via the wiki collaboration system provided at:
+The project is developed and supported by AG Projects via the wiki
+collaboration system available at http://sipsimpleclient.com
 
-http://SipSimpleClient.com
-
-To open ticket please Register first. The ticketing support system is
-available only for registered users. Please beware that the support is
-provided by the community on a best-effort basis.
+To request support you must open a ticket. To open ticket please Register
+first. The source browser and ticketing system are available only for
+registered users.
 
 If you wish to contribute and become an active developer of this project,
 send your request by email to pypjua-devel@ag-projects.com.

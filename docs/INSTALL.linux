@@ -2,10 +2,10 @@
 Installation procedure for SIP SIMPLE client on Linux
 -----------------------------------------------------
 
-The installation procedure includes 5 steps described below:
+The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
-Step 2. Obtain the latest SIP SIMPLE client source code
+Step 2. Download SIP SIMPLE client sources
 Step 3. Install dependencies
 Step 4. Build and install SIP SIMPLE client
 
@@ -25,19 +25,9 @@ Install subversion, mercurial and darcs version control tools.
 Darcs is available from http://darcs.net or as a package for some Linux
 distributions.
 
-You need a SIP account from a service provider or to setup your own SIP
-infrastructure using the following elements:
 
-OpenSIPS  >= 1.4.2 from http://opensips.org
-OpenXCAP  >= 1.0.6 from http://openxcap.org
-MSRPRelay >= 1.0.0 from http://msrprelay.org
-
-A SIP account with all SIP SIMPLE client features can be obtained for free
-from http://sip2sip.info 
-
-
-Step 2. Obtain the latest SIP SIMPLE client source code
--------------------------------------------------------
+Step 2. Download SIP SIMPLE client sources
+------------------------------------------
 
 Run the next step once:
 
@@ -122,7 +112,6 @@ sudo python setup.py install
 Notes
 -----
 
-- For testing the library see README.txt in the scripts directory
 - The unix user must belong to the 'audio' group
-- OSS drivers are not supported. You must use ALSA drivers.
+- Use the ALSA drivers
 
