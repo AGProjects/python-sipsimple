@@ -33,6 +33,7 @@ Audio
 - Add comfort noise generator
 - Implement Automatic Gain Control in PJSIP media engine
 - Fine tune echo-cancelation for non speex codecs
+- Conference established sessions API
 - zRTP
 
 
@@ -57,6 +58,7 @@ Presence
 - Contact information http://tools.ietf.org/html/rfc4482
 - Device capabilities http://tools.ietf.org/html/rfc5196
 - PIDF location (geopriv)
+  Shall we publish Google maps link in Person Note instead?
 - Buddylist library
 - Environment detection: ambient and geo-location detection
 
@@ -81,7 +83,6 @@ Command line clients
 - An incoming session request must prompt the user to accept a) audio+text or b) text only
 - Conference established sessions
 - Add parameter to hangup after a number of seconds for sip_audio_session
-
 - Logging, based on trace_x configuration options:
  - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt
  - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt
@@ -105,8 +106,7 @@ Sessions
 
 - Video (H.264)
 - Real time text over RTP (RFC4103)
-- Desktop sharing
-- Generic bit pipe over MSRP
+- Desktop sharing (draft-garcia-mmusic-sdp-collaboration-00.txt + VNC)
 
 
 Packaging
