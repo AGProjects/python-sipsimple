@@ -10,21 +10,12 @@ Description
 -----------
 
 SIP SIMPLE client is Python software library built on top of PJSIP that
-together with middleware allows for easy development of Client/Server and
-Peer-to-Peer Internet communications end-points based on SIP SIMPLE family
-of protocols for voice, video, presence, instant messaging (IM) and file
-transfer capabilities.
+together with middleware allows for easy development of Internet
+communications end-points based on SIP and related protocols for voice,
+video, presence, instant messaging (IM) and file transfers. Other session
+types can be easily added by using an extensible API.
 
-The goal of this project is to deliver the best open source Python library
-for rich featured SIP end-points, while hiding the complex underlying
-functionality behind an easy to use high-level application-programming
-interface. This package supports to the SDP negotiation, audio codecs and
-NAT traversal functionality provided by PJSIP and will thus deliver rich
-communications combining instant messaging (IM), voice and video streams. It
-also supports file transfer and multi-party chat sessions using MSRP
-protocol, publication and subscription for rich presence information such as
-availability, moods, activities and geo-location, management for presence
-rules, resource lists, RLS services using XCAP protocol.
+The software is provided under the GPL LICENSE.
 
 
 Background
