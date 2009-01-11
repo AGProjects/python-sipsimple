@@ -17,7 +17,6 @@ Python PJSIP bindings
 - Handle sending and receiving of multipart bodies for Invitation
 - Handle UPDATE for re-INVITE
 - Means to query RTP statistics
-- Fix high CPU usage for sound card access on OS X
 - Add option to use the STUN response for Contact header (default false)
 - Make local_ip option settable at runtime
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP)
@@ -28,51 +27,59 @@ Python PJSIP bindings
 Audio
 -----
 
+- Fix high CPU usage for sound card access on OS X
 - N810 maemo audio driver
 - Mute the microphone for a given session (useful for listen in conferences)
 - Play a tone while on hold every 30 seconds
 - Play a tone once after we closed a session
 - Play a tone when receiving a call while engaged in another call
 - Add comfort noise generator
-- Implement Automatic Gain Control in PJSIP media engine
-- Fine tune echo-cancelation for non speex codecs
-- Conference established sessions API
+- Implement Automatic Gain Control
+- Fix echo-cancelation for non speex codecs
+- Conference established sessions
 - zRTP
 
 
 Instant Messaging
 -----------------
 
-- Move non-SIP applications to a separate python package
-- Port greenlet to ARM
+- Document MSRP client library usage, wiki page
+- Port eventlet/greenlet to ARM
 - MSRP focus
 - MSRP mixer
-- Conference-info event package
 - MSRP multiparty chat
 - Is-composing payload
+
+
+Presence/XML
+------------
+
+- Conference-info event package
 - xcap-diff payload
-- Message-summary payload
-
-
-Presence
---------
-
+- Move non SIP applications to a separate python package
 - Timed-status element http://tools.ietf.org/html/rfc4481
 - Contact information http://tools.ietf.org/html/rfc4482
 - Device capabilities http://tools.ietf.org/html/rfc5196
 - PIDF location (geopriv)
   Shall we publish Google maps link in Person Note instead?
 - Buddylist library
-- Environment detection: ambient and geo-location detection
+
+
+Other applications
+------------------
+
+- Message-summary payload
+- Bonjour
+- ENUM lookup
 
 
 Middleware
 ----------
 
-- High level event bus
-- Bonjour
-- Lookup for ENUM
+- Event bus
 - Enrollment
+- Ambient noise and light detection 
+- Geo-location detection
 
 
 Command line clients
