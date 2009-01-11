@@ -28,6 +28,7 @@ Python PJSIP bindings
 Audio
 -----
 
+- N810 maemo audio driver
 - Mute the microphone for a given session (useful for listen in conferences)
 - Play a tone while on hold every 30 seconds
 - Play a tone once after we closed a session
