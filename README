@@ -11,9 +11,9 @@ Description
 
 SIP SIMPLE client is Python software library built on top of PJSIP that
 together with middleware allows for easy development of Internet
-communications end-points based on SIP and related protocols for voice,
-video, presence, instant messaging (IM) and file transfers. Other session
-types can be easily added by using an extensible API.
+communications end-points based on SIP and related protocols for voice, rich
+presence, instant messaging (IM) and file transfers. Other session types can
+be easily added by using an extensible API.
 
 The software is provided under the GPL LICENSE.
 
