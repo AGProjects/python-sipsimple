@@ -1,8 +1,0 @@
-#!/bin/sh
-
-rm -r dist/sip_audio_session.app
-python makeapp.py py2app
-mkdir dist/sip_audio_session.app/Contents/Resources/Python
-(cd dist/sip_audio_session.app/Contents/Resources/Python && ln -sf ../lib/python2.5 site-packages)
-(cd dist && zip -r -y sip_audio_session.zip sip_audio_session.app)
-scp dist/sip_audio_session.zip ws1:/var/www/download/PyPjUA/binaries/MacOSX/
