@@ -1,0 +1,203 @@
+
+Software licenses for SIP SIMPLE client dependencies.
+
+
+Libxml2 
+-------
+
+Libxml2 is the XML C parser and toolkit developed for the Gnome project (but
+usable outside of the Gnome platform), it is available under the MIT
+License.
+
+
+Libxslt
+-------
+
+Libxslt is a language for transforming XML documents into other XML
+documents (or HTML/textual output). It is available under the MIT License.
+
+
+GnuTLS
+------
+
+GnuTLS is a project that aims to develop a library which provides a secure
+layer, over a reliable transport layer. Currently the GnuTLS library
+implements the proposed standards by the IETF's TLS working group. The
+library is licensed under the GNU Lesser General Public License version 2.1.
+
+
+Setuptools
+----------
+
+Download, build, install, upgrade, and uninstall Python packages. It is
+available under the Python Software Foundation License.
+
+
+Cython 
+------
+
+A language that makes writing C extensions for the Python language as easy
+as Python itself. Cython is available under the open source Apache License.
+
+
+Python-application 
+------------------
+
+A collection of modules that are useful when building python applications.
+Their purpose is to eliminate the need to divert resources into implementing
+the small tasks that every application needs to do in order to run
+successfully and focus instead on the application logic itself. Is available
+under GNU Library or Lesser General Public License (LGPL).
+
+
+Dnspython
+---------
+
+A DNS toolkit for Python. It supports almost all record types. It can be
+used for queries, zone transfers, and dynamic updates. Dnspython originated
+at Nominum where it was developed to facilitate the testing of DNS software.
+Nominum has generously allowed it to be open sourced under a BSD-style
+license.
+
+
+Lxml
+----
+
+Lxml is the most feature-rich and easy-to-use library for working with XML
+and HTML in the Python language. A Pythonic binding for the libxml2 and
+libxslt libraries. It is unique in that it combines the speed and feature
+completeness of these libraries with the simplicity of a native Python API,
+mostly compatible but superior to the well-known ElementTree API. The lxml
+library is shipped under a BSD license.
+
+
+Twisted
+-------
+
+A networking engine written in Python, supporting numerous protocols. It
+contains a web server, numerous chat clients, chat servers, mail servers,
+and more. The source code is available under a proprietary license (non GPL).
+
+
+Pylib
+-----
+
+The pylib is a development support library featuring py.test, ad-hoc
+distributed execution, micro-threads (greenlets) and uniform local path and
+svn abstractions. Is provided under MIT License.
+
+
+Python-gnutls
+-------------
+
+Python wrapper for gnutls available under either GPL or Lesser General
+Public License (LGPL).
+
+
+Eventlet_twisted
+----------------
+
+Eventlet makes asynchronous programming look like synchronous, thus
+achieving higher signal-to-noise ratio than traditional twisted programs
+have. It is available under the MIT License.
+
+
+Python-xcaplib
+--------------
+
+XCAP protocol, defined in RFC 4825, allows a client to read, write, and
+modify application configuration data stored in XML format on a server. XCAP
+maps XML document sub-trees and element attributes to HTTP URIs, so that
+these components can be directly accessed by HTTP. An XCAP server used by
+XCAP clients to store data like presence policy in combination with a SIP
+Presence server that supports PUBLISH/SUBSCRIBE/NOTIFY SIP methods can
+provide a complete SIP SIMPLE solution. The XCAP client example script
+provided by this package can be used to manage documents on an XCAP server.
+The software is available under either GPL or Lesser General Public License
+(LGPL).
+
+
+Port audio
+----------
+
+PortAudio is a free, cross platform, open-source, audio I/O library. It lets
+you write simple audio programs in 'C' that will compile and run on many
+platforms including Windows, Macintosh (8,9,X), Unix (OSS), SGI, and BeOS.
+PortAudio is intended to promote the exchange of audio synthesis software
+between developers on different platforms. The PortAudio licence is a plain
+MIT licence.
+
+
+Pjlib
+-----
+
+A small footprint, high performance, ultra portable abstraction library and
+framework, used by PJSIP and PJMEDIA. PJLIB is about the only library that
+PJLIB-UTIL, PJMEDIA, and PJSIP should depend, as it provides complete
+abstraction not only to Operating System dependent features, but it is also
+designed to abstract LIBC and provides some useful data structures too. A
+cross-platforms portability and framework library. Available under GPL or an
+alternative non-GPL license.
+
+
+Pjlib-util
+----------
+
+PJLIB-UTIL is an auxiliary library providing supports for PJMEDIA and PJSIP.
+Some of the functions/components in this library: small footprint XML
+parsing, STUN client library, asynchronous/caching DNS resolver,
+hashing/encryption functions, etc. Available under GPL or an alternative
+non-GPL license.
+
+
+Pjnat
+-----
+
+PJNATH is a new library, available in the SVN trunk, for helping the
+applications with NAT traversal. It implements the latest specification of
+Session Traversal Utilities for NAT (STUN), Obtaining Relay Addresses from
+STUN (TURN), and Interactive Connectivity Establishment (ICE). Available
+under GPL or alternative non-GPL license.
+
+
+Pjmedia	
+-------
+
+PJMEDIA is a complementary library for PJSIP to build a complete,
+full-featured SIP user agent applications such as softphones/hardphones,
+gateways, or B2BUA. Available under GPL or an alternative non-GPL license.
+
+
+Pjmedia-codec
+-------------
+
+A placeholder library to support various multimedia codecs. Available under
+GPL or an alternative non-GPL license.
+
+
+Pjsip
+-----
+
+A SIP protocol stack. Available under GPL or an alternative non-GPL license.
+The non-GPL license is available from its licensor for a fee.
+
+
+Eventlet
+--------
+
+Eventlet is a networking library written in Python. It achieves high
+scalability by using non-blocking io while at the same time retaining high
+programmer usability by using coroutines to make the non-blocking io
+operations appear blocking at the source code level. It is available under
+MIT license.
+
+
+Greelet
+-------
+
+Lightweight in-process concurrent programming. The "greenlet" package is a
+spin-off of Stackless, a version of CPython that supports micro-threads
+called "tasklets". Tasklets run pseudo-concurrently (typically in a single
+or a few OS-level threads) and are synchronized with data exchanges on
+"channels". It is provided under MIT license.
+
