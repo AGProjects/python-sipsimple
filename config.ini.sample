@@ -1,4 +1,4 @@
-; SIP User Agent configuration file
+; SIP SIMPLE client configuration file
 ;
 ; This file must reside in ~/.sipclient/config.ini
 
@@ -7,37 +7,32 @@
 ; User Agent name, software version will be automatically appended
 user_agent=ag-projects.com/sipclient
 
-; IP used for SIP signalling
-; 0.0.0.0 or any or ip:port or ip 
+; IP address used for SIP signaling, syntax: 0.0.0.0|any|ip:port|ip
 local_ip=any
 
 ; Ports used for each supported SIP transport, can be 0 (port will be
 ; automatically allocated) or a valid port number
-
 sip_local_udp_port=0
 sip_local_tcp_port=0
 sip_local_tls_port=0
 
-; enable/disable sip transports and local order
+; Enable/disable SIP transports and set their preffered order
 sip_transports=tls,tcp,udp
 
 ; List of certificate authorities, that may sign remote X.509 certificates
 tls_ca_file=~/.sipclient/tls/ca.crt
 
-; Verify that the X.509 common name of the target matches the hostname
+; Verify that the X.509 certificate common name matches the remote hostname
 sip_tls_verify_server=false
 msrp_tls_verify_server=false
 xcap_tls_verify_server=false
 
-; Range of ports used for listening to RTP/RTCP streams
+; Range of IP ports used for listening to RTP/RTCP streams
 rtp_port_range=8000 8100
 
 ; Publish presence on the LAN using multicast DNS, it appears as another
 ; active account in the user interface
 ; bonjour=true
-
-; Display name for bonjour
-; bonjour_name=
 
 ; Logging setting
 trace_sip=false
@@ -68,7 +63,7 @@ sample_rate=32
 ; between the microphone and the loudspeakers of the device
 echo_cancellation_tail_length=100
 
-; Use dummy sound device, on platforms that do not have a sound card
+; Use a dummy sound device, useful on platforms that do not have a sound card
 disable_sound=false
 
 ; Supported audio codecs
@@ -79,52 +74,53 @@ codec_list=speex,g711,ilbc,gsm,g722
 ; negotiation fails) and disabled (sRTP is never used)
 encryption=optional
 
-; By default sRTP is be used only over TLS secured signalling otherwise the
+; By default sRTP is used only over TLS secured signaling otherwise the
 ; encryption key may be compromissed
 encryption_over_non_tls_sip_transport=false
 
 
 [Account]
 
-; Credentials used for authentication to the SIP Proxy, XCAP server and MSRP relay
+; Enable or disable this account
+active=true
+
+; Credentials. Used for authentication to the SIP Proxy, XCAP server and MSRP relay
 sip_address=
 password=
+
+; Display name in the From header. Displayed by the remote device.
+display_name=
 
 ; SIP outbound proxy. If not set, the target is derived from DNS (RFC3263)
 ; of the target domain. If set all SIP messages will be sent through it.
 ; syntax: host|transport:host|host:port|transport:host:port
 outbound_proxy=
 
-; enable or disable this account
-active=true
-
-; Display name in the From header, displayed by the remote device
-display_name=
-
-; XCAP root used to store buddy lists and presence policy
-xcap_root=https://xcap.example.com/xcap-root/
-
-; MSRP relay address, syntax: auto|domain|hostname|hostname:port|ip:port
-; auto means the relay is looked-up using DNS SRV _msrps._tcp.domain
-msrp_relay=auto
-
 ; NAT traversal settings
 
-; By default STUN servers are looked up in DNS 
+; By default STUN servers are looked-up using DNS SRV _stun._udp .domain
 ; stun_servers=
 
-; Use ICE to determine LAN candidates for SDP/RTP negotiation
+; Use ICE to determine candidates used in SDP/RTP negotiation
 ; use_ice=false
 
 ; Use STUN to determine server reflexive candidates for SDP/RTP negotiation
 ; use_stun_for_ice=false 
 
+; MSRP relay address, syntax: auto|domain|hostname|hostname:port|ip:port
+; auto means the relay is looked-up using DNS SRV _msrps._tcp.domain
+msrp_relay=auto
+
+; Presence settings
 
 ; Enable publication and subscription to presence.winfo event package, if
 ; enabled the software will publish its state and authorize or block
 ; watchers; subscribing to someone else's presence is enabled at all times
 ; since this doesn't require any special capability in the provider
 use_presence_agent=true
+
+; XCAP root used to store buddy lists and presence policy
+xcap_root=https://xcap.example.com/xcap-root/
 
 ; enable subscription to RLS services
 subscribe_rls_services=false
@@ -135,7 +131,7 @@ subscribe_message_summary=false
 ; subscribe to xcap-diff to be notified when XCAP documents are changed
 subscribe_xcap_diff=false
 
-; refresh interval
+; Refresh intervals
 sip_register_interval=600
 sip_subscribe_interval=600
 sip_publish_interval=600
