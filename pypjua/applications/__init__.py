@@ -71,7 +71,7 @@ class XMLElement(object):
         else:
             element = etree.SubElement(parent, self.qname, nsmap=nsmap)
         for attr, definition in self._xml_attrs.items():
-            value = hasattr(self, attr) and getattr(self, attr) or None
+            value = getattr(self, attr, None)
             if value is not None:
                 element.set(definition.get('xml_attribute', attr), definition.get('build', lambda x: x)(value))
         self._build_element(element, nsmap)
