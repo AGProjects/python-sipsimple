@@ -49,18 +49,20 @@ class PJSIP_build_ext(build_ext):
 
     user_options = build_ext.user_options
     user_options.extend([
-        ("pjsip-svn-repo=", None, "PJSIP SVN repository to fetch from")
+        ("pjsip-svn-repo=", None, "PJSIP SVN repository to checkout from"),
+        ("pjsip-svn-revision=", None, "PJSIP SVN revision to fetch")
         ])
 
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.pjsip_svn_repo = "http://svn.pjsip.org/repos/pjproject/trunk"
+        self.pjsip_svn_revision = "HEAD"
 
     def fetch_pjsip_from_svn(self):
         self.svn_dir = os.path.join(self.build_temp, "pjsip")
         if not os.path.exists(self.svn_dir):
             log.info("Fetching PJSIP from SVN repository")
-            distutils_exec_process(["svn", "co", self.pjsip_svn_repo, self.svn_dir], True, input='t\n')
+            distutils_exec_process(["svn", "co", "-r", self.pjsip_svn_revision, self.pjsip_svn_repo, self.svn_dir], True, input='t\n')
             open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site))
             try:
                 os.remove(self.svn_revision_file)
@@ -68,7 +70,7 @@ class PJSIP_build_ext(build_ext):
                 pass
         else:
             log.info("PJSIP SVN tree found, updating from SVN repository")
-            distutils_exec_process(["svn", "up", self.svn_dir], True, input='t\n')
+            distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
         svn_revision = int(re.search("Revision: (\d+)", distutils_exec_process(["svn", "info", self.svn_dir], True)).group(1))
         print "Using SVN revision %d" % svn_revision
         return svn_revision
