@@ -60,27 +60,7 @@ step to update it later:
 cd sipsimpleclient
 darcs pull
 
-Change directory to the main software directory. Check out the PJSIP project
-under the main software directory. It will expand under pjsip directory.
-
-cd sipsimpleclient
-svn co http://svn.pjsip.org/repos/pjproject/trunk pjsip
-
-If you have obtained the svn sources already you can update them using svn
-update command.
-
-cd pjsip
-svn update
-
-Go to pjsip directory and build pjsip library:
-
-cd pjsip
-patch -p0 <../patches/pjsip-2371-sip_inv-on_rx_reinvite.patch
-CFLAGS="-fPIC" ./configure
-make distclean
-
-Go back to the sipsimpleclient directory, make a source distribution tarball
-and build the debian package:
+Make a source distribution tarball and build the debian package:
 
 cd ..
 python setup.py sdist
