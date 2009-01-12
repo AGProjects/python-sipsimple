@@ -15,7 +15,8 @@ Step 1. Prerequisites
 
 Linux OS, both i386 or amd64 architectures are supported.
 
-Install the C compiling environment, python 2.5 and the following packages:
+Install the C compiling environment, python 2.5 and the following (development)
+packages:
 
 openssl, gnutls >=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24,
 python-setuptools =>0.6c9
