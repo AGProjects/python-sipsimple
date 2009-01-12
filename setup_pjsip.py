@@ -76,7 +76,12 @@ class PJSIP_build_ext(build_ext):
             cflags = "-fPIC -arch ppc -arch i386"
         else:
             cflags = "-fPIC"
-        distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env={"CFLAGS": cflags})
+        env = os.environ.copy()
+        if "CFLAGS" in env:
+            env["CFLAGS"] = " ".join([env["CFLAGS"], cflags])
+        else:
+            env["CFLAGS"] = cflags
+        distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
 
     def update_extension(self, extension):
         build_mak_vars = get_makefile_variables(os.path.join(self.svn_dir, "build.mak"))
