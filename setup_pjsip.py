@@ -61,6 +61,13 @@ class PJSIP_build_ext(build_ext):
         self.pjsip_svn_repo = "http://svn.pjsip.org/repos/pjproject/trunk"
         self.pjsip_svn_revision = "HEAD"
 
+    def finalize_options(self):
+        build_ext.finalize_options(self)
+        if "PJSIP_SVN_REPO" in os.environ:
+            self.pjsip_svn_repo = os.environ["PJSIP_SVN_REPO"]
+        if "PJSIP_SVN_REVISION" in os.environ:
+            self.pjsip_svn_revision = os.environ["PJSIP_SVN_REVISION"]
+
     def fetch_pjsip_from_svn(self):
         self.svn_dir = os.path.join(self.build_temp, "pjsip")
         try:
