@@ -2,7 +2,7 @@ recursive-include debian  changelog compat control copyright dirs docs pyversion
 recursive-include docs INSTALL.*
 prune debian/tmp
 prune debian/sipclient
-include MANIFEST.in config.ini.sample AUTHORS LICENSE build_inplace Changelog
+include MANIFEST.in config.ini.sample AUTHORS LICENSE build_inplace Changelog setup_pjsip.py
 recursive-include pypjua _pjsip.pyx Makefile
 recursive-include scripts *.wav
 recursive-include pypjua/applications/xml-schemas *.xsd
