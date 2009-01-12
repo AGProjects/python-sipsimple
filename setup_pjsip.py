@@ -40,7 +40,6 @@ def get_makefile_variables(makefile):
     return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
 
 class PJSIP_build_ext(build_ext):
-    svn_repo = "http://svn.pjsip.org/repos/pjproject/trunk"
     config_site = ["#define PJ_SCANNER_USE_BITWISE 0",
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 65536",
@@ -48,11 +47,20 @@ class PJSIP_build_ext(build_ext):
     patch_file = "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch"
     svn_revision_file = "pypjua/svn_revision"
 
+    user_options = build_ext.user_options
+    user_options.extend([
+        ("pjsip-svn-repo=", None, "PJSIP SVN repository to fetch from")
+        ])
+
+    def initialize_options(self):
+        build_ext.initialize_options(self)
+        self.pjsip_svn_repo = "http://svn.pjsip.org/repos/pjproject/trunk"
+
     def fetch_pjsip_from_svn(self):
         self.svn_dir = os.path.join(self.build_temp, "pjsip")
         if not os.path.exists(self.svn_dir):
             log.info("Fetching PJSIP from SVN repository")
-            distutils_exec_process(["svn", "co", self.svn_repo, self.svn_dir], True, input='t\n')
+            distutils_exec_process(["svn", "co", self.pjsip_svn_repo, self.svn_dir], True, input='t\n')
             open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site))
             try:
                 os.remove(self.svn_revision_file)
