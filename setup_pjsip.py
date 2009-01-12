@@ -12,30 +12,19 @@ def get_opts_from_string(line, prefix):
     """Returns all options that have a particular prefix on a commandline"""
     return re.findall("%s(\S+)(?:\s|$)" % prefix, line)
 
-def exec_process(cmdline, silent, **kwargs):
+def exec_process(cmdline, silent, input=None, **kwargs):
     """Execute a subprocess and returns the returncode, stdout buffer and stderr buffer.
        Optionally prints stdout and stderr while running."""
-    stdout_buf = []
-    stderr_buf = []
-    sub = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
-    while True:
-        stdout_data = sub.stdout.read()
-        if stdout_data:
-            stdout_buf.append(stdout_data)
-            if not silent:
-                sys.stdout.write(stdout_data)
-        stderr_data = sub.stderr.read()
-        if stderr_data:
-            stderr_buf.append(stderr_data)
-            if not silent:
-                sys.stderr.write(stderr_data)
-        if sub.poll() != None:
-            break
-    return sub.returncode, "".join(stdout_buf), "".join(stderr_buf)
+    sub = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+    stdout, stderr = sub.communicate(input=input)
+    if not silent:
+        sys.stdout.write(stdout)
+        sys.stderr.write(stderr)
+    return sub.returncode, stdout, stderr
 
-def distutils_exec_process(cmdline, silent, **kwargs):
+def distutils_exec_process(cmdline, silent, input=None, **kwargs):
     try:
-        returncode, stdout, stderr = exec_process(cmdline, silent, **kwargs)
+        returncode, stdout, stderr = exec_process(cmdline, silent, input, **kwargs)
     except OSError,e:
         if e.errno == 2:
             raise DistutilsError('"%s" is not present on this system' % cmdline[0])
@@ -63,7 +52,7 @@ class PJSIP_build_ext(build_ext):
         self.svn_dir = os.path.join(self.build_temp, "pjsip")
         if not os.path.exists(self.svn_dir):
             log.info("Fetching PJSIP from SVN repository")
-            distutils_exec_process(["svn", "co", self.svn_repo, self.svn_dir], True)
+            distutils_exec_process(["svn", "co", self.svn_repo, self.svn_dir], True, input='t\n')
             open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site))
             try:
                 os.remove(self.svn_revision_file)
@@ -71,7 +60,7 @@ class PJSIP_build_ext(build_ext):
                 pass
         else:
             log.info("PJSIP SVN tree found, updating from SVN repository")
-            distutils_exec_process(["svn", "up", self.svn_dir], True)
+            distutils_exec_process(["svn", "up", self.svn_dir], True, input='t\n')
         svn_revision = int(re.search("Revision: (\d+)", distutils_exec_process(["svn", "info", self.svn_dir], True)).group(1))
         print "Using SVN revision %d" % svn_revision
         return svn_revision
