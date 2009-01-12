@@ -33,6 +33,7 @@ sipclient (0.3.0) unstable; urgency=low
   * Added twisted/eventlet wrapper for Engine
   * Added creation of history, log and file transfer directories in enrollment
   * Made sip traces get logged in <log_directory>/<sip_address>/sip_trace.txt
+  * Added script sip_auto_publish_presence
 
  -- Adrian Georgescu <ag@ag-projects.com>  Sat, 29 Nov 2008 10:44:33 +0100
 
