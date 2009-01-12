@@ -5,43 +5,24 @@ Installation procedure for SIP SIMPLE client on Linux
 The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
-Step 2. Download SIP SIMPLE client sources
-Step 3. Install dependencies
-Step 4. Build and install SIP SIMPLE client
+Step 2. Install dependencies
+Step 3. Install SIP SIMPLE client
 
 
 Step 1. Prerequisites
 ---------------------
 
-Linux OS, both i386 or amd64 architectures are supported.
+Linux OS, both i386 or amd64 architectures are supported. Install the C
+compiling environment, python 2.5 and the development version for the
+following packages: openssl, gnutls >=2.4.1, libxml2 >=2.6.32, libxslt
+>=1.1.24, python-setuptools =>0.6c9.
 
-Install the C compiling environment, python 2.5 and the following (development)
-packages:
-
-openssl, gnutls >=2.4.1, libxml2 >=2.6.32, libxslt >=1.1.24,
-python-setuptools =>0.6c9
-
-Install subversion, mercurial and darcs version control tools. 
-
-Darcs is available from http://darcs.net or as a package for some Linux
+Install subversion, mercurial and darcs version control tools. Darcs is
+available from http://darcs.net or as a package for some Linux
 distributions.
 
 
-Step 2. Download SIP SIMPLE client sources
-------------------------------------------
-
-Run the next step once:
-
-darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
-
-The software is downloaded under sipsimpleclient directory. To update it at
-a later time:
-
-cd sipsimpleclient
-darcs pull -a
-
-
-Step 3. Install dependencies
+Step 2. Install dependencies
 ----------------------------
 
 Use the appropriate package manager for your Linux distribution to install
@@ -55,14 +36,15 @@ dnspython           http://www.dnspython.org                          >=1.6.0
 twisted             http://twistedmatrix.com/trac/                    >=8.1.0
 pylib               http://codespeak.net/py                           >=0.9.2
 mercurial           http://www.selenic.com/mercurial                  >=1.0.2
-python-msrplib      http://msrprelay.org                              >=0.9.0
 
 Alternatively, you can use the easy_install script provided by the
-python-setuptools package to install the same packages:
+python-setuptools package to install the packages:
 
 sudo easy_install -U python-gnutls lxml cython python-application dnspython twisted py mercurial
 
-# Download and install/update eventlet for twisted:
+Download and install dependencies available in AG Projects repositories:
+
+# eventlet for twisted
 if [ -d eventlet_twisted ]; then
         # Install eventlet the first time
         cd eventlet_twisted
@@ -76,7 +58,7 @@ else
 fi
 cd ..
 
-# Download and install python-xcaplib:
+# python-xcaplib
 if [ -d python-xcaplib ]; then
         cd python-xcaplib
         darcs pull -a 
@@ -88,7 +70,7 @@ else
 fi
 cd ..
 
-# Download and install python-msrplib:
+# python-msrplib
 if [ -d python-msrplib ]; then
         cd python-msrplib
         darcs pull -a
@@ -101,11 +83,22 @@ fi
 cd ..
 
 
-Step 4. Build and install SIP SIMPLE client
--------------------------------------------
+Step 3. Install SIP SIMPLE client
+---------------------------------
 
-Go to the main project directory and build the library:
+Download SIP SIMPLE client sources. Run the next step once:
 
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+
+The software is downloaded under sipsimpleclient directory. To update it at
+a later time:
+
+cd sipsimpleclient
+darcs pull -a
+
+Build and install the software library:
+
+cd sipsimpleclient
 sudo python setup.py install
 
 
@@ -127,42 +120,24 @@ python-setuptools python-lxml cython python-application python-twisted \
 build-essential libasound2-dev cdbs debhelper python-all-dev python-support \
 libssl-dev mercurial
 
-You must have cython version >=0.9.1 installed. If your Linux distribution
+You must have cython version >=0.10 installed. If your Linux distribution
 has an older version, upgrade it using python setuptools:
 
 sudo easy_install -U cython
 
-# Download and install eventlet for twisted:
-hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
-cd eventlet_twisted
-sudo python setup.py install
-# To update the eventlet_twisted at a later date:
-cd eventlet_twisted
-hg pull
-hg update
+Go into each sipsimpleclient, python-xcaplib and python-msrplib directory
+create using darcs at steps 2 and 3 and build the corresponding debian
+package using debuild command. Example for python-msrplib:
 
-Download the software using darcs:
-
-darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
-darcs get http://devel.ag-projects.com/repositories/python-xcaplib
-darcs get http://devel.ag-projects.com/repositories/python-msrplib
-
-The following directory are created: sipsimpleclient, python-xcaplib and
-python-msrplib. Go into each of them, make a source distribution tarball and
-build the debian package using debuild command. Example for sipclient:
-
-cd sipclient
+cd python-msrplib
 python setup.py sdist
 cd dist
-tar xvzf sipclient-X.X.X.tar.gz
-cd sipclient-X.X.X
+tar xvzf python-msrplib-X.X.X.tar.gz
+cd python-msrplib-X.X.X
 debuild
 
-You will now have a debian package in the upper level directory that you can
-install using dpkg -i command.
-
-To update the sources at a later date go into each directory and run:
-darcs pull -a
+You will now have a debian package in the upper level of each directory that
+you can install using dpkg -i command.
 
 
 Notes

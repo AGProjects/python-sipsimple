@@ -5,9 +5,8 @@ Installation procedure for SIP SIMPLE client on FreeBSD
 The installation procedure includes 5 steps described below:
 
 Step 1. Prerequisites
-Step 2. Obtain the latest SIP SIMPLE client source code
-Step 3. Install dependencies
-Step 4. Build and install SIP SIMPLE client
+Step 2. Install dependencies
+Step 3. Install SIP SIMPLE client
 
 
 Step 1. Prerequisites
@@ -25,32 +24,8 @@ portinstall devel/darcs devel/subversion lang/ghc devel/mercurial \
 security/gnutls textproc/libxml2 textproc/libxslt devel/py-setuptools \
 devel/gmake security/py-gnutls
 
-You need a SIP account from a service provider or to setup your own SIP
-infrastructure using the following elements:
 
-OpenSIPS  >= 1.4.2 from http://opensips.org
-OpenXCAP  >= 1.0.6 from http://openxcap.org
-MSRPRelay >= 1.0.0 from http://msrprelay.org
-
-A SIP account with all SIP SIMPLE client features can be obtained for free
-from http://sip2sip.info 
-
-
-Step 2. Obtain the latest SIP SIMPLE client source code
--------------------------------------------------------
-
-You must run the next step once.
-
-darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
-
-The software is downloaded under sipsimpleclient directory. Use the next
-step to update it:
-
-cd sipsimpleclient
-darcs pull
-
-
-Step 3. Install dependencies
+Step 2. Install dependencies
 ----------------------------
 
 For comfort, you can use the easy_install script provided by the
@@ -71,38 +46,63 @@ twisted             http://twistedmatrix.com/trac/                    >=8.1.0
 pylib               http://codespeak.net/py                           >=0.9.2
 mercurial           http://www.selenic.com/mercurial                  >=1.0.2
 zope.interface
-python-msrplib      http://msrprelay.org
+
+Download and install dependencies available in AG Projects repositories:
+
+# eventlet for twisted
+if [ -d eventlet_twisted ]; then
+        # Install eventlet the first time
+        cd eventlet_twisted
+        hg pull
+        hg update
+        sudo python setup.py install
+else
+        hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+        cd eventlet_twisted
+        sudo python setup.py install
+fi
+cd ..
+
+# python-xcaplib
+if [ -d python-xcaplib ]; then
+        cd python-xcaplib
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+        sudo python setup.py install
+fi
+cd ..
+
+# python-msrplib
+if [ -d python-msrplib ]; then
+        cd python-msrplib
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+        sudo python setup.py install
+fi
+cd ..
 
 
-# Download and install eventlet for twisted:
-hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
-cd eventlet_twisted
+Step 3. Install SIP SIMPLE client
+---------------------------------
+
+Download SIP SIMPLE client sources. Run the next step once:
+
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+
+The software is downloaded under sipsimpleclient directory. To update it at
+a later time:
+
+cd sipsimpleclient
+darcs pull -a
+
+Build and install the software library:
+
+cd sipsimpleclient
 sudo python setup.py install
 
-# To update the eventlet_twisted at a later date:
-cd eventlet_twisted
-hg pull
-hg update
-
-# Download and install python-xcaplib:
-darcs get http://devel.ag-projects.com/repositories/python-xcaplib
-cd python-xcaplib
-sudo python setup.py install
-
-# To update python-xcaplib repository at a later date:
-cd python-xcaplib
-darcs pull
-sudo python setup.py install
-
-
-Step 4. Build and install SIP SIMPLE client
--------------------------------------------
-
-Go to the main project directory and build the library by running:
-
-sudo python setup.py install
-
-Notes
------
-
-- For testing the library see README.txt in the scripts directory

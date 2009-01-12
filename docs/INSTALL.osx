@@ -5,9 +5,8 @@ Installation procedure for SIP SIMPLE client on MacOSX
 The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
-Step 2. Download SIP SIMPLE client sources
-Step 3. Install dependencies
-Step 4. Build and install SIP SIMPLE client
+Step 2. Install dependencies
+Step 4. Install SIP SIMPLE client
 
 
 Step 1. Prerequisites
@@ -18,21 +17,7 @@ b. Install Apple Developer tools
 c. Install darcs version control tool from http://www.darcs.net
 
 
-Step 2. Download SIP SIMPLE client sources
-------------------------------------------
-
-Run the next step once:
-
-darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
-
-The software is downloaded under sipsimpleclient directory. To update it at
-a later time:
-
-cd sipsimpleclient
-darcs pull -a
-
-
-Step 3. Install dependencies
+Step 2. Install dependencies
 ----------------------------
 
 # Download and install gnutls dependencies:
@@ -72,7 +57,9 @@ cd ..
 sudo easy_install --script-dir /usr/bin -U setuptools
 sudo easy_install -U cython python-application dnspython twisted py mercurial
 
-# Download and install/update python-gnutls
+Download and install dependencies available in AG Projects repositories:
+
+# python-gnutls
 if [ -d python-gnutls ]; then 
 	cd python-gnutls
 	darcs pull -a
@@ -84,7 +71,7 @@ else
 fi
 cd ..
 
-# Download and install/update eventlet for twisted:
+# eventlet for twisted
 export LC_CTYPE=
 if [ -d eventlet_twisted ]; then
 	# Install eventlet the first time
@@ -99,7 +86,7 @@ else
 fi
 cd ..
 
-# Download and install python-xcaplib:
+# python-xcaplib
 if [ -d python-xcaplib ]; then
 	cd python-xcaplib
 	darcs pull -a
@@ -111,7 +98,7 @@ else
 fi
 cd ..
 
-# Download and install python-msrplib:
+# python-msrplib
 if [ -d python-msrplib ]; then
 	cd python-msrplib
 	darcs pull -a
@@ -124,10 +111,21 @@ fi
 cd ..
 
 
-Step 4. Build and install SIP SIMPLE client
--------------------------------------------
+Step 3. Install SIP SIMPLE client
+---------------------------------
 
-Go to the main project directory and build the library:
+Download SIP SIMPLE client sources. Run the next step once:
 
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+
+The software is downloaded under sipsimpleclient directory. To update it at
+a later time:
+
+cd sipsimpleclient
+darcs pull -a
+
+Build and install the software library:
+
+cd sipsimpleclient
 sudo python setup.py install
 
