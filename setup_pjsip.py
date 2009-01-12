@@ -92,6 +92,9 @@ class PJSIP_build_ext(build_ext):
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
+        if "#define PJSIP_HAS_TLS_TRANSPORT 1\n" not in open(os.path.join(self.svn_dir, "pjsip", "include", "pjsip", "sip_autoconf.h")).readlines():
+            os.remove(os.path.join(self.svn_dir, "build.mak"))
+            raise DistutilsError("PJSIP TLS support was disabled, OpenSSL development files probably not present on this system")
 
     def update_extension(self, extension):
         build_mak_vars = get_makefile_variables(os.path.join(self.svn_dir, "build.mak"))
@@ -122,11 +125,11 @@ class PJSIP_build_ext(build_ext):
             svn_updated = self.fetch_pjsip_from_svn()
             if svn_updated:
                 self.patch_pjsip()
-                if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
-                    self.configure_pjsip()
+            if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
+                self.configure_pjsip()
+                svn_updated = True
             self.update_extension(extension)
             if svn_updated or not all(map(lambda x: os.path.exists(x), self.libraries)):
                 self.remove_libs()
                 self.compile_pjsip()
         return build_ext.cython_sources(self, sources, extension)
-
