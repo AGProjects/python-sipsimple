@@ -261,7 +261,7 @@ class Ringer:
 
     def start(self):
         if self.gthread is None:
-            self.gthread = proc.spawn_link_raise(self._run)
+            self.gthread = proc.spawn_link_exception(self._run)
 
     def stop(self):
         if self.gthread is not None:
@@ -269,9 +269,12 @@ class Ringer:
             self.gthread = None
 
     def _run(self):
-        while True:
-            self.play_wav(*self.args, **self.kwargs)
-            sleep(self.delay)
+        try:
+            while True:
+                self.play_wav(*self.args, **self.kwargs)
+                sleep(self.delay)
+        except proc.ProcExit:
+            pass
 
 
 class SessionError(RuntimeError):

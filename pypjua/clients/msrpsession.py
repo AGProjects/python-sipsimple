@@ -130,7 +130,7 @@ class MSRPSession:
 #         # any error happened in a job reader will be delivered to incoming queue
 #         # use queue that delivers errors out-of-band, so that if an error has happend
 #         # it can be retrieved many times by calling wait() (i.e. like event)
-#         self.read_msrp_job = proc.spawn_link_raise(self._read_msrp)
+#         self.read_msrp_job = proc.spawn_link_exception(self._read_msrp)
 
     # is there really point to this? can't we just link self.end() to msrp.reader?
 #     def _read_msrp(self):

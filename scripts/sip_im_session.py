@@ -68,6 +68,15 @@ def format_nosessions_ps(myuri):
 def echo_message(uri, message):
     print '%s %s: %s' % (format_time(), format_uri(uri), message)
 
+def forward(queue, listener, tag):
+    while True:
+        try:
+            result = queue.wait()
+        except Exception:
+            listener.send_exception(*sys.exc_info())
+        else:
+            listener.send((tag, result))
+# forward covers bug in the design. instead put listener directly at source
 
 class ChatSession(object):
     """Represents either an existing MSRPSession or invite-in-progress that
@@ -88,7 +97,7 @@ class ChatSession(object):
             self.start_rendering_messages()
 
     def start_rendering_messages(self):
-        proc.spawn(proc.forward, self.msrpsession.msrp.incoming, incoming, self)
+        proc.spawn(forward, self.msrpsession.msrp.incoming, incoming, self)
 
     def _on_invite(self, result):
         if isinstance(result, MSRPSession):
@@ -128,7 +137,7 @@ def consult_user(inv, ask_func):
     case it should exit immediatelly, because consult_user won't exit until
     it finishes.
     """
-    ask_job = proc.spawn_link_raise(ask_func, inv)
+    ask_job = proc.spawn_link_exception(ask_func, inv)
     inv.call_on_disconnect(lambda *_args: ask_job.kill()) # XXX cancel_on_disconnect
     ERROR = 488 # Not Acceptable Here
     try:
@@ -245,7 +254,7 @@ class DownloadFileSession(object):
 
     def __init__(self, msrpsession):
         self.msrpsession = msrpsession
-        selfreader_job = proc.spawn_link_raise(self._reader)
+        selfreader_job = proc.spawn_link_exception(self._reader)
 
     @property
     def sip(self):
@@ -409,7 +418,7 @@ class ChatManager:
         chat = IncomingChatHandler(acceptor, self.console, new_chat_session, inbound_ringer)
         handler.add_handler(chat)
         # spawn a worker, that will log the exception and restart
-        self.accept_incoming_worker = proc.spawn_link_raise(self._accept_incoming_loop, handler)
+        self.accept_incoming_worker = proc.spawn_link_exception(self._accept_incoming_loop, handler)
 
     def stop_accept_incoming(self):
         if self.accept_incoming_worker:
