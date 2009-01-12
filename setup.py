@@ -63,7 +63,6 @@ setup(name         = "sipclient",
       ],
       packages     = ["pypjua", "pypjua.clients", "pypjua.applications"],
       package_data = {
-          "pypjua": ["svn_revision"],
           'pypjua.applications' : ['xml-schemas/*']
       },
       data_files = data_files,

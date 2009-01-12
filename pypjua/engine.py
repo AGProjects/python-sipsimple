@@ -1,8 +1,8 @@
 import traceback
 from thread import start_new_thread, allocate_lock
 
-from pypjua.core import PJSIPUA, PJ_VERSION
-from pypjua import __version__, svn_revision
+from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION
+from pypjua import __version__
 
 class Engine(object):
     _instance = None
@@ -14,7 +14,7 @@ class Engine(object):
                              "tls_verify_server": False,
                              "tls_ca_file": None,
                              "ec_tail_length": 50,
-                             "user_agent": "ag-projects/sipclient-%s-pjsip-svn-%s" % (__version__, svn_revision),
+                             "user_agent": "ag-projects/sipclient-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
                              "log_level": 5,
                              "trace_sip": False,
                              "sample_rate": 32,

@@ -1,15 +1,9 @@
 __version__ = "0.3.0"
 
 _revision_required = 6
-from core import REVISION
-if REVISION != _revision_required:
-    raise ImportError("Wrong PyPJUA core revision %d (expected %d)" % (REVISION, _revision_required))
-
-import os.path
-try:
-    svn_revision = int(open(os.path.join(os.path.dirname(__file__), "svn_revision"), "rb").read())
-except:
-    svn_revision = "?"
+from core import PYPJUA_REVISION
+if PYPJUA_REVISION != _revision_required:
+    raise ImportError("Wrong PyPJUA core revision %d (expected %d)" % (PYPJUA_REVISION, _revision_required))
 
 from engine import Engine
 from core import SIPURI, Credentials, Route

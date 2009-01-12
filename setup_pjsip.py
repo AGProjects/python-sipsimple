@@ -39,13 +39,16 @@ def get_makefile_variables(makefile):
     stdout = distutils_exec_process(["make", "-f", makefile, "-pR", makefile], True)
     return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
 
+def get_svn_revision(svn_dir):
+    svn_info = distutils_exec_process(["svn", "info", svn_dir], True)
+    return int(re.search("Last Changed Rev: (\d+)", svn_info).group(1))
+
 class PJSIP_build_ext(build_ext):
     config_site = ["#define PJ_SCANNER_USE_BITWISE 0",
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 65536",
                    "#define PJSIP_UNESCAPE_IN_PLACE 1"]
     patch_file = "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch"
-    svn_revision_file = "pypjua/svn_revision"
 
     user_options = build_ext.user_options
     user_options.extend([
@@ -60,20 +63,20 @@ class PJSIP_build_ext(build_ext):
 
     def fetch_pjsip_from_svn(self):
         self.svn_dir = os.path.join(self.build_temp, "pjsip")
+        try:
+            old_svn_rev = get_svn_revision(self.svn_dir)
+        except:
+            old_svn_rev = -1
         if not os.path.exists(self.svn_dir):
             log.info("Fetching PJSIP from SVN repository")
             distutils_exec_process(["svn", "co", "-r", self.pjsip_svn_revision, self.pjsip_svn_repo, self.svn_dir], True, input='t\n')
             open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site))
-            try:
-                os.remove(self.svn_revision_file)
-            except:
-                pass
         else:
             log.info("PJSIP SVN tree found, updating from SVN repository")
             distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
-        svn_revision = int(re.search("Revision: (\d+)", distutils_exec_process(["svn", "info", self.svn_dir], True)).group(1))
-        print "Using SVN revision %d" % svn_revision
-        return svn_revision
+        new_svn_rev = get_svn_revision(self.svn_dir)
+        print "Using SVN revision %d" % new_svn_rev
+        return old_svn_rev != new_svn_rev
 
     def patch_pjsip(self):
         log.info("Patching PJSIP")
@@ -99,6 +102,7 @@ class PJSIP_build_ext(build_ext):
         extension.library_dirs = get_opts_from_string(build_mak_vars["PJ_LDFLAGS"], "-L")
         extension.libraries = get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-l")
         extension.define_macros = [tuple(define.split("=", 1)) for define in get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-D")]
+        extension.define_macros.append((("PJ_SVN_REV"), str(get_svn_revision(self.svn_dir))))
         extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
         extension.extra_compile_args = ["-Wno-unused-variable"]
         extension.depends = self.libraries = build_mak_vars["PJ_LIB_FILES"].split()
@@ -116,19 +120,13 @@ class PJSIP_build_ext(build_ext):
 
     def cython_sources(self, sources, extension):
         if extension.name == "pypjua.core":
-            new_svn_revision = self.fetch_pjsip_from_svn()
-            try:
-                current_svn_revision = int(open(self.svn_revision_file, "rb").read())
-            except:
-                current_svn_revision = -1
-            if new_svn_revision > current_svn_revision:
+            svn_updated = self.fetch_pjsip_from_svn()
+            if svn_updated:
                 self.patch_pjsip()
                 if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
                     self.configure_pjsip()
-                self.update_extension(extension)
+            self.update_extension(extension)
+            if svn_updated or not all(map(lambda x: os.path.exists(x), self.libraries)):
                 self.remove_libs()
                 self.compile_pjsip()
-                open(self.svn_revision_file, "wb").write(str(new_svn_revision))
-            else:
-                self.update_extension(extension)
         return build_ext.cython_sources(self, sources, extension)
