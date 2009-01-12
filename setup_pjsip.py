@@ -109,7 +109,7 @@ class PJSIP_build_ext(build_ext):
         extension.library_dirs = get_opts_from_string(build_mak_vars["PJ_LDFLAGS"], "-L")
         extension.libraries = get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-l")
         extension.define_macros = [tuple(define.split("=", 1)) for define in get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-D")]
-        extension.define_macros.append((("PJ_SVN_REV"), str(get_svn_revision(self.svn_dir))))
+        extension.define_macros.append((("PJ_SVN_REVISION"), str(get_svn_revision(self.svn_dir))))
         extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
         extension.extra_compile_args = ["-Wno-unused-variable"]
         extension.depends = build_mak_vars["PJ_LIB_FILES"].split()
