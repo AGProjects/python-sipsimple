@@ -103,6 +103,8 @@ outbound_proxy=
 ; NAT traversal settings
 
 ; By default STUN servers are looked-up using DNS SRV _stun._udp .domain
+; This is a comma separated list of IPs, optionally with ports:
+; ip1[:port1][,ip2[:port2]]...
 ; stun_servers=
 
 ; Use ICE to determine candidates used in SDP/RTP negotiation
