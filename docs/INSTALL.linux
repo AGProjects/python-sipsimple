@@ -38,7 +38,7 @@ The software is downloaded under sipsimpleclient directory. To update it at
 a later time:
 
 cd sipsimpleclient
-darcs pull
+darcs pull -a
 
 
 Step 3. Install dependencies
@@ -114,4 +114,60 @@ Notes
 
 - The unix user must belong to the 'audio' group
 - Use the ALSA drivers
+
+
+Building a Debian package
+---------------------------
+
+You can build a deb package that can be installed on Debian or Ubuntu. You
+need to install the following packages before building the debian package:
+
+sudo apt-get install darcs subversion devscripts python-dnspython \
+python-setuptools python-lxml cython python-application python-twisted \
+build-essential libasound2-dev cdbs debhelper python-all-dev python-support \
+libssl-dev mercurial
+
+You must have cython version >=0.9.1 installed. If your Linux distribution
+has an older version, upgrade it using python setuptools:
+
+sudo easy_install -U cython
+
+# Download and install eventlet for twisted:
+hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
+cd eventlet_twisted
+sudo python setup.py install
+# To update the eventlet_twisted at a later date:
+cd eventlet_twisted
+hg pull
+hg update
+
+Download the software using darcs:
+
+darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+darcs get http://devel.ag-projects.com/repositories/python-msrplib
+
+The following directory are created: sipsimpleclient, python-xcaplib and
+python-msrplib. Go into each of them, make a source distribution tarball and
+build the debian package using debuild command. Example for sipclient:
+
+cd sipclient
+python setup.py sdist
+cd dist
+tar xvzf sipclient-X.X.X.tar.gz
+cd sipclient-X.X.X
+debuild
+
+You will now have a debian package in the upper level directory that you can
+install using dpkg -i command.
+
+To update the sources at a later date go into each directory and run:
+darcs pull -a
+
+
+Notes
+-----
+
+- The unix user must belong to the 'audio' group
+- OSS drivers are not supported. You must use ALSA drivers.
 
