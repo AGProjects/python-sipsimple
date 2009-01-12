@@ -65,7 +65,10 @@ class PJSIP_build_ext(build_ext):
             log.info("Fetching PJSIP from SVN repository")
             distutils_exec_process(["svn", "co", self.svn_repo, self.svn_dir], True)
             open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site))
-            os.remove(self.svn_revision_file)
+            try:
+                os.remove(self.svn_revision_file)
+            except:
+                pass
         else:
             log.info("PJSIP SVN tree found, updating from SVN repository")
             distutils_exec_process(["svn", "up", self.svn_dir], True)
