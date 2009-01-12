@@ -1,5 +1,5 @@
 recursive-include debian  changelog compat control copyright dirs docs pyversions rules
-recursive-include docs INSTALL.*
+recursive-include docs    INSTALL.* *.txt
 prune debian/tmp
 prune debian/sipclient
 include MANIFEST.in config.ini.sample AUTHORS LICENSE build_inplace Changelog setup_pjsip.py
