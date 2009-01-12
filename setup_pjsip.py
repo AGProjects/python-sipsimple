@@ -90,10 +90,7 @@ class PJSIP_build_ext(build_ext):
         else:
             cflags = "-fPIC"
         env = os.environ.copy()
-        if "CFLAGS" in env:
-            env["CFLAGS"] = " ".join([env["CFLAGS"], cflags])
-        else:
-            env["CFLAGS"] = cflags
+        env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
 
     def update_extension(self, extension):
@@ -132,3 +129,4 @@ class PJSIP_build_ext(build_ext):
                 self.remove_libs()
                 self.compile_pjsip()
         return build_ext.cython_sources(self, sources, extension)
+
