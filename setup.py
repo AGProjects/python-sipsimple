@@ -9,18 +9,12 @@ import glob
 
 from setup_pjsip import PJSIP_build_ext
 
-# cannot import pypjua here
-exec(file('pypjua/clients/setupconfig.py').read())
-
 version = "0.3.0"
 
 title = "SIP SIMPLE client"
 description = "Python SIP SIMPLE client library using PJSIP"
 scripts = [os.path.join('scripts', x) for x in os.listdir('scripts') if re.match('^sip_.*\\.py$', x) or re.match('^xcap_.*\\.py$', x)]
-data_files = glob.glob(os.path.join('scripts', '*.wav'))
-
-if data_files_dir:
-    data_files = [(data_files_dir, data_files)]
+data_files = glob.glob(os.path.join('share/sipclient', '*.wav'))
 
 if os.name == 'posix':
     class my_build_scripts(build_scripts):
@@ -65,7 +59,7 @@ setup(name         = "sipclient",
       package_data = {
           'pypjua.applications' : ['xml-schemas/*']
       },
-      data_files = data_files,
+      data_files = [('share/sipclient', data_files)],
       scripts = scripts,
       ext_modules  = [
             Extension(name = "pypjua.core",
