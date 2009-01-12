@@ -63,7 +63,6 @@ python-setuptools package to install the same packages:
 sudo easy_install -U python-gnutls lxml cython python-application dnspython twisted py mercurial
 
 # Download and install/update eventlet for twisted:
-export LC_CTYPE=
 if [ -d eventlet_twisted ]; then
         # Install eventlet the first time
         cd eventlet_twisted

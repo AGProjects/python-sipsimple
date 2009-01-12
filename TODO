@@ -2,7 +2,9 @@
 Python PJSIP bindings
 ---------------------
 
-- Add the MSRP transport class [RK]
+- Audio stream high level class [RK]
+- MSRP stream high level class [RK]
+- Session high level class [RK]
 - Document how other transports can be defined and  implemented (use MSRP as example) [RK]
 - Handle PJSIP and Pyrex/Cython compilation in setup.py [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
