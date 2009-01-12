@@ -94,7 +94,7 @@ def auto_publish(interval):
     # initialize top level elements
     tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
     tuple.contact = Contact("sip:%s@%s" % (sip_uri.user, sip_uri.host))
-    tuple.contact.priority = 0
+    tuple.contact.priority = "0"
     tuple.relationship = Relationship('self')
     tuple.timestamp = Timestamp()
     pidf.append(tuple)
