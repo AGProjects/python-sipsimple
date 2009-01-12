@@ -112,7 +112,9 @@ class PJSIP_build_ext(build_ext):
         extension.define_macros.append((("PJ_SVN_REV"), str(get_svn_revision(self.svn_dir))))
         extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
         extension.extra_compile_args = ["-Wno-unused-variable"]
-        extension.depends = self.libraries = build_mak_vars["PJ_LIB_FILES"].split()
+        extension.depends = build_mak_vars["PJ_LIB_FILES"].split()
+        self.libraries = extension.depends[:]
+        self.libraries.append(("%(PJ_DIR)s/pjmedia/lib/libpjsdp-%(LIB_SUFFIX)s" % build_mak_vars).replace("$(TARGET_NAME)", build_mak_vars["TARGET_NAME"]))
 
     def remove_libs(self):
         for lib in self.libraries:
