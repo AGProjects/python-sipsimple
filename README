@@ -45,27 +45,32 @@ Features
 The software allows you to create elegant real-time communications
 applications without having to read the +1200 RFC documents behind it.
 
-As a library with a high-level API, the toolkit can be used to add voice, IM
-and Presence functionality to any devices as long as Python/C environment is
-supported by such platform.
+As a library with a high-level API, the toolkit can be used to add voice,
+instant messaging (IM) and rich presence functionality to any device as long
+as the Python/C environment is supported by such platform.
 
-Additional to the SIP standards implemented by the underlying PJSIP library,
-this project implements:
+Additional to the SIP standards implemented by the underlying PJSIP library
+and exposes through a Python API, this project implements session based
+instant messaging (IM), file transfer and multi-party chat sessions using
+MSRP protocol and its relay extension, publication and subscription for rich
+presence information such as availability, moods, activities and
+geo-location, management for presence rules, resource lists, RLS services
+documents using XCAP protocol.
 
+ * Locating SIP services RFC3263
+ * Rich Presence Information Data model and Format (RPIDF) RFC3856, RFC3863 ,
+ * RFC4479, RFC4481, RFC4482, RFC5196
+ * Watcher-info event package RFC3857, RFC3858
  * XCAP protocol RFC4825
+ * XCAP presence rules RFC5025, resource-lists and RLS-services RFC4826
+ * XCAP PIDF manipulation RFC4827
+ * XCAP-diff event package draft-ietf-simple-xcap-diff-09
+ * Conference event package RFC4575
  * MSRP protocol RFC4975
  * MSRP protocol relay extension RFC4976
- * Rich presence data model and format RFC3856, RFC3863 , RFC4479
- * XCAP-diff document modification event draft-ietf-simple-xcap-diff-09
- * Watcher-info RFC3857, RFC3858
- * Conference RFC4575
- * Message summary RFC3842
- * Presence rules RFC5025
- * Resource-lists and RLS-services RFC4826
- * PIDF manipulation RFC4827
- * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-02
- * Locating SIP services RFC3263
  * MSRP ad-hoc multi-party chat sessions draft-ietf-simple-chat-03
+ * Message summary event package RFC3842
+ * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-03
 
 
 Documentation
