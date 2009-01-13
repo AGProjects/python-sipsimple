@@ -92,7 +92,7 @@ class ChatSession(object):
         self.invite_job = invite_job
         self.messages_to_send = deque()
         if self.invite_job is not None:
-            self.invite_job.link_return(lambda result: proc.spawn(self._on_invite, result))
+            self.invite_job.link_value(lambda result: proc.spawn(self._on_invite, result))
         else:
             self.start_rendering_messages()
 
