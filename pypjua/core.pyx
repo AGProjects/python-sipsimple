@@ -19,4 +19,4 @@ include "core.mediatransport.pxi"
 # constants
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-PYPJUA_REVISION = 6
+PYPJUA_REVISION = 7

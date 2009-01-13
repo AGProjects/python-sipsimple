@@ -424,6 +424,10 @@ cdef class PJSIPUA:
         if status != 0:
             raise RuntimeError("Could not start NAT type detection: %s" % pj_status_to_str(status))
 
+    def parse_sip_uri(self, uri_string):
+        # no need for self.c_check_self(), c_get_ua() is called in the function
+        return c_parse_SIPURI(uri_string)
+
     def __dealloc__(self):
         self.dealloc()
 

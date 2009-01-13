@@ -524,6 +524,9 @@ cdef extern from "pjsip.h":
     void *pjsip_uri_get_uri(pjsip_uri *uri)
     int pjsip_uri_print(pjsip_uri_context_e context, void *uri, char *buf, unsigned int size)
     int PJSIP_URI_SCHEME_IS_SIP(pjsip_sip_uri *uri)
+    enum:
+        PJSIP_PARSE_URI_AS_NAMEADDR
+    pjsip_uri *pjsip_parse_uri(pj_pool_t *pool, char *buf, unsigned int size, unsigned int options)
 
     # module
     enum pjsip_module_priority:
@@ -784,7 +787,8 @@ cdef list c_get_clear_event_queue()
 cdef class Route
 cdef class Credentials
 cdef class SIPURI
-cdef object c_make_SIPURI(pjsip_uri *base_uri, int is_named)
+cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named)
+cdef SIPURI c_parse_SIPURI(object uri_str)
 
 # core.ua
 

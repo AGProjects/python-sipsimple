@@ -148,7 +148,7 @@ cdef class SIPURI:
 
 # factory functions
 
-cdef object c_make_SIPURI(pjsip_uri *base_uri, int is_named):
+cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named):
     cdef object scheme
     cdef pj_str_t *scheme_str
     cdef pjsip_sip_uri *uri = <pjsip_sip_uri *> pjsip_uri_get_uri(base_uri)
@@ -195,6 +195,22 @@ cdef object c_make_SIPURI(pjsip_uri *base_uri, int is_named):
     if is_named and named_uri.display.slen > 0:
         kwargs["display"] = pj_str_to_str(named_uri.display)
     return SIPURI(*args, **kwargs)
+
+cdef SIPURI c_parse_SIPURI(object uri_str):
+    cdef SIPURI retval
+    cdef pjsip_uri *uri = NULL
+    cdef pj_pool_t *pool = NULL
+    cdef PJSIPUA ua = c_get_ua()
+    pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, "parse_SIPURI", 4096, 4096)
+    if pool == NULL:
+        raise MemoryError("Could not allocate memory pool")
+    uri = pjsip_parse_uri(pool, uri_str, len(uri_str), PJSIP_PARSE_URI_AS_NAMEADDR)
+    if uri == NULL:
+        pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
+        raise RuntimeError("Not a valid SIP URI: %s" % uri_str)
+    retval = c_make_SIPURI(uri, 1)
+    pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
+    return retval
 
 # globals
 
