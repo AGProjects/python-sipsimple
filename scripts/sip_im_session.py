@@ -201,6 +201,8 @@ class IncomingChatHandler(IncomingMSRPHandler_Interactive):
         self.ringer.start()
         try:
             return self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
+        except proc.ProcExit:
+            pass
         finally:
             self.ringer.stop()
 
