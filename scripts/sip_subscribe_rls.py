@@ -27,7 +27,7 @@ from pypjua.applications.rpid import *
 
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients.lookup import *
-from pypjua.clients import parse_cmdline_uri
+from pypjua.clients import format_cmdline_uri
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
@@ -384,6 +384,7 @@ def do_subscribe(**kwargs):
 
     e = Engine(event_handler, trace_sip=kwargs.pop('trace_sip'), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"), events=events)
     e.start(False)
+    kwargs["presentity_uri"] = e.parse_sip_uri(kwargs["presentity_uri"])
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
 
@@ -451,9 +452,9 @@ def parse_options():
     else:
         del retval["sip_address"]
     if args:
-        retval["presentity_uri"] = parse_cmdline_uri(args[0], retval["domain"])
+        retval["presentity_uri"] = format_cmdline_uri(args[0], retval["domain"])
     else:
-        retval["presentity_uri"] = SIPURI(user=retval["username"], host=retval["domain"])
+        retval["presentity_uri"] = format_cmdline_uri(retval["username"], retval["domain"])
 
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
     accounts.sort()

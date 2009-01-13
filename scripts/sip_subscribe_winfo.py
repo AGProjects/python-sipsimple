@@ -30,7 +30,6 @@ from pypjua.applications.presrules import *
 
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients.lookup import *
-from pypjua.clients import parse_cmdline_uri
 
 from xcaplib.client import XCAPClient
 from xcaplib.error import HTTPError

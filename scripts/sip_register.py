@@ -16,7 +16,6 @@ from pypjua.clients import enrollment
 from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
-from pypjua.clients import parse_cmdline_uri
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}

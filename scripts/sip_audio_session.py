@@ -24,7 +24,7 @@ from pypjua.clients.log import Logger
 
 from pypjua.clients.lookup import *
 from pypjua.clients.clientconfig import get_path
-from pypjua.clients import parse_cmdline_uri
+from pypjua.clients import format_cmdline_uri
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
@@ -422,6 +422,7 @@ def do_invite(**kwargs):
     
     e = Engine(event_handler, trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs["local_ip"], local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start(not kwargs.pop("disable_sound"))
+    kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     transport_kwargs = AudioConfig.encryption.copy()
     transport_kwargs["use_ice"] = AccountConfig.use_ice
     wait_for_stun = False
@@ -529,7 +530,7 @@ def parse_options():
     else:
         del retval["sip_address"]
     if args:
-        retval["target_uri"] = parse_cmdline_uri(args[0], retval["domain"])
+        retval["target_uri"] = format_cmdline_uri(args[0], retval["domain"])
     else:
         retval["target_uri"] = None
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]

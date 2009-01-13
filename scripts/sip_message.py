@@ -13,7 +13,7 @@ from application.process import process
 from pypjua import *
 from pypjua.clients import enrollment
 from pypjua.clients.lookup import *
-from pypjua.clients import parse_cmdline_uri
+from pypjua.clients import format_cmdline_uri
 from pypjua.clients.log import Logger
 
 class GeneralConfig(ConfigSection):
@@ -149,6 +149,7 @@ def do_message(**kwargs):
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     e = Engine(event_handler, trace_sip=kwargs.pop("trace_sip"), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start(False)
+    kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     start_new_thread(read_queue, (e,), kwargs)
     try:
         while True:
@@ -212,7 +213,7 @@ def parse_options():
     else:
         del retval["sip_address"]
     if args:
-        retval["target_uri"] = parse_cmdline_uri(args[0], retval["domain"])
+        retval["target_uri"] = format_cmdline_uri(args[0], retval["domain"])
     else:
         retval["target_uri"] = None
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
