@@ -1,6 +1,6 @@
 import re
 
-_re_pstn_num = re.compile("^\+?[0-9\-]+$")
+_re_pstn_num = re.compile("^\+?[0-9-() ]+$")
 
 def format_cmdline_uri(uri, default_domain):
     if "@" in uri:
