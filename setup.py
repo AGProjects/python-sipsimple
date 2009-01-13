@@ -7,11 +7,6 @@ import re
 import os
 import glob
 
-from Cython.Compiler.Version import version as cython_version
-cython_version_required = (0, 10)
-if tuple(int(x) for x in cython_version.split(".")) < cython_version_required:
-    raise RuntimeError("Cython version %s or higher needed" % ".".join(str(i) for i in cython_version_required))
-
 from setup_pjsip import PJSIP_build_ext
 
 version = "0.3.0"

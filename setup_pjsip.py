@@ -55,11 +55,17 @@ class PJSIP_build_ext(build_ext):
         ("pjsip-svn-repo=", None, "PJSIP SVN repository to checkout from"),
         ("pjsip-svn-revision=", None, "PJSIP SVN revision to fetch")
         ])
+    cython_version_required = (0, 10)
 
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.pjsip_svn_repo = os.environ.get("PJSIP_SVN_REPO", "http://svn.pjsip.org/repos/pjproject/trunk")
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
+
+    def check_cython_version(self):
+        from Cython.Compiler.Version import version as cython_version
+        if tuple(int(x) for x in cython_version.split(".")) < self.cython_version_required:
+            raise DistutilsError("Cython version %s or higher needed" % ".".join(str(i) for i in self.cython_version_required))
 
     def fetch_pjsip_from_svn(self):
         self.svn_dir = os.path.join(self.build_temp, "pjsip")
@@ -122,6 +128,7 @@ class PJSIP_build_ext(build_ext):
 
     def cython_sources(self, sources, extension):
         if extension.name == "pypjua.core":
+            self.check_cython_version()
             svn_updated = self.fetch_pjsip_from_svn()
             if svn_updated:
                 self.patch_pjsip()
