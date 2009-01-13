@@ -37,7 +37,7 @@ sudo port selfupdate
 Step 2. Install the SIP SIMPLE client
 -------------------------------------
 
-Run the follwoing command:
+Run the following command:
 
 sudo port install sipclient
 

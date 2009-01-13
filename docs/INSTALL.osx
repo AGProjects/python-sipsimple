@@ -127,5 +127,6 @@ darcs pull -a
 Build and install the software library:
 
 cd sipsimpleclient
-sudo python setup.py install
+sudo python setup.py install --prefix /usr/local/
+
 
