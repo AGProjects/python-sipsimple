@@ -65,6 +65,7 @@ packet_count = 0
 start_time = None
 old = None
 user_quit = True
+want_quit = False
 lock = allocate_lock()
 pub = None
 sip_uri = None
@@ -197,11 +198,15 @@ def getchar():
         return os.read(fd, 4192)
 
 def event_handler(event_name, **kwargs):
-    global packet_count, start_time, queue, do_trace_pjsip, logger
+    global packet_count, start_time, queue, do_trace_pjsip, logger, want_quit, pub
     if event_name == "Publication_state":
         if kwargs["state"] == "unpublished":
             queue.put(("print", "Unpublished: %(code)d %(reason)s" % kwargs))
-            queue.put(("quit", None))
+            if want_quit or kwargs['code'] in (401, 403, 407):
+                queue.put(("quit", None))
+            else:
+                pub = Publication(pub.credentials, pub.event, route=pub.route, expires=pub.expires)
+                publish_pidf()
         elif kwargs["state"] == "published":
             queue.put(("print", "PUBLISH was successful"))
             pass
@@ -237,7 +242,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
                 key = data
             if command == "eof":
                 command = "end"
-                want_quit = True
+                user_quit = True
             if command == "end":
                 try:
                     pub.unpublish()
@@ -257,7 +262,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
         lock.release()
 
 def do_publish(**kwargs):
-    global user_quit, lock, queue, do_trace_pjsip, string, getstr_event, old, logger
+    global user_quit, want_quit, lock, queue, do_trace_pjsip, string, getstr_event, old, logger
     ctrl_d_pressed = False
     do_trace_pjsip = kwargs["do_trace_pjsip"]
 
@@ -288,6 +293,7 @@ def do_publish(**kwargs):
                     if not ctrl_d_pressed:
                         queue.put(("eof", None))
                         ctrl_d_pressed = True
+                        want_quit = True
                         break
                 else:
                     if string is not None:
@@ -311,6 +317,7 @@ def do_publish(**kwargs):
     except KeyboardInterrupt:
         if user_quit:
             print "Ctrl+C pressed, exiting instantly!"
+            want_quit = True
             queue.put(("quit", True))
         return
 
