@@ -135,18 +135,18 @@ def display_person(person, pidf, buf):
             buf.append("    Place information: " + place_info)
     # display privacy
     if person.privacy is not None:
-        text = "    Communication that is private: "
+        text = "    Private conversation possible with: "
         private = []
         if person.privacy.audio:
-            private.append("audio")
+            private.append("Audio")
         if person.privacy.video:
-            private.append("video")
+            private.append("Video")
         if person.privacy.text:
-            private.append("text")
+            private.append("Text")
         if len(private) > 0:
             text += ", ".join(private)
         else:
-            text += "none"
+            text += "None"
         buf.append(text)
     # display sphere
     if person.sphere is not None:
