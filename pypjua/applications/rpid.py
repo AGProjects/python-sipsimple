@@ -304,6 +304,8 @@ class Privacy(XMLListElement, PersonExtension):
                 self.text = True
             elif child.tag == '{%s}video' % _namespace_:
                 self.video = True
+            elif child.tag == '{%s}unknown' % _namespace_:
+                pass
             else:
                 child_cls = self._xml_meta.get(child.tag)
                 if child_cls is not None:
