@@ -101,6 +101,14 @@ def auto_publish(interval):
     tuple.timestamp = Timestamp()
     pidf.append(tuple)
 
+    # add email service
+    email_tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
+    email_tuple.contact = Contact("mailto:%s@%s" % (sip_uri.user, sip_uri.host))
+    email_tuple.contact.priority = "0.5"
+    email_tuple.relationship = Relationship('self')
+    email_tuple.timestamp = Timestamp()
+    pidf.append(email_tuple)
+
     person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
     person.privacy = Privacy()
     person.time_offset = TimeOffset()
