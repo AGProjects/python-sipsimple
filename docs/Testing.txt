@@ -139,11 +139,12 @@ subscribe to presence or other type of events.
  * sip_audio_session - Setup a voice audio session (Voice over IP)
  * sip_im_session - Setup IM session and File transfer using MSRP protocol
  * sip_message - Send/receive text in page mode using SIP MESSAGE method
- * sip_publish_presence - PUBLISH presence to a SIP Presence Agent
+ * sip_publish_presence - Publish presence to a SIP Presence Agent
+ * sip_auto_publish_presence - Publish randomly generated rich presence
  * sip_subscribe_presence - SUBSCRIBE to presence information
  * sip_subscribe_winfo - SUBSCRIBE to watcher list on a SIP Presence Agent
  * sip_subscribe_rls - SUBSCRIBE to lists managed by Resource List Server
- * xcapclient - PUT/GET/DELETE full or partial documents on an XCAP server
- * xcap_pres_rules - Manage content of pres-rules XCAP document
- * xcap_rls_services - Manage content of RLS services XCAP document
+ * xcapclient - Manipulate XML documents on an XCAP server
+ * xcap_pres_rules - Manage the content of a pres-rules XCAP document
+ * xcap_rls_services - Manage the content of a rls-services XCAP document
 
