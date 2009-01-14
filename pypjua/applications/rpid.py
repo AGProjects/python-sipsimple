@@ -432,10 +432,16 @@ class Sphere(XMLElement, PersonExtension):
                 break
         else:
             self.value = element.text
+    
+    def _build_element(self, element, nsmap):
+        if isinstance(self.value, SphereElement):
+            self.value.to_element(parent=element, nsmap=nsmap)
+        else:
+            element.text = self.value
 
     def _set_value(self, value):
         if value is None:
-            value = 'unknown'
+            value = Unknown()
         elif not isinstance(value, str) and not isinstance(value, SphereElement):
             raise ParserError("Sphere elements can only have SphereElement children, got %s instead" % value.__class__.__name__)
         self.__value = value
