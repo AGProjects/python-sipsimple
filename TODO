@@ -60,10 +60,8 @@ Presence/XML
 - Conference-info event package [LS]
 - xcap-diff payload [LS]
 - Move non SIP applications to a separate python package [LS]
-- Timed-status element http://tools.ietf.org/html/rfc4481 [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
-- PIDF location (geopriv) [LS]
 - Buddylist library [LS]
 
 
