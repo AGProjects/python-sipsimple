@@ -231,7 +231,7 @@ def display_device(device, pidf, buf):
         buf.append("    %s" % format_note(note))
     # display user input
     if device.user_input is not None:
-        buf.append("    Service is %s" % device.user_input)
+        buf.append("    Device is %s" % device.user_input)
         if device.user_input.last_input:
             buf.append("      Last input at: %s" % device.user_input.last_input)
         if device.user_input.idle_threshold:
