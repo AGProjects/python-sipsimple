@@ -9,6 +9,7 @@ import atexit
 import select
 import termios
 import signal
+import datetime
 from thread import start_new_thread, allocate_lock
 from threading import Thread
 from Queue import Queue
@@ -150,9 +151,15 @@ def display_person(person, pidf, buf):
     # display status icon
     if person.status_icon is not None:
         buf.append("    Status icon: %s" % person.status_icon)
-    # display time offset
+    # display time and time offset
     if person.time_offset is not None:
-        buf.append("    Time offset from UTC: %s minutes %s" % (person.time_offset, (person.time_offset.description is not None and ('(%s)' % person.time_offset.description) or '')))
+        ctime = datetime.datetime.utcnow() + datetime.timedelta(minutes=int(person.time_offset))
+        time_offset = int(person.time_offset)/60.0
+        if time_offset == int(time_offset):
+            offset_info = '(UTC+%d%s)' % (time_offset, (person.time_offset.description is not None and (' (%s)' % person.time_offset.description) or ''))
+        else:
+            offset_info = '(UTC+%.1f%s)' % (time_offset, (person.time_offset.description is not None and (' (%s)' % person.time_offset.description) or ''))
+        buf.append("    Current user time: %s %s" % (ctime.strftime("%H:%M"), offset_info))
     # display user input
     if person.user_input is not None:
         buf.append("    User is %s" % person.user_input)
