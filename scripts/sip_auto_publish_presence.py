@@ -225,6 +225,10 @@ def getchar():
             termios.tcsetattr(fd, termios.TCSADRAIN, new)
             if select.select([fd], [], [], None)[0]:
                 return sys.stdin.read(4192)
+        except select.error, e:
+            if e[0] != 4:
+                raise
+            return ''
         finally:
             termios_restore()
     else:
@@ -294,6 +298,11 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
+def sig_handler(signum, frame):
+    global queue, want_quit
+    want_quit = True
+    queue.put(("end", None))
+
 def do_publish(**kwargs):
     global user_quit, want_quit, lock, queue, do_trace_pjsip, string, getstr_event, old, logger
     ctrl_d_pressed = False
@@ -318,6 +327,9 @@ def do_publish(**kwargs):
     e.start(False)
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
+    
+    # unsubscribe on 
+    signal.signal(signal.SIGUSR1, sig_handler)
 
     try:
         while True:
