@@ -504,7 +504,7 @@ class UserInput(XMLStringElement, TupleExtension, PersonExtension, DeviceExtensi
     
     def __init__(self, value='active', id=None, last_input=None, idle_threshold=None):
         self.id = id
-        self.last_input = since
+        self.last_input = last_input
         self.idle_threshold = idle_threshold
         XMLStringElement.__init__(self, value)
 
