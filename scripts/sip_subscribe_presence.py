@@ -143,7 +143,10 @@ def display_person(person, pidf, buf):
             private.append("video")
         if person.privacy.text:
             private.append("text")
-        text += ", ".join(private)
+        if len(private) > 0:
+            text += ", ".join(private)
+        else:
+            text += "none"
         buf.append(text)
     # display sphere
     if person.sphere is not None:
