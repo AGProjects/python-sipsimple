@@ -99,7 +99,6 @@ def auto_publish(interval):
     tuple.contact.priority = "0"
     tuple.relationship = Relationship('self')
     tuple.timestamp = Timestamp()
-    tuple.service_class = ServiceClass('electronic')
     pidf.append(tuple)
 
     person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
