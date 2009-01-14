@@ -6,6 +6,8 @@ support rich presence.
 
 import datetime
 
+from lxml import etree
+
 from pypjua.applications import ParserError, BuilderError, XMLExtension, XMLElement, XMLListElement, XMLEmptyElement, XMLStringElement, XMLSingleChoiceElement, XMLMultipleChoiceElement
 from pypjua.applications.pidf import PIDFTopElement, PIDF, PIDFMeta, TupleExtension, Timestamp, Note, NoteList, Tuple
 from pypjua.applications.presdm import PersonExtension, DeviceExtension, Person, Device
