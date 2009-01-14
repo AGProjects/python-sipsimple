@@ -12,6 +12,7 @@ import termios
 import signal
 import re
 import subprocess
+import datetime
 from thread import start_new_thread, allocate_lock
 from threading import Thread, Event
 from Queue import Queue
@@ -98,9 +99,11 @@ def auto_publish(interval):
     tuple.contact.priority = "0"
     tuple.relationship = Relationship('self')
     tuple.timestamp = Timestamp()
+    tuple.service_class = ServiceClass('electronic')
     pidf.append(tuple)
 
     person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
+    person.privacy = Privacy()
     person.time_offset = TimeOffset()
     person.timestamp = DMTimestamp()
     pidf.append(person)
@@ -108,6 +111,8 @@ def auto_publish(interval):
     device = Device(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
     device.notes.append(DMNote('Powered by %s' % user_agent, lang='en'))
     device.timestamp = DMTimestamp()
+    device.user_input = UserInput()
+    device.user_input.idle_threshold = '1800'
     pidf.append(device)
         
     while True:
@@ -119,7 +124,23 @@ def auto_publish(interval):
                 tuple.status.basic = Basic('open')
             tuple.timestamp = Timestamp()
         
-        
+        # set sphere (9-18 at work (except on weekends), else at home)
+        now = datetime.datetime.now()
+        if (now.hour >= 9 and now.hour < 18) and now.isoweekday() not in (6, 7):
+            person.sphere = Sphere(Work())
+            person.sphere.since = datetime.datetime(now.year, now.month, now.day, 9, 0)
+            person.sphere.until = datetime.datetime(now.year, now.month, now.day, 18, 0)
+        else:
+            person.sphere = Sphere(Home())
+
+        # set privacy
+        person.privacy.audio = random.choice((True, False))
+        person.privacy.text = random.choice((True, False))
+        person.privacy.video = random.choice((True, False))
+
+        # set status icon
+        person.status_icon = StatusIcon("http://sipsimpleclient.com/chrome/site/StatusIcons/%s.png" % random.choice(('available', 'busy')))
+
         # change person note
         if len(person.notes) > 0:
             del person.notes['en']
@@ -155,6 +176,18 @@ def auto_publish(interval):
             person.place_is.text = Text(random.choice(list(Text._xml_values)))
 
         person.timestamp = DMTimestamp()
+        
+        # set user-input
+        if device.user_input.value == 'idle':
+            # 50 % chance to change to active:
+            if random.randint(0, 1) == 1:
+                device.user_input.value = 'active'
+                device.user_input.last_input = None
+        else:
+            # 50 % chance to change to idle:
+            if random.randint(0, 1) == 1:
+                device.user_input.value = 'idle'
+                device.user_input.last_input = now - datetime.timedelta(seconds=int(device.user_input.idle_threshold))
 
         # publish new pidf
         publish_pidf()
