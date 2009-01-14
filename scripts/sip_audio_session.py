@@ -163,7 +163,12 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
             if use_bonjour:
                 print "Using bonjour"
                 print "Listening on local interface %s:%d" % (e.local_ip, e.local_udp_port)
-                print "Press Ctrl-d to quit, h to hang-up, r to record, SPACE to hold, < and > to adjust the echo cancellation"
+                print "Available control keys:"
+                print "  h: hang-up the active session"
+                print "  r: toggle audio recording"
+                print "  <> : adjust echo cancellation"
+                print "  SPACE: hold/on-hold"
+                print "  Ctrl-d: quit the program"
                 print 'Waiting for incoming SIP session requests...'
             else:
                 reg = Registration(credentials, route=route)
