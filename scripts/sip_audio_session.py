@@ -422,7 +422,8 @@ def do_invite(**kwargs):
     
     e = Engine(event_handler, trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs["local_ip"], local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start(not kwargs.pop("disable_sound"))
-    kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
+    if kwargs["target_uri"] is not None:
+        kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     transport_kwargs = AudioConfig.encryption.copy()
     transport_kwargs["use_ice"] = AccountConfig.use_ice
     wait_for_stun = False

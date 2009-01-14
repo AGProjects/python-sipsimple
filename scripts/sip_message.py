@@ -149,7 +149,8 @@ def do_message(**kwargs):
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     e = Engine(event_handler, trace_sip=kwargs.pop("trace_sip"), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     e.start(False)
-    kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
+    if kwargs["target_uri"] is not None:
+        kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     start_new_thread(read_queue, (e,), kwargs)
     try:
         while True:
