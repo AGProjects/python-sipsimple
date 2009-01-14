@@ -6,7 +6,7 @@ from eventlet.api import GreenletExit, sleep, get_hub
 from eventlet.coros import queue
 from msrplib.trafficlog import TrafficLogger
 
-from pypjua import Credentials
+from pypjua import Credentials, PyPJUAError
 from pypjua.enginebuffer import EngineBuffer
 from pypjua.clients.config import parse_options
 from pypjua.clients.chatroom import ChatRoom
@@ -55,6 +55,8 @@ def main():
         options = parse_options(usage, description)
         start(options)
     except RuntimeError, e:
+        sys.exit(str(e))
+    except PyPJUAError, e:
         sys.exit(str(e))
 
 if __name__ == "__main__":

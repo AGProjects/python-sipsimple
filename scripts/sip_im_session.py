@@ -12,7 +12,7 @@ from eventlet.green.socket import gethostbyname
 from msrplib.connect import MSRPConnectFactory, MSRPAcceptFactory
 from msrplib import trafficlog
 
-from pypjua import Credentials, SDPSession, SDPConnection, SIPURI
+from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
 from pypjua.clients.consolebuffer import setup_console, CTRL_D, EOF
 from pypjua.enginebuffer import EngineBuffer, IncomingSessionHandler, Ringer
 from pypjua.clients.config import parse_options, get_download_path
@@ -594,6 +594,8 @@ def main():
     except EOF:
         pass
     except RuntimeError, e:
+        sys.exit(str(e))
+    except PyPJUAError, e:
         sys.exit(str(e))
 
 if __name__ == "__main__":

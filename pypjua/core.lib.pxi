@@ -5,14 +5,14 @@ cdef class PJLIB:
         cdef int status
         status = pj_init()
         if status != 0:
-            raise RuntimeError("Could not initialize PJLIB: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize PJLIB", status)
         self.c_init_done = 1
         status = pjlib_util_init()
         if status != 0:
-            raise RuntimeError("Could not initialize PJLIB-UTIL: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize PJLIB-UTIL", status)
         status = pjnath_init()
         if status != 0:
-            raise RuntimeError("Could not initialize PJNATH: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize PJNATH", status)
 
     def __dealloc__(self):
         if self.c_init_done:
@@ -45,28 +45,28 @@ cdef class PJSIPEndpoint:
         cdef int status
         status = pjsip_endpt_create(&caching_pool.c_obj.factory, "pypjua",  &self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not initialize PJSIP endpoint: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize PJSIP endpoint", status)
         self.c_pool = pjsip_endpt_create_pool(self.c_obj, "lifetime", 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError("Could not allocate memory pool")
         status = pjsip_tsx_layer_init_module(self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not initialize transaction layer module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize transaction layer module", status)
         status = pjsip_ua_init_module(self.c_obj, NULL) # TODO: handle forking
         if status != 0:
-            raise RuntimeError("Could not initialize common dialog layer module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize common dialog layer module", status)
         status = pjsip_publishc_init_module(self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not initialize publish client module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize publish client module", status)
         status = pjsip_evsub_init_module(self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not initialize event subscription module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize event subscription module", status)
         status = pjsip_100rel_init_module(self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not initialize 100rel module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize 100rel module", status)
         status = pjsip_inv_usage_init(self.c_obj, &_inv_cb)
         if status != 0:
-            raise RuntimeError("Could not initialize invitation module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize invitation module", status)
         self.c_local_ip_used = local_ip
         if local_udp_port is not None:
             self._start_udp_transport(local_udp_port)
@@ -85,13 +85,13 @@ cdef class PJSIPEndpoint:
         cdef pj_str_t pj_local_ip
         cdef pj_str_t *p_local_ip = NULL
         if local_port < 0 or local_port > 65535:
-            raise RuntimeError("Invalid port: %d" % local_port)
+            raise PyPJUAError("Invalid port: %d" % local_port)
         if local_ip is not None and local_ip is not "0.0.0.0":
             p_local_ip = &pj_local_ip
             str_to_pj_str(local_ip, p_local_ip)
         status = pj_sockaddr_in_init(local_addr, p_local_ip, local_port)
         if status != 0:
-            raise RuntimeError("Could not create local address: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create local address", status)
         return 0
 
     cdef int _start_udp_transport(self, int local_port) except -1:
@@ -99,7 +99,7 @@ cdef class PJSIPEndpoint:
         self._make_local_addr(&local_addr, self.c_local_ip_used, local_port)
         status = pjsip_udp_transport_start(self.c_obj, &local_addr, NULL, 1, &self.c_udp_transport)
         if status != 0:
-            raise RuntimeError("Could not create UDP transport: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create UDP transport", status)
         return 0
 
     cdef int _stop_udp_transport(self) except -1:
@@ -112,7 +112,7 @@ cdef class PJSIPEndpoint:
         self._make_local_addr(&local_addr, self.c_local_ip_used, local_port)
         status = pjsip_tcp_transport_start2(self.c_obj, &local_addr, NULL, 1, &self.c_tcp_transport)
         if status != 0:
-            raise RuntimeError("Could not create TCP transport: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create TCP transport", status)
         return 0
 
     cdef int _stop_tcp_transport(self) except -1:
@@ -132,7 +132,7 @@ cdef class PJSIPEndpoint:
         tls_setting.verify_server = self.c_tls_verify_server
         status = pjsip_tls_transport_start(self.c_obj, &tls_setting, &local_addr, NULL, 1, &self.c_tls_transport)
         if status != 0:
-            raise RuntimeError("Could not create TLS transport: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create TLS transport", status)
         return 0
 
     cdef int _stop_tls_transport(self) except -1:
@@ -150,13 +150,13 @@ cdef class PJSIPEndpoint:
                 c_servers_str[index].slen = len(nameserver)
         status = pjsip_endpt_create_resolver(self.c_obj, &c_resolver)
         if status != 0:
-            raise RuntimeError("Could not create DNS resolver from endpoint: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create DNS resolver from endpoint", status)
         status = pj_dns_resolver_set_ns(c_resolver, len(nameservers), c_servers_str, NULL)
         if status != 0:
-            raise RuntimeError("Could not set nameservers on resolver: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set nameservers on resolver", status)
         status = pjsip_endpt_set_resolver(self.c_obj, c_resolver)
         if status != 0:
-            raise RuntimeError("Could not set DNS resolver at endpoint: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set DNS resolver at endpoint", status)
 
     def __dealloc__(self):
         if self.c_udp_transport != NULL:
@@ -177,7 +177,7 @@ cdef class PJMEDIAEndpoint:
         cdef int status
         status = pjmedia_endpt_create(&caching_pool.c_obj.factory, NULL, 1, &self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not create PJMEDIA endpoint: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create PJMEDIA endpoint", status)
         self.c_sample_rate = sample_rate
         self.c_codecs = []
 

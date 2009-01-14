@@ -41,7 +41,7 @@ class Engine(object):
                 self.event_handler = self._handle_event
             else:
                 if not callable(event_handler):
-                    raise RuntimeError("event_handler argument should be callable")
+                    raise ValueError("event_handler argument should be callable")
                 self.event_handler = event_handler
             self._thread_started = False
             self._thread_running = False
@@ -58,12 +58,12 @@ class Engine(object):
 
     def start(self, auto_sound=True):
         if self._thread_started:
-            raise RuntimeError("Worker thread was already started once")
+            raise PyPJUAError("Worker thread was already started once")
         self._ua = PJSIPUA(self.event_handler, **self.init_options)
         if auto_sound:
             try:
                 self._ua.auto_set_sound_devices()
-            except RuntimeError:
+            except PyPJUAError:
                 self._ua = None
                 raise
         self._lock = allocate_lock()

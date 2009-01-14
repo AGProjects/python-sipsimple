@@ -218,7 +218,7 @@ class IncomingMSRPHandler(object):
             inv.set_offered_local_sdp(local_sdp)
             try:
                 inv.accept()
-            except RuntimeError:
+            except PyPJUAError:
                 # the session may be already cancelled by the other party at this moment
                 # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
                 pass

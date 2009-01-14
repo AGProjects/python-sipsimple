@@ -48,10 +48,10 @@ cdef class RTPTransport:
                 ice_cfg.stun.port = ice_stun_port
             status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, c_local_ip_p, 0)
             if status != 0:
-                raise RuntimeError("Could not init ICE bound address: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not init ICE bound address", status)
             status = pjmedia_ice_create2(ua.c_pjmedia_endpoint.c_obj, NULL, 2, &ice_cfg, &_ice_cb, 0, &self.c_obj)
             if status != 0:
-                raise RuntimeError("Could not create ICE media transport: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create ICE media transport", status)
         else:
             status = PJ_EBUG
             for i in xrange(ua.c_rtp_port_index, ua.c_rtp_port_index + ua.c_rtp_port_stop - ua.c_rtp_port_start, 2):
@@ -60,7 +60,7 @@ cdef class RTPTransport:
                     ua.c_rtp_port_index = (i + 2) % (ua.c_rtp_port_stop - ua.c_rtp_port_start)
                     break
             if status != 0:
-                raise RuntimeError("Could not create UDP/RTP media transport: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create UDP/RTP media transport", status)
         if use_srtp:
             self.c_wrapped_transport = self.c_obj
             self.c_obj = NULL
@@ -69,7 +69,7 @@ cdef class RTPTransport:
                 srtp_setting.use = PJMEDIA_SRTP_MANDATORY
             status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint.c_obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
             if status != 0:
-                raise RuntimeError("Could not create SRTP media transport: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create SRTP media transport", status)
         if ice_stun_address is None:
             self.state = "INIT"
         else:
@@ -81,7 +81,7 @@ cdef class RTPTransport:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except RuntimeError:
+        except PyPJUAError:
             return
         if self.state in ["LOCAL", "ESTABLISHED"]:
             pjmedia_transport_media_stop(self.c_obj)
@@ -100,7 +100,7 @@ cdef class RTPTransport:
         pjmedia_transport_info_init(info)
         status = pjmedia_transport_get_info(self.c_obj, info)
         if status != 0:
-            raise RuntimeError("Could not get transport info: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not get transport info", status)
         return 0
 
     property local_rtp_port:
@@ -172,20 +172,20 @@ cdef class RTPTransport:
         cdef int status
         status = pjmedia_transport_media_create(self.c_obj, self.c_pool, 0, c_remote_sdp, sdp_index)
         if status != 0:
-            raise RuntimeError("Could not create media transport: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create media transport", status)
         status = pjmedia_transport_encode_sdp(self.c_obj, self.c_pool, &local_sdp.c_obj, c_remote_sdp, sdp_index)
         if status != 0:
-            raise RuntimeError("Could not update SDP for media transport: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not update SDP for media transport", status)
         # TODO: work the changes back into the local_sdp object, but we don't need to do that yet.
         return 0
 
     def set_LOCAL(self, SDPSession local_sdp, unsigned int sdp_index):
         if local_sdp is None:
-            raise RuntimeError("local_sdp argument cannot be None")
+            raise PyPJUAError("local_sdp argument cannot be None")
         if self.state == "LOCAL":
             return
         if self.state != "INIT":
-            raise RuntimeError('set_LOCAL can only be called in the "INIT" state')
+            raise PyPJUAError('set_LOCAL can only be called in the "INIT" state')
         local_sdp._to_c()
         self._update_local_sdp(local_sdp, sdp_index, NULL)
         self.state = "LOCAL"
@@ -194,18 +194,18 @@ cdef class RTPTransport:
         cdef int status
         cdef PJSIPUA = c_get_ua()
         if None in [local_sdp, remote_sdp]:
-            raise RuntimeError("SDP arguments cannot be None")
+            raise PyPJUAError("SDP arguments cannot be None")
         if self.state == "ESTABLISHED":
             return
         if self.state not in ["INIT", "LOCAL"]:
-            raise RuntimeError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states')
+            raise PyPJUAError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states')
         local_sdp._to_c()
         remote_sdp._to_c()
         if self.state == "INIT":
             self._update_local_sdp(local_sdp, sdp_index, &remote_sdp.c_obj)
         status = pjmedia_transport_media_start(self.c_obj, self.c_pool, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
         if status != 0:
-            raise RuntimeError("Could not start media transport: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not start media transport", status)
         if remote_sdp.media[sdp_index].connection is None:
             if remote_sdp.connection is not None:
                 self.remote_rtp_address_sdp = remote_sdp.connection.address
@@ -219,10 +219,10 @@ cdef class RTPTransport:
         if self.state == "INIT":
             return
         if self.state not in ["LOCAL", "ESTABLISHED"]:
-            raise RuntimeError('set_INIT can only be called in the "LOCAL" and "ESTABLISHED" states')
+            raise PyPJUAError('set_INIT can only be called in the "LOCAL" and "ESTABLISHED" states')
         status = pjmedia_transport_media_stop(self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not stop media transport: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not stop media transport", status)
         self.remote_rtp_address_sdp = None
         self.remote_rtp_port_sdp = None
         self.state = "INIT"
@@ -246,9 +246,9 @@ cdef class AudioTransport:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if transport is None:
-            raise RuntimeError("transport argument cannot be None")
+            raise PyPJUAError("transport argument cannot be None")
         if transport.state != "INIT":
-            raise RuntimeError('RTPTransport object provided is not in the "INIT" state')
+            raise PyPJUAError('RTPTransport object provided is not in the "INIT" state')
         self.transport = transport
         self.c_started = 0
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
@@ -257,7 +257,7 @@ cdef class AudioTransport:
         transport._get_info(&info)
         status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint.c_obj, self.c_pool, 1, &info.sock_info, &c_local_sdp)
         if status != 0:
-            raise RuntimeError("Could not generate SDP for audio session: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not generate SDP for audio session", status)
         local_sdp = c_make_SDPSession(c_local_sdp)
         if remote_sdp is None:
             self.c_offer = 1
@@ -273,7 +273,7 @@ cdef class AudioTransport:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except RuntimeError:
+        except PyPJUAError:
             return
         if self.c_obj != NULL:
             self.stop()
@@ -310,7 +310,7 @@ cdef class AudioTransport:
         cdef SDPAttribute attr
         cdef SDPMedia local_media
         if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
-            raise RuntimeError("Unknown direction: %s" % direction)
+            raise PyPJUAError("Unknown direction: %s" % direction)
         local_media = c_make_SDPMedia(self.c_local_media)
         local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ["sendrecv", "sendonly", "recvonly", "inactive"]]
         if is_offer and direction != "sendrecv":
@@ -322,13 +322,13 @@ cdef class AudioTransport:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if self.c_started:
-            raise RuntimeError("This AudioTransport was already started once")
+            raise PyPJUAError("This AudioTransport was already started once")
         if self.c_offer and self.transport.state != "LOCAL" or not self.c_offer and self.transport.state != "ESTABLISHED":
-            raise RuntimeError("RTPTransport object provided is in wrong state")
+            raise PyPJUAError("RTPTransport object provided is in wrong state")
         if None in [local_sdp, remote_sdp]:
-            raise RuntimeError("SDP arguments cannot be None")
+            raise PyPJUAError("SDP arguments cannot be None")
         if local_sdp.media[sdp_index].port == 0 or remote_sdp.media[sdp_index].port == 0:
-            raise RuntimeError("Cannot start a rejected audio stream")
+            raise PyPJUAError("Cannot start a rejected audio stream")
         if self.transport.state == "LOCAL":
             self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
         else:
@@ -336,30 +336,30 @@ cdef class AudioTransport:
             remote_sdp._to_c()
         status = pjmedia_stream_info_from_sdp(&self.c_stream_info, self.c_pool, ua.c_pjmedia_endpoint.c_obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
         if status != 0:
-            raise RuntimeError("Could not parse SDP for audio session: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not parse SDP for audio session", status)
         status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &self.c_stream_info, self.transport.c_obj, NULL, &self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not initialize RTP for audio session: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize RTP for audio session", status)
         status = pjmedia_stream_set_dtmf_callback(self.c_obj, cb_AudioTransport_cb_dtmf, <void *> self)
         if status != 0:
             pjmedia_stream_destroy(self.c_obj)
             self.c_obj = NULL
-            raise RuntimeError("Could not set DTMF callback for audio session: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set DTMF callback for audio session", status)
         status = pjmedia_stream_start(self.c_obj)
         if status != 0:
             pjmedia_stream_destroy(self.c_obj)
             self.c_obj = NULL
-            raise RuntimeError("Could not start RTP for audio session: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not start RTP for audio session", status)
         status = pjmedia_stream_get_port(self.c_obj, &media_port)
         if status != 0:
             pjmedia_stream_destroy(self.c_obj)
             self.c_obj = NULL
-            raise RuntimeError("Could not get audio port for audio session: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not get audio port for audio session", status)
         status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.c_pool, media_port, NULL, &self.c_conf_slot)
         if status != 0:
             pjmedia_stream_destroy(self.c_obj)
             self.c_obj = NULL
-            raise RuntimeError("Could not connect audio session to conference bridge: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not connect audio session to conference bridge", status)
         self.direction = "sendrecv"
         self.update_direction(local_sdp.media[sdp_index].get_direction())
         self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp.c_obj.media[sdp_index])
@@ -368,7 +368,7 @@ cdef class AudioTransport:
     def stop(self):
         cdef PJSIPUA ua = c_get_ua()
         if self.c_obj == NULL:
-            raise RuntimeError("Stream is not active")
+            raise PyPJUAError("Stream is not active")
         ua.c_conf_bridge._disconnect_slot(self.c_conf_slot)
         pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
         pjmedia_stream_destroy(self.c_obj)
@@ -379,9 +379,9 @@ cdef class AudioTransport:
         cdef int status1 = 0
         cdef int status2 = 0
         if self.c_obj == NULL:
-            raise RuntimeError("Stream is not active")
+            raise PyPJUAError("Stream is not active")
         if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
-            raise RuntimeError("Unknown direction: %s" % direction)
+            raise PyPJUAError("Unknown direction: %s" % direction)
         if direction == self.direction:
             return
         if "send" in self.direction:
@@ -398,22 +398,22 @@ cdef class AudioTransport:
                 status2 = pjmedia_stream_resume(self.c_obj, PJMEDIA_DIR_DECODING)
         self.direction = direction
         if status1 != 0:
-            raise RuntimeError("Could not pause or resume encoding: %s" % pj_status_to_str(status1))
+            raise PyPJUAError("Could not pause or resume encoding: %s" % pj_status_to_str(status1))
         if status2 != 0:
-            raise RuntimeError("Could not pause or resume decoding: %s" % pj_status_to_str(status2))
+            raise PyPJUAError("Could not pause or resume decoding: %s" % pj_status_to_str(status2))
 
     def send_dtmf(self, digit):
         cdef pj_str_t c_digit
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if self.c_obj == NULL:
-            raise RuntimeError("Stream is not active")
+            raise PyPJUAError("Stream is not active")
         if len(digit) != 1 or digit not in "0123456789*#ABCD":
-            raise RuntimeError("Not a valid DTMF digit: %s" % digit)
+            raise PyPJUAError("Not a valid DTMF digit: %s" % digit)
         str_to_pj_str(digit, &c_digit)
         status = pjmedia_stream_dial_dtmf(self.c_obj, &c_digit)
         if status != 0:
-            raise RuntimeError("Could not send DTMF digit on audio stream: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not send DTMF digit on audio stream", status)
         ua.c_conf_bridge._playback_dtmf(ord(digit))
 
 # callback functions

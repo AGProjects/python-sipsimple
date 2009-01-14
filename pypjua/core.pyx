@@ -1,5 +1,6 @@
 # includes
 
+include "core.error.pxi"
 include "core.lib.pxi"
 include "core.sound.pxi"
 include "core.util.pxi"

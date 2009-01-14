@@ -23,9 +23,9 @@ cdef class Publication:
         cdef pj_str_t c_event
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
-            raise RuntimeError("credentials parameter cannot be None")
+            raise PyPJUAError("credentials parameter cannot be None")
         if credentials.uri is None:
-            raise RuntimeError("No SIP URI set on credentials")
+            raise PyPJUAError("No SIP URI set on credentials")
         self.state = "unpublished"
         self.c_expires = expires
         self.c_credentials = credentials.copy()
@@ -39,25 +39,25 @@ cdef class Publication:
         self.c_credentials._to_c()
         status = pjsip_publishc_create(ua.c_pjsip_endpoint.c_obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not create publication: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create publication", status)
         str_to_pj_str(event, &c_event)
         status = pjsip_publishc_init(self.c_obj, &c_event, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, expires)
         if status != 0:
-            raise RuntimeError("Could not init publication: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not init publication", status)
         status = pjsip_publishc_set_credentials(self.c_obj, 1, &self.c_credentials.c_obj)
         if status != 0:
-            raise RuntimeError("Could not set publication credentials: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set publication credentials", status)
         if self.c_route is not None:
             status = pjsip_publishc_set_route_set(self.c_obj, &self.c_route.c_route_set)
             if status != 0:
-                raise RuntimeError("Could not set route set on publication: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not set route set on publication", status)
         self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
 
     def __dealloc__(self):
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except RuntimeError:
+        except PyPJUAError:
             return
         if self.c_timer.user_data != NULL:
             pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
@@ -76,7 +76,7 @@ cdef class Publication:
             cdef int status
             status = pjsip_publishc_update_expires(self.c_obj, value)
             if status != 0:
-                raise RuntimeError('Could not set new "expires" value: %s' % pj_status_to_str(status))
+                raise PyPJUAError('Could not set new "expires" value: %s' % pj_status_to_str(status))
             self.c_expires = value
 
     property extra_headers:
@@ -122,7 +122,7 @@ cdef class Publication:
                 else:
                     self.state = "published"
         else:
-            raise RuntimeError("Unexpected response callback in Publication")
+            raise PyPJUAError("Unexpected response callback in Publication")
         c_add_event("Publication_state", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
         if self.c_new_publish:
             self.c_new_publish = 0
@@ -137,7 +137,7 @@ cdef class Publication:
         if self.state == "unpublishing" or self.state =="publishing":
             return 0
         if self.state == "unpublished":
-            raise RuntimeError("Unexpected expire callback in Publication")
+            raise PyPJUAError("Unexpected expire callback in Publication")
         # self.state == "published"
         if self.c_body is not None:
             try:
@@ -191,15 +191,15 @@ cdef class Publication:
         if body != NULL:
             status = pjsip_publishc_publish(self.c_obj, 0, &self.c_tx_data)
             if status != 0:
-                raise RuntimeError("Could not create PUBLISH request: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create PUBLISH request", status)
             c_body = pjsip_msg_body_create(self.c_tx_data.pool, content_type, content_subtype, body)
             if c_body == NULL:
-                raise RuntimeError("Could not create body of PUBLISH request: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create body of PUBLISH request", status)
             self.c_tx_data.msg.body = c_body
         else:
             status = pjsip_publishc_unpublish(self.c_obj, &self.c_tx_data)
             if status != 0:
-                raise RuntimeError("Could not create PUBLISH request: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create PUBLISH request", status)
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &ua.c_user_agent_hdr.c_obj))
         for header in self.c_extra_headers:
             pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &header.c_obj))
@@ -207,7 +207,7 @@ cdef class Publication:
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)
         if status != 0:
-            raise RuntimeError("Could not send PUBLISH request: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not send PUBLISH request", status)
         if publish:
             self.state = "publishing"
         else:

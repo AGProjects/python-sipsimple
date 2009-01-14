@@ -28,7 +28,7 @@ cdef class PJMEDIAConferenceBridge:
         self.c_pjmedia_endpoint = pjmedia_endpoint
         status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not create conference bridge: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create conference bridge", status)
         self.c_conv_in_slots = [0]
         self.c_all_out_slots = [0]
         self.c_pb_in_slots = []
@@ -41,11 +41,11 @@ cdef class PJMEDIAConferenceBridge:
         status = pjmedia_tonegen_create(self.c_tonegen_pool, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_tonegen)
         if status != 0:
             pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
-            raise RuntimeError("Could not create DTMF tone generator: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create DTMF tone generator", status)
         status = pjmedia_conf_add_port(self.c_obj, self.c_tonegen_pool, self.c_tonegen, NULL, &self.c_tonegen_slot)
         if status != 0:
             pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
-            raise RuntimeError("Could not connect DTMF tone generator to conference bridge: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not connect DTMF tone generator to conference bridge", status)
         self._connect_playback_slot(self.c_tonegen_slot)
         return 0
 
@@ -82,15 +82,15 @@ cdef class PJMEDIAConferenceBridge:
             raise MemoryError("Could not allocate memory pool")
         status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_snd)
         if status != 0:
-            raise RuntimeError("Could not create sound device: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create sound device", status)
         status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
         if status != 0:
             self._destroy_snd_port(0)
-            raise RuntimeError("Could not set echo cancellation: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set echo cancellation", status)
         status = pjmedia_snd_port_connect(self.c_snd, pjmedia_conf_get_master_port(self.c_obj))
         if status != 0:
             self._destroy_snd_port(0)
-            raise RuntimeError("Could not connect sound device: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not connect sound device", status)
         return 0
 
     cdef int _destroy_snd_port(self, int disconnect) except -1:
@@ -115,14 +115,14 @@ cdef class PJMEDIAConferenceBridge:
         cdef int status
         status = pjmedia_snd_port_disconnect(self.c_snd)
         if status != 0:
-            raise RuntimeError("Could not disconnect sound device: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not disconnect sound device", status)
         status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
         if status != 0:
             pjmedia_snd_port_connect(self.c_snd, pjmedia_conf_get_master_port(self.c_obj))
-            raise RuntimeError("Could not set echo cancellation: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set echo cancellation", status)
         status = pjmedia_snd_port_connect(self.c_snd, pjmedia_conf_get_master_port(self.c_obj))
         if status != 0:
-            raise RuntimeError("Could not connect sound device: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not connect sound device", status)
         return 0
 
     cdef int _connect_playback_slot(self, unsigned int slot) except -1:
@@ -134,7 +134,7 @@ cdef class PJMEDIAConferenceBridge:
                 continue
             status = pjmedia_conf_connect_port(self.c_obj, slot, output_slot, 0)
             if status != 0:
-                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not connect audio stream to conference bridge", status)
         return 0
 
     cdef int _connect_output_slot(self, unsigned int slot) except -1:
@@ -146,7 +146,7 @@ cdef class PJMEDIAConferenceBridge:
                 continue
             status = pjmedia_conf_connect_port(self.c_obj, input_slot, slot, 0)
             if status != 0:
-                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not connect audio stream to conference bridge", status)
         return 0
 
     cdef int _connect_conv_slot(self, unsigned int slot) except -1:
@@ -159,13 +159,13 @@ cdef class PJMEDIAConferenceBridge:
                 continue
             status = pjmedia_conf_connect_port(self.c_obj, other_slot, slot, 0)
             if status != 0:
-                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not connect audio stream to conference bridge", status)
         for other_slot in self.c_all_out_slots + self.c_conv_out_slots:
             if slot == other_slot:
                 continue
             status = pjmedia_conf_connect_port(self.c_obj, slot, other_slot, 0)
             if status != 0:
-                raise RuntimeError("Could not connect audio stream to conference bridge: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not connect audio stream to conference bridge", status)
         return 0
 
     cdef int _disconnect_slot(self, unsigned int slot) except -1:
@@ -198,7 +198,7 @@ cdef class PJMEDIAConferenceBridge:
         tone.volume = 0
         status = pjmedia_tonegen_play_digits(self.c_tonegen, 1, &tone, 0)
         if status != 0:
-            raise RuntimeError("Could not playback DTMF tone: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not playback DTMF tone", status)
         return 0
 
 cdef class RecordingWaveFile:
@@ -216,10 +216,10 @@ cdef class RecordingWaveFile:
             raise MemoryError("Could not allocate memory pool")
         status = pjmedia_wav_writer_port_create(self.pool, file_name, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_FILE_WRITE_PCM, 0, &self.port)
         if status != 0:
-            raise RuntimeError("Could not create WAV file: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create WAV file", status)
         status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
         if status != 0:
-            raise RuntimeError("Could not connect WAV playback to conference bridge: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not connect WAV playback to conference bridge", status)
         conf_bridge._connect_output_slot(self.conf_slot)
 
     def stop(self):
@@ -257,13 +257,13 @@ cdef class WaveFile:
             raise MemoryError("Could not allocate memory pool")
         status = pjmedia_wav_player_port_create(self.pool, file_name, 0, 0, 0, &self.port)
         if status != 0:
-            raise RuntimeError("Could not open WAV file: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not open WAV file", status)
         status = pjmedia_wav_player_set_eof_cb(self.port, <void *> self, cb_play_wave_eof)
         if status != 0:
-            raise RuntimeError("Could not set WAV EOF callback: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set WAV EOF callback", status)
         status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
         if status != 0:
-            raise RuntimeError("Could not connect WAV playback to conference bridge: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not connect WAV playback to conference bridge", status)
         conf_bridge._connect_playback_slot(self.conf_slot)
 
     def __dealloc__(self):

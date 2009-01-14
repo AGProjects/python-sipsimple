@@ -477,7 +477,7 @@ class InvitationBuffer(BaseBuffer):
     def shutdown(self, *args, **kwargs):
         try:
             self.end(*args, **kwargs)
-        except RuntimeError: # QQQ use more descriptive exception type here
+        except PyPJUAError: # QQQ use more descriptive exception type here
             pass
 
     def set_queue(self, queue):

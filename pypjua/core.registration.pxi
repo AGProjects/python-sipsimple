@@ -20,9 +20,9 @@ cdef class Registration:
         cdef PJSTR request_uri, fromto_uri
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
-            raise RuntimeError("credentials parameter cannot be None")
+            raise PyPJUAError("credentials parameter cannot be None")
         if credentials.uri is None:
-            raise RuntimeError("No SIP URI set on credentials")
+            raise PyPJUAError("No SIP URI set on credentials")
         self.state = "unregistered"
         self.c_expires = expires
         self.c_credentials = credentials.copy()
@@ -37,24 +37,24 @@ cdef class Registration:
         fromto_uri = PJSTR(credentials.uri._as_str(0))
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
-            raise RuntimeError("Could not create client registration: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not create client registration", status)
         status = pjsip_regc_init(self.c_obj, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, 1, &self.c_contact_uri.pj_str, expires)
         if status != 0:
-            raise RuntimeError("Could not init registration: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not init registration", status)
         status = pjsip_regc_set_credentials(self.c_obj, 1, &self.c_credentials.c_obj)
         if status != 0:
-            raise RuntimeError("Could not set registration credentials: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not set registration credentials", status)
         if self.c_route is not None:
             status = pjsip_regc_set_route_set(self.c_obj, &self.c_route.c_route_set)
             if status != 0:
-                raise RuntimeError("Could not set route set on registration: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not set route set on registration", status)
         self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
 
     def __dealloc__(self):
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except RuntimeError:
+        except PyPJUAError:
             return
         if self.c_timer.user_data != NULL:
             pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
@@ -73,7 +73,7 @@ cdef class Registration:
             cdef int status
             status = pjsip_regc_update_expires(self.c_obj, value)
             if status != 0:
-                raise RuntimeError('Could not set new "expires" value: %s' % pj_status_to_str(status))
+                raise PyPJUAError('Could not set new "expires" value: %s' % pj_status_to_str(status))
             self.c_expires = value
 
     property expires_received:
@@ -86,7 +86,7 @@ cdef class Registration:
             else:
                 status = pjsip_regc_get_info(self.c_obj, &c_info)
                 if status != 0:
-                    raise RuntimeError('Could not get registration info: %s' % pj_status_to_str(status))
+                    raise PyPJUAError('Could not get registration info: %s' % pj_status_to_str(status))
                 return c_info.interval
 
     property extra_headers:
@@ -133,7 +133,7 @@ cdef class Registration:
                 else:
                     self.state = "registered"
         else:
-            raise RuntimeError("Unexpected response callback in Registration")
+            raise PyPJUAError("Unexpected response callback in Registration")
         if self.state == "registered":
             for i from 0 <= i < param.contact_cnt:
                 length = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, param.contact[i].uri, contact_uri_buf, 1024)
@@ -151,7 +151,7 @@ cdef class Registration:
         if self.state == "unregistering":
             return 0
         if self.state == "registering" or self.state == "unregistered":
-            raise RuntimeError("Unexpected expire callback in Registration")
+            raise PyPJUAError("Unexpected expire callback in Registration")
         # self.state == "registered"
         if self.c_want_register:
             try:
@@ -186,11 +186,11 @@ cdef class Registration:
         if register:
             status = pjsip_regc_register(self.c_obj, 0, &self.c_tx_data)
             if status != 0:
-                raise RuntimeError("Could not create registration request: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create registration request", status)
         else:
             status = pjsip_regc_unregister(self.c_obj, &self.c_tx_data)
             if status != 0:
-                raise RuntimeError("Could not create unregistration request: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create unregistration request", status)
         pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &ua.c_user_agent_hdr.c_obj))
         for header in self.c_extra_headers:
             pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &header.c_obj))
@@ -199,7 +199,7 @@ cdef class Registration:
         cdef int status
         status = pjsip_regc_send(self.c_obj, self.c_tx_data)
         if status != 0:
-            raise RuntimeError("Could not send registration request: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not send registration request", status)
         if register:
             self.state = "registering"
         else:

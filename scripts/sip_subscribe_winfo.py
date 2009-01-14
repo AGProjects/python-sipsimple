@@ -468,3 +468,6 @@ if __name__ == "__main__":
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
+    except PyPJUAError, e:
+        print "Error: %s" % str(e)
+        sys.exit(1)

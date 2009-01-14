@@ -42,7 +42,7 @@ cdef int c_add_event(object event_name, dict params) except -1:
     event.data = <void *> data
     status = c_event_queue_append(event)
     if status != 0:
-        raise RuntimeError("Could not obtain lock: %s", pj_status_to_str(status))
+        raise PJSIPError("Could not obtain lock", status)
     Py_INCREF(data)
     return 0
 

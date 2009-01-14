@@ -11,21 +11,21 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     cdef int size
     cdef PJSIPUA ua = c_get_ua()
     if credentials is None:
-        raise RuntimeError("credentials parameter cannot be None")
+        raise PyPJUAError("credentials parameter cannot be None")
     if credentials.uri is None:
-        raise RuntimeError("No SIP URI set on credentials")
+        raise PyPJUAError("No SIP URI set on credentials")
     if to_uri is None:
-        raise RuntimeError("to_uri parameter cannot be None")
+        raise PyPJUAError("to_uri parameter cannot be None")
     from_uri = PJSTR(credentials.uri._as_str(0))
     to_uri_to = PJSTR(to_uri._as_str(0))
     to_uri_req = PJSTR(to_uri._as_str(1))
     if to_uri_req.str in ua.c_sent_messages:
-        raise RuntimeError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
+        raise PyPJUAError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
     message_method.id = PJSIP_OTHER_METHOD
     message_method.name = message_method_name.pj_str
     status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
     if status != 0:
-        raise RuntimeError("Could not create MESSAGE request: %s" % pj_status_to_str(status))
+        raise PJSIPError("Could not create MESSAGE request", status)
     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
     if route is not None:
         route._to_c(ua)
@@ -40,12 +40,12 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     size = pjsip_msg_print(tdata.msg, test_buf, 1300)
     if size == -1:
         pjsip_tx_data_dec_ref(tdata)
-        raise RuntimeError("MESSAGE request exceeds 1300 bytes")
+        raise PyPJUAError("MESSAGE request exceeds 1300 bytes")
     saved_data = credentials.copy(), to_uri_req, to_uri.copy()
     status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
     if status != 0:
         pjsip_tx_data_dec_ref(tdata)
-        raise RuntimeError("Could not send MESSAGE request: %s" % pj_status_to_str(status))
+        raise PJSIPError("Could not send MESSAGE request", status)
     Py_INCREF(saved_data)
     ua.c_sent_messages.add(to_uri_req.str)
 
@@ -75,22 +75,22 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
             try:
                 status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint.c_obj, rdata.tp_info.pool, 0)
                 if status != 0:
-                    raise RuntimeError("Could not init auth: %s" % pj_status_to_str(status))
+                    raise PJSIPError("Could not init auth", status)
                 credentials._to_c()
                 status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials.c_obj)
                 if status != 0:
-                    raise RuntimeError("Could not set auth credentials: %s" % pj_status_to_str(status))
+                    raise PJSIPError("Could not set auth credentials", status)
                 status = pjsip_auth_clt_reinit_req(&auth, rdata, tsx.last_tx, &tdata)
                 if status != 0:
                     if status == PJSIP_EFAILEDCREDENTIAL:
                         final = 1
                     else:
-                        raise RuntimeError("Could not create auth response: %s" % pj_status_to_str(status))
+                        raise PJSIPError("Could not create auth response", status)
                 else:
                     status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
                     if status != 0:
                         pjsip_tx_data_dec_ref(tdata)
-                        raise RuntimeError("Could not send MESSAGE request: %s" % pj_status_to_str(status))
+                        raise PJSIPError("Could not send MESSAGE request", status)
             except Exception, exc:
                 final = 1
         if final:

@@ -32,7 +32,7 @@ cdef class PJSIPUA:
     def __cinit__(self, *args, **kwargs):
         global _ua
         if _ua != NULL:
-            raise RuntimeError("Can only have one PJSUPUA instance at the same time")
+            raise PyPJUAError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
         self.c_threads = []
         self.c_events = []
@@ -47,7 +47,7 @@ cdef class PJSIPUA:
         cdef int status
         cdef PJSTR c_message_method = PJSTR("MESSAGE")
         if kwargs["sample_rate"] not in [8, 16, 32]:
-            raise RuntimeError("Sample rate should be one of 8, 16 or 32kHz")
+            raise PyPJUAError("Sample rate should be one of 8, 16 or 32kHz")
         self.c_event_handler = event_handler
         self.log_level = kwargs["log_level"]
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
@@ -60,7 +60,7 @@ cdef class PJSIPUA:
         self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_verify_server"], kwargs["tls_ca_file"])
         status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
-            raise RuntimeError("Could not initialize event queue mutex: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not initialize event queue mutex", status)
         self.codecs = kwargs["codecs"]
         self.c_conf_bridge = PJMEDIAConferenceBridge(self.c_pjsip_endpoint, self.c_pjmedia_endpoint)
         self.ec_tail_length = kwargs["ec_tail_length"]
@@ -73,10 +73,10 @@ cdef class PJSIPUA:
         self.c_module.on_rx_request = cb_PJSIPUA_rx_request
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
         if status != 0:
-            raise RuntimeError("Could not load application module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not load application module", status)
         status = pjsip_endpt_add_capability(self.c_pjsip_endpoint.c_obj, &self.c_module, PJSIP_H_ALLOW, NULL, 1, &c_message_method.pj_str)
         if status != 0:
-            raise RuntimeError("Could not add MESSAGE method to supported methods: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not add MESSAGE method to supported methods", status)
         self.c_trace_sip = bool(kwargs["trace_sip"])
         self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
         self.c_trace_module.name = self.c_trace_module_name.pj_str
@@ -88,14 +88,14 @@ cdef class PJSIPUA:
         self.c_trace_module.on_tx_response = cb_trace_tx
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_trace_module)
         if status != 0:
-            raise RuntimeError("Could not load sip trace module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not load sip trace module", status)
         self.c_event_module_name = PJSTR("mod-pypjua-events")
         self.c_event_module.name = self.c_event_module_name.pj_str
         self.c_event_module.id = -1
         self.c_event_module.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
         if status != 0:
-            raise RuntimeError("Could not load events module: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not load events module", status)
         self.user_agent = kwargs["user_agent"]
         for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
@@ -215,7 +215,7 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint._stop_udp_transport()
             try:
                 self.c_pjsip_endpoint._start_udp_transport(port)
-            except RuntimeError:
+            except PyPJUAError:
                 if old_port == -1:
                     raise
                 self.c_pjsip_endpoint._start_udp_transport(old_port)
@@ -245,7 +245,7 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint._stop_tcp_transport()
             try:
                 self.c_pjsip_endpoint._start_tcp_transport(port)
-            except RuntimeError:
+            except PyPJUAError:
                 if old_port == -1:
                     raise
                 self.c_pjsip_endpoint._start_tcp_transport(old_port)
@@ -275,7 +275,7 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint._stop_tls_transport()
             try:
                 self.c_pjsip_endpoint._start_tls_transport(port)
-            except RuntimeError:
+            except PyPJUAError:
                 if old_port == -1:
                     raise
                 self.c_pjsip_endpoint._start_tls_transport(old_port)
@@ -294,9 +294,9 @@ cdef class PJSIPUA:
             c_rtp_port_start, c_rtp_port_stop = value
             for port in value:
                 if port < 0 or port > 65535:
-                    raise RuntimeError("RTP port values should be between 0 and 65535")
+                    raise PyPJUAError("RTP port values should be between 0 and 65535")
             if c_rtp_port_stop <= c_rtp_port_start:
-                raise RuntimeError("Second RTP port should be a larger number than first RTP port")
+                raise PyPJUAError("Second RTP port should be a larger number than first RTP port")
             self.c_rtp_port_start = c_rtp_port_start
             self.c_rtp_port_stop = c_rtp_port_stop
             self.c_rtp_port_index = random.randrange(c_rtp_port_start, c_rtp_port_stop, 2) - 50
@@ -379,7 +379,7 @@ cdef class PJSIPUA:
             self.c_pjsip_endpoint._stop_tls_transport()
             try:
                 self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
-            except RuntimeError:
+            except PyPJUAError:
                 self.c_pjsip_endpoint.c_tls_ca_file = old_tls_ca_file
                 self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
 
@@ -391,13 +391,13 @@ cdef class PJSIPUA:
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
         if transport.c_obj == NULL:
-            raise RuntimeError("Cannot connect an AudioTransport that was not started yet")
+            raise PyPJUAError("Cannot connect an AudioTransport that was not started yet")
         self.c_conf_bridge._connect_conv_slot(transport.c_conf_slot)
 
     def disconnect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
         if transport.c_obj == NULL:
-            raise RuntimeError("Cannot disconnect an AudioTransport that was not started yet")
+            raise PyPJUAError("Cannot disconnect an AudioTransport that was not started yet")
         self.c_conf_bridge._disconnect_slot(transport.c_conf_slot)
 
     def play_wav_file(self, file_name):
@@ -419,10 +419,10 @@ cdef class PJSIPUA:
         str_to_pj_str(stun_server_address, &c_stun_server_address)
         status = pj_sockaddr_in_init(&stun_server, &c_stun_server_address, stun_server_port)
         if status != 0:
-            raise RuntimeError("Could not init STUN server address: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not init STUN server address", status)
         status = pj_stun_detect_nat_type(&stun_server, &self.c_stun_cfg, NULL, cb_detect_nat_type)
         if status != 0:
-            raise RuntimeError("Could not start NAT type detection: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not start NAT type detection", status)
 
     def parse_sip_uri(self, uri_string):
         # no need for self.c_check_self(), c_get_ua() is called in the function
@@ -467,16 +467,16 @@ cdef class PJSIPUA:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &self.c_max_timeout)
         IF UNAME_SYSNAME == "Darwin":
             if status not in [0, PJ_ERRNO_START_SYS + EBADF]:
-                raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
+                raise PJSIPError("Error while handling events", status)
         ELSE:
             if status != 0:
-                raise RuntimeError("Error while handling events: %s" % pj_status_to_str(status))
+                raise PJSIPError("Error while handling events", status)
         self._poll_log()
 
     cdef int c_check_self(self) except -1:
         global _ua
         if _ua == NULL:
-            raise RuntimeError("The PJSIPUA is no longer running")
+            raise PyPJUAError("The PJSIPUA is no longer running")
         self.c_check_thread()
 
     cdef int c_check_thread(self) except -1:
@@ -500,7 +500,7 @@ cdef class PJSIPUA:
         if method_name == "OPTIONS":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
             if status != 0:
-                raise RuntimeError("Could not create response: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create response", status)
             for hdr_type in [PJSIP_H_ALLOW, PJSIP_H_ACCEPT, PJSIP_H_SUPPORTED]:
                 hdr_add = pjsip_endpt_get_capability(self.c_pjsip_endpoint.c_obj, hdr_type, NULL)
                 if hdr_add != NULL:
@@ -520,16 +520,16 @@ cdef class PJSIPUA:
             c_add_event("message", message_params)
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
             if status != 0:
-                raise RuntimeError("Could not create response: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create response", status)
         elif method_name != "ACK":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 405, NULL, &tdata)
             if status != 0:
-                raise RuntimeError("Could not create response: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create response", status)
         if tdata != NULL:
             pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &self.c_user_agent_hdr.c_obj))
             status = pjsip_endpt_send_response2(self.c_pjsip_endpoint.c_obj, rdata, tdata, NULL, NULL)
             if status != 0:
-                raise RuntimeError("Could not send response: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not send response", status)
         return 1
 
 # helper class
@@ -543,7 +543,7 @@ cdef class PJSIPThread:
         cdef int status
         status = pj_thread_register(thread_name, self.c_thread_desc, &self.c_obj)
         if status != 0:
-            raise RuntimeError("Error while registering thread: %s" % pj_status_to_str(status))
+            raise PJSIPError("Error while registering thread", status)
 
 # callback functions
 
@@ -591,7 +591,7 @@ cdef PJSIPUA c_get_ua():
     global _ua
     cdef PJSIPUA ua
     if _ua == NULL:
-        raise RuntimeError("PJSIPUA is not instanced")
+        raise PyPJUAError("PJSIPUA is not instanced")
     ua = <object> _ua
     ua.c_check_thread()
     return ua

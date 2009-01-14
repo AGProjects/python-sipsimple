@@ -16,11 +16,11 @@ cdef class Subscription:
         cdef EventPackage pkg
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
-            raise RuntimeError("credentials parameter cannot be None")
+            raise PyPJUAError("credentials parameter cannot be None")
         if credentials.uri is None:
-            raise RuntimeError("No SIP URI set on credentials")
+            raise PyPJUAError("No SIP URI set on credentials")
         if to_uri is None:
-            raise RuntimeError("to_uri parameter cannot be None")
+            raise PyPJUAError("to_uri parameter cannot be None")
         self.c_credentials = credentials.copy()
         self.c_credentials._to_c()
         if route is not None:
@@ -30,7 +30,7 @@ cdef class Subscription:
         self.c_to_uri = to_uri.copy()
         self.c_event = PJSTR(event)
         if event not in ua.events:
-            raise RuntimeError('Event "%s" is unknown' % event)
+            raise PyPJUAError('Event "%s" is unknown' % event)
         self.state = "TERMINATED"
         self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
 
@@ -38,7 +38,7 @@ cdef class Subscription:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except RuntimeError:
+        except PyPJUAError:
             return
         if self.c_obj != NULL:
             if self.state != "TERMINATED":
@@ -95,12 +95,12 @@ cdef class Subscription:
 
     def subscribe(self):
         if self.state != "TERMINATED":
-            raise RuntimeError("A subscription is already active")
+            raise PyPJUAError("A subscription is already active")
         self._do_sub(1, self.expires)
 
     def unsubscribe(self):
         if self.state == "TERMINATED":
-            raise RuntimeError("No subscribtion is active")
+            raise PyPJUAError("No subscribtion is active")
         self._do_sub(0, 0)
 
     cdef int _do_sub(self, bint first_subscribe, unsigned int expires) except -1:
@@ -121,27 +121,27 @@ cdef class Subscription:
                 c_contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
                 status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_from.pj_str, &c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
                 if status != 0:
-                    raise RuntimeError("Could not create SUBSCRIBE dialog: %s" % pj_status_to_str(status))
+                    raise PJSIPError("Could not create SUBSCRIBE dialog", status)
                 status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
                 if status != 0:
-                    raise RuntimeError("Could not create SUBSCRIBE: %s" % pj_status_to_str(status))
+                    raise PJSIPError("Could not create SUBSCRIBE", status)
                 status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
                 if status != 0:
-                    raise RuntimeError("Could not set SUBSCRIBE credentials: %s" % pj_status_to_str(status))
+                    raise PJSIPError("Could not set SUBSCRIBE credentials", status)
                 if self.c_route is not None:
                     status = pjsip_dlg_set_route_set(self.c_dlg, &self.c_route.c_route_set)
                     if status != 0:
-                        raise RuntimeError("Could not set route on SUBSCRIBE: %s" % pj_status_to_str(status))
+                        raise PJSIPError("Could not set route on SUBSCRIBE", status)
                 pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
             status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
             if status != 0:
-                raise RuntimeError("Could not create SUBSCRIBE message: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not create SUBSCRIBE message", status)
             pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
             for header in self.c_extra_headers:
                 pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &header.c_obj))
             status = pjsip_evsub_send_request(self.c_obj, c_tdata)
             if status != 0:
-                raise RuntimeError("Could not send SUBSCRIBE message: %s" % pj_status_to_str(status))
+                raise PJSIPError("Could not send SUBSCRIBE message", status)
         except:
             if self.c_obj != NULL:
                 pjsip_evsub_terminate(self.c_obj, 0)
@@ -164,16 +164,16 @@ cdef class EventPackage:
         cdef object c_accept_type
         cdef int c_accept_cnt = len(accept_types)
         if c_accept_cnt > PJSIP_MAX_ACCEPT_COUNT:
-            raise RuntimeError("Too many accept_types")
+            raise PyPJUAError("Too many accept_types")
         if c_accept_cnt == 0:
-            raise RuntimeError("Need at least one accept_types")
+            raise PyPJUAError("Need at least one accept_types")
         self.accept_types = accept_types
         self.c_event = PJSTR(event)
         for c_index, c_accept_type in enumerate(accept_types):
             str_to_pj_str(c_accept_type, &c_accept[c_index])
         status = pjsip_evsub_register_pkg(&ua.c_event_module, &self.c_event.pj_str, 300, c_accept_cnt, c_accept)
         if status != 0:
-            raise RuntimeError("Could not register event package: %s" % pj_status_to_str(status))
+            raise PJSIPError("Could not register event package", status)
 
     property event:
 

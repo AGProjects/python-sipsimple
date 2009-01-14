@@ -53,7 +53,7 @@ cdef class SDPSession:
             self.attributes = []
         self.c_obj.attr_count = len(self.attributes)
         if self.c_obj.attr_count > PJMEDIA_MAX_SDP_ATTR:
-            raise RuntimeError("Too many attributes")
+            raise PyPJUAError("Too many attributes")
         for index, attr in enumerate(self.attributes):
             attr._to_c()
             self.c_obj.attr[index] = &attr.c_obj
@@ -61,7 +61,7 @@ cdef class SDPSession:
             self.media = []
         self.c_obj.media_count = len(self.media)
         if self.c_obj.media_count > PJMEDIA_MAX_SDP_MEDIA:
-            raise RuntimeError("Too many attributes")
+            raise PyPJUAError("Too many attributes")
         for index, media in enumerate(self.media):
             media._to_c()
             self.c_obj.media[index] = &media.c_obj
@@ -161,7 +161,7 @@ cdef class SDPMedia:
             self.formats = []
         self.c_obj.desc.fmt_count = len(self.formats)
         if self.c_obj.desc.fmt_count > PJMEDIA_MAX_SDP_FMT:
-            raise RuntimeError("Too many formats")
+            raise PyPJUAError("Too many formats")
         for index, format in enumerate(self.formats):
             str_to_pj_str(format, &self.c_obj.desc.fmt[index])
         if self.connection is None:
@@ -173,7 +173,7 @@ cdef class SDPMedia:
             self.attributes = []
         self.c_obj.attr_count = len(self.attributes)
         if self.c_obj.attr_count > PJMEDIA_MAX_SDP_ATTR:
-            raise RuntimeError("Too many attributes")
+            raise PyPJUAError("Too many attributes")
         for index, attr in enumerate(self.attributes):
             attr._to_c()
             self.c_obj.attr[index] = &attr.c_obj
