@@ -120,7 +120,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                 key = data
                 if key == 's':
                     logger.trace_sip = not logger.trace_sip
-                    print "SIP tracing is now %s" % ("activated" if trace_sip else "deactivated")
+                    print "SIP tracing is now %s" % ("activated" if logger.trace_sip else "deactivated")
                 if key == 'l':
                     do_trace_pjsip = not do_trace_pjsip
                     print "PJSIP logging is now %s" % ("activated" if do_trace_pjsip else "deactivated")
