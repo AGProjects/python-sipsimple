@@ -150,7 +150,16 @@ def display_person(person, pidf, buf):
         buf.append(text)
     # display sphere
     if person.sphere is not None:
-        buf.append("    Current sphere: %s" % person.sphere.value)
+        timeinfo = []
+        if person.sphere.since is not None:
+            timeinfo.append('from %s' % str(person.sphere.since))
+        if person.sphere.until is not None:
+            timeinfo.append('until %s' % str(person.sphere.until))
+        if len(timeinfo) != 0:
+            timeinfo = ' (' + ', '.join(timeinfo) + ')'
+        else:
+            timeinfo = ''
+        buf.append("    Current sphere%s: %s" % (timeinfo, person.sphere.value))
     # display status icon
     if person.status_icon is not None:
         buf.append("    Status icon: %s" % person.status_icon)
