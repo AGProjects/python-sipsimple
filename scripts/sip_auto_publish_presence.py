@@ -111,7 +111,6 @@ def auto_publish(interval):
     device.notes.append(DMNote('Powered by %s' % user_agent, lang='en'))
     device.timestamp = DMTimestamp()
     device.user_input = UserInput()
-    device.user_input.idle_threshold = '1800'
     pidf.append(device)
         
     while True:
@@ -186,7 +185,7 @@ def auto_publish(interval):
             # 50 % chance to change to idle:
             if random.randint(0, 1) == 1:
                 device.user_input.value = 'idle'
-                device.user_input.last_input = now - datetime.timedelta(seconds=int(device.user_input.idle_threshold))
+                device.user_input.last_input = now - datetime.timedelta(seconds=30)
 
         # publish new pidf
         publish_pidf()
