@@ -454,7 +454,7 @@ def parse_options():
     if args:
         retval["presentity_uri"] = format_cmdline_uri(args[0], retval["domain"])
     else:
-        retval["presentity_uri"] = format_cmdline_uri(retval["username"], retval["domain"])
+        retval["presentity_uri"] = format_cmdline_uri('%s-buddies' % retval["username"], retval["domain"])
 
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
     accounts.sort()
