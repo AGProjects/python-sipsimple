@@ -487,6 +487,9 @@ class TimeOffset(XMLStringElement, PersonExtension):
             value = int(round(diff.days*1440+diff.seconds/60.0+diff.microseconds/60000000.0))
         XMLStringElement.__init__(self, str(value))
 
+    def __int__(self):
+        return int(self.value)
+
 PIDFMeta.register(TimeOffset)
 
 class UserInput(XMLStringElement, TupleExtension, PersonExtension, DeviceExtension):
