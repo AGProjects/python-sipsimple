@@ -85,6 +85,7 @@ old = None
 user_quit = True
 lock = allocate_lock()
 logger = None
+return_code = 1
 
 def termios_restore():
     global old
@@ -149,7 +150,7 @@ def print_control_keys():
     print "  Ctrl-d: quit the program"
 
 def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, transport):
-    global user_quit, lock, queue
+    global user_quit, lock, queue, return_code
     lock.acquire()
     inv = None
     audio = None
@@ -200,6 +201,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                     elif args["state"] == "unregistered":
                         if "code" in args and args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
+                        elif inv is None:
+                            return_code = 0
                         user_quit = False
                         command = "quit"
                 elif event_name == "Invitation_state":
@@ -212,6 +215,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                     e.connect_audio_transport(audio)
                                     print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
                                     print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                                    return_code = 0
                                     if audio.transport.srtp_active:
                                         print "RTP audio stream is encrypted"
                                 else:
@@ -294,6 +298,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 print "%s: %d %s" % (disc_msg, args["code"], args["reason"])
                                 if args["code"] in [301, 302]:
                                     print 'Received redirect request to "%s"' % args["headers"]["Contact"]
+                                    return_code = 0
                             else:
                                 print disc_msg
                             if session_start_time is not None:
@@ -563,3 +568,4 @@ if __name__ == "__main__":
     except PyPJUAError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
+    sys.exit(return_code)
