@@ -48,8 +48,7 @@ class JoinHandler(IncomingMSRPHandler):
 
 class ChatRoom:
 
-    def __init__(self, credentials, traffic_logger):
-        self.credentials = credentials
+    def __init__(self, traffic_logger):
         self.traffic_logger = traffic_logger
         self.sessions = []
         self.accept_incoming_job = None

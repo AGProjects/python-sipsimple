@@ -26,7 +26,7 @@ def start(options):
         credentials = Credentials(options.uri, options.password)
         register(e, credentials, options.route)
         logger = TrafficLogger.to_file(is_enabled_func = lambda: options.trace_msrp)
-        room = ChatRoom(credentials, logger)
+        room = ChatRoom(logger)
         room.start_accept_incoming(e, options.relay)
         print 'Waiting for incoming SIP session requests...'
         try:
