@@ -12,7 +12,7 @@ import signal
 import datetime
 import random
 from thread import start_new_thread, allocate_lock
-from threading import Thread
+from threading import Thread, Timer
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from time import sleep, time
@@ -149,7 +149,7 @@ def print_control_keys():
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, transport):
+def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, transport, auto_hangup):
     global user_quit, lock, queue, return_code
     lock.acquire()
     inv = None
@@ -216,6 +216,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                     print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
                                     print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
                                     return_code = 0
+                                    if auto_hangup is not None:
+                                        Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
                                     if audio.transport.srtp_active:
                                         print "RTP audio stream is encrypted"
                                 else:
@@ -492,6 +494,23 @@ def parse_outbound_proxy(option, opt_str, value, parser):
     except ValueError, e:
         raise OptionValueError(e.message)
 
+def parse_auto_hangup(option, opt_str, value, parser):
+    try:
+        value = parser.rargs[0]
+    except IndexError:
+        value = 0
+    else:
+        if value == "" or value[0] == '-':
+            value = 0
+        else:
+            try:
+                value = int(value)
+            except ValueError:
+                value = 0
+            else:
+                del parser.rargs[0]
+    parser.values.auto_hangup = value
+
 def split_codec_list(option, opt_str, value, parser):
     parser.values.codecs = value.split(",")
 
@@ -512,6 +531,7 @@ def parse_options():
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("--auto-hangup", action="callback", callback=parse_auto_hangup, help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
@@ -523,7 +543,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, auto_hangup=None)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
