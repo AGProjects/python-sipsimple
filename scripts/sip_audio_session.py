@@ -140,6 +140,13 @@ class RingingThread(Thread):
                 queue.put(("play_wav", "ring_outbound.wav"))
             sleep(5)
 
+def print_control_keys():
+    print "Available control keys:"
+    print "  h: hang-up the active session"
+    print "  r: toggle audio recording"
+    print "  <> : adjust echo cancellation"
+    print "  SPACE: hold/on-hold"
+    print "  Ctrl-d: quit the program"
 
 def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, transport):
     global user_quit, lock, queue
@@ -163,12 +170,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
             if use_bonjour:
                 print "Using bonjour"
                 print "Listening on local interface %s:%d" % (e.local_ip, e.local_udp_port)
-                print "Available control keys:"
-                print "  h: hang-up the active session"
-                print "  r: toggle audio recording"
-                print "  <> : adjust echo cancellation"
-                print "  SPACE: hold/on-hold"
-                print "  Ctrl-d: quit the program"
+                print_control_keys()
                 print 'Waiting for incoming SIP session requests...'
             else:
                 reg = Registration(credentials, route=route)
@@ -180,7 +182,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
             audio = AudioTransport(transport)
             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
             inv.set_state_CALLING()
-            print "Press Ctrl-d to quit, h to hang-up, r to record, SPACE to hold, < and > to adjust the echo cancellation"
+            print_control_keys()
         while True:
             command, data = queue.get()
             if command == "print":
@@ -192,7 +194,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         if not printed:
                             print "REGISTER was successful"
                             print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
-                            print "Press Ctrl-D to quit, h to hang-up, r to toggle recording, SPACE to put the call on hold, < and > to adjust the echo cancellation"
+                            print_control_keys()
                             print "Waiting for incoming session..."
                             printed = True
                     elif args["state"] == "unregistered":
