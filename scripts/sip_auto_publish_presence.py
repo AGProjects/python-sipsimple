@@ -72,6 +72,7 @@ pub = None
 sip_uri = None
 string = None
 logger = None
+return_code = 1
 
 pidf = None
 user_agent = None
@@ -241,11 +242,13 @@ def getchar():
         return os.read(fd, 4192)
 
 def event_handler(event_name, **kwargs):
-    global packet_count, start_time, queue, do_trace_pjsip, logger, want_quit, pub
+    global packet_count, start_time, queue, do_trace_pjsip, logger, want_quit, pub, return_code
     if event_name == "Publication_state":
         if kwargs["state"] == "unpublished":
             queue.put(("print", "Unpublished: %(code)d %(reason)s" % kwargs))
             if want_quit or kwargs['code'] in (401, 403, 407):
+                if kwargs['code'] / 100 == 2:
+                    return_code = 0
                 queue.put(("quit", None))
             else:
                 pub = Publication(pub.credentials, pub.event, route=pub.route, expires=pub.expires)
@@ -440,3 +443,4 @@ if __name__ == "__main__":
     except PyPJUAError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
+    sys.exit(return_code)
