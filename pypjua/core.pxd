@@ -326,8 +326,13 @@ cdef extern from "pjmedia.h":
     struct pjmedia_codec_info:
         pj_str_t encoding_name
         unsigned int clock_rate
+    struct pjmedia_codec_param_setting:
+        unsigned int vad
+    struct pjmedia_codec_param:
+        pjmedia_codec_param_setting setting
     struct pjmedia_stream_info:
         pjmedia_codec_info fmt
+        pjmedia_codec_param *param
     struct pjmedia_stream
     int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt, pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
     int pjmedia_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_stream_info *info, pjmedia_transport *tp, void *user_data, pjmedia_stream **p_stream)

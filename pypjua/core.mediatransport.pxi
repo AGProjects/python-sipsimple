@@ -237,8 +237,9 @@ cdef class AudioTransport:
     cdef readonly object direction
     cdef int c_started
     cdef int c_offer
+    cdef unsigned int c_vad
 
-    def __cinit__(self, RTPTransport transport, SDPSession remote_sdp = None, unsigned int sdp_index = 0):
+    def __cinit__(self, RTPTransport transport, SDPSession remote_sdp=None, unsigned int sdp_index=0, enable_silence_detection=True):
         cdef object pool_name = "AudioTransport_%d" % id(self)
         cdef pjmedia_transport_info info
         cdef pjmedia_sdp_session *c_local_sdp
@@ -249,6 +250,7 @@ cdef class AudioTransport:
             raise PyPJUAError("transport argument cannot be None")
         if transport.state != "INIT":
             raise PyPJUAError('RTPTransport object provided is not in the "INIT" state')
+        self.c_vad = int(bool(enable_silence_detection))
         self.transport = transport
         self.c_started = 0
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
@@ -306,6 +308,11 @@ cdef class AudioTransport:
             else:
                 return self.c_stream_info.fmt.clock_rate
 
+    property enable_silence_detection:
+
+        def __get__(self):
+            return bool(self.c_vad)
+
     def get_local_media(self, is_offer, direction="sendrecv"):
         cdef SDPAttribute attr
         cdef SDPMedia local_media
@@ -337,6 +344,7 @@ cdef class AudioTransport:
         status = pjmedia_stream_info_from_sdp(&self.c_stream_info, self.c_pool, ua.c_pjmedia_endpoint.c_obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
         if status != 0:
             raise PJSIPError("Could not parse SDP for audio session", status)
+        self.c_stream_info.param.setting.vad = self.c_vad
         status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &self.c_stream_info, self.transport.c_obj, NULL, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not initialize RTP for audio session", status)
