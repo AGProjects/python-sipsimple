@@ -63,6 +63,7 @@ old = None
 user_quit = True
 lock = allocate_lock()
 logger = None
+return_code = 1
 
 def format_note(note):
     text = "Note"
@@ -297,13 +298,15 @@ def getchar():
         return os.read(fd, 10)
 
 def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_trace_pjsip, logger
+    global start_time, packet_count, queue, do_trace_pjsip, logger, return_code
     if event_name == "Subscription_state":
         if kwargs["state"] == "ACTIVE":
             #queue.put(("print", "SUBSCRIBE was successful"))
-            pass
+            return_code = 0
         elif kwargs["state"] == "TERMINATED":
             if kwargs.has_key("code"):
+                if kwargs['code'] / 100 == 2:
+                    return_code = 0
                 queue.put(("print", "Unsubscribed: %(code)d %(reason)s" % kwargs))
             else:
                 queue.put(("print", "Unsubscribed"))
@@ -311,6 +314,7 @@ def event_handler(event_name, **kwargs):
         elif kwargs["state"] == "PENDING":
             queue.put(("print", "Subscription is pending"))
     elif event_name == "Subscription_notify":
+        return_code = 0
         if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in PIDF.accept_types:
             queue.put(("print", "Received NOTIFY: %s" % kwargs))
     elif event_name == "siptrace":
@@ -478,3 +482,4 @@ if __name__ == "__main__":
     except PyPJUAError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
+    sys.exit(return_code)
