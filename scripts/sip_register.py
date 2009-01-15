@@ -86,6 +86,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
     global user_quit, lock, queue, do_trace_pjsip, logger, return_code
     lock.acquire()
     printed = False
+    max_registers = max_registers or None
     try:
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         reg = Registration(credentials, route=route, expires=expires)
@@ -107,9 +108,10 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                                 print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
                             print "Press Ctrl+D to stop the program."
                             printed = True
-                        max_registers -= 1
-                        if max_registers <= 0:
-                            command = "eof"
+                        if max_registers is not None:
+                            max_registers -= 1
+                            if max_registers <= 0:
+                                command = "eof"
                     elif args["state"] == "unregistered":
                         if "code" in args and args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
@@ -198,7 +200,7 @@ def parse_options():
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
-    parser.add_option("-r", "--max-registers", type="int", dest="max_registers", help="Max number of REGISTERs sent (default 1).")
+    parser.add_option("-r", "--max-registers", type="int", dest="max_registers", help="Max number of REGISTERs sent (default 1, set to 0 for infinite).")
     options, args = parser.parse_args()
 
     if options.account_name is None:
