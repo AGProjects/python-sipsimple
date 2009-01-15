@@ -121,16 +121,16 @@ class IncomingSessionHandler:
     def add_handler(self, handler):
         self.handlers.append(handler)
 
-    def handle(self, inv):
+    def handle(self, inv, *args, **kwargs):
         for handler in self.handlers:
             if handler.is_acceptable(inv):
-                return handler.handle(inv)
+                return handler.handle(inv, *args, **kwargs)
         inv.shutdown(488) # Not Acceptable Here
 
-    def wait_and_handle(self, engine):
+    def wait_and_handle(self, engine, *args, **kwargs):
         while True:
             inv = engine.wait_incoming()
-            session = self.handle(inv)
+            session = self.handle(inv, *args, **kwargs)
             if session is not None:
                 return session
 

@@ -203,17 +203,17 @@ class IncomingMSRPHandler(object):
             return False
         return True
 
-    def handle(self, inv):
-        msrp = self.accept(inv)
+    def handle(self, inv, local_uri=None):
+        msrp = self.accept(inv, local_uri=local_uri)
         if msrp is not None:
             return self.session_factory(inv, msrp)
 
-    def accept(self, inv):
+    def accept(self, inv, local_uri=None):
         ERROR = 488
         try:
             #remote_sdp = inv.get_offered_remote_sdp()
             full_remote_path = [msrp_protocol.parse_uri(uri) for uri in inv._attrdict['path'].split()]
-            full_local_path = self.acceptor.prepare()
+            full_local_path = self.acceptor.prepare(local_uri)
             local_sdp = self.make_local_SDPSession(inv, full_local_path)
             inv.set_offered_local_sdp(local_sdp)
             try:
