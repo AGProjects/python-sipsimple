@@ -84,10 +84,14 @@ def publish_pidf():
     except:
         traceback.print_exc()
 
+def exit_program():
+    print 'Exiting...'
+    queue.put(("eof", None))
+
 class Menu(object):
     def __init__(self, interface):
         interface['x'] = {"description": "exit to upper level menu", "handler": Menu.exitMenu}
-        interface['q'] = {"description": "quit program", "handler": lambda: queue.put(("quit", None))}
+        interface['q'] = {"description": "quit program", "handler": exit_program}
         self.interface = interface
 
     def print_prompt(self):
