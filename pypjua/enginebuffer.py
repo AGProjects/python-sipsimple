@@ -48,7 +48,7 @@ class EngineBuffer(Engine):
         self.dest = default_dest
         handler = EventHandler(self._handle_event,
                                trace_pjsip=kwargs.pop('trace_pjsip', False))
-        return Engine.__init__(self, handler, **kwargs)
+        Engine.__init__(self, handler, **kwargs)
 
     def _wait(self):
         return self.dest.wait()
