@@ -534,6 +534,9 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
         top_level.add_action('b', {"description": "toggle basic status", "handler": toggle_basic})
         person_notes_menu = NotesMenu(DMNote, person, DMTimestamp)
         top_level.add_action('n', {"description": "set note", "handler": set_person_note})
+        
+        # publish initial pidf
+        publish_pidf()
 
         # stuff that depends on menus
         person.notes = person_notes_menu.list
