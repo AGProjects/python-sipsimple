@@ -92,7 +92,6 @@ Command line clients
 - Add an option to start a 'text only' session [DB]
 - An incoming session request must prompt the user to accept a) audio+text or b) text only [DB]
 - Conference established sessions [DB]
-- Add parameter to hangup after a number of seconds for sip_audio_session [LS]
 - Logging, based on trace_x configuration options: []
  - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt [RK]
  - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
