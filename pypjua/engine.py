@@ -3,6 +3,7 @@ from thread import start_new_thread, allocate_lock
 
 from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION
 from pypjua import __version__
+from pypjua.core import PyPJUAError
 
 class Engine(object):
     _instance = None

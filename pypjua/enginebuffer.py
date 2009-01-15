@@ -9,6 +9,7 @@ from eventlet import proc
 from pypjua import Engine, Registration, Invitation
 from pypjua.clients.dbgutil import format_lineno
 from pypjua.util import wrapdict
+from pypjua import PyPJUAError
 
 # QQQ: separate logging part from InvitationBuffer and RegstrationBuffer
 

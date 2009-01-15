@@ -10,6 +10,7 @@ from pypjua import SDPAttribute, SDPMedia, SDPConnection, SDPSession
 from pypjua.enginebuffer import SIPError, SessionError
 from pypjua.clients.cpim import MessageCPIM
 from pypjua.util import Proxy
+from pypjua.core import PyPJUAError
 
 # inv = e.Invitation(credentials, target_uri, route=route)
 # msrp_connector = MSRPConnectFactory.new(relay, traffic_logger)
