@@ -22,12 +22,12 @@ cdef class Invitation:
         self.c_sdp_neg_status = -1
         self.c_has_active_sdp = 0
         if len(args) != 0:
-            if None in args:
+            if None in args[:2]:
                 raise TypeError("Positional arguments cannot be None")
             try:
-                self.c_credentials, self.c_callee_uri = args
+                self.c_credentials, self.c_callee_uri = args[:2]
             except ValueError:
-                raise TypeError("Expected 2 positional arguments")
+                raise TypeError("Expected at least 2 positional arguments")
             if self.c_credentials.uri is None:
                 raise PyPJUAError("No SIP URI set on credentials")
             self.c_credentials = self.c_credentials.copy()
