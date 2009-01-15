@@ -49,6 +49,7 @@ old = None
 user_quit = True
 lock = allocate_lock()
 logger = None
+return_code = 1
 
 def termios_restore():
     global old
@@ -82,7 +83,7 @@ def event_handler(event_name, **kwargs):
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
 def read_queue(e, username, domain, password, display_name, route, expires, max_registers):
-    global user_quit, lock, queue, do_trace_pjsip, logger
+    global user_quit, lock, queue, do_trace_pjsip, logger, return_code
     lock.acquire()
     printed = False
     try:
@@ -98,6 +99,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                 event_name, args = data
                 if event_name == "Registration_state":
                     if args["state"] == "registered":
+                        return_code = 0
                         if not printed:
                             print "REGISTER was successful"
                             print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
@@ -242,4 +244,5 @@ if __name__ == "__main__":
     except PyPJUAError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
+    sys.exit(return_code)
 
