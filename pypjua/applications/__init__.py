@@ -501,7 +501,7 @@ class XMLApplication(XMLElement):
             qname = '{%s}%s' % (namespace, name)
         if element.tag != qname:
             raise ParserError("Wrong XML element in XML application %s: expected %s, got %s" %
-                    (self.__class__.__name__, qname, element.tag))
+                    (cls.__name__, qname, element.tag))
 
 
 # classes created by derivation of the above
