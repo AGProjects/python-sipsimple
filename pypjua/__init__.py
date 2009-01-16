@@ -11,10 +11,12 @@ from core import Registration, Publication, Subscription, Invitation, send_messa
 from core import SDPAttribute, SDPConnection, SDPMedia, SDPSession
 from core import RTPTransport, AudioTransport
 from core import PyPJUAError, PJSIPError
+from session import Session, SessionManager
 
 __all__ = ["Engine",
            "SIPURI", "Credentials", "Route",
            "Registration", "Publication", "Subscription", "Invitation", "send_message",
            "SDPAttribute", "SDPConnection", "SDPMedia", "SDPSession",
            "RTPTransport", "AudioTransport",
-           "PyPJUAError", "PJSIPError"]
+           "PyPJUAError", "PJSIPError",
+           "Session", "SessionManager"]
