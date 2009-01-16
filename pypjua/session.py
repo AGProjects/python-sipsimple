@@ -260,6 +260,7 @@ class SessionManager(object):
                     kwargs["obj"] = session
                     kwargs["prev_state"] = "NULL"
                     kwargs["state"] = session.state
+                    kwargs["audio_proposed"] = "audio" in remote_media
                     self.event_handler("Session_state", **kwargs)
             else:
                 session = self.session_mapping.get(inv, None)
