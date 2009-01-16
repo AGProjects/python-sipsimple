@@ -102,12 +102,11 @@ class ChatSession(object):
         proc.spawn(forward, self.msrpsession.msrp.incoming, incoming, self)
 
     def _on_invite(self, result):
-        if isinstance(result, MSRPSession):
-            self.msrpsession = result
-            self.start_rendering_messages()
-            for message in self.messages_to_send:
-                self.send_message(*message)
-            del self.messages_to_send
+        self.msrpsession = result
+        self.start_rendering_messages()
+        for message in self.messages_to_send:
+            self.send_message(*message)
+        del self.messages_to_send
 
     def shutdown(self):
         if self.invite_job:
