@@ -385,7 +385,8 @@ class ChatManager:
         target_address = SIPAddress.parse(uri, default_domain=self.default_domain)
         target_uri = SIPURI(user=target_address.username, host=target_address.domain)
         inv = self.engine.Invitation(self.credentials, target_uri, route=self.route)
-        msrp_connector = MSRPConnectFactory.new(self.relay, self.traffic_logger)
+        # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
+        msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger)
         ringer = Ringer(self.engine.play_wav_file, get_path("ring_outbound.wav"))
 
         def invite():
