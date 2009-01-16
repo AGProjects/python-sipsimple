@@ -1,0 +1,64 @@
+diff -Nu greenlet-0.2/slp_platformselect.h greenlet-0.2-iphoneos/slp_platformselect.h
+--- greenlet-0.2/slp_platformselect.h	2008-12-24 22:22:13.000000000 +0100
++++ greenlet-0.2-iphoneos/slp_platformselect.h	2009-01-12 16:03:24.000000000 +0100
+@@ -18,4 +18,6 @@
+ #include "switch_s390_unix.h"	/* Linux/S390 */
+ #elif defined(__GNUC__) && defined(__s390x__) && defined(__linux__)
+ #include "switch_s390_unix.h"	/* Linux/S390 zSeries (identical) */
++#elif defined(__GNUC__) && defined(__arm__) && defined(__APPLE__)
++#include "switch_arm_iphoneos_gcc.h" /* Apple IPhoneOS on arm hardware with gcc */
+ #endif
+diff -Nu greenlet-0.2/switch_arm_iphoneos_gcc.h greenlet-0.2-iphoneos/switch_arm_iphoneos_gcc.h
+--- greenlet-0.2/switch_arm_iphoneos_gcc.h	1970-01-01 01:00:00.000000000 +0100
++++ greenlet-0.2-iphoneos/switch_arm_iphoneos_gcc.h	2009-01-12 16:07:30.000000000 +0100
+@@ -0,0 +1,50 @@
++/*
++ * this is the internal transfer function.
++ *
++ * HISTORY
++ * 12-Jan-09 adapted from arm32.
++ * 14-Aug-06 File creation. Ported from Arm Thumb. Sylvain Baro
++ *  3-Sep-06 Commented out saving of r1-r3 (r4 already commented out) as I
++ *           read that these do not need to be saved.  Also added notes and
++ *           errors related to the frame pointer. Richard Tew.
++ *
++ * NOTES
++ *
++ *   It is not possible to detect if fp is used or not, so the supplied
++ *   switch function needs to support it, so that you can remove it if
++ *   it does not apply to you.
++ *
++ * POSSIBLE ERRORS
++ *
++ *   "fp cannot be used in asm here"
++ *
++ *   - Try commenting out "fp" in REGS_TO_SAVE.
++ *
++ */
++
++#define STACK_REFPLUS 1
++
++#ifdef SLP_EVAL
++#define STACK_MAGIC 0
++#define REGS_TO_SAVE "r5", "r6", "ip", "lr"
++
++static int
++slp_switch(void)
++{
++	register int *stackref, stsizediff;
++	__asm__ volatile ("" : : : REGS_TO_SAVE);
++	__asm__ ("mov %0,sp" : "=g" (stackref));
++	{
++		SLP_SAVE_STATE(stackref, stsizediff);
++		__asm__ volatile (
++		    "add sp,sp,%0\n"
++		    :
++		    : "r" (stsizediff)
++		    );
++		SLP_RESTORE_STATE();
++		return 0;
++	}
++	__asm__ volatile ("" : : : REGS_TO_SAVE);
++}
++
++#endif
