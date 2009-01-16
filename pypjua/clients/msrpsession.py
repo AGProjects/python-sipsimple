@@ -197,7 +197,10 @@ class IncomingMSRPHandler(object):
 
     def is_acceptable(self, inv):
         self._prepare_attrdict(inv)
-        attrs = inv._attrdict
+        try:
+            attrs = inv._attrdict
+        except AttributeError:
+            return False
         if 'path' not in attrs:
             return False
         if 'accept-types' not in attrs:
