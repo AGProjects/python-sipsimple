@@ -1,5 +1,6 @@
 
-Software licenses for SIP SIMPLE client dependencies.
+This document describes the licenses for the SIP SIMPLE client software and
+its dependencies.
 
 
 Libxml2 
@@ -14,7 +15,7 @@ Libxslt
 -------
 
 Libxslt is a language for transforming XML documents into other XML
-documents (or HTML/textual output). It is available under the MIT License.
+documents. It is available under the MIT License.
 
 
 GnuTLS
@@ -178,8 +179,9 @@ GPL or an alternative non-GPL license.
 Pjsip
 -----
 
-A SIP protocol stack. Available under GPL or an alternative non-GPL license.
-The non-GPL license is available from its licensor for a fee.
+A SIP protocol stack, the main bulding block for this project. Available
+under GPL or an alternative non-GPL license. The non-GPL license is
+available from its licensor for a one time fee.
 
 
 Eventlet
@@ -200,4 +202,12 @@ spin-off of Stackless, a version of CPython that supports micro-threads
 called "tasklets". Tasklets run pseudo-concurrently (typically in a single
 or a few OS-level threads) and are synchronized with data exchanges on
 "channels". It is provided under MIT license.
+
+
+SIP SIMPLE client
+-----------------
+
+This project. Its license depends on the license model used by the
+underlying Pjsip library, which can be either GPL licensed or can be used
+with an alternative non-GPL license from its licensor.
 
