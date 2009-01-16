@@ -7,7 +7,6 @@ Python PJSIP bindings
 - MSRP stream high level class [RK]
 - Application stream high level class, m=application TCP/MSRPS/RFB []
 - Document how other streams can be implemented [RK]
-- Notify if no RTP is received 10 seconds after state is CONFIRMED [RK]
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
 - Fix remainig TODOs for PUBLISH/REGISTER [RK]
