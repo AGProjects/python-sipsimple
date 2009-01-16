@@ -5,7 +5,7 @@ Python PJSIP bindings
 - Session high level class [RK]
 - Audio stream high level class [RK]
 - MSRP stream high level class [RK]
-- Application stream high level class, m=application TCP/MSRPS/RFB []
+- Desktop sharing stream high level class, m=application TCP/MSRPS/RFB []
 - Document how other streams can be implemented [RK]
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
