@@ -298,6 +298,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 disc_msg = 'Session disconnected by "%s"' % str(disc_party)
                             if "code" in args and args["code"] / 100 != 2:
                                 print "%s: %d %s" % (disc_msg, args["code"], args["reason"])
+                                if args["code"] == 408 and args["prev_state"] == "CONNECTING":
+                                    print "Session failed because ACK was never received"
                                 if args["code"] in [301, 302]:
                                     print 'Received redirect request to "%s"' % args["headers"]["Contact"]
                                     return_code = 0
