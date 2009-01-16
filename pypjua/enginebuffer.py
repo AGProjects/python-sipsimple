@@ -1,6 +1,5 @@
 import sys
 from pprint import pformat
-from weakref import ref
 
 from eventlet.api import sleep
 from eventlet.coros import multievent
