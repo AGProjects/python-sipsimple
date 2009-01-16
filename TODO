@@ -2,22 +2,22 @@
 Python PJSIP bindings
 ---------------------
 
+- Session high level class [RK]
 - Audio stream high level class [RK]
 - MSRP stream high level class [RK]
-- Session high level class [RK]
-- Document how other transports can be defined and implemented (use MSRP as example) [RK]
+- Application stream high level class, m=application TCP/MSRPS/RFB []
+- Document how other streams can be implemented [RK]
+- Notify if no RTP is received 10 seconds after state is CONFIRMED [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
 - Fix remainig TODOs for PUBLISH/REGISTER [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
 - Registration requestion URI should be settable by application [RK]
-- High level Invitation class that handles SDP as well [RK]
 - Add feature to send OPTIONS method and parse the replies [RK]
 - Add ability for application to request handling of arbitrary methods such as [RK]
-  OPTIONS, REGISTER and REFER, SUBSCRIBE (but not INVITE or NOTIFY...) and have it reply [RK]
+  OPTIONS, REGISTER and REFER, SUBSCRIBE (but not INVITE or NOTIFY) and have it reply [RK]
 - Handle sending and receiving of multipart bodies for Invitation  [RK]
 - Handle UPDATE for re-INVITE [RK]
 - Means to query RTP statistics [RK]
-- Add option to use the STUN response for Contact header (default false) [RK]
 - Make local_ip option settable at runtime [RK]
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP) [RK]
 - Survive IP address changes [RK]
@@ -27,37 +27,37 @@ Python PJSIP bindings
 Audio
 -----
 
+- Multiple room audio conference support [RK]
 - Fix high CPU usage for sound card access on OS X [RK]
 - N810 maemo audio driver [DB]
 - Mute the microphone for a given session (useful for listen in conferences) [RK]
 - Play a tone while on hold every 30 seconds [DB]
 - Play a tone once after we closed a session [DB]
 - Play a tone when receiving a call while engaged in another call [DB]
-- Add comfort noise generator [RK]
-- Implement Automatic Gain Control [RK]
+- Comfort noise generator [RK]
+- Automatic Gain Control [RK]
 - Fix echo-cancelation for non speex codecs [RK]
-- Conference established sessions [RK]
 - zRTP [RK]
 
 
 Instant Messaging
 -----------------
 
+- Add Control A command to start a new session [DB]
+- Do not quit the sessions scripts on disconnect [DB]
+- Save chat sessions in history folder [DB]
 - Document MSRP client library usage, wiki page [DB]
 - Port eventlet/greenlet to ARM [DB]
 - MSRP focus [DB]
 - MSRP mixer [DB]
 - MSRP multiparty chat [DB]
 - Is-composing payload [DB]
-- Add Control A command to start a new session [DB]
-- Do not quit the sessions scripts on disconnect [DB]
-- Save chat sessions in history folder [DB]
 
 
 Presence/XML
 ------------
 
-- Conference-info event package [LS]
+- Conference event package [LS]
 - xcap-diff payload [LS]
 - Move non SIP applications to a separate python package [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
@@ -69,28 +69,33 @@ Other applications
 ------------------
 
 - Message-summary payload [DB]
-- Bonjour [RK]
-- ENUM lookup [RK]
+- Bonjour []
+- Async ENUM lookup, lookup NAPTR for E.164 numbers []
 
 
 Middleware
 ----------
 
-- Event bus [LS] [DP]
-- Enrollment [LS] [DP]
-- Ambient noise and light detection [LS]
-- Geo-location detection [LS]
+- Event bus [LS]
+- Enrollment []
+- Ambient noise and light detection []
+- Geo-location detection []
 
 
 Command line clients
 --------------------
 
-- Fix STUN blocking [RK]
-- Port the audio features of sip_audio_session into sip_im_session [DB]
-- Replace sip_im_session and sip_audio_session with one script 'sip_session' [DB]
+- Set shell return code to 0 for 2XX, 3XX and 1 for negative codes [LS]
+- Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
 - The default outbound invitation type is audio+text in this order [DB]
 - Add an option to start a 'text only' session [DB]
 - An incoming session request must prompt the user to accept a) audio+text or b) text only [DB]
+- If RTP not received in 10 seconds after the call setup, call failed. [LS]
+- If ACK not received in 6 seconds after 200 OK, call failed. [LS]
+- Handle 301/302 redirect by prompting the user to accept/reject the redirection [DB]
+- Publish status from the sip_session script [LS]
+- sip_subscribe_conference script [LS]
+- Fix STUN blocking [RK]
 - Conference established sessions [DB]
 - Logging, based on trace_x configuration options: []
  - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt [RK]
@@ -99,23 +104,16 @@ Command line clients
  - Add timestamp and packet counters as for SIP trace for all other protocols [LS]
  - Toggle sip and pjsip logging at run time in the test scripts [LS]
  - Print SIP messages also on the console [LS]
-- Publish service and status changes from the sip_session script [LS]
-- sip_subscribe_conference_info script [LS]
 - xcap_pidf_manipulation script [LS]
-- Set the shell return code to 0 (success) for 2XX, 3XX and 1 (failure) for [LS]
-  other codes. For invite scripts the code is based on the response for the [LS]
-  initial INVITE, not for the BYE If RTP was not received with 6 seconds after [LS]
-  call setup, consider the call has failed. [LS]
-- Handle 301/302 redirect by prompting the user to accept/reject the redirection [DB]
 - Handle incoming REFER to a conference URI [DB]
  
 
 Sessions
 --------
 
-- Video (H.264) [External]
-- Real time text over RTP (RFC4103) [External]
-- Desktop sharing (draft-garcia-mmusic-sdp-collaboration-00.txt + VNC) [External]
+- Video (H.264) []
+- Real time text over RTP (RFC4103) [AW]
+- Desktop sharing (draft-garcia-mmusic-sdp-collaboration/VNC) [WT]
 
 
 Packaging
