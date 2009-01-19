@@ -1,3 +1,9 @@
+sipclient (0.4.0) unstable; urgency=low
+
+  * 
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Mon, 19 Jan 2009 17:26:02 +0100
+
 sipclient (0.3.0) unstable; urgency=low
 
   * This version requires eventlet for twisted, which is not yet available as
