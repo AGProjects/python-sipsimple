@@ -9,7 +9,7 @@ from distutils import log
 from Cython.Distutils import build_ext
 
 def get_make_cmd():
-    if sys.platform.startswith("freebds"):
+    if sys.platform.startswith("freebsd"):
         return "gmake"
     else:
         return "make"
