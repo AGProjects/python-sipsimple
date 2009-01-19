@@ -2,8 +2,6 @@
 Installation procedure for SIP SIMPLE client on Nokia 810 (Maemo)
 -----------------------------------------------------------------
 
-This is work in progress, the software does not run yet 100% on the device.
-
 The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
@@ -13,8 +11,9 @@ Step 4. Build and install SIP SIMPLE client
 
 Notes:
 
-Getting audio to work requires modifications to the audio driver. A patch
-exists for an older version of maemo and pjsip, it needs to be re-worked.
+Presence and instantat messaging (IM) work. Audio requires a modification to
+the audio driver, yet to be developed. A patch exists for an older version
+of maemo and pjsip, it needs to be re-worked.
 
 http://lists.pjsip.org/pipermail/pjsip_lists.pjsip.org/2008-April/002350.html
 
@@ -23,6 +22,7 @@ Step 1. Prerequisites
 ---------------------
 
 Nokia tablet N810 with Maemo 4.1 (Diablo) installed.
+External SD card formated with ext3 file system.
 
 
 Step 2. Download SIP SIMPLE client sources
@@ -40,9 +40,8 @@ information about obtaining the source code using darcs.
 Step 3. Install dependencies
 ----------------------------
 
-Login to Nokia tablet as root. Format the memory card as ext3 file system
-and mount it under /media/mmc1. Create a work directory /media/mmc1/work.
-Make room on the root file system:
+Login to Nokia tablet as root. Create a work directory /media/mmc1/work.
+Make extra room on the root file system:
 
 rm /home/user/MyDocs/.videos/* /home/user/MyDocs/.sounds/*
 
@@ -75,26 +74,25 @@ libgnutls26 libgnutls-dev libasound2-dev patch openssl libssl-dev libxslt1-dev
 easy_install -U setuptools twisted dnspython python-application \
 python-gnutls mercurial cython lxml
 
-# Next next command fails (because greenlet does not yet compile for ARM):
-easy_install -U py
-
 cd /media/mmc1/work
 
 # Download and install xcaplib
-wget http://download.ag-projects.com/OpenXCAP/clients/python-xcaplib_1.0.8.tar.gz
-tar zxvf python-xcaplib_1.0.8.tar.gz
-cd  python-xcaplib
+wget  http://download.ag-projects.com/OpenXCAP/clients/python-xcaplib-1.0.8.tar.gz
+tar zxvf python-xcaplib-1.0.8.tar.gz
+cd python-xcaplib-1.0.8
 python setup.py install
 cd ..
 
 # Download and install msrplib
-wget http://download.ag-projects.com/MSRPRelay/python-msrplib_0.9.0.tar.gz
-tar zxvf python-msrplib_0.9.0.tar.gz
-cd python-msrplib_0.9.0
+wget http://download.ag-projects.com/MSRPRelay/python-msrplib-0.9.0.tar.gz
+python-msrplib-0.9.0.tar.gz
+cd python-msrplib-0.9.0
 python setup.py install
 cd ..
 
-# Download and install eventlet twisted
+# Download, patch and install greenlet
+
+# Download and install eventlet for twisted
 hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
 cd eventlet_twisted
 python setup.py install
