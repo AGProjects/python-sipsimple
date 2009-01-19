@@ -8,6 +8,12 @@ from distutils.errors import DistutilsError
 from distutils import log
 from Cython.Distutils import build_ext
 
+def get_make_cmd():
+    if sys.platform.startswith("freebds"):
+        return "gmake"
+    else:
+        return "make"
+
 def get_opts_from_string(line, prefix):
     """Returns all options that have a particular prefix on a commandline"""
     return re.findall("%s(\S+)(?:\s|$)" % prefix, line)
@@ -36,7 +42,7 @@ def distutils_exec_process(cmdline, silent, input=None, **kwargs):
 
 def get_makefile_variables(makefile):
     """Returns all variables in a makefile as a dict"""
-    stdout = distutils_exec_process(["make", "-f", makefile, "-pR", makefile], True)
+    stdout = distutils_exec_process([get_make_cmd(), "-f", makefile, "-pR", makefile], True)
     return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
 
 def get_svn_revision(svn_dir):
@@ -124,7 +130,7 @@ class PJSIP_build_ext(build_ext):
 
     def compile_pjsip(self):
         log.info("Compiling PJSIP")
-        distutils_exec_process(["make"], True, cwd=self.svn_dir)
+        distutils_exec_process([get_make_cmd()], True, cwd=self.svn_dir)
 
     def cython_sources(self, sources, extension):
         if extension.name == "pypjua.core":
