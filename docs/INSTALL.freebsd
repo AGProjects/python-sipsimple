@@ -28,14 +28,14 @@ devel/gmake security/py-gnutls
 Step 2. Install dependencies
 ----------------------------
 
-For comfort, you can use the easy_install script provided by the
-python-setuptools package to install and/or update the dependencies:
+You can use the easy_install script provided by the python-setuptools
+package to install and/or update the dependencies:
 
 easy_install -U lxml cython python-application dnspython twisted py \
 mercurial zope.interface
 
-Or you can install the following packages from source, notice the 
-minimum version numbers:
+Or you can install the following packages from source, notice the minimum
+version numbers:
 
 python-gnutls       http://pypi.python.org/simple/python-gnutls/      >=1.1.6
 python-lxml         http://codespeak.net/lxml                         >=2.1.2

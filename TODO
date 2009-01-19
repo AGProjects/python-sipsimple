@@ -123,3 +123,17 @@ Packaging
 - MacOSX installer [DP]
 - Windows installer []
 
+
+Dependencies
+------------
+
+- Merge the eventlet_twisted library into its main trunk
+- Make debian package for eventlet
+- Update debian packages for xcaplib and msrplib
+
+
+Patches
+-------
+
+- Merge re-invite patch into pjsip main trunk
+
