@@ -9,7 +9,7 @@ import glob
 
 from setup_pjsip import PJSIP_build_ext
 
-version = "0.3.0"
+version = "0.4.0"
 
 title = "SIP SIMPLE client"
 description = "Python SIP SIMPLE client library using PJSIP"

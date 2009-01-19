@@ -1,4 +1,4 @@
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 _revision_required = 9
 from core import PYPJUA_REVISION
