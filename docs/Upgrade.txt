@@ -1,0 +1,11 @@
+
+From 0.3.0 to 0.4.0
+-------------------
+
+Before upgrading to 0.4.0:
+
+a. Make sure you have up to date versions of eventlet, python-msrplib and
+   python-xcaplib libraries
+b. Remove all files and folders named sipclient* or pypjua* located under
+   your site-packages Python folder
+
