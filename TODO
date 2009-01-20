@@ -17,6 +17,7 @@ Python PJSIP bindings
   OPTIONS, REGISTER and REFER, SUBSCRIBE (but not INVITE or NOTIFY) and have it reply [RK]
 - Handle sending and receiving of multipart bodies for Invitation  [RK]
 - Handle UPDATE for re-INVITE [RK]
+- Add i= line to SDP of PJSIP [RK]
 - Means to query RTP statistics [RK]
 - Make local_ip option settable at runtime [RK]
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP) [RK]
