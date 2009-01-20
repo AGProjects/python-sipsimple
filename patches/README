@@ -20,5 +20,5 @@ py-dev@codespeak.net
 pjsip-2371-sip_inv-on_rx_reinvite.patch
 ---------------------------------------
 
-Adds support for re-INVITE in pjsip
+Adds a callback to PJSIP that allows for better control over responses to re-INVITEs.
 
