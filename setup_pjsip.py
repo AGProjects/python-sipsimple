@@ -54,7 +54,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 65536",
                    "#define PJSIP_UNESCAPE_IN_PLACE 1"]
-    patch_file = "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch"
+    patch_files = ["patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
+                   "patches/pjsip-2425-sdp_media_line.patch"]
 
     user_options = build_ext.user_options
     user_options.extend([
@@ -93,7 +94,8 @@ class PJSIP_build_ext(build_ext):
     def patch_pjsip(self):
         log.info("Patching PJSIP")
         distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
-        distutils_exec_process(["patch", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(self.patch_file)], True)
+        for patch_file in self.patch_files:
+            distutils_exec_process(["patch", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")

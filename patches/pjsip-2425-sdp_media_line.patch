@@ -1,0 +1,150 @@
+Index: pjmedia/include/pjmedia/sdp.h
+===================================================================
+--- pjmedia/include/pjmedia/sdp.h	(revision 2425)
++++ pjmedia/include/pjmedia/sdp.h	(working copy)
+@@ -390,6 +390,7 @@
+ 	pj_str_t    fmt[PJMEDIA_MAX_SDP_FMT];	/**< Media formats.	    */
+     } desc;
+ 
++    pj_str_t	     info;	    /**< Information line (i=)		*/
+     pjmedia_sdp_conn *conn;		/**< Optional connection info.	    */
+     unsigned	     attr_count;	/**< Number of attributes.	    */
+     pjmedia_sdp_attr*attr[PJMEDIA_MAX_SDP_ATTR];  /**< Attributes.	    */
+@@ -555,6 +556,7 @@
+ 	pj_str_t    addr;	    /**< The address.			*/
+     } origin;
+ 
++    pj_str_t         info;      /**< Information line (i=)      */
+     pj_str_t	     name;	    /**< Subject line (s=)		*/
+     pjmedia_sdp_conn *conn;	    /**< Connection line (c=)		*/
+     
+Index: pjmedia/include/pjmedia/errno.h
+===================================================================
+--- pjmedia/include/pjmedia/errno.h	(revision 2425)
++++ pjmedia/include/pjmedia/errno.h	(working copy)
+@@ -306,6 +306,11 @@
+  * SDP time not equal.
+  */
+ #define PJMEDIA_SDP_ETIMENOTEQUAL   (PJMEDIA_ERRNO_START+72)    /* 220072 */
++/**
++ * @hideinitializer
++ * SDP info not equal.
++ */
++#define PJMEDIA_SDP_EINFONOTEQUAL   (PJMEDIA_ERRNO_START+73)    /* 220073 */
+ 
+ 
+ /************************************************************
+Index: pjmedia/src/pjmedia/sdp.c
+===================================================================
+--- pjmedia/src/pjmedia/sdp.c	(revision 2425)
++++ pjmedia/src/pjmedia/sdp.c	(working copy)
+@@ -600,6 +600,19 @@
+     *p++ = '\r';
+     *p++ = '\n';
+ 
++    /* Information (i=) line, if exists. */
++	if (m->info.slen) {
++	if ((end-p)  < 8+m->info.slen) {
++	return -1;
++	}
++	*p++ = 'i';
++	*p++ = '=';
++	pj_memcpy(p, m->info.ptr, m->info.slen);
++	p += m->info.slen;
++	*p++ = '\r';
++	*p++ = '\n';
++	}
++
+     /* print connection info, if present. */
+     if (m->conn) {
+ 	printed = print_connection_info(m->conn, p, end-p);
+@@ -637,6 +650,7 @@
+     for (i=0; i<rhs->desc.fmt_count; ++i)
+ 	pj_strdup(pool, &m->desc.fmt[i], &rhs->desc.fmt[i]);
+ 
++    pj_strdup(pool, &m->info, &rhs->info);
+     if (rhs->conn) {
+ 	m->conn = pjmedia_sdp_conn_clone (pool, rhs->conn);
+ 	PJ_ASSERT_RETURN(m->conn != NULL, NULL);
+@@ -744,6 +758,19 @@
+     *p++ = '\r';
+     *p++ = '\n';
+ 
++    /* Information (i=) line, if exists. */
++    if (ses->info.slen) {
++	if ((end-p)  < 8+ses->info.slen) {
++	return -1;
++	}
++	*p++ = 'i';
++	*p++ = '=';
++	pj_memcpy(p, ses->info.ptr, ses->info.slen);
++	p += ses->info.slen;
++	*p++ = '\r';
++	*p++ = '\n';
++    }
++
+     /* Connection line (c=) if exist. */
+     if (ses->conn) {
+ 	printed = print_connection_info(ses->conn, p, end-p);
+@@ -1090,6 +1117,13 @@
+ 		case 's':
+ 		    parse_generic_line(&scanner, &session->name, &ctx);
+ 		    break;
++		case 'i':
++			if (media) {
++				parse_generic_line(&scanner, &media->info, &ctx);
++			} else {
++				parse_generic_line(&scanner, &session->info, &ctx);
++			}
++			break;
+ 		case 'c':
+ 		    conn = PJ_POOL_ZALLOC_T(pool, pjmedia_sdp_conn);
+ 		    parse_connection_info(&scanner, conn, &ctx);
+@@ -1192,6 +1226,9 @@
+     /* Clone subject line. */
+     pj_strdup(pool, &sess->name, &rhs->name);
+ 
++    /* Clone info line. */
++    pj_strdup(pool, &sess->info, &rhs->info);
++
+     /* Clone connection line */
+     if (rhs->conn) {
+ 	sess->conn = pjmedia_sdp_conn_clone(pool, rhs->conn);
+Index: pjmedia/src/pjmedia/errno.c
+===================================================================
+--- pjmedia/src/pjmedia/errno.c	(revision 2425)
++++ pjmedia/src/pjmedia/errno.c	(working copy)
+@@ -94,6 +94,7 @@
+     PJ_BUILD_ERR( PJMEDIA_SDP_EORIGINNOTEQUAL,  "SDP origin line not equal" ),
+     PJ_BUILD_ERR( PJMEDIA_SDP_ENAMENOTEQUAL,    "SDP name/subject line not equal" ),
+     PJ_BUILD_ERR( PJMEDIA_SDP_ETIMENOTEQUAL,    "SDP time line not equal" ),
++    PJ_BUILD_ERR( PJMEDIA_SDP_EINFONOTEQUAL,    "SDP information line not equal" ),
+ 
+     /* Codec errors. */
+     PJ_BUILD_ERR( PJMEDIA_CODEC_EUNSUP,		"Unsupported media codec" ),
+Index: pjmedia/src/pjmedia/sdp_cmp.c
+===================================================================
+--- pjmedia/src/pjmedia/sdp_cmp.c	(revision 2425)
++++ pjmedia/src/pjmedia/sdp_cmp.c	(working copy)
+@@ -193,6 +193,10 @@
+ 	    return PJMEDIA_SDP_EFORMATNOTEQUAL;
+     }
+ 
++    /* Compare the info line. */
++    if (pj_strcmp(&sd1->info, &sd2->info) != 0)
++	return PJMEDIA_SDP_EINFONOTEQUAL;
++
+     /* Compare connection line, if they exist. */
+     if (sd1->conn) {
+ 	if (!sd2->conn)
+@@ -251,6 +255,10 @@
+     if (pj_strcmp(&sd1->name, &sd2->name) != 0)
+ 	return PJMEDIA_SDP_ENAMENOTEQUAL;
+ 
++    /* Compare the info line. */
++    if (pj_strcmp(&sd1->info, &sd2->info) != 0)
++	return PJMEDIA_SDP_EINFONOTEQUAL;
++
+     /* Compare connection line, when they exist */
+     if (sd1->conn) {
+ 	if (!sd2->conn)
