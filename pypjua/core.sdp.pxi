@@ -7,11 +7,12 @@ cdef class SDPSession:
     cdef public object address_type
     cdef public object address
     cdef public object name
+    cdef public object info
     cdef public SDPConnection connection
     cdef public list attributes
     cdef public list media
 
-    def __cinit__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ", SDPConnection connection=None, start_time=0, stop_time=0, attributes=[], media=[]):
+    def __cinit__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ", info=None, SDPConnection connection=None, start_time=0, stop_time=0, attributes=[], media=[]):
         cdef unsigned int c_version_id = 2208988800UL
         cdef pj_time_val c_tv
         self.user = user
@@ -29,6 +30,7 @@ cdef class SDPSession:
         self.address_type = address_type
         self.address = address
         self.name = name
+        self.info = info
         self.connection = connection
         self.c_obj.time.start = start_time
         self.c_obj.time.stop = stop_time
@@ -44,6 +46,10 @@ cdef class SDPSession:
         str_to_pj_str(self.address_type, &self.c_obj.origin.addr_type)
         str_to_pj_str(self.address, &self.c_obj.origin.addr)
         str_to_pj_str(self.name, &self.c_obj.name)
+        if self.info:
+            str_to_pj_str(self.info, &self.c_obj.info)
+        else:
+            self.c_obj.info.slen = 0
         if self.connection is None:
             self.c_obj.conn = NULL
         else:
@@ -122,16 +128,18 @@ cdef class SDPMedia:
     cdef public object media
     cdef public object transport
     cdef public list formats
+    cdef public object info
     cdef public SDPConnection connection
     cdef public list attributes
 
-    def __cinit__(self, media, port, transport, port_count=1, formats=[], SDPConnection connection=None, attributes=[]):
+    def __cinit__(self, media, port, transport, port_count=1, formats=[], info=None, SDPConnection connection=None, attributes=[]):
         cdef SDPAttribute c_attr
         self.media = media
         self.c_obj.desc.port = port
         self.c_obj.desc.port_count = port_count
         self.transport = transport
         self.formats = formats
+        self.info = info
         self.connection = connection
         self.attributes = attributes
 
@@ -164,6 +172,10 @@ cdef class SDPMedia:
             raise PyPJUAError("Too many formats")
         for index, format in enumerate(self.formats):
             str_to_pj_str(format, &self.c_obj.desc.fmt[index])
+        if self.info:
+            str_to_pj_str(self.info, &self.c_obj.info)
+        else:
+            self.c_obj.info.slen = 0
         if self.connection is None:
             self.c_obj.conn = NULL
         else:
@@ -285,6 +297,7 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session_ptr_const pj_session):
                       pj_str_to_str(pj_session.origin.net_type),
                       pj_str_to_str(pj_session.origin.addr_type),
                       pj_str_to_str(pj_session.name),
+                      pj_str_to_str(pj_session.info) or None,
                       connection,
                       pj_session.time.start,
                       pj_session.time.stop,
@@ -301,6 +314,7 @@ cdef SDPMedia c_make_SDPMedia(pjmedia_sdp_media *pj_media):
                     pj_str_to_str(pj_media.desc.transport),
                     pj_media.desc.port_count,
                     [pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)],
+                    pj_str_to_str(pj_media.info) or None,
                     connection,
                     [c_make_SDPAttribute(pj_media.attr[i]) for i in range(pj_media.attr_count)])
 

@@ -243,6 +243,7 @@ cdef extern from "pjmedia.h":
         pj_str_t fmt[PJMEDIA_MAX_SDP_FMT]
     struct pjmedia_sdp_media:
         pjmedia_sdp_media_desc desc
+        pj_str_t info
         pjmedia_sdp_conn *conn
         unsigned int attr_count
         pjmedia_sdp_attr *attr[PJMEDIA_MAX_SDP_ATTR]
@@ -259,6 +260,7 @@ cdef extern from "pjmedia.h":
     struct pjmedia_sdp_session:
         pjmedia_sdp_session_origin origin
         pj_str_t name
+        pj_str_t info
         pjmedia_sdp_conn *conn
         pjmedia_sdp_session_time time
         unsigned int attr_count
