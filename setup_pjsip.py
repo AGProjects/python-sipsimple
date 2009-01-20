@@ -95,7 +95,7 @@ class PJSIP_build_ext(build_ext):
         log.info("Patching PJSIP")
         distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
         for patch_file in self.patch_files:
-            distutils_exec_process(["patch", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
+            distutils_exec_process(["patch", "--forward", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
@@ -139,7 +139,8 @@ class PJSIP_build_ext(build_ext):
             self.check_cython_version()
             svn_updated = self.fetch_pjsip_from_svn()
             if svn_updated:
-                self.patch_pjsip()
+                if self.patch_files:
+                    self.patch_pjsip()
             if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
                 self.configure_pjsip()
                 svn_updated = True
