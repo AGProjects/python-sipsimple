@@ -100,6 +100,7 @@ class ChatSession(object):
 
     def start_rendering_messages(self):
         proc.spawn(forward, self.msrpsession.msrp.incoming, incoming, self)
+        self.msrpsession.msrp.reader_job.link(lambda *_: proc.spawn(self.msrpsession.end))
 
     def _on_invite(self, result):
         if result is not None:
