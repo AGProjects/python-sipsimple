@@ -283,6 +283,8 @@ cdef class Invitation:
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
+        if self.c_is_ending:
+            return
         if self.c_obj == NULL:
             raise PyPJUAError("INVITE session is not active")
         if reply_code / 100 < 3:
@@ -295,6 +297,7 @@ cdef class Invitation:
             raise PJSIPError("Could not create message to end INVITE session", status)
         if tdata != NULL:
             self._send_msg(ua, tdata, extra_headers or {})
+        self.c_is_ending = 1
 
     def respond_to_reinvite_provisionally(self, int reply_code=180, dict extra_headers=None):
         if self.state != "CONFIRMED" or self.sdp_state != "REMOTE_OFFER":
