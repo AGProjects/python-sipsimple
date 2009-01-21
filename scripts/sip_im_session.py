@@ -102,11 +102,12 @@ class ChatSession(object):
         proc.spawn(forward, self.msrpsession.msrp.incoming, incoming, self)
 
     def _on_invite(self, result):
-        self.msrpsession = result
-        self.start_rendering_messages()
-        for message in self.messages_to_send:
-            self.send_message(*message)
-        del self.messages_to_send
+        if result is not None:
+            self.msrpsession = result
+            self.start_rendering_messages()
+            for message in self.messages_to_send:
+                self.send_message(*message)
+            del self.messages_to_send
 
     def shutdown(self):
         if self.invite_job:
@@ -392,8 +393,11 @@ class ChatManager:
             try:
                 return MSRPSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer=ringer)
             except MSRPSessionErrors, ex:
+                print 'Connection to %s FAILED: %s' % (target_uri, ex)
                 self.remove_session(chatsession)
-                return ex
+            except:
+                self.remove_session(chatsession)
+                raise
 
         invite_job = proc.spawn(invite)
         chatsession = ChatSession(inv, invite_job=invite_job)
