@@ -434,6 +434,8 @@ class ChatManager:
                 handler.wait_and_handle(self.engine)
             except MSRPSessionErrors, ex:
                 print ex
+            except proc.ProcExit:
+                return
 
     @staticmethod
     def make_SDPMedia(uri_path):
