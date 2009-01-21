@@ -23,8 +23,6 @@ from pypjua.clients.cpim import MessageCPIMParser, SIPAddress
 from pypjua.clients.sdputil import FileSelector
 enrollment.verify_account_config()
 
-import pypjua.clients.noisymsrplib
-
 KEY_NEXT_SESSION = '\x0e'
 
 trafficlog.hook_std_output()
@@ -387,7 +385,8 @@ class ChatManager:
         target_uri = SIPURI(user=target_address.username, host=target_address.domain)
         inv = self.engine.Invitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
-        msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger)
+        state_logger = trafficlog.StateLogger()
+        msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger, state_logger=state_logger)
         ringer = Ringer(self.engine.play_wav_file, get_path("ring_outbound.wav"))
 
         def invite():
@@ -602,10 +601,8 @@ def main():
             start(options, console)
     except EOF:
         pass
-    except RuntimeError, e:
-        sys.exit(str(e))
-    except PyPJUAError, e:
-        sys.exit(str(e))
+    except (RuntimeError, PyPJUAError), e:
+        sys.exit(str(e) or str(type(e)))
 
 if __name__ == "__main__":
     main()
