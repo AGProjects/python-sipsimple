@@ -87,17 +87,11 @@ class MSRPSession:
         #if self.incoming_queue is not None:
         #    self.start_read_msrp()
 
-    @property
-    def remote_uri(self):
-        if self.sip.other:
-            self.__dict__['remote_uri'] = self.sip.other
-            return self.sip.other
-
-    @property
-    def local_uri(self):
-        if self.sip.me:
-            self.__dict__['local_uri'] = self.sip.me
-            return self.sip.me
+    def __getattr__(self, item):
+        result = getattr(self.sip, item)
+        if result:
+            self.__dict__[item] = getattr(self.sip, item)
+        return result
 
     @classmethod
     def invite(cls, inv, msrp_connector, SDPMedia_factory, ringer=None, *args, **kwargs):
@@ -227,7 +221,6 @@ class IncomingMSRPHandler(object):
                 # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
                 pass
             else:
-                inv.remote_uri = inv.caller_uri
                 msrp = self.acceptor.complete(full_remote_path)
                 ERROR = None
                 return msrp

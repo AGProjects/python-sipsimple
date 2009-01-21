@@ -108,7 +108,7 @@ class EngineBuffer(Engine):
                 obj = params.get('obj')
                 obj = InvitationBuffer(obj, self.logger, outgoing=0)
                 self.register_obj(obj) # XXX unregister_obj is never called
-                obj.log_state_incoming(params)
+                obj.handle_event(event_name, params)
                 return obj
             self.logger.log_event('DROPPED', event_name, params)
 
@@ -352,19 +352,23 @@ class InvitationBuffer(BaseBuffer):
         BaseBuffer.__init__(self, obj, logger)
         self.outgoing = outgoing
 
+    def handle_event(self, event_name, kwargs):
+        self.call_id = (kwargs or {}).get('headers', {}).get('Call-ID')
+        return BaseBuffer.handle_event(self, event_name, kwargs)
+
     @property
     def connected(self):
         return self.state == 'CONFIRMED'
 
     @property
-    def me(self):
+    def local_uri(self):
         if self.outgoing:
             return self.caller_uri
         else:
             return self.callee_uri
 
     @property
-    def other(self):
+    def remote_uri(self):
         if self.outgoing:
             return self.callee_uri
         else:
@@ -384,10 +388,10 @@ class InvitationBuffer(BaseBuffer):
         return 'SIP session'
 
     def _format_to(self):
-        return 'to %s' % self.other
+        return 'to %s' % self.remote_uri
 
     def _format_fromtoproxy(self):
-        result = 'from %s to %s' % (self.me, self.other)
+        result = 'from %s to %s' % (self.local_uri, self.remote_uri)
         if self.route:
             result += " through proxy %s:%d" % (self.route.host, self.route.port)
         return result

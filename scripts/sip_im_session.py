@@ -121,11 +121,11 @@ class ChatSession(object):
             self.messages_to_send.append((msg, content_type))
             print 'Message will be delivered once connection is established'
         else:
-            echo_message(self.sip.me, msg)
+            echo_message(self.sip.local_uri, msg)
             return self.msrpsession.send_message(msg, content_type)
 
     def format_ps(self):
-        return 'Chat to %s: ' % format_uri(self.sip.other)
+        return 'Chat to %s: ' % format_uri(self.sip.remote_uri)
 
 
 def consult_user(inv, ask_func):
@@ -308,7 +308,7 @@ class ChatManager:
     def _message_renderer(self):
         while True:
             chat, chunk = incoming.wait()
-            render_message(chat.sip.other, chunk)
+            render_message(chat.sip.remote_uri, chunk)
             self.engine.play_wav_file(get_path("message_received.wav"))
 
     def close(self):
