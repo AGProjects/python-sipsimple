@@ -149,7 +149,7 @@ class PJSIP_build_ext(build_ext):
             if svn_updated:
                 if self.patch_files:
                     self.patch_pjsip()
-                compile_needed = True
+            compile_needed = svn_updated
             if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
                 self.configure_pjsip()
                 compile_needed = True
