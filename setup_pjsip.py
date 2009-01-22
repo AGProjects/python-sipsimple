@@ -60,12 +60,16 @@ class PJSIP_build_ext(build_ext):
     user_options = build_ext.user_options
     user_options.extend([
         ("pjsip-svn-repo=", None, "PJSIP SVN repository to checkout from"),
-        ("pjsip-svn-revision=", None, "PJSIP SVN revision to fetch")
+        ("pjsip-svn-revision=", None, "PJSIP SVN revision to fetch"),
+        ("pjsip-clean-compile", None, "Clean PJSIP tree before compilation")
         ])
+    boolean_options = build_ext.boolean_options
+    boolean_options.extend(["pjsip-clean-compile"])
     cython_version_required = (0, 10)
 
     def initialize_options(self):
         build_ext.initialize_options(self)
+        self.pjsip_clean_compile = 0
         self.pjsip_svn_repo = os.environ.get("PJSIP_SVN_REPO", "http://svn.pjsip.org/repos/pjproject/trunk")
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
 
@@ -110,6 +114,10 @@ class PJSIP_build_ext(build_ext):
             os.remove(os.path.join(self.svn_dir, "build.mak"))
             raise DistutilsError("PJSIP TLS support was disabled, OpenSSL development files probably not present on this system")
 
+    def clean_pjsip(self):
+        log.info("Cleaning PJSIP")
+        distutils_exec_process([get_make_cmd(), "realclean"], True, cwd=self.svn_dir)
+
     def update_extension(self, extension):
         build_mak_vars = get_makefile_variables(os.path.join(self.svn_dir, "build.mak"))
         extension.include_dirs = get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-I")
@@ -141,11 +149,15 @@ class PJSIP_build_ext(build_ext):
             if svn_updated:
                 if self.patch_files:
                     self.patch_pjsip()
+                compile_needed = True
             if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
                 self.configure_pjsip()
-                svn_updated = True
+                compile_needed = True
+            if self.pjsip_clean_compile:
+                self.clean_pjsip()
+                compile_needed = True
             self.update_extension(extension)
-            if svn_updated or not all(map(lambda x: os.path.exists(x), self.libraries)):
+            if compile_needed or not all(map(lambda x: os.path.exists(x), self.libraries)):
                 self.remove_libs()
                 self.compile_pjsip()
         return build_ext.cython_sources(self, sources, extension)
