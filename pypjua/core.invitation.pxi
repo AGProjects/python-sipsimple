@@ -94,6 +94,22 @@ cdef class Invitation:
         def __get__(self):
             return self.c_callee_uri.copy()
 
+    property local_uri:
+
+        def __get__(self):
+            if self.c_credentials is None:
+                return self.c_callee_uri.copy()
+            else:
+                return self.c_caller_uri.copy()
+
+    property remote_uri:
+
+        def __get__(self):
+            if self.c_credentials is None:
+                return self.c_caller_uri.copy()
+            else:
+                return self.c_callee_uri.copy()
+
     property credentials:
 
         def __get__(self):
@@ -103,6 +119,11 @@ cdef class Invitation:
 
         def __get__(self):
             return self.c_route.copy()
+
+    property is_outgoing:
+
+        def __get__(self):
+            return self.c_credentials is not None
 
     def get_active_local_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
