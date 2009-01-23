@@ -3,8 +3,7 @@ from twisted.internet.error import ConnectionClosed, DNSLookupError, BindError, 
 from gnutls.errors import GNUTLSError
 from msrplib import MSRPError
 from msrplib import protocol as msrp_protocol
-from eventlet.api import timeout
-from eventlet import proc
+from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from pypjua import SDPAttribute, SDPMedia, SDPConnection, SDPSession
 from pypjua.enginebuffer import SIPError, SessionError
@@ -78,14 +77,13 @@ class MSRPSession:
 
     def __init__(self, sip, msrp): # , incoming_queue=None, disconnect_event=None):
         self.sip = sip
-        self.sip.call_on_disconnect(self._on_disconnect)
+        self._disconnect_link = self.sip.call_on_disconnect(self._on_sip_disconnect_cb)
         self.msrp = msrp
-        #self.incoming_queue = incoming_queue
-        #self.disconnect_event = disconnect_event
         msrp.reader_job.link(lambda *args: proc.spawn(self.end))
-        #self.read_msrp_job = None
-        #if self.incoming_queue is not None:
-        #    self.start_read_msrp()
+        self.source = proc.Source()
+
+    def link(self, listener):
+        return self.source.link(listener)
 
     def __getattr__(self, item):
         result = getattr(self.sip, item)
@@ -103,57 +101,40 @@ class MSRPSession:
         return self.msrp.connected and self.sip.state=='CONFIRMED'
 
     def end(self):
+        if not self.source.ready():
+            self.source.send(None)
         if self.sip:
-            self.sip.cancel_call_on_disconnect(self._on_disconnect)
+            self._disconnect_link.cancel()
             self.sip.shutdown()
         self._shutdown_msrp()
 
     def _end_sip(self):
         """Close SIP session but keep everything else intact. For testing only."""
         if self.sip.state=='CONFIRMED':
-            self.sip.cancel_call_on_disconnect(self._on_disconnect)
+            self._disconnect_link.cancel()
             self.sip.end()
 
-    def _on_disconnect(self, params):
+    def _on_sip_disconnect_cb(self, params):
+        proc.spawn_greenlet(self._on_sip_disconnect)
+
+    def _on_sip_disconnect(self):
         self._close_msrp()
-        # chatmaanger can subscribe on itself
-        #if self.disconnect_event is not None:
-        #    self.disconnect_event.send(('disconnect', self, params))
-
-#     def start_read_msrp(self):
-#         assert not self.read_msrp_job, self.read_msrp_job
-#         # any error happened in a job reader will be delivered to incoming queue
-#         # use queue that delivers errors out-of-band, so that if an error has happend
-#         # it can be retrieved many times by calling wait() (i.e. like event)
-#         self.read_msrp_job = proc.spawn_link_exception(self._read_msrp)
-
-    # is there really point to this? can't we just link self.end() to msrp.reader?
-#     def _read_msrp(self):
-#         try:
-#             while self.msrp.connected:
-#                 message = self.msrp.receive_chunk()
-#                 self.incoming_queue.send(('message', self, message))
-#         except ConnectionClosedm ex:
-#             return ex
-#         finally:
-#             proc.spawn(self.end)
+        self.end()
 
     def _close_msrp(self):
         if self.msrp.connected:
-            print 'Closing MSRP connection'
+            #print 'Closing MSRP connection to %s:%s' % (self.msrp.getPeer().host, self.msrp.getPeer().port)
             self.msrp.loseConnection()
-        #if self.read_msrp_job:
-        #    self.read_msrp_job.wait()
 
     def _shutdown_msrp(self):
         # since we have initiated the session's end, let the other side close MSRP connection
-        try:
-            if self.msrp.connected:
-                print 'Waiting for the other party to close MSRP connection...'
-                with timeout(self.MSRP_CLOSE_TIMEOUT, None):
+        if self.msrp.connected:
+            try:
+                #print 'Waiting for the other party to close MSRP connection...'
+                with api.timeout(self.MSRP_CLOSE_TIMEOUT, None):
                     self.msrp.reader_job.wait()
-        finally:
-            self._close_msrp()
+            finally:
+                self._close_msrp()
 
     def send_message(self, msg, content_type=None):
         if content_type is None:

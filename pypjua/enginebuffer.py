@@ -2,18 +2,19 @@ import sys
 from pprint import pformat
 
 from eventlet.api import sleep
-from eventlet.coros import multievent
-from eventlet import proc
+from eventlet import proc, coros
 
 from pypjua import Engine, Registration, Invitation
 from pypjua.clients.dbgutil import format_lineno
 from pypjua.util import wrapdict
 from pypjua import PyPJUAError
+from pypjua.eventletutil import SourceQueue
 
 # QQQ: separate logging part from InvitationBuffer and RegstrationBuffer
 
 def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
+
 
 class EngineLogger:
 
@@ -79,7 +80,6 @@ class EngineBuffer(Engine):
         if not hasattr(obj, '_obj'):
             raise TypeError('Not a proxy: %r' % obj)
         self.objs[obj._obj] = obj
-        obj.set_queue(queue)
 
     def unregister_obj(self, obj):
         pypjua_obj = obj._obj
@@ -130,38 +130,24 @@ class IncomingSessionHandler:
                 return session
 
 
-class MyQueue(multievent):
-
-    monitor = None
-
-    def send(self, result=None, exc=None):
-        if self.monitor:
-            # send must be non-blocking: it will be called from the mainloop greenlet
-            # hence, use spawn to be sure
-            proc.spawn(self.monitor, result, exc)
-        return multievent.send(self, result, exc)
-
-    def set_monitor(self, func):
-        self.monitor = func
-
-
 class BaseBuffer(object):
 
     def __init__(self, obj, logger):
         self._obj = obj
         self.logger = logger
+        self._queue = SourceQueue()
 
     def __getattr__(self, item):
         assert item != '_obj'
         return getattr(self._obj, item)
 
-    def set_queue(self, queue):
-        if queue is None:
-            queue = MyQueue()
-        self._queue = queue
-
     def _wait(self):
-        return self._queue.wait()
+        q = coros.queue()
+        self._queue.link(q)
+        try:
+            return q.wait()
+        finally:
+            self._queue.unlink(q)
 
     def log_my_state(self, params=None):
         state = params.get('state', self.state)
@@ -182,10 +168,11 @@ class BaseBuffer(object):
     def skip_to_event(self, state, event_name=None):
         if event_name is None:
             event_name = self.event_name
-        if self.state == state:
-            return event_name, None
         while True:
-            r_event_name, r_params = self._wait()
+            if self.state == state:
+                return event_name, None
+            xxx = self._wait()
+            r_event_name, r_params = xxx
             if (r_event_name, r_params.get('state')) == (event_name, state):
                 self.logger.log_event('MATCHED', r_event_name, r_params, 2)
                 return r_event_name, r_params
@@ -307,27 +294,24 @@ def _format_reason(params):
     return reason
 
 
-class DisconnectNotifier(object):
+class call_if(object):
 
-    def __init__(self):
-        self.funcs = []
+    def __init__(self, obj, condition=None):
+        self._obj = obj
+        if condition is not None:
+            self.condition = condition
 
-    def __call__(self, value, _exc):
-        if value is not None:
-            event_name, params = value
-            if (params or {}).get('state')=='DISCONNECTED':
-                for func in self.funcs:
-                    func(params)
+    def __getattr__(self, item):
+        return self._obj.item
 
-    def add_func(self, func):
-        self.funcs.append(func)
+    def __call__(self, value):
+        if self.condition(value):
+            return self._obj(value[1]) # XXX remove [1]
 
-    def remove_func(self, func):
-        try:
-            self.funcs.remove(func)
-            return True
-        except ValueError:
-            pass
+class call_on_disconnect(call_if):
+
+    def condition(self, (event_name, params)):
+        return (params or {}).get('state')=='DISCONNECTED'
 
 def format_streams(streams):
     result = []
@@ -443,9 +427,12 @@ class InvitationBuffer(BaseBuffer):
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
         self._obj.set_state_CALLING(*args, **kwargs)
+        assert self.state != 'CONFIRMED', "Already connected"
+        q = coros.queue()
+        self._queue.link(q)
         try:
             while True:
-                event_name, params = self._wait()
+                event_name, params = q.wait()
                 if event_name == 'Invitation_state':
                     state = params['state']
                     if state == 'EARLY':
@@ -459,14 +446,16 @@ class InvitationBuffer(BaseBuffer):
                         self.logger.log_event('INVITE result', event_name, params)
                         break
         finally:
+            self._queue.unlink(q)
             if ringer:
                 ringer.stop()
         return params
 
     def end(self, *args, **kwargs):
-        self._obj.set_state_DISCONNECTED(*args, **kwargs)
-        params = self.skip_to_event('DISCONNECTED')[1]
-        return params
+        if self.state != 'DISCONNECTED':
+            self._obj.set_state_DISCONNECTED(*args, **kwargs)
+            params = self.skip_to_event('DISCONNECTED')[1]
+            return params
 
     def accept(self, *args, **kwargs):
         self.outgoing = 0
@@ -479,15 +468,9 @@ class InvitationBuffer(BaseBuffer):
         except PyPJUAError: # QQQ use more descriptive exception type here
             pass
 
-    def set_queue(self, queue):
-        super(InvitationBuffer, self).set_queue(queue)
-        self._queue.monitor = DisconnectNotifier()
-
     def call_on_disconnect(self, func):
-        self._queue.monitor.add_func(func)
-
-    def cancel_call_on_disconnect(self, func):
-        self._queue.monitor.remove_func(func)
+        listener = call_on_disconnect(func)
+        return self._queue.link(listener)
 
 
 class EventHandler:

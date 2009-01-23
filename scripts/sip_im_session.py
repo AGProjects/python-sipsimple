@@ -10,6 +10,7 @@ from eventlet import api, coros, proc
 from eventlet.green.socket import gethostbyname
 
 from msrplib.connect import MSRPConnectFactory, MSRPAcceptFactory
+from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
 
 from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
@@ -68,12 +69,15 @@ def format_nosessions_ps(myuri):
 def echo_message(uri, message):
     print '%s %s: %s' % (format_time(), format_uri(uri), message)
 
-def forward(queue, listener, tag):
+def forward_chunks(msrp, listener, tag):
     while True:
         try:
-            result = queue.wait()
-        except Exception:
+            result = msrp.receive_chunk()
+        except ConnectionClosedErrors:
+            break
+        except:
             listener.send_exception(*sys.exc_info())
+            break
         else:
             listener.send((tag, result))
 # forward covers bug in the design. instead put listener directly at source
@@ -91,24 +95,49 @@ class ChatSession(object):
         self.msrpsession = msrpsession
         self.invite_job = invite_job
         self.messages_to_send = deque()
+        self.source = proc.Source()
         if self.invite_job is not None:
             self.invite_job.link_value(lambda result: proc.spawn(self._on_invite, result))
+            self.invite_job.link_exception(self.source)
         else:
             self.start_rendering_messages()
+        self.forwarder = None
+        self.source.link(lambda *_: proc.spawn_greenlet(self.shutdown))
 
-    def start_rendering_messages(self):
-        proc.spawn(forward, self.msrpsession.msrp.incoming, incoming, self)
-        self.msrpsession.msrp.reader_job.link(lambda *_: proc.spawn(self.msrpsession.end))
+    def link(self, listener):
+        """Add a listener to be notified when either msrpsession dies or invite fails"""
+        return self.source.link(listener)
+
+    @staticmethod
+    def _do_invite(inv, msrp_connector, make_SDPMedia, ringer, target_uri):
+        try:
+            return MSRPSession.invite(inv, msrp_connector, make_SDPMedia, ringer)
+        except MSRPSessionErrors, ex:
+            print 'Connection to %s FAILED: %s' % (target_uri, ex)
+            return ex
 
     def _on_invite(self, result):
-        if result is not None:
+        if isinstance(result, Exception):
+            self.source.send_exception(result)
+        else:
             self.msrpsession = result
             self.start_rendering_messages()
             for message in self.messages_to_send:
                 self.send_message(*message)
             del self.messages_to_send
 
+    @classmethod
+    def invite(cls, inv, msrp_connector, make_SDPMedia, ringer, target_uri):
+        return cls(inv, invite_job=proc.spawn(cls._do_invite, inv, msrp_connector, make_SDPMedia, ringer, target_uri))
+
+    def start_rendering_messages(self):
+        self.forwarder = proc.spawn(forward_chunks, self.msrpsession.msrp, incoming, self)
+        #self.msrpsession.link(lambda *_: proc.spawn_greenlet(self.shutdown))
+        self.msrpsession.link(self.source)
+
     def shutdown(self):
+        if self.forwarder:
+            self.forwarder.kill()
         if self.invite_job:
             self.invite_job.kill()
         if self.msrpsession is not None:
@@ -139,7 +168,7 @@ def consult_user(inv, ask_func):
     it finishes.
     """
     ask_job = proc.spawn_link_exception(ask_func, inv)
-    inv.call_on_disconnect(lambda *_args: ask_job.kill()) # XXX cancel_on_disconnect
+    link = inv.call_on_disconnect(lambda *_args: ask_job.kill())
     ERROR = 488 # Not Acceptable Here
     try:
         response = ask_job.wait()
@@ -150,6 +179,7 @@ def consult_user(inv, ask_func):
             ERROR = 486 # Busy Here
         # note, that response may also be a GreenletExit instance
     finally:
+        link.cancel()
         if ERROR is not None:
             inv.shutdown(ERROR)
 
@@ -303,13 +333,18 @@ class ChatManager:
         self.route=route
         self.relay = relay
         self.current_session = None
-        self.message_renderer_job = proc.spawn_link(self._message_renderer)
+        self.message_renderer_job = proc.spawn_link_exception(self._message_renderer)
+        self.state_logger = trafficlog.StateLogger()
 
+    # is there a need for special process for it? just calling the function is good enough
     def _message_renderer(self):
-        while True:
-            chat, chunk = incoming.wait()
-            render_message(chat.sip.remote_uri, chunk)
-            self.engine.play_wav_file(get_path("message_received.wav"))
+        try:
+            while True:
+                chat, chunk = incoming.wait()
+                render_message(chat.sip.remote_uri, chunk)
+                self.engine.play_wav_file(get_path("message_received.wav"))
+        except proc.ProcExit:
+            pass
 
     def close(self):
         self.stop_accept_incoming()
@@ -334,7 +369,7 @@ class ChatManager:
     def add_session(self, session, activate=True):
         assert session is not None
         self.sessions.append(session)
-        session.sip.call_on_disconnect(lambda *args: self.remove_session(session))
+        session.link(lambda *args: self.remove_session(session))
         if activate:
             self.current_session = session
             self.update_ps()
@@ -385,22 +420,9 @@ class ChatManager:
         target_uri = SIPURI(user=target_address.username, host=target_address.domain)
         inv = self.engine.Invitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
-        state_logger = trafficlog.StateLogger()
-        msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger, state_logger=state_logger)
+        msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger, state_logger=self.state_logger)
         ringer = Ringer(self.engine.play_wav_file, get_path("ring_outbound.wav"))
-
-        def invite():
-            try:
-                return MSRPSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer=ringer)
-            except MSRPSessionErrors, ex:
-                print 'Connection to %s FAILED: %s' % (target_uri, ex)
-                self.remove_session(chatsession)
-            except:
-                self.remove_session(chatsession)
-                raise
-
-        invite_job = proc.spawn(invite)
-        chatsession = ChatSession(inv, invite_job=invite_job)
+        chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer, target_uri)
         self.add_session(chatsession)
 
     def on_last_disconnect(self):
@@ -418,14 +440,14 @@ class ChatManager:
             msrpsession = MSRPSession(sip, msrp)
             downloadsession = DownloadFileSession(msrpsession)
             self.add_download(downloadsession)
-        acceptor = MSRPAcceptFactory.new(self.relay, self.traffic_logger)
+        acceptor = MSRPAcceptFactory.new(self.relay, self.traffic_logger, self.state_logger)
         file = IncomingFileTransferHandler(acceptor, self.console,
                                            new_receivefile_session, inbound_ringer,
                                            auto_accept=self.auto_accept_files)
         handler.add_handler(file)
         chat = IncomingChatHandler(acceptor, self.console, new_chat_session, inbound_ringer)
         handler.add_handler(chat)
-        # spawn a worker, that will log the exception and restart
+        # spawn a worker that will log the exception and restart
         self.accept_incoming_worker = proc.spawn_link_exception(self._accept_incoming_loop, handler)
 
     def stop_accept_incoming(self):
