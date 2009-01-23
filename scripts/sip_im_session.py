@@ -156,6 +156,11 @@ class ChatSession(object):
     def format_ps(self):
         return 'Chat to %s: ' % format_uri(self.sip.remote_uri)
 
+def trap_errors(errors, func, *args, **kwargs):
+    try:
+        return func(*args, **kwargs)
+    except errors, ex:
+        return ex
 
 def consult_user(inv, ask_func):
     """Ask the user about the invite. Return True if the user has accepted it.
@@ -167,7 +172,7 @@ def consult_user(inv, ask_func):
     case it should exit immediatelly, because consult_user won't exit until
     it finishes.
     """
-    ask_job = proc.spawn_link_exception(ask_func, inv)
+    ask_job = proc.spawn_link_exception(trap_errors, proc.ProcExit, ask_func, inv)
     link = inv.call_on_disconnect(lambda *_args: ask_job.kill())
     ERROR = 488 # Not Acceptable Here
     try:
@@ -232,8 +237,6 @@ class IncomingChatHandler(IncomingMSRPHandler_Interactive):
         self.ringer.start()
         try:
             return self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
-        except proc.ProcExit:
-            pass
         finally:
             self.ringer.stop()
 
