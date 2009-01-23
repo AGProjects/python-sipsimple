@@ -43,8 +43,6 @@ Audio
 Instant Messaging
 -----------------
 
-- Add Control A command to start a new session [DB]
-- Do not quit the sessions scripts on disconnect [DB]
 - Save chat sessions in history folder [DB]
 - Document MSRP client library usage, wiki page [DB]
 - Port eventlet/greenlet to ARM [DB]
@@ -69,7 +67,7 @@ Other applications
 ------------------
 
 - Message-summary payload [DB]
-- Bonjour []
+- Bonjour [RK]
 - Async ENUM lookup, lookup NAPTR for E.164 numbers []
 
 
@@ -85,13 +83,11 @@ Middleware
 Command line clients
 --------------------
 
-- Set shell return code to 0 for 2XX, 3XX and 1 for negative codes [LS]
 - Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
 - The default outbound invitation type is audio+text in this order [DB]
 - Add an option to start a 'text only' session [DB]
 - An incoming session request must prompt the user to accept a) audio+text or b) text only [DB]
-- If RTP not received in 10 seconds after the call setup, call failed. [LS]
-- If ACK not received in 6 seconds after 200 OK, call failed. [LS]
+- If RTP not received in 10 seconds after the call setup, call failed. [RK]
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection [DB]
 - Publish status from the sip_session script [LS]
 - sip_subscribe_conference script [LS]
@@ -127,13 +123,13 @@ Packaging
 Dependencies
 ------------
 
-- Merge the eventlet_twisted library into its main trunk
-- Make debian package for eventlet
-- Update debian packages for xcaplib and msrplib
+- Merge the eventlet_twisted library into its main trunk [DB]
+- Make debian package for eventlet [DB]
+- Update debian packages for xcaplib and msrplib [DB]
 
 
 Patches
 -------
 
-- Merge re-invite patch into pjsip main trunk
+- Merge re-invite patch into pjsip main trunk [RK]
 
