@@ -272,15 +272,16 @@ cdef extern from "pjmedia.h":
 
     # sdp negotiation
 
-    enum:
-        PJMEDIA_SDPNEG_NOANSCODEC
+    enum pjmedia_sdp_neg_state:
+        PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER
+        PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER
     struct pjmedia_sdp_neg
     int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote)
     int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local)
     int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote)
     int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local)
-    int pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg)
-    char *pjmedia_sdp_neg_state_str(int state)
+    pjmedia_sdp_neg_state pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg)
+    char *pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state)
 
     # transport
     struct pjmedia_sock_info:
@@ -592,11 +593,14 @@ cdef extern from "pjsip.h":
     # transaction layer
     enum pjsip_role_e:
         PJSIP_ROLE_UAC
+    enum pjsip_tsx_state_e:
+        PJSIP_TSX_STATE_TERMINATED
     struct pjsip_transaction:
         int status_code
         pj_str_t status_text
         pjsip_role_e role
         pjsip_tx_data *last_tx
+        pjsip_tsx_state_e state
     int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
 
     # event
@@ -777,6 +781,7 @@ cdef class PJSTR
 cdef int str_to_pj_str(object string, pj_str_t *pj_str) except -1
 cdef object pj_str_to_str(pj_str_t pj_str)
 cdef object pj_status_to_str(int status)
+cdef object pj_status_to_def(int status)
 cdef object c_retrieve_nameservers()
 cdef dict c_pjsip_param_to_dict(pjsip_param *param_list)
 cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1

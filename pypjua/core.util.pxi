@@ -39,6 +39,9 @@ cdef object pj_status_to_str(int status):
     cdef char buf[PJ_ERR_MSG_SIZE]
     return pj_str_to_str(pj_strerror(status, buf, PJ_ERR_MSG_SIZE))
 
+cdef object pj_status_to_def(int status):
+    return _re_pj_status_str_def.match(pj_status_to_str(status)).group(1)
+
 cdef object c_retrieve_nameservers():
     nameservers = []
     IF UNAME_SYSNAME != "Windows":
@@ -157,3 +160,7 @@ cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         info_dict["code"] = rdata.msg_info.msg.line.status.code
         info_dict["reason"] = pj_str_to_str(rdata.msg_info.msg.line.status.reason)
     return 0
+
+# globals
+
+cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
