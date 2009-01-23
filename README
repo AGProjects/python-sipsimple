@@ -81,19 +81,21 @@ documentation see the files under docs/ directory.
 Support
 -------
 
-The project is developed and supported by AG Projects via the wiki system
-available at http://sipsimpleclient.com. The support is provided on a
-best-effort basis. "best-effort" means that we try to solve the bugs you
-report or help fix your problems as soon as we can, subject to available
-resources.
+The project is developed and supported by AG Projects. The support is
+provided on a best-effort basis. "best-effort" means that we try to solve
+the bugs you report or help fix your problems as soon as we can, subject to
+available resources.
 
-A mailing list is available at
+To request support you must use the mailing list available at
+
 http://lists.ag-projects.com/mailman/listinfo/sipclient
 
-To request support you must open a ticket at
+Patches and bug reports must be submitted by opening a ticket at
+
 http://sipsimpleclient.com/newticket
 
-Please check the mailing list archive before opening a support request. To
-open ticket please Register first. If you wish to contribute as an active
-developer, send your request by email to pypjua-devel@ag-projects.com.
+To open ticket please Register first.
+
+If you wish to contribute as an active developer, send your request by email
+to pypjua-devel@ag-projects.com.
 
