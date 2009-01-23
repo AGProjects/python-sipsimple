@@ -3,6 +3,7 @@ from __future__ import with_statement
 import sys
 import os
 import datetime
+import time
 from collections import deque
 from twisted.internet.error import ConnectionClosed, ConnectionDone
 
@@ -322,9 +323,10 @@ class DownloadFileSession(object):
 
 class ChatManager:
 
-    def __init__(self, engine, credentials, console, traffic_logger,
+    def __init__(self, engine, sound, credentials, console, traffic_logger,
                  auto_accept_files=False, route=None, relay=None):
         self.engine = engine
+        self.sound = sound
         self.credentials = credentials
         self.default_domain = credentials.uri.host
         self.console = console
@@ -345,7 +347,7 @@ class ChatManager:
             while True:
                 chat, chunk = incoming.wait()
                 render_message(chat.sip.remote_uri, chunk)
-                self.engine.play_wav_file(get_path("message_received.wav"))
+                self.sound.play("message_received.wav")
         except proc.ProcExit:
             pass
 
@@ -418,13 +420,14 @@ class ChatManager:
     def call(self, *args):
         if len(args)!=1:
             raise UserCommandError('Please provide uri')
-        uri = args[0]
-        target_address = SIPAddress.parse(uri, default_domain=self.default_domain)
-        target_uri = SIPURI(user=target_address.username, host=target_address.domain)
+        target_uri = args[0]
+        if not isinstance(target_uri, SIPURI):
+            target_address = SIPAddress.parse(target_uri, default_domain=self.default_domain)
+            target_uri = SIPURI(user=target_address.username, host=target_address.domain)
         inv = self.engine.Invitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
         msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger, state_logger=self.state_logger)
-        ringer = Ringer(self.engine.play_wav_file, get_path("ring_outbound.wav"))
+        ringer = Ringer(self.sound.play, "ring_outbound.wav")
         chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer, target_uri)
         self.add_session(chatsession)
 
@@ -434,7 +437,7 @@ class ChatManager:
     def spawn_link_accept_incoming(self):
         assert not self.accept_incoming_worker, self.accept_incoming_worker
         handler = IncomingSessionHandler()
-        inbound_ringer = Ringer(self.engine.play_wav_file, get_path("ring_inbound.wav"))
+        inbound_ringer = Ringer(self.sound.play, "ring_inbound.wav")
         def new_chat_session(sip, msrp):
             msrpsession = MSRPSession(sip, msrp)
             chatsession = ChatSession(sip, msrpsession)
@@ -477,7 +480,7 @@ class ChatManager:
         try:
             if session.send_message(message):
                 #print 'sent %s %s' % (session, message)
-                self.engine.play_wav_file(get_path("message_sent.wav"))
+                self.sound.play("message_sent.wav")
                 return True # indicate that the message was sent
         except ConnectionClosed, ex:
             proc.spawn(self.remove_session, session)
@@ -506,12 +509,30 @@ def start(options, console):
     try:
         credentials = Credentials(options.uri, options.password)
         msrplogger = trafficlog.TrafficLogger.to_file(console, is_enabled_func=lambda: options.trace_msrp)
-        #message_renderer_job = proc.spawn_link(message_renderer, incoming, engine)
+        ###console.enable()
+        if options.register:
+            register(engine, credentials, options.route)
+        console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
+        sound = ThrottlingSoundPlayer(engine.play_wav_file)
+        manager = ChatManager(engine, sound, credentials, console, msrplogger,
+                              options.auto_accept_files, route=options.route, relay=options.relay)
+        manager.spawn_link_accept_incoming()
+        print "Press Ctrl-d to quit or Control-n to switch between active sessions"
         if options.target_uri is None:
-            start_listener(engine, options, console, credentials, msrplogger)
+            print 'Waiting for incoming SIP session requests...'
         else:
-            start_caller(engine, options, console, credentials, msrplogger)
+            manager.call(options.target_uri)
+        while True:
+            try:
+                readloop(console, manager, get_commands(manager), get_shortcuts(manager))
+            except EOF:
+                if manager.current_session:
+                    manager.close_current_session()
+                else:
+                    raise
     finally:
+        console_next_line(console)
+        manager.close()
         t = api.get_hub().schedule_call(1, sys.stdout.write, 'Disconnecting the session(s)...\n')
         try:
             engine.shutdown()
@@ -528,55 +549,6 @@ def get_commands(manager):
 
 def get_shortcuts(manager):
     return {KEY_NEXT_SESSION: manager.switch}
-
-def start_caller(engine, options, console, credentials, msrplogger):
-    credentials = Credentials(options.uri, options.password)
-    inv = engine.Invitation(credentials, options.target_uri, route=options.route)
-    msrp_connector = MSRPConnectFactory.new(options.relay, msrplogger)
-    ringer = Ringer(engine.play_wav_file, get_path("ring_outbound.wav"))
-    msrpsession = MSRPSession.invite(inv, msrp_connector, ChatManager.make_SDPMedia, ringer=ringer)
-    chatsession = ChatSession(inv, msrpsession)
-    manager = ChatManager_Caller(engine, credentials, console, msrplogger,
-                                 options.auto_accept_files, route=options.route, relay=options.relay)
-    manager.add_session(chatsession)
-    ###console.enable()
-    try:
-        while True:
-            try:
-                readloop(console, manager, get_commands(manager), get_shortcuts(manager))
-            except EOF:
-                if manager.current_session:
-                    manager.close_current_session()
-                    if not manager.current_session:
-                        raise
-            else:
-                break
-    finally:
-        console_next_line(console) # XXX make this part of console
-        manager.close()
-
-def start_listener(engine, options, console, credentials, msrplogger):
-    ###console.enable()
-    if options.register:
-        register(engine, credentials, options.route)
-    console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
-    manager = ChatManager(engine, credentials, console, msrplogger,
-                          options.auto_accept_files, route=options.route, relay=options.relay)
-    manager.spawn_link_accept_incoming()
-    print 'Waiting for incoming SIP session requests...'
-    print "Press Ctrl-d to quit or Control-n to switch between active sessions"
-    try:
-        while True:
-            try:
-                readloop(console, manager, get_commands(manager), get_shortcuts(manager))
-            except EOF:
-                if manager.current_session:
-                    manager.close_current_session()
-                else:
-                    raise
-    finally:
-        console_next_line(console)
-        manager.close()
 
 def readloop(console, manager, commands, shortcuts):
     console.terminalProtocol.send_keys.extend(shortcuts.keys())
@@ -620,6 +592,23 @@ def register(engine, credentials, route):
     params = reg.register()
     if params['state']=='unregistered' and params['code']/100!=2:
         raise Exception('Failed to register %r' % (params,)) # XXX fix
+
+
+class ThrottlingSoundPlayer:
+
+    LIMIT = 2
+
+    def __init__(self, play_wav_func):
+        self.play_wav_file = play_wav_func
+        self.last_times = {}
+
+    def play(self, filename):
+        last_time = self.last_times.setdefault(filename, 0)
+        current = time.time()
+        if current-last_time > self.LIMIT:
+            self.play_wav_file(get_path(filename))
+            self.last_times[filename] = current
+
 
 description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."
 usage = "%prog [options] [target-user@target-domain.com]"
