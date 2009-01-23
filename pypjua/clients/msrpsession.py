@@ -59,7 +59,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None):
         msrp = msrp_connector.complete(full_remote_path)
         return invite_response, msrp
     except:
-        inv.shutdown()
+        proc.spawn_greenlet(inv.shutdown)
         raise
     finally:
         msrp_connector.cleanup()
