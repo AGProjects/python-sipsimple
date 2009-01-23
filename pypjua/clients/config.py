@@ -123,6 +123,8 @@ def parse_options(usage, description):
     #parser.add_option("-y", '--auto-accept-all', action='store_true', default=False, help=SUPPRESS_HELP)
     parser.add_option('--auto-accept-files', action='store_true',
                       help='Accept all incoming file transfers without bothering user.')
+    parser.add_option('--no-register', action='store_false', dest='register', default=True,
+                      help='Bypass registration')
 
     options, args = parser.parse_args()
 

@@ -528,7 +528,8 @@ def start_caller(engine, options, console, credentials, msrplogger):
 
 def start_listener(engine, options, console, credentials, msrplogger):
     ###console.enable()
-    register(engine, credentials, options.route)
+    if options.register:
+        register(engine, credentials, options.route)
     console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
     manager = ChatManager(engine, credentials, console, msrplogger,
                           options.auto_accept_files, route=options.route, relay=options.relay)
