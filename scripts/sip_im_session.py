@@ -487,7 +487,11 @@ def start(options, console):
         else:
             start_caller(engine, options, console, credentials, msrplogger)
     finally:
-        engine.shutdown()
+        t = api.get_hub().schedule_call(1, sys.stdout.write, 'Disconnecting the session(s)...\n')
+        try:
+            engine.shutdown()
+        finally:
+            t.cancel()
         engine.stop()
         api.sleep(0.1) # flush the output
 
