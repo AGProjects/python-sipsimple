@@ -1,6 +1,6 @@
-Patches in this directory must be applied for supporting ceratin features.
-The goal is to integrate this patches in to the main repositories they
-belong to.
+Patches in this directory must be applied for supporting certain features.
+The goal is to integrate this patches into the main repositories they belong
+to.
 
 
 greenlet-arm-support.patch 
