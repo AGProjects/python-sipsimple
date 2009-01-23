@@ -162,7 +162,8 @@ class BaseBuffer(object):
         pass
 
     def handle_event(self, event_name, kwargs):
-        self.log_my_state(kwargs)
+        if event_name.endswith("_state"):
+            self.log_my_state(kwargs)
         self._queue.send((event_name, kwargs))
 
     def skip_to_event(self, state, event_name=None):
@@ -439,12 +440,12 @@ class InvitationBuffer(BaseBuffer):
                         self.log_ringing(params)
                         if ringer:
                             ringer.start()
-                    elif params['prev_sdp_state'] != "DONE" and params['sdp_state'] == "DONE" and not params['sdp_negotiated'] and params["state"] != "DISCONNECTED":
-                        self.logger.write('SDP negotiation failed')
-                        self._obj.set_state_DISCONNECTED()
                     elif state in ['CONFIRMED', 'DISCONNECTED']:
                         self.logger.log_event('INVITE result', event_name, params)
                         break
+                elif event_name == "Invitation_sdp":
+                    if not params["succeeded"]:
+                        self.logger.write('SDP negotiation failed: %s' % params["error"])
         finally:
             self._queue.unlink(q)
             if ringer:
