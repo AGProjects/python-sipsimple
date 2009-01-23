@@ -71,14 +71,9 @@ class EngineBuffer(Engine):
             self.logger.log_event('DISPATCHED', event_name, kwargs)
         handle_event(event_name, kwargs)
 
-    def shutdown(self, quiet=True):
-        for obj in self.objs.values():
-            try:
-                obj.shutdown()
-            except:
-                if not quiet:
-                    raise
-        self.objs.clear()
+    def shutdown(self):
+        jobs = [proc.spawn(obj.shutdown) for obj in self.objs.values()]
+        proc.waitall(jobs)
 
     def register_obj(self, obj, queue=None):
         if not hasattr(obj, '_obj'):
