@@ -205,26 +205,25 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             return_code = 0
                         user_quit = False
                         command = "quit"
-                elif event_name == "Invitation_state":
-                    if args["prev_sdp_state"] != "DONE" and args["sdp_state"] == "DONE" and args["state"] != "DISCONNECTED":
-                        if args["obj"] is inv:
-                            if args["sdp_negotiated"]:
-                                if not audio.is_started:
-                                    session_start_time = time()
-                                    audio.start(inv.get_active_local_sdp(), inv.get_active_remote_sdp(), 0)
-                                    e.connect_audio_transport(audio)
-                                    print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
-                                    print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
-                                    return_code = 0
-                                    if auto_hangup is not None:
-                                        Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
-                                    if audio.transport.srtp_active:
-                                        print "RTP audio stream is encrypted"
-                                else:
-                                    audio.update_direction(inv.get_active_local_sdp().media[0].get_direction())
+                elif event_name == "Invitation_sdp":
+                    if args["obj"] is inv:
+                        if args["succeeded"]:
+                            if not audio.is_started:
+                                session_start_time = time()
+                                audio.start(args["local_sdp"], args["remote_sdp"], 0)
+                                e.connect_audio_transport(audio)
+                                print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
+                                print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                                return_code = 0
+                                if auto_hangup is not None:
+                                    Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
+                                if audio.transport.srtp_active:
+                                    print "RTP audio stream is encrypted"
                             else:
-                                inv.set_state_DISCONNECTED()
-                                print "SDP negotiation failed"
+                                audio.update_direction(inv.get_active_local_sdp().media[0].get_direction())
+                        else:
+                            print "SDP negotation failed: %s" % args["error"]
+                elif event_name == "Invitation_state":
                     if args["state"] == "EARLY":
                         if ringer is None:
                             print "Ringing..."
@@ -249,13 +248,13 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         else:
                             print "Rejecting."
                             args["obj"].set_state_DISCONNECTED()
-                    elif args["prev_state"] != "CONFIRMED" and args["state"] == "CONFIRMED":
+                    elif args["prev_state"] == "CONNECTING" and args["state"] == "CONFIRMED":
                         if ringer is not None:
                             ringer.stop()
                             ringer = None
                         if other_user_agent is not None:
                             print 'Remote SIP User Agent is "%s"' % other_user_agent
-                    elif args["state"] == "CONFIRMED" and args["sdp_state"] == "REMOTE_OFFER":
+                    elif args["state"] == "REINVITED":
                         # Just assume the call got placed on hold for now...
                         prev_remote_direction = inv.get_active_remote_sdp().media[0].get_direction()
                         remote_direction = inv.get_offered_remote_sdp().media[0].get_direction()
@@ -277,7 +276,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
-                            if args["prev_state"] != "CONFIRMED":
+                            if args["prev_state"] == "DISCONNECTING":
+                                disc_msg = "Session ended by local user"
+                            elif args["prev_state"] in ["CALLING", "EARLY"]:
                                 if "headers" in args:
                                     if "Server" in args["headers"]:
                                         print 'Remote SIP server is "%s"' % args["headers"]["Server"]
@@ -285,17 +286,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                         print 'Remote SIP User Agent is "%s"' % args["headers"]["User-Agent"]
                                 disc_msg = "Session could not be established"
                             else:
-                                if "method" in args:
-                                    if target_uri is None:
-                                        disc_party = inv.caller_uri
-                                    else:
-                                        disc_party = inv.callee_uri
-                                else:
-                                    if target_uri is None:
-                                        disc_party = inv.callee_uri
-                                    else:
-                                        disc_party = inv.caller_uri
-                                disc_msg = 'Session disconnected by "%s"' % str(disc_party)
+                                disc_msg = 'Session ended by "%s"' % inv.remote_uri
                             if "code" in args and args["code"] / 100 != 2:
                                 print "%s: %d %s" % (disc_msg, args["code"], args["reason"])
                                 if args["code"] == 408 and args["prev_state"] == "CONNECTING":
@@ -343,7 +334,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             print 'Stopped recording audio to "%s"' % rec_file.file_name
                             rec_file = None
                     elif data == " ":
-                        if inv.sdp_state == "DONE":
+                        if inv.state == "CONFIRMED":
                             if not on_hold:
                                 on_hold = True
                                 print "Placing call on hold"
