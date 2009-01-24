@@ -350,12 +350,12 @@ cdef class Invitation:
 
     def respond_to_reinvite_provisionally(self, int reply_code=180, dict extra_headers=None):
         if self.state != "REINVITED":
-            raise PyPJUAError("Can only send a provisional repsonse to a re-INVITE in the REINVITED state")
+            raise PyPJUAError("Can only send a provisional response to a re-INVITE in the REINVITED state")
         self._send_provisional_response(reply_code, extra_headers)
 
     def respond_to_reinvite(self, dict extra_headers=None):
         if self.state != "REINVITED":
-            raise PyPJUAError("Can only send a repsonse to a re-INVITE in the REINVITED state")
+            raise PyPJUAError("Can only send a response to a re-INVITE in the REINVITED state")
         self._send_response(extra_headers)
 
     def send_reinvite(self, dict extra_headers=None):
