@@ -9,9 +9,13 @@ and subscribe to presence or other type of events.
 You need a SIP account from a service provider or to setup your own SIP
 infrastructure using the following elements:
 
- * OpenSIPS >= 1.4.2 from [http://opensips.org http://opensips.org] 
- * OpenXCAP >= 1.0.6 from [http://openxcap.org http://openxcap.org]
- * MSRPRelay >= 1.0.0 from [http://msrprelay.org http://msrprelay.org]
+ * OpenSIPS from [http://opensips.org http://opensips.org] 
+ * OpenXCAP from [http://openxcap.org http://openxcap.org]
+ * MSRPRelay from [http://msrprelay.org http://msrprelay.org]
+
+For multi-party IM conferencing you can use:
+
+ * SIP chatserver from http://chatserver.ag-projects.com
 
 A test SIP account with all SIP SIMPLE client features can be obtained for
 free from http://sip2sip.info.
