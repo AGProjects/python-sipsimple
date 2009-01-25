@@ -5,16 +5,21 @@ Python PJSIP bindings
 - Session high level class [RK]
 - Audio stream high level class [RK]
 - MSRP stream high level class [RK]
-- Desktop sharing stream high level class, m=application TCP/MSRPS/RFB []
-- Document how other streams can be implemented [RK]
-- Use Server header in replies instead of User-Agent header [RK]
-- Properly decrease reference counts of pjsip_tx_data structs [RK]
+- Add isfocus attribute for both session parties, present in Contact header [RK]
+- Add audio bridge slots to separate conference rooms [RK]
+- Handle incomming SUBSCRIBE requests [RK]
+- Handle incomming REGISTER requests [RK]
+- Add bindings for pjmedia_conf_adjust_rx_level() and pjmedia_conf_adjust_tx_level() [RK]
 - Fix remainig TODOs for PUBLISH/REGISTER [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
+- Document how other streams can be implemented [RK]
+- Desktop sharing stream high level class, m=application TCP/MSRPS/RFB []
+- Use Server header in replies instead of User-Agent header [RK]
+- Properly decrease reference counts of pjsip_tx_data structs [RK]
 - Registration requestion URI should be settable by application [RK]
+- Handle incomming OPTIONS requests [RK]
+- Handle incomming REFER requests [RK]
 - Add feature to send OPTIONS method and parse the replies [RK]
-- Add ability for application to request handling of arbitrary methods such as [RK]
-  OPTIONS, REGISTER and REFER, SUBSCRIBE (but not INVITE or NOTIFY) and have it reply [RK]
 - Handle sending and receiving of multipart bodies for Invitation  [RK]
 - Handle UPDATE for re-INVITE [RK]
 - Means to query RTP statistics [RK]
@@ -27,9 +32,8 @@ Python PJSIP bindings
 Audio
 -----
 
-- Multiple room audio conference support [RK]
-- Fix high CPU usage for sound card access on OS X [RK]
 - N810 maemo audio driver [DB]
+- Fix high CPU usage for sound card access on OS X [RK]
 - Mute the microphone for a given session (useful for listen in conferences) [RK]
 - Play a tone while on hold every 30 seconds [DB]
 - Play a tone once after we closed a session [DB]
@@ -44,6 +48,7 @@ Instant Messaging
 -----------------
 
 - Save chat sessions in history folder [DB]
+- Reduce volume of IM related notifications to 50% [DB]
 - Document MSRP client library usage, wiki page [DB]
 - Port eventlet/greenlet to ARM [DB]
 - MSRP focus [DB]
@@ -56,11 +61,11 @@ Presence/XML
 ------------
 
 - Conference event package [LS]
-- xcap-diff payload [LS]
 - Move non SIP applications to a separate python package [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
 - Buddylist library [LS]
+- xcap-diff payload [LS]
 
 
 Other applications
@@ -68,7 +73,7 @@ Other applications
 
 - Message-summary payload [DB]
 - Bonjour [RK]
-- Async ENUM lookup, lookup NAPTR for E.164 numbers []
+- ENUM lookup []
 
 
 Middleware
@@ -101,7 +106,6 @@ Command line clients
  - Toggle sip and pjsip logging at run time in the test scripts [LS]
  - Print SIP messages also on the console [LS]
 - xcap_pidf_manipulation script [LS]
-- Handle incoming REFER to a conference URI [DB]
  
 
 Sessions
@@ -126,10 +130,5 @@ Dependencies
 - Merge the eventlet_twisted library into its main trunk [DB]
 - Make debian package for eventlet [DB]
 - Update debian packages for xcaplib and msrplib [DB]
-
-
-Patches
--------
-
 - Merge re-invite patch into pjsip main trunk [RK]
 
