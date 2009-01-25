@@ -5,7 +5,7 @@
 [General]
 
 ; User Agent name, software version will be automatically appended
-user_agent=ag-projects.com/sipclient
+user_agent=sip2sip
 
 ; SIP transport settings
 
