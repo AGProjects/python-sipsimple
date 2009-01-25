@@ -15,7 +15,7 @@ class Engine(object):
                              "tls_verify_server": False,
                              "tls_ca_file": None,
                              "ec_tail_length": 50,
-                             "user_agent": "ag-projects/sipclient-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
+                             "user_agent": "sip2sip-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
                              "log_level": 5,
                              "trace_sip": False,
                              "sample_rate": 32,
