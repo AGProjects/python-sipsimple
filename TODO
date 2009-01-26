@@ -12,6 +12,7 @@ Python PJSIP bindings
 - Add bindings for pjmedia_conf_adjust_rx_level() and pjmedia_conf_adjust_tx_level() [RK]
 - Fix remainig TODOs for PUBLISH/REGISTER [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
+- Make MESSAGE handling a class, fix timeout [RK]
 - Document how other streams can be implemented [RK]
 - Desktop sharing stream high level class, m=application TCP/MSRPS/RFB []
 - Use Server header in replies instead of User-Agent header [RK]
