@@ -325,6 +325,7 @@ def format_streams(streams):
 class InvitationBuffer(BaseBuffer):
 
     event_name = 'Invitation_state'
+    confirmed = False
 
     def __init__(self, obj, logger, outgoing=1):
         BaseBuffer.__init__(self, obj, logger)
@@ -376,7 +377,7 @@ class InvitationBuffer(BaseBuffer):
 
     def _get_verb(self, state, prev_state):
         # only if connection was not established yet and if we initiated the disconnect
-        if prev_state!='CONFIRMED' and 'DISCONNECTING' in [state, prev_state]:
+        if not self.confirmed and 'DISCONNECTING' in [state, prev_state]:
             if self.outgoing:
                 return {'DISCONNECTED': 'Cancelled',
                         'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
@@ -407,6 +408,9 @@ class InvitationBuffer(BaseBuffer):
 
     def log_state_incoming(self, params):
         self._streams = format_streams(params.get('streams'))
+
+    def log_state_confirmed(self, params):
+        self.confirmed = True
 
     def log_ringing(self, params):
         agent = params.get('headers', {}).get('User-Agent', '')
