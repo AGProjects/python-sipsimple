@@ -20,7 +20,7 @@ Python PJSIP bindings
 - Handle incomming OPTIONS requests [RK]
 - Handle incomming REFER requests [RK]
 - Add feature to send OPTIONS method and parse the replies [RK]
-- Handle sending and receiving of multipart bodies for Invitation  [RK]
+- Handle sending and receiving of multipart bodies for Invitation [RK]
 - Handle UPDATE for re-INVITE [RK]
 - Means to query RTP statistics [RK]
 - Make local_ip option settable at runtime [RK]
@@ -55,7 +55,6 @@ Instant Messaging
 - Document MSRP client library usage, wiki page [DB]
 - Port eventlet/greenlet to ARM [DB]
 - MSRP focus [DB]
-- MSRP mixer [DB]
 - MSRP multiparty chat [DB]
 - Is-composing payload [DB]
 
@@ -82,7 +81,6 @@ Other applications
 Middleware
 ----------
 
-- Event bus [LS]
 - Enrollment []
 - Ambient noise and light detection []
 - Geo-location detection []
@@ -116,7 +114,7 @@ Sessions
 
 - Video (H.264) []
 - Real time text over RTP (RFC4103) [AW]
-- Desktop sharing (draft-garcia-mmusic-sdp-collaboration/VNC) [WT]
+- Desktop sharing session, integrate WT's sip_desktop_sharing
 
 
 Packaging
@@ -131,7 +129,6 @@ Dependencies
 ------------
 
 - Merge the eventlet_twisted library into its main trunk [DB]
-- Make debian package for eventlet [DB]
-- Update debian packages for xcaplib and msrplib [DB]
+- Update debian packages for xcaplib [DB]
 - Merge re-invite patch into pjsip main trunk [RK]
 

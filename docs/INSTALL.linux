@@ -125,9 +125,11 @@ has an older version, upgrade it using python setuptools:
 
 sudo easy_install -U cython
 
-Go into each sipsimpleclient, python-xcaplib and python-msrplib directory
-create using darcs at steps 2 and 3 and build the corresponding debian
-package using debuild command. Example for python-msrplib:
+Foreach dependency hosted on AG Projects repositories (sipsimpleclient,
+eventlet_twisted, python-xcaplib and python-msrplib directory you can build
+the corresponding debian package by using debuild command. 
+
+Example for python-msrplib:
 
 cd python-msrplib
 python setup.py sdist
