@@ -273,8 +273,11 @@ cdef extern from "pjmedia.h":
     # sdp negotiation
 
     enum pjmedia_sdp_neg_state:
+        PJMEDIA_SDP_NEG_STATE_NULL
         PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER
         PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER
+        PJMEDIA_SDP_NEG_STATE_WAIT_NEGO
+        PJMEDIA_SDP_NEG_STATE_DONE
     struct pjmedia_sdp_neg
     int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote)
     int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local)

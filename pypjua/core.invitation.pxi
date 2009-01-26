@@ -149,7 +149,7 @@ cdef class Invitation:
 
     def get_offered_remote_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
-        if self.c_obj != NULL and pjmedia_sdp_neg_get_state(self.c_obj.neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER:
+        if self.c_obj != NULL and pjmedia_sdp_neg_get_state(self.c_obj.neg) in [PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER, PJMEDIA_SDP_NEG_STATE_WAIT_NEGO]:
             pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
@@ -157,16 +157,17 @@ cdef class Invitation:
 
     def get_offered_local_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
-        if self.c_obj != NULL and pjmedia_sdp_neg_get_state(self.c_obj.neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER:
+        if self.c_obj != NULL and pjmedia_sdp_neg_get_state(self.c_obj.neg) in [PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER, PJMEDIA_SDP_NEG_STATE_WAIT_NEGO]:
             pjmedia_sdp_neg_get_neg_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
         else:
             return self.c_local_sdp_proposed
 
     def set_offered_local_sdp(self, local_sdp):
-        if self.state in ["CONFIRMED", "REINVITED"] or \
-               (self.state == "NULL" and self.c_credentials is not None) or \
-               (self.state in ["INCOMING", "EARLY"] and self.c_credentials is None):
+        cdef pjmedia_sdp_neg_state neg_state = PJMEDIA_SDP_NEG_STATE_NULL
+        if self.c_obj != NULL:
+            neg_state = pjmedia_sdp_neg_get_state(self.c_obj.neg)
+        if neg_state in [PJMEDIA_SDP_NEG_STATE_NULL, PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER, PJMEDIA_SDP_NEG_STATE_DONE]:
             self.c_local_sdp_proposed = local_sdp
         else:
             raise PyPJUAError("Cannot set offered local SDP in this state")
@@ -253,6 +254,8 @@ cdef class Invitation:
         cdef PJSIPUA ua = c_get_ua()
         if self.state != "NULL":
             raise PyPJUAError("Can only transition to the CALLING state from the NULL state")
+        if self.c_local_sdp_proposed is None:
+            raise PyPJUAError("Local SDP has not been set")
         caller_uri = PJSTR(self.c_caller_uri._as_str(0))
         callee_uri = PJSTR(self.c_callee_uri._as_str(0))
         callee_target = PJSTR(self.c_callee_uri._as_str(1))
@@ -263,9 +266,8 @@ cdef class Invitation:
             status = pjsip_dlg_create_uac(pjsip_ua_instance(), &caller_uri.pj_str, &contact_uri.pj_str, &callee_uri.pj_str, &callee_target.pj_str, &self.c_dlg)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
-            if self.c_local_sdp_proposed is not None:
-                self.c_local_sdp_proposed._to_c()
-                local_sdp = &self.c_local_sdp_proposed.c_obj
+            self.c_local_sdp_proposed._to_c()
+            local_sdp = &self.c_local_sdp_proposed.c_obj
             status = pjsip_inv_create_uac(self.c_dlg, local_sdp, 0, &self.c_obj)
             if status != 0:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
