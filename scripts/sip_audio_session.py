@@ -209,6 +209,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                     if args["obj"] is inv:
                         if args["succeeded"]:
                             if not audio.is_started:
+                                if ringer is not None:
+                                    ringer.stop()
+                                    ringer = None
                                 session_start_time = time()
                                 audio.start(args["local_sdp"], args["remote_sdp"], 0)
                                 e.connect_audio_transport(audio)
@@ -230,7 +233,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         data, args = None, None
                         continue
                     if args["state"] == "EARLY":
-                        if target_uri is None or ("code" in args and args["code"] == 180):
+                        if "code" in args and args["code"] == 180:
                             if ringer is None:
                                 print "Ringing..."
                                 ringer = RingingThread(target_uri is None)
@@ -255,9 +258,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             print "Rejecting."
                             args["obj"].set_state_DISCONNECTED()
                     elif args["prev_state"] == "CONNECTING" and args["state"] == "CONFIRMED":
-                        if ringer is not None:
-                            ringer.stop()
-                            ringer = None
                         if other_user_agent is not None:
                             print 'Remote SIP User Agent is "%s"' % other_user_agent
                     elif args["state"] == "REINVITED":
