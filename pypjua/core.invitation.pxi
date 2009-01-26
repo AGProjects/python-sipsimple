@@ -178,11 +178,13 @@ cdef class Invitation:
         cdef dict event_dict
         if state == "CALLING" and state == self.state:
             return 0
-        event_dict = dict(obj=self, prev_state=self.state, state=state)
         if state == "CONFIRMED":
             if self.state == "CONNECTING" and self.c_sdp_neg_status != 0:
                 self.set_state_DISCONNECTED(488)
                 return 0
+        if self.c_obj.cancelling:
+            self.state = "DISCONNECTING"
+        event_dict = dict(obj=self, prev_state=self.state, state=state)
         self.state = state
         if rdata != NULL:
             c_rdata_info_to_dict(rdata, event_dict)

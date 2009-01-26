@@ -735,6 +735,7 @@ cdef extern from "pjsip_ua.h":
         pjmedia_sdp_neg *neg
         int cause
         pj_str_t cause_text
+        int cancelling
     struct pjsip_inv_callback:
         void on_state_changed(pjsip_inv_session *inv, pjsip_event *e) with gil
         void on_new_session(pjsip_inv_session *inv, pjsip_event *e) with gil
