@@ -175,7 +175,10 @@ cdef class Invitation:
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
-        cdef dict event_dict = dict(obj=self, prev_state=self.state, state=state)
+        cdef dict event_dict
+        if state == "CALLING" and state == self.state:
+            return 0
+        event_dict = dict(obj=self, prev_state=self.state, state=state)
         if state == "CONFIRMED":
             if self.state == "CONNECTING" and self.c_sdp_neg_status != 0:
                 self.set_state_DISCONNECTED(488)
