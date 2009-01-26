@@ -529,6 +529,7 @@ cdef class PJSIPUA:
             pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &self.c_user_agent_hdr.c_obj))
             status = pjsip_endpt_send_response2(self.c_pjsip_endpoint.c_obj, rdata, tdata, NULL, NULL)
             if status != 0:
+                pjsip_tx_data_dec_ref(tdata)
                 raise PJSIPError("Could not send response", status)
         return 1
 
