@@ -74,10 +74,7 @@ def forward_chunks(msrp, listener, tag):
     while True:
         try:
             result = msrp.receive_chunk()
-        except ConnectionClosedErrors:
-            break
-        except:
-            listener.send_exception(*sys.exc_info())
+        except ConnectionClosedErrors, e:
             break
         else:
             listener.send((tag, result))
