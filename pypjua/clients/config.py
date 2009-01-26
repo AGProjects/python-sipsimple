@@ -125,6 +125,7 @@ def parse_options(usage, description):
                       help='Accept all incoming file transfers without bothering user.')
     parser.add_option('--no-register', action='store_false', dest='register', default=True,
                       help='Bypass registration')
+    parser.add_option('--msrp-tcp', action='store_false', dest='msrp_tls', default=True)
 
     options, args = parser.parse_args()
 

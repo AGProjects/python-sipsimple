@@ -36,8 +36,8 @@ def make_SDPMedia(uri_path, accept_types=['text/plain'], accept_wrapped_types=No
     return SDPMedia("message", uri_path[-1].port, transport, formats=["*"], attributes=attributes)
 
 
-def invite(inv, msrp_connector, SDPMedia_factory, ringer=None):
-    full_local_path = msrp_connector.prepare()
+def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
+    full_local_path = msrp_connector.prepare(local_uri)
     try:
         local_ip = gethostbyname(msrp_connector.getHost().host)
         local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
@@ -92,9 +92,9 @@ class MSRPSession:
         return result
 
     @classmethod
-    def invite(cls, inv, msrp_connector, SDPMedia_factory, ringer=None, *args, **kwargs):
-        invite_response, msrp = invite(inv, msrp_connector, SDPMedia_factory, ringer)
-        return cls(inv, msrp, *args, **kwargs)
+    def invite(cls, inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
+        invite_response, msrp = invite(inv, msrp_connector, SDPMedia_factory, ringer, local_uri)
+        return cls(inv, msrp)
 
     @property
     def connected(self):

@@ -13,6 +13,7 @@ from eventlet.green.socket import gethostbyname
 from msrplib.connect import MSRPConnectFactory, MSRPAcceptFactory
 from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
+from msrplib.protocol import URI
 
 from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
 from pypjua.clients.consolebuffer import setup_console, CTRL_D, EOF
@@ -107,9 +108,9 @@ class ChatSession(object):
         return self.source.link(listener)
 
     @staticmethod
-    def _do_invite(inv, msrp_connector, make_SDPMedia, ringer, target_uri):
+    def _do_invite(inv, msrp_connector, make_SDPMedia, ringer, target_uri, local_uri):
         try:
-            return MSRPSession.invite(inv, msrp_connector, make_SDPMedia, ringer)
+            return MSRPSession.invite(inv, msrp_connector, make_SDPMedia, ringer, local_uri)
         except MSRPSessionErrors, ex:
             print 'Connection to %s FAILED: %s' % (target_uri, ex)
             return ex
@@ -125,8 +126,9 @@ class ChatSession(object):
             del self.messages_to_send
 
     @classmethod
-    def invite(cls, inv, msrp_connector, make_SDPMedia, ringer, target_uri):
-        return cls(inv, invite_job=proc.spawn(cls._do_invite, inv, msrp_connector, make_SDPMedia, ringer, target_uri))
+    def invite(cls, inv, msrp_connector, make_SDPMedia, ringer, target_uri, local_uri):
+        invite_job=proc.spawn(cls._do_invite, inv, msrp_connector, make_SDPMedia, ringer, target_uri, local_uri)
+        return cls(inv, invite_job=invite_job)
 
     def start_rendering_messages(self):
         self.forwarder = proc.spawn(forward_chunks, self.msrpsession.msrp, incoming, self)
@@ -192,9 +194,9 @@ class IncomingMSRPHandler_Interactive(IncomingMSRPHandler):
     def _ask_user(self, inv):
         raise NotImplementedError
 
-    def handle(self, inv):
+    def handle(self, inv, *args, **kwargs):
         if consult_user(inv, self._ask_user)==True:
-            return IncomingMSRPHandler.handle(self, inv)
+            return IncomingMSRPHandler.handle(self, inv, *args, **kwargs)
 
 class SilentRinger:
 
@@ -321,7 +323,7 @@ class DownloadFileSession(object):
 class ChatManager:
 
     def __init__(self, engine, sound, credentials, console, traffic_logger,
-                 auto_accept_files=False, route=None, relay=None):
+                 auto_accept_files=False, route=None, relay=None, msrp_tls=True):
         self.engine = engine
         self.sound = sound
         self.credentials = credentials
@@ -329,11 +331,12 @@ class ChatManager:
         self.console = console
         self.traffic_logger = traffic_logger
         self.auto_accept_files = auto_accept_files
+        self.route = route
+        self.relay = relay
+        self.msrp_tls = msrp_tls
         self.sessions = []
         self.downloads = []
         self.accept_incoming_worker = None
-        self.route=route
-        self.relay = relay
         self.current_session = None
         self.message_renderer_job = proc.spawn_link_exception(self._message_renderer)
         self.state_logger = trafficlog.StateLogger()
@@ -425,7 +428,8 @@ class ChatManager:
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
         msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger, state_logger=self.state_logger)
         ringer = Ringer(self.sound.play, "ring_outbound.wav")
-        chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer, target_uri)
+        local_uri = URI(use_tls=self.msrp_tls)
+        chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer, target_uri, local_uri)
         self.add_session(chatsession)
 
     def on_last_disconnect(self):
@@ -460,7 +464,8 @@ class ChatManager:
     def _accept_incoming_loop(self, handler):
         while True:
             try:
-                handler.wait_and_handle(self.engine)
+                local_uri = URI(use_tls=self.msrp_tls)
+                handler.wait_and_handle(self.engine, local_uri=local_uri)
             except MSRPSessionErrors, ex:
                 print ex
             except proc.ProcExit:
