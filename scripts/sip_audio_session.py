@@ -224,6 +224,11 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         else:
                             print "SDP negotation failed: %s" % args["error"]
                 elif event_name == "Invitation_state":
+                    if args["state"] == args["prev_state"]:
+                        print "SAME STATE"
+                        print args
+                        data, args = None, None
+                        continue
                     if args["state"] == "EARLY":
                         if target_uri is None or ("code" in args and args["code"] == 180):
                             if ringer is None:

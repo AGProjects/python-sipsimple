@@ -176,8 +176,6 @@ cdef class Invitation:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         cdef dict event_dict = dict(obj=self, prev_state=self.state, state=state)
-        if self.state == state:
-            return 0
         if state == "CONFIRMED":
             if self.state == "CONNECTING" and self.c_sdp_neg_status != 0:
                 self.set_state_DISCONNECTED(488)
