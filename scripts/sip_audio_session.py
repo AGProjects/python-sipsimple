@@ -225,9 +225,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             print "SDP negotation failed: %s" % args["error"]
                 elif event_name == "Invitation_state":
                     if args["state"] == "EARLY":
-                        if ringer is None:
-                            print "Ringing..."
-                            ringer = RingingThread(target_uri is None)
+                        if target_uri is None or ("code" in args and args["code"] == 180):
+                            if ringer is None:
+                                print "Ringing..."
+                                ringer = RingingThread(target_uri is None)
                     elif args["state"] == "CONNECTING":
                         if "headers" in args and "User-Agent" in args["headers"]:
                             other_user_agent = args["headers"].get("User-Agent")
