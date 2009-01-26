@@ -325,8 +325,6 @@ def format_streams(streams):
 class InvitationBuffer(BaseBuffer):
 
     event_name = 'Invitation_state'
-    established = 0
-    disconnecting = 0
 
     def __init__(self, obj, logger, outgoing=1):
         BaseBuffer.__init__(self, obj, logger)
@@ -376,29 +374,25 @@ class InvitationBuffer(BaseBuffer):
             result += " through proxy %s:%d" % (self.route.host, self.route.port)
         return result
 
-    def _get_verb(self, state):
-        if not self.established and self.disconnecting:
+    def _get_verb(self, state, prev_state):
+        # only if connection was not established yet and if we initiated the disconnect
+        if prev_state!='CONFIRMED' and 'DISCONNECTING' in [state, prev_state]:
             if self.outgoing:
-#                return {'DISCONNECTED': 'Cancelled',
-#                        'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
-                return 'Cancelled'
+                return {'DISCONNECTED': 'Cancelled',
+                        'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
             else:
-#                return {'DISCONNECTED': 'Rejected',
-#                        'DISCONNECTING': 'Rejecting'}.get(state, state).capitalize()
-                return 'Rejected'
+                return {'DISCONNECTED': 'Rejected',
+                        'DISCONNECTING': 'Rejecting'}.get(state, state).capitalize()
         return state.capitalize()
 
     def _format_state_default(self, params):
         reason = _format_reason(params)
         state = params['state']
-        return '%s %s %s%s' % (self._get_verb(state), self.session_name, self._format_to(), reason)
+        prev_state = params['prev_state']
+        return '%s %s %s%s' % (self._get_verb(state, prev_state), self.session_name, self._format_to(), reason)
 
     def log_state_default(self, params):
         self.logger.write(self._format_state_default(params))
-
-    def log_state_disconnecting(self, params):
-        self.disconnecting = 1
-        self.log_state_default(params)
 
     def log_state_calling(self, params):
         self.outgoing = 1
@@ -413,10 +407,6 @@ class InvitationBuffer(BaseBuffer):
 
     def log_state_incoming(self, params):
         self._streams = format_streams(params.get('streams'))
-
-    def log_state_established(self, params):
-        self.established = 1
-        self.log_state_default(params)
 
     def log_ringing(self, params):
         agent = params.get('headers', {}).get('User-Agent', '')
@@ -454,7 +444,8 @@ class InvitationBuffer(BaseBuffer):
 
     def end(self, *args, **kwargs):
         if self.state != 'DISCONNECTED':
-            self._obj.set_state_DISCONNECTED(*args, **kwargs)
+            if self.state != 'DISCONNECTING':
+                self._obj.set_state_DISCONNECTED(*args, **kwargs)
             params = self.skip_to_event('DISCONNECTED')[1]
             return params
 
