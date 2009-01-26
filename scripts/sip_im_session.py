@@ -516,25 +516,30 @@ def start(options, console):
             register(engine, credentials, options.route)
         console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
         sound = ThrottlingSoundPlayer(engine.play_wav_file)
-        manager = ChatManager(engine, sound, credentials, console, msrplogger,
-                              options.auto_accept_files, route=options.route, relay=options.relay)
-        manager.spawn_link_accept_incoming()
-        print "Press Ctrl-d to quit or Control-n to switch between active sessions"
-        if options.target_uri is None:
-            print 'Waiting for incoming SIP session requests...'
-        else:
-            manager.call(options.target_uri)
-        while True:
-            try:
-                readloop(console, manager, get_commands(manager), get_shortcuts(manager))
-            except EOF:
-                if manager.current_session:
-                    manager.close_current_session()
-                else:
-                    raise
+        try:
+            manager = ChatManager(engine, sound, credentials, console, msrplogger,
+                                  options.auto_accept_files,
+                                  route=options.route,
+                                  relay=options.relay,
+                                  msrp_tls=options.msrp_tls)
+            manager.spawn_link_accept_incoming()
+            print "Press Ctrl-d to quit or Control-n to switch between active sessions"
+            if options.target_uri is None:
+                print 'Waiting for incoming SIP session requests...'
+            else:
+                manager.call(options.target_uri)
+            while True:
+                try:
+                    readloop(console, manager, get_commands(manager), get_shortcuts(manager))
+                except EOF:
+                    if manager.current_session:
+                        manager.close_current_session()
+                    else:
+                        raise
+        finally:
+            manager.close()
+            console_next_line(console)
     finally:
-        console_next_line(console)
-        manager.close()
         t = api.get_hub().schedule_call(1, sys.stdout.write, 'Disconnecting the session(s)...\n')
         try:
             engine.shutdown()
