@@ -187,7 +187,7 @@ cdef class Invitation:
         if rdata != NULL:
             c_rdata_info_to_dict(rdata, event_dict)
         if state == "DISCONNECTED":
-            if rdata == NULL and self.c_obj.cause > 0 and event_dict["prev_state"] != "DISCONNECTING":
+            if rdata == NULL and self.c_obj.cause > 0:
                 event_dict["code"] = self.c_obj.cause
                 event_dict["reason"] = pj_str_to_str(self.c_obj.cause_text)
             self.c_obj.mod_data[ua.c_module.id] = NULL
