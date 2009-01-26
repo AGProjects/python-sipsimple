@@ -182,7 +182,7 @@ cdef class Invitation:
             if self.state == "CONNECTING" and self.c_sdp_neg_status != 0:
                 self.set_state_DISCONNECTED(488)
                 return 0
-        if self.c_obj.cancelling:
+        if self.c_obj.cancelling and state == "DISCONNECTED":
             self.state = "DISCONNECTING"
         event_dict = dict(obj=self, prev_state=self.state, state=state)
         self.state = state
