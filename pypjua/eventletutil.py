@@ -15,6 +15,20 @@ class SourceQueue(object):
         self.queue = deque()
         self._notification = None
 
+    def _repr_helper(self):
+        from pprint import pformat
+        result = []
+        result.append(repr(self.name))
+        q = ', '.join((pformat(x) for x in self.queue))
+        result.append('[' + q + ']')
+        result.append(repr(self._notification))
+        result.append('{%s:%s}' % (len(self._value_links), len(self._exception_links)))
+        return result
+
+    def __repr__(self):
+        klass = type(self).__name__
+        return '<%s at %s %s>' % (klass, hex(id(self)), ' '.join(self._repr_helper()))
+
     def ready(self):
         return bool(self.queue)
 
