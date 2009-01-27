@@ -26,7 +26,7 @@ from pypjua.clients.cpim import MessageCPIMParser, SIPAddress
 from pypjua.clients.sdputil import FileSelector
 enrollment.verify_account_config()
 
-KEY_NEXT_SESSION = '\x13'
+KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 
 trafficlog.hook_std_output()
 
