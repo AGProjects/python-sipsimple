@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from contextlib import contextmanager
 import sys
 from pprint import pformat
 
@@ -42,21 +44,18 @@ class EngineLogger:
 
 class EngineBuffer(Engine):
 
-    def __init__(self, default_dest=None, **kwargs):
+    def __init__(self, **kwargs):
         self.logger = kwargs.pop('logger', EngineLogger(log_file=sys.stderr))
         # XXX: clean up obj when all refs to the object disappear
         self.objs = {} # maps pypjua_obj -> obj_buffer
-        self.dest = default_dest
+        self._queue = SourceQueue()
         handler = EventHandler(self._handle_event,
                                trace_pjsip=kwargs.pop('trace_pjsip', False))
         Engine.__init__(self, handler, **kwargs)
 
-    def _wait(self):
-        return self.dest.wait()
-
     def handle_event(self, event_name, kwargs):
-        if self.dest is not None:
-            self.dest.send((event_name, kwargs))
+        if self._queue is not None:
+            self._queue.send((event_name, kwargs))
         else:
             self.logger.log_event('DROPPED (obj=%r)' % kwargs.get('obj'), event_name, kwargs)
 
@@ -96,16 +95,48 @@ class EngineBuffer(Engine):
         return obj
 
     def wait_incoming(self):
-        while True:
-            event_name, params = self._wait()
+        q = coros.queue()
+        with self._queue.link(q):
+            while True:
+                event_name, params = q.wait()
+                self.logger.log_event('RECEIVED', event_name, params)
+                if event_name == "Invitation_state" and params.get("state") == "INCOMING":
+                    obj = params.get('obj')
+                    obj = InvitationBuffer(obj, self.logger, outgoing=0)
+                    self.register_obj(obj) # XXX unregister_obj is never called
+                    obj.handle_event(event_name, params)
+                    return obj
+                self.logger.log_event('DROPPED', event_name, params)
+    # incoming event can be missed between wait_incoming() calls. use link_incoming() here
+
+    def link_incoming(self, listener):
+        self._queue.link(self._filter_incoming(listener))
+
+    def _filter_incoming(self, listener):
+        def filter_incoming((event_name, params)):
+            """Create and send to listener InvitationBuffer object"""
             self.logger.log_event('RECEIVED', event_name, params)
             if event_name == "Invitation_state" and params.get("state") == "INCOMING":
                 obj = params.get('obj')
                 obj = InvitationBuffer(obj, self.logger, outgoing=0)
                 self.register_obj(obj) # XXX unregister_obj is never called
                 obj.handle_event(event_name, params)
-                return obj
+                listener.send(obj)
             self.logger.log_event('DROPPED', event_name, params)
+        return filter_incoming
+
+    def unlink(self, listener):
+        self._queue.unlink(listener)
+
+    @contextmanager
+    def linked_incoming(self, q=None):
+        if q is None:
+            q = coros.queue()
+        self.link_incoming(q)
+        try:
+            yield q
+        finally:
+            self.unlink(q)
 
 
 class IncomingSessionHandler:
@@ -123,11 +154,12 @@ class IncomingSessionHandler:
         inv.shutdown(488) # Not Acceptable Here
 
     def wait_and_handle(self, engine, *args, **kwargs):
-        while True:
-            inv = engine.wait_incoming()
-            session = self.handle(inv, *args, **kwargs)
-            if session is not None:
-                return session
+        with engine.linked_incoming() as q:
+            while True:
+                inv = q.wait()
+                session = self.handle(inv, *args, **kwargs)
+                if session is not None:
+                    return session
 
 
 class BaseBuffer(object):
@@ -141,13 +173,21 @@ class BaseBuffer(object):
         assert item != '_obj'
         return getattr(self._obj, item)
 
-    def _wait(self):
-        q = coros.queue()
-        self._queue.link(q)
+    def link(self, listener):
+        return self._queue.link(listener)
+
+    def unlink(self, listener):
+        return self._queue.unlink(listener)
+
+    @contextmanager
+    def linked_queue(self, q=None):
+        if q is None:
+            q = coros.queue()
+        self.link(q)
         try:
-            return q.wait()
+            yield q
         finally:
-            self._queue.unlink(q)
+            self.unlink(q)
 
     def log_my_state(self, params=None):
         state = params.get('state', self.state)
@@ -169,16 +209,17 @@ class BaseBuffer(object):
     def skip_to_event(self, state, event_name=None):
         if event_name is None:
             event_name = self.event_name
-        while True:
-            if self.state == state:
-                return event_name, None
-            xxx = self._wait()
-            r_event_name, r_params = xxx
-            if (r_event_name, r_params.get('state')) == (event_name, state):
-                self.logger.log_event('MATCHED', r_event_name, r_params, 2)
-                return r_event_name, r_params
-            else:
-                self.logger.log_event('DROPPED', r_event_name, r_params, 2)
+        with self.linked_queue() as q:
+            while True:
+                if self.state == state:
+                    return event_name, None
+                xxx = q.wait()
+                r_event_name, r_params = xxx
+                if (r_event_name, r_params.get('state')) == (event_name, state):
+                    self.logger.log_event('MATCHED', r_event_name, r_params, 2)
+                    return r_event_name, r_params
+                else:
+                    self.logger.log_event('DROPPED', r_event_name, r_params, 2)
 
 
 class RegistrationBuffer(BaseBuffer):
@@ -218,12 +259,13 @@ class RegistrationBuffer(BaseBuffer):
 
     def register(self):
         assert self.state != 'registered', self.state
-        self._obj.register()
-        while True:
-            event_name, params = self._wait()
-            if 'Registration_state' == event_name:
-                if params.get('state') in ['registered', 'unregistered']:
-                    return params
+        with self.linked_queue() as q:
+            self._obj.register()
+            while True:
+                event_name, params = q.wait()
+                if 'Registration_state' == event_name:
+                    if params.get('state') in ['registered', 'unregistered']:
+                        return params
 
     def unregister(self):
         self._obj.unregister()
@@ -423,27 +465,25 @@ class InvitationBuffer(BaseBuffer):
         ringer = kwargs.pop('ringer', None)
         self._obj.send_invite(*args, **kwargs)
         assert self.state != 'CONFIRMED', "Already connected"
-        q = coros.queue()
-        self._queue.link(q)
-        try:
-            while True:
-                event_name, params = q.wait()
-                if event_name == 'Invitation_state':
-                    state = params['state']
-                    if state == 'EARLY':
-                        self.log_ringing(params)
-                        if ringer:
-                            ringer.start()
-                    elif state in ['CONFIRMED', 'DISCONNECTED']:
-                        self.logger.log_event('INVITE result', event_name, params)
-                        break
-                elif event_name == "Invitation_sdp":
-                    if not params["succeeded"]:
-                        self.logger.write('SDP negotiation failed: %s' % params["error"])
-        finally:
-            self._queue.unlink(q)
-            if ringer:
-                ringer.stop()
+        with self.linked_queue() as q:
+            try:
+                while True:
+                    event_name, params = q.wait()
+                    if event_name == 'Invitation_state':
+                        state = params['state']
+                        if state == 'EARLY':
+                            self.log_ringing(params)
+                            if ringer:
+                                ringer.start()
+                        elif state in ['CONFIRMED', 'DISCONNECTED']:
+                            self.logger.log_event('INVITE result', event_name, params)
+                            break
+                    elif event_name == "Invitation_sdp":
+                        if not params["succeeded"]:
+                            self.logger.write('SDP negotiation failed: %s' % params["error"])
+            finally:
+                if ringer:
+                    ringer.stop()
         return params
 
     def end(self, *args, **kwargs):

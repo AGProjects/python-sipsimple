@@ -500,13 +500,11 @@ class ChatManager_Caller(ChatManager):
 
 def start(options, console):
     ###console.disable()
-    ch = coros.queue()
-    engine = EngineBuffer(ch,
-                     trace_sip=options.trace_sip,
-                     trace_pjsip=options.trace_pjsip,
-                     ec_tail_length=0,
-                     local_ip=options.local_ip,
-                     local_udp_port=options.local_port)
+    engine = EngineBuffer(trace_sip=options.trace_sip,
+                          trace_pjsip=options.trace_pjsip,
+                          ec_tail_length=0,
+                          local_ip=options.local_ip,
+                          local_udp_port=options.local_port)
     engine.start(not options.disable_sound)
     try:
         credentials = Credentials(options.uri, options.password)

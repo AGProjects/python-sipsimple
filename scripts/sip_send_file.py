@@ -65,9 +65,7 @@ def main():
     filename = options.args[0]
     source = file(filename)
     sdp = SDPOfferFactory(filename)
-    ch = queue()
-    e = EngineBuffer(ch,
-                     trace_sip=options.trace_sip,
+    e = EngineBuffer(trace_sip=options.trace_sip,
                      ec_tail_length=0,
                      local_ip=options.local_ip,
                      local_udp_port=options.local_port)
