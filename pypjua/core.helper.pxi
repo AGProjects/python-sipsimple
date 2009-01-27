@@ -208,12 +208,13 @@ cdef SIPURI c_parse_SIPURI(object uri_str):
     pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, "parse_SIPURI", 4096, 4096)
     if pool == NULL:
         raise MemoryError("Could not allocate memory pool")
-    uri = pjsip_parse_uri(pool, uri_str, len(uri_str), PJSIP_PARSE_URI_AS_NAMEADDR)
-    if uri == NULL:
+    try:
+        uri = pjsip_parse_uri(pool, uri_str, len(uri_str), PJSIP_PARSE_URI_AS_NAMEADDR)
+        if uri == NULL:
+            raise PyPJUAError("Not a valid SIP URI: %s" % uri_str)
+        retval = c_make_SIPURI(uri, 1)
+    finally:
         pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
-        raise PyPJUAError("Not a valid SIP URI: %s" % uri_str)
-    retval = c_make_SIPURI(uri, 1)
-    pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)
     return retval
 
 # globals
