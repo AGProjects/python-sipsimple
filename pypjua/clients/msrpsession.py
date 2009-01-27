@@ -158,8 +158,8 @@ class MSRPSession:
 
 class IncomingMSRPHandler(object):
 
-    def __init__(self, acceptor, session_factory=None):
-        self.acceptor = acceptor
+    def __init__(self, get_acceptor, session_factory=None):
+        self.get_acceptor = get_acceptor
         if session_factory is not None:
             self.session_factory = session_factory
 
@@ -194,19 +194,24 @@ class IncomingMSRPHandler(object):
         try:
             #remote_sdp = inv.get_offered_remote_sdp()
             full_remote_path = [msrp_protocol.parse_uri(uri) for uri in inv._attrdict['path'].split()]
-            full_local_path = self.acceptor.prepare(local_uri)
-            local_sdp = self.make_local_SDPSession(inv, full_local_path)
-            inv.set_offered_local_sdp(local_sdp)
+            acceptor = self.get_acceptor()
+            full_local_path = acceptor.prepare(local_uri)
             try:
-                inv.accept()
-            except PyPJUAError:
-                # the session may be already cancelled by the other party at this moment
-                # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
-                pass
-            else:
-                msrp = self.acceptor.complete(full_remote_path)
-                ERROR = None
-                return msrp
+                local_ip = gethostbyname(acceptor.getHost().host)
+                local_sdp = self.make_local_SDPSession(inv, full_local_path, local_ip)
+                inv.set_offered_local_sdp(local_sdp)
+                try:
+                    inv.accept()
+                except PyPJUAError:
+                    # the session may be already cancelled by the other party at this moment
+                    # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
+                    pass
+                else:
+                    msrp = acceptor.complete(full_remote_path)
+                    ERROR = None
+                    return msrp
+            finally:
+                acceptor.cleanup()
         finally:
             if ERROR is not None:
                 inv.shutdown(ERROR)

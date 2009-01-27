@@ -240,8 +240,7 @@ class IncomingChatHandler(IncomingMSRPHandler_Interactive):
         finally:
             self.ringer.stop()
 
-    def make_local_SDPSession(self, inv, full_local_path):
-        local_ip = gethostbyname(self.acceptor.getHost().host)
+    def make_local_SDPSession(self, inv, full_local_path, local_ip):
         return SDPSession(local_ip,
                           connection=SDPConnection(local_ip),
                           media=[make_SDPMedia(full_local_path, ["text/plain"])]) # XXX why text/plain?
@@ -249,8 +248,8 @@ class IncomingChatHandler(IncomingMSRPHandler_Interactive):
 
 class IncomingFileTransferHandler(IncomingMSRPHandler_Interactive):
 
-    def __init__(self, acceptor, console, session_factory, ringer=SilentRinger(), auto_accept=False):
-        IncomingMSRPHandler.__init__(self, acceptor, session_factory)
+    def __init__(self, get_acceptor, console, session_factory, ringer=SilentRinger(), auto_accept=False):
+        IncomingMSRPHandler.__init__(self, get_acceptor, session_factory)
         self.console = console
         self.ringer = ringer
         self.auto_accept = auto_accept
@@ -280,8 +279,7 @@ class IncomingFileTransferHandler(IncomingMSRPHandler_Interactive):
         finally:
             self.ringer.stop()
 
-    def make_local_SDPSession(self, inv, full_local_path):
-        local_ip = gethostbyname(self.acceptor.getHost().host)
+    def make_local_SDPSession(self, inv, full_local_path, local_ip):
         return SDPSession(local_ip, connection=SDPConnection(local_ip),
                           media=[make_SDPMedia(full_local_path, ["text/plain"])]) # XXX fix content-type
 
@@ -451,12 +449,13 @@ class ChatManager:
             msrpsession = MSRPSession(sip, msrp)
             downloadsession = DownloadFileSession(msrpsession)
             self.add_download(downloadsession)
-        acceptor = MSRPAcceptFactory.new(self.relay, self.traffic_logger, self.state_logger)
-        file = IncomingFileTransferHandler(acceptor, self.console,
+        def get_acceptor():
+            return MSRPAcceptFactory.new(self.relay, self.traffic_logger, self.state_logger)
+        file = IncomingFileTransferHandler(get_acceptor, self.console,
                                            new_receivefile_session, inbound_ringer,
                                            auto_accept=self.auto_accept_files)
         handler.add_handler(file)
-        chat = IncomingChatHandler(acceptor, self.console, new_chat_session, inbound_ringer)
+        chat = IncomingChatHandler(get_acceptor, self.console, new_chat_session, inbound_ringer)
         handler.add_handler(chat)
         # spawn a worker that will log the exception and restart
         self.accept_incoming_worker = proc.spawn_link_exception(self._accept_incoming_loop, handler)
