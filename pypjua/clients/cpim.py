@@ -40,9 +40,10 @@ class MessageCPIM(object):
 
 class SIPAddress(object):
 
-    def __init__(self, username, domain):
+    def __init__(self, username, domain, scheme='sip'):
         self.username = username
         self.domain = domain
+        self.scheme = scheme
 
     @classmethod
     def parse(cls, sip_address, default_domain=None):
@@ -50,10 +51,12 @@ class SIPAddress(object):
             username, domain = sip_address.split('@', 1)
         else:
             username, domain = sip_address, default_domain
+        scheme = 'sip'
         if ':' in username:
             scheme, username = username.split(':')
-            assert scheme.lower() == 'sip', repr(scheme)
-        return cls(username, domain)
+            if scheme.lower() not in ['sip', 'sips']:
+                raise ValueError('Invalid scheme: %r' % (scheme, ))
+        return cls(username, domain, scheme)
 
     def __repr__(self):
         klass = type(self).__name__

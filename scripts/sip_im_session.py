@@ -422,8 +422,12 @@ class ChatManager:
             raise UserCommandError('Please provide uri')
         target_uri = args[0]
         if not isinstance(target_uri, SIPURI):
-            target_address = SIPAddress.parse(target_uri, default_domain=self.default_domain)
-            target_uri = SIPURI(user=target_address.username, host=target_address.domain)
+            try:
+                target_address = SIPAddress.parse(target_uri, default_domain=self.default_domain)
+            except ValueError, ex:
+                raise UserCommandError(str(ex))
+            target_uri = SIPURI(user=target_address.username, host=target_address.domain,
+                                secure=target_address.scheme=='sips')
         inv = self.engine.Invitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
         msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger, state_logger=self.state_logger)
