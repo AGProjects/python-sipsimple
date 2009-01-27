@@ -182,7 +182,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
             print "Call from %s to %s through proxy %s:%s:%d" % (inv.caller_uri, inv.callee_uri, route.transport, route.host, route.port)
             audio = AudioTransport(transport)
             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
-            inv.set_state_CALLING()
+            inv.send_invite()
             print_control_keys()
         while True:
             command, data = queue.get()
@@ -249,14 +249,14 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 other_user_agent = args["headers"].get("User-Agent")
                                 if ringer is None:
                                     ringer = RingingThread(True)
-                                inv.set_state_EARLY()
+                                inv.respond_to_invite_provisionally()
                                 print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(inv.caller_uri)
                             else:
                                 print "Not an audio call, rejecting."
-                                args["obj"].set_state_DISCONNECTED()
+                                args["obj"].disconnect()
                         else:
                             print "Rejecting."
-                            args["obj"].set_state_DISCONNECTED()
+                            args["obj"].disconnect()
                     elif args["prev_state"] == "CONNECTING" and args["state"] == "CONFIRMED":
                         if other_user_agent is not None:
                             print 'Remote SIP User Agent is "%s"' % other_user_agent
@@ -370,7 +370,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             remote_sdp = inv.get_offered_remote_sdp()
                             audio = AudioTransport(transport, remote_sdp, 0)
                             inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(False)], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time))
-                            inv.set_state_CONNECTING()
+                            inv.accept_invite()
                 if data in ",<":
                     if ec_tail_length > 0:
                         ec_tail_length = max(0, ec_tail_length - 10)
@@ -388,7 +388,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                 want_quit = True
             if command == "end":
                 try:
-                    inv.set_state_DISCONNECTED()
+                    inv.disconnect()
                 except:
                     command = "unregister"
             if command == "unregister":

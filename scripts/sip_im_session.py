@@ -233,7 +233,7 @@ class IncomingChatHandler(IncomingMSRPHandler_Interactive):
 
     def _ask_user(self, inv):
         q = 'Incoming %s request from %s, do you accept? (y/n) ' % (inv.session_name, inv.caller_uri)
-        inv.set_state_EARLY()
+        inv.respond_to_invite_provisionally()
         self.ringer.start()
         try:
             return self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'

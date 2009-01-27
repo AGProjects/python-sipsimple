@@ -181,7 +181,7 @@ cdef class Invitation:
             return 0
         if state == "CONFIRMED":
             if self.state == "CONNECTING" and self.c_sdp_neg_status != 0:
-                self.set_state_DISCONNECTED(488)
+                self.disconnect(488)
                 return 0
         if self.c_obj.cancelling and state == "DISCONNECTED":
             self.state = "DISCONNECTING"
@@ -225,7 +225,7 @@ cdef class Invitation:
         if self.state == "REINVITED":
             self._cb_state("CONFIRMED", NULL)
         elif self.state in ["INCOMING", "EARLY"] and status != 0:
-            self.set_state_DISCONNECTED(488)
+            self.disconnect(488)
         return 0
 
     cdef int _send_msg(self, PJSIPUA ua, pjsip_tx_data *tdata, dict extra_headers) except -1:
@@ -242,7 +242,7 @@ cdef class Invitation:
             raise PJSIPError("Could not send message in context of INVITE session", status)
         return 0
 
-    def set_state_CALLING(self, dict extra_headers=None):
+    def send_invite(self, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
         cdef object transport
         cdef PJSTR caller_uri
@@ -292,7 +292,7 @@ cdef class Invitation:
                 self.c_dlg = NULL
             raise
 
-    def set_state_EARLY(self, int reply_code=180, dict extra_headers=None):
+    def respond_to_invite_provisionally(self, int reply_code=180, dict extra_headers=None):
         if self.state != "INCOMING":
             raise PyPJUAError("Can only transition to the EARLY state from the INCOMING state")
         self._send_provisional_response(reply_code, extra_headers)
@@ -309,7 +309,7 @@ cdef class Invitation:
         self._send_msg(ua, tdata, extra_headers or {})
         return 0
 
-    def set_state_CONNECTING(self, dict extra_headers=None):
+    def accept_invite(self, dict extra_headers=None):
         if self.state not in ["INCOMING", "EARLY"]:
             raise PyPJUAError("Can only transition to the EARLY state from the INCOMING or EARLY states")
         self._send_response(extra_headers)
@@ -330,7 +330,7 @@ cdef class Invitation:
         self._send_msg(ua, tdata, extra_headers or {})
         return 0
 
-    def set_state_DISCONNECTED(self, int reply_code=486, dict extra_headers=None):
+    def disconnect(self, int reply_code=486, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = c_get_ua()

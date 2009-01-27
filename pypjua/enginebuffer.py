@@ -421,7 +421,7 @@ class InvitationBuffer(BaseBuffer):
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
-        self._obj.set_state_CALLING(*args, **kwargs)
+        self._obj.send_invite(*args, **kwargs)
         assert self.state != 'CONFIRMED', "Already connected"
         q = coros.queue()
         self._queue.link(q)
@@ -449,13 +449,13 @@ class InvitationBuffer(BaseBuffer):
     def end(self, *args, **kwargs):
         if self.state != 'DISCONNECTED':
             if self.state != 'DISCONNECTING':
-                self._obj.set_state_DISCONNECTED(*args, **kwargs)
+                self._obj.disconnect(*args, **kwargs)
             params = self.skip_to_event('DISCONNECTED')[1]
             return params
 
     def accept(self, *args, **kwargs):
         self.outgoing = 0
-        self._obj.set_state_CONNECTING(*args, **kwargs)
+        self._obj.accept_invite(*args, **kwargs)
         return self.skip_to_event('CONFIRMED')[1]
 
     def shutdown(self, *args, **kwargs):
