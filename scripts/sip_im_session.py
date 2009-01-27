@@ -595,8 +595,6 @@ def console_next_line(console):
 def register(engine, credentials, route):
     reg = engine.Registration(credentials, route=route, expires=300)
     params = reg.register()
-    if params['state']=='unregistered' and params['code']/100!=2:
-        raise Exception('Failed to register %r' % (params,)) # XXX fix
 
 
 class ThrottlingSoundPlayer:
