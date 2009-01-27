@@ -50,7 +50,7 @@ cdef class Credentials:
     cdef public object password
     cdef readonly object token
 
-    def __cinit__(self, SIPURI uri, password, token = None):
+    def __cinit__(self, SIPURI uri, password=None, token=None):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
         cdef SIPURI req_uri
         self.uri = uri
@@ -67,13 +67,17 @@ cdef class Credentials:
         return "<Credentials for '%s'>" % self.uri
 
     cdef int _to_c(self) except -1:
-        if self.uri is not None and self.uri.user is None:
+        if self.uri is None or self.password is None:
+            raise PyPJUAError("Credentials are not fully set")
+        if self.uri.user is None:
             raise PyPJUAError("Credentials URI does not have username set")
         str_to_pj_str(self.uri.user, &self.c_obj.username)
         str_to_pj_str(self.password, &self.c_obj.data)
         return 0
 
     def copy(self):
+        if self.uri is None:
+            raise PyPJUAError("Credentials URI is set to None")
         return Credentials(self.uri.copy(), self.password, self.token)
 
 cdef class SIPURI:

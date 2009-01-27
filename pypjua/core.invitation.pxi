@@ -27,7 +27,8 @@ cdef class Invitation:
             if self.c_credentials.uri is None:
                 raise PyPJUAError("No SIP URI set on credentials")
             self.c_credentials = self.c_credentials.copy()
-            self.c_credentials._to_c()
+            if self.c_credentials.password is not None:
+                self.c_credentials._to_c()
             self.c_caller_uri = self.c_credentials.uri
             if route is not None:
                 self.c_route = route.copy()
@@ -272,9 +273,10 @@ cdef class Invitation:
             if status != 0:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
             self.c_obj.mod_data[ua.c_module.id] = <void *> self
-            status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
-            if status != 0:
-                raise PJSIPError("Could not set credentials for INVITE session", status)
+            if self.c_credentials.password is not None:
+                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
+                if status != 0:
+                    raise PJSIPError("Could not set credentials for INVITE session", status)
             if self.c_route is not None:
                 status = pjsip_dlg_set_route_set(self.c_dlg, &self.c_route.c_route_set)
                 if status != 0:
