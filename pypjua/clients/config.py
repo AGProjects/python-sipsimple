@@ -10,8 +10,8 @@ from application.process import process
 from msrplib.connect import MSRPRelaySettings
 
 from pypjua import SIPURI, Route
-from pypjua.clients.lookup import lookup_srv
-from pypjua.clients.lookup import IPAddressOrHostname
+from pypjua.clients.dns_lookup import lookup_srv
+from pypjua.clients import IPAddressOrHostname
 from pypjua.clients.cpim import SIPAddress
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")

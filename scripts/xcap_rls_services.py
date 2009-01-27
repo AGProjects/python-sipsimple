@@ -27,7 +27,8 @@ from pypjua.applications.resourcelists import *
 from pypjua.applications.rlsservices import *
 
 from pypjua.clients.clientconfig import get_path
-from pypjua.clients.lookup import *
+from pypjua.clients.dns_lookup import *
+from pypjua.clients import *
 
 from xcaplib.client import XCAPClient
 from xcaplib.error import HTTPError

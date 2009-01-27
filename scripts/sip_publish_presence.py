@@ -28,7 +28,8 @@ from pypjua.applications.presdm import *
 from pypjua.applications.rpid import *
 
 from pypjua.clients.clientconfig import get_path
-from pypjua.clients.lookup import *
+from pypjua.clients.dns_lookup import *
+from pypjua.clients import *
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}

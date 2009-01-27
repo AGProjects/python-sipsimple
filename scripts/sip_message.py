@@ -12,8 +12,8 @@ from application.configuration import *
 from application.process import process
 from pypjua import *
 from pypjua.clients import enrollment
-from pypjua.clients.lookup import *
-from pypjua.clients import format_cmdline_uri
+from pypjua.clients.dns_lookup import *
+from pypjua.clients import *
 from pypjua.clients.log import Logger
 
 class GeneralConfig(ConfigSection):
