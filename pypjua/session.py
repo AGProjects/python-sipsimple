@@ -1,4 +1,5 @@
 import thread
+
 from pypjua import *
 
 # TODO: relocate this to somewhere else
@@ -27,6 +28,8 @@ class Session(object):
         """Instatiates a new Session object for an incoming or outgoing
            session. Initially the object is in the NULL state."""
         self.session_manager = SessionManager._instance
+        if self.session_manager is None:
+            raise RuntimeError("Session manager was never instantiated")
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
         self.state = "NULL"
         self.remote_user_agent = None
@@ -55,8 +58,12 @@ class Session(object):
             self._inv = Invitation(credentials, callee_uri, route=route)
             self._inv.set_offered_local_sdp(local_sdp)
             self.session_manager.session_mapping[self._inv] = self
+            self.send_invite()
             self.state = "CALLING"
-            self._inv.set_state_CALLING()
+        except:
+            self._stop_media()
+            self._audio_sdp_index = -1
+            raise
         finally:
             self._lock.release()
 
@@ -80,12 +87,18 @@ class Session(object):
                         break
                 if self._audio_sdp_index == -1:
                     raise RuntimeError("Use of audio requested, but audio was not proposed by remote party")
+            if len(sdp_media_todo) == len(remote_sdp.media):
+                raise RuntimeError("None of the streams proposed by the remote party was accepted")
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
-                local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats[:])
+                local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
             self._inv.set_offered_local_sdp(local_sdp)
-            self._inv.set_state_CONNECTING()
+            self._inv.accept_invite()
             self.state = "ACCEPTING"
+        except:
+            self._stop_media()
+            self._audio_sdp_index = -1
+            raise
         finally:
             self._lock.release()
 
@@ -102,6 +115,9 @@ class Session(object):
         try:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+            if self._audio_transport is not None:
+                raise RuntimeError("An audio stream is already active whithin this session")
+            # TODO: implement
         finally:
             self._lock.release()
 
@@ -112,6 +128,7 @@ class Session(object):
         try:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
+            # TODO: implement
         finally:
             self._lock.release()
 
@@ -122,6 +139,7 @@ class Session(object):
         try:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
+            # TODO: implement
         finally:
             self._lock.release()
 
@@ -152,8 +170,9 @@ class Session(object):
         try:
             if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
                 raise RuntimeError("This method cannot be called while in the NULL or TERMINATED states")
+            if self._inv.state != "DISCONNECTING":
+                self._inv.disconnect()
             self.state = "TERMINATING"
-            self._inv.set_state_DISCONNECTED()
         finally:
             self._lock.release()
 
@@ -195,9 +214,14 @@ class Session(object):
     def _stop_audio(self):
         """Stop the audio stream. This will be called locally, either from
         _update_media() or _stop_media()."""
-        Engine._instance.disconnect_audio_transport(self._audio_transport)
-        self._audio_transport.stop()
+        if self._audio_transport.is_active:
+            Engine._instance.disconnect_audio_transport(self._audio_transport)
+            self._audio_transport.stop()
         self._audio_transport = None
+
+    def _cancel_media(self):
+        if self._audio_transport is not None and not self._audio_transport.is_active:
+            self._stop_audio()
 
 
 class RTPConfiguration(object):
@@ -226,14 +250,15 @@ class SessionManager(object):
             SessionManager._instance = object.__new__(cls, *args, **kwargs)
         return SessionManager._instance
 
-    def __init__(self, event_handler, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Creates a new SessionManager object or returns the already created
            This needs to know the application event_handler so it can insert
            itself between pypjua and the application. The other arguments are
            needed when creating a RTPTransport object."""
-        self.event_handler = event_handler
-        self.rtp_config = RTPConfiguration(*args, **kwargs)
-        self.session_mapping = {}
+        if SessionManager._instance is not None:
+            self.event_handler = args[0]
+            self.rtp_config = RTPConfiguration(*args[1:], **kwargs)
+            self.session_mapping = {}
 
     def handle_event(self, event_name, **kwargs):
         """Catches the Invitation_state event and takes the appropriate action
@@ -243,15 +268,13 @@ class SessionManager(object):
             inv = kwargs.pop("obj")
             prev_state = kwargs.pop("prev_state")
             state = kwargs.pop("state")
-            prev_sdp_state = kwargs.pop("prev_sdp_state")
-            sdp_state = kwargs.pop("sdp_state")
-            sdp_negotiated = kwargs.pop("sdp_negotiated", None)
             if state == "INCOMING":
                 remote_media = [media.media for media in inv.get_offered_remote_sdp().media]
+                # TODO: check if the To header/request URI is one of ours
                 if not any(supported_media in remote_media for supported_media in ["audio"]):
-                    inv.set_state_DISCONNECTED(415)
+                    inv.disconnect(415)
                 else:
-                    inv.set_state_EARLY(180)
+                    inv.respond_to_invite_provisionally(180)
                     session = Session()
                     session.state = "INCOMING"
                     session._inv = inv
@@ -268,42 +291,46 @@ class SessionManager(object):
                     return
                 session._lock.acquire()
                 prev_session_state = session.state
-                if sdp_state == "DONE" and sdp_state != prev_sdp_state and state != "DISCONNECTED":
-                    local_sdp = inv.get_active_local_sdp()
-                    remote_sdp = inv.get_active_remote_sdp()
-                    if not any(all(tup) for tup in zip([media.port for media in local_sdp.media], [media.port for media in remote_sdp.media])):
-                        sdp_negotiated = False
-                    if sdp_negotiated:
-                        session._update_media(local_sdp, remote_sdp)
-                    else:
-                        inv.set_state_DISCONNECTED()
-                if prev_state == "CALLING" and state == "EARLY":
-                    session.state = "RINGING"
-                elif state == "CONNECTING" and (session.state == "CALLING" or session.state == "RINGING"):
-                    session.remote_user_agent = kwargs["headers"].get("Server", None)
-                    if session.remote_user_agent is None:
-                        session.remote_user_agent = kwargs["headers"].get("User-Agent", None)
-                elif state == "CONFIRMED":
-                    if prev_state == "CONFIRMED":
-                        inv.respond_to_reinvite(488)
-                    else:
-                        session.state = "ESTABLISHED"
-                elif state == "DISCONNECTED":
-                    del self.session_mapping[inv]
-                    session.state = "TERMINATED"
-                    if "headers" in kwargs:
-                        if session.remote_user_agent is None:
-                            session.remote_user_agent = kwargs["headers"].get("Server", None)
+                try:
+                    if prev_state == "CALLING" and state == "EARLY":
+                        session.state = "RINGING"
+                    elif state == "CONNECTING" and inv.is_outgoing:
+                        session.remote_user_agent = kwargs["headers"].get("Server", None)
                         if session.remote_user_agent is None:
                             session.remote_user_agent = kwargs["headers"].get("User-Agent", None)
-                    session._stop_media()
-                    session._inv = None
-                session._lock.release()
+                    elif state == "CONFIRMED":
+                        session.state = "ESTABLISHED"
+                    elif state == "REINVITED":
+                        inv.respond_to_reinvite(488)
+                    elif state == "DISCONNECTED":
+                        del self.session_mapping[inv]
+                        session.state = "TERMINATED"
+                        if "headers" in kwargs:
+                            if session.remote_user_agent is None:
+                                session.remote_user_agent = kwargs["headers"].get("Server", None)
+                            if session.remote_user_agent is None:
+                                session.remote_user_agent = kwargs["headers"].get("User-Agent", None)
+                        session._stop_media()
+                        session._inv = None
+                finally:
+                    session._lock.release()
                 if prev_session_state != session.state:
                     kwargs["obj"] = session
                     kwargs["prev_state"] = prev_session_state
                     kwargs["state"] = session.state
                     self.event_handler("Session_state", **kwargs)
+        elif event_name == "Invitation_sdp":
+            session = self.session_mapping.get(kwargs["inv"], None)
+            if session is None:
+                return
+            session._lock.acquire()
+            try:
+                if kwargs["succeeded"]:
+                    session._update_media(kwargs["local_sdp"], kwargs["remote_sdp"])
+                else:
+                    session._cancel_media()
+            finally:
+                session._lock.release()
         else:
             self.event_handler(event_name, **kwargs)
 
