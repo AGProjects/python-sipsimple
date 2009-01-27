@@ -91,7 +91,7 @@ class ChannelProxy:
 class ConsoleProtocol(recvline.HistoricRecvLine):
 
     channel = ChannelProxy(queue(), queue())
-    send_keys = [CTRL_D]
+    send_keys = []
     recv_char = False
     last_keypress_time = time.time()
     receiving = 0
@@ -157,7 +157,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
 
     def keystrokeReceived(self, keyID, modifier):
         self.last_keypress_time = time.time()
-        if self.recv_char:
+        if self.recv_char or keyID in self.send_keys:
             self.channel.send(('key', (keyID, modifier)))
         elif keyID==CTRL_D:
             api.kill(self.current, EOF())
@@ -492,14 +492,13 @@ def main():
 
     try:
         with setup_console() as console:
+            console.terminalProtocol.send_keys.append('\x13') # ctrl-s
             console.set_ps('>>> ')
             for type, value in console:
                 if type == 'line':
                     print '%s> %s' % (datetime.now().strftime('%X'), value)
                 if type == 'key':
-                    key, mod = value
-                    if key == CTRL_D:
-                        break
+                    print 'handled %s %s' % (type, value)
                 if type=='line' and value.strip():
                     args = value.split(' ')
                     seconds = None
