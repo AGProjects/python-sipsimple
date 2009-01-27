@@ -1,4 +1,5 @@
 from __future__ import with_statement
+from copy import copy
 from twisted.internet.error import ConnectionClosed, DNSLookupError, BindError, ConnectError
 from gnutls.errors import GNUTLSError
 from msrplib import MSRPError
@@ -183,6 +184,7 @@ class IncomingMSRPHandler(object):
         return True
 
     def handle(self, inv, local_uri=None):
+        local_uri = copy(local_uri)
         msrp = self.accept(inv, local_uri=local_uri)
         if msrp is not None:
             return self.session_factory(inv, msrp)
