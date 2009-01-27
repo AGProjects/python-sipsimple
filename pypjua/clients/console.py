@@ -220,7 +220,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
         self.drawInputLine()
 
 
-class ConsoleBuffer:
+class GreenConsole:
 
     last_header = None
 
@@ -358,7 +358,7 @@ class ConsoleBuffer:
 
 
 def get_console():
-    buffer = ConsoleBuffer()
+    buffer = GreenConsole()
     buffer.channel = ConsoleProtocol.channel
     p = ServerProtocol(ConsoleProtocol)
     stdio.StandardIO(p)

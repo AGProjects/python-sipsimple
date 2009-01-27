@@ -6,7 +6,7 @@ from msrplib.connect import MSRPAcceptFactory
 
 from pypjua import SDPAttribute, SDPMedia, SDPSession, SDPConnection
 from pypjua.clients.msrpsession import MSRPSession, IncomingMSRPHandler, MSRPSessionErrors
-from pypjua.enginebuffer import IncomingSessionHandler
+from pypjua.greenengine import IncomingSessionHandler
 
 class JoinHandler(IncomingMSRPHandler):
 

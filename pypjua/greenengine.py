@@ -1,3 +1,12 @@
+"""Synchronous versions Engine and related classes (Invitation, Registration)
+
+GreenXXX typically has the same methods as XXX with the exception that some
+of the methods of XXX are sycnhronous, i.e. they block the calling greenlet
+until the job is done.
+
+For example, GreenRegistration.register calls Registration.register and then
+waits for 'registered' or 'unregistered' event. It returns kwargs of that event.
+"""
 from __future__ import with_statement
 from contextlib import contextmanager
 import sys
@@ -12,7 +21,7 @@ from pypjua.util import wrapdict
 from pypjua import PyPJUAError
 from pypjua.eventletutil import SourceQueue
 
-# QQQ: separate logging part from InvitationBuffer and RegstrationBuffer
+# QQQ: separate logging part from GreenInvitation and GreenRegistration
 
 def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
@@ -42,12 +51,12 @@ class EngineLogger:
         self.write('%s:%s%s\n' % (format_lineno(calllevel), prefix, format_event(name, kwargs)))
 
 
-class EngineBuffer(Engine):
+class GreenEngine(Engine):
 
     def __init__(self, **kwargs):
         self.logger = kwargs.pop('logger', EngineLogger(log_file=sys.stderr))
         # XXX: clean up obj when all refs to the object disappear
-        self.objs = {} # maps pypjua_obj -> obj_buffer
+        self.objs = {} # maps pypjua_obj -> green obj
         self._queue = SourceQueue()
         handler = EventHandler(self._handle_event,
                                trace_pjsip=kwargs.pop('trace_pjsip', False))
@@ -62,8 +71,8 @@ class EngineBuffer(Engine):
     def _handle_event(self, event_name, kwargs):
         try:
             obj = kwargs['obj']
-            buffer = self.objs[obj]
-            handle_event = buffer.handle_event
+            green_obj = self.objs[obj]
+            handle_event = green_obj.handle_event
         except KeyError:
             handle_event = self.handle_event
             self.logger.log_event('NOOBJ', event_name, kwargs)
@@ -85,12 +94,12 @@ class EngineBuffer(Engine):
         del self.objs[pypjua_obj]
 
     def Registration(self, *args, **kwargs):
-        obj = RegistrationBuffer(Registration(*args, **kwargs), logger=self.logger)
+        obj = GreenRegistration(Registration(*args, **kwargs), logger=self.logger)
         self.register_obj(obj)
         return obj
 
     def Invitation(self, *args, **kwargs):
-        obj = InvitationBuffer(Invitation(*args, **kwargs), logger=self.logger)
+        obj = GreenInvitation(Invitation(*args, **kwargs), logger=self.logger)
         self.register_obj(obj)
         return obj
 
@@ -102,7 +111,7 @@ class EngineBuffer(Engine):
                 self.logger.log_event('RECEIVED', event_name, params)
                 if event_name == "Invitation_state" and params.get("state") == "INCOMING":
                     obj = params.get('obj')
-                    obj = InvitationBuffer(obj, self.logger, outgoing=0)
+                    obj = GreenInvitation(obj, self.logger, outgoing=0)
                     self.register_obj(obj) # XXX unregister_obj is never called
                     obj.handle_event(event_name, params)
                     return obj
@@ -114,11 +123,11 @@ class EngineBuffer(Engine):
 
     def _filter_incoming(self, listener):
         def filter_incoming((event_name, params)):
-            """Create and send to listener InvitationBuffer object"""
+            """Create and send to listener GreenInvitation object"""
             self.logger.log_event('RECEIVED', event_name, params)
             if event_name == "Invitation_state" and params.get("state") == "INCOMING":
                 obj = params.get('obj')
-                obj = InvitationBuffer(obj, self.logger, outgoing=0)
+                obj = GreenInvitation(obj, self.logger, outgoing=0)
                 self.register_obj(obj) # XXX unregister_obj is never called
                 obj.handle_event(event_name, params)
                 listener.send(obj)
@@ -162,7 +171,7 @@ class IncomingSessionHandler:
                     return session
 
 
-class BaseBuffer(object):
+class GreenBase(object):
 
     def __init__(self, obj, logger):
         self._obj = obj
@@ -222,7 +231,7 @@ class BaseBuffer(object):
                     self.logger.log_event('DROPPED', r_event_name, r_params, 2)
 
 
-class RegistrationBuffer(BaseBuffer):
+class GreenRegistration(GreenBase):
     # XXX when unregistered because of error, the client will stay unregistered.
     # XXX this class or pypjua itself should try re-register after some time?
 
@@ -364,18 +373,18 @@ def format_streams(streams):
         result.append(media_name)
     return '/'.join(result)
 
-class InvitationBuffer(BaseBuffer):
+class GreenInvitation(GreenBase):
 
     event_name = 'Invitation_state'
     confirmed = False
 
     def __init__(self, obj, logger, outgoing=1):
-        BaseBuffer.__init__(self, obj, logger)
+        GreenBase.__init__(self, obj, logger)
         self.outgoing = outgoing
 
     def handle_event(self, event_name, kwargs):
         self.call_id = (kwargs or {}).get('headers', {}).get('Call-ID')
-        return BaseBuffer.handle_event(self, event_name, kwargs)
+        return GreenBase.handle_event(self, event_name, kwargs)
 
     @property
     def connected(self):

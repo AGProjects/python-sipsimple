@@ -16,8 +16,8 @@ from msrplib import trafficlog
 from msrplib.protocol import URI
 
 from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
-from pypjua.clients.consolebuffer import setup_console, CTRL_D, EOF
-from pypjua.enginebuffer import EngineBuffer, IncomingSessionHandler, Ringer
+from pypjua.clients.console import setup_console, CTRL_D, EOF
+from pypjua.greenengine import GreenEngine, IncomingSessionHandler, Ringer
 from pypjua.clients.config import parse_options, get_download_path
 from pypjua.clients.msrpsession import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
 from pypjua.clients.clientconfig import get_path
@@ -500,11 +500,11 @@ class ChatManager_Caller(ChatManager):
 
 def start(options, console):
     ###console.disable()
-    engine = EngineBuffer(trace_sip=options.trace_sip,
-                          trace_pjsip=options.trace_pjsip,
-                          ec_tail_length=0,
-                          local_ip=options.local_ip,
-                          local_udp_port=options.local_port)
+    engine = GreenEngine(trace_sip=options.trace_sip,
+                         trace_pjsip=options.trace_pjsip,
+                         ec_tail_length=0,
+                         local_ip=options.local_ip,
+                         local_udp_port=options.local_port)
     engine.start(not options.disable_sound)
     try:
         credentials = Credentials(options.uri, options.password)

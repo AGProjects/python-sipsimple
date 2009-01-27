@@ -6,7 +6,7 @@ from msrplib import protocol as msrp_protocol
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from pypjua import SDPAttribute, SDPMedia, SDPConnection, SDPSession
-from pypjua.enginebuffer import SIPError, SessionError
+from pypjua.greenengine import SIPError, SessionError
 from pypjua.clients.cpim import MessageCPIM
 from pypjua.util import Proxy
 from pypjua.core import PyPJUAError

@@ -9,7 +9,7 @@ from msrplib.connect import MSRPConnectFactory
 from msrplib.trafficlog import TrafficLogger
 
 from pypjua import Credentials, SDPAttribute, SDPMedia
-from pypjua.enginebuffer import EngineBuffer, Ringer
+from pypjua.greenengine import GreenEngine, Ringer
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients.sdputil import FileSelector
 from pypjua.clients.config import parse_options
@@ -65,10 +65,10 @@ def main():
     filename = options.args[0]
     source = file(filename)
     sdp = SDPOfferFactory(filename)
-    e = EngineBuffer(trace_sip=options.trace_sip,
-                     ec_tail_length=0,
-                     local_ip=options.local_ip,
-                     local_udp_port=options.local_port)
+    e = GreenEngine(trace_sip=options.trace_sip,
+                    ec_tail_length=0,
+                    local_ip=options.local_ip,
+                    local_udp_port=options.local_port)
     e.start(not options.disable_sound)
     try:
         credentials = Credentials(options.uri, options.password)
