@@ -53,7 +53,8 @@ class PJSIP_build_ext(build_ext):
     config_site = ["#define PJ_SCANNER_USE_BITWISE 0",
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 65536",
-                   "#define PJSIP_UNESCAPE_IN_PLACE 1"]
+                   "#define PJSIP_UNESCAPE_IN_PLACE 1",
+                   "#define PJMEDIA_HAS_L16_CODEC 0"]
     patch_files = ["patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2425-sdp_media_line.patch"]
 
