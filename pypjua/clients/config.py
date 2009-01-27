@@ -196,10 +196,8 @@ def parse_options(usage, description):
     options.args = args
 
     if options.msrp_relay == 'auto':
-        if options.target_uri is None:
-            options.msrp_relay = 'srv'
-        else:
-            options.msrp_relay = 'none'
+        # XXX currently this option is used only for incoming connections
+        options.msrp_relay = 'srv'
     if options.msrp_relay == 'srv':
         options.relay = MSRPRelaySettings(domain=options.sip_address.domain,
                                           username=options.sip_address.username, password=options.password)
