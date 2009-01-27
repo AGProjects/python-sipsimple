@@ -111,7 +111,7 @@ class GreenEngine(Engine):
                 self.logger.log_event('RECEIVED', event_name, params)
                 if event_name == "Invitation_state" and params.get("state") == "INCOMING":
                     obj = params.get('obj')
-                    obj = GreenInvitation(obj, self.logger, outgoing=0)
+                    obj = GreenInvitation(obj, self.logger)
                     self.register_obj(obj) # XXX unregister_obj is never called
                     obj.handle_event(event_name, params)
                     return obj
@@ -127,7 +127,7 @@ class GreenEngine(Engine):
             self.logger.log_event('RECEIVED', event_name, params)
             if event_name == "Invitation_state" and params.get("state") == "INCOMING":
                 obj = params.get('obj')
-                obj = GreenInvitation(obj, self.logger, outgoing=0)
+                obj = GreenInvitation(obj, self.logger)
                 self.register_obj(obj) # XXX unregister_obj is never called
                 obj.handle_event(event_name, params)
                 listener.send(obj)
@@ -378,10 +378,6 @@ class GreenInvitation(GreenBase):
     event_name = 'Invitation_state'
     confirmed = False
 
-    def __init__(self, obj, logger, outgoing=1):
-        GreenBase.__init__(self, obj, logger)
-        self.outgoing = outgoing
-
     def handle_event(self, event_name, kwargs):
         self.call_id = (kwargs or {}).get('headers', {}).get('Call-ID')
         return GreenBase.handle_event(self, event_name, kwargs)
@@ -389,20 +385,6 @@ class GreenInvitation(GreenBase):
     @property
     def connected(self):
         return self.state == 'CONFIRMED'
-
-    @property
-    def local_uri(self):
-        if self.outgoing:
-            return self.caller_uri
-        else:
-            return self.callee_uri
-
-    @property
-    def remote_uri(self):
-        if self.outgoing:
-            return self.callee_uri
-        else:
-            return self.caller_uri
 
     @property
     def session_name(self):
@@ -429,7 +411,7 @@ class GreenInvitation(GreenBase):
     def _get_verb(self, state, prev_state):
         # only if connection was not established yet and if we initiated the disconnect
         if not self.confirmed and 'DISCONNECTING' in [state, prev_state]:
-            if self.outgoing:
+            if self.is_outgoing:
                 return {'DISCONNECTED': 'Cancelled',
                         'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
             else:
@@ -447,7 +429,6 @@ class GreenInvitation(GreenBase):
         self.logger.write(self._format_state_default(params))
 
     def log_state_calling(self, params):
-        self.outgoing = 1
         try:
             self.__last_calling_message
         except AttributeError:
@@ -503,14 +484,13 @@ class GreenInvitation(GreenBase):
             return params
 
     def accept(self, *args, **kwargs):
-        self.outgoing = 0
         self._obj.accept_invite(*args, **kwargs)
         return self.skip_to_event('CONFIRMED')[1]
 
     def shutdown(self, *args, **kwargs):
         try:
             self.end(*args, **kwargs)
-        except PyPJUAError: # QQQ use more descriptive exception type here
+        except PyPJUAError:
             pass
 
     def call_on_disconnect(self, func):
