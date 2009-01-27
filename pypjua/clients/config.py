@@ -78,7 +78,7 @@ def _parse_msrp_relay(value):
 def parse_msrp_relay(option, opt_str, value, parser):
     parser.values.msrp_relay = _parse_msrp_relay(value)
 
-def parse_options(usage, description):
+def parse_options(usage, description, extra_options=()):
     configuration = ConfigFile(config_ini)
     configuration.read_settings("Audio", AudioConfig)
     configuration.read_settings("General", GeneralConfig)
@@ -127,6 +127,8 @@ def parse_options(usage, description):
                       help='Bypass registration')
     parser.add_option('--msrp-tcp', action='store_false', dest='msrp_tls', default=True)
 
+    for extra_option in extra_options:
+        parser.add_option(*extra_option[0], **extra_option[1])
     options, args = parser.parse_args()
 
     if options.account_name is None:
