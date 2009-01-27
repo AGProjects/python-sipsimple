@@ -511,7 +511,7 @@ def start(options, console):
         msrplogger = trafficlog.TrafficLogger.to_file(console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()
         if options.register:
-            register(engine, credentials, options.route)
+            proc.spawn_greenlet(register, engine, credentials, options.route)
         console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
         sound = ThrottlingSoundPlayer(engine.play_wav_file)
         try:
