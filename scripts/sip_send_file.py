@@ -3,7 +3,6 @@ import os
 import sys
 import hashlib
 import traceback
-from eventlet.coros import queue
 from eventlet.api import sleep
 from msrplib.connect import MSRPConnectFactory
 from msrplib.trafficlog import TrafficLogger

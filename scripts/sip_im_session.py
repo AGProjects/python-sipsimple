@@ -5,11 +5,9 @@ import os
 import datetime
 import time
 from collections import deque
-from twisted.internet.error import ConnectionClosed, ConnectionDone
+from twisted.internet.error import ConnectionClosed
 
 from eventlet import api, coros, proc
-from eventlet.green.socket import gethostbyname
-
 from msrplib.connect import MSRPConnectFactory, MSRPAcceptFactory
 from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
@@ -434,9 +432,6 @@ class ChatManager:
         chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer, target_uri, local_uri)
         self.add_session(chatsession)
 
-    def on_last_disconnect(self):
-        pass
-
     def spawn_link_accept_incoming(self):
         assert not self.accept_incoming_worker, self.accept_incoming_worker
         handler = IncomingSessionHandler()
@@ -495,11 +490,6 @@ class ChatManager:
 #        exec "%s = _helper(%r)" % (x, x)
 #
 #    del x
-
-class ChatManager_Caller(ChatManager):
-
-    def on_last_disconnect(self):
-        self.console.channel.send_exception(ConnectionDone())
 
 def start(options, console):
     ###console.disable()
