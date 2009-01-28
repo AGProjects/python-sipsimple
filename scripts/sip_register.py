@@ -138,6 +138,10 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
         traceback.print_exc()
     finally:
         e.stop()
+        while not queue.empty():
+            command, data = queue.get()
+            if command == "print":
+                print data
         logger.stop()
         if not user_quit:
             os.kill(os.getpid(), signal.SIGINT)
