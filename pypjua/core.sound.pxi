@@ -251,7 +251,7 @@ cdef class WaveFile:
     cdef pjmedia_port *port
     cdef unsigned int conf_slot
 
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name):
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name, unsigned int level):
         cdef int status
         cdef object pool_name = "playwav_%s" % file_name
         self.pool = pjsip_endpt_create_pool(pjsip_endpoint.c_obj, pool_name, 4096, 4096)
@@ -266,6 +266,9 @@ cdef class WaveFile:
         status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
         if status != 0:
             raise PJSIPError("Could not connect WAV playback to conference bridge", status)
+        status = pjmedia_conf_adjust_rx_level(conf_bridge.c_obj, self.conf_slot, int(level * 1.28 - 128))
+        if status != 0:
+            raise PJSIPError("Could not set playback volume of WAV file", status)
         conf_bridge._connect_playback_slot(self.conf_slot)
 
     def __dealloc__(self):

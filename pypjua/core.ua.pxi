@@ -401,9 +401,9 @@ cdef class PJSIPUA:
             raise PyPJUAError("Cannot disconnect an AudioTransport that was not started yet")
         self.c_conf_bridge._disconnect_slot(transport.c_conf_slot)
 
-    def play_wav_file(self, file_name):
+    def play_wav_file(self, file_name, unsigned int level=100):
         self.c_check_self()
-        self.c_wav_files.append(WaveFile(self.c_pjsip_endpoint, self.c_conf_bridge, file_name))
+        self.c_wav_files.append(WaveFile(self.c_pjsip_endpoint, self.c_conf_bridge, file_name, level))
 
     def rec_wav_file(self, file_name):
         cdef RecordingWaveFile rec_file

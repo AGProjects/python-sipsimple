@@ -219,6 +219,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_conf_remove_port(pjmedia_conf *conf, unsigned int slot)
     int pjmedia_conf_connect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot, int level)
     int pjmedia_conf_disconnect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot)
+    int pjmedia_conf_adjust_rx_level(pjmedia_conf *conf, unsigned slot, int adj_level)
 
     # sdp
     enum:
