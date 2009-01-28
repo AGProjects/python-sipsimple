@@ -9,7 +9,7 @@ from eventlet.green.socket import gethostbyname
 from pypjua import SDPAttribute, SDPMedia, SDPConnection, SDPSession
 from pypjua.green.engine import SIPError, SessionError
 from pypjua.clients.cpim import MessageCPIM
-from pypjua.util import Proxy
+from pypjua.green.util import Proxy
 from pypjua.core import PyPJUAError
 
 # inv = e.Invitation(credentials, target_uri, route=route)
