@@ -212,7 +212,7 @@ def parse_options(usage, description, extra_options=()):
     if not options.use_bonjour:
         if not all([options.sip_address, options.password]):
             raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    options.uri = parse_uri(options.sip_address)
+    options.uri = parse_uri(options.sip_address, display_name=AccountConfig.display_name)
     if args:
         options.target_uri = parse_uri(args[0], default_domain=options.uri.host)
         del args[0]
