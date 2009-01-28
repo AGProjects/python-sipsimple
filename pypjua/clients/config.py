@@ -2,6 +2,7 @@
 import sys
 import os
 import glob
+import datetime
 from optparse import OptionValueError, OptionParser
 from ConfigParser import NoSectionError
 
@@ -35,6 +36,22 @@ class GeneralConfig(ConfigSection):
     trace_sip = False
     file_transfers_directory = os.path.join(process._system_config_directory, 'file_transfers')
     auto_accept_file_transfers = False
+    history_directory = '~/.sipclient/history'
+
+def get_history_file(invitation):
+    return _get_history_file('%s@%s' % (invitation.local_uri.user, invitation.local_uri.host),
+                             '%s@%s' % (invitation.remote_uri.user, invitation.remote_uri.host),
+                             invitation.is_outgoing)
+
+def _get_history_file(local_uri, remote_uri, is_outgoing):
+    dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), local_uri)
+    if is_outgoing:
+        direction = 'outgoing'
+    else:
+        direction = 'incoming'
+    time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    filename = os.path.join(dir, '%s-%s-%s.txt' % (time, remote_uri, direction))
+    return file(filename, 'a+')
 
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str,

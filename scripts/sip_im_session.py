@@ -17,7 +17,7 @@ from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
 from pypjua.clients.console import setup_console, CTRL_D, EOF
 from pypjua.green.engine import GreenEngine, IncomingSessionHandler, Ringer
 from pypjua.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
-from pypjua.clients.config import parse_options, get_download_path, parse_uri
+from pypjua.clients.config import parse_options, get_download_path, parse_uri, get_history_file
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
 from pypjua.clients.cpim import MessageCPIMParser, SIPAddress
@@ -51,7 +51,7 @@ def format_uri(sip_uri, cpim_uri=None):
             return format_display_user_host(cpim_uri.display, cpim_uri.user, cpim_uri.host)
     return format_display_user_host(sip_uri.display, sip_uri.user, sip_uri.host)
 
-def render_message(uri, message):
+def format_incoming_message(uri, message):
     if message.content_type == 'message/cpim':
         headers, text = MessageCPIMParser.parse_string(message.data)
         cpim_uri = headers.get('From')
@@ -60,14 +60,14 @@ def render_message(uri, message):
         if message.content_type == 'text/plain':
             text = message.data
         else:
-            text = `message`
-    print '%s %s: %s' % (format_time(), format_uri(uri, cpim_uri), text)
+            text = repr(message)
+    return '%s %s: %s' % (format_time(), format_uri(uri, cpim_uri), text)
 
 def format_nosessions_ps(myuri):
     return '%s@%s> ' % (myuri.user, myuri.host)
 
-def echo_message(uri, message):
-    print '%s %s: %s' % (format_time(), format_uri(uri), message)
+def format_outgoing_message(uri, message):
+    return '%s %s: %s' % (format_time(), format_uri(uri), message)
 
 def forward_chunks(msrp, listener, tag):
     while True:
@@ -129,6 +129,8 @@ class ChatSession(object):
         return cls(inv, invite_job=invite_job)
 
     def start_rendering_messages(self):
+        self.history_file = get_history_file(self.sip)
+        self.history_file.write('%s Log opened\n' % format_time())
         self.forwarder = proc.spawn(forward_chunks, self.msrpsession.msrp, incoming, self)
         #self.msrpsession.link(lambda *_: proc.spawn_greenlet(self.shutdown))
         self.msrpsession.link(self.source)
@@ -140,6 +142,10 @@ class ChatSession(object):
             self.invite_job.kill()
         if self.msrpsession is not None:
             self.msrpsession.end()
+        if self.history_file:
+            self.history_file.write('%s Log closed\n' % format_time())
+            self.history_file.close()
+            self.history_file = None
 
     def send_message(self, msg, content_type=None):
         if self.msrpsession is None:
@@ -148,7 +154,10 @@ class ChatSession(object):
             self.messages_to_send.append((msg, content_type))
             print 'Message will be delivered once connection is established'
         else:
-            echo_message(self.sip.local_uri, msg)
+            printed_msg = format_outgoing_message(self.sip.local_uri, msg)
+            print printed_msg
+            self.history_file.write(printed_msg + '\n')
+            self.history_file.flush()
             return self.msrpsession.send_message(msg, content_type)
 
     def format_ps(self):
@@ -342,7 +351,10 @@ class ChatManager:
         try:
             while True:
                 chat, chunk = incoming.wait()
-                render_message(chat.sip.remote_uri, chunk)
+                msg = format_incoming_message(chat.sip.remote_uri, chunk)
+                print msg
+                chat.history_file.write(msg + '\n')
+                chat.history_file.flush()
                 self.sound.play("message_received.wav")
         except proc.ProcExit:
             pass
