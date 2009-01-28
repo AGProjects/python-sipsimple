@@ -64,7 +64,6 @@ Presence/XML
 ------------
 
 - Conference event package [LS]
-- Move non SIP applications to a separate python package [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
 - Buddylist library [LS]
