@@ -52,8 +52,8 @@ Instant Messaging
 
 - Save chat sessions in history folder [DB]
 - Add --auto-echo parameter to sip_im_session for automated tests [DB]
-  When started with this option, the script automatically echos' back alll
-  incomming messages, no use input is considered
+  When started with this option, the script automatically echos back all
+  incomming messages, no user input is considered
 - Add --auto-answer parameter to sip_im_session [DB]
   When started with this option, the script automatically accepts any
   incomming session without ringing.
