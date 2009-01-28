@@ -425,15 +425,15 @@ def main():
     from application import log
     from datetime import datetime
     import traceback
-    from pypjua.clients.trafficlog import TrafficLogger
+    from msrplib.trafficlog import HeaderLogger_File
 
     def traffic():
-        t = TrafficLogger(console.write, console.get_writecount)
-        t.write_traffic('data1', '10.1.1.1:222 -> 10.2.2.2:111')
-        t.write_traffic('data2', '10.1.1.1:222 -> 10.2.2.2:111')
+        t = HeaderLogger_File(console)
+        t.write_data_with_header('data1', '10.1.1.1:222 -> 10.2.2.2:111')
+        t.write_data_with_header('data2', '10.1.1.1:222 -> 10.2.2.2:111')
         api.sleep(2)
-        t.write_traffic('data3', '10.1.1.1:222 -> 10.2.2.2:111')
-        t.write_traffic('data4', '10.1.1.1:222 -> 10.2.2.2:111')
+        t.write_data_with_header('data3', '10.1.1.1:222 -> 10.2.2.2:111')
+        t.write_data_with_header('data4', '10.1.1.1:222 -> 10.2.2.2:111')
 
     def incoming():
         import random
