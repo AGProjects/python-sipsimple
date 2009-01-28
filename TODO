@@ -1,6 +1,6 @@
 
-Python PJSIP bindings
----------------------
+SIP core
+--------
 
 - Session high level class [RK]
 - Audio stream high level class [RK]
@@ -32,54 +32,48 @@ Python PJSIP bindings
 Audio
 -----
 
+- Revise conference bridge API to support mute and multiple rooms [RK]
 - N810 maemo audio driver [LS]
 - Fix high CPU usage for sound card access on OS X [RK]
-- Revise conference bridge interconnection API to support: [RK]
-  - Multiple conferences
-  - Muting
 - Play a tone while on hold every 30 seconds [DB]
 - Play a tone once after we closed a session [DB]
-- Play a tone when receiving a call while engaged in another call [DB]
-- Comfort noise generator []
-- Automatic Gain Control []
+- Ring different tone when receiving Invite while in another audio session [DB]
+- Comfort noise generator (CNG) []
+- Automatic Gain Control (AGC) []
 - Fix echo-cancelation for non speex codecs []
 - zRTP []
 
 
-Instant Messaging
+Instant messaging
 -----------------
 
-- Save chat sessions in history folder [DB]
 - Add --auto-echo parameter to sip_im_session for automated tests [DB]
-  When started with this option, the script automatically echos back all
-  incomming messages, no user input is considered
 - Add --auto-answer parameter to sip_im_session [DB]
-  When started with this option, the script automatically accepts any
-  incomming session without ringing.
 - Reduce volume of IM related notifications to 50% [DB]
 - Play a different sound for join/leave chat room [DB]
-- Document MSRP client library usage, wiki page [DB]
+- Document MSRP client library usage [DB]
 - Port eventlet/greenlet to ARM [DB]
 - MSRP focus [DB]
 - MSRP multiparty chat [DB]
 - Is-composing payload [DB]
+- Off-the-Record Messaging [DB]
 
 
-Presence/XML
-------------
+Presence
+--------
 
 - Conference event package [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
 - Buddylist library [LS]
 - xcap-diff payload [LS]
+- Bonjour [LS]
 
 
 Other applications
 ------------------
 
 - Message-summary payload [DB]
-- Bonjour [LS]
 - ENUM lookup [LS]
 
 
@@ -87,8 +81,8 @@ Middleware
 ----------
 
 - Enrollment [LS]
-- Ambient noise and light detection []
-- Geo-location detection []
+- Ambient detection []
+- Location detection []
 
 
 Command line clients
@@ -134,6 +128,5 @@ Dependencies
 ------------
 
 - Merge the eventlet_twisted library into its main trunk [DB]
-- Update debian packages for xcaplib [DB]
 - Merge re-invite patch into pjsip main trunk [RK]
 
