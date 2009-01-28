@@ -18,8 +18,8 @@ communication desired. The information can be disseminated based on a
 granular policy which allows end-users to decide who has access to which
 part of the published information.
 
-Other applications can be used for lookup network resources or broadcast
-availability to the local network using bonjour-like technology.
+Other applications are used for lookup network addresses using DNS or to
+broadcast availability using bonjour.
 
 
 watcherinfo.py (RFC3857 and RFC3858)
