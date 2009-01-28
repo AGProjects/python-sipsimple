@@ -1,3 +1,4 @@
+"""Parser for file-selector field in SDP"""
 import re
 
 _fs_name = 'name:"(?P<name>[^"]+)"'

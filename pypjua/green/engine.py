@@ -1,4 +1,4 @@
-"""Synchronous versions Engine and related classes (Invitation, Registration)
+"""Synchronous versions of Engine and related classes (Invitation, Registration)
 
 GreenXXX typically has the same methods as XXX with the exception that some
 of the methods of XXX are sycnhronous, i.e. they block the calling greenlet

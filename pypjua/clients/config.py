@@ -1,3 +1,4 @@
+"""Configuration and config parsing for sip_im_session.py and derived scripts"""
 import sys
 import os
 import glob

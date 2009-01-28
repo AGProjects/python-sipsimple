@@ -1,3 +1,4 @@
+"""Simple parser and constructor of Message/CPIM content"""
 import re
 from cStringIO import StringIO
 from pypjua import SIPURI

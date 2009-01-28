@@ -1,3 +1,14 @@
+"""Console control for eventlet apps based on twisted.conch.
+
+Features:
+ * blocks keyboard input unless explicitly requested
+ * history with arrow keys
+ * shortcuts (keys that applications can intercept)
+ * "ask question" functionality (hide input prompt, and request
+   a key, e.g. accept incoming? [y/n])
+ * asynchronously raises EOF exception when Ctrl-D is pressed
+   (like Python does for Ctrl-C)
+"""
 from __future__ import with_statement
 import sys
 import os
