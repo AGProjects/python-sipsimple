@@ -16,7 +16,7 @@ from eventlet.api import sleep
 from eventlet import proc, coros
 
 from pypjua import Engine, Registration, Invitation
-from pypjua.clients.dbgutil import format_lineno
+from pypjua.green.debug_util import format_lineno
 from pypjua.util import wrapdict
 from pypjua import PyPJUAError
 from pypjua.green.eventletutil import SourceQueue
