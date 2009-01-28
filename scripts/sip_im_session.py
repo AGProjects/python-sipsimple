@@ -16,7 +16,7 @@ from msrplib.protocol import URI
 from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
 from pypjua.clients.console import setup_console, CTRL_D, EOF
 from pypjua.greenengine import GreenEngine, IncomingSessionHandler, Ringer
-from pypjua.clients.config import parse_options, get_download_path
+from pypjua.clients.config import parse_options, get_download_path, parse_uri
 from pypjua.clients.msrpsession import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
@@ -180,7 +180,7 @@ def consult_user(inv, ask_func):
             return True
         elif response == False:
             ERROR = 486 # Busy Here
-        # note, that response may also be a GreenletExit instance
+        # note, that response may also be ProcExit instance
     finally:
         link.cancel()
         if ERROR is not None:
@@ -505,7 +505,7 @@ def start(options, console):
         ###console.enable()
         if options.register:
             proc.spawn_greenlet(register, engine, credentials, options.route)
-        console.set_ps('%s@%s> ' % (options.sip_address.username, options.sip_address.domain))
+        console.set_ps('%s@%s> ' % (options.uri.user, options.uri.host))
         sound = ThrottlingSoundPlayer(engine.play_wav_file)
         try:
             manager = ChatManager(engine, sound, credentials, console, msrplogger,
@@ -518,7 +518,12 @@ def start(options, console):
             if options.target_uri is None:
                 print 'Waiting for incoming SIP session requests...'
             else:
-                manager.call(options.target_uri)
+                target_uris = [options.target_uri]
+                for x in options.args:
+                    uri = parse_uri(x, default_domain=target_uris[-1].host)
+                    target_uris.append(uri)
+                for target_uri in target_uris:
+                    manager.call(target_uri)
             while True:
                 try:
                     readloop(console, manager, get_commands(manager), get_shortcuts(manager))

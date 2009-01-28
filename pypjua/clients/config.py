@@ -78,6 +78,14 @@ def _parse_msrp_relay(value):
 def parse_msrp_relay(option, opt_str, value, parser):
     parser.values.msrp_relay = _parse_msrp_relay(value)
 
+def parse_uri(sip_address, default_domain=None, display_name=None):
+    # XXX there some to be parse_SIPURI in core.helper - reuse that one?
+    address = SIPAddress.parse(sip_address, default_domain=default_domain)
+    return SIPURI(user=address.username,
+                  host=address.domain,
+                  display=display_name,
+                  secure=address.secure)
+
 def parse_options(usage, description, extra_options=()):
     configuration = ConfigFile(config_ini)
     configuration.read_settings("Audio", AudioConfig)
@@ -186,14 +194,11 @@ def parse_options(usage, description, extra_options=()):
     if not options.use_bonjour:
         if not all([options.sip_address, options.password]):
             raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    options.sip_address = SIPAddress.parse(options.sip_address)
-    options.uri = SIPURI(user=options.sip_address.username, host=options.sip_address.domain, display=options.display_name)
+    options.uri = parse_uri(options.sip_address)
     if args:
-        options.target_address = SIPAddress.parse(args[0], default_domain = options.sip_address.domain)
-        options.target_uri = SIPURI(user=options.target_address.username, host=options.target_address.domain)
+        options.target_uri = parse_uri(args[0], default_domain=options.uri.host)
         del args[0]
     else:
-        options.target_address = None
         options.target_uri = None
     options.args = args
 
@@ -201,23 +206,23 @@ def parse_options(usage, description, extra_options=()):
         # XXX currently this option is used only for incoming connections
         options.msrp_relay = 'srv'
     if options.msrp_relay == 'srv':
-        options.relay = MSRPRelaySettings(domain=options.sip_address.domain,
-                                          username=options.sip_address.username, password=options.password)
+        options.relay = MSRPRelaySettings(domain=options.uri.host,
+                                          username=options.uri.user, password=options.password)
     elif options.msrp_relay == 'none':
         options.relay = None
     else:
         host, port, is_ip = options.msrp_relay
         if is_ip or port is not None:
-            options.relay = MSRPRelaySettings(domain=options.sip_address.domain, host=host, port=port,
-                                              username=options.sip_address.username, password=options.password)
+            options.relay = MSRPRelaySettings(domain=options.uri.host, host=host, port=port,
+                                              username=options.uri.user, password=options.password)
         else:
-            options.relay = MSRPRelaySettings(domain=options.sip_address.domain,
-                                              username=options.sip_address.username, password=options.password)
+            options.relay = MSRPRelaySettings(domain=options.uri.host,
+                                              username=options.uri.user, password=options.password)
     if options.use_bonjour:
         options.route = None
     else:
         if options.outbound_proxy is None:
-            proxy_host, proxy_port, proxy_is_ip = options.sip_address.domain, None, False
+            proxy_host, proxy_port, proxy_is_ip = options.uri.host, None, False
         else:
             proxy_host, proxy_port, proxy_is_ip = options.outbound_proxy
         options.route = Route(*lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
