@@ -91,7 +91,11 @@ class PJSIP_build_ext(build_ext):
             open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site))
         else:
             log.info("PJSIP SVN tree found, updating from SVN repository")
-            distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
+            try:
+                distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
+            except DistutilsError, e:
+                log.info("Error updating PJSIP from SVN, continuing with existing tree:")
+                log.info(str(e))
         new_svn_rev = get_svn_revision(self.svn_dir)
         print "Using SVN revision %d" % new_svn_rev
         return old_svn_rev != new_svn_rev
