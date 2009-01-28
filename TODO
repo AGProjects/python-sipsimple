@@ -34,7 +34,6 @@ Audio
 
 - N810 maemo audio driver [LS]
 - Fix high CPU usage for sound card access on OS X [RK]
-- Add volume % to .WAV file playback method (and others?) [RK]
 - Revise conference bridge interconnection API to support: [RK]
   - Multiple conferences
   - Muting
