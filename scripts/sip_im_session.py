@@ -100,6 +100,7 @@ class ChatSession(object):
             self.start_rendering_messages()
         self.forwarder = None
         self.source.link(lambda *_: proc.spawn_greenlet(self.shutdown))
+        self.history_file = None
 
     def link(self, listener):
         """Add a listener to be notified when either msrpsession dies or invite fails"""
