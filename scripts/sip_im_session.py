@@ -350,12 +350,13 @@ class ChatManager:
     def close(self):
         self.stop_accept_incoming()
         for session in self.sessions[:]:
-            session.shutdown()
+            proc.spawn_greenlet(session.shutdown)
             self.remove_session(session)
 
     def close_current_session(self):
-        self.current_session.shutdown()
-        self.remove_session(self.current_session)
+        if self.current_session is not None:
+            proc.spawn_greenlet(self.current_session.shutdown)
+            self.remove_session(self.current_session)
 
     def update_ps(self):
         if self.current_session:
@@ -384,12 +385,11 @@ class ChatManager:
             pass
         else:
             del self.sessions[index]
-        if self.sessions:
-            if self.current_session is session:
-                self.current_session = self.sessions[index % len(self.sessions)]
-        else:
-            self.current_session = None
-            self.on_last_disconnect()
+            if self.sessions:
+                if self.current_session is session:
+                    self.current_session = self.sessions[index % len(self.sessions)]
+            else:
+                self.current_session = None
         self.update_ps()
 
     def add_download(self, session):
