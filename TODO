@@ -52,6 +52,7 @@ Instant Messaging
 
 - Save chat sessions in history folder [DB]
 - Reduce volume of IM related notifications to 50% [DB]
+- Play a different sound for join/leave chat room [DB]
 - Document MSRP client library usage, wiki page [DB]
 - Port eventlet/greenlet to ARM [DB]
 - MSRP focus [DB]
