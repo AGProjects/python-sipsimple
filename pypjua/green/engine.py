@@ -19,7 +19,7 @@ from pypjua import Engine, Registration, Invitation
 from pypjua.clients.dbgutil import format_lineno
 from pypjua.util import wrapdict
 from pypjua import PyPJUAError
-from pypjua.eventletutil import SourceQueue
+from pypjua.green.eventletutil import SourceQueue
 
 # QQQ: separate logging part from GreenInvitation and GreenRegistration
 

@@ -15,9 +15,9 @@ from msrplib.protocol import URI
 
 from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
 from pypjua.clients.console import setup_console, CTRL_D, EOF
-from pypjua.greenengine import GreenEngine, IncomingSessionHandler, Ringer
+from pypjua.green.engine import GreenEngine, IncomingSessionHandler, Ringer
+from pypjua.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
 from pypjua.clients.config import parse_options, get_download_path, parse_uri
-from pypjua.clients.msrpsession import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
 from pypjua.clients.clientconfig import get_path
 from pypjua.clients import enrollment
 from pypjua.clients.cpim import MessageCPIMParser, SIPAddress
