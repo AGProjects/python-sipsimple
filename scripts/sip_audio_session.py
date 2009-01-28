@@ -161,6 +161,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
     other_user_agent = None
     on_hold = False
     session_start_time = None
+    no_media_timer = None
     try:
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -217,6 +218,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 e.connect_audio_transport(audio)
                                 print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
                                 print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
+                                no_media_timer = Timer(10, lambda: queue.put(("check_media", None)))
+                                no_media_timer.start()
                                 return_code = 0
                                 if auto_hangup is not None:
                                     Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
@@ -282,6 +285,12 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             if ringer is not None:
                                 ringer.stop()
                                 ringer = None
+                            if no_media_timer is not None:
+                                try:
+                                    no_media_timer.cancel()
+                                except:
+                                    pass
+                                no_media_timer = None
                             if args["prev_state"] == "DISCONNECTING":
                                 disc_msg = "Session ended by local user"
                             elif args["prev_state"] in ["CALLING", "EARLY"]:
@@ -388,6 +397,13 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                     print "Set echo cancellation tail length to %d ms" % ec_tail_length
             if command == "play_wav":
                 e.play_wav_file(get_path(data))
+            if command == "check_media":
+                if inv and audio:
+                    if audio.transport.remote_rtp_address_received is None:
+                        print "No media received after 10 seconds, ending session"
+                        return_code = 1
+                        command = "end"
+                        want_quit = target_uri is not None
             if command == "eof":
                 command = "end"
                 want_quit = True
