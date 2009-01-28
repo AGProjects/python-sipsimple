@@ -99,7 +99,6 @@ Command line clients
 - The default outbound invitation type is audio+text in this order [DB]
 - Add an option to start a 'text only' session [DB]
 - An incoming session request must prompt the user to accept a) audio+text or b) text only [DB]
-- If RTP not received in 10 seconds after the call setup, call failed. [RK]
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection [DB]
 - Publish status from the sip_session script [LS]
 - sip_subscribe_conference script [LS]
