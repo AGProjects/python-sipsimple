@@ -55,7 +55,7 @@ setup(name         = "sipclient",
           "Programming Language :: Python",
           "Programming Language :: C"
       ],
-      packages     = ["pypjua", "pypjua.clients", "pypjua.applications"],
+      packages     = ["pypjua", "pypjua.green", "pypjua.clients", "pypjua.applications"],
       package_data = {
           'pypjua.applications' : ['xml-schemas/*']
       },
