@@ -32,7 +32,7 @@ Python PJSIP bindings
 Audio
 -----
 
-- N810 maemo audio driver [DB]
+- N810 maemo audio driver [LS]
 - Fix high CPU usage for sound card access on OS X [RK]
 - Add volume % to .WAV file playback method (and others?) [RK]
 - Revise conference bridge interconnection API to support: [RK]
@@ -41,10 +41,10 @@ Audio
 - Play a tone while on hold every 30 seconds [DB]
 - Play a tone once after we closed a session [DB]
 - Play a tone when receiving a call while engaged in another call [DB]
-- Comfort noise generator [RK]
-- Automatic Gain Control [RK]
-- Fix echo-cancelation for non speex codecs [RK]
-- zRTP [RK]
+- Comfort noise generator []
+- Automatic Gain Control []
+- Fix echo-cancelation for non speex codecs []
+- zRTP []
 
 
 Instant Messaging
@@ -74,14 +74,14 @@ Other applications
 ------------------
 
 - Message-summary payload [DB]
-- Bonjour [RK]
-- ENUM lookup []
+- Bonjour [LS]
+- ENUM lookup [LS]
 
 
 Middleware
 ----------
 
-- Enrollment []
+- Enrollment [LS]
 - Ambient noise and light detection []
 - Geo-location detection []
 
@@ -117,12 +117,13 @@ Sessions
 - Desktop sharing session, integrate WT's sip_desktop_sharing
 
 
-Packaging
----------
+Porting
+-------
 
-- Linux installer [DP]
-- MacOSX installer [DP]
-- Windows installer []
+- Windows
+- iPhone
+- Android
+- Symbian
 
 
 Dependencies
