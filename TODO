@@ -51,6 +51,12 @@ Instant Messaging
 -----------------
 
 - Save chat sessions in history folder [DB]
+- Add --auto-echo parameter to sip_im_session for automated tests [DB]
+  When started with this option, the script automatically echos' back alll
+  incomming messages, no use input is considered
+- Add --auto-answer parameter to sip_im_session [DB]
+  When started with this option, the script automatically accepts any
+  incomming session without ringing.
 - Reduce volume of IM related notifications to 50% [DB]
 - Play a different sound for join/leave chat room [DB]
 - Document MSRP client library usage, wiki page [DB]
