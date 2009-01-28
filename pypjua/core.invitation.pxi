@@ -400,42 +400,57 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
             invitation._cb_state(state, rdata)
 
 cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
+    global _callback_exc
     cdef Invitation invitation
-    cdef PJSIPUA ua = c_get_ua()
-    if _ua != NULL:
-        ua = <object> _ua
-        if inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
-            invitation._cb_sdp_done(status)
+    cdef PJSIPUA ua
+    try:
+        ua = c_get_ua()
+        if _ua != NULL:
+            ua = <object> _ua
+            if inv.mod_data[ua.c_module.id] != NULL:
+                invitation = <object> inv.mod_data[ua.c_module.id]
+                invitation._cb_sdp_done(status)
+    except:
+        _callback_exc = sys.exc_info()
 
 cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil:
+    global _callback_exc
     cdef Invitation invitation
-    cdef PJSIPUA ua = c_get_ua()
-    if _ua != NULL:
-        ua = <object> _ua
-        if inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
-            invitation._cb_state("REINVITED", rdata)
+    cdef PJSIPUA ua
+    try:
+        ua = c_get_ua()
+        if _ua != NULL:
+            ua = <object> _ua
+            if inv.mod_data[ua.c_module.id] != NULL:
+                invitation = <object> inv.mod_data[ua.c_module.id]
+                invitation._cb_state("REINVITED", rdata)
+    except:
+        _callback_exc = sys.exc_info()
 
 cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
+    global _callback_exc
     cdef Invitation invitation
     cdef pjsip_rx_data *rdata = NULL
-    cdef PJSIPUA ua = c_get_ua()
-    if _ua != NULL:
-        ua = <object> _ua
-        if tsx == NULL or tsx.state != PJSIP_TSX_STATE_TERMINATED:
-            return
-        if inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
-            if invitation.state != "REINVITING":
+    cdef PJSIPUA ua
+    try:
+        ua = c_get_ua()
+        if _ua != NULL:
+            ua = <object> _ua
+            if tsx == NULL or tsx.state != PJSIP_TSX_STATE_TERMINATED:
                 return
-            if e != NULL:
-                if e.type == PJSIP_EVENT_RX_MSG:
-                    rdata = e.body.rx_msg.rdata
-                elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                    rdata = e.body.tsx_state.src.rdata
-            if rdata != NULL:
-                invitation._cb_state("CONFIRMED", rdata)
+            if inv.mod_data[ua.c_module.id] != NULL:
+                invitation = <object> inv.mod_data[ua.c_module.id]
+                if invitation.state != "REINVITING":
+                    return
+                if e != NULL:
+                    if e.type == PJSIP_EVENT_RX_MSG:
+                        rdata = e.body.rx_msg.rdata
+                    elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                        rdata = e.body.tsx_state.src.rdata
+                if rdata != NULL:
+                    invitation._cb_state("CONFIRMED", rdata)
+    except:
+        _callback_exc = sys.exc_info()
 
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!

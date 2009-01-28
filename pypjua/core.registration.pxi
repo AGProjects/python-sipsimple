@@ -1,4 +1,5 @@
 import random
+import sys
 
 # main class
 
@@ -209,11 +210,20 @@ cdef class Registration:
 # callback functions
 
 cdef void cb_Registration_cb_response(pjsip_regc_cbparam *param) with gil:
-    cdef Registration c_reg = <object> param.token
-    c_reg._cb_response(param)
+    global _callback_exc
+    cdef Registration c_reg
+    try:
+        c_reg = <object> param.token
+        c_reg._cb_response(param)
+    except:
+        _callback_exc = sys.exc_info()
 
 cdef void cb_Registration_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
+    global _callback_exc
     cdef Registration c_reg
-    if entry.user_data != NULL:
-        c_reg = <object> entry.user_data
-        c_reg._cb_expire()
+    try:
+        if entry.user_data != NULL:
+            c_reg = <object> entry.user_data
+            c_reg._cb_expire()
+    except:
+        _callback_exc = sys.exc_info()

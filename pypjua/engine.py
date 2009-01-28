@@ -1,5 +1,7 @@
+import sys
 import traceback
-from thread import start_new_thread, allocate_lock
+
+from thread import start_new_thread, allocate_lock, interrupt_main
 
 from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION
 from pypjua import __version__
@@ -45,17 +47,13 @@ class Engine(object):
                     raise ValueError("event_handler argument should be callable")
                 self.event_handler = event_handler
             self._thread_started = False
-            self._thread_running = False
             Engine._done_init = True
 
     def stop(self):
-        if self._thread_running:
+        if self._thread_started:
             self._thread_stopping = True
             self._lock.acquire()
-            del self._thread_stopping
-            del self._lock
-            self._ua.dealloc()
-            del self._ua
+            self._lock.release()
 
     def start(self, auto_sound=True):
         if self._thread_started:
@@ -69,30 +67,29 @@ class Engine(object):
                 raise
         self._lock = allocate_lock()
         self._thread_stopping = False
-        self._thread_started = True
-        start_new_thread(self._run, (self,))
+        self._lock.acquire()
+        try:
+            self._thread_started = True
+            start_new_thread(self._run, ())
+        except:
+            self._lock.release()
+            raise
 
     # worker thread
-    @staticmethod
     def _run(self):
-        self._thread_running = True
-        try:
-            self._lock.acquire()
-        except AttributeError: # The lock was removed before we were properly started
-            return
         try:
             while not self._thread_stopping:
-                self._ua.poll()
-        except:
-            traceback.print_exc()
-            self._thread_running = False
-            self._lock.release()
-            del self._thread_stopping
-            del self._lock
+                try:
+                    exc_info = self._ua.poll()
+                except:
+                    exc_info = sys.exc_info()
+                if exc_info is not None:
+                    self.event_handler("exception", traceback="".join(traceback.format_exception(*exc_info)))
+                    exc_info = None
+            self._ua.dealloc()
             del self._ua
-            return
-        self._thread_running = False
-        self._lock.release()
+        finally:
+            self._lock.release()
 
     def _handle_event(self, event_name, **kwargs):
         if event_name == "log":

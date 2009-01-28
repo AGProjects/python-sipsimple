@@ -121,6 +121,11 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                 elif event_name == "Invitation_state":
                     if args["state"] == "INCOMING":
                         args["obj"].end()
+                elif event_name == "exception":
+                    print "An exception occured within PyPJUA:"
+                    print args["traceback"]
+                    user_quit = False
+                    command = "quit"
             if command == "user_input":
                 key = data
                 if key == 's':

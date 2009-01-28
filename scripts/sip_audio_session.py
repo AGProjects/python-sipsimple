@@ -316,6 +316,11 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                 elif event_name == "detect_nat_type":
                     if args["succeeded"]:
                         print "Detected NAT type: %s" % args["nat_type"]
+                elif event_name == "exception":
+                    print "An exception occured within PyPJUA:"
+                    print args["traceback"]
+                    user_quit = False
+                    command = "quit"
             if command == "user_input":
                 if inv is not None:
                     data = data[0]

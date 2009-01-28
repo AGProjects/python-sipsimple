@@ -547,10 +547,10 @@ cdef extern from "pjsip.h":
         pj_str_t name
         int id
         int priority
-        int on_rx_request(pjsip_rx_data *rdata) except 0 with gil
-        int on_rx_response(pjsip_rx_data *rdata) except 0 with gil
-        int on_tx_request(pjsip_tx_data *tdata) except 0 with gil
-        int on_tx_response(pjsip_tx_data *tdata) except 0 with gil
+        int on_rx_request(pjsip_rx_data *rdata) with gil
+        int on_rx_response(pjsip_rx_data *rdata) with gil
+        int on_tx_request(pjsip_tx_data *tdata) with gil
+        int on_tx_response(pjsip_tx_data *tdata) with gil
 
     # endpoint
     struct pjsip_endpoint
@@ -810,10 +810,10 @@ cdef SIPURI c_parse_SIPURI(object uri_str)
 
 cdef class PJSIPThread
 cdef class PJSIPUA
-cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) except 0 with gil
+cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil
 cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
-cdef int cb_trace_rx(pjsip_rx_data *rdata) except 0 with gil
-cdef int cb_trace_tx(pjsip_tx_data *tdata) except 0 with gil
+cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil
+cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil
 cdef PJSIPUA c_get_ua()
 
 # core.message

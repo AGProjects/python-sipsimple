@@ -1,4 +1,5 @@
 import random
+import sys
 
 # main class
 
@@ -461,7 +462,9 @@ cdef class PJSIPUA:
             self.c_event_handler(event_name, **event_params)
 
     def poll(self):
+        global _callback_exc
         cdef int status
+        cdef object retval = None
         self.c_check_self()
         with nogil:
             status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &self.c_max_timeout)
@@ -472,6 +475,10 @@ cdef class PJSIPUA:
             if status != 0:
                 raise PJSIPError("Error while handling events", status)
         self._poll_log()
+        if _callback_exc is not None:
+            retval = _callback_exc
+            _callback_exc = None
+        return retval
 
     cdef int c_check_self(self) except -1:
         global _ua
@@ -549,41 +556,62 @@ cdef class PJSIPThread:
 # callback functions
 
 cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil:
-    cdef PJSIPUA c_ua = c_get_ua()
+    global _callback_exc
+    cdef PJSIPUA c_ua
     cdef dict event_dict = dict()
-    event_dict["succeeded"] = res.status == 0
-    if res.status == 0:
-        event_dict["nat_type"] = res.nat_type_name
-    else:
-        event_dict["error"] = res.status_text
-    c_add_event("detect_nat_type", event_dict)
+    try:
+        c_ua = c_get_ua()
+        event_dict["succeeded"] = res.status == 0
+        if res.status == 0:
+            event_dict["nat_type"] = res.nat_type_name
+        else:
+            event_dict["error"] = res.status_text
+        c_add_event("detect_nat_type", event_dict)
+    except:
+        _callback_exc = sys.exc_info()
 
-cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) except 0 with gil:
-    cdef PJSIPUA c_ua = c_get_ua()
-    return c_ua._rx_request(rdata)
+cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil:
+    global _callback_exc
+    cdef PJSIPUA c_ua
+    try:
+        c_ua = c_get_ua()
+        return c_ua._rx_request(rdata)
+    except:
+        _callback_exc = sys.exc_info()
+        return 0
 
-cdef int cb_trace_rx(pjsip_rx_data *rdata) except 0 with gil:
-    cdef PJSIPUA c_ua = c_get_ua()
-    if c_ua.c_trace_sip:
-        c_add_event("siptrace", dict(received=True,
-                                     source_ip=rdata.pkt_info.src_name,
-                                     source_port=rdata.pkt_info.src_port,
-                                     destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
-                                     destination_port=rdata.tp_info.transport.local_name.port,
-                                     data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
-                                     transport=rdata.tp_info.transport.type_name))
+cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
+    global _callback_exc
+    cdef PJSIPUA c_ua
+    try:
+        c_ua = c_get_ua()
+        if c_ua.c_trace_sip:
+            c_add_event("siptrace", dict(received=True,
+                                         source_ip=rdata.pkt_info.src_name,
+                                         source_port=rdata.pkt_info.src_port,
+                                         destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                         destination_port=rdata.tp_info.transport.local_name.port,
+                                         data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
+                                         transport=rdata.tp_info.transport.type_name))
+    except:
+        _callback_exc = sys.exc_info()
     return 0
 
-cdef int cb_trace_tx(pjsip_tx_data *tdata) except 0 with gil:
-    cdef PJSIPUA c_ua = c_get_ua()
-    if c_ua.c_trace_sip:
-        c_add_event("siptrace", dict(received=False,
-                                     source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
-                                     source_port=tdata.tp_info.transport.local_name.port,
-                                     destination_ip=tdata.tp_info.dst_name,
-                                     destination_port=tdata.tp_info.dst_port,
-                                     data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
-                                     transport=tdata.tp_info.transport.type_name))
+cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
+    global _callback_exc
+    cdef PJSIPUA c_ua
+    try:
+        c_ua = c_get_ua()
+        if c_ua.c_trace_sip:
+            c_add_event("siptrace", dict(received=False,
+                                         source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
+                                         source_port=tdata.tp_info.transport.local_name.port,
+                                         destination_ip=tdata.tp_info.dst_name,
+                                         destination_port=tdata.tp_info.dst_port,
+                                         data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
+                                         transport=tdata.tp_info.transport.type_name))
+    except:
+        _callback_exc = sys.exc_info()
     return 0
 
 # utility function
@@ -600,3 +628,4 @@ cdef PJSIPUA c_get_ua():
 # globals
 
 cdef void *_ua = NULL
+cdef object _callback_exc = None

@@ -1,3 +1,5 @@
+import sys
+
 # classes
 
 cdef class PJMEDIASoundDevice:
@@ -279,7 +281,13 @@ cdef class WaveFile:
 # callback functions
 
 cdef int cb_play_wave_eof(pjmedia_port *port, void *user_data) with gil:
+    global _callback_exc
     cdef WaveFile wav_file = <object> user_data
     cdef PJSIPUA ua = c_get_ua()
-    ua.c_wav_files.remove(wav_file)
+    try:
+        ua = c_get_ua()
+        wav_file = <object> user_data
+        ua.c_wav_files.remove(wav_file)
+    except:
+        _callback_exc = sys.exc_info()
     return 1

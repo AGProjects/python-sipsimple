@@ -1,4 +1,5 @@
 import random
+import sys
 
 # main class
 
@@ -217,11 +218,20 @@ cdef class Publication:
 # callback functions
 
 cdef void cb_Publication_cb_response(pjsip_publishc_cbparam *param) with gil:
-    cdef Publication c_pub = <object> param.token
-    c_pub._cb_response(param)
+    global _callback_exc
+    cdef Publication c_pub
+    try:
+        c_pub = <object> param.token
+        c_pub._cb_response(param)
+    except:
+        _callback_exc = sys.exc_info()
 
 cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
+    global _callback_exc
     cdef Publication c_pub
-    if entry.user_data != NULL:
-        c_pub = <object> entry.user_data
-        c_pub._cb_expire()
+    try:
+        if entry.user_data != NULL:
+            c_pub = <object> entry.user_data
+            c_pub._cb_expire()
+    except:
+        _callback_exc = sys.exc_info()

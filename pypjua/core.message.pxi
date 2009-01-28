@@ -1,3 +1,5 @@
+import sys
+
 # main function
 
 def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route = None):
@@ -55,7 +57,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
     cdef Credentials credentials
     cdef SIPURI to_uri
     cdef PJSTR to_uri_req
-    cdef tuple saved_data = <object> token
+    cdef tuple saved_data
     cdef pjsip_transaction *tsx
     cdef pjsip_rx_data *rdata
     cdef pjsip_tx_data *tdata
@@ -63,39 +65,44 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
     cdef object exc
     cdef int final = 1
     cdef int status
-    cdef PJSIPUA ua = c_get_ua()
-    credentials, to_uri_req, to_uri = saved_data
-    if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-        tsx = e.body.tsx_state.tsx
-        rdata = e.body.tsx_state.src.rdata
-        if tsx.status_code < 200:
-            return
-        elif tsx.status_code in [401, 407]:
-            final = 0
-            try:
-                status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint.c_obj, rdata.tp_info.pool, 0)
-                if status != 0:
-                    raise PJSIPError("Could not init auth", status)
-                credentials._to_c()
-                status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials.c_obj)
-                if status != 0:
-                    raise PJSIPError("Could not set auth credentials", status)
-                status = pjsip_auth_clt_reinit_req(&auth, rdata, tsx.last_tx, &tdata)
-                if status != 0:
-                    if status == PJSIP_EFAILEDCREDENTIAL:
-                        final = 1
-                    else:
-                        raise PJSIPError("Could not create auth response", status)
-                else:
-                    status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
+    cdef PJSIPUA ua
+    try:
+        ua = c_get_ua()
+        saved_data = <object> token
+        credentials, to_uri_req, to_uri = saved_data
+        if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+            tsx = e.body.tsx_state.tsx
+            rdata = e.body.tsx_state.src.rdata
+            if tsx.status_code < 200:
+                return
+            elif tsx.status_code in [401, 407]:
+                final = 0
+                try:
+                    status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint.c_obj, rdata.tp_info.pool, 0)
                     if status != 0:
-                        pjsip_tx_data_dec_ref(tdata)
-                        raise PJSIPError("Could not send MESSAGE request", status)
-            except Exception, exc:
-                final = 1
-        if final:
-            Py_DECREF(saved_data)
-            ua.c_sent_messages.remove(to_uri_req.str)
-            c_add_event("message_response", dict(to_uri=to_uri, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text)))
-            if exc is not None:
-                raise exc
+                        raise PJSIPError("Could not init auth", status)
+                    credentials._to_c()
+                    status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials.c_obj)
+                    if status != 0:
+                        raise PJSIPError("Could not set auth credentials", status)
+                    status = pjsip_auth_clt_reinit_req(&auth, rdata, tsx.last_tx, &tdata)
+                    if status != 0:
+                        if status == PJSIP_EFAILEDCREDENTIAL:
+                            final = 1
+                        else:
+                            raise PJSIPError("Could not create auth response", status)
+                    else:
+                        status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
+                        if status != 0:
+                            pjsip_tx_data_dec_ref(tdata)
+                            raise PJSIPError("Could not send MESSAGE request", status)
+                except Exception, exc:
+                    final = 1
+            if final:
+                Py_DECREF(saved_data)
+                ua.c_sent_messages.remove(to_uri_req.str)
+                c_add_event("message_response", dict(to_uri=to_uri, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text)))
+                if exc is not None:
+                    raise exc
+    except:
+        _callback_exc = sys.exc_info()

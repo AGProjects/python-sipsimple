@@ -285,6 +285,11 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
                 print data
             if command == "pypjua_event":
                 event_name, args = data
+                if event_name == "exception":
+                    print "An exception occured within PyPJUA:"
+                    print args["traceback"]
+                    user_quit = False
+                    command = "quit"
             if command == "user_input":
                 key = data
             if command == "eof":

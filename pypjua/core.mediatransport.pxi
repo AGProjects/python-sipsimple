@@ -427,23 +427,31 @@ cdef class AudioTransport:
 # callback functions
 
 cdef void cb_RTPTransport_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil:
-    global _RTPTransport_stun_list
+    global _RTPTransport_stun_list, _callback_exc
     cdef RTPTransport rtp_transport
-    for rtp_transport in _RTPTransport_stun_list:
-        if rtp_transport.c_obj == tp and op == PJ_ICE_STRANS_OP_INIT:
-            if status == 0:
-                rtp_transport.state = "INIT"
-            else:
-                rtp_transport.state = "STUN_FAILED"
-            c_add_event("RTPTransport_init", dict(obj=rtp_transport, succeeded=status==0, status=pj_status_to_str(status)))
-            _RTPTransport_stun_list.remove(rtp_transport)
-            return
+    try:
+        for rtp_transport in _RTPTransport_stun_list:
+            if rtp_transport.c_obj == tp and op == PJ_ICE_STRANS_OP_INIT:
+                if status == 0:
+                    rtp_transport.state = "INIT"
+                else:
+                    rtp_transport.state = "STUN_FAILED"
+                c_add_event("RTPTransport_init", dict(obj=rtp_transport, succeeded=status==0, status=pj_status_to_str(status)))
+                _RTPTransport_stun_list.remove(rtp_transport)
+                return
+    except:
+        _callback_exc = sys.exc_info()
 
 cdef void cb_AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil:
+    global _callback_exc
     cdef AudioTransport audio_stream = <object> user_data
-    cdef PJSIPUA ua = c_get_ua()
-    c_add_event("AudioTransport_dtmf", dict(obj=audio_stream, digit=chr(digit)))
-    ua.c_conf_bridge._playback_dtmf(digit)
+    cdef PJSIPUA ua
+    try:
+        ua = c_get_ua()
+        c_add_event("AudioTransport_dtmf", dict(obj=audio_stream, digit=chr(digit)))
+        ua.c_conf_bridge._playback_dtmf(digit)
+    except:
+        _callback_exc = sys.exc_info()
 
 # globals
 
