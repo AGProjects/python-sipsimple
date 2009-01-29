@@ -295,11 +295,9 @@ class Ringer:
         self.count = 0
 
     def start(self):
+        self.count += 1
         if self.gthread is None:
             self.gthread = proc.spawn_link_exception(self._run)
-            self.count = 1
-        else:
-            self.count = self.count + 1
 
     def stop(self):
         self.count -= 1
@@ -461,6 +459,10 @@ class GreenInvitation(GreenBase):
 
     def invite(self, *args, **kwargs):
         ringer = kwargs.pop('ringer', None)
+        if ringer is not None:
+            ringer_stop = ringer.stop
+        else:
+            ringer_stop = None
         self._obj.send_invite(*args, **kwargs)
         assert self.state != 'CONFIRMED', "Already connected"
         with self.linked_queue() as q:
@@ -473,6 +475,7 @@ class GreenInvitation(GreenBase):
                             self.log_ringing(params)
                             if ringer:
                                 ringer.start()
+                                ringer = None
                         elif state in ['CONFIRMED', 'DISCONNECTED']:
                             self.logger.log_event('INVITE result', event_name, params)
                             break
@@ -480,8 +483,8 @@ class GreenInvitation(GreenBase):
                         if not params["succeeded"]:
                             self.logger.write('SDP negotiation failed: %s' % params["error"])
             finally:
-                if ringer:
-                    ringer.stop()
+                if ringer_stop is not None:
+                    ringer_stop()
         return params
 
     def end(self, *args, **kwargs):
