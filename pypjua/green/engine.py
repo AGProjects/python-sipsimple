@@ -449,6 +449,9 @@ class GreenInvitation(GreenBase):
     def log_state_confirmed(self, params):
         self.confirmed = True
 
+    def log_state_early(self, params):
+        pass
+
     def log_ringing(self, params):
         agent = params.get('headers', {}).get('User-Agent', '')
         contact = str(params.get('headers', {}).get('Contact', [['']])[0][0])
