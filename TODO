@@ -13,6 +13,7 @@ SIP core
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
 - Fix remainig TODOs for PUBLISH/REGISTER [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
+- Handle exceptions cause by PJSIP more gracefull, especially within PJSIP callbacks [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
 - Document how other streams can be implemented [RK]
 - Desktop sharing stream high level class, m=application TCP/MSRPS/RFB []
