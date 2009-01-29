@@ -344,6 +344,7 @@ class ChatManager:
         self.current_session = None
         self.message_renderer_job = proc.spawn_link_exception(self._message_renderer)
         self.state_logger = trafficlog.StateLogger()
+        self.outbound_ringer = Ringer(self.sound.play, "ring_outbound.wav")
 
     # is there a need for special process for it? just calling the function is good enough
     def _message_renderer(self):
@@ -438,9 +439,8 @@ class ChatManager:
         inv = self.engine.Invitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
         msrp_connector = MSRPConnectFactory.new(None, self.traffic_logger, state_logger=self.state_logger)
-        ringer = Ringer(self.sound.play, "ring_outbound.wav")
         local_uri = URI(use_tls=self.msrp_tls)
-        chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, ringer, target_uri, local_uri)
+        chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, self.outbound_ringer, target_uri, local_uri)
         self.add_session(chatsession)
 
     def spawn_link_accept_incoming(self):
