@@ -3,6 +3,8 @@ import traceback
 
 from thread import start_new_thread, allocate_lock, interrupt_main
 
+from application.system import default_host_ip
+
 from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION
 from pypjua import __version__
 from pypjua.core import PyPJUAError
@@ -58,7 +60,9 @@ class Engine(object):
     def start(self, auto_sound=True):
         if self._thread_started:
             raise PyPJUAError("Worker thread was already started once")
-        self._ua = PJSIPUA(self.event_handler, **self.init_options)
+        local_ip = self.init_options.pop("local_ip")
+        self._ua = PJSIPUA(self.event_handler, local_ip=(default_host_ip if local_ip is None else local_ip), **self.init_options)
+        self.init_options["local_ip"] = local_ip
         if auto_sound:
             try:
                 self._ua.auto_set_sound_devices()
