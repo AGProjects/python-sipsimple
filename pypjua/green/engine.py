@@ -292,13 +292,18 @@ class Ringer:
         self.args = args
         self.kwargs = kwargs
         self.gthread = None
+        self.count = 0
 
     def start(self):
         if self.gthread is None:
             self.gthread = proc.spawn_link_exception(self._run)
+            self.count = 1
+        else:
+            self.count = self.count + 1
 
     def stop(self):
-        if self.gthread is not None:
+        self.count -= 1
+        if self.count <=0 and self.gthread is not None:
             self.gthread.kill()
             self.gthread = None
 
