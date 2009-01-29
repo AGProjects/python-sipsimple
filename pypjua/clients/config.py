@@ -50,6 +50,8 @@ def _get_history_file(local_uri, remote_uri, is_outgoing):
     else:
         direction = 'incoming'
     time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    if not os.path.exists(dir):
+        os.makedirs(dir)
     filename = os.path.join(dir, '%s-%s-%s.txt' % (time, remote_uri, direction))
     return file(filename, 'a+')
 
