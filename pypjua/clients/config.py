@@ -53,7 +53,7 @@ def _get_history_file(local_uri, remote_uri, is_outgoing):
     if not os.path.exists(dir):
         os.makedirs(dir)
     filename = os.path.join(dir, '%s-%s-%s.txt' % (time, remote_uri, direction))
-    return file(filename, 'a+')
+    return file(filename, 'a')
 
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str,
