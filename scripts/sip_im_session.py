@@ -520,12 +520,12 @@ def start(options, console):
             proc.spawn_greenlet(register, engine, credentials, options.route)
         console.set_ps('%s@%s> ' % (options.uri.user, options.uri.host))
         sound = ThrottlingSoundPlayer(engine.play_wav_file)
+        manager = ChatManager(engine, sound, credentials, console, msrplogger,
+                              options.auto_accept_files,
+                              route=options.route,
+                              relay=options.relay,
+                              msrp_tls=options.msrp_tls)
         try:
-            manager = ChatManager(engine, sound, credentials, console, msrplogger,
-                                  options.auto_accept_files,
-                                  route=options.route,
-                                  relay=options.relay,
-                                  msrp_tls=options.msrp_tls)
             manager.spawn_link_accept_incoming()
             print "Press Ctrl-d to quit or Control-n to switch between active sessions"
             if options.target_uri is None:
