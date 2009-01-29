@@ -131,7 +131,6 @@ class ChatSession(object):
 
     def start_rendering_messages(self):
         self.history_file = get_history_file(self.sip)
-        self.history_file.write('%s Log opened\n' % format_time())
         self.forwarder = proc.spawn(forward_chunks, self.msrpsession.msrp, incoming, self)
         #self.msrpsession.link(lambda *_: proc.spawn_greenlet(self.shutdown))
         self.msrpsession.link(self.source)
@@ -144,7 +143,6 @@ class ChatSession(object):
         if self.msrpsession is not None:
             self.msrpsession.end()
         if self.history_file:
-            self.history_file.write('%s Log closed\n' % format_time())
             self.history_file.close()
             self.history_file = None
 
