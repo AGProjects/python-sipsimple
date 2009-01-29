@@ -28,9 +28,6 @@ sip_transports=tls,tcp,udp
 tls_ca_file=~/.sipclient/tls/ca.crt
 
 ; Verify that the X.509 certificate common name matches the remote hostname
-sip_tls_verify_server=false
-; msrp_tls_verify_server=false ; not implemented
-; xcap_tls_verify_server=false ; not implemented
 
 ; Range of IP ports used for listening to RTP/RTCP streams
 rtp_port_range=8000 8100
@@ -139,4 +136,11 @@ xcap_root=https://xcap.example.com/xcap-root/
 ; sip_register_interval=600  ; not implemented
 ; sip_subscribe_interval=600 ; not implemented
 ; sip_publish_interval=600   ; not implemented
+
+
+; TLS settings
+
+; sip_tls_verify_server=false
+; msrp_tls_verify_server=false ; not implemented
+; xcap_tls_verify_server=false ; not implemented
 
