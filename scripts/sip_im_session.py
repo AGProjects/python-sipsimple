@@ -93,6 +93,7 @@ class ChatSession(object):
         self.invite_job = invite_job
         self.messages_to_send = deque()
         self.source = proc.Source()
+        self.history_file = None
         if self.invite_job is not None:
             self.invite_job.link_value(lambda result: proc.spawn(self._on_invite, result))
             self.invite_job.link_exception(self.source)
@@ -100,7 +101,6 @@ class ChatSession(object):
             self.start_rendering_messages()
         self.forwarder = None
         self.source.link(lambda *_: proc.spawn_greenlet(self.shutdown))
-        self.history_file = None
 
     def link(self, listener):
         """Add a listener to be notified when either msrpsession dies or invite fails"""
