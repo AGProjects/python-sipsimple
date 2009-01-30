@@ -131,7 +131,8 @@ class GreenEngine(Engine):
                 self.register_obj(obj) # XXX unregister_obj is never called
                 obj.handle_event(event_name, params)
                 listener.send(obj)
-            self.logger.log_event('DROPPED', event_name, params)
+            else:
+                self.logger.log_event('DROPPED', event_name, params)
         return filter_incoming
 
     def unlink(self, listener):
