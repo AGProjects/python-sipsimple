@@ -1,4 +1,4 @@
-import thread
+from thread import allocate_lock
 from datetime import datetime
 
 from zope.interface import implements
@@ -31,7 +31,7 @@ class Session(object):
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
         self.state = "NULL"
         self.remote_user_agent = None
-        self._lock = thread.allocate_lock()
+        self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
         self._audio_transport = None
