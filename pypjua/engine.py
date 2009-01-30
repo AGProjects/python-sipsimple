@@ -1,7 +1,7 @@
 import sys
 import traceback
 
-from thread import start_new_thread, allocate_lock, interrupt_main
+from thread import start_new_thread, allocate_lock
 
 from application.system import default_host_ip
 
