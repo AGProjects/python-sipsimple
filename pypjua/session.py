@@ -167,7 +167,7 @@ class Session(object):
         self._lock.acquire()
         try:
             if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
-                raise RuntimeError("This method cannot be called while in the NULL or TERMINATED states")
+                return
             if self._inv.state != "DISCONNECTING":
                 self._inv.disconnect()
             self.state = "TERMINATING"
