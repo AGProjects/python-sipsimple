@@ -5,9 +5,8 @@ from thread import start_new_thread, allocate_lock
 
 from application.system import default_host_ip
 
-from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION
+from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, PyPJUAError
 from pypjua import __version__
-from pypjua.core import PyPJUAError
 
 class Engine(object):
     _instance = None
