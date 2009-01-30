@@ -86,7 +86,7 @@ class Session(object):
                 if self._audio_sdp_index == -1:
                     raise RuntimeError("Use of audio requested, but audio was not proposed by remote party")
             if len(sdp_media_todo) == len(remote_sdp.media):
-                raise RuntimeError("None of the streams proposed by the remote party was accepted")
+                raise RuntimeError("None of the streams proposed by the remote party is enabled")
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
