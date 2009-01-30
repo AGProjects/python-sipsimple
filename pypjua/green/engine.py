@@ -161,7 +161,7 @@ class IncomingSessionHandler:
         for handler in self.handlers:
             if handler.is_acceptable(inv):
                 return handler.handle(inv, *args, **kwargs)
-        inv.shutdown(488) # Not Acceptable Here
+        proc.spawn(inv.end, 488) # Not Acceptable Here
 
     def wait_and_handle(self, engine, *args, **kwargs):
         with engine.linked_incoming() as q:
