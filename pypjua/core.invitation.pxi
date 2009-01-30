@@ -342,7 +342,10 @@ cdef class Invitation:
             raise PyPJUAError("INVITE session is not active")
         if reply_code / 100 < 3:
             raise PyPJUAError("Not a non-2xx final response: %d" % reply_code)
-        status = pjsip_inv_end_session(self.c_obj, reply_code, NULL, &tdata)
+        if self.state == "INCOMING":
+            status = pjsip_inv_answer(self.c_obj, reply_code, NULL, NULL, &tdata)
+        else:
+            status = pjsip_inv_end_session(self.c_obj, reply_code, NULL, &tdata)
         if status != 0:
             raise PJSIPError("Could not create message to end INVITE session", status)
         self._cb_state("DISCONNECTING", NULL)
