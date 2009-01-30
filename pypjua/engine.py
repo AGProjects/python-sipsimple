@@ -4,13 +4,14 @@ import traceback
 from thread import start_new_thread, allocate_lock
 
 from application.system import default_host_ip
+from application.python.util import Singleton
+from application.notification import NotificationCenter, NotificationData
 
 from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, PyPJUAError
 from pypjua import __version__
 
 class Engine(object):
-    _instance = None
-    _done_init = False
+    __metaclass__ = Singleton
     init_options_defaults = {"local_ip": None,
                              "local_udp_port": 0,
                              "local_tcp_port": None,
@@ -30,38 +31,29 @@ class Engine(object):
                                         "presence.winfo": ["application/watcherinfo+xml"],
                                         "xcap-diff": ["application/xcap-diff+xml"]}}
 
-    def __new__(cls, *args, **kwargs):
-        if Engine._instance is None:
-            Engine._instance = object.__new__(cls)
-        return Engine._instance
+    def __init__(self):
+        self.notification_center = NotificationCenter()
+        self._thread_started = False
 
-    def __init__(self, event_handler = None, **kwargs):
-        if not Engine._done_init:
-            self.init_options = Engine.init_options_defaults.copy()
-            for key, value in kwargs.iteritems():
-                if key in self.init_options:
-                    self.init_options[key] = value
-            if event_handler is None:
-                self.event_handler = self._handle_event
-            else:
-                if not callable(event_handler):
-                    raise ValueError("event_handler argument should be callable")
-                self.event_handler = event_handler
-            self._thread_started = False
-            Engine._done_init = True
+    def __getattr__(self, attr):
+        if hasattr(self, "_ua"):
+            if hasattr(self._ua, attr) and attr != "poll":
+                return getattr(self._ua, attr)
+        raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
 
-    def stop(self):
-        if self._thread_started:
-            self._thread_stopping = True
-            self._lock.acquire()
-            self._lock.release()
+    def __setattr__(self, attr, value):
+        if hasattr(self, "_ua"):
+            if hasattr(self._ua, attr) and attr != "poll":
+                setattr(self._ua, attr, value)
+                return
+        object.__setattr__(self, attr, value)
 
-    def start(self, auto_sound=True):
+    def start(self, auto_sound=True, local_ip=None, **kwargs):
         if self._thread_started:
             raise PyPJUAError("Worker thread was already started once")
-        local_ip = self.init_options.pop("local_ip")
-        self._ua = PJSIPUA(self.event_handler, local_ip=(default_host_ip if local_ip is None else local_ip), **self.init_options)
-        self.init_options["local_ip"] = local_ip
+        init_options = Engine.init_options_defaults.copy()
+        init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
+        self._ua = PJSIPUA(self._handle_event, **init_options)
         if auto_sound:
             try:
                 self._ua.auto_set_sound_devices()
@@ -78,6 +70,12 @@ class Engine(object):
             self._lock.release()
             raise
 
+    def stop(self):
+        if self._thread_started:
+            self._thread_stopping = True
+            self._lock.acquire()
+            self._lock.release()
+
     # worker thread
     def _run(self):
         try:
@@ -87,7 +85,7 @@ class Engine(object):
                 except:
                     exc_info = sys.exc_info()
                 if exc_info is not None:
-                    self.event_handler("exception", traceback="".join(traceback.format_exception(*exc_info)))
+                    self.notification_center.post_notification("SCEngineGotException", self, NotificationData(traceback="".join(traceback.format_exception(*exc_info))))
                     exc_info = None
             self._ua.dealloc()
             del self._ua
@@ -95,29 +93,17 @@ class Engine(object):
             self._lock.release()
 
     def _handle_event(self, event_name, **kwargs):
-        if event_name == "log":
-            print "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs
-        else:
-            print 'Received event "%s": %s' % (event_name, kwargs)
-
-    def __getattr__(self, attr):
-        if hasattr(self, "_ua"):
-            if hasattr(self._ua, attr) and attr != "poll":
-                return getattr(self._ua, attr)
-        raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
-
-    def __setattr__(self, attr, value):
-        if hasattr(self, "_ua"):
-            if hasattr(self._ua, attr) and attr != "poll":
-                setattr(self._ua, attr, value)
-                return
-        object.__setattr__(self, attr, value)
+        sender = kwargs.pop("obj", None)
+        if sender is None:
+            sender = self
+        self.notification_center.post_notification(event_name, sender, NotificationData(**kwargs))
 
 
-class EngineHelper(object):
+class EngineStopper(object):
 
     def __del__(self):
-        if Engine._instance is not None:
-            Engine.stop(Engine._instance)
+        if hasattr(Engine, '_instance_creator'):
+            Engine().stop()
 
-_helper = EngineHelper()
+
+_helper = EngineStopper()
