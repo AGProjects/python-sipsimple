@@ -56,7 +56,7 @@ class Session(object):
             self._inv = Invitation(credentials, callee_uri, route=route)
             self._inv.set_offered_local_sdp(local_sdp)
             self.session_manager.session_mapping[self._inv] = self
-            self.send_invite()
+            self._inv.send_invite()
             self.state = "CALLING"
         except:
             self._stop_media()
