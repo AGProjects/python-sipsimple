@@ -1,20 +1,20 @@
 import thread
+from datetime import datetime
 
-from pypjua import *
+from zope.interface import implements
+from application.notification import IObserver, NotificationCenter, NotificationData
+from application.python.util import Singleton
+from application.system import default_host_ip
 
-# TODO: relocate this to somewhere else
-import socket
-try:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(('1.2.3.4', 56))
-        default_host_ip = s.getsockname()[0]
-    finally:
-        s.close()
-        del s
-except socket.error:
-    default_host_ip = None
-del socket
+from pypjua.engine import Engine
+from pypjua.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport
+
+class TimestampedNotificationData(NotificationData):
+
+    def __init__(self, **kwargs):
+        self.timestamp = datetime.now()
+        NotificationData.__init__(self, **kwargs)
+
 
 class Session(object):
     """Represents a session.
@@ -27,9 +27,7 @@ class Session(object):
     def __init__(self):
         """Instatiates a new Session object for an incoming or outgoing
            session. Initially the object is in the NULL state."""
-        self.session_manager = SessionManager._instance
-        if self.session_manager is None:
-            raise RuntimeError("Session manager was never instantiated")
+        self.session_manager = SessionManager()
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
         self.state = "NULL"
         self.remote_user_agent = None
@@ -203,7 +201,7 @@ class Session(object):
             pass
         else:
             self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
-            Engine._instance.connect_audio_transport(self._audio_transport)
+            Engine().connect_audio_transport(self._audio_transport)
 
     def _stop_media(self):
         """Stop all media streams. This will be called by SessionManager when
@@ -215,7 +213,7 @@ class Session(object):
         """Stop the audio stream. This will be called locally, either from
         _update_media() or _stop_media()."""
         if self._audio_transport.is_active:
-            Engine._instance.disconnect_audio_transport(self._audio_transport)
+            Engine().disconnect_audio_transport(self._audio_transport)
             self._audio_transport.stop()
         self._audio_transport = None
 
@@ -240,35 +238,30 @@ class SessionManager(object):
        The application needs to create this and then pass its handle_event
        method to the Engine as event_handler.
        Attributes:
+       rtp_config: RTPConfiguration object
        session_mapping: A dictionary mapping Invitation objects to Session
            objects."""
-    _instance = None
+    __metaclass__ = Singleton
+    implements(IObserver)
 
-    def __new__(cls, *args, **kwargs):
-        """Needed singleton pattern."""
-        if SessionManager._instance is None:
-            SessionManager._instance = object.__new__(cls, *args, **kwargs)
-        return SessionManager._instance
+    def __init__(self):
+        """Creates a new SessionManager object."""
+        self.rtp_config = RTPConfiguration()
+        self.session_mapping = {}
+        self.notification_center = NotificationCenter()
+        self.notification_center.add_observer(self, "SCInvitationChangedState")
+        self.notification_center.add_observer(self, "SCInvitationGotSDPUpdate")
 
-    def __init__(self, *args, **kwargs):
-        """Creates a new SessionManager object or returns the already created
-           This needs to know the application event_handler so it can insert
-           itself between pypjua and the application. The other arguments are
-           needed when creating a RTPTransport object."""
-        if SessionManager._instance is not None:
-            self.event_handler = args[0]
-            self.rtp_config = RTPConfiguration(*args[1:], **kwargs)
-            self.session_mapping = {}
-
-    def handle_event(self, event_name, **kwargs):
-        """Catches the Invitation_state event and takes the appropriate action
-           on the associated Session object. If needed, it will also emit an
-           event related to the Session for consumption by the application."""
-        if event_name == "Invitation_state":
-            inv = kwargs.pop("obj")
-            prev_state = kwargs.pop("prev_state")
-            state = kwargs.pop("state")
-            if state == "INCOMING":
+    def handle_notification(self, notification):
+        """Catches the SCInvitationChangedState and SCInvitationGotSDPUpdate
+           notifications and takes the appropriate action on the associated
+           Session object. If needed, it will also post a notification related
+           to the Session for consumption by the application."""
+        data = notification.data
+        inv = notification.sender
+        session = self.session_mapping.get(inv, None)
+        if notification.name == "SCInvitationChangedState":
+            if data.state == "INCOMING":
                 remote_media = [media.media for media in inv.get_offered_remote_sdp().media]
                 # TODO: check if the To header/request URI is one of ours
                 if not any(supported_media in remote_media for supported_media in ["audio"]):
@@ -278,59 +271,49 @@ class SessionManager(object):
                     session = Session()
                     session.state = "INCOMING"
                     session._inv = inv
-                    session.remote_user_agent = kwargs["headers"].get("User-Agent", None)
+                    session.remote_user_agent = data.headers.get("User-Agent", None)
                     self.session_mapping[inv] = session
-                    kwargs["obj"] = session
-                    kwargs["prev_state"] = "NULL"
-                    kwargs["state"] = session.state
-                    kwargs["audio_proposed"] = "audio" in remote_media
-                    self.event_handler("Session_state", **kwargs)
+                    self.notification_center.post_notification("SCSessionIsIncoming", session, TimestampedNotificationData(audio_proposed="audio" in remote_media))
             else:
-                session = self.session_mapping.get(inv, None)
                 if session is None:
                     return
                 session._lock.acquire()
-                prev_session_state = session.state
                 try:
-                    if prev_state == "CALLING" and state == "EARLY":
+                    prev_session_state = session.state
+                    if data.prev_state == "CALLING" and data.state == "EARLY":
                         session.state = "RINGING"
-                    elif state == "CONNECTING" and inv.is_outgoing:
-                        session.remote_user_agent = kwargs["headers"].get("Server", None)
+                    elif data.state == "CONNECTING" and inv.is_outgoing:
+                        session.remote_user_agent = data.headers.get("Server", None)
                         if session.remote_user_agent is None:
-                            session.remote_user_agent = kwargs["headers"].get("User-Agent", None)
-                    elif state == "CONFIRMED":
+                            session.remote_user_agent = data.headers.get("User-Agent", None)
+                    elif data.state == "CONFIRMED":
                         session.state = "ESTABLISHED"
-                    elif state == "REINVITED":
+                    elif data.state == "REINVITED":
+                        # TODO: implement
                         inv.respond_to_reinvite(488)
-                    elif state == "DISCONNECTED":
+                    elif data.state == "DISCONNECTED":
                         del self.session_mapping[inv]
                         session.state = "TERMINATED"
-                        if "headers" in kwargs:
+                        if hasattr(data, "headers"):
                             if session.remote_user_agent is None:
-                                session.remote_user_agent = kwargs["headers"].get("Server", None)
+                                session.remote_user_agent = data.headers.get("Server", None)
                             if session.remote_user_agent is None:
-                                session.remote_user_agent = kwargs["headers"].get("User-Agent", None)
+                                session.remote_user_agent = data.headers.get("User-Agent", None)
                         session._stop_media()
                         session._inv = None
                 finally:
                     session._lock.release()
                 if prev_session_state != session.state:
-                    kwargs["obj"] = session
-                    kwargs["prev_state"] = prev_session_state
-                    kwargs["state"] = session.state
-                    self.event_handler("Session_state", **kwargs)
-        elif event_name == "Invitation_sdp":
-            session = self.session_mapping.get(kwargs["inv"], None)
+                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state))
+        elif notification.name == "SCInvitationGotSDPUpdate":
             if session is None:
                 return
             session._lock.acquire()
             try:
-                if kwargs["succeeded"]:
-                    session._update_media(kwargs["local_sdp"], kwargs["remote_sdp"])
+                if data.succeeded:
+                    session._update_media(data.local_sdp, data.remote_sdp)
                 else:
                     session._cancel_media()
             finally:
                 session._lock.release()
-        else:
-            self.event_handler(event_name, **kwargs)
 
