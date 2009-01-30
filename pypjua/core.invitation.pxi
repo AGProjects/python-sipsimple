@@ -190,7 +190,7 @@ cdef class Invitation:
         self.state = state
         if rdata != NULL:
             c_rdata_info_to_dict(rdata, event_dict)
-        if state == "DISCONNECTED":
+        if state == "DISCONNECTED" and not self.c_obj.cancelling:
             if rdata == NULL and self.c_obj.cause > 0:
                 event_dict["code"] = self.c_obj.cause
                 event_dict["reason"] = pj_str_to_str(self.c_obj.cause_text)
