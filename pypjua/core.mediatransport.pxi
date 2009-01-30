@@ -443,7 +443,7 @@ cdef void cb_RTPTransport_ice_complete(pjmedia_transport *tp, pj_ice_strans_op o
                     rtp_transport.state = "INIT"
                 else:
                     rtp_transport.state = "STUN_FAILED"
-                c_add_event("RTPTransport_init", dict(obj=rtp_transport, succeeded=status==0, status=pj_status_to_str(status)))
+                c_add_event("SCRTPTransportGotSTUNResponse", dict(obj=rtp_transport, succeeded=status==0, status=pj_status_to_str(status)))
                 _RTPTransport_stun_list.remove(rtp_transport)
                 return
     except:
@@ -455,7 +455,7 @@ cdef void cb_AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
-        c_add_event("AudioTransport_dtmf", dict(obj=audio_stream, digit=chr(digit)))
+        c_add_event("SCAudioTransportGotDTMF", dict(obj=audio_stream, digit=chr(digit)))
         ua.c_conf_bridge._playback_dtmf(digit)
     except:
         _callback_exc = sys.exc_info()

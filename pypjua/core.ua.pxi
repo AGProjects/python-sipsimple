@@ -525,7 +525,7 @@ cdef class PJSIPUA:
             message_params["content_type"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
             message_params["content_subtype"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data, rdata.msg_info.msg.body.len)
-            c_add_event("message", message_params)
+            c_add_event("SCEngineGotMessage", message_params)
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
@@ -567,7 +567,7 @@ cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_cons
             event_dict["nat_type"] = res.nat_type_name
         else:
             event_dict["error"] = res.status_text
-        c_add_event("detect_nat_type", event_dict)
+        c_add_event("SCEngineDetectedNATType", event_dict)
     except:
         _callback_exc = sys.exc_info()
 
@@ -587,13 +587,13 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
     try:
         c_ua = c_get_ua()
         if c_ua.c_trace_sip:
-            c_add_event("siptrace", dict(received=True,
-                                         source_ip=rdata.pkt_info.src_name,
-                                         source_port=rdata.pkt_info.src_port,
-                                         destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
-                                         destination_port=rdata.tp_info.transport.local_name.port,
-                                         data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
-                                         transport=rdata.tp_info.transport.type_name))
+            c_add_event("SCEngineSIPTrace", dict(received=True,
+                                                 source_ip=rdata.pkt_info.src_name,
+                                                 source_port=rdata.pkt_info.src_port,
+                                                 destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                                 destination_port=rdata.tp_info.transport.local_name.port,
+                                                 data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
+                                                 transport=rdata.tp_info.transport.type_name))
     except:
         _callback_exc = sys.exc_info()
     return 0
@@ -604,13 +604,13 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
     try:
         c_ua = c_get_ua()
         if c_ua.c_trace_sip:
-            c_add_event("siptrace", dict(received=False,
-                                         source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
-                                         source_port=tdata.tp_info.transport.local_name.port,
-                                         destination_ip=tdata.tp_info.dst_name,
-                                         destination_port=tdata.tp_info.dst_port,
-                                         data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
-                                         transport=tdata.tp_info.transport.type_name))
+            c_add_event("SCEngineSIPTrace", dict(received=False,
+                                                 source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
+                                                 source_port=tdata.tp_info.transport.local_name.port,
+                                                 destination_ip=tdata.tp_info.dst_name,
+                                                 destination_port=tdata.tp_info.dst_port,
+                                                 data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
+                                                 transport=tdata.tp_info.transport.type_name))
     except:
         _callback_exc = sys.exc_info()
     return 0

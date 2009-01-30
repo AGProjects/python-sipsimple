@@ -1,6 +1,6 @@
 __version__ = "0.4.0"
 
-_revision_required = 21
+_revision_required = 22
 from core import PYPJUA_REVISION
 if PYPJUA_REVISION != _revision_required:
     raise ImportError("Wrong PyPJUA core revision %d (expected %d)" % (PYPJUA_REVISION, _revision_required))

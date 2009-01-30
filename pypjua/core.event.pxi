@@ -90,7 +90,7 @@ cdef list c_get_clear_event_queue():
             if log_match is not None:
                 event_params = dict(level=event.level, sender=log_match.group("sender"), message=log_match.group("message"))
                 event_params["timestamp"] = datetime(*[int(arg) for arg in log_match.groups()[:6]] + [int(log_match.group("millisecond")) * 1000])
-                events.append(("log", event_params))
+                events.append(("SCEngineLog", event_params))
         else:
             event_tup = <object> event.data
             Py_DECREF(event_tup)

@@ -201,7 +201,7 @@ cdef class Invitation:
             if status != 0:
                 raise PJSIPError("Could not create initial (unused) response to INTIVE", status)
             pjsip_tx_data_dec_ref(tdata)
-        c_add_event("Invitation_state", event_dict)
+        c_add_event("SCInvitationChangedState", event_dict)
         return 0
 
     cdef int _cb_sdp_done(self, int status) except -1:
@@ -222,7 +222,7 @@ cdef class Invitation:
             event_dict["remote_sdp"] = c_make_SDPSession(remote_sdp)
         else:
             event_dict["error"] = pj_status_to_str(status)
-        c_add_event("Invitation_sdp", event_dict)
+        c_add_event("SCInvitationGotSDPUpdate", event_dict)
         if self.state == "REINVITED":
             self._cb_state("CONFIRMED", NULL)
         elif self.state in ["INCOMING", "EARLY"] and status != 0:
