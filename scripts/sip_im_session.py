@@ -84,7 +84,7 @@ class ChatSession(object):
     will soon produce MSRPSession.
 
     Until invite is completed send_message works but piles up messages in a queue
-    that will be emptied upon session establishent.
+    that will be emptied upon session establishment.
     """
 
     def __init__(self, sip, msrpsession=None, invite_job=None):
