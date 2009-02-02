@@ -10,7 +10,6 @@ from pypjua import SDPAttribute, SDPMedia, SDPConnection, SDPSession
 from pypjua.green.engine import SIPError, SessionError
 from pypjua.clients.cpim import MessageCPIM
 from pypjua.green.util import Proxy
-from pypjua.core import PyPJUAError
 
 # inv = e.Invitation(credentials, target_uri, route=route)
 # msrp_connector = MSRPConnectFactory.new(relay, traffic_logger)
@@ -200,16 +199,10 @@ class IncomingMSRPHandler(object):
                 local_ip = gethostbyname(acceptor.getHost().host)
                 local_sdp = self.make_local_SDPSession(inv, full_local_path, local_ip)
                 inv.set_offered_local_sdp(local_sdp)
-                try:
-                    inv.accept()
-                except PyPJUAError:
-                    # the session may be already cancelled by the other party at this moment
-                    # exceptions.RuntimeError: "accept" method can only be used in "INCOMING" state
-                    pass
-                else:
-                    msrp = acceptor.complete(full_remote_path)
-                    ERROR = None
-                    return msrp
+                inv.accept()
+                msrp = acceptor.complete(full_remote_path)
+                ERROR = None
+                return msrp
             finally:
                 acceptor.cleanup()
         finally:
