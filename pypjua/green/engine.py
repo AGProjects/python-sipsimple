@@ -18,7 +18,6 @@ from eventlet import proc, coros
 from pypjua import Engine, Registration, Invitation
 from pypjua.green.debug_util import format_lineno
 from pypjua.green.util import wrapdict
-from pypjua import PyPJUAError
 from pypjua.green.eventletutil import SourceQueue
 
 # QQQ: separate logging part from GreenInvitation and GreenRegistration
@@ -116,7 +115,6 @@ class GreenEngine(Engine):
                     obj.handle_event(event_name, params)
                     return obj
                 self.logger.log_event('DROPPED', event_name, params)
-    # incoming event can be missed between wait_incoming() calls. use link_incoming() here
 
     def link_incoming(self, listener):
         self._queue.link(self._filter_incoming(listener))
@@ -158,18 +156,15 @@ class IncomingSessionHandler:
         self.handlers.append(handler)
 
     def handle(self, inv, *args, **kwargs):
-        for handler in self.handlers:
-            if handler.is_acceptable(inv):
-                return handler.handle(inv, *args, **kwargs)
-        proc.spawn(inv.end, 488) # Not Acceptable Here
-
-    def wait_and_handle(self, engine, *args, **kwargs):
-        with engine.linked_incoming() as q:
-            while True:
-                inv = q.wait()
-                session = self.handle(inv, *args, **kwargs)
-                if session is not None:
-                    return session
+        ERROR = 488
+        try:
+            for handler in self.handlers:
+                if handler.is_acceptable(inv):
+                    ERROR = None
+                    return handler.handle(inv, *args, **kwargs)
+        finally:
+            if ERROR is not None:
+                inv.end(488)
 
 
 class GreenBase(object):
@@ -499,11 +494,7 @@ class GreenInvitation(GreenBase):
         self._obj.accept_invite(*args, **kwargs)
         return self.skip_to_event('CONFIRMED')[1]
 
-    def shutdown(self, *args, **kwargs):
-        try:
-            self.end(*args, **kwargs)
-        except PyPJUAError:
-            pass
+    shutdown = end
 
     def call_on_disconnect(self, func):
         listener = call_on_disconnect(func)

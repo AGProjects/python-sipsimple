@@ -100,7 +100,7 @@ class ChatSession(object):
         else:
             self.start_rendering_messages()
         self.forwarder = None
-        self.source.link(lambda *_: proc.spawn_greenlet(self.shutdown))
+        self.source.link(lambda *_: proc.spawn_greenlet(self.end))
 
     def link(self, listener):
         """Add a listener to be notified when either msrpsession dies or invite fails"""
@@ -132,10 +132,9 @@ class ChatSession(object):
     def start_rendering_messages(self):
         self.history_file = get_history_file(self.sip)
         self.forwarder = proc.spawn(forward_chunks, self.msrpsession.msrp, incoming, self)
-        #self.msrpsession.link(lambda *_: proc.spawn_greenlet(self.shutdown))
         self.msrpsession.link(self.source)
 
-    def shutdown(self):
+    def end(self):
         if self.forwarder:
             self.forwarder.kill()
         if self.invite_job:
@@ -170,7 +169,7 @@ def trap_errors(errors, func, *args, **kwargs):
 
 def consult_user(inv, ask_func):
     """Ask the user about the invite. Return True if the user has accepted it.
-    Otherwise shutdown the session with the appropriate error response.
+    Otherwise end the session with the appropriate error response.
 
     To actually request user's input `ask_func' is run in a separate greenlet.
     It must return True if user selected 'Accept' or False if user has selected
@@ -192,7 +191,7 @@ def consult_user(inv, ask_func):
     finally:
         link.cancel()
         if ERROR is not None:
-            inv.shutdown(ERROR)
+            proc.spawn_greenlet(inv.end, ERROR)
 
 
 class IncomingMSRPHandler_Interactive(IncomingMSRPHandler):
@@ -362,12 +361,12 @@ class ChatManager:
     def close(self):
         self.stop_accept_incoming()
         for session in self.sessions[:]:
-            proc.spawn_greenlet(session.shutdown)
+            proc.spawn_greenlet(session.end)
             self.remove_session(session)
 
     def close_current_session(self):
         if self.current_session is not None:
-            proc.spawn_greenlet(self.current_session.shutdown)
+            proc.spawn_greenlet(self.current_session.end)
             self.remove_session(self.current_session)
 
     def update_ps(self):
@@ -386,6 +385,7 @@ class ChatManager:
         session.link(lambda *args: self.remove_session(session))
         if activate:
             self.current_session = session
+            # XXX could be asking user a question about another incoming, at this moment
             self.update_ps()
 
     def remove_session(self, session):
@@ -463,22 +463,18 @@ class ChatManager:
         handler.add_handler(file)
         chat = IncomingChatHandler(get_acceptor, self.console, new_chat_session, inbound_ringer)
         handler.add_handler(chat)
-        # spawn a worker that will log the exception and restart
-        self.accept_incoming_worker = proc.spawn_link_exception(self._accept_incoming_loop, handler)
+        self.accept_incoming_worker = proc.spawn_link_exception(trap_errors, proc.ProcExit, self._accept_incoming_loop, handler)
 
     def stop_accept_incoming(self):
         if self.accept_incoming_worker:
             self.accept_incoming_worker.kill()
 
     def _accept_incoming_loop(self, handler):
-        while True:
-            try:
-                local_uri = URI(use_tls=self.msrp_tls)
-                handler.wait_and_handle(self.engine, local_uri=local_uri)
-            except MSRPSessionErrors, ex:
-                print ex
-            except proc.ProcExit:
-                return
+        local_uri = URI(use_tls=self.msrp_tls)
+        with self.engine.linked_incoming() as q:
+            while True:
+                inv = q.wait()
+                proc.spawn(handler.handle, inv, local_uri=local_uri)
 
     @staticmethod
     def make_SDPMedia(uri_path):

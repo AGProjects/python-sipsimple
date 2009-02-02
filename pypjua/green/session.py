@@ -58,7 +58,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
         msrp = msrp_connector.complete(full_remote_path)
         return invite_response, msrp
     except:
-        proc.spawn_greenlet(inv.shutdown)
+        proc.spawn_greenlet(inv.end)
         raise
     finally:
         msrp_connector.cleanup()
@@ -105,7 +105,7 @@ class MSRPSession:
             self.source.send(None)
         if self.sip:
             self._disconnect_link.cancel()
-            self.sip.shutdown()
+            self.sip.end()
         self._shutdown_msrp()
 
     def _end_sip(self):
@@ -207,4 +207,5 @@ class IncomingMSRPHandler(object):
                 acceptor.cleanup()
         finally:
             if ERROR is not None:
-                inv.shutdown(ERROR)
+                proc.spawn_greenlet(inv.end, ERROR)
+
