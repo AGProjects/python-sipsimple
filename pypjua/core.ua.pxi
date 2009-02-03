@@ -50,7 +50,9 @@ cdef class PJSIPUA:
         if kwargs["sample_rate"] not in [8, 16, 32]:
             raise PyPJUAError("Sample rate should be one of 8, 16 or 32kHz")
         self.c_event_handler = event_handler
-        self.log_level = kwargs["log_level"]
+        if kwargs["log_level"] < 0 or kwargs["log_level"] > PJ_LOG_MAX_LEVEL:
+            raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
+        pj_log_set_level(kwargs["log_level"])
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
         pj_log_set_log_func(cb_log)
         self.c_pjlib = PJLIB()
