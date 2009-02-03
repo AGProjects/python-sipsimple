@@ -623,6 +623,7 @@ def register(engine, credentials, route):
 class ThrottlingSoundPlayer:
 
     LIMIT = 2
+    VOLUME = 25
 
     def __init__(self, play_wav_func):
         self.play_wav_file = play_wav_func
@@ -632,7 +633,7 @@ class ThrottlingSoundPlayer:
         last_time = self.last_times.setdefault(filename, 0)
         current = time.time()
         if current-last_time > self.LIMIT:
-            self.play_wav_file(get_path(filename))
+            self.play_wav_file(get_path(filename), self.VOLUME)
             self.last_times[filename] = current
 
 
