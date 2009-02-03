@@ -345,10 +345,15 @@ class ChatManager:
         try:
             while True:
                 chat, chunk = incoming.wait()
-                msg = format_incoming_message(chat.sip.remote_uri, chunk)
-                print msg
-                chat.history_file.write(msg + '\n')
-                chat.history_file.flush()
+                try:
+                    msg = format_incoming_message(chat.sip.remote_uri, chunk)
+                    print msg
+                except ValueError:
+                    print 'Failed to parse incoming message, content_type=%r, data=%r' % (chunk.content_type, chunk.data)
+                    # XXX: issue REPORT here
+                else:
+                    chat.history_file.write(msg + '\n')
+                    chat.history_file.flush()
                 self.sound.play("message_received.wav")
         except proc.ProcExit:
             pass
