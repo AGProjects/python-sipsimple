@@ -1,5 +1,6 @@
 from __future__ import with_statement
 from copy import copy
+from datetime import datetime
 from twisted.internet.error import ConnectionClosed, DNSLookupError, BindError, ConnectError
 from gnutls.errors import GNUTLSError
 from msrplib import MSRPError
@@ -75,7 +76,7 @@ class MSRPSession:
     # party to close the msrp connection
     MSRP_CLOSE_TIMEOUT = 3
 
-    def __init__(self, sip, msrp): # , incoming_queue=None, disconnect_event=None):
+    def __init__(self, sip, msrp):
         self.sip = sip
         self._disconnect_link = self.sip.call_on_disconnect(self._on_sip_disconnect_cb)
         self.msrp = msrp
@@ -136,26 +137,29 @@ class MSRPSession:
             finally:
                 self._close_msrp()
 
-    def send_message(self, msg, content_type=None):
+    def send_message(self, msg, content_type=None, datetime_=None):
         if content_type is None:
             content_type = 'text/plain'
-        return self.msrp.send_message(self._wrap_cpim(msg, content_type), 'message/cpim')
+        if datetime_ is None:
+            datetime_ = datetime.now()
+        return self.msrp.send_message(self._wrap_cpim(msg, content_type, datetime=datetime_), 'message/cpim')
 
-    def send_chunk(self, chunk):
-        self.msrp.send_chunk(chunk)
-
-    def deliver_message(self, msg, content_type=None):
+    def deliver_message(self, msg, content_type=None, datetime_=None):
         if content_type is None:
             content_type='text/plain'
-        return self.msrp.deliver_message(self._wrap_cpim(msg, content_type), 'message/cpim')
+        if datetime_ is None:
+            datetime_ = datetime.now()
+        return self.msrp.deliver_message(self._wrap_cpim(msg, content_type, datetime=datetime_), 'message/cpim')
 
-    def _wrap_cpim(self, msg, content_type):
-        if content_type!='message/cpim':
-            return str(MessageCPIM(msg, content_type, from_=self.local_uri, to=self.remote_uri))
+    def _wrap_cpim(self, msg, content_type, datetime):
+        if content_type.lower()!='message/cpim':
+            return str(MessageCPIM(msg, content_type, from_=self.local_uri, to=self.remote_uri, datetime=datetime))
         return msg
 
 
 class IncomingMSRPHandler(object):
+    # note, that the same handler can be used in parallel by several greenlets (e.g. chatserver)
+    # hence, it must not hold any state
 
     def __init__(self, get_acceptor, session_factory=None):
         self.get_acceptor = get_acceptor

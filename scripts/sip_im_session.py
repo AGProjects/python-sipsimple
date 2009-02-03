@@ -33,9 +33,6 @@ incoming = coros.queue()
 class UserCommandError(Exception):
     pass
 
-def format_time():
-    return datetime.datetime.now().strftime('%X')
-
 def format_display_user_host(display, user, host):
     if display:
         return '%s (%s@%s)' % (display, user, host)
@@ -61,13 +58,17 @@ def format_incoming_message(uri, message):
             text = message.data
         else:
             text = repr(message)
-    return '%s %s: %s' % (format_time(), format_uri(uri, cpim_uri), text)
+    dt = headers.get('DateTime')
+    if dt is None:
+        return '%s: %s' % (format_uri(uri, cpim_uri), text)
+    else:
+        return '%s %s: %s' % (dt.strftime('%X'), format_uri(uri, cpim_uri), text)
 
 def format_nosessions_ps(myuri):
     return '%s@%s> ' % (myuri.user, myuri.host)
 
-def format_outgoing_message(uri, message):
-    return '%s %s: %s' % (format_time(), format_uri(uri), message)
+def format_outgoing_message(uri, message, dt):
+    return '%s %s: %s' % (dt.strftime('%X'), format_uri(uri), message)
 
 def forward_chunks(msrp, listener, tag):
     while True:
@@ -145,18 +146,20 @@ class ChatSession(object):
             self.history_file.close()
             self.history_file = None
 
-    def send_message(self, msg, content_type=None):
+    def send_message(self, msg, content_type=None, dt=None):
+        if dt is None:
+            dt = datetime.datetime.now()
         if self.msrpsession is None:
             if not self.invite_job:
                 raise AssertionError('This session is dead; do not send messages there')
-            self.messages_to_send.append((msg, content_type))
+            self.messages_to_send.append((msg, content_type, dt))
             print 'Message will be delivered once connection is established'
         else:
-            printed_msg = format_outgoing_message(self.sip.local_uri, msg)
+            printed_msg = format_outgoing_message(self.sip.local_uri, msg, dt)
             print printed_msg
             self.history_file.write(printed_msg + '\n')
             self.history_file.flush()
-            return self.msrpsession.send_message(msg, content_type)
+            return self.msrpsession.send_message(msg, content_type, datetime_=dt)
 
     def format_ps(self):
         return 'Chat to %s: ' % format_uri(self.sip.remote_uri)

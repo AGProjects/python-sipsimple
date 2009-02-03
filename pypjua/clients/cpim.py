@@ -2,14 +2,16 @@
 import re
 from cStringIO import StringIO
 from pypjua import SIPURI
+from pypjua.clients.iso8601 import parse_date
 
 class MessageCPIM(object):
 
-    def __init__(self, msg, content_type, from_=None, to=None):
+    def __init__(self, msg, content_type, from_=None, to=None, datetime=None):
         self.msg = msg
         self.content_type = content_type
         self.from_ = from_
         self.to = to
+        self.datetime = datetime
 
     def __repr__(self):
         klass = type(self).__name__
@@ -29,10 +31,13 @@ class MessageCPIM(object):
 
     def __str__(self):
         result = []
-        if self.from_:
-            result.append('From: %s' % self.format_address(self.from_))
         if self.to:
             result.append('To: %s' % self.format_address(self.to))
+        if self.from_:
+            result.append('From: %s' % self.format_address(self.from_))
+        if self.datetime:
+            result.append('DateTime: %s' % self.datetime.isoformat())
+        result.append('')
         result.append('Content-Type: %s' % self.content_type)
         result.append('')
         result.append(self.msg)
@@ -92,7 +97,8 @@ def parse_cpim_address(s, default_domain=None):
 class MessageCPIMParser:
     _mapping = {'From': parse_cpim_address,
                 'To': parse_cpim_address,
-                'cc': parse_cpim_address}
+                'cc': parse_cpim_address,
+                'DateTime': parse_date}
 
     @classmethod
     def parse_file(cls, f):
@@ -120,4 +126,3 @@ class MessageCPIMParser:
 if __name__=='__main__':
     import doctest
     doctest.testmod()
-
