@@ -221,6 +221,11 @@ class Session(object):
         if self._audio_transport is not None and not self._audio_transport.is_active:
             self._stop_audio()
 
+    def send_dtmf(self, digit):
+        if self._audio_transport is None:
+            raise RuntimeError("This session does not have an audio stream to transmit DMTF over")
+        self._audio_transport.send_dtmf(digit)
+
 
 class RTPConfiguration(object):
 
