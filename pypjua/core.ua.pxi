@@ -54,7 +54,6 @@ cdef class PJSIPUA:
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON | PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
         pj_log_set_log_func(cb_log)
         self.c_pjlib = PJLIB()
-        self.c_check_self()
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
