@@ -73,10 +73,10 @@ class SIPAddress(object):
 _re_address = re.compile('^([^>]+)?<(.*?)>$')
 def parse_cpim_address(s, default_domain=None):
     """
-    >>> alice = parse_address('<sip:alice@example.com>')
+    >>> alice = parse_cpim_address('<sip:alice@example.com>')
     >>> alice.user, alice.host, alice.display
     ('alice', 'example.com', None)
-    >>> alice = parse_address('Alice The Great <sips:alice@example.com>')
+    >>> alice = parse_cpim_address('Alice The Great <sips:alice@example.com>')
     >>> print alice
     "Alice The Great" <sips:alice@example.com>
     """
