@@ -74,7 +74,7 @@ class Session(object):
                 raise RuntimeError("This method can only be called while in the INCOMING state")
             remote_sdp = self._inv.get_offered_remote_sdp()
             local_address = self.rtp_options["local_rtp_address"]
-            local_sdp = SDPSession(local_address, connection=SDPConnection(local_address), media=len(remote_sdp.media)*[None])
+            local_sdp = SDPSession(local_address, connection=SDPConnection(local_address), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time)
             sdp_media_todo = range(len(remote_sdp.media))
             if use_audio:
                 for audio_sdp_index, sdp_media in enumerate(remote_sdp.media):
