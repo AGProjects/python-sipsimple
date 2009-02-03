@@ -141,14 +141,14 @@ class MSRPSession:
         if content_type is None:
             content_type = 'text/plain'
         if datetime_ is None:
-            datetime_ = datetime.now()
+            datetime_ = datetime.utcnow()
         return self.msrp.send_message(self._wrap_cpim(msg, content_type, datetime=datetime_), 'message/cpim')
 
     def deliver_message(self, msg, content_type=None, datetime_=None):
         if content_type is None:
             content_type='text/plain'
         if datetime_ is None:
-            datetime_ = datetime.now()
+            datetime_ = datetime.utcnow()
         return self.msrp.deliver_message(self._wrap_cpim(msg, content_type, datetime=datetime_), 'message/cpim')
 
     def _wrap_cpim(self, msg, content_type, datetime):

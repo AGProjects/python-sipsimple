@@ -67,8 +67,8 @@ class FixedOffset(tzinfo):
     """Fixed offset in hours and minutes from UTC
 
     """
-    def __init__(self, offset_hours, offset_minutes, name):
-        self.__offset = timedelta(hours=offset_hours, minutes=offset_minutes)
+    def __init__(self, offset_hours=0, offset_minutes=0, name='', offset_seconds=0):
+        self.__offset = timedelta(hours=offset_hours, minutes=offset_minutes, seconds=offset_seconds)
         self.__name = name
 
     def utcoffset(self, dt):

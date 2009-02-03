@@ -48,6 +48,21 @@ def format_uri(sip_uri, cpim_uri=None):
             return format_display_user_host(cpim_uri.display, cpim_uri.user, cpim_uri.host)
     return format_display_user_host(sip_uri.display, sip_uri.user, sip_uri.host)
 
+def format_datetime(dt):
+    """Format time in the local timezone.
+    dt is datetime with tzinfo = UTC (or None which will be treated like UTC).
+
+    >>> from pypjua.clients.iso8601 import parse_date
+    >>> time.timezone == -6*60*60 # this test can only be executed in Novosibirsk
+    True
+    >>> format_datetime(parse_date('2009-02-03T14:30:04'))
+    '20:30:04'
+    """
+    if dt.tzinfo is None or not dt.tzinfo.utcoffset(dt):
+        return (dt - datetime.timedelta(seconds=time.timezone)).strftime('%X')
+    else:
+        return repr(dt)
+
 def format_incoming_message(uri, message):
     if message.content_type == 'message/cpim':
         headers, text = MessageCPIMParser.parse_string(message.data)
@@ -62,13 +77,13 @@ def format_incoming_message(uri, message):
     if dt is None:
         return '%s: %s' % (format_uri(uri, cpim_uri), text)
     else:
-        return '%s %s: %s' % (dt.strftime('%X'), format_uri(uri, cpim_uri), text)
+        return '%s %s: %s' % (format_datetime(dt), format_uri(uri, cpim_uri), text)
 
 def format_nosessions_ps(myuri):
     return '%s@%s> ' % (myuri.user, myuri.host)
 
 def format_outgoing_message(uri, message, dt):
-    return '%s %s: %s' % (dt.strftime('%X'), format_uri(uri), message)
+    return '%s %s: %s' % (format_datetime(dt), format_uri(uri), message)
 
 def forward_chunks(msrp, listener, tag):
     while True:
@@ -148,7 +163,7 @@ class ChatSession(object):
 
     def send_message(self, msg, content_type=None, dt=None):
         if dt is None:
-            dt = datetime.datetime.now()
+            dt = datetime.datetime.utcnow()
         if self.msrpsession is None:
             if not self.invite_job:
                 raise AssertionError('This session is dead; do not send messages there')
