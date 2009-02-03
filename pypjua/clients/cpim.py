@@ -13,7 +13,7 @@ class MessageCPIM(object):
 
     def __repr__(self):
         klass = type(self).__name__
-        params = [self.msg, self.content_type, self.from_. self.to]
+        params = [self.msg, self.content_type, self.from_, self.to]
         if params[-1] is None:
             del params[-1]
         if params[-1] is None:
