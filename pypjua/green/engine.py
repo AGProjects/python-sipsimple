@@ -162,9 +162,12 @@ class IncomingSessionHandler:
                 if handler.is_acceptable(inv):
                     ERROR = None
                     return handler.handle(inv, *args, **kwargs)
+        except:
+            ERROR = 500
+            raise
         finally:
             if ERROR is not None:
-                inv.end(488)
+                inv.end(ERROR)
 
 
 class GreenBase(object):

@@ -189,7 +189,7 @@ class IncomingMSRPHandler(object):
             return self.session_factory(inv, msrp)
 
     def accept(self, inv, local_uri=None):
-        ERROR = 488
+        ERROR = 500
         try:
             #remote_sdp = inv.get_offered_remote_sdp()
             full_remote_path = [msrp_protocol.parse_uri(uri) for uri in inv._attrdict['path'].split()]
