@@ -457,13 +457,13 @@ class GreenInvitation(GreenBase):
         self.logger.write('Ringing from %s' % contact)
 
     def invite(self, *args, **kwargs):
+        assert self.state != 'CONFIRMED', "Already connected"
         ringer = kwargs.pop('ringer', None)
         if ringer is not None:
             ringer_stop = ringer.stop
         else:
             ringer_stop = None
         self._obj.send_invite(*args, **kwargs)
-        assert self.state != 'CONFIRMED', "Already connected"
         with self.linked_queue() as q:
             try:
                 while True:
