@@ -227,6 +227,13 @@ class Session(object):
             raise RuntimeError("This session does not have an audio stream to transmit DMTF over")
         self._audio_transport.send_dtmf(digit)
 
+    def _make_next_sdp_answer(self):
+        local_sdp = self._inv.get_active_local_sdp()
+        local_sdp.version += 1
+        if self._audio_transport is not None:
+            local_sdp.media[self._audio_sdp_index] = self._audio_transport.get_local_media(False)
+        return local_sdp
+
 
 class RTPConfiguration(object):
 
@@ -283,6 +290,7 @@ class SessionManager(object):
             else:
                 if session is None:
                     return
+                notification_dict = {}
                 session._lock.acquire()
                 try:
                     prev_session_state = session.state
@@ -295,8 +303,34 @@ class SessionManager(object):
                     elif data.state == "CONFIRMED":
                         session.state = "ESTABLISHED"
                     elif data.state == "REINVITED":
-                        # TODO: implement
-                        inv.respond_to_reinvite(488)
+                        current_remote_sdp = inv.get_active_remote_sdp()
+                        proposed_remote_sdp = inv.get_offered_remote_sdp()
+                        if proposed_remote_sdp.version == current_remote_sdp.version:
+                            if current_remote_sdp != proposed_remote_sdp:
+                                # same version, but not identical SDP
+                                inv.respond_to_reinvite(488)
+                            else:
+                                # same version, same SDP, respond with the already present local SDP
+                                inv.set_offered_local_sdp(inv.get_active_local_sdp())
+                                inv.respond_to_reinvite(200)
+                        elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
+                            for attr in ["user", "id", "net_type", "address_type", "address"]:
+                                if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
+                                    # difference in contents of o= line
+                                    inv.respond_to_reinvite(488)
+                                    return
+                            current_remote_media = [media.media for media in current_remote_sdp.media if media.port != 0]
+                            proposed_remote_media = [media.media for media in proposed_remote_sdp.media if media.port != 0]
+                            notification_dict["audio_proposed"] = "audio" not in current_remote_media and "audio" in proposed_remote_media
+                            if True in notification_dict.values():
+                                inv.respond_to_reinvite(180)
+                                session.state = "PROPOSED"
+                            else:
+                                inv.set_offered_local_sdp(session._make_next_sdp_answer())
+                                inv.respond_to_reinvite(200)
+                        else:
+                            # version increase is not exactly one more
+                            inv.respond_to_reinvite(488)
                     elif data.state == "DISCONNECTED":
                         del self.session_mapping[inv]
                         session.state = "TERMINATED"
@@ -310,7 +344,7 @@ class SessionManager(object):
                 finally:
                     session._lock.release()
                 if prev_session_state != session.state:
-                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state))
+                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state, **notification_dict))
         elif notification.name == "SCInvitationGotSDPUpdate":
             if session is None:
                 return
