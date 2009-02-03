@@ -198,7 +198,8 @@ class Session(object):
         """Update the audio stream. Will be called locally from
            _update_media()."""
         if self._audio_transport.is_active:
-            pass
+            # TODO: check for ip/port/codec changes and restart AudioTransport if needed
+            self._audio_transport.update_direction(local_sdp.media[self._audio_sdp_index].get_direction())
         else:
             self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
             Engine().connect_audio_transport(self._audio_transport)
