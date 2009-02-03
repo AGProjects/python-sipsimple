@@ -628,6 +628,8 @@ def main():
             start(options, console)
     except EOF:
         pass
+    except proc.LinkedExited, err:
+        print 'Exiting because %s' % (err, )
     except (RuntimeError, PyPJUAError), e:
         sys.exit(str(e) or str(type(e)))
 
