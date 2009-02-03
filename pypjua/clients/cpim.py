@@ -97,15 +97,20 @@ class MessageCPIMParser:
     @classmethod
     def parse_file(cls, f):
         headers = {}
-        while True:
-            line = f.readline().rstrip()
-            if not line:
-                break
-            header, value = line.split(': ', 1)
-            transform = cls._mapping.get(header)
-            if transform:
-                value = transform(value)
-            headers[header] = value
+        for _ in xrange(2):
+            while True:
+                line = f.readline().rstrip()
+                if not line:
+                    break
+                try:
+                    header, value = line.split(': ', 1)
+                except:
+                    print 'failed to parse line %r' % (line, )
+                    raise
+                transform = cls._mapping.get(header)
+                if transform:
+                    value = transform(value)
+                headers[header] = value
         return headers, f.read()
 
     @classmethod
