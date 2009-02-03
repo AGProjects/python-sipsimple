@@ -278,7 +278,7 @@ class SessionManager(object):
                     session._inv = inv
                     session.remote_user_agent = data.headers.get("User-Agent", None)
                     self.session_mapping[inv] = session
-                    self.notification_center.post_notification("SCSessionIsIncoming", session, TimestampedNotificationData(audio_proposed="audio" in remote_media))
+                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state="NULL", state=session.state, audio_proposed="audio" in remote_media))
             else:
                 if session is None:
                     return
