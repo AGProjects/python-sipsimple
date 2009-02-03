@@ -267,7 +267,7 @@ class SessionManager(object):
         session = self.session_mapping.get(inv, None)
         if notification.name == "SCInvitationChangedState":
             if data.state == "INCOMING":
-                remote_media = [media.media for media in inv.get_offered_remote_sdp().media]
+                remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
                 # TODO: check if the To header/request URI is one of ours
                 if not any(supported_media in remote_media for supported_media in ["audio"]):
                     inv.disconnect(415)
