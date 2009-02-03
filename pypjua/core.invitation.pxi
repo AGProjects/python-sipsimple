@@ -297,38 +297,32 @@ cdef class Invitation:
     def respond_to_invite_provisionally(self, int reply_code=180, dict extra_headers=None):
         if self.state != "INCOMING":
             raise PyPJUAError("Can only transition to the EARLY state from the INCOMING state")
-        self._send_provisional_response(reply_code, extra_headers)
-
-    cdef int _send_provisional_response(self, int reply_code, dict extra_headers) except -1:
-        cdef pjsip_tx_data *tdata
-        cdef int status
-        cdef PJSIPUA ua = c_get_ua()
         if reply_code / 100 != 1:
             raise PyPJUAError("Not a provisional response: %d" % reply_code)
-        status = pjsip_inv_answer(self.c_obj, reply_code, NULL, NULL, &tdata)
-        if status != 0:
-            raise PyPJUAError("Could not create %d reply to INVITE: %s" % (reply_code, pj_status_to_str(status)))
-        self._send_msg(ua, tdata, extra_headers or {})
-        return 0
+        self._send_response(reply_code, extra_headers)
 
     def accept_invite(self, dict extra_headers=None):
         if self.state not in ["INCOMING", "EARLY"]:
             raise PyPJUAError("Can only transition to the EARLY state from the INCOMING or EARLY states")
-        self._send_response(extra_headers)
+        try:
+            self._send_response(200, extra_headers)
+        except PJSIPError, e:
+            if not pj_status_to_def(e.status).startswith("PJMEDIA_SDPNEG"):
+                raise
 
-    cdef int _send_response(self, dict extra_headers) except -1:
+    cdef int _send_response(self, int reply_code, dict extra_headers) except -1:
         cdef pjsip_tx_data *tdata
         cdef int status
+        cdef pjmedia_sdp_session *local_sdp = NULL
         cdef PJSIPUA ua = c_get_ua()
-        if self.c_local_sdp_proposed is None:
-            raise PyPJUAError("Local SDP has not been set")
-        self.c_local_sdp_proposed._to_c()
-        status = pjsip_inv_answer(self.c_obj, 200, NULL, &self.c_local_sdp_proposed.c_obj, &tdata)
+        if reply_code / 100 == 2:
+            if self.c_local_sdp_proposed is None:
+                raise PyPJUAError("Local SDP has not been set")
+            self.c_local_sdp_proposed._to_c()
+            local_sdp = &self.c_local_sdp_proposed.c_obj
+        status = pjsip_inv_answer(self.c_obj, reply_code, NULL, local_sdp, &tdata)
         if status != 0:
-            if pj_status_to_def(status).startswith("PJMEDIA_SDPNEG"):
-                return 0
-            else:
-                raise PJSIPError("Could not create 200 reply to INVITE", status)
+                raise PJSIPError("Could not create %d reply to INVITE" % reply_code, status)
         self._send_msg(ua, tdata, extra_headers or {})
         return 0
 
@@ -352,15 +346,10 @@ cdef class Invitation:
         if tdata != NULL:
             self._send_msg(ua, tdata, extra_headers or {})
 
-    def respond_to_reinvite_provisionally(self, int reply_code=180, dict extra_headers=None):
-        if self.state != "REINVITED":
-            raise PyPJUAError("Can only send a provisional response to a re-INVITE in the REINVITED state")
-        self._send_provisional_response(reply_code, extra_headers)
-
-    def respond_to_reinvite(self, dict extra_headers=None):
+    def respond_to_reinvite(self, int reply_code=200, dict extra_headers=None):
         if self.state != "REINVITED":
             raise PyPJUAError("Can only send a response to a re-INVITE in the REINVITED state")
-        self._send_response(extra_headers)
+        self._send_response(reply_code, extra_headers)
 
     def send_reinvite(self, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
