@@ -167,7 +167,7 @@ class IncomingSessionHandler:
             raise
         finally:
             if ERROR is not None:
-                inv.end(ERROR)
+                proc.spawn_greenlet(inv.end, ERROR)
 
 
 class GreenBase(object):
