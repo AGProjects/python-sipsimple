@@ -5,7 +5,7 @@ import hashlib
 import traceback
 from eventlet.api import sleep
 from msrplib.connect import MSRPConnectFactory
-from msrplib.trafficlog import TrafficLogger
+from msrplib.trafficlog import TrafficLogger, StateLogger
 
 from pypjua import Credentials, SDPAttribute, SDPMedia
 from pypjua.green.engine import GreenEngine, Ringer
@@ -73,7 +73,7 @@ def main():
         credentials = Credentials(options.uri, options.password)
         inv = e.Invitation(credentials, options.target_uri, route=options.route)
         logger = TrafficLogger.to_file(is_enabled_func = lambda: options.trace_msrp)
-        msrp_connector = MSRPConnectFactory.new(options.relay, logger)
+        msrp_connector = MSRPConnectFactory.new(None, traffic_logger=logger, state_logger=StateLogger())
         ringer = Ringer(e.play_wav_file, get_path("ring_outbound.wav"))
         session = MSRPSession.invite(inv, msrp_connector, sdp.make_SDPMedia, ringer=ringer)
         # XXX: msrpsession must accept file object

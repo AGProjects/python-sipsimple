@@ -65,7 +65,7 @@ class AccountConfig(ConfigSection):
     password = None
     display_name = None
     outbound_proxy = None
-    msrp_relay = "auto"
+    msrp_relay = "srv"
 
 class AudioConfig(ConfigSection):
     _datatypes = {"disable_sound": datatypes.Boolean}
@@ -88,7 +88,7 @@ def parse_outbound_proxy(option, opt_str, value, parser):
         raise OptionValueError(e.message)
 
 def _parse_msrp_relay(value):
-    if value in ['auto', 'srv', 'none']:
+    if value in ['srv', 'none']:
         return value
     try:
         return IPAddressOrHostname(value)
@@ -138,12 +138,11 @@ def parse_options(usage, description, extra_options=()):
     parser.add_option("-j", "--trace-pjsip", action="store_true", default=GeneralConfig.trace_pjsip,
                       help="Print PJSIP logging output.")
 
-    help=('Use the MSRP relay; '
+    help=('Use MSRP relay for incoming connections; '
           'if "srv", do SRV lookup on domain part of the target SIP URI, '
           'use user\'s domain if SRV lookup was not successful; '
-          'if "none", the direct connection is performed; '
-          'if "auto", use "srv" for incoming connections and "none" for outgoing; '
-          'default is "auto".')
+          'if "none", do not use a relay (listen on a local port instead); '
+          'default is "srv".')
     parser.add_option("-r", "--msrp-relay", type='string',
                       action="callback", callback=parse_msrp_relay, help=help, metavar='IP[:PORT]')
     parser.add_option("-S", "--disable-sound", action="store_true", default=AudioConfig.disable_sound,
@@ -222,9 +221,6 @@ def parse_options(usage, description, extra_options=()):
         options.target_uri = None
     options.args = args
 
-    if options.msrp_relay == 'auto':
-        # XXX currently this option is used only for incoming connections
-        options.msrp_relay = 'srv'
     if options.msrp_relay == 'srv':
         options.relay = MSRPRelaySettings(domain=options.uri.host,
                                           username=options.uri.user, password=options.password)
