@@ -137,7 +137,8 @@ class Session(object):
         try:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
-            # TODO: implement
+            self._inv.respond_to_reinvite(488)
+            self.state = "ESTABLISHED"
         finally:
             self._lock.release()
 
