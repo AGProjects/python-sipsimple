@@ -50,8 +50,6 @@ Instant messaging
 
 - Add --auto-echo parameter to sip_im_session for automated tests [DB]
 - Add --auto-answer parameter to sip_im_session [DB]
-- Reduce volume of IM related notifications to 50% [DB]
-- Play a different sound for join/leave chat room [DB]
 - Document MSRP client library usage [DB]
 - Port eventlet/greenlet to ARM [DB]
 - MSRP focus [DB]
