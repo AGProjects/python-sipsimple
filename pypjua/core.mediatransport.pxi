@@ -316,12 +316,19 @@ cdef class AudioTransport:
     def get_local_media(self, is_offer, direction="sendrecv"):
         cdef SDPAttribute attr
         cdef SDPMedia local_media
-        if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
+        cdef object direction_attr
+        if is_offer and direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
             raise PyPJUAError("Unknown direction: %s" % direction)
         local_media = c_make_SDPMedia(self.c_local_media)
         local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ["sendrecv", "sendonly", "recvonly", "inactive"]]
-        if is_offer and direction != "sendrecv":
-            local_media.attributes.append(SDPAttribute(direction, ""))
+        if is_offer:
+            direction_attr = direction
+        else:
+            if "recv" in self.direction:
+                direction_attr = "sendrecv"
+            else:
+                direction_attr = "sendonly"
+        local_media.attributes.append(SDPAttribute(direction_attr, ""))
         return local_media
 
     def start(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
