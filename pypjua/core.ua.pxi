@@ -435,10 +435,10 @@ cdef class PJSIPUA:
 
     def dealloc(self):
         global _ua, _event_queue_lock
+        cdef RecordingWaveFile rec_file
         if _ua == NULL:
             return
         self.c_check_thread()
-        cdef RecordingWaveFile rec_file
         for rec_file in self.c_rec_files:
             rec_file.stop()
         self.c_wav_files = None
@@ -451,8 +451,8 @@ cdef class PJSIPUA:
         self.c_pjmedia_endpoint = None
         self.c_caching_pool = None
         self.c_pjlib = None
-        self._poll_log()
         _ua = NULL
+        self._poll_log()
 
     cdef int _poll_log(self) except -1:
         cdef object event_name
