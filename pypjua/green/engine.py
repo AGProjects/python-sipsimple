@@ -81,7 +81,7 @@ class GreenEngine(Engine):
 
     def shutdown(self):
         jobs = [proc.spawn(obj.shutdown) for obj in self.objs.values()]
-        proc.waitall(jobs)
+        proc.waitall(jobs, trap_errors=True)
 
     def register_obj(self, obj, queue=None):
         if not hasattr(obj, '_obj'):
