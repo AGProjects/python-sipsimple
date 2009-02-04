@@ -1,5 +1,6 @@
 from thread import allocate_lock
 from datetime import datetime
+from collections import deque
 
 from zope.interface import implements
 from application.notification import IObserver, NotificationCenter, NotificationData
@@ -31,10 +32,12 @@ class Session(object):
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
         self.state = "NULL"
         self.remote_user_agent = None
+        self.is_on_hold = False
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
         self._audio_transport = None
+        self._queue = deque()
 
     # user interface
     def new(self, callee_uri, credentials, route=None, use_audio=False):
@@ -147,8 +150,11 @@ class Session(object):
            ESTABLISHED state to the ONHOLD state."""
         self._lock.acquire()
         try:
-            if self.state != "ESTABLISHED":
-                raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+            if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
+                raise RuntimeError("Session is not active")
+            self._queue.append("hold")
+            if self.state == "ESTABLISHED" and len(self._queue) == 1:
+                self._process_queue()
         finally:
             self._lock.release()
 
@@ -157,8 +163,11 @@ class Session(object):
            moves the object from the ONHOLD state to the ESTABLISHED state."""
         self._lock.acquire()
         try:
-            if self.state != "ONHOLD":
-                raise RuntimeError("This method can only be called while in the ONHOLD state")
+            if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
+                raise RuntimeError("Session is not active")
+            self._queue.append("unhold")
+            if self.state == "ESTABLISHED" and len(self._queue) == 1:
+                self._process_queue()
         finally:
             self._lock.release()
 
@@ -174,6 +183,31 @@ class Session(object):
             self.state = "TERMINATING"
         finally:
             self._lock.release()
+
+    def _process_queue(self):
+        was_on_hold = self.is_on_hold
+        while self._queue:
+            command = self._queue.popleft()
+            if command == "hold":
+                if self.is_on_hold:
+                    continue
+                if self._audio_transport is not None and self._audio_transport.is_active:
+                    Engine().disconnect_audio_transport(self._audio_transport)
+                local_sdp = self._make_next_sdp(True, True)
+                self.is_on_hold = True
+                break
+            elif command == "unhold":
+                if not self.is_on_hold:
+                    continue
+                if self._audio_transport is not None and self._audio_transport.is_active:
+                    Engine().connect_audio_transport(self._audio_transport)
+                local_sdp = self._make_next_sdp(True, False)
+                self.is_on_hold = False
+                break
+        self._inv.set_offered_local_sdp(local_sdp)
+        self._inv.send_reinvite()
+        if was_on_hold != self.is_on_hold:
+            self.session_manager.notification_center.post_notification("SCSessionChangedHold", self, TimestampedNotificationData(is_on_hold=self.is_on_hold))
 
     def _init_audio(self, remote_sdp=None):
         """Initialize everything needed for an audio stream and return a
@@ -228,11 +262,18 @@ class Session(object):
             raise RuntimeError("This session does not have an audio stream to transmit DMTF over")
         self._audio_transport.send_dtmf(digit)
 
-    def _make_next_sdp_answer(self):
+    def _make_next_sdp(self, is_offer, on_hold=False):
         local_sdp = self._inv.get_active_local_sdp()
         local_sdp.version += 1
         if self._audio_transport is not None:
-            local_sdp.media[self._audio_sdp_index] = self._audio_transport.get_local_media(False)
+            if is_offer:
+                if "send" in self._audio_transport.direction:
+                    direction = ("sendonly" if on_hold else "sendrecv")
+                else:
+                    direction = ("inactive" if on_hold else "recvonly")
+            else:
+                direction = None
+            local_sdp.media[self._audio_sdp_index] = self._audio_transport.get_local_media(is_offer, direction)
         return local_sdp
 
 
@@ -303,6 +344,8 @@ class SessionManager(object):
                             session.remote_user_agent = data.headers.get("User-Agent", None)
                     elif data.state == "CONFIRMED":
                         session.state = "ESTABLISHED"
+                        if session._queue:
+                            session._process_queue()
                     elif data.state == "REINVITED":
                         current_remote_sdp = inv.get_active_remote_sdp()
                         proposed_remote_sdp = inv.get_offered_remote_sdp()
@@ -327,7 +370,7 @@ class SessionManager(object):
                                 inv.respond_to_reinvite(180)
                                 session.state = "PROPOSED"
                             else:
-                                inv.set_offered_local_sdp(session._make_next_sdp_answer())
+                                inv.set_offered_local_sdp(session._make_next_sdp(False))
                                 inv.respond_to_reinvite(200)
                         else:
                             # version increase is not exactly one more
