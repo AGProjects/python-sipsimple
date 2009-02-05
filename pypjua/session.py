@@ -312,92 +312,96 @@ class SessionManager(object):
            notifications and takes the appropriate action on the associated
            Session object. If needed, it will also post a notification related
            to the Session for consumption by the application."""
-        data = notification.data
-        inv = notification.sender
-        session = self.session_mapping.get(inv, None)
-        if notification.name == "SCInvitationChangedState":
-            if data.state == "INCOMING":
-                remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
-                # TODO: check if the To header/request URI is one of ours
-                if not any(supported_media in remote_media for supported_media in ["audio"]):
-                    inv.disconnect(415)
-                else:
-                    inv.respond_to_invite_provisionally(180)
-                    session = Session()
-                    session.state = "INCOMING"
-                    session._inv = inv
-                    session.remote_user_agent = data.headers.get("User-Agent", None)
-                    self.session_mapping[inv] = session
-                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state="NULL", state=session.state, audio_proposed="audio" in remote_media))
+        handler = getattr(self, '_handle_%s' % notification.name, None)
+        if handler is not None:
+            handler(notification.sender, notification.data)
+
+    def _handle_SCInvitationChangedState(self, inv, data):
+        if data.state == "INCOMING":
+            remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
+            # TODO: check if the To header/request URI is one of ours
+            if not any(supported_media in remote_media for supported_media in ["audio"]):
+                inv.disconnect(415)
             else:
-                if session is None:
-                    return
-                notification_dict = {}
-                session._lock.acquire()
-                try:
-                    prev_session_state = session.state
-                    if data.prev_state == "CALLING" and data.state == "EARLY":
-                        session.state = "RINGING"
-                    elif data.state == "CONNECTING" and inv.is_outgoing:
-                        session.remote_user_agent = data.headers.get("Server", None)
-                        if session.remote_user_agent is None:
-                            session.remote_user_agent = data.headers.get("User-Agent", None)
-                    elif data.state == "CONFIRMED":
-                        session.state = "ESTABLISHED"
-                        if session._queue:
-                            session._process_queue()
-                    elif data.state == "REINVITED":
-                        current_remote_sdp = inv.get_active_remote_sdp()
-                        proposed_remote_sdp = inv.get_offered_remote_sdp()
-                        if proposed_remote_sdp.version == current_remote_sdp.version:
-                            if current_remote_sdp != proposed_remote_sdp:
-                                # same version, but not identical SDP
-                                inv.respond_to_reinvite(488)
-                            else:
-                                # same version, same SDP, respond with the already present local SDP
-                                inv.set_offered_local_sdp(inv.get_active_local_sdp())
-                                inv.respond_to_reinvite(200)
-                        elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
-                            for attr in ["user", "id", "net_type", "address_type", "address"]:
-                                if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
-                                    # difference in contents of o= line
-                                    inv.respond_to_reinvite(488)
-                                    return
-                            current_remote_media = [media.media for media in current_remote_sdp.media if media.port != 0]
-                            proposed_remote_media = [media.media for media in proposed_remote_sdp.media if media.port != 0]
-                            notification_dict["audio_proposed"] = "audio" not in current_remote_media and "audio" in proposed_remote_media
-                            if True in notification_dict.values():
-                                inv.respond_to_reinvite(180)
-                                session.state = "PROPOSED"
-                            else:
-                                inv.set_offered_local_sdp(session._make_next_sdp(False))
-                                inv.respond_to_reinvite(200)
-                        else:
-                            # version increase is not exactly one more
-                            inv.respond_to_reinvite(488)
-                    elif data.state == "DISCONNECTED":
-                        del self.session_mapping[inv]
-                        session.state = "TERMINATED"
-                        if hasattr(data, "headers"):
-                            if session.remote_user_agent is None:
-                                session.remote_user_agent = data.headers.get("Server", None)
-                            if session.remote_user_agent is None:
-                                session.remote_user_agent = data.headers.get("User-Agent", None)
-                        session._stop_media()
-                        session._inv = None
-                finally:
-                    session._lock.release()
-                if prev_session_state != session.state:
-                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state, **notification_dict))
-        elif notification.name == "SCInvitationGotSDPUpdate":
+                inv.respond_to_invite_provisionally(180)
+                session = Session()
+                session.state = "INCOMING"
+                session._inv = inv
+                session.remote_user_agent = data.headers.get("User-Agent", None)
+                self.session_mapping[inv] = session
+                self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state="NULL", state=session.state, audio_proposed="audio" in remote_media))
+        else:
+            session = self.session_mapping.get(inv, None)
             if session is None:
                 return
+            notification_dict = {}
             session._lock.acquire()
             try:
-                if data.succeeded:
-                    session._update_media(data.local_sdp, data.remote_sdp)
-                else:
-                    session._cancel_media()
+                prev_session_state = session.state
+                if data.prev_state == "CALLING" and data.state == "EARLY":
+                    session.state = "RINGING"
+                elif data.state == "CONNECTING" and inv.is_outgoing:
+                    session.remote_user_agent = data.headers.get("Server", None)
+                    if session.remote_user_agent is None:
+                        session.remote_user_agent = data.headers.get("User-Agent", None)
+                elif data.state == "CONFIRMED":
+                    session.state = "ESTABLISHED"
+                    if session._queue:
+                        session._process_queue()
+                elif data.state == "REINVITED":
+                    current_remote_sdp = inv.get_active_remote_sdp()
+                    proposed_remote_sdp = inv.get_offered_remote_sdp()
+                    if proposed_remote_sdp.version == current_remote_sdp.version:
+                        if current_remote_sdp != proposed_remote_sdp:
+                            # same version, but not identical SDP
+                            inv.respond_to_reinvite(488)
+                        else:
+                            # same version, same SDP, respond with the already present local SDP
+                            inv.set_offered_local_sdp(inv.get_active_local_sdp())
+                            inv.respond_to_reinvite(200)
+                    elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
+                        for attr in ["user", "id", "net_type", "address_type", "address"]:
+                            if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
+                                # difference in contents of o= line
+                                inv.respond_to_reinvite(488)
+                                return
+                        current_remote_media = [media.media for media in current_remote_sdp.media if media.port != 0]
+                        proposed_remote_media = [media.media for media in proposed_remote_sdp.media if media.port != 0]
+                        notification_dict["audio_proposed"] = "audio" not in current_remote_media and "audio" in proposed_remote_media
+                        if True in notification_dict.values():
+                            inv.respond_to_reinvite(180)
+                            session.state = "PROPOSED"
+                        else:
+                            inv.set_offered_local_sdp(session._make_next_sdp(False))
+                            inv.respond_to_reinvite(200)
+                    else:
+                        # version increase is not exactly one more
+                        inv.respond_to_reinvite(488)
+                elif data.state == "DISCONNECTED":
+                    del self.session_mapping[inv]
+                    session.state = "TERMINATED"
+                    if hasattr(data, "headers"):
+                        if session.remote_user_agent is None:
+                            session.remote_user_agent = data.headers.get("Server", None)
+                        if session.remote_user_agent is None:
+                            session.remote_user_agent = data.headers.get("User-Agent", None)
+                    session._stop_media()
+                    session._inv = None
             finally:
                 session._lock.release()
+            if prev_session_state != session.state:
+                self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state, **notification_dict))
+
+    def _handle_SCInvitationGotSDPUpdate(self, inv, data):
+        session = self.session_mapping.get(inv, None)
+        if session is None:
+            return
+        session._lock.acquire()
+        try:
+            if data.succeeded:
+                session._update_media(data.local_sdp, data.remote_sdp)
+            else:
+                session._cancel_media()
+        finally:
+            session._lock.release()
 
