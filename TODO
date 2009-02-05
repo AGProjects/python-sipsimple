@@ -38,11 +38,8 @@ Audio
 - Fix high CPU usage for sound card access on OS X [RK]
 - Play a tone while on hold every 30 seconds [DB]
 - Play a tone once after we closed a session [DB]
-- Ring different tone when receiving Invite while in another audio session [DB]
+- Ring different tones when receiving Invite while in another audio session [DB]
 - Comfort noise generator (CNG) []
-- Automatic Gain Control (AGC) []
-- Fix echo-cancelation for non speex codecs []
-- zRTP []
 
 
 Instant messaging
@@ -55,7 +52,16 @@ Instant messaging
 - MSRP focus [DB]
 - MSRP multiparty chat [DB]
 - Is-composing payload [DB]
-- Off-the-Record Messaging [DB]
+- Rich text format, jabber standards [DB]
+
+
+Security and privacy
+--------------------
+
+- Off-the-Record Messaging for IM [DB]
+- zRTP for audio []
+- Enable/disable chat logging []
+- Anonymous URI chat server support [DB]
 
 
 Presence
@@ -87,10 +93,8 @@ Middleware
 Command line clients
 --------------------
 
+- Register must be performed in the background, retry if failure [DB] 
 - Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
-- The default outbound invitation type is audio+text in this order [DB]
-- Add an option to start a 'text only' session [DB]
-- An incoming session request must prompt the user to accept a) audio+text or b) text only [DB]
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection [DB]
 - Publish status from the sip_session script [LS]
 - sip_subscribe_conference script [LS]
@@ -111,21 +115,23 @@ Sessions
 
 - Video (H.264) []
 - Real time text over RTP (RFC4103) [AW]
-- Desktop sharing session, integrate WT's sip_desktop_sharing
+- Desktop sharing session [WT]
 
 
 Porting
 -------
 
-- Windows
-- iPhone
-- Android
-- Symbian
+- Windows []
+- iPhone []
+- Android []
+- Symbian []
 
 
-Dependencies
-------------
+Clean up
+--------
 
 - Merge the eventlet_twisted library into its main trunk [DB]
 - Merge re-invite patch into pjsip main trunk [RK]
+- Remove print statements for logged messages []
+- Unify configuration for all test scripts []
 
