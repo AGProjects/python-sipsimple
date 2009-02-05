@@ -60,7 +60,7 @@ class Session(object):
             self._inv.set_offered_local_sdp(local_sdp)
             self.session_manager.session_mapping[self._inv] = self
             self._inv.send_invite()
-            self.state = "CALLING"
+            self._change_state("CALLING")
         except:
             self._stop_media()
             self._audio_sdp_index = -1
@@ -95,7 +95,7 @@ class Session(object):
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.accept_invite()
-            self.state = "ACCEPTING"
+            self._change_state("ACCEPTING")
         except:
             self._stop_media()
             self._audio_sdp_index = -1
@@ -141,7 +141,7 @@ class Session(object):
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
             self._inv.respond_to_reinvite(488)
-            self.state = "ESTABLISHED"
+            self._change_state("ESTABLISHED")
         finally:
             self._lock.release()
 
@@ -150,10 +150,10 @@ class Session(object):
            ESTABLISHED state to the ONHOLD state."""
         self._lock.acquire()
         try:
-            if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
+            if self.state != "ESTABLISHED":
                 raise RuntimeError("Session is not active")
             self._queue.append("hold")
-            if self.state == "ESTABLISHED" and len(self._queue) == 1:
+            if len(self._queue) == 1:
                 self._process_queue()
         finally:
             self._lock.release()
@@ -163,10 +163,10 @@ class Session(object):
            moves the object from the ONHOLD state to the ESTABLISHED state."""
         self._lock.acquire()
         try:
-            if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
+            if self.state != "ESTABLISHED":
                 raise RuntimeError("Session is not active")
             self._queue.append("unhold")
-            if self.state == "ESTABLISHED" and len(self._queue) == 1:
+            if len(self._queue) == 1:
                 self._process_queue()
         finally:
             self._lock.release()
@@ -180,9 +180,14 @@ class Session(object):
                 return
             if self._inv.state != "DISCONNECTING":
                 self._inv.disconnect()
-            self.state = "TERMINATING"
+            self._change_state("TERMINATING")
         finally:
             self._lock.release()
+
+    def _change_state(self, new_state):
+        prev_state = self.state
+        self.state = new_state
+        self.session_manager.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
     def _process_queue(self):
         was_on_hold = self.is_on_hold
@@ -338,9 +343,7 @@ class SessionManager(object):
             session._lock.acquire()
             try:
                 prev_session_state = session.state
-                if data.prev_state == "CALLING" and data.state == "EARLY":
-                    session.state = "RINGING"
-                elif data.state == "CONNECTING" and inv.is_outgoing:
+                if data.state == "CONNECTING" and inv.is_outgoing:
                     session.remote_user_agent = data.headers.get("Server", None)
                     if session.remote_user_agent is None:
                         session.remote_user_agent = data.headers.get("User-Agent", None)
