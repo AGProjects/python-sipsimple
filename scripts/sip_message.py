@@ -8,8 +8,13 @@ import random
 from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
+
+from zope.interface import implements
+
 from application.configuration import *
 from application.process import process
+from application.notification import IObserver
+
 from pypjua import *
 from pypjua.clients import enrollment
 from pypjua.clients.dns_lookup import *
@@ -48,14 +53,21 @@ user_quit = True
 lock = allocate_lock()
 logger = None
 
-def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_trace_pjsip, logger
-    if event_name == "siptrace":
-        logger.log(event_name, **kwargs)
-    elif event_name != "log":
-        queue.put(("pypjua_event", (event_name, kwargs)))
-    elif do_trace_pjsip:
-        queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
+class EventHandler(object):
+    implements(IObserver)
+
+    def __init__(self, engine):
+        engine.notification_center.add_observer(self)
+
+    def handle_notification(self, notification):
+        global start_time, packet_count, queue, do_trace_pjsip, logger
+        if notification.name == "SCEngineSIPTrace":
+            logger.log(notification.name, **notification.data.__dict__)
+        elif notification.name == "SCEngineLog" and do_trace_pjsip:
+            queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
+        else:
+            queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
+
 
 def read_queue(e, username, domain, password, display_name, route, target_uri, message):
     global user_quit, lock, queue
@@ -79,9 +91,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, m
             command, data = queue.get()
             if command == "print":
                 print data
-            if command == "pypjua_event":
-                event_name, args = data
-                if event_name == "Registration_state":
+            if command == "core_event":
+                event_name, obj, args = data
+                if event_name == "SCRegistrationChangedState":
                     if args["state"] == "registered":
                         if not printed:
                             print "REGISTER was successful"
@@ -95,20 +107,20 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, m
                             print "Unregistered: %(code)d %(reason)s" % args
                         user_quit = False
                         command = "quit"
-                elif event_name == "Invitation_state":
+                elif event_name == "SCInvitationChangedState":
                     if args["state"] == "INCOMING":
-                        args["obj"].end()
-                elif event_name == "message":
+                        obj.disconnect()
+                elif event_name == "SCEngineGotMessage":
                     print 'Received MESSAGE from "%(from_uri)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
                     print args["body"]
-                elif event_name == "message_response":
+                elif event_name == "SCEngineGotMessageResponse":
                     if args["code"] / 100 != 2:
                         print "Could not deliver MESSAGE: %(code)d %(reason)s" % args
                     else:
                         print "MESSAGE was accepted by remote party."
                     user_quit = False
                     command = "quit"
-                elif event_name == "exception":
+                elif event_name == "SCEngineGotException":
                     print "An exception occured within PyPJUA:"
                     print args["traceback"]
                     user_quit = False
@@ -156,8 +168,9 @@ def do_message(**kwargs):
     logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    e = Engine(event_handler, trace_sip=kwargs.pop("trace_sip"), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
-    e.start(False)
+    e = Engine()
+    event_handler = EventHandler(e)
+    e.start(auto_sound=False, trace_sip=kwargs.pop("trace_sip"), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     if kwargs["target_uri"] is not None:
         kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     start_new_thread(read_queue, (e,), kwargs)
