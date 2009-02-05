@@ -34,12 +34,12 @@ Audio
 -----
 
 - Revise conference bridge API to support mute and multiple rooms [RK]
+- Play a tone while on hold every 30 seconds [LS]
+- Play a tone once after we closed a session [LS]
+- Ring different tones when receiving Invite while in another audio session [LS]
 - N810 maemo audio driver [LS]
 - Fix high CPU usage for sound card access on OS X [RK]
-- Play a tone while on hold every 30 seconds [DB]
-- Play a tone once after we closed a session [DB]
-- Ring different tones when receiving Invite while in another audio session [DB]
-- Comfort noise generator (CNG) []
+- Comfort noise generator (CNG) [RK]
 
 
 Instant messaging
@@ -70,8 +70,8 @@ Presence
 - Conference event package [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
-- Buddylist library [LS]
 - xcap-diff payload [LS]
+- Buddylist library [LS]
 - Bonjour [LS]
 
 
@@ -93,11 +93,13 @@ Middleware
 Command line clients
 --------------------
 
-- Register must be performed in the background, retry if failure [DB] 
+- xcap_pidf_manipulation script [LS]
+- Display NOTIFY multi-part bodies in sip_subscribe_rls [LS]
+- sip_subscribe_conference script [LS]
+- SIP register must be performed in the background [DB] 
 - Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
 - Handle 301/302 redirect by prompting the user to accept/reject the redirection [DB]
 - Publish status from the sip_session script [LS]
-- sip_subscribe_conference script [LS]
 - Fix STUN blocking [RK]
 - Conference established sessions [DB]
 - Logging, based on trace_x configuration options: []
@@ -107,7 +109,6 @@ Command line clients
  - Add timestamp and packet counters as for SIP trace for all other protocols [LS]
  - Toggle sip and pjsip logging at run time in the test scripts [LS]
  - Print SIP messages also on the console [LS]
-- xcap_pidf_manipulation script [LS]
  
 
 Sessions
