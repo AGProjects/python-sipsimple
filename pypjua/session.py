@@ -33,6 +33,7 @@ class Session(object):
         self.state = "NULL"
         self.remote_user_agent = None
         self.is_on_hold = False
+        self.is_held = False
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
@@ -239,7 +240,9 @@ class Session(object):
            _update_media()."""
         if self._audio_transport.is_active:
             # TODO: check for ip/port/codec changes and restart AudioTransport if needed
-            self._audio_transport.update_direction(local_sdp.media[self._audio_sdp_index].get_direction())
+            new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
+            self.is_held = "send" not in new_direction
+            self._audio_transport.update_direction(new_direction)
         else:
             self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
             Engine().connect_audio_transport(self._audio_transport)
