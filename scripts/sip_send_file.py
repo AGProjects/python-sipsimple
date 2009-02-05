@@ -34,7 +34,7 @@ class SDPOfferFactory:
 
     def __init__(self, filename):
         self.filename = filename
-        self.fileselector = FileSelector(filename,
+        self.fileselector = FileSelector(os.path.basename(filename),
                                          get_file_mimetype(filename),
                                          os.stat(filename).st_size,
                                          read_sha1(filename))
