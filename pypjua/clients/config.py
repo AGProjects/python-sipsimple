@@ -71,7 +71,9 @@ class AudioConfig(ConfigSection):
     _datatypes = {"disable_sound": datatypes.Boolean}
     disable_sound = False
 
-def get_download_path(name):
+def get_download_path(fullname):
+    name = os.path.basename(fullname)
+    assert name, 'Invalid file name %s' % fullname
     path = os.path.join(GeneralConfig.file_transfers_directory, name)
     if os.path.exists(path):
         all = [int(x[len(path)+1:]) for x in glob.glob(path + '.*')]
