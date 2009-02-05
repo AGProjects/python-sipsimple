@@ -291,6 +291,7 @@ class IncomingFileTransferHandler(IncomingMSRPHandler_Interactive):
         if self.auto_accept:
             return True
         q = 'Incoming file transfer %s from %s, do you accept? (y/n) ' % (self._format_fileinfo(inv), inv.caller_uri)
+        inv.respond_to_invite_provisionally()
         self.ringer.start()
         try:
             return self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
