@@ -324,7 +324,7 @@ cdef class AudioTransport:
         if is_offer:
             direction_attr = direction
         else:
-            if "recv" in self.direction:
+            if self.direction is None or "recv" in self.direction:
                 direction_attr = "sendrecv"
             else:
                 direction_attr = "sendonly"
