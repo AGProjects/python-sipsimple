@@ -24,7 +24,7 @@ class Logger(object):
             self._siptrace_file = None
 
     # log handlers
-    def _LH_siptrace(self, event_name, event_data):
+    def _LH_SCEngineSIPTrace(self, event_name, event_data):
         if not self.trace_sip:
             return
         if self._siptrace_file is None:
