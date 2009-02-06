@@ -29,6 +29,7 @@ class Session(object):
         """Instatiates a new Session object for an incoming or outgoing
            session. Initially the object is in the NULL state."""
         self.session_manager = SessionManager()
+        self.notification_center = NotificationCenter()
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
         self.state = "NULL"
         self.remote_user_agent = None
@@ -62,6 +63,7 @@ class Session(object):
             self.session_manager.session_mapping[self._inv] = self
             self._inv.send_invite()
             self._change_state("CALLING")
+            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio_proposed=use_audio))
         except:
             self._stop_media()
             self._audio_sdp_index = -1
@@ -119,7 +121,7 @@ class Session(object):
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self._audio_transport is not None:
                 raise RuntimeError("An audio stream is already active whithin this session")
-            # TODO: implement
+            # TODO: implement and emit SCSessionGotStreamProposal
         finally:
             self._lock.release()
 
@@ -130,7 +132,7 @@ class Session(object):
         try:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
-            # TODO: implement
+            # TODO: implement and emit SCSessionAcceptedStreamProposal
         finally:
             self._lock.release()
 
@@ -143,6 +145,7 @@ class Session(object):
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
             self._inv.respond_to_reinvite(488)
             self._change_state("ESTABLISHED")
+            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(originator="local"))
         finally:
             self._lock.release()
 
@@ -182,13 +185,14 @@ class Session(object):
             if self._inv.state != "DISCONNECTING":
                 self._inv.disconnect()
             self._change_state("TERMINATING")
+            self.notification_center.post_notification("SCSessionWillEnd", self, TimestampedNotificationData())
         finally:
             self._lock.release()
 
     def _change_state(self, new_state):
         prev_state = self.state
         self.state = new_state
-        self.session_manager.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
+        self.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
     def _process_queue(self):
         was_on_hold = self.is_on_hold
@@ -212,8 +216,10 @@ class Session(object):
                 break
         self._inv.set_offered_local_sdp(local_sdp)
         self._inv.send_reinvite()
-        if was_on_hold != self.is_on_hold:
-            self.session_manager.notification_center.post_notification("SCSessionChangedHold", self, TimestampedNotificationData(is_on_hold=self.is_on_hold))
+        if not was_on_hold and self.is_on_hold:
+            self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
+        elif was_on_hold and not self.is_on_hold:
+            self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
 
     def _init_audio(self, remote_sdp=None):
         """Initialize everything needed for an audio stream and return a
@@ -240,9 +246,14 @@ class Session(object):
            _update_media()."""
         if self._audio_transport.is_active:
             # TODO: check for ip/port/codec changes and restart AudioTransport if needed
+            was_held = self.is_held
             new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
             self.is_held = "send" not in new_direction
             self._audio_transport.update_direction(new_direction)
+            if not was_held and self.is_held:
+                self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
+            elif was_held and not self.is_held:
+                self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
         else:
             self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
             Engine().connect_audio_transport(self._audio_transport)
@@ -337,21 +348,30 @@ class SessionManager(object):
                 session._inv = inv
                 session.remote_user_agent = data.headers.get("User-Agent", None)
                 self.session_mapping[inv] = session
-                self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state="NULL", state=session.state, audio_proposed="audio" in remote_media))
+                self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media))
+                self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state="NULL", state=session.state))
         else:
             session = self.session_mapping.get(inv, None)
             if session is None:
                 return
-            notification_dict = {}
             session._lock.acquire()
             try:
                 prev_session_state = session.state
-                if data.state == "CONNECTING" and inv.is_outgoing:
-                    session.remote_user_agent = data.headers.get("Server", None)
-                    if session.remote_user_agent is None:
-                        session.remote_user_agent = data.headers.get("User-Agent", None)
+                if data.state == "EARLY" and inv.is_outgoing and hasattr(data, "code") and data.code == 180:
+                    self.notification_center.post_notification("SCSessionGotRingIndication", session, TimestampedNotificationData())
+                elif data.state == "CONNECTING":
+                    self.notification_center.post_notification("SCSessionWillStart", session, TimestampedNotificationData())
+                    if inv.is_outgoing:
+                        session.remote_user_agent = data.headers.get("Server", None)
+                        if session.remote_user_agent is None:
+                            session.remote_user_agent = data.headers.get("User-Agent", None)
                 elif data.state == "CONFIRMED":
                     session.state = "ESTABLISHED"
+                    if data.prev_state == "CONNECTING":
+                        self.notification_center.post_notification("SCSessionDidStart", session, TimestampedNotificationData())
+                    # TODO: if data.prev_state == "REINVITING" and a stream is being added,
+                    #       evaluate there sult and emit either SCSessionAcceptedStreamProposal
+                    #       or SCSessionRejectedStreamProposal
                     if session._queue:
                         session._process_queue()
                 elif data.state == "REINVITED":
@@ -373,10 +393,12 @@ class SessionManager(object):
                                 return
                         current_remote_media = [media.media for media in current_remote_sdp.media if media.port != 0]
                         proposed_remote_media = [media.media for media in proposed_remote_sdp.media if media.port != 0]
-                        notification_dict["audio_proposed"] = "audio" not in current_remote_media and "audio" in proposed_remote_media
+                        notification_dict = {}
+                        notification_dict["has_audio"] = "audio" not in current_remote_media and "audio" in proposed_remote_media
                         if True in notification_dict.values():
                             inv.respond_to_reinvite(180)
                             session.state = "PROPOSED"
+                            self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(**notification_dict))
                         else:
                             inv.set_offered_local_sdp(session._make_next_sdp(False))
                             inv.respond_to_reinvite(200)
@@ -393,10 +415,13 @@ class SessionManager(object):
                             session.remote_user_agent = data.headers.get("User-Agent", None)
                     session._stop_media()
                     session._inv = None
+                    if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
+                        self.notification_center.post_notification("SCSessionDidFail", session, TimestampedNotificationData())
+                    self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData())
+                if prev_session_state != session.state:
+                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state))
             finally:
                 session._lock.release()
-            if prev_session_state != session.state:
-                self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state, **notification_dict))
 
     def _handle_SCInvitationGotSDPUpdate(self, inv, data):
         session = self.session_mapping.get(inv, None)
