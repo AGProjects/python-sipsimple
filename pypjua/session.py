@@ -3,6 +3,7 @@ from datetime import datetime
 from collections import deque
 
 from zope.interface import implements
+
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Singleton
 from application.system import default_host_ip
@@ -229,6 +230,7 @@ class Session(object):
             self._audio_transport = AudioTransport(rtp_transport)
         else:
             self._audio_transport = AudioTransport(rtp_transport, remote_sdp, self._audio_sdp_index)
+        self.session_manager.audio_transport_mapping[self._audio_transport] = self
         return self._audio_transport.get_local_media(remote_sdp is None)
 
     def _update_media(self, local_sdp, remote_sdp):
@@ -270,6 +272,7 @@ class Session(object):
         if self._audio_transport.is_active:
             Engine().disconnect_audio_transport(self._audio_transport)
             self._audio_transport.stop()
+        del self.session_manager.audio_transport_mapping[self._audio_transport]
         self._audio_transport = None
 
     def _cancel_media(self):
@@ -322,9 +325,11 @@ class SessionManager(object):
         """Creates a new SessionManager object."""
         self.rtp_config = RTPConfiguration()
         self.inv_mapping = {}
+        self.audio_transport_mapping = {}
         self.notification_center = NotificationCenter()
         self.notification_center.add_observer(self, "SCInvitationChangedState")
         self.notification_center.add_observer(self, "SCInvitationGotSDPUpdate")
+        self.notification_center.add_observer(self, "SCAudioTransportGotDTMF")
 
     def handle_notification(self, notification):
         """Catches the SCInvitationChangedState and SCInvitationGotSDPUpdate
@@ -435,4 +440,9 @@ class SessionManager(object):
                 session._cancel_media()
         finally:
             session._lock.release()
+
+    def _handle_SCAudioTransportGotDTMF(self, audio_transport, data):
+        session = self.audio_transport_mapping.get(audio_transport, None)
+        if session is not None:
+            self.notification_center.post_notification("SCSessionGotDTMF", session, data)
 
