@@ -13,7 +13,7 @@ SIP core
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
 - Fix remainig TODOs for PUBLISH/REGISTER [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
-- Handle exceptions cause by PJSIP more gracefull, especially within PJSIP callbacks [RK]
+- Handle exceptions caused by PJSIP more gracefull, especially within PJSIP callbacks [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
 - Document how other streams can be implemented [RK]
 - Desktop sharing stream high level class, m=application TCP/MSRPS/RFB []
@@ -34,10 +34,16 @@ Audio
 -----
 
 - Revise conference bridge API to support mute and multiple rooms [RK]
-- Incomming session ring tone must be settable per session, add option for
-  generating internal ringing using the DTMF generator [RK]
-- Play a soft-tone while on hold every 30 seconds, use DTMF generator [RK]
-- Play a tone when a session is terminated, use DTMF generator [RK]
+- Improve WAV playback to support volume level and looping until stopped by
+  caller [RK]
+- Add method to core for playing arbitrary tones on the conference bridge for
+  several purposes [RK]
+- Have configurable ringtones on the SessionManager first per remote SIPURI,
+  then for account, then by default [RK]
+- Play a non-disruptive tone when a session is received while in another
+  session using the tone generator [RK]
+- Play a soft-tone while on hold every 30 seconds, use tone generator [RK]
+- Play a tone when a session is terminated, use tone generator [RK]
 - N810 maemo audio driver [LS]
 - Fix high CPU usage for sound card access on OS X [RK]
 - Comfort noise generator (CNG) [RK]
