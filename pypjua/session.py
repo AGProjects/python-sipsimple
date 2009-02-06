@@ -60,7 +60,7 @@ class Session(object):
                 local_sdp.media.append(self._init_audio())
             self._inv = Invitation(credentials, callee_uri, route=route)
             self._inv.set_offered_local_sdp(local_sdp)
-            self.session_manager.session_mapping[self._inv] = self
+            self.session_manager.inv_mapping[self._inv] = self
             self._inv.send_invite()
             self._change_state("CALLING")
             self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio_proposed=use_audio))
@@ -313,7 +313,7 @@ class SessionManager(object):
        method to the Engine as event_handler.
        Attributes:
        rtp_config: RTPConfiguration object
-       session_mapping: A dictionary mapping Invitation objects to Session
+       inv_mapping: A dictionary mapping Invitation objects to Session
            objects."""
     __metaclass__ = Singleton
     implements(IObserver)
@@ -321,7 +321,7 @@ class SessionManager(object):
     def __init__(self):
         """Creates a new SessionManager object."""
         self.rtp_config = RTPConfiguration()
-        self.session_mapping = {}
+        self.inv_mapping = {}
         self.notification_center = NotificationCenter()
         self.notification_center.add_observer(self, "SCInvitationChangedState")
         self.notification_center.add_observer(self, "SCInvitationGotSDPUpdate")
@@ -347,11 +347,11 @@ class SessionManager(object):
                 session.state = "INCOMING"
                 session._inv = inv
                 session.remote_user_agent = data.headers.get("User-Agent", None)
-                self.session_mapping[inv] = session
+                self.inv_mapping[inv] = session
                 self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media))
                 self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state="NULL", state=session.state))
         else:
-            session = self.session_mapping.get(inv, None)
+            session = self.inv_mapping.get(inv, None)
             if session is None:
                 return
             session._lock.acquire()
@@ -406,7 +406,7 @@ class SessionManager(object):
                         # version increase is not exactly one more
                         inv.respond_to_reinvite(488)
                 elif data.state == "DISCONNECTED":
-                    del self.session_mapping[inv]
+                    del self.inv_mapping[inv]
                     session.state = "TERMINATED"
                     if hasattr(data, "headers"):
                         if session.remote_user_agent is None:
@@ -424,7 +424,7 @@ class SessionManager(object):
                 session._lock.release()
 
     def _handle_SCInvitationGotSDPUpdate(self, inv, data):
-        session = self.session_mapping.get(inv, None)
+        session = self.inv_mapping.get(inv, None)
         if session is None:
             return
         session._lock.acquire()
