@@ -2,9 +2,6 @@
 SIP core
 --------
 
-- Session high level class [RK]
-- Audio stream high level class [RK]
-- MSRP stream high level class [RK]
 - Add isfocus attribute for both session parties, present in Contact header [RK]
 - Handle incomming SUBSCRIBE requests [RK]
 - Handle incomming REGISTER requests [RK]
@@ -15,8 +12,6 @@ SIP core
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
 - Handle exceptions caused by PJSIP more gracefull, especially within PJSIP callbacks [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
-- Document how other streams can be implemented [RK]
-- Desktop sharing stream high level class, m=application TCP/MSRPS/RFB []
 - Registration requestion URI should be settable by application [RK]
 - Handle incomming OPTIONS requests [RK]
 - Handle incomming REFER requests [RK]
@@ -28,6 +23,28 @@ SIP core
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP) [RK]
 - Survive IP address changes [RK]
 - IPv6 support [RK]
+
+
+Middleware
+----------
+
+- Session manager high level class [RK]
+- Session high level class [RK]
+- Audio stream high level class [RK]
+- MSRP stream high level class [RK]
+- Handle 301/302 redirect [DB]
+- Desktop sharing high level class []
+- Account manager high-level class [] 
+- Conference established sessions [DB]
+- Unified configuration framework [DB]
+- Buddylist high-level library [LS]
+- Subscribe to multiple Event packages for a buddy [LS]
+- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [LS]
+- Auto PUBLISH event=presence with device status when enter/exit audio session [LS]
+- Auto PUBLISH event=dialog when enter/exit audio session [LS]
+- SIP account enrollment [LS]
+- Enviroment detection and feed to presence place-is element []
+- Geographical detection and feed to presence location element []
 
 
 Audio
@@ -44,9 +61,9 @@ Audio
   session using the tone generator [RK]
 - Play a soft-tone while on hold every 30 seconds, use tone generator [RK]
 - Play a tone when a session is terminated, use tone generator [RK]
-- N810 maemo audio driver [LS]
 - Fix high CPU usage for sound card access on OS X [RK]
 - Comfort noise generator (CNG) [RK]
+- N810 maemo audio driver [LS]
 
 
 Instant messaging
@@ -68,7 +85,7 @@ Security and privacy
 - Off-the-Record Messaging for IM [DB]
 - zRTP for audio []
 - Enable/disable chat logging []
-- Anonymous URI chat server support [DB]
+- Anonymous URI multi-party chat support [DB]
 
 
 Presence
@@ -78,8 +95,6 @@ Presence
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
 - xcap-diff payload and sip_subscribe_xcap_diff script [LS]
-- Buddylist library [LS]
-- Bonjour [LS]
 
 
 Other applications
@@ -87,14 +102,8 @@ Other applications
 
 - Message-summary payload [DB]
 - ENUM lookup [LS]
+- Bonjour [LS]
 
-
-Middleware
-----------
-
-- Enrollment [LS]
-- Ambient detection []
-- Location detection []
 
 
 Command line clients
@@ -105,10 +114,7 @@ Command line clients
 - sip_subscribe_conference script [LS]
 - SIP register must be performed in the background [DB] 
 - Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
-- Handle 301/302 redirect by prompting the user to accept/reject the redirection [DB]
-- Publish status from the sip_session script [LS]
 - Fix STUN blocking [RK]
-- Conference established sessions [DB]
 - Logging, based on trace_x configuration options: []
  - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt [RK]
  - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
@@ -141,5 +147,4 @@ Clean up
 - Merge the eventlet_twisted library into its main trunk [DB]
 - Merge re-invite patch into pjsip main trunk [RK]
 - Remove print statements for logged messages []
-- Unify configuration for all test scripts []
 
