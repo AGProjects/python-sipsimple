@@ -34,9 +34,10 @@ Audio
 -----
 
 - Revise conference bridge API to support mute and multiple rooms [RK]
-- Play a tone while on hold every 30 seconds [RK]
-- Play a tone once after we closed a session [RK]
-- Ring different tones when receiving Invite while in another audio session [RK]
+- Incomming session ring tone must be settable per session, add option for
+  generating internal ringing using the DTMF generator [RK]
+- Play a soft-tone while on hold every 30 seconds, use DTMF generator [RK]
+- Play a tone when a session is terminated, use DTMF generator [RK]
 - N810 maemo audio driver [LS]
 - Fix high CPU usage for sound card access on OS X [RK]
 - Comfort noise generator (CNG) [RK]
