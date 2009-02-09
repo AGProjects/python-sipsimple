@@ -125,7 +125,7 @@ class MSRPSession:
     def _close_msrp(self):
         if self.msrp.connected:
             #print 'Closing MSRP connection to %s:%s' % (self.msrp.getPeer().host, self.msrp.getPeer().port)
-            self.msrp.loseConnection()
+            self.msrp.shutdown()
 
     def _shutdown_msrp(self):
         # since we have initiated the session's end, let the other side close MSRP connection
