@@ -307,7 +307,7 @@ class DownloadFileSession(object):
 
     def __init__(self, msrpsession):
         self.msrpsession = msrpsession
-        selfreader_job = proc.spawn_link_exception(self._reader)
+        proc.spawn(self._reader)
 
     @property
     def sip(self):
