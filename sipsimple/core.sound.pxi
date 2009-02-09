@@ -250,47 +250,143 @@ cdef class WaveFile:
     cdef pj_pool_t *pool
     cdef pjmedia_port *port
     cdef unsigned int conf_slot
+    cdef unsigned int loop_count
+    cdef pj_time_val pause_time
+    cdef pj_timer_entry timer
+    cdef int timer_is_active
+    cdef readonly object file_name
+    cdef int level
 
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name, unsigned int level):
+    def __cinit__(self, file_name):
+        self.file_name = file_name
+        self.timer_is_active = 0
+
+    property is_active:
+
+        def __get__(self):
+            global _ua
+            if _ua == NULL:
+                return False
+            else:
+                return bool(self.timer_is_active or self.port != NULL)
+
+    cdef int _start(self, PJSIPUA ua) except -1:
         cdef int status
-        cdef object pool_name = "playwav_%s" % file_name
-        self.pool = pjsip_endpt_create_pool(pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        cdef object pool_name = "playwav_%s" % self.file_name
+        self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.pool == NULL:
             raise MemoryError("Could not allocate memory pool")
-        status = pjmedia_wav_player_port_create(self.pool, file_name, 0, 0, 0, &self.port)
+        status = pjmedia_wav_player_port_create(self.pool, self.file_name, 0, PJMEDIA_FILE_NO_LOOP, 0, &self.port)
         if status != 0:
             raise PJSIPError("Could not open WAV file", status)
-        status = pjmedia_wav_player_set_eof_cb(self.port, <void *> self, cb_play_wave_eof)
+        status = pjmedia_wav_player_set_eof_cb(self.port, <void *> self, cb_play_wav_eof)
         if status != 0:
             raise PJSIPError("Could not set WAV EOF callback", status)
-        status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
+        status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
         if status != 0:
             raise PJSIPError("Could not connect WAV playback to conference bridge", status)
-        status = pjmedia_conf_adjust_rx_level(conf_bridge.c_obj, self.conf_slot, int(level * 1.28 - 128))
+        status = pjmedia_conf_adjust_rx_level(ua.c_conf_bridge.c_obj, self.conf_slot, self.level)
         if status != 0:
             raise PJSIPError("Could not set playback volume of WAV file", status)
-        conf_bridge._connect_playback_slot(self.conf_slot)
+        ua.c_conf_bridge._connect_playback_slot(self.conf_slot)
 
-    def __dealloc__(self):
+    def start(self, int level=100, int loop_count=1, pause_time=0):
+        cdef object val
         cdef PJSIPUA ua = c_get_ua()
+        if self.timer_is_active or self.port != NULL:
+            raise SIPCoreError("WAV file is already playing")
+        for val in [level, loop_count, pause_time]:
+            if val < 0:
+                raise ValueError("Argument cannot be negative")
+        self.level = int(level * 1.28 - 128)
+        self.loop_count = loop_count
+        self.pause_time.sec = int(pause_time)
+        self.pause_time.msec = int(pause_time * 1000) % 1000
+        try:
+            self._start(ua)
+        except:
+            self._stop(ua, 0, 0)
+            raise
+
+    cdef int _rewind(self) except -1:
+        cdef int status
+        status = pjmedia_wav_player_port_set_pos(self.port, 0)
+        if status != 0:
+            raise PJSIPError("Could not seek to beginning of WAV file", status)
+        return 0
+
+    cdef int _stop(self, PJSIPUA ua, int reschedule, int notify) except -1:
+        cdef int status
+        cdef int was_active = 0
+        if self.timer_is_active:
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.timer)
+            self.timer_is_active = 0
+            was_active = 1
         if self.conf_slot != 0:
             ua.c_conf_bridge._disconnect_slot(self.conf_slot)
             pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.conf_slot)
+            self.conf_slot = 0
         if self.port != NULL:
             pjmedia_port_destroy(self.port)
+            self.port = NULL
+            was_active = 1
         if self.pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
+            self.pool = NULL
+        if reschedule:
+            pj_timer_entry_init(&self.timer, 0, <void *> self, cb_play_wav_restart)
+            status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self.timer, &self.pause_time)
+            if status == 0:
+                self.timer_is_active = 1
+        if was_active and not self.timer_is_active and notify:
+            c_add_event("SCWaveFileDidEnd", dict(obj=self))
+
+    def stop(self):
+        cdef PJSIPUA ua = c_get_ua()
+        self._stop(ua, 0, 1)
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+        except:
+            return
+        self._stop(ua, 0, 0)
 
 # callback functions
 
-cdef int cb_play_wave_eof(pjmedia_port *port, void *user_data) with gil:
+cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
     global _callback_exc
-    cdef WaveFile wav_file = <object> user_data
+    cdef WaveFile wav_file
+    cdef int status
     cdef PJSIPUA ua = c_get_ua()
     try:
         ua = c_get_ua()
         wav_file = <object> user_data
-        ua.c_wav_files.remove(wav_file)
+        if wav_file.loop_count == 1:
+            wav_file._stop(ua, 0, 1)
+        else:
+            if wav_file.loop_count:
+                wav_file.loop_count -= 1
+            if wav_file.pause_time.sec or wav_file.pause_time.msec:
+                wav_file._stop(ua, 1, 1)
+            else:
+                wav_file._rewind()
     except:
         _callback_exc = sys.exc_info()
-    return 1
+    return 0
+
+cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
+    global _callback_exc
+    cdef WaveFile wav_file
+    cdef PJSIPUA ua = c_get_ua()
+    try:
+        if entry.user_data != NULL:
+            wav_file = <object> entry.user_data
+            wav_file.timer_is_active = 0
+            try:
+                wav_file._start(ua)
+            except:
+                wav_file._stop(ua, 0, 1)
+    except:
+        _callback_exc = sys.exc_info()

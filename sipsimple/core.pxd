@@ -352,9 +352,12 @@ cdef extern from "pjmedia.h":
     int pjmedia_stream_resume(pjmedia_stream *stream, pjmedia_dir dir)
 
     # wav player
+    enum:
+        PJMEDIA_FILE_NO_LOOP
     int pjmedia_port_destroy(pjmedia_port *port)
     int pjmedia_wav_player_port_create(pj_pool_t *pool, char *filename, unsigned int ptime, unsigned int flags, unsigned int buff_size, pjmedia_port **p_port)
     int pjmedia_wav_player_set_eof_cb(pjmedia_port *port, void *user_data, int cb(pjmedia_port *port, void *usr_data) with gil)
+    int pjmedia_wav_player_port_set_pos(pjmedia_port *port, unsigned int offset)
 
     # wav recorder
     enum pjmedia_file_writer_option:
@@ -777,7 +780,8 @@ cdef class PJMEDIASoundDevice
 cdef class PJMEDIAConferenceBridge
 cdef class RecordingWaveFile
 cdef class WaveFile
-cdef int cb_play_wave_eof(pjmedia_port *port, void *user_data) with gil
+cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
+cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
 # core.util
 
