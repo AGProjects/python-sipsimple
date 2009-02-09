@@ -16,8 +16,13 @@ from threading import Thread, Timer
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from time import sleep, time
+
+from zope.interface import implements
+
 from application.process import process
 from application.configuration import *
+from application.notification import IObserver
+
 from pypjua import *
 from pypjua.clients import enrollment
 from pypjua.clients.log import Logger
@@ -109,14 +114,21 @@ def getchar():
     else:
         return os.read(fd, 10)
 
-def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_trace_pjsip, logger
-    if event_name == "siptrace":
-        logger.log(event_name, **kwargs)
-    elif event_name != "log":
-        queue.put(("pypjua_event", (event_name, kwargs)))
-    elif do_trace_pjsip:
-        queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
+class EventHandler(object):
+    implements(IObserver)
+
+    def __init__(self, engine):
+        engine.notification_center.add_observer(self)
+
+    def handle_notification(self, notification):
+        global start_time, packet_count, queue, do_trace_pjsip, logger
+        if notification.name == "SCEngineSIPTrace":
+            logger.log(notification.name, **notification.data.__dict__)
+        elif notification.name == "SCEngineLog" and do_trace_pjsip:
+            queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
+        else:
+            queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
+
 
 class RingingThread(Thread):
 
@@ -140,6 +152,7 @@ class RingingThread(Thread):
             else:
                 queue.put(("play_wav", "ring_outbound.wav"))
             sleep(5)
+
 
 def print_control_keys():
     print "Available control keys:"
@@ -189,9 +202,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
             command, data = queue.get()
             if command == "print":
                 print data
-            if command == "pypjua_event":
-                event_name, args = data
-                if event_name == "Registration_state":
+            if command == "core_event":
+                event_name, obj, args = data
+                if event_name == "SCRegistrationChangedState":
                     if args["state"] == "registered":
                         if not printed:
                             print "REGISTER was successful"
@@ -206,8 +219,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             return_code = 0
                         user_quit = False
                         command = "quit"
-                elif event_name == "Invitation_sdp":
-                    if args["obj"] is inv:
+                elif event_name == "SCInvitationGotSDPUpdate":
+                    if obj is inv:
                         if args["succeeded"]:
                             if not audio.is_started:
                                 if ringer is not None:
@@ -229,7 +242,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 audio.update_direction(inv.get_active_local_sdp().media[0].get_direction())
                         else:
                             print "SDP negotation failed: %s" % args["error"]
-                elif event_name == "Invitation_state":
+                elif event_name == "SCInvitationChangedState":
                     if args["state"] == args["prev_state"] and args["state"] != "EARLY":
                         print "SAME STATE"
                         print args
@@ -246,9 +259,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                     elif args["state"] == "INCOMING":
                         print "Incoming session..."
                         if inv is None:
-                            remote_sdp = args["obj"].get_offered_remote_sdp()
+                            remote_sdp = obj.get_offered_remote_sdp()
                             if remote_sdp is not None and len(remote_sdp.media) == 1 and remote_sdp.media[0].media == "audio":
-                                inv = args["obj"]
+                                inv = obj
                                 other_user_agent = args["headers"].get("User-Agent")
                                 if ringer is None:
                                     ringer = RingingThread(True)
@@ -256,10 +269,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(inv.caller_uri)
                             else:
                                 print "Not an audio call, rejecting."
-                                args["obj"].disconnect()
+                                obj.disconnect()
                         else:
                             print "Rejecting."
-                            args["obj"].disconnect()
+                            obj.disconnect()
                     elif args["prev_state"] == "CONNECTING" and args["state"] == "CONFIRMED":
                         if other_user_agent is not None:
                             print 'Remote SIP User Agent is "%s"' % other_user_agent
@@ -277,7 +290,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         inv.set_offered_local_sdp(local_sdp)
                         inv.respond_to_reinvite()
                     elif args["state"] == "DISCONNECTED":
-                        if args["obj"] is inv:
+                        if obj is inv:
                             if rec_file is not None:
                                 rec_file.stop()
                                 print 'Stopped recording audio to "%s"' % rec_file.file_name
@@ -322,10 +335,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                     audio.stop()
                                 audio = None
                                 inv = None
-                elif event_name == "detect_nat_type":
+                elif event_name == "SCEngineDetectedNATType":
                     if args["succeeded"]:
                         print "Detected NAT type: %s" % args["nat_type"]
-                elif event_name == "exception":
+                elif event_name == "SCEngineGotException":
                     print "An exception occured within PyPJUA:"
                     print args["traceback"]
                     user_quit = False
@@ -457,9 +470,10 @@ def do_invite(**kwargs):
     logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    
-    e = Engine(event_handler, trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs["local_ip"], local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
-    e.start(not kwargs.pop("disable_sound"))
+
+    e = Engine()
+    event_handler = EventHandler(e)
+    e.start(auto_sound=not kwargs.pop("disable_sound"), codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs["local_ip"], local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     if kwargs["target_uri"] is not None:
         kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     transport_kwargs = AudioConfig.encryption.copy()
@@ -487,7 +501,7 @@ def do_invite(**kwargs):
             command, data = queue.get()
             if command == "print":
                 print data
-            elif command == "pypjua_event":
+            elif command == "core_event":
                 event_name, args = data
                 if event_name == "RTPTransport_init":
                     if args["succeeded"]:
