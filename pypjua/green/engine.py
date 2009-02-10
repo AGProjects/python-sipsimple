@@ -24,6 +24,7 @@ from pypjua.green.util import wrapdict
 from pypjua.green.eventletutil import SourceQueue
 
 # QQQ: separate logging part from GreenInvitation and GreenRegistration
+from pypjua.logstate import RegistrationLogger, InvitationLogger, SIPTracer, PJSIPTracer
 
 def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
@@ -55,14 +56,22 @@ class EngineLogger:
 
 class GreenEngine(Engine):
 
-    def __init__(self, **kwargs):
+    def __init__(self):
         Engine.__init__(self)
-        self.logger = kwargs.pop('logger', EngineLogger(log_file=sys.stderr))
+        self.logger = EngineLogger(log_file=sys.stderr)
         # XXX: clean up obj when all refs to the object disappear
         self.objs = {} # maps pypjua_obj -> green obj
         self._queue = SourceQueue()
-        handler = EventHandler(self.my_handle_event, trace_pjsip=kwargs.pop('trace_pjsip', False))
+        handler = EventHandler(self.my_handle_event)
         self.notification_center.add_observer(handler)
+
+    def start(self, *args, **kwargs):
+        siptracer = SIPTracer()
+        siptracer.register_observer(self.notification_center)
+        if kwargs.pop('trace_pjsip', False):
+            pjsiptracer = PJSIPTracer()
+            pjsiptracer.register_observer(self.notification_center)
+        return Engine.start(self, *args, **kwargs)
 
     def handle_incoming(self, event_name, sender, kwargs):
         if self._queue is not None:
@@ -95,12 +104,18 @@ class GreenEngine(Engine):
         del self.objs[pypjua_obj]
 
     def Registration(self, *args, **kwargs):
-        obj = GreenRegistration(Registration(*args, **kwargs), logger=self.logger)
+        realobj = Registration(*args, **kwargs)
+        logger = RegistrationLogger()
+        logger.register_observer(self.notification_center, realobj, CallObserverFromThread(logger))
+        obj = GreenRegistration(realobj, logger=self.logger)
         self.register_obj(obj)
         return obj
 
     def Invitation(self, *args, **kwargs):
-        obj = GreenInvitation(Invitation(*args, **kwargs), logger=self.logger)
+        realobj = Invitation(*args, **kwargs)
+        logger = InvitationLogger()
+        logger.register_observer(self.notification_center, realobj, CallObserverFromThread(logger))
+        obj = GreenInvitation(realobj, logger=self.logger)
         self.register_obj(obj)
         return obj
 
@@ -113,6 +128,8 @@ class GreenEngine(Engine):
             self.logger.log_event('RECEIVED', event_name, sender, params)
             if event_name == "SCInvitationChangedState" and params.get("state") == "INCOMING":
                 obj = GreenInvitation(sender, self.logger)
+                logger = InvitationLogger()
+                logger.register_observer(self.notification_center, sender, CallObserverFromThread(logger))
                 self.register_obj(obj) # XXX unregister_obj is never called
                 obj.handle_event(event_name, sender, params)
                 listener.send(obj)
@@ -184,22 +201,7 @@ class GreenBase(object):
         finally:
             self.unlink(q)
 
-    def log_my_state(self, event_name, params):
-        if event_name != self.event_name:
-            return
-        state = params.get('state', self.state)
-        try:
-            func = getattr(self, 'log_state_%s' % state.lower())
-        except AttributeError:
-            return self.log_state_default(params)
-        else:
-            return func(params)
-
-    def log_state_default(self, params):
-        pass
-
     def handle_event(self, event_name, sender, kwargs):
-        self.log_my_state(event_name, kwargs)
         self._queue.send((event_name, sender, kwargs))
 
     def skip_to_event(self, state, event_name=None):
@@ -222,37 +224,7 @@ class GreenRegistration(GreenBase):
     # XXX when unregistered because of error, the client will stay unregistered.
     # XXX this class or pypjua itself should try re-register after some time?
 
-    registered_count = 0
     event_name = 'SCRegistrationChangedState'
-
-    def log_state_default(self, params):
-        x = (params.get('state').capitalize(), self.credentials.uri, self.route.host, self.route.port, _format_reason(params))
-        self.logger.write('%s %s at %s:%s%s' % x)
-
-    def log_state_registering(self, params):
-        if self.registered_count<=0:
-            return self.log_state_default(params)
-
-    def log_state_unregistering(self, params):
-        pass
-
-    def log_state_unregistered(self, params):
-        if params.get('code')!=200:
-            self.registered_count = 0
-            return self.log_state_default(params)
-
-    def log_state_registered(self, params):
-        if self.registered_count <= 0 or params.get('code')!=200:
-            self.registered_count = 0
-            x = (params.get("contact_uri"), params.get("expires"), _format_reason(params))
-            self.logger.write("Registered SIP contact address: %s (expires in %d seconds)%s" % x)
-        self.registered_count += 1
-
-    def log_other_contacts(self, params):
-        if len(params.get("contact_uri_list", 0)) > 1:
-            contacts = ["%s (expires in %d seconds)" % contact_tup for contact_tup in params["contact_uri_list"] if
-                        contact_tup[0] != params["contact_uri"]]
-            self.logger.write("SIP contacts addresses registered by other devices:\n%s" % "\n".join(contacts))
 
     def register(self):
         assert self.state != 'registered', self.state
@@ -321,22 +293,6 @@ class SIPError(SessionError):
             raise AttributeError('No key %r in params' % item)
 
 
-def _format_reason(params):
-    if (params.get('code'), params.get('reason'))==(200, 'OK'): # boring
-        return ''
-    reason = ''
-    if params:
-        if 'code' in params and params['code']!=200:
-            reason += str(params['code'])
-        if 'reason' in params:
-            if reason:
-                reason += ' '
-            reason += str(params['reason'])
-    if reason:
-        reason = ' (%s)' % reason
-    return reason
-
-
 class call_if(object):
 
     def __init__(self, obj, condition=None):
@@ -356,94 +312,19 @@ class call_on_disconnect(call_if):
     def condition(self, (event_name, sender, params)):
         return (params or {}).get('state')=='DISCONNECTED'
 
-def format_streams(streams):
-    result = []
-    for s in (streams or []):
-        media_name = {'message': 'IM',
-                      'audio':   'Voice'}.get(s.media_type, s.media_type)
-        result.append(media_name)
-    return '/'.join(result)
 
 class GreenInvitation(GreenBase):
 
     event_name = 'SCInvitationChangedState'
     confirmed = False
 
-    def handle_event(self, event_name, sender, kwargs):
-        self.call_id = (kwargs or {}).get('headers', {}).get('Call-ID')
-        return GreenBase.handle_event(self, event_name, sender, kwargs)
+    @property
+    def session_name(self):
+        return 'SIP session'
 
     @property
     def connected(self):
         return self.state == 'CONFIRMED'
-
-    @property
-    def session_name(self):
-#        try:
-#            self._streams
-#        except AttributeError:
-#            self._streams = format_streams(self.proposed_streams)
-#        if self._streams:
-#            streams = ' (%s)' % self._streams
-#        else:
-#            streams = ''
-#        return 'SIP session' + streams
-        return 'SIP session'
-
-    def _format_to(self):
-        return 'to %s' % self.remote_uri
-
-    def _format_fromtoproxy(self):
-        result = 'from %s to %s' % (self.local_uri, self.remote_uri)
-        if self.route:
-            result += " through proxy %s:%d" % (self.route.host, self.route.port)
-        return result
-
-    def _get_verb(self, state, prev_state):
-        # only if connection was not established yet and if we initiated the disconnect
-        if not self.confirmed and 'DISCONNECTING' in [state, prev_state]:
-            if self.is_outgoing:
-                return {'DISCONNECTED': 'Cancelled',
-                        'DISCONNECTING': 'Cancelling'}.get(state, state).capitalize()
-            else:
-                return {'DISCONNECTED': 'Rejected',
-                        'DISCONNECTING': 'Rejecting'}.get(state, state).capitalize()
-        return state.capitalize()
-
-    def _format_state_default(self, params):
-        reason = _format_reason(params)
-        state = params['state']
-        prev_state = params['prev_state']
-        return '%s %s %s%s' % (self._get_verb(state, prev_state), self.session_name, self._format_to(), reason)
-
-    def log_state_default(self, params):
-        self.logger.write(self._format_state_default(params))
-
-    def log_state_calling(self, params):
-        try:
-            self.__last_calling_message
-        except AttributeError:
-            self.__last_calling_message = None
-        msg = 'Initiating %s %s...' % (self.session_name, self._format_fromtoproxy())
-        if msg != self.__last_calling_message: # filter out successive Calling messages
-            self.logger.write(msg)
-            self.__last_calling_message = msg
-
-    def log_state_incoming(self, params):
-        self._streams = format_streams(params.get('streams'))
-
-    def log_state_confirmed(self, params):
-        self.confirmed = True
-
-    def log_state_early(self, params):
-        pass
-
-    def log_ringing(self, params):
-        agent = params.get('headers', {}).get('User-Agent', '')
-        contact = str(params.get('headers', {}).get('Contact', [['']])[0][0])
-        if agent:
-            contact += ' (%s)' % agent
-        self.logger.write('Ringing from %s' % contact)
 
     def invite(self, *args, **kwargs):
         assert self.state != 'CONFIRMED', "Already connected"
@@ -460,7 +341,6 @@ class GreenInvitation(GreenBase):
                     if event_name == self.event_name:
                         state = params['state']
                         if state == 'EARLY':
-                            self.log_ringing(params)
                             if ringer:
                                 ringer.start()
                                 ringer = None
@@ -498,12 +378,9 @@ class EventHandler(object):
 
     implements(IObserver)
 
-    def __init__(self, handle_event, trace_pjsip=False):
+    def __init__(self, handle_event):
         """handle_event will be called in the main thread / mainloop gthread and therefore must not block"""
         self.handle_event = handle_event
-        self.trace_pjsip = trace_pjsip
-        self.start_time = None
-        self.packet_count = 0
         from twisted.internet import reactor
         self.reactor = reactor
 
@@ -515,7 +392,7 @@ class EventHandler(object):
             callFromThread = self.reactor.callFromThread
             event_handler = self.event_handler
         except AttributeError:
-            pass
+            raise
         else:
             callFromThread(event_handler, event_name, sender, kwargs)
 
@@ -523,22 +400,26 @@ class EventHandler(object):
 
     # not thread-safe, must be called in reactor's thread
     def event_handler(self, event_name, sender, kwargs):
-        if event_name == 'SCEngineSIPTrace':
-            if self.start_time is None:
-                self.start_time = kwargs["timestamp"]
-            self.packet_count += 1
-            if kwargs["received"]:
-                direction = "RECEIVED"
-            else:
-                direction = "SENDING"
-            buf = ["%s: Packet %d, +%s" % (direction, self.packet_count, (kwargs["timestamp"] - self.start_time))]
-            buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
-            buf.append(kwargs["data"])
-            sys.stderr.write('\n'.join(buf))
-        elif event_name=='SCEngineGotException':
+        if event_name=='SCEngineGotException':
             print kwargs['traceback']
         elif event_name != "SCEngineLog":
             self.handle_event(event_name, sender, kwargs)
-        elif self.trace_pjsip:
-            sys.stderr.write("%(timestamp)s (%(level)d) %(sender)14s: %(message)s\n" % kwargs)
+
+
+class CallObserverFromThread(object):
+
+    implements(IObserver)
+
+    def __init__(self, proxified):
+        self.proxified = proxified
+        from twisted.internet import reactor
+        self.reactor = reactor
+
+    def handle_notification(self, notification):
+        try:
+            callFromThread = self.reactor.callFromThread
+        except AttributeError:
+            raise
+        else:
+            callFromThread(self.proxified.handle_notification, notification)
 
