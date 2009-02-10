@@ -24,9 +24,9 @@ cdef class Publication:
         cdef pj_str_t c_event
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
-            raise PyPJUAError("credentials parameter cannot be None")
+            raise SIPCoreError("credentials parameter cannot be None")
         if credentials.uri is None:
-            raise PyPJUAError("No SIP URI set on credentials")
+            raise SIPCoreError("No SIP URI set on credentials")
         self.state = "unpublished"
         self.c_expires = expires
         self.c_credentials = credentials.copy()
@@ -58,7 +58,7 @@ cdef class Publication:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except PyPJUAError:
+        except SIPCoreError:
             return
         if self.c_timer.user_data != NULL:
             pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
@@ -77,7 +77,7 @@ cdef class Publication:
             cdef int status
             status = pjsip_publishc_update_expires(self.c_obj, value)
             if status != 0:
-                raise PyPJUAError('Could not set new "expires" value: %s' % pj_status_to_str(status))
+                raise SIPCoreError('Could not set new "expires" value: %s' % pj_status_to_str(status))
             self.c_expires = value
 
     property extra_headers:
@@ -123,7 +123,7 @@ cdef class Publication:
                 else:
                     self.state = "published"
         else:
-            raise PyPJUAError("Unexpected response callback in Publication")
+            raise SIPCoreError("Unexpected response callback in Publication")
         c_add_event("SCPublicationChangedState", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
         if self.c_new_publish:
             self.c_new_publish = 0
@@ -138,7 +138,7 @@ cdef class Publication:
         if self.state == "unpublishing" or self.state =="publishing":
             return 0
         if self.state == "unpublished":
-            raise PyPJUAError("Unexpected expire callback in Publication")
+            raise SIPCoreError("Unexpected expire callback in Publication")
         # self.state == "published"
         if self.c_body is not None:
             try:

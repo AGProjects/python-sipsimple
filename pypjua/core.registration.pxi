@@ -21,9 +21,9 @@ cdef class Registration:
         cdef PJSTR request_uri, fromto_uri
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
-            raise PyPJUAError("credentials parameter cannot be None")
+            raise SIPCoreError("credentials parameter cannot be None")
         if credentials.uri is None:
-            raise PyPJUAError("No SIP URI set on credentials")
+            raise SIPCoreError("No SIP URI set on credentials")
         self.state = "unregistered"
         self.c_expires = expires
         self.c_credentials = credentials.copy()
@@ -55,7 +55,7 @@ cdef class Registration:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except PyPJUAError:
+        except SIPCoreError:
             return
         if self.c_timer.user_data != NULL:
             pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
@@ -74,7 +74,7 @@ cdef class Registration:
             cdef int status
             status = pjsip_regc_update_expires(self.c_obj, value)
             if status != 0:
-                raise PyPJUAError('Could not set new "expires" value: %s' % pj_status_to_str(status))
+                raise SIPCoreError('Could not set new "expires" value: %s' % pj_status_to_str(status))
             self.c_expires = value
 
     property expires_received:
@@ -87,7 +87,7 @@ cdef class Registration:
             else:
                 status = pjsip_regc_get_info(self.c_obj, &c_info)
                 if status != 0:
-                    raise PyPJUAError('Could not get registration info: %s' % pj_status_to_str(status))
+                    raise SIPCoreError('Could not get registration info: %s' % pj_status_to_str(status))
                 return c_info.interval
 
     property extra_headers:
@@ -134,7 +134,7 @@ cdef class Registration:
                 else:
                     self.state = "registered"
         else:
-            raise PyPJUAError("Unexpected response callback in Registration")
+            raise SIPCoreError("Unexpected response callback in Registration")
         if self.state == "registered":
             for i from 0 <= i < param.contact_cnt:
                 length = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, param.contact[i].uri, contact_uri_buf, 1024)
@@ -152,7 +152,7 @@ cdef class Registration:
         if self.state == "unregistering":
             return 0
         if self.state == "registering" or self.state == "unregistered":
-            raise PyPJUAError("Unexpected expire callback in Registration")
+            raise SIPCoreError("Unexpected expire callback in Registration")
         # self.state == "registered"
         if self.c_want_register:
             try:

@@ -7,7 +7,7 @@ from application.system import default_host_ip
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData
 
-from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, PyPJUAError
+from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
 from pypjua import __version__
 
 class Engine(object):
@@ -51,14 +51,14 @@ class Engine(object):
 
     def start(self, auto_sound=True, local_ip=None, **kwargs):
         if self._thread_started:
-            raise PyPJUAError("Worker thread was already started once")
+            raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
         init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
         self._ua = PJSIPUA(self._handle_event, **init_options)
         if auto_sound:
             try:
                 self._ua.auto_set_sound_devices()
-            except PyPJUAError:
+            except SIPCoreError:
                 self._ua = None
                 raise
         self._lock = allocate_lock()

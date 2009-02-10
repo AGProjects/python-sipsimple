@@ -33,7 +33,7 @@ cdef class PJSIPUA:
     def __cinit__(self, *args, **kwargs):
         global _ua
         if _ua != NULL:
-            raise PyPJUAError("Can only have one PJSUPUA instance at the same time")
+            raise SIPCoreError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
         self.c_threads = []
         self.c_events = []
@@ -48,7 +48,7 @@ cdef class PJSIPUA:
         cdef int status
         cdef PJSTR c_message_method = PJSTR("MESSAGE")
         if kwargs["sample_rate"] not in [8, 16, 32]:
-            raise PyPJUAError("Sample rate should be one of 8, 16 or 32kHz")
+            raise SIPCoreError("Sample rate should be one of 8, 16 or 32kHz")
         self.c_event_handler = event_handler
         if kwargs["log_level"] < 0 or kwargs["log_level"] > PJ_LOG_MAX_LEVEL:
             raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
@@ -68,7 +68,7 @@ cdef class PJSIPUA:
         self.ec_tail_length = kwargs["ec_tail_length"]
         if kwargs["playback_dtmf"]:
             self.c_conf_bridge._enable_playback_dtmf()
-        self.c_module_name = PJSTR("mod-pypjua")
+        self.c_module_name = PJSTR("mod-core")
         self.c_module.name = self.c_module_name.pj_str
         self.c_module.id = -1
         self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
@@ -80,7 +80,7 @@ cdef class PJSIPUA:
         if status != 0:
             raise PJSIPError("Could not add MESSAGE method to supported methods", status)
         self.c_trace_sip = bool(kwargs["trace_sip"])
-        self.c_trace_module_name = PJSTR("mod-pypjua-sip-trace")
+        self.c_trace_module_name = PJSTR("mod-core-sip-trace")
         self.c_trace_module.name = self.c_trace_module_name.pj_str
         self.c_trace_module.id = -1
         self.c_trace_module.priority = 0
@@ -91,7 +91,7 @@ cdef class PJSIPUA:
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_trace_module)
         if status != 0:
             raise PJSIPError("Could not load sip trace module", status)
-        self.c_event_module_name = PJSTR("mod-pypjua-events")
+        self.c_event_module_name = PJSTR("mod-core-events")
         self.c_event_module.name = self.c_event_module_name.pj_str
         self.c_event_module.id = -1
         self.c_event_module.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE
@@ -217,7 +217,7 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint._stop_udp_transport()
             try:
                 self.c_pjsip_endpoint._start_udp_transport(port)
-            except PyPJUAError:
+            except SIPCoreError:
                 if old_port == -1:
                     raise
                 self.c_pjsip_endpoint._start_udp_transport(old_port)
@@ -247,7 +247,7 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint._stop_tcp_transport()
             try:
                 self.c_pjsip_endpoint._start_tcp_transport(port)
-            except PyPJUAError:
+            except SIPCoreError:
                 if old_port == -1:
                     raise
                 self.c_pjsip_endpoint._start_tcp_transport(old_port)
@@ -277,7 +277,7 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint._stop_tls_transport()
             try:
                 self.c_pjsip_endpoint._start_tls_transport(port)
-            except PyPJUAError:
+            except SIPCoreError:
                 if old_port == -1:
                     raise
                 self.c_pjsip_endpoint._start_tls_transport(old_port)
@@ -296,9 +296,9 @@ cdef class PJSIPUA:
             c_rtp_port_start, c_rtp_port_stop = value
             for port in value:
                 if port < 0 or port > 65535:
-                    raise PyPJUAError("RTP port values should be between 0 and 65535")
+                    raise SIPCoreError("RTP port values should be between 0 and 65535")
             if c_rtp_port_stop <= c_rtp_port_start:
-                raise PyPJUAError("Second RTP port should be a larger number than first RTP port")
+                raise SIPCoreError("Second RTP port should be a larger number than first RTP port")
             self.c_rtp_port_start = c_rtp_port_start
             self.c_rtp_port_stop = c_rtp_port_stop
             self.c_rtp_port_index = random.randrange(c_rtp_port_start, c_rtp_port_stop, 2) - 50
@@ -381,7 +381,7 @@ cdef class PJSIPUA:
             self.c_pjsip_endpoint._stop_tls_transport()
             try:
                 self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
-            except PyPJUAError:
+            except SIPCoreError:
                 self.c_pjsip_endpoint.c_tls_ca_file = old_tls_ca_file
                 self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
 
@@ -393,13 +393,13 @@ cdef class PJSIPUA:
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
         if transport.c_obj == NULL:
-            raise PyPJUAError("Cannot connect an AudioTransport that was not started yet")
+            raise SIPCoreError("Cannot connect an AudioTransport that was not started yet")
         self.c_conf_bridge._connect_conv_slot(transport.c_conf_slot)
 
     def disconnect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
         if transport.c_obj == NULL:
-            raise PyPJUAError("Cannot disconnect an AudioTransport that was not started yet")
+            raise SIPCoreError("Cannot disconnect an AudioTransport that was not started yet")
         self.c_conf_bridge._disconnect_slot(transport.c_conf_slot)
 
     def play_wav_file(self, file_name, unsigned int level=100):
@@ -484,7 +484,7 @@ cdef class PJSIPUA:
     cdef int c_check_self(self) except -1:
         global _ua
         if _ua == NULL:
-            raise PyPJUAError("The PJSIPUA is no longer running")
+            raise SIPCoreError("The PJSIPUA is no longer running")
         self.c_check_thread()
 
     cdef int c_check_thread(self) except -1:
@@ -621,7 +621,7 @@ cdef PJSIPUA c_get_ua():
     global _ua
     cdef PJSIPUA ua
     if _ua == NULL:
-        raise PyPJUAError("PJSIPUA is not instanced")
+        raise SIPCoreError("PJSIPUA is not instanced")
     ua = <object> _ua
     ua.c_check_thread()
     return ua

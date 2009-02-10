@@ -32,12 +32,12 @@ cdef class Route:
         cdef object transport_lower
         str_to_pj_str(self.host, &self.c_sip_uri.host)
         if self.port < 0 or self.port > 65535:
-            raise PyPJUAError("Invalid port: %d" % self.port)
+            raise SIPCoreError("Invalid port: %d" % self.port)
         self.c_sip_uri.port = self.port
         if self.transport is not None:
             transport_lower = self.transport.lower()
             if (ua.c_pjsip_endpoint.c_udp_transport == NULL or transport_lower != "udp") and (ua.c_pjsip_endpoint.c_tcp_transport == NULL or transport_lower != "tcp") and (ua.c_pjsip_endpoint.c_tls_transport == NULL or transport_lower != "tls"):
-                raise PyPJUAError("Unknown transport: %s" % self.transport)
+                raise SIPCoreError("Unknown transport: %s" % self.transport)
             str_to_pj_str(self.transport, &self.c_sip_uri.transport_param)
         return 0
 
@@ -68,16 +68,16 @@ cdef class Credentials:
 
     cdef int _to_c(self) except -1:
         if self.uri is None or self.password is None:
-            raise PyPJUAError("Credentials are not fully set")
+            raise SIPCoreError("Credentials are not fully set")
         if self.uri.user is None:
-            raise PyPJUAError("Credentials URI does not have username set")
+            raise SIPCoreError("Credentials URI does not have username set")
         str_to_pj_str(self.uri.user, &self.c_obj.username)
         str_to_pj_str(self.password, &self.c_obj.data)
         return 0
 
     def copy(self):
         if self.uri is None:
-            raise PyPJUAError("Credentials URI is set to None")
+            raise SIPCoreError("Credentials URI is set to None")
         return Credentials(self.uri.copy(), self.password, self.token)
 
 cdef class SIPURI:
@@ -169,7 +169,7 @@ cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named):
     elif scheme == "sips":
         kwargs["secure"] = True
     else:
-        raise PyPJUAError("Not a sip(s) URI")
+        raise SIPCoreError("Not a sip(s) URI")
     if uri.user.slen > 0:
         kwargs["user"] = pj_str_to_str(uri.user)
     if uri.passwd.slen > 0:
@@ -211,7 +211,7 @@ cdef SIPURI c_parse_SIPURI(object uri_str):
     try:
         uri = pjsip_parse_uri(pool, uri_str, len(uri_str), PJSIP_PARSE_URI_AS_NAMEADDR)
         if uri == NULL:
-            raise PyPJUAError("Not a valid SIP URI: %s" % uri_str)
+            raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
         retval = c_make_SIPURI(uri, 1)
     finally:
         pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, pool)

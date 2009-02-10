@@ -43,7 +43,7 @@ cdef class PJSIPEndpoint:
     def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file):
         global _inv_cb
         cdef int status
-        status = pjsip_endpt_create(&caching_pool.c_obj.factory, "pypjua",  &self.c_obj)
+        status = pjsip_endpt_create(&caching_pool.c_obj.factory, "core",  &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not initialize PJSIP endpoint", status)
         self.c_pool = pjsip_endpt_create_pool(self.c_obj, "lifetime", 4096, 4096)
@@ -85,7 +85,7 @@ cdef class PJSIPEndpoint:
         cdef pj_str_t pj_local_ip
         cdef pj_str_t *p_local_ip = NULL
         if local_port < 0 or local_port > 65535:
-            raise PyPJUAError("Invalid port: %d" % local_port)
+            raise SIPCoreError("Invalid port: %d" % local_port)
         if local_ip is not None and local_ip is not "0.0.0.0":
             p_local_ip = &pj_local_ip
             str_to_pj_str(local_ip, p_local_ip)

@@ -793,8 +793,8 @@ cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
 
 # core.event
 
-cdef struct pypjua_event
-cdef int c_event_queue_append(pypjua_event *event)
+cdef struct core_event
+cdef int c_event_queue_append(core_event *event)
 cdef void cb_log(int level, char_ptr_const data, int len)
 cdef int c_add_event(object event_name, dict params) except -1
 cdef list c_get_clear_event_queue()

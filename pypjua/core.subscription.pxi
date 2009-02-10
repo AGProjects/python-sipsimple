@@ -18,11 +18,11 @@ cdef class Subscription:
         cdef EventPackage pkg
         cdef PJSIPUA ua = c_get_ua()
         if credentials is None:
-            raise PyPJUAError("credentials parameter cannot be None")
+            raise SIPCoreError("credentials parameter cannot be None")
         if credentials.uri is None:
-            raise PyPJUAError("No SIP URI set on credentials")
+            raise SIPCoreError("No SIP URI set on credentials")
         if to_uri is None:
-            raise PyPJUAError("to_uri parameter cannot be None")
+            raise SIPCoreError("to_uri parameter cannot be None")
         self.c_credentials = credentials.copy()
         self.c_credentials._to_c()
         if route is not None:
@@ -32,7 +32,7 @@ cdef class Subscription:
         self.c_to_uri = to_uri.copy()
         self.c_event = PJSTR(event)
         if event not in ua.events:
-            raise PyPJUAError('Event "%s" is unknown' % event)
+            raise SIPCoreError('Event "%s" is unknown' % event)
         self.state = "TERMINATED"
         self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
 
@@ -40,7 +40,7 @@ cdef class Subscription:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except PyPJUAError:
+        except SIPCoreError:
             return
         if self.c_obj != NULL:
             if self.state != "TERMINATED":
@@ -97,12 +97,12 @@ cdef class Subscription:
 
     def subscribe(self):
         if self.state != "TERMINATED":
-            raise PyPJUAError("A subscription is already active")
+            raise SIPCoreError("A subscription is already active")
         self._do_sub(1, self.expires)
 
     def unsubscribe(self):
         if self.state == "TERMINATED":
-            raise PyPJUAError("No subscribtion is active")
+            raise SIPCoreError("No subscribtion is active")
         self._do_sub(0, 0)
 
     cdef int _do_sub(self, bint first_subscribe, unsigned int expires) except -1:
@@ -166,9 +166,9 @@ cdef class EventPackage:
         cdef object c_accept_type
         cdef int c_accept_cnt = len(accept_types)
         if c_accept_cnt > PJSIP_MAX_ACCEPT_COUNT:
-            raise PyPJUAError("Too many accept_types")
+            raise SIPCoreError("Too many accept_types")
         if c_accept_cnt == 0:
-            raise PyPJUAError("Need at least one accept_types")
+            raise SIPCoreError("Need at least one accept_types")
         self.accept_types = accept_types
         self.c_event = PJSTR(event)
         for c_index, c_accept_type in enumerate(accept_types):

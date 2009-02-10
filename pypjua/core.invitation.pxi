@@ -25,7 +25,7 @@ cdef class Invitation:
             except ValueError:
                 raise TypeError("Expected at least 2 positional arguments")
             if self.c_credentials.uri is None:
-                raise PyPJUAError("No SIP URI set on credentials")
+                raise SIPCoreError("No SIP URI set on credentials")
             self.c_credentials = self.c_credentials.copy()
             if self.c_credentials.password is not None:
                 self.c_credentials._to_c()
@@ -68,7 +68,7 @@ cdef class Invitation:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
-        except PyPJUAError:
+        except SIPCoreError:
             return
         if self.c_obj != NULL:
             self.c_obj.mod_data[ua.c_module.id] = NULL
@@ -171,7 +171,7 @@ cdef class Invitation:
         if neg_state in [PJMEDIA_SDP_NEG_STATE_NULL, PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER, PJMEDIA_SDP_NEG_STATE_DONE]:
             self.c_local_sdp_proposed = local_sdp
         else:
-            raise PyPJUAError("Cannot set offered local SDP in this state")
+            raise SIPCoreError("Cannot set offered local SDP in this state")
 
     cdef int _cb_state(self, object state, pjsip_rx_data *rdata) except -1:
         cdef pjsip_tx_data *tdata
@@ -254,9 +254,9 @@ cdef class Invitation:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if self.state != "NULL":
-            raise PyPJUAError("Can only transition to the CALLING state from the NULL state")
+            raise SIPCoreError("Can only transition to the CALLING state from the NULL state")
         if self.c_local_sdp_proposed is None:
-            raise PyPJUAError("Local SDP has not been set")
+            raise SIPCoreError("Local SDP has not been set")
         caller_uri = PJSTR(self.c_caller_uri._as_str(0))
         callee_uri = PJSTR(self.c_callee_uri._as_str(0))
         callee_target = PJSTR(self.c_callee_uri._as_str(1))
@@ -296,14 +296,14 @@ cdef class Invitation:
 
     def respond_to_invite_provisionally(self, int response_code=180, dict extra_headers=None):
         if self.state != "INCOMING":
-            raise PyPJUAError("Can only transition to the EARLY state from the INCOMING state")
+            raise SIPCoreError("Can only transition to the EARLY state from the INCOMING state")
         if response_code / 100 != 1:
-            raise PyPJUAError("Not a provisional response: %d" % response_code)
+            raise SIPCoreError("Not a provisional response: %d" % response_code)
         self._send_response(response_code, extra_headers)
 
     def accept_invite(self, dict extra_headers=None):
         if self.state not in ["INCOMING", "EARLY"]:
-            raise PyPJUAError("Can only transition to the EARLY state from the INCOMING or EARLY states")
+            raise SIPCoreError("Can only transition to the EARLY state from the INCOMING or EARLY states")
         try:
             self._send_response(200, extra_headers)
         except PJSIPError, e:
@@ -317,7 +317,7 @@ cdef class Invitation:
         cdef PJSIPUA ua = c_get_ua()
         if response_code / 100 == 2:
             if self.c_local_sdp_proposed is None:
-                raise PyPJUAError("Local SDP has not been set")
+                raise SIPCoreError("Local SDP has not been set")
             self.c_local_sdp_proposed._to_c()
             local_sdp = &self.c_local_sdp_proposed.c_obj
         status = pjsip_inv_answer(self.c_obj, response_code, NULL, local_sdp, &tdata)
@@ -331,11 +331,11 @@ cdef class Invitation:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if self.state == "DISCONNECTING":
-            raise PyPJUAError("INVITE session is already DISCONNECTING")
+            raise SIPCoreError("INVITE session is already DISCONNECTING")
         if self.c_obj == NULL:
-            raise PyPJUAError("INVITE session is not active")
+            raise SIPCoreError("INVITE session is not active")
         if response_code / 100 < 3:
-            raise PyPJUAError("Not a non-2xx final response: %d" % response_code)
+            raise SIPCoreError("Not a non-2xx final response: %d" % response_code)
         if self.state == "INCOMING":
             status = pjsip_inv_answer(self.c_obj, response_code, NULL, NULL, &tdata)
         else:
@@ -348,7 +348,7 @@ cdef class Invitation:
 
     def respond_to_reinvite(self, int response_code=200, dict extra_headers=None):
         if self.state != "REINVITED":
-            raise PyPJUAError("Can only send a response to a re-INVITE in the REINVITED state")
+            raise SIPCoreError("Can only send a response to a re-INVITE in the REINVITED state")
         self._send_response(response_code, extra_headers)
 
     def send_reinvite(self, dict extra_headers=None):
@@ -357,7 +357,7 @@ cdef class Invitation:
         cdef pjmedia_sdp_session *local_sdp = NULL
         cdef PJSIPUA ua = c_get_ua()
         if self.state != "CONFIRMED":
-            raise PyPJUAError("Cannot send re-INVITE in CONFIRMED state")
+            raise SIPCoreError("Cannot send re-INVITE in CONFIRMED state")
         if self.c_local_sdp_proposed is not None:
             self.c_local_sdp_proposed._to_c()
             local_sdp = &self.c_local_sdp_proposed.c_obj

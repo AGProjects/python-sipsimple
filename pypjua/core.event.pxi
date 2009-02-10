@@ -3,9 +3,9 @@ from datetime import datetime
 
 # types
 
-cdef struct pypjua_event:
-    pypjua_event *prev
-    pypjua_event *next
+cdef struct core_event:
+    core_event *prev
+    core_event *next
     int is_log
     int level
     void *data
@@ -14,8 +14,8 @@ cdef struct pypjua_event:
 # functions
 
 cdef void cb_log(int level, char_ptr_const data, int len):
-    cdef pypjua_event *event
-    event = <pypjua_event *> malloc(sizeof(pypjua_event))
+    cdef core_event *event
+    event = <core_event *> malloc(sizeof(core_event))
     if event != NULL:
         event.data = malloc(len)
         if event.data == NULL:
@@ -31,9 +31,9 @@ cdef void cb_log(int level, char_ptr_const data, int len):
 
 cdef int c_add_event(object event_name, dict params) except -1:
     cdef tuple data
-    cdef pypjua_event *event
+    cdef core_event *event
     cdef int status
-    event = <pypjua_event *> malloc(sizeof(pypjua_event))
+    event = <core_event *> malloc(sizeof(core_event))
     if event == NULL:
         raise MemoryError()
     params["timestamp"] = datetime.now()
@@ -46,7 +46,7 @@ cdef int c_add_event(object event_name, dict params) except -1:
     Py_INCREF(data)
     return 0
 
-cdef int c_event_queue_append(pypjua_event *event):
+cdef int c_event_queue_append(core_event *event):
     global _event_queue_head, _event_queue_tail, _event_queue_lock
     cdef int locked = 0, status
     event.next = NULL
@@ -70,7 +70,7 @@ cdef int c_event_queue_append(pypjua_event *event):
 cdef list c_get_clear_event_queue():
     global _re_log, _event_queue_head, _event_queue_tail, _event_queue_lock
     cdef list events = []
-    cdef pypjua_event *event, *event_free
+    cdef core_event *event, *event_free
     cdef tuple event_tup
     cdef object event_params, log_msg, log_match
     cdef int locked = 0
@@ -104,5 +104,5 @@ cdef list c_get_clear_event_queue():
 
 cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)\.(?P<millisecond>\d+)\s+(?P<sender>\S+)?\s+(?P<message>.*)$")
 cdef pj_mutex_t *_event_queue_lock = NULL
-cdef pypjua_event *_event_queue_head = NULL
-cdef pypjua_event *_event_queue_tail = NULL
+cdef core_event *_event_queue_head = NULL
+cdef core_event *_event_queue_tail = NULL

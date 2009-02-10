@@ -52,7 +52,7 @@ cdef object c_retrieve_nameservers():
                 if re_ip.match(line):
                     nameservers.append(match.group(1))
         except:
-            raise PyPJUAError("Could not parse /etc/resolv.conf")
+            raise SIPCoreError("Could not parse /etc/resolv.conf")
     ELSE:
         raise NotImplementedError("Nameserver lookup not yet implemented for windows")
     return nameservers

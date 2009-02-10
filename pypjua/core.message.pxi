@@ -13,16 +13,16 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     cdef int size
     cdef PJSIPUA ua = c_get_ua()
     if credentials is None:
-        raise PyPJUAError("credentials parameter cannot be None")
+        raise SIPCoreError("credentials parameter cannot be None")
     if credentials.uri is None:
-        raise PyPJUAError("No SIP URI set on credentials")
+        raise SIPCoreError("No SIP URI set on credentials")
     if to_uri is None:
-        raise PyPJUAError("to_uri parameter cannot be None")
+        raise SIPCoreError("to_uri parameter cannot be None")
     from_uri = PJSTR(credentials.uri._as_str(0))
     to_uri_to = PJSTR(to_uri._as_str(0))
     to_uri_req = PJSTR(to_uri._as_str(1))
     if to_uri_req.str in ua.c_sent_messages:
-        raise PyPJUAError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
+        raise SIPCoreError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
     message_method.id = PJSIP_OTHER_METHOD
     message_method.name = message_method_name.pj_str
     status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
@@ -42,7 +42,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     size = pjsip_msg_print(tdata.msg, test_buf, 1300)
     if size == -1:
         pjsip_tx_data_dec_ref(tdata)
-        raise PyPJUAError("MESSAGE request exceeds 1300 bytes")
+        raise SIPCoreError("MESSAGE request exceeds 1300 bytes")
     saved_data = credentials.copy(), to_uri_req, to_uri.copy()
     status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
     if status != 0:

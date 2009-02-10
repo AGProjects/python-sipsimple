@@ -13,7 +13,7 @@ from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
 
-from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, PyPJUAError
+from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError
 from pypjua.clients.console import setup_console, CTRL_D, EOF
 from pypjua.green.engine import GreenEngine, IncomingSessionHandler, Ringer
 from pypjua.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
@@ -651,7 +651,7 @@ def main():
         pass
     except proc.LinkedExited, err:
         print 'Exiting because %s' % (err, )
-    except (RuntimeError, PyPJUAError), e:
+    except (RuntimeError, SIPCoreError), e:
         sys.exit(str(e) or str(type(e)))
 
 if __name__ == "__main__":

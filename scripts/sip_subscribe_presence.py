@@ -505,7 +505,7 @@ if __name__ == "__main__":
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
-    except PyPJUAError, e:
+    except SIPCoreError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
     sys.exit(return_code)
