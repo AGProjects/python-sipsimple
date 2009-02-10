@@ -134,7 +134,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                     if args["state"] == "INCOMING":
                         obj.disconnect()
                 elif event_name == "SCEngineGotException":
-                    print "An exception occured within PyPJUA:"
+                    print "An exception occured within the SIP core:"
                     print args["traceback"]
                     user_quit = False
                     command = "quit"

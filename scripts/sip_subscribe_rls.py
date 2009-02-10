@@ -340,7 +340,7 @@ def read_queue(e, username, domain, password, display_name, presentity_uri, rout
             if command == "pypjua_event":
                 event_name, args = data
                 if event_name == "exception":
-                    print "An exception occured within PyPJUA:"
+                    print "An exception occured within the SIP core:"
                     print args["traceback"]
                     user_quit = False
                     command = "quit"
