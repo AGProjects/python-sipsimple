@@ -247,7 +247,7 @@ def read_queue(username, domain, password, display_name, xcap_root):
             command, data = queue.get()
             if command == "print":
                 print data
-            if command == "pypjua_event":
+            if command == "core_event":
                 event_name, args = data
             if command == "user_input":
                 key = data

@@ -289,7 +289,7 @@ def event_handler(event_name, **kwargs):
     elif event_name == "siptrace":
         logger.log(event_name, **kwargs)
     elif event_name != "log":
-        queue.put(("pypjua_event", (event_name, kwargs)))
+        queue.put(("core_event", (event_name, kwargs)))
     elif do_trace_pjsip:
         queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
 
@@ -327,7 +327,7 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
                 print data
                 if len(pending) > 0:
                     print "%s watcher %s wants to subscribe to your presence information. Press (a) for allow, (d) for deny or (p) for polite blocking:" % (pending[0].status.capitalize(), pending[0])
-            if command == "pypjua_event":
+            if command == "core_event":
                 event_name, args = data
                 if event_name == "exception":
                     print "An exception occured within the SIP core:"
