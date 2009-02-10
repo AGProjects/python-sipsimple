@@ -3,7 +3,6 @@ recursive-include docs    INSTALL.* *.txt
 prune debian/tmp
 prune debian/sipclient
 include MANIFEST.in config.ini.sample AUTHORS LICENSE build_inplace Changelog setup_pjsip.py
-recursive-include sipsimple _pjsip.pyx Makefile
 recursive-include share/sipclient *.wav
 recursive-include sipsimple/applications/xml-schemas *.xsd
 recursive-include patches *.patch
