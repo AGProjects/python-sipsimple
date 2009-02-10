@@ -104,19 +104,6 @@ class GreenEngine(Engine):
         self.register_obj(obj)
         return obj
 
-    def wait_incoming(self):
-        q = coros.queue()
-        with self._queue.link(q):
-            while True:
-                event_name, sender, params = q.wait()
-                self.logger.log_event('RECEIVED', event_name, sender, params)
-                if event_name == "SCInvitationChangedState" and params.get("state") == "INCOMING":
-                    obj = GreenInvitation(sender, self.logger)
-                    self.register_obj(obj) # XXX unregister_obj is never called
-                    obj.handle_event(event_name, params)
-                    return obj
-                self.logger.log_event('DROPPED', event_name, sender, params)
-
     def link_incoming(self, listener):
         self._queue.link(self._filter_incoming(listener))
 
