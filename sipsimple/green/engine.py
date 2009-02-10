@@ -18,13 +18,13 @@ from application.notification import IObserver
 from eventlet.api import sleep
 from eventlet import proc, coros
 
-from pypjua import Engine, Registration, Invitation
-from pypjua.green.debug_util import format_lineno
-from pypjua.green.util import wrapdict
-from pypjua.green.eventletutil import SourceQueue
+from sipsimple import Engine, Registration, Invitation
+from sipsimple.green.debug_util import format_lineno
+from sipsimple.green.util import wrapdict
+from sipsimple.green.eventletutil import SourceQueue
 
 # QQQ: separate logging part from GreenInvitation and GreenRegistration
-from pypjua.logstate import RegistrationLogger, InvitationLogger, SIPTracer, PJSIPTracer
+from sipsimple.logstate import RegistrationLogger, InvitationLogger, SIPTracer, PJSIPTracer
 
 def format_event(name, kwargs):
     return '%s\n%s' % (name, pformat(kwargs))
@@ -222,7 +222,7 @@ class GreenBase(object):
 
 class GreenRegistration(GreenBase):
     # XXX when unregistered because of error, the client will stay unregistered.
-    # XXX this class or pypjua itself should try re-register after some time?
+    # XXX this class or sipsimple itself should try re-register after some time?
 
     event_name = 'SCRegistrationChangedState'
 

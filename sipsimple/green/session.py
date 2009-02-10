@@ -7,10 +7,10 @@ from msrplib import MSRPError
 from msrplib import protocol as msrp_protocol
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
-from pypjua import SDPAttribute, SDPMedia, SDPConnection, SDPSession
-from pypjua.green.engine import SIPError, SessionError
-from pypjua.clients.cpim import MessageCPIM
-from pypjua.green.util import Proxy
+from sipsimple import SDPAttribute, SDPMedia, SDPConnection, SDPSession
+from sipsimple.green.engine import SIPError, SessionError
+from sipsimple.clients.cpim import MessageCPIM
+from sipsimple.green.util import Proxy
 
 # inv = e.Invitation(credentials, target_uri, route=route)
 # msrp_connector = MSRPConnectFactory.new(relay, traffic_logger)
