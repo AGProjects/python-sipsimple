@@ -12,6 +12,9 @@ from contextlib import contextmanager
 import sys
 from pprint import pformat
 
+from zope.interface import implements
+from application.notification import IObserver
+
 from eventlet.api import sleep
 from eventlet import proc, coros
 
@@ -42,7 +45,7 @@ class EngineLogger:
 
     log_message = write
 
-    def log_event(self, prefix, name, kwargs, calllevel=1):
+    def log_event(self, prefix, name, sender, kwargs, calllevel=1):
         if not self.log_events:
             return
         if prefix:
@@ -53,31 +56,30 @@ class EngineLogger:
 class GreenEngine(Engine):
 
     def __init__(self, **kwargs):
+        Engine.__init__(self)
         self.logger = kwargs.pop('logger', EngineLogger(log_file=sys.stderr))
         # XXX: clean up obj when all refs to the object disappear
         self.objs = {} # maps pypjua_obj -> green obj
         self._queue = SourceQueue()
-        handler = EventHandler(self._handle_event,
-                               trace_pjsip=kwargs.pop('trace_pjsip', False))
-        Engine.__init__(self, handler, **kwargs)
+        handler = EventHandler(self.my_handle_event, trace_pjsip=kwargs.pop('trace_pjsip', False))
+        self.notification_center.add_observer(handler)
 
-    def handle_event(self, event_name, kwargs):
+    def handle_incoming(self, event_name, sender, kwargs):
         if self._queue is not None:
-            self._queue.send((event_name, kwargs))
+            self._queue.send((event_name, sender, kwargs))
         else:
-            self.logger.log_event('DROPPED (obj=%r)' % kwargs.get('obj'), event_name, kwargs)
+            self.logger.log_event('DROPPED', event_name, sender, kwargs)
 
-    def _handle_event(self, event_name, kwargs):
+    def my_handle_event(self, event_name, sender, kwargs):
         try:
-            obj = kwargs['obj']
-            green_obj = self.objs[obj]
+            green_obj = self.objs[sender]
             handle_event = green_obj.handle_event
         except KeyError:
-            handle_event = self.handle_event
-            self.logger.log_event('NOOBJ', event_name, kwargs)
+            handle_event = self.handle_incoming
+            self.logger.log_event('NOOBJ', event_name, sender, kwargs)
         else:
-            self.logger.log_event('DISPATCHED', event_name, kwargs)
-        handle_event(event_name, kwargs)
+            self.logger.log_event('DISPATCHED', event_name, sender, kwargs)
+        handle_event(event_name, sender, kwargs)
 
     def shutdown(self):
         jobs = [proc.spawn(obj.shutdown) for obj in self.objs.values()]
@@ -106,31 +108,29 @@ class GreenEngine(Engine):
         q = coros.queue()
         with self._queue.link(q):
             while True:
-                event_name, params = q.wait()
-                self.logger.log_event('RECEIVED', event_name, params)
-                if event_name == "Invitation_state" and params.get("state") == "INCOMING":
-                    obj = params.get('obj')
-                    obj = GreenInvitation(obj, self.logger)
+                event_name, sender, params = q.wait()
+                self.logger.log_event('RECEIVED', event_name, sender, params)
+                if event_name == "SCInvitationChangedState" and params.get("state") == "INCOMING":
+                    obj = GreenInvitation(sender, self.logger)
                     self.register_obj(obj) # XXX unregister_obj is never called
                     obj.handle_event(event_name, params)
                     return obj
-                self.logger.log_event('DROPPED', event_name, params)
+                self.logger.log_event('DROPPED', event_name, sender, params)
 
     def link_incoming(self, listener):
         self._queue.link(self._filter_incoming(listener))
 
     def _filter_incoming(self, listener):
-        def filter_incoming((event_name, params)):
+        def filter_incoming((event_name, sender, params)):
             """Create and send to listener GreenInvitation object"""
-            self.logger.log_event('RECEIVED', event_name, params)
-            if event_name == "Invitation_state" and params.get("state") == "INCOMING":
-                obj = params.get('obj')
-                obj = GreenInvitation(obj, self.logger)
+            self.logger.log_event('RECEIVED', event_name, sender, params)
+            if event_name == "SCInvitationChangedState" and params.get("state") == "INCOMING":
+                obj = GreenInvitation(sender, self.logger)
                 self.register_obj(obj) # XXX unregister_obj is never called
-                obj.handle_event(event_name, params)
+                obj.handle_event(event_name, sender, params)
                 listener.send(obj)
             else:
-                self.logger.log_event('DROPPED', event_name, params)
+                self.logger.log_event('DROPPED', event_name, sender, params)
         return filter_incoming
 
     def unlink(self, listener):
@@ -209,10 +209,9 @@ class GreenBase(object):
     def log_state_default(self, params=None):
         pass
 
-    def handle_event(self, event_name, kwargs):
-        if event_name.endswith("_state"):
-            self.log_my_state(kwargs)
-        self._queue.send((event_name, kwargs))
+    def handle_event(self, event_name, sender, kwargs):
+        self.log_my_state(kwargs)
+        self._queue.send((event_name, sender, kwargs))
 
     def skip_to_event(self, state, event_name=None):
         if event_name is None:
@@ -222,12 +221,12 @@ class GreenBase(object):
                 if self.state == state:
                     return event_name, None
                 xxx = q.wait()
-                r_event_name, r_params = xxx
+                r_event_name, sender, r_params = xxx
                 if (r_event_name, r_params.get('state')) == (event_name, state):
-                    self.logger.log_event('MATCHED', r_event_name, r_params, 2)
+                    self.logger.log_event('MATCHED', r_event_name, sender, r_params, 2)
                     return r_event_name, r_params
                 else:
-                    self.logger.log_event('DROPPED', r_event_name, r_params, 2)
+                    self.logger.log_event('DROPPED', r_event_name, sender, r_params, 2)
 
 
 class GreenRegistration(GreenBase):
@@ -235,6 +234,7 @@ class GreenRegistration(GreenBase):
     # XXX this class or pypjua itself should try re-register after some time?
 
     registered_count = 0
+    event_name = 'SCRegistrationChangedState'
 
     def log_state_default(self, params):
         x = (params.get('state').capitalize(), self.credentials.uri, self.route.host, self.route.port, _format_reason(params))
@@ -270,14 +270,14 @@ class GreenRegistration(GreenBase):
         with self.linked_queue() as q:
             self._obj.register()
             while True:
-                event_name, params = q.wait()
-                if 'Registration_state' == event_name:
+                event_name, sender, params = q.wait()
+                if self.event_name == event_name:
                     if params.get('state') in ['registered', 'unregistered']:
                         return params
 
     def unregister(self):
         self._obj.unregister()
-        return self.skip_to_event('unregistered', 'Registration_state')
+        return self.skip_to_event('unregistered', self.event_name)
 
     shutdown = unregister
 
@@ -364,7 +364,7 @@ class call_if(object):
 
 class call_on_disconnect(call_if):
 
-    def condition(self, (event_name, params)):
+    def condition(self, (event_name, sender, params)):
         return (params or {}).get('state')=='DISCONNECTED'
 
 def format_streams(streams):
@@ -377,12 +377,12 @@ def format_streams(streams):
 
 class GreenInvitation(GreenBase):
 
-    event_name = 'Invitation_state'
+    event_name = 'SCInvitationChangedState'
     confirmed = False
 
-    def handle_event(self, event_name, kwargs):
+    def handle_event(self, event_name, sender, kwargs):
         self.call_id = (kwargs or {}).get('headers', {}).get('Call-ID')
-        return GreenBase.handle_event(self, event_name, kwargs)
+        return GreenBase.handle_event(self, event_name, sender, kwargs)
 
     @property
     def connected(self):
@@ -467,8 +467,8 @@ class GreenInvitation(GreenBase):
         with self.linked_queue() as q:
             try:
                 while True:
-                    event_name, params = q.wait()
-                    if event_name == 'Invitation_state':
+                    event_name, sender, params = q.wait()
+                    if event_name == self.event_name:
                         state = params['state']
                         if state == 'EARLY':
                             self.log_ringing(params)
@@ -476,7 +476,7 @@ class GreenInvitation(GreenBase):
                                 ringer.start()
                                 ringer = None
                         elif state in ['CONFIRMED', 'DISCONNECTED']:
-                            self.logger.log_event('INVITE result', event_name, params)
+                            self.logger.log_event('INVITE result', event_name, sender, params)
                             break
                     elif event_name == "Invitation_sdp":
                         if not params["succeeded"]:
@@ -504,8 +504,10 @@ class GreenInvitation(GreenBase):
         return self._queue.link(listener)
 
 
-class EventHandler:
+class EventHandler(object):
     """Call handle_event in the reactor's thread / mainloop gthread. Filter out siptrace and log messages."""
+
+    implements(IObserver)
 
     def __init__(self, handle_event, trace_pjsip=False):
         """handle_event will be called in the main thread / mainloop gthread and therefore must not block"""
@@ -516,20 +518,23 @@ class EventHandler:
         from twisted.internet import reactor
         self.reactor = reactor
 
-    def event_handler_threadsafe(self, event_name, **kwargs):
+    def handle_notification(self, notification):
+        self.event_handler_threadsafe(notification.name, notification.sender, notification.data.__dict__)
+
+    def event_handler_threadsafe(self, event_name, sender, kwargs):
         try:
             callFromThread = self.reactor.callFromThread
             event_handler = self.event_handler
         except AttributeError:
             pass
         else:
-            callFromThread(event_handler, event_name, kwargs)
+            callFromThread(event_handler, event_name, sender, kwargs)
 
     __call__ = event_handler_threadsafe
 
     # not thread-safe, must be called in reactor's thread
-    def event_handler(self, event_name, kwargs):
-        if event_name == "siptrace":
+    def event_handler(self, event_name, sender, kwargs):
+        if event_name == 'SCEngineSIPTrace':
             if self.start_time is None:
                 self.start_time = kwargs["timestamp"]
             self.packet_count += 1
@@ -541,8 +546,10 @@ class EventHandler:
             buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d --> %(destination_ip)s:%(destination_port)d" % kwargs)
             buf.append(kwargs["data"])
             sys.stderr.write('\n'.join(buf))
-        elif event_name != "log":
-            self.handle_event(event_name, kwargs)
+        elif event_name=='SCEngineGotException':
+            print kwargs['traceback']
+        elif event_name != "SCEngineLog":
+            self.handle_event(event_name, sender, kwargs)
         elif self.trace_pjsip:
             sys.stderr.write("%(timestamp)s (%(level)d) %(sender)14s: %(message)s\n" % kwargs)
 

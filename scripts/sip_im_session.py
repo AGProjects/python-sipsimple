@@ -519,12 +519,13 @@ class ChatManager:
 
 def start(options, console):
     ###console.disable()
-    engine = GreenEngine(trace_sip=options.trace_sip,
-                         trace_pjsip=options.trace_pjsip,
-                         ec_tail_length=0,
-                         local_ip=options.local_ip,
-                         local_udp_port=options.local_port)
-    engine.start(not options.disable_sound)
+    engine = GreenEngine()
+    engine.start(not options.disable_sound,
+                trace_sip=options.trace_sip,
+                trace_pjsip=options.trace_pjsip,
+                ec_tail_length=0,
+                local_ip=options.local_ip,
+                local_udp_port=options.local_port)
     try:
         credentials = Credentials(options.uri, options.password)
         msrplogger = trafficlog.TrafficLogger.to_file(console, is_enabled_func=lambda: options.trace_msrp)

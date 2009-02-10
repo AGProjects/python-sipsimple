@@ -65,11 +65,13 @@ def main():
     filename = options.args[0]
     source = file(filename)
     sdp = SDPOfferFactory(filename)
-    e = GreenEngine(trace_sip=options.trace_sip,
-                    ec_tail_length=0,
-                    local_ip=options.local_ip,
-                    local_udp_port=options.local_port)
-    e.start(not options.disable_sound)
+    e = GreenEngine()
+    e.start(not options.disable_sound,
+            trace_sip=options.trace_sip,
+            trace_pjsip=options.trace_pjsip,
+            ec_tail_length=0,
+            local_ip=options.local_ip,
+            local_udp_port=options.local_port)
     try:
         credentials = Credentials(options.uri, options.password)
         inv = e.Invitation(credentials, options.target_uri, route=options.route)
