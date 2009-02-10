@@ -12,7 +12,7 @@ from pypjua import __version__
 
 class Engine(object):
     __metaclass__ = Singleton
-    init_options_defaults = {"auto_sound": True,
+    default_start_options = {"auto_sound": True,
                              "local_ip": None,
                              "local_udp_port": 0,
                              "local_tcp_port": None,
@@ -52,7 +52,7 @@ class Engine(object):
     def start(self, auto_sound=True, local_ip=None, **kwargs):
         if self._thread_started:
             raise PyPJUAError("Worker thread was already started once")
-        init_options = Engine.init_options_defaults.copy()
+        init_options = Engine.default_start_options.copy()
         init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
         self._ua = PJSIPUA(self._handle_event, **init_options)
         if auto_sound:

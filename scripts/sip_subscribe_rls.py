@@ -385,7 +385,7 @@ def do_subscribe(**kwargs):
         kwargs["route"] = routes[0]
     except IndexError:
         raise RuntimeError("No route found to SIP proxy")
-    events = Engine.init_options_defaults["events"]
+    events = Engine.default_start_options["events"]
     if kwargs['content_type'] is not None:
         events['presence'] = [kwargs['content_type']]
     else:
