@@ -197,7 +197,9 @@ class GreenBase(object):
         finally:
             self.unlink(q)
 
-    def log_my_state(self, params=None):
+    def log_my_state(self, event_name, params):
+        if event_name != self.event_name:
+            return
         state = params.get('state', self.state)
         try:
             func = getattr(self, 'log_state_%s' % state.lower())
@@ -206,11 +208,11 @@ class GreenBase(object):
         else:
             return func(params)
 
-    def log_state_default(self, params=None):
+    def log_state_default(self, params):
         pass
 
     def handle_event(self, event_name, sender, kwargs):
-        self.log_my_state(kwargs)
+        self.log_my_state(event_name, kwargs)
         self._queue.send((event_name, sender, kwargs))
 
     def skip_to_event(self, state, event_name=None):
@@ -478,7 +480,7 @@ class GreenInvitation(GreenBase):
                         elif state in ['CONFIRMED', 'DISCONNECTED']:
                             self.logger.log_event('INVITE result', event_name, sender, params)
                             break
-                    elif event_name == "Invitation_sdp":
+                    elif event_name == "SCInvitationGotSDPUpdate":
                         if not params["succeeded"]:
                             self.logger.write('SDP negotiation failed: %s' % params["error"])
             finally:
