@@ -12,7 +12,8 @@ from pypjua import __version__
 
 class Engine(object):
     __metaclass__ = Singleton
-    init_options_defaults = {"local_ip": None,
+    init_options_defaults = {"auto_sound": True,
+                             "local_ip": None,
                              "local_udp_port": 0,
                              "local_tcp_port": None,
                              "local_tls_port": None,
