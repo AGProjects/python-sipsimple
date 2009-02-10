@@ -1,11 +1,11 @@
 """Presence data-model elements handling according to RFC4479
 
-This module provides an extension to PIDF (module pypjua.applications.pidf) to
+This module provides an extension to PIDF (module sipsimple.applications.pidf) to
 support the data module defined in RFC4479.
 """
 
-from pypjua.applications import BuilderError, XMLExtension, XMLStringElement, ExtensibleXMLElement
-from pypjua.applications.pidf import PIDFTopElement, PIDF, Tuple, TupleExtension, PIDFMeta, NoteList, Note, Timestamp
+from sipsimple.applications import BuilderError, XMLExtension, XMLStringElement, ExtensibleXMLElement
+from sipsimple.applications.pidf import PIDFTopElement, PIDF, Tuple, TupleExtension, PIDFMeta, NoteList, Note, Timestamp
 
 __all__ = ['_namespace_',
            'DeviceExtension',

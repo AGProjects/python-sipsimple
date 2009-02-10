@@ -8,12 +8,12 @@ from msrplib.connect import MSRPConnectFactory
 from msrplib.trafficlog import TrafficLogger, StateLogger, hook_std_output; hook_std_output()
 from msrplib.protocol import URI
 
-from pypjua import Credentials, SDPAttribute, SDPMedia
-from pypjua.green.engine import GreenEngine, Ringer
-from pypjua.clients.clientconfig import get_path
-from pypjua.clients.sdputil import FileSelector
-from pypjua.clients.config import parse_options
-from pypjua.green.session import MSRPSessionErrors, MSRPSession
+from sipsimple import Credentials, SDPAttribute, SDPMedia
+from sipsimple.green.engine import GreenEngine, Ringer
+from sipsimple.clients.clientconfig import get_path
+from sipsimple.clients.sdputil import FileSelector
+from sipsimple.clients.config import parse_options
+from sipsimple.green.session import MSRPSessionErrors, MSRPSession
 
 file_cmd = "file -b --mime '%s'"
 

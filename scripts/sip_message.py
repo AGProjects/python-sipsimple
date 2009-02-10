@@ -15,11 +15,11 @@ from application.configuration import *
 from application.process import process
 from application.notification import IObserver
 
-from pypjua import *
-from pypjua.clients import enrollment
-from pypjua.clients.dns_lookup import *
-from pypjua.clients import *
-from pypjua.clients.log import Logger
+from sipsimple import *
+from sipsimple.clients import enrollment
+from sipsimple.clients.dns_lookup import *
+from sipsimple.clients import *
+from sipsimple.clients.log import Logger
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}

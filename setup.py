@@ -57,15 +57,15 @@ setup(name         = "sipclient",
           "Programming Language :: Python",
           "Programming Language :: C"
       ],
-      packages     = ["pypjua", "pypjua.green", "pypjua.clients", "pypjua.applications"],
+      packages     = ["sipsimple", "sipsimple.green", "sipsimple.clients", "sipsimple.applications"],
       package_data = {
-          'pypjua.applications' : ['xml-schemas/*']
+          'sipsimple.applications' : ['xml-schemas/*']
       },
       data_files = [('share/sipclient', data_files)],
       scripts = scripts,
       ext_modules  = [
-            Extension(name = "pypjua.core",
-            sources = ["pypjua/core.pyx", "pypjua/core.pxd"] + glob.glob(os.path.join("pypjua", "core.*.pxi")))
+            Extension(name = "sipsimple.core",
+            sources = ["sipsimple/core.pyx", "sipsimple/core.pxd"] + glob.glob(os.path.join("sipsimple", "core.*.pxi")))
             ],
       cmdclass = { 'build_scripts' : my_build_scripts,
                    'build_ext': PJSIP_build_ext }

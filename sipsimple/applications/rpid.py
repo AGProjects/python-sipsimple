@@ -1,6 +1,6 @@
 """RPID handling according to RFC4480
 
-This module provides an extension to PIDF (module pypjua.applications.pidf) to
+This module provides an extension to PIDF (module sipsimple.applications.pidf) to
 support rich presence.
 """
 
@@ -8,9 +8,9 @@ import datetime
 
 from lxml import etree
 
-from pypjua.applications import ParserError, BuilderError, XMLExtension, XMLElement, XMLListElement, XMLEmptyElement, XMLStringElement, XMLSingleChoiceElement, XMLMultipleChoiceElement
-from pypjua.applications.pidf import PIDFTopElement, PIDF, PIDFMeta, TupleExtension, Timestamp, Note, NoteList, Tuple
-from pypjua.applications.presdm import PersonExtension, DeviceExtension, Person, Device
+from sipsimple.applications import ParserError, BuilderError, XMLExtension, XMLElement, XMLListElement, XMLEmptyElement, XMLStringElement, XMLSingleChoiceElement, XMLMultipleChoiceElement
+from sipsimple.applications.pidf import PIDFTopElement, PIDF, PIDFMeta, TupleExtension, Timestamp, Note, NoteList, Tuple
+from sipsimple.applications.presdm import PersonExtension, DeviceExtension, Person, Device
 
 __all__ = ['_namespace_',
            'ActivityElement',

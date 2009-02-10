@@ -148,7 +148,7 @@ class PJSIP_build_ext(build_ext):
         distutils_exec_process([get_make_cmd()], True, cwd=self.svn_dir)
 
     def cython_sources(self, sources, extension):
-        if extension.name == "pypjua.core":
+        if extension.name == "sipsimple.core":
             self.check_cython_version()
             svn_updated = self.fetch_pjsip_from_svn()
             if svn_updated:

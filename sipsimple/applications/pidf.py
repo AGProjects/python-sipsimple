@@ -45,7 +45,7 @@ Example usage:
 import re
 import datetime
 
-from pypjua.applications import ParserError, BuilderError, XMLMeta, XMLApplication, XMLElement, XMLStringElement, ExtensibleXMLApplication, ExtensibleXMLListApplication, ExtensibleXMLElement
+from sipsimple.applications import ParserError, BuilderError, XMLMeta, XMLApplication, XMLElement, XMLStringElement, ExtensibleXMLApplication, ExtensibleXMLListApplication, ExtensibleXMLElement
 
 __all__ = ['_namespace_',
            'PIDFMeta',

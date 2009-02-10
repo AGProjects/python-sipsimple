@@ -7,8 +7,8 @@ from application.system import default_host_ip
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData
 
-from pypjua.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
-from pypjua import __version__
+from sipsimple.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
+from sipsimple import __version__
 
 class Engine(object):
     __metaclass__ = Singleton

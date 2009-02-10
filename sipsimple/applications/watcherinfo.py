@@ -51,7 +51,7 @@ See the classes for more information.
 
 from lxml import etree
 
-from pypjua.applications import XMLMeta, XMLApplication, XMLElement
+from sipsimple.applications import XMLMeta, XMLApplication, XMLElement
 
 __all__ = ['_namespace_',
            'NeedFullUpdateError',

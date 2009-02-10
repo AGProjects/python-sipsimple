@@ -1,5 +1,5 @@
-from pypjua.applications.test import XMLApplicationTest
-from pypjua.applications.pidf import PIDF
+from sipsimple.applications.test import XMLApplicationTest
+from sipsimple.applications.pidf import PIDF
 
 
 class PIDFTest(XMLApplicationTest):

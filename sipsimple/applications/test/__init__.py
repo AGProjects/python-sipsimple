@@ -7,7 +7,7 @@ class XMLApplicationTest(unittest.TestCase):
     def suite(cls):
         suite = unittest.TestSuite()
 
-        test_module = 'pypjua.applications.%s' % cls._test_module
+        test_module = 'sipsimple.applications.%s' % cls._test_module
 
         # prepare context
         globs = {}

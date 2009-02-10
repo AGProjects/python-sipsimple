@@ -1,8 +1,8 @@
 """Simple parser and constructor of Message/CPIM content"""
 import re
 from cStringIO import StringIO
-from pypjua import SIPURI
-from pypjua.clients.iso8601 import parse_date
+from sipsimple import SIPURI
+from sipsimple.clients.iso8601 import parse_date
 
 class MessageCPIM(object):
 

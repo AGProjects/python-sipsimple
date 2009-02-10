@@ -8,8 +8,8 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 from application.system import default_host_ip
 
-from pypjua.engine import Engine
-from pypjua.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport
+from sipsimple.engine import Engine
+from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport
 
 class TimestampedNotificationData(NotificationData):
 

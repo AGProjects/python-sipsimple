@@ -17,18 +17,18 @@ from optparse import OptionParser, OptionValueError
 from time import sleep
 from application.process import process
 from application.configuration import *
-from pypjua import *
-from pypjua.clients import enrollment
-from pypjua.clients.log import Logger
+from sipsimple import *
+from sipsimple.clients import enrollment
+from sipsimple.clients.log import Logger
 
-from pypjua.applications import ParserError
-from pypjua.applications.pidf import *
-from pypjua.applications.presdm import *
-from pypjua.applications.rpid import *
+from sipsimple.applications import ParserError
+from sipsimple.applications.pidf import *
+from sipsimple.applications.presdm import *
+from sipsimple.applications.rpid import *
 
-from pypjua.clients.clientconfig import get_path
-from pypjua.clients.dns_lookup import *
-from pypjua.clients import *
+from sipsimple.clients.clientconfig import get_path
+from sipsimple.clients.dns_lookup import *
+from sipsimple.clients import *
 
 class GeneralConfig(ConfigSection):
     _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}

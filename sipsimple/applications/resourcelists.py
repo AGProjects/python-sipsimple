@@ -51,7 +51,7 @@ Marketing
 
 import sys
 from lxml import etree
-from pypjua.applications import ParserError, XMLMeta, XMLListApplication, XMLElement, XMLListElement, XMLStringElement
+from sipsimple.applications import ParserError, XMLMeta, XMLListApplication, XMLElement, XMLListElement, XMLStringElement
 
 __all__ = ['_namespace_',
            'ResourceListsMeta',

@@ -19,17 +19,17 @@ from application.process import process
 from application.configuration import *
 from urllib2 import URLError
 
-from pypjua import *
-from pypjua.clients import enrollment
+from sipsimple import *
+from sipsimple.clients import enrollment
 
-from pypjua.applications import ParserError
-from pypjua.applications.watcherinfo import *
-from pypjua.applications.policy import *
-from pypjua.applications.presrules import *
+from sipsimple.applications import ParserError
+from sipsimple.applications.watcherinfo import *
+from sipsimple.applications.policy import *
+from sipsimple.applications.presrules import *
 
-from pypjua.clients.clientconfig import get_path
-from pypjua.clients.dns_lookup import *
-from pypjua.clients import *
+from sipsimple.clients.clientconfig import get_path
+from sipsimple.clients.dns_lookup import *
+from sipsimple.clients import *
 
 from xcaplib.client import XCAPClient
 from xcaplib.error import HTTPError

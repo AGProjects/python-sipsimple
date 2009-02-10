@@ -1,5 +1,5 @@
-from pypjua.applications.test import XMLApplicationTest
-from pypjua.applications.resourcelists import DisplayName, Entry, EntryRef, External, List, ResourceLists
+from sipsimple.applications.test import XMLApplicationTest
+from sipsimple.applications.resourcelists import DisplayName, Entry, EntryRef, External, List, ResourceLists
 
 
 example_from_section_3_3_rfc = """<?xml version="1.0" encoding="UTF-8"?>

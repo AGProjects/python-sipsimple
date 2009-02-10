@@ -54,8 +54,8 @@ presence
 
 from lxml import etree
 
-from pypjua.applications import XMLMeta, XMLListApplication, XMLElement, XMLListElement, XMLStringElement
-from pypjua.applications.resourcelists import _namespace_ as _rl_namespace_, List, ResourceListsMeta
+from sipsimple.applications import XMLMeta, XMLListApplication, XMLElement, XMLListElement, XMLStringElement
+from sipsimple.applications.resourcelists import _namespace_ as _rl_namespace_, List, ResourceListsMeta
 
 __all__ = ['_rl_namespace_',
            '_rls_namespace_',

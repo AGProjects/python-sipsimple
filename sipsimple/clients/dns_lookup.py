@@ -3,7 +3,7 @@ import random
 
 import dns.resolver
 
-from pypjua import Route
+from sipsimple import Route
 
 def lookup_srv(host, port, is_ip, default_port, service='_sip._udp'):
     if is_ip:

@@ -46,8 +46,8 @@ Example usage:
 
 from lxml import etree
 
-from pypjua.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLApplication
-from pypjua.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyMeta, ActionElement, TransformationElement, RuleSet
+from sipsimple.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLApplication
+from sipsimple.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyMeta, ActionElement, TransformationElement, RuleSet
 
 __all__ = ['_cp_namespace_',
            '_pr_namespace_',

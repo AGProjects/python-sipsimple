@@ -38,7 +38,7 @@ tel:+1-212-555-1234
 
 """
 
-from pypjua.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLListApplication
+from sipsimple.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLListApplication
 
 __all__ = ['_namespace_',
            'ConditionElement',

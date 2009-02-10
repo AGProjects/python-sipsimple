@@ -1,6 +1,6 @@
 import re
 
-from pypjua import SIPURI
+from sipsimple import SIPURI
 
 _pstn_num_sub_char = "[-() ]"
 _re_pstn_num_sub = re.compile(_pstn_num_sub_char)

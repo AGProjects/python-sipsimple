@@ -1,5 +1,5 @@
-from pypjua.applications.test import XMLApplicationTest
-from pypjua.applications.policy import *
+from sipsimple.applications.test import XMLApplicationTest
+from sipsimple.applications.policy import *
 
 
 class CommonPolicyTest(XMLApplicationTest):

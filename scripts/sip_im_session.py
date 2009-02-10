@@ -13,15 +13,15 @@ from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
 
-from pypjua import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError
-from pypjua.clients.console import setup_console, CTRL_D, EOF
-from pypjua.green.engine import GreenEngine, IncomingSessionHandler, Ringer
-from pypjua.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
-from pypjua.clients.config import parse_options, get_download_path, parse_uri, get_history_file
-from pypjua.clients.clientconfig import get_path
-from pypjua.clients import enrollment
-from pypjua.clients.cpim import MessageCPIMParser, SIPAddress
-from pypjua.clients.sdputil import FileSelector
+from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError
+from sipsimple.clients.console import setup_console, CTRL_D, EOF
+from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer
+from sipsimple.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
+from sipsimple.clients.config import parse_options, get_download_path, parse_uri, get_history_file
+from sipsimple.clients.clientconfig import get_path
+from sipsimple.clients import enrollment
+from sipsimple.clients.cpim import MessageCPIMParser, SIPAddress
+from sipsimple.clients.sdputil import FileSelector
 enrollment.verify_account_config()
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
@@ -52,7 +52,7 @@ def format_datetime(dt):
     """Format time in the local timezone.
     dt is datetime with tzinfo = UTC (or None which will be treated like UTC).
 
-    >>> from pypjua.clients.iso8601 import parse_date
+    >>> from sipsimple.clients.iso8601 import parse_date
     >>> time.timezone == -6*60*60 # this test can only be executed in Novosibirsk
     True
     >>> format_datetime(parse_date('2009-02-03T14:30:04'))

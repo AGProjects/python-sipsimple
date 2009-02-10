@@ -78,7 +78,7 @@ Generic data types to be used in policy applications.
 
 presdm.py (RFC4479)
 
-This module provides an extension to the PIDF (module pypjua.applications.pidf)
+This module provides an extension to the PIDF (module sipsimple.applications.pidf)
 to support the data module defined in RFC4479.
 
 

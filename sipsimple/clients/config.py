@@ -11,10 +11,10 @@ from application.process import process
 
 from msrplib.connect import MSRPRelaySettings
 
-from pypjua import SIPURI, Route
-from pypjua.clients.dns_lookup import lookup_srv
-from pypjua.clients import IPAddressOrHostname
-from pypjua.clients.cpim import SIPAddress
+from sipsimple import SIPURI, Route
+from sipsimple.clients.dns_lookup import lookup_srv
+from sipsimple.clients import IPAddressOrHostname
+from sipsimple.clients.cpim import SIPAddress
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 config_ini = os.path.join(process._system_config_directory, 'config.ini')
