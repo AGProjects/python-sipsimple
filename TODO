@@ -2,9 +2,9 @@
 SIP core
 --------
 
-- Add isfocus attribute for both session parties, present in Contact header [RK]
-- Handle incomming SUBSCRIBE requests [RK]
-- Handle incomming REGISTER requests [RK]
+- Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
+- Handle incomming SUBSCRIBE requests [RK] [DB]
+- Handle incomming REGISTER requests [RK] [DB]
 - Add loop detection [RK]
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
@@ -28,20 +28,20 @@ SIP core
 Middleware
 ----------
 
-- Session manager high level class [RK]
-- Session high level class [RK]
+- Session manager high level class [RK] [DB]
+- Session high level class [RK] [DB]
 - Audio stream high level class [RK]
-- MSRP stream high level class [RK]
+- MSRP stream high level class [RK] [DB]
 - Handle 301/302 redirect [DB]
 - Desktop sharing high level class []
-- Account manager high-level class [] 
-- Conference established sessions [DB]
-- Unified configuration framework [DB]
-- Buddylist high-level library [LS]
+- Account manager high-level class []
+- Conference established sessions [RK] [DB]
+- Unified configuration framework [RK] [DB] [LS]
+- Buddylist high-level library [RK] [LS]
 - Subscribe to multiple Event packages for a buddy [LS]
-- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [LS]
-- Auto PUBLISH event=presence with device status when enter/exit audio session [LS]
-- Auto PUBLISH event=dialog when enter/exit audio session [LS]
+- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
+- Auto PUBLISH event=presence with device status when enter/exit audio session [RK] [LS]
+- Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
 - SIP account enrollment [LS]
 - Enviroment detection and feed to presence place-is element []
 - Geographical detection and feed to presence location element []
@@ -50,20 +50,19 @@ Middleware
 Audio
 -----
 
-- Revise conference bridge API to support mute and multiple rooms [RK]
-- Improve WAV playback to support volume level and looping until stopped by
-  caller [RK]
-- Add method to core for playing arbitrary tones on the conference bridge for
-  several purposes [RK]
-- Have configurable ringtones on the SessionManager first per remote SIPURI,
-  then for account, then by default [RK]
+- Revise conference bridge API to support mute and multiple rooms [RK] [DB]
+- Improve WAV playback, volume level, looping until stopped by caller [RK]
+- Add method to core for playing arbitrary tones on the conference bridge [RK]
+- Configurable ringtones per remote SIPURI, account and a default [RK]
 - Play a non-disruptive tone when a session is received while in another
-  session using the tone generator [RK]
+  session using the tone generator [RK] [DB]
 - Play a soft-tone while on hold every 30 seconds, use tone generator [RK]
 - Play a tone when a session is terminated, use tone generator [RK]
 - Fix high CPU usage for sound card access on OS X [RK]
 - Comfort noise generator (CNG) [RK]
 - N810 maemo audio driver [LS]
+- Remove the initial scratchy glitch when starting playing RTP audio []
+- Acoustic Echo Cancellation (a.k.a. AEC or The Holly Grail) []
 
 
 Instant messaging
@@ -76,7 +75,7 @@ Instant messaging
 - MSRP focus [DB]
 - MSRP multiparty chat [DB]
 - Is-composing payload [DB]
-- Rich text format, jabber standards [DB]
+- Rich text format, see jabber standards [DB]
 
 
 Security and privacy
@@ -94,14 +93,14 @@ Presence
 - Conference event package [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
-- xcap-diff payload and sip_subscribe_xcap_diff script [LS]
+- xcap-diff payload [LS]
 
 
 Other applications
 ------------------
 
 - Message-summary payload [DB]
-- ENUM lookup [LS]
+- ENUM lookup [LS] [RK]
 - Bonjour [LS]
 
 
@@ -110,6 +109,7 @@ Command line clients
 --------------------
 
 - xcap_pidf_manipulation script [LS]
+- sip_subscribe_xcap_diff script [LS]
 - Display NOTIFY multi-part bodies in sip_subscribe_rls [LS]
 - sip_subscribe_conference script [LS]
 - SIP register must be performed in the background [DB] 
@@ -128,8 +128,8 @@ Sessions
 --------
 
 - Video (H.264) []
-- Real time text over RTP (RFC4103) [AW]
-- Desktop sharing session [WT]
+- Real time text over RTP (RFC4103) []
+- Desktop sharing session []
 
 
 Porting
