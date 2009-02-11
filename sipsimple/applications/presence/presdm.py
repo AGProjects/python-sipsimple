@@ -175,7 +175,9 @@ class NotesAttribute(object):
         return self.note_lists.setdefault(id(obj), NoteList(obj))
 
     def __set__(self, obj, value):
-        raise AttributeError("cannot overwrite NotesAttribute")
+        if not isinstance(value, NoteList):
+            raise AttributeError("cannot overwrite NotesAttribute with non NoteList instance")
+        self.note_lists[id(obj)] = value
 
     def __delete__(self, obj):
         raise AttributeError("cannot delete NotesAttribute")
