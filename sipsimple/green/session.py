@@ -8,20 +8,11 @@ from msrplib import protocol as msrp_protocol
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from sipsimple import SDPAttribute, SDPMedia, SDPConnection, SDPSession
-from sipsimple.green.engine import SIPError, SessionError
+from sipsimple.green.engine import Error
 from sipsimple.clients.cpim import MessageCPIM
-from sipsimple.green.util import Proxy
 
-# inv = e.Invitation(credentials, target_uri, route=route)
-# msrp_connector = MSRPConnectFactory.new(relay, traffic_logger)
-# ringer=Ringer(e.play_wav_file, get_path("ring_outbound.wav"))
-# other_user_agent = invite_response.get("headers", {}).get("User-Agent")
-# if other_user_agent is not None:
-#     print 'Remote SIP User Agent is "%s"' % other_user_agent
-# print "MSRP session negotiated to: %s" % " ".join(remote_uri_path)
-# 
 
-MSRPSessionErrors = (SessionError, DNSLookupError, MSRPError, ConnectError, BindError, ConnectionClosed, GNUTLSError)
+MSRPSessionErrors = (Error, DNSLookupError, MSRPError, ConnectError, BindError, ConnectionClosed, GNUTLSError)
 
 def make_SDPMedia(uri_path, accept_types=['text/plain'], accept_wrapped_types=None):
     attributes = []
@@ -45,9 +36,6 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
                                media=[SDPMedia_factory(full_local_path)])
         inv.set_offered_local_sdp(local_sdp)
         invite_response = inv.invite(ringer=ringer)
-        invite_response = invite_response.data.__dict__
-        if inv.state != 'CONFIRMED':
-            raise SIPError(invite_response)
         remote_sdp = inv.get_active_remote_sdp()
         full_remote_path = None
         for attr in remote_sdp.media[0].attributes:
@@ -56,7 +44,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
                 full_remote_path = [msrp_protocol.parse_uri(uri) for uri in remote_uri_path]
                 break
         if full_remote_path is None:
-            raise SessionError("No MSRP URI path attribute found in remote SDP")
+            raise Error("No MSRP URI path attribute found in remote SDP")
         msrp = msrp_connector.complete(full_remote_path)
         return invite_response, msrp
     except:
@@ -65,10 +53,6 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
     finally:
         msrp_connector.cleanup()
 
-class ignore_values(Proxy):
-
-    def send(self, *args):
-        pass
 
 class MSRPSession:
     """SIP + MSRP: an MSRP chat session"""

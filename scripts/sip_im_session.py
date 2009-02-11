@@ -532,7 +532,8 @@ def start(options, console):
         msrplogger = trafficlog.TrafficLogger.to_file(console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()
         if options.register:
-            proc.spawn_greenlet(register, engine, credentials, options.route)
+            reg = engine.Registration(credentials, route=options.route, expires=300)
+            proc.spawn_greenlet(reg.register)
         console.set_ps('%s@%s> ' % (options.uri.user, options.uri.host))
         sound = ThrottlingSoundPlayer(engine.play_wav_file)
         manager = ChatManager(engine, sound, credentials, console, msrplogger,
@@ -617,10 +618,6 @@ def console_next_line(console):
     console.copy_input_line()
     console.clear_input_line()
     console.set_ps('', True) # QQQ otherwise prompt gets printed once somehow
-
-def register(engine, credentials, route):
-    reg = engine.Registration(credentials, route=route, expires=300)
-    params = reg.register()
 
 
 class ThrottlingSoundPlayer:

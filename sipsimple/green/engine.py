@@ -18,6 +18,36 @@ from sipsimple.green import notification
 from sipsimple.green.util import wrapdict
 from sipsimple.logstate import RegistrationLogger, InvitationLogger, SIPTracer, PJSIPTracer, EngineTracer
 
+class Error(RuntimeError):
+    pass
+
+class SIPError(Error):
+
+    msg = 'Failed: '
+
+    def __init__(self, params, msg=None):
+        self.params = params
+        if msg is not None:
+            self.msg = msg
+
+    def __str__(self):
+        return self.msg + '%(code)s %(reason)s' % wrapdict(self.params)
+
+    def __getattr__(self, item):
+        try:
+            return self.params[item]
+        except KeyError:
+            raise AttributeError('No key %r in params' % item)
+
+class RegistrationError(SIPError):
+    msg = 'Registration failed: '
+
+class InviteError(SIPError):
+    msg = 'Invite failed: '
+
+class SDPNegotiationError(Error):
+    pass
+
 
 class GreenEngine(Engine):
 
@@ -143,19 +173,18 @@ class GreenRegistration(GreenBase):
     event_name = 'SCRegistrationChangedState'
 
     def register(self):
-        with self.linked_notification() as q:
-            self._obj.register()
-            while True:
-                if self.state in ['registered', 'unregistered']:
-                    return
-                notification = q.wait()
-                if self.event_name == notification.name:
-                    if getattr(notification.data, 'state', None) in ['registered', 'unregistered']:
-                        return notification
+        if self.state != 'registered':
+            if self.state != 'registering':
+                self._obj.register()
+            n = self.wait_notification(condition=lambda n: n.data.state in ['registered', 'unregistered'])
+            if n.data.state != 'registered':
+                raise RegistrationError(n.data.__dict__)
 
     def unregister(self):
-        self._obj.unregister()
-        return self.wait_notification(condition=lambda n: n.data.state=='unregistered')
+        if self.state != 'unregistered':
+            if self.state != 'unregistering':
+                self._obj.unregister()
+            return self.wait_notification(condition=lambda n: n.data.state=='unregistered')
 
     shutdown = unregister
 
@@ -191,29 +220,6 @@ class Ringer:
             pass
 
 
-class SessionError(RuntimeError):
-    pass
-
-
-class SIPError(SessionError):
-
-    def __init__(self, params):
-        self.params = params
-
-    def __str__(self):
-        return '%(state)s %(code)s %(reason)s' % wrapdict(self.params)
-
-    def __getattr__(self, item):
-        try:
-            return self.params[item]
-        except KeyError:
-            raise AttributeError('No key %r in params' % item)
-
-
-class SDPNegotiationError(SessionError):
-    pass
-
-
 class GreenInvitation(GreenBase):
 
     event_names = ['SCInvitationChangedState', 'SCInvitationGotSDPUpdate']
@@ -225,7 +231,7 @@ class GreenInvitation(GreenBase):
         return self.state == 'CONFIRMED'
 
     def invite(self, *args, **kwargs):
-        assert self.state != 'CONFIRMED', "Already connected"
+        assert self.state not in ['CONFIRMED', 'CONNECTING', 'EARLY'], self.state
         ringer = kwargs.pop('ringer', None)
         ringing = False
         self._obj.send_invite(*args, **kwargs)
@@ -238,8 +244,10 @@ class GreenInvitation(GreenBase):
                             if ringer is not None and not ringing:
                                 ringer.start()
                                 ringing = True
-                        elif notification.data.state in ['CONFIRMED', 'DISCONNECTED']:
-                            return notification
+                        elif notification.data.state=='CONFIRMED':
+                            return notification.data
+                        elif notification.data.state=='DISCONNECTED':
+                            raise InviteError(notification.data.__dict__)
                     elif notification.name == self.event_names[1]:
                         if not notification.data.succeeded:
                             raise SDPNegotiationError('SDP negotiation failed: %s' % notification.data.error)
