@@ -21,6 +21,13 @@ sipclient (0.4.0) unstable; urgency=low
   * Fixed some threading bugs in the core
   * Renamed anything related to PyPJUA to SIP core
   * Renamed pypjua module to sipsimple
+  * Fixed various bugs in XML payload handling
+  * Made small, cosmetic changes in presence-related scripts
+  * Set return code of scripts based on SIP status codes
+  * Added --auto-hangup option to sip_audio_session to terminate a call after
+    a specified amount of time
+  * Enhanced XML applications in order to be more robust in usage and allow for
+    future implementation of features such as xcap-diff
 
  -- Adrian Georgescu <ag@ag-projects.com>  Mon, 19 Jan 2009 17:26:02 +0100
 
