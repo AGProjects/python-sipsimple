@@ -9,7 +9,7 @@ from application.python.util import Singleton
 from application.system import default_host_ip
 
 from sipsimple.engine import Engine
-from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport
+from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport, WaveFile
 
 class TimestampedNotificationData(NotificationData):
 
@@ -41,6 +41,7 @@ class Session(object):
         self._audio_sdp_index = -1
         self._audio_transport = None
         self._queue = deque()
+        self._ringtone = None
 
     # user interface
     def new(self, callee_uri, credentials, route=None, use_audio=False):
@@ -194,6 +195,16 @@ class Session(object):
         prev_state = self.state
         self.state = new_state
         if prev_state != new_state:
+            if new_state == "INCOMING":
+                if self._ringtone is not None:
+                    try:
+                        self._ringtone.start(loop_count=0, pause_time=0.5)
+                    except:
+                        pass
+            if prev_state == "INCOMING":
+                if self._ringtone is not None:
+                    self._ringtone.stop()
+                    self._ringtone = None
             self.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
     def _process_queue(self):
@@ -311,6 +322,22 @@ class RTPConfiguration(object):
         self.ice_stun_port = ice_stun_port
 
 
+class RingtoneConfiguration(object):
+
+    def __init__(self):
+        self.default_ringtone = None
+        self._user_host_mapping = {}
+
+    def add_ringtone_for_sipuri(self, sipuri, ringtone):
+        self._user_host_mapping[(sipuri.user, sipuri.host)] = ringtone
+
+    def remove_sipuri(self, sipuri):
+        del self._user_host_mapping[(sipuri.user, sipuri.host)]
+
+    def get_ringtone_for_sipuri(self, sipuri):
+        return self._user_host_mapping.get((sipuri.user, sipuri.host), self.default_ringtone)
+
+
 class SessionManager(object):
     """The one and only SessionManager, a singleton.
        The application needs to create this and then pass its handle_event
@@ -331,6 +358,7 @@ class SessionManager(object):
         self.notification_center.add_observer(self, "SCInvitationChangedState")
         self.notification_center.add_observer(self, "SCInvitationGotSDPUpdate")
         self.notification_center.add_observer(self, "SCAudioTransportGotDTMF")
+        self.ringtone_config = RingtoneConfiguration()
 
     def handle_notification(self, notification):
         """Catches the SCInvitationChangedState and SCInvitationGotSDPUpdate
@@ -353,6 +381,10 @@ class SessionManager(object):
                 session._inv = inv
                 session.remote_user_agent = data.headers.get("User-Agent", None)
                 self.inv_mapping[inv] = session
+                caller_uri = inv.caller_uri
+                ringtone = self.ringtone_config.get_ringtone_for_sipuri(inv.caller_uri)
+                if ringtone is not None:
+                    session._ringtone = WaveFile(ringtone)
                 session._change_state("INCOMING")
                 self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media))
         else:
