@@ -17,7 +17,6 @@ sudo rm -r sipsimple*
 sudo rm -r pypjua*
 sudo rm -r eventlet*
 sudo rm -r /usr/share/pypjua
-sudo rm -r /usr/share/pypjua
 sudo rm -r /usr/share/sipclient
 
 
