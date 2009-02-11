@@ -9,7 +9,7 @@ Homepage: http://www.ag-projects.com/SipClient
 
 Package: sipclient
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.0.9), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib, python-msrplib, python-codespeak-lib, python-gnutls, python-pygame, x11vnc
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.1.0), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib, python-msrplib, python-codespeak-lib, python-gnutls, python-pygame, x11vnc
 Provides: ${python:Provides}
 Description: SIP SIMPLE client
  SIP SIMPLE client is Python software library built on top of PJSIP that
