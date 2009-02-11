@@ -1,3 +1,29 @@
+sipclient (0.4.0) unstable; urgency=low
+
+  * Added PJSIP patch to write and parse i= line to SDP and updated SDP
+    wrapper classes to use it
+  * Added --pjsip-clean-compile option to setup.py
+  * Continue with present PJSIP tree if SVN update fails in setup.py
+  * Revised Invitation state machine, method names, events and internals
+  * Only ring on 180 in sip_audio_session.py
+  * Allow Credentials object to not have a password set
+  * Improved scripts to print any remaining logging message after the Engine
+    has been shut down
+  * Catch uncaught exceptions in PJSIP callbacks and generate an event to
+    inform the application
+  * Disconnect if no audio is received for 10 seconds in sip_audio_session.py
+  * Use default_host_ip from python-application if local_ip is set to None in
+    Engine
+  * Integrated notification system from python-application
+  * Renamed all event names to new notification naming scheme
+  * Changed interface of Engine class in order to use Singleton metaclass from
+    python-application
+  * Fixed some threading bugs in the core
+  * Renamed anything related to PyPJUA to SIP core
+  * Renamed pypjua module to sipsimple
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Mon, 19 Jan 2009 17:26:02 +0100
+
 sipclient (0.3.0) unstable; urgency=low
 
   * This version requires eventlet for twisted, which is not yet available as
@@ -33,6 +59,8 @@ sipclient (0.3.0) unstable; urgency=low
   * Added twisted/eventlet wrapper for Engine
   * Added creation of history, log and file transfer directories in enrollment
   * Made sip traces get logged in <log_directory>/<sip_address>/sip_trace.txt
+  * Added script sip_auto_publish_presence
+  * Made sip_subscribe_rls script subscribe by default to username-buddies@domain
 
  -- Adrian Georgescu <ag@ag-projects.com>  Sat, 29 Nov 2008 10:44:33 +0100
 
