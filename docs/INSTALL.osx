@@ -56,9 +56,9 @@ sudo make install
 cd ..
 
 # Download and install lxml python module
-curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta1.tar.gz
-tar -xzvf lxml-2.2beta1.tar.gz
-cd lxml-2.2beta1
+curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta2.tar.gz
+tar -xzvf lxml-2.2beta2.tar.gz
+cd lxml-2.2beta2
 sudo python setup.py install --static-deps
 cd ..
 

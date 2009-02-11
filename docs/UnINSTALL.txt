@@ -1,6 +1,11 @@
 
-Uninstalling a system wide installation
----------------------------------------
+Uninstalling SIP SIMPLE client
+------------------------------
+
+To clean up the python-sipsimple folder used for building the software:
+
+cd python-sipsimple
+sudo python setup.py clean --all
 
 To uninstall the software and all its dependencies that you have previously
 installed using 'sudo python setup.py install' locate your site-packages
@@ -20,8 +25,4 @@ sudo rm -r /usr/share/pypjua
 sudo rm -r /usr/share/sipclient
 
 
-Cleaning up python-sipsimple tree
----------------------------------
-
-sudo python setup.py clean --all
 
