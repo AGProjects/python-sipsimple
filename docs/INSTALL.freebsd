@@ -83,16 +83,16 @@ Step 3. Install SIP SIMPLE client
 
 Download SIP SIMPLE client sources. Run the next step once:
 
-darcs get http://devel.ag-projects.com/repositories/pypjua sipsimpleclient
+darcs get http://devel.ag-projects.com/repositories/python-sipsimple
 
-The software is downloaded under sipsimpleclient directory. To update it at
+The software is downloaded under python-sipsimple directory. To update it at
 a later time:
 
-cd sipsimpleclient
+cd python-sipsimple
 darcs pull -a
 
 Build and install the software library:
 
-cd sipsimpleclient
+cd python-sipsimple
 sudo python setup.py install
 

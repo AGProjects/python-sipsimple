@@ -33,7 +33,7 @@ http://www.darcs.net
 
 Darcs is not available in binary form for ARM processors, you must obtain
 the source code on a separate machine using darcs and copy the software
-directory sipsimpleclient to your Nokia tablet. See INSTALL.linux for more
+directory python-sipsimple to your Nokia tablet. See INSTALL.linux for more
 information about obtaining the source code using darcs.
 
 

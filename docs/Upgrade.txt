@@ -6,12 +6,12 @@ Before upgrading to 0.4.0:
 
 a. Make sure you have up to date versions of eventlet, python-msrplib and
    python-xcaplib libraries
-b. Remove all files and folders named sipclient* or pypjua* located under
+b. Remove all files and folders named sipclient* or sipsimple* located under
    your site-packages Python folder
 
 After pulling the patch "Added PJSIP patch that adds "i=" line" (Jan 20, 2009):
 
-  If pypjua was compiled before this patch was pulled, please perform the
+  If sipsimple was compiled before this patch was pulled, please perform the
   following command instead of "sudo python setup.py install" to have PJSIP
   compiled from scratch:
     sudo python setup.py build_ext --pjsip-clean-compile install
