@@ -69,7 +69,7 @@ def main():
     e.start(not options.disable_sound,
             trace_sip=options.trace_sip,
             trace_pjsip=options.trace_pjsip,
-            ec_tail_length=0,
+            trace_engine=options.trace_engine,
             local_ip=options.local_ip,
             local_udp_port=options.local_port)
     try:

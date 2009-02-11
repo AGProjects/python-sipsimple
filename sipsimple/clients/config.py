@@ -34,6 +34,7 @@ class GeneralConfig(ConfigSection):
     listen_udp = datatypes.NetworkAddress("any")
     trace_pjsip = False
     trace_sip = False
+    trace_engine = False
     file_transfers_directory = os.path.join(process._system_config_directory, 'file_transfers')
     auto_accept_file_transfers = False
     history_directory = '~/.sipclient/history'
@@ -139,6 +140,8 @@ def parse_options(usage, description, extra_options=()):
                       help="Dump the raw contents of incoming and outgoing SIP messages.")
     parser.add_option("-j", "--trace-pjsip", action="store_true", default=GeneralConfig.trace_pjsip,
                       help="Print PJSIP logging output.")
+    parser.add_option("--trace-engine", action="store_true", default=GeneralConfig.trace_engine,
+                      help="Print core's events.")
 
     help=('Use MSRP relay for incoming connections; '
           'if "srv", do SRV lookup on domain part of the target SIP URI, '

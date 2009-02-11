@@ -523,6 +523,7 @@ def start(options, console):
     engine.start(not options.disable_sound,
                 trace_sip=options.trace_sip,
                 trace_pjsip=options.trace_pjsip,
+                trace_engine=options.trace_engine,
                 ec_tail_length=0,
                 local_ip=options.local_ip,
                 local_udp_port=options.local_port)
