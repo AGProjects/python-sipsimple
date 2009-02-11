@@ -5,10 +5,9 @@ SIP core
 - Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
 - Handle incomming SUBSCRIBE requests [RK] [DB]
 - Handle incomming REGISTER requests [RK] [DB]
-- Add loop detection [RK]
+- Detect loops [RK]
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
-- Fix remainig TODOs for PUBLISH/REGISTER [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
 - Handle exceptions caused by PJSIP more gracefull, especially within PJSIP callbacks [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
@@ -19,26 +18,22 @@ SIP core
 - Handle sending and receiving of multipart bodies for Invitation [RK]
 - Handle UPDATE for re-INVITE [RK]
 - Means to query RTP statistics [RK]
-- Make local_ip option settable at runtime [RK]
 - Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP) [RK]
-- Survive IP address changes [RK]
-- IPv6 support [RK]
 
 
 Middleware
 ----------
 
+- Account manager high-level class []
 - Session manager high level class [RK] [DB]
 - Session high level class [RK] [DB]
 - Audio stream high level class [RK]
 - MSRP stream high level class [RK] [DB]
 - Handle 301/302 redirect within the Session class [RK]
 - Desktop sharing high level class []
-- Account manager high-level class []
 - Conference established sessions [RK] [DB]
 - Unified configuration framework [RK] [DB] [LS]
 - Buddylist high-level library [RK] [LS]
-- Subscribe to multiple Event packages for a buddy [LS]
 - Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
 - Auto PUBLISH event=presence with device status when enter/exit audio session [RK] [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
@@ -72,7 +67,6 @@ Instant messaging
 - Add --auto-answer parameter to sip_im_session [DB]
 - Document MSRP client library usage [DB]
 - Port eventlet/greenlet to ARM [DB]
-- MSRP focus [DB]
 - MSRP multiparty chat [DB]
 - Is-composing payload [DB]
 - Rich text format, see jabber standards [DB]
@@ -109,7 +103,7 @@ Other applications
 
 - Message-summary payload [DB]
 - ENUM lookup [LS] [RK]
-- Bonjour [LS]
+- Bonjour, serverless LAN operations [LS]
 
 
 
