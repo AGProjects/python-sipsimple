@@ -32,7 +32,7 @@ Middleware
 - Session high level class [RK] [DB]
 - Audio stream high level class [RK]
 - MSRP stream high level class [RK] [DB]
-- Handle 301/302 redirect [DB]
+- Handle 301/302 redirect within the Session class [RK]
 - Desktop sharing high level class []
 - Account manager high-level class []
 - Conference established sessions [RK] [DB]
