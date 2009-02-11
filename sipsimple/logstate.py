@@ -1,4 +1,5 @@
 import sys
+from pprint import pformat
 from zope.interface import implements
 from application.notification import IObserver
 
@@ -61,6 +62,28 @@ class PJSIPTracer(FileLoggerBase):
         if not self.enabled:
             return
         self.write("%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__)
+
+
+class EngineTracer(FileLoggerBase):
+
+    implements(IObserver)
+
+    excluded_notifications  = ["SCEngineLog"]
+    enabled = True
+
+    def register_observer(self, notification_center):
+        notification_center.add_observer(self)
+
+    def unregister_observer(self, notification_center):
+        notification_center.remove_observer(self)
+
+    def handle_notification(self, notification):
+        if not self.enabled:
+            return
+        if notification.name in self.excluded_notifications:
+            return
+        self.write("Notification name=%r sender=%r\n%s" % (notification.name, notification.sender,
+                                                           pformat(notification.data.__dict__)))
 
 
 class StateLoggerBase(FileLoggerBase):
