@@ -1,0 +1,25 @@
+
+Uninstalling a system wide installation
+---------------------------------------
+
+To uninstall the software and all its dependencies that you have previously
+installed using 'sudo python setup.py install' locate your site-packages
+directory and remove the following files and folders:
+
+sudo rm -r python_application*
+sudo rm -r application*
+sudo rm -r python_msrplib*
+sudo rm -r msrplib*
+sudo rm -r python_xcaplib*
+sudo rm -r xcaplib*
+sudo rm -r sipclient*
+sudo rm -r sipsimple*
+sudo rm -r pypjua*
+sudo rm -r eventlet*
+
+
+Cleaning up python-sipsimple tree
+---------------------------------
+
+sudo python setup.py clean --all
+
