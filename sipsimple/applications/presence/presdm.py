@@ -43,8 +43,8 @@ Example usage:
 
 import datetime
 
-from pypjua.applications import util
-from pypjua.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementChild
+from sipsimple.applications import util
+from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementChild
 
 __all__ = ['_pidf_namespace_',
            '_dm_namespace_',
