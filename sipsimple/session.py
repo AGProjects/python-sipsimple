@@ -34,8 +34,8 @@ class Session(object):
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
         self.state = "NULL"
         self.remote_user_agent = None
-        self.is_on_hold = False
-        self.is_held = False
+        self.on_hold_by_local = False
+        self.on_hold_by_remote = False
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
@@ -150,7 +150,7 @@ class Session(object):
         finally:
             self._lock.release()
 
-    def place_on_hold(self):
+    def hold(self):
         """Put an established session on hold. This moves the object from the
            ESTABLISHED state to the ONHOLD state."""
         self._lock.acquire()
@@ -163,7 +163,7 @@ class Session(object):
         finally:
             self._lock.release()
 
-    def take_out_of_hold(self):
+    def unhold(self):
         """Takes a session that was previous put on hold out of hold. This
            moves the object from the ONHOLD state to the ESTABLISHED state."""
         self._lock.acquire()
@@ -196,30 +196,30 @@ class Session(object):
         self.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
     def _process_queue(self):
-        was_on_hold = self.is_on_hold
+        was_on_hold = self.on_hold_by_local
         while self._queue:
             command = self._queue.popleft()
             if command == "hold":
-                if self.is_on_hold:
+                if self.on_hold_by_local:
                     continue
                 if self._audio_transport is not None and self._audio_transport.is_active:
                     Engine().disconnect_audio_transport(self._audio_transport)
                 local_sdp = self._make_next_sdp(True, True)
-                self.is_on_hold = True
+                self.on_hold_by_local = True
                 break
             elif command == "unhold":
-                if not self.is_on_hold:
+                if not self.on_hold_by_local:
                     continue
                 if self._audio_transport is not None and self._audio_transport.is_active:
                     Engine().connect_audio_transport(self._audio_transport)
                 local_sdp = self._make_next_sdp(True, False)
-                self.is_on_hold = False
+                self.on_hold_by_local = False
                 break
         self._inv.set_offered_local_sdp(local_sdp)
         self._inv.send_reinvite()
-        if not was_on_hold and self.is_on_hold:
+        if not was_on_hold and self.on_hold_by_local:
             self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
-        elif was_on_hold and not self.is_on_hold:
+        elif was_on_hold and not self.on_hold_by_local:
             self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
 
     def _init_audio(self, remote_sdp=None):
@@ -248,13 +248,13 @@ class Session(object):
            _update_media()."""
         if self._audio_transport.is_active:
             # TODO: check for ip/port/codec changes and restart AudioTransport if needed
-            was_held = self.is_held
+            was_on_hold = self.on_hold_by_remote
             new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
-            self.is_held = "send" not in new_direction
+            self.on_hold_by_remote = "send" not in new_direction
             self._audio_transport.update_direction(new_direction)
-            if not was_held and self.is_held:
+            if not was_on_hold and self.on_hold_by_remote:
                 self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
-            elif was_held and not self.is_held:
+            elif was_on_hold and not self.on_hold_by_remote:
                 self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
         else:
             self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
