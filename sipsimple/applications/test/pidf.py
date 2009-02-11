@@ -1,9 +1,9 @@
 from sipsimple.applications.test import XMLApplicationTest
-from sipsimple.applications.pidf import PIDF
+from sipsimple.applications.presence import PIDF
 
 
 class PIDFTest(XMLApplicationTest):
-    _test_module = 'pidf'
+    _test_module = 'presence.presdm'
 
 
 if __name__ == '__main__':
