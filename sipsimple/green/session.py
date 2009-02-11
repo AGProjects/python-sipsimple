@@ -45,7 +45,8 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
                                media=[SDPMedia_factory(full_local_path)])
         inv.set_offered_local_sdp(local_sdp)
         invite_response = inv.invite(ringer=ringer)
-        if invite_response['state'] != 'CONFIRMED':
+        invite_response = invite_response.data.__dict__
+        if inv.state != 'CONFIRMED':
             raise SIPError(invite_response)
         remote_sdp = inv.get_active_remote_sdp()
         full_remote_path = None
