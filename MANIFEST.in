@@ -6,4 +6,3 @@ include MANIFEST.in config.ini.sample AUTHORS LICENSE build_inplace Changelog se
 recursive-include share/sipclient *.wav
 recursive-include sipsimple/applications/xml-schemas *.xsd
 recursive-include patches *.patch
-exclude sipsimple/session.py
