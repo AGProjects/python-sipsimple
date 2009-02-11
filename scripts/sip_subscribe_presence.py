@@ -22,9 +22,7 @@ from sipsimple.clients import enrollment
 from sipsimple.clients.log import Logger
 
 from sipsimple.applications import ParserError
-from sipsimple.applications.pidf import *
-from sipsimple.applications.presdm import *
-from sipsimple.applications.rpid import *
+from sipsimple.applications.presence import *
 
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.dns_lookup import *
@@ -94,7 +92,7 @@ def display_person(person, pidf, buf):
             buf.append("    %s" % format_note(note))
     # display activities
     if person.activities is not None:
-        activities = person.activities.values
+        activities = list(person.activities)
         if len(activities) > 0:
             text = "    Activities"
             if person.activities.since is not None or person.activities.until is not None:
@@ -114,7 +112,7 @@ def display_person(person, pidf, buf):
                 buf.append("      %s" % format_note(note))
     # display mood
     if person.mood is not None:
-        moods = person.mood.values
+        moods = list(person.mood)
         if len(moods) > 0:
             text = "    Mood"
             if person.mood.since is not None or person.mood.until is not None:
@@ -130,8 +128,7 @@ def display_person(person, pidf, buf):
                     buf.append("      %s" % format_note(note))
     # display place is
     if person.place_is is not None:
-        place_keys = (key for key in ('audio', 'video', 'text') if getattr(person.place_is, key) is not None)
-        place_info = ', '.join('%s %s' % (key.capitalize(), getattr(person.place_is, key).value) for key in place_keys)
+        place_info = ', '.join('%s %s' % (key.capitalize(), getattr(person.place_is, key).value) for key in ('audio', 'video', 'text') if getattr(person.place_is, key) and getattr(person.place_is, key).value)
         if place_info != '':
             buf.append("    Place information: " + place_info)
     # display privacy
@@ -250,7 +247,7 @@ def handle_pidf(pidf):
             persons[child.id] = child
         elif isinstance(child, Device):
             devices[child.id] = child
-        elif isinstance(child, Tuple):
+        elif isinstance(child, Service):
             services[child.id] = child
 
     # handle person information
@@ -330,7 +327,7 @@ def event_handler(event_name, **kwargs):
             queue.put(("print", "Subscription is pending"))
     elif event_name == "Subscription_notify":
         return_code = 0
-        if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in PIDF.accept_types:
+        if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) == PIDF.content_type:
             queue.put(("print", "Received NOTIFY:"))
             try:
                 pidf = PIDF.parse(kwargs['body'])
