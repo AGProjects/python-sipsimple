@@ -20,7 +20,6 @@ cdef class PJSIPUA:
     cdef bint c_trace_sip
     cdef GenericStringHeader c_user_agent_hdr
     cdef list c_events
-    cdef list c_rec_files
     cdef object c_sent_messages
     cdef pj_time_val c_max_timeout
     cdef int c_rtp_port_start
@@ -36,7 +35,6 @@ cdef class PJSIPUA:
         _ua = <void *> self
         self.c_threads = []
         self.c_events = []
-        self.c_rec_files = []
         self.c_sent_messages = set()
         self.c_max_timeout.sec = 0
         self.c_max_timeout.msec = 100
@@ -400,13 +398,6 @@ cdef class PJSIPUA:
             raise SIPCoreError("Cannot disconnect an AudioTransport that was not started yet")
         self.c_conf_bridge._disconnect_slot(transport.c_conf_slot)
 
-    def rec_wav_file(self, file_name):
-        cdef RecordingWaveFile rec_file
-        self.c_check_self()
-        rec_file = RecordingWaveFile(self.c_pjsip_endpoint, self.c_pjmedia_endpoint, self.c_conf_bridge, file_name)
-        self.c_rec_files.append(rec_file)
-        return rec_file
-
     def detect_nat_type(self, stun_server_address, stun_server_port=PJ_STUN_PORT):
         cdef pj_str_t c_stun_server_address
         cdef pj_sockaddr_in stun_server
@@ -429,13 +420,9 @@ cdef class PJSIPUA:
 
     def dealloc(self):
         global _ua, _event_queue_lock
-        cdef WaveFile wav_file
-        cdef RecordingWaveFile rec_file
         if _ua == NULL:
             return
         self.c_check_thread()
-        for rec_file in self.c_rec_files:
-            rec_file.stop()
         self.c_conf_bridge = None
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)

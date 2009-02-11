@@ -1,6 +1,6 @@
 __version__ = "0.4.0"
 
-_revision_required = 24
+_revision_required = 25
 from core import CORE_REVISION
 if CORE_REVISION != _revision_required:
     raise ImportError("Wrong SIP core revision %d (expected %d)" % (CORE_REVISION, _revision_required))
@@ -11,7 +11,7 @@ from core import Registration, Publication, Subscription, Invitation, send_messa
 from core import SDPAttribute, SDPConnection, SDPMedia, SDPSession
 from core import RTPTransport, AudioTransport
 from core import SIPCoreError, PJSIPError
-from core import WaveFile
+from core import WaveFile, RecordingWaveFile
 from session import Session, SessionManager
 
 __all__ = ["Engine",
@@ -20,5 +20,5 @@ __all__ = ["Engine",
            "SDPAttribute", "SDPConnection", "SDPMedia", "SDPSession",
            "RTPTransport", "AudioTransport",
            "SIPCoreError", "PJSIPError",
-           "WaveFile",
+           "WaveFile", "RecordingWaveFile",
            "Session", "SessionManager"]

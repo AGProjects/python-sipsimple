@@ -208,24 +208,48 @@ cdef class RecordingWaveFile:
     cdef pjmedia_port *port
     cdef unsigned int conf_slot
     cdef readonly object file_name
+    cdef int was_started
 
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, PJMEDIAConferenceBridge conf_bridge, file_name):
-        cdef int status
-        cdef object pool_name = "recwav_%s" % file_name
+    def __cinit__(self, file_name):
         self.file_name = file_name
-        self.pool = pjsip_endpt_create_pool(pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        self.was_started = 0
+
+    property is_active:
+
+        def __get__(self):
+            global _ua
+            if _ua == NULL:
+                return False
+            else:
+                return bool(self.timer_is_active or self.port != NULL)
+
+    def start(self):
+        cdef int status
+        cdef object pool_name = "recwav_%s" % self.file_name
+        cdef PJSIPUA ua = c_get_ua()
+        if self.was_started:
+            raise SIPCoreError("This RecordingWaveFile was already started once")
+        self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.pool == NULL:
             raise MemoryError("Could not allocate memory pool")
-        status = pjmedia_wav_writer_port_create(self.pool, file_name, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_FILE_WRITE_PCM, 0, &self.port)
-        if status != 0:
-            raise PJSIPError("Could not create WAV file", status)
-        status = pjmedia_conf_add_port(conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
-        if status != 0:
-            raise PJSIPError("Could not connect WAV playback to conference bridge", status)
-        conf_bridge._connect_output_slot(self.conf_slot)
+        try:
+            status = pjmedia_wav_writer_port_create(self.pool, self.file_name, ua.c_pjmedia_endpoint.c_sample_rate * 1000, 1, ua.c_pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_FILE_WRITE_PCM, 0, &self.port)
+            if status != 0:
+                raise PJSIPError("Could not create WAV file", status)
+            status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
+            if status != 0:
+                raise PJSIPError("Could not connect WAV playback to conference bridge", status)
+            ua.c_conf_bridge._connect_output_slot(self.conf_slot)
+        except:
+            self.stop()
+            raise
+        self.was_started = 1
 
     def stop(self):
         cdef PJSIPUA ua = c_get_ua()
+        self._stop(ua)
+
+    cdef int _stop(self, PJSIPUA ua) except -1:
         if self.conf_slot != 0:
             ua.c_conf_bridge._disconnect_slot(self.conf_slot)
             pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.conf_slot)
@@ -233,7 +257,10 @@ cdef class RecordingWaveFile:
         if self.port != NULL:
             pjmedia_port_destroy(self.port)
             self.port = NULL
-        ua.c_rec_files.remove(self)
+        if self.pool != NULL:
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
+            self.pool = NULL
+        return 0
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -241,10 +268,7 @@ cdef class RecordingWaveFile:
             ua = c_get_ua()
         except:
             return
-        if self.port != NULL:
-            self.stop()
-        if self.pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
+        self._stop(ua)
 
 cdef class WaveFile:
     cdef pj_pool_t *pool
