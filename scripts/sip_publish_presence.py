@@ -25,9 +25,7 @@ from sipsimple.clients import enrollment
 from sipsimple.clients.log import Logger
 
 from sipsimple.applications import BuilderError
-from sipsimple.applications.pidf import *
-from sipsimple.applications.presdm import *
-from sipsimple.applications.rpid import *
+from sipsimple.applications.presence import *
 
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.dns_lookup import *
@@ -144,7 +142,7 @@ class NotesMenu(Menu):
                              'a': {"description": "add a note", "handler": self._add_note},
                              'd': {"description": "delete a note", "handler": self._del_note},
                              'c': {"description": "clear all note data", "handler": self._clear_notes}})
-        self.list = NoteList()
+        self.list = NoteList(obj)
         self.note_type = note_type
         self.obj = obj
         self.timestamp_type = timestamp_type
@@ -160,7 +158,7 @@ class NotesMenu(Menu):
         if lang == '':
             lang = None
         value = getstr("Note")
-        self.list.append(self.note_type(value, lang))
+        self.list.add(self.note_type(value, lang))
         if self.obj:
             self.obj.timestamp = self.timestamp_type()
         print "Note added"
@@ -208,13 +206,13 @@ class MoodMenu(Menu):
     def _show_moods(self):
         buf = ["Moods:"]
         if person.mood is not None:
-            for m in person.mood.values:
+            for m in list(person.mood):
                 buf.append("  %s" % str(m))
         print '\n'.join(buf)
 
     def _add_mood(self):
         buf = ["Possible moods:"]
-        values = list(Mood._xml_value_maps.get(value, value) for value in Mood._xml_values)
+        values = list(Mood.values)
         values.sort()
         max_len = max(len(s) for s in values)+2
         format = " %%02d) %%-%ds" % max_len
@@ -239,8 +237,8 @@ class MoodMenu(Menu):
         else:
             if person.mood is None:
                 person.mood = Mood()
-            person.mood.add(values[m-1])
-            person.timestamp = DMTimestamp()
+            person.mood.append(values[m-1])
+            person.timestamp = PersonTimestamp()
             publish_pidf()
             print "Mood added"
         self.exitTopLevel()
@@ -250,7 +248,7 @@ class MoodMenu(Menu):
             print "There is no current mood set"
             return
         buf = ["Current moods:"]
-        values = person.mood.values
+        values = list(person.mood)
         values.sort()
         max_len = max(len(s) for s in values)+2
         format = " %%02d) %%-%ds" % max_len
@@ -273,7 +271,7 @@ class MoodMenu(Menu):
             print "Invalid input"
         else:
             person.mood.remove(values[m-1])
-            person.timestamp = DMTimestamp()
+            person.timestamp = PersonTimestamp()
             publish_pidf()
             print "Mood deleted"
         self.exitTopLevel()
@@ -283,7 +281,7 @@ class MoodMenu(Menu):
             print "There is no current mood set"
             return
         person.mood = None
-        person.timestamp = DMTimestamp()
+        person.timestamp = PersonTimestamp()
         publish_pidf()
         print "Mood information cleared"
         self.exitTopLevel()
@@ -298,14 +296,14 @@ class MoodMenu(Menu):
         else:
             if person.mood is None:
                 person.mood = Mood()
-            person.mood.notes.append(RPIDNote(note, lang='en'))
-            person.timestamp = DMTimestamp()
+            person.mood.notes.add(RPIDNote(note, lang='en'))
+            person.timestamp = PersonTimestamp()
             publish_pidf()
             print 'Note set'
         self.exitTopLevel()
 
     def _set_random(self):
-        values = list(Mood._xml_value_maps.get(value, value) for value in Mood._xml_values if value != 'unknown')
+        values = list(value for value in Mood.values if value != 'unknown')
         random.shuffle(values)
 
         if person.mood is None:
@@ -314,8 +312,8 @@ class MoodMenu(Menu):
             person.mood.clear()
         values = values[:3]
         for mood in values:
-            person.mood.add(mood)
-        person.timestamp = DMTimestamp()
+            person.mood.append(mood)
+        person.timestamp = PersonTimestamp()
         publish_pidf()
         print "You are now " + ", ".join(values)
         self.exitTopLevel()
@@ -337,13 +335,13 @@ class ActivitiesMenu(Menu):
     def _show_activity(self):
         buf = ["Activity:"]
         if person.activities is not None:
-            for a in person.activities.values:
+            for a in list(person.activities):
                 buf.append("  %s" % str(a))
         print '\n'.join(buf)
 
     def _set_activity(self):
         buf = ["Possible activities:"]
-        values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values)
+        values = list(Activities.values)
         values.sort()
         max_len = max(len(s) for s in values)+2
         format = " %%02d) %%-%ds" % max_len
@@ -370,8 +368,8 @@ class ActivitiesMenu(Menu):
                 person.activities = Activities()
             else:
                 person.activities.clear()
-            person.activities.add(values[a-1])
-            person.timestamp = DMTimestamp()
+            person.activities.append(values[a-1])
+            person.timestamp = PersonTimestamp()
             publish_pidf()
             print "Activity set"
         self.exitTopLevel()
@@ -381,7 +379,8 @@ class ActivitiesMenu(Menu):
             print "There is no current activity set"
             return
         person.activities.clear()
-        person.timestamp = DMTimestamp()
+        person.activities.append('unknown')
+        person.timestamp = PersonTimestamp()
         publish_pidf()
         print "Activity deleted"
         self.exitTopLevel()
@@ -391,7 +390,7 @@ class ActivitiesMenu(Menu):
             print "There is no current activity set"
             return
         person.activities = None
-        person.timestamp = DMTimestamp()
+        person.timestamp = PersonTimestamp()
         publish_pidf()
         print "Activities information cleared"
         self.exitTopLevel()
@@ -406,22 +405,23 @@ class ActivitiesMenu(Menu):
         else:
             if person.activities is None:
                 person.activities = Activities()
-            person.activities.notes.append(RPIDNote(note, lang='en'))
-            person.timestamp = DMTimestamp()
+                person.activities.append('unknown')
+            person.activities.notes.add(RPIDNote(note, lang='en'))
+            person.timestamp = PersonTimestamp()
             publish_pidf()
             print 'Note set'
         self.exitTopLevel()
 
     def _set_random(self):
-        values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values if value != 'unknown')
+        values = list(value for value in Activities.values if value != 'unknown')
         activity = random.choice(values)
 
         if person.activities is None:
             person.activities = Activities()
         else:
             person.activities.clear()
-        person.activities.add(activity)
-        person.timestamp = DMTimestamp()
+        person.activities.append(activity)
+        person.timestamp = PersonTimestamp()
         publish_pidf()
         print "You are now %s" % activity
         self.exitTopLevel()
@@ -436,20 +436,20 @@ def set_person_note():
         if len(person.notes) > 0:
             del person.notes['en']
     else:
-        person.notes.append(DMNote(note, lang='en'))
-        person.timestamp = DMTimestamp()
+        person.notes.add(PersonNote(note, lang='en'))
+        person.timestamp = PersonTimestamp()
         publish_pidf()
         print 'Note added'
 
 def toggle_basic():
     if tuple.status.basic == 'open':
-        tuple.status.basic = Basic('closed')
-        tuple.timestamp = Timestamp()
+        tuple.status.basic = 'closed'
+        tuple.timestamp = ServiceTimestamp()
         publish_pidf()
         print "Your basic status is now 'closed'"
     else:
-        tuple.status.basic = Basic('open')
-        tuple.timestamp = Timestamp()
+        tuple.status.basic = 'open'
+        tuple.timestamp = ServiceTimestamp()
         publish_pidf()
         print "Your basic status is now 'open'"
 
@@ -524,13 +524,13 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
         # initialize PIDF
         pidf = PIDF(entity='%s@%s' % (username, domain))
 
-        tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
-        tuple.timestamp = Timestamp()
+        tuple = Service(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic='open'))
+        tuple.timestamp = ServiceTimestamp()
         pidf.append(tuple)
 
         person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
         person.time_offset = TimeOffset()
-        person.timestamp = DMTimestamp()
+        person.timestamp = PersonTimestamp()
         pidf.append(person)
 
         # initialize menus
@@ -541,7 +541,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
         top_level.add_action('m', {"description": "set mood information", "handler": Menu.gotoMenu(MoodMenu())})
         top_level.add_action('a', {"description": "set activities information", "handler": Menu.gotoMenu(ActivitiesMenu())})
         top_level.add_action('b', {"description": "toggle basic status", "handler": toggle_basic})
-        person_notes_menu = NotesMenu(DMNote, person, DMTimestamp)
+        person_notes_menu = NotesMenu(PersonNote, person, PersonTimestamp)
         top_level.add_action('n', {"description": "set note", "handler": set_person_note})
         
         # publish initial pidf
