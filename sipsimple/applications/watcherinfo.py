@@ -206,10 +206,9 @@ class WatcherList(XMLListElement):
         updated = []
         for watcher in watcherlist:
             old = self._watchers.get(watcher.id, None)
-            self._watchers[watcher.id] = watcher
             if old is not None:
-                self.element.remove(old.element)
-            self._insert_element(watcher.element)
+                self.remove(old)
+            self.append(watcher)
             if old is None or old != watcher:
                 updated.append(watcher)
         return updated
@@ -328,7 +327,7 @@ class WatcherInfo(XMLListRootElement):
         elif winfo.state == 'partial':
             for new_wlist in winfo:
                 if new_wlist.resource in self._wlists:
-                    wlist = self._wlists.get(new_wlist.resource)
+                    wlist = self._wlists.get(new_wlist.resource, None)
                     updated = wlist.update(new_wlist)
                     if updated:
                         updated_lists[wlist] = updated
