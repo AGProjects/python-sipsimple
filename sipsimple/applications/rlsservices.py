@@ -48,18 +48,16 @@ presence
 >>> rls[1].uri
 'sip:marketing@example.com'
 
->>> assert rls[1].packages == ['presence']
+>>> assert len(rls[1].packages) == 1 and rls[1].packages[0] == 'presence'
 
 """
 
-from lxml import etree
-
-from sipsimple.applications import XMLMeta, XMLListApplication, XMLElement, XMLListElement, XMLStringElement
-from sipsimple.applications.resourcelists import _namespace_ as _rl_namespace_, List, ResourceListsMeta
+from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
+from sipsimple.applications.resourcelists import _namespace_ as _rl_namespace_, List, ResourceListsApplication
 
 __all__ = ['_rl_namespace_',
            '_rls_namespace_',
-           'RLSServicesMeta',
+           'RLSServicesApplication',
            'Package',
            'Packages',
            'ResourceList',
@@ -89,146 +87,143 @@ _rls_namespace_ = 'urn:ietf:params:xml:ns:rls-services'
 # body: name of SIP event package
 
 
-class RLSServicesMeta(ResourceListsMeta): pass
+class RLSServicesApplication(ResourceListsApplication): pass
+RLSServicesApplication.register_namespace(_rls_namespace_, prefix=None)
 
-class Package(XMLStringElement):
+## Marker mixins
+
+class PackagesElement(object): pass
+
+
+## Elements
+
+class Package(XMLStringElement, PackagesElement):
     _xml_tag = 'package'
     _xml_namespace = _rls_namespace_
-    _xml_meta = RLSServicesMeta
+    _xml_application = RLSServicesApplication
     _xml_lang = False
 
-RLSServicesMeta.register(Package)
 
 class Packages(XMLListElement):
     _xml_tag = 'packages'
     _xml_namespace = _rls_namespace_
-    _xml_meta = RLSServicesMeta
+    _xml_application = RLSServicesApplication
+    _xml_children_order = {Package.qname: 0}
 
     def __init__(self, packages=[]):
+        XMLListElement.__init__(self)
         self[:] = packages
 
-    def _parse_element(self, element):
+    def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            if child.tag == Package.qname:
-                self.append(Package.from_element(child))
+            child_cls = self._xml_application.get_element(child.tag, None)
+            if child_cls is not None and issubclass(child_cls, PackagesElement):
+                try:
+                    list.append(self, child_cls.from_element(child, *args, **kwargs))
+                except ValidationError:
+                    pass
     
-    def _build_element(self, element, nsmap):
-        for package in self:
-            package.to_element(parent=element, nsmap=nsmap)
+    def _build_element(self, *args, **kwargs):
+        for child in self:
+            child.to_element(*args, **kwargs)
 
-    def _before_add(self, package):
-        if not isinstance(package, Package):
-            package = Package(package)
-        return package
+    def _add_item(self, value):
+        if not isinstance(value, PackagesElement):
+            if isinstance(value, XMLElement):
+                raise TypeError("expected PackagesElement instace, got %s instead" % value.__class__.__name__)
+            value = Package(value)
+        self._insert_element(value.element)
+        return value
 
-RLSServicesMeta.register(Packages)
+    def _del_item(self, value):
+        self.element.remove(value.element)
+
 
 class ResourceList(XMLStringElement):
     _xml_tag = 'resource-list'
     _xml_namespace = _rls_namespace_
-    _xml_meta = RLSServicesMeta
+    _xml_application = RLSServicesApplication
     _xml_lang = False
 
-RLSServicesMeta.register(ResourceList)
 
 # This is identical to the list element in resourcelists, accept for the
 # namespace. We'll redefine the xml tag just for readability purposes.
 class RLSList(List):
     _xml_tag = 'list'
     _xml_namespace = _rls_namespace_
-    _xml_meta = RLSServicesMeta
+    _xml_application = RLSServicesApplication
 
-RLSServicesMeta.register(RLSList)
 
 class Service(XMLElement):
     _xml_tag = 'service'
     _xml_namespace = _rls_namespace_
-    _xml_attrs = {'uri': {'id_attribute': True}}
-    _xml_meta = RLSServicesMeta
+    _xml_application = RLSServicesApplication
+    _xml_children_order = {RLSList.qname: 0,
+                           ResourceList.qname: 0,
+                           Packages.qname: 1}
+
+    uri = XMLAttribute('uri', type=str, required=True, test_equal=True)
+    list = XMLElementChoiceChild('list', types=(ResourceList, RLSList), required=True, test_equal=True)
+    packages = XMLElementChild('packages', type=Packages, required=False, test_equal=True)
+    _xml_id = uri
     
     def __init__(self, uri, list=RLSList(), packages=Packages()):
+        XMLElement.__init__(self)
         self.uri = uri
         self.list = list
         self.packages = packages
 
-    def _get_list(self):
-        return self.__list
-    
-    def _set_list(self, list):
-        if isinstance(list, (RLSList, ResourceList)):
-            self.__list = list
-        else:
-            # we'll simply add a ResourceList
-            self.__list = ResourceList(list)
+    def __repr__(self):
+        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.uri, self.list, self.packages)
 
-    list = property(_get_list, _set_list)
-    del _get_list, _set_list
+    __str__ = __repr__
 
-    def _get_packages(self):
-        return self.__packages
 
-    def _set_packages(self, packages):
-        if isinstance(packages, Packages):
-            self.__packages = packages
-        else:
-            self.__packages = Packages(packages)
-
-    packages = property(_get_packages, _set_packages)
-    del _get_packages, _set_packages
-
-    def _parse_element(self, element):
-        for child in element:
-            if child.tag == RLSList.qname:
-                self.list = RLSList.from_element(child, xml_meta=self._xml_meta)
-            elif child.tag == ResourceList.qname:
-                self.list = ResourceList.from_element(child)
-            elif child.tag == Packages.qname:
-                self.packages = Packages.from_element(child)
-
-    def _build_element(self, element, nsmap):
-        self.list.to_element(parent=element, nsmap=nsmap)
-        self.packages.to_element(parent=element, nsmap=nsmap)
-
-RLSServicesMeta.register(Service)
-
-class RLSServices(XMLListApplication):
-    accept_types = ['application/rls-services+xml']
-    build_types = ['application/rls-services+xml']
+class RLSServices(XMLListRootElement):
+    content_type = 'application/rls-services+xml'
 
     _xml_tag = 'rls-services'
     _xml_namespace = _rls_namespace_
+    _xml_application = RLSServicesApplication
+    _xml_children_order = {Service.qname: 0}
     _xml_schema_file = 'rlsservices.xsd'
-    _xml_nsmap = {
-            None: _rls_namespace_,
-            'rl': _rl_namespace_}
-    _xml_meta = RLSServicesMeta
-
-    _parser_opts = {'remove_blank_text': True}
 
     def __init__(self, services=[]):
+        XMLListRootElement.__init__(self)
         self._services = {}
         self[:] = services
 
-    def _parse_element(self, element):
+    def _parse_element(self, element, *args, **kwargs):
         self._services = {}
         for child in element:
             if child.tag == Service.qname:
-                self.append(Service.from_element(child, xml_meta=self._xml_meta))
+                try:
+                    service = Service.from_element(child, *args, **kwargs)
+                except ValidationError:
+                    pass
+                else:
+                    if service in self:
+                        element.remove(child)
+                        continue
+                    self._services[service.uri] = service
+                    list.append(self, service)
     
-    def _build_element(self, element, nsmap):
+    def _build_element(self, *args, **kwargs):
         for service in self:
-            service.to_element(parent=element, nsmap=nsmap)
+            service.to_element(*args, **kwargs)
 
-    def _before_add(self, service):
+    def _add_item(self, service):
         if not isinstance(service, Service):
             raise TypeError("found %s, expected %s" % (service.__class__.__name__, Service.__name__))
         if service.uri in self._services:
-            raise ValueError("Cannot have more than one service with the same uri: %s" % service.uri)
+            raise ValueError("cannot have more than one service with the same uri: %s" % service.uri)
         self._services[service.uri] = service
+        self._insert_element(service.element)
         return service
     
-    def _before_del(self, service):
+    def _del_item(self, service):
         del self._services[service.uri]
+        self.element.remove(service.element)
 
     # it also makes sense to be able to get a Service by its uri
     def __getitem__(self, key):
@@ -237,4 +232,4 @@ class RLSServices(XMLListApplication):
         else:
             return super(RLSServices, self).__getitem__(key)
 
-RLSServicesMeta.register(RLSServices)
+
