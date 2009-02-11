@@ -279,7 +279,7 @@ def event_handler(event_name, **kwargs):
             queue.put(("print", "Subscription is pending"))
     elif event_name == "Subscription_notify":
         return_code = 0
-        if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in WatcherInfo.accept_types:
+        if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) == WatcherInfo.content_type:
             try:
                 result = winfo.update(kwargs['body'])
             except ParserError, e:
