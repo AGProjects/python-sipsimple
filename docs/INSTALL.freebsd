@@ -51,6 +51,7 @@ Download and install dependencies available in AG Projects repositories:
 wget http://download.ag-projects.com/EventletTwisted/eventlet-0.9pre.tar.gz
 tar -xf eventlet-0.9pre.tar.gz
 cd eventlet-0.9pre
+sudo python setup.py install
 cd ..
 
 # python-xcaplib
