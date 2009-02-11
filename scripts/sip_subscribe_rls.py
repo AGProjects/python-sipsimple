@@ -14,8 +14,10 @@ from threading import Thread
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 from time import sleep
+from zope.interface import implements
 from application.process import process
 from application.configuration import *
+from application.notification import IObserver
 from sipsimple import *
 from sipsimple.clients import enrollment
 from sipsimple.clients.log import Logger
@@ -297,32 +299,38 @@ def getchar():
     else:
         return os.read(fd, 10)
 
-def event_handler(event_name, **kwargs):
-    global start_time, packet_count, queue, do_trace_pjsip, logger, return_code
-    if event_name == "Subscription_state":
-        if kwargs["state"] == "ACTIVE":
-            #queue.put(("print", "SUBSCRIBE was successful"))
+class EventHandler(object):
+    implements(IObserver)
+
+    def __init__(self, engine):
+        engine.notification_center.add_observer(self)
+
+    def handle_notification(self, notification):
+        global start_time, packet_count, queue, do_trace_pjsip, logger, return_code
+        if notification.name == "SCSubscriptionChangedState":
+            if notification.data.state == "ACTIVE":
+                #queue.put(("print", "SUBSCRIBE was successful"))
+                return_code = 0
+            elif notification.data.state == "TERMINATED":
+                if hasattr(notification.data, "code"):
+                    if notification.data.code / 100 == 2:
+                        return_code = 0
+                    queue.put(("print", "Unsubscribed: %(code)d %(reason)s" % notification.data.__dict__))
+                else:
+                    queue.put(("print", "Unsubscribed"))
+                queue.put(("quit", None))
+            elif notification.data.state == "PENDING":
+                queue.put(("print", "Subscription is pending"))
+        elif notification.name == "SCSubscriptionGotNotify":
             return_code = 0
-        elif kwargs["state"] == "TERMINATED":
-            if kwargs.has_key("code"):
-                if kwargs['code'] / 100 == 2:
-                    return_code = 0
-                queue.put(("print", "Unsubscribed: %(code)d %(reason)s" % kwargs))
-            else:
-                queue.put(("print", "Unsubscribed"))
-            queue.put(("quit", None))
-        elif kwargs["state"] == "PENDING":
-            queue.put(("print", "Subscription is pending"))
-    elif event_name == "Subscription_notify":
-        return_code = 0
-        if ('%s/%s' % (kwargs['content_type'], kwargs['content_subtype'])) in PIDF.accept_types:
-            queue.put(("print", "Received NOTIFY: %s" % kwargs))
-    elif event_name == "siptrace":
-        logger.log(event_name, **kwargs)
-    elif event_name != "log":
-        queue.put(("core_event", (event_name, kwargs)))
-    elif do_trace_pjsip:
-        queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % kwargs))
+            if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) in PIDF.accept_types:
+                queue.put(("print", "Received NOTIFY: %s" % notification.data))
+        elif notification.name == "SCEngineSIPTrace":
+            logger.log(notification.name, **notification.data.__dict__)
+        elif notification.name != "SCEngineLog":
+            queue.put(("core_event", (notification.name, notification.sender, notification.data)))
+        elif do_trace_pjsip:
+            queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
 
 def read_queue(e, username, domain, password, display_name, presentity_uri, route, expires, content_type, do_trace_pjsip):
     global user_quit, lock, queue, logger
@@ -338,10 +346,10 @@ def read_queue(e, username, domain, password, display_name, presentity_uri, rout
             if command == "print":
                 print data
             if command == "core_event":
-                event_name, args = data
-                if event_name == "exception":
+                event_name, obj,args = data
+                if event_name == "SCEngineGotException":
                     print "An exception occured within the SIP core:"
-                    print args["traceback"]
+                    print args.traceback
                     user_quit = False
                     command = "quit"
             if command == "user_input":
@@ -395,8 +403,9 @@ def do_subscribe(**kwargs):
     if kwargs['trace_sip']:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
 
-    e = Engine(event_handler, trace_sip=kwargs.pop('trace_sip'), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"), events=events)
-    e.start(False)
+    e = Engine()
+    EventHandler(e)
+    e.start(auto_sound=False, trace_sip=kwargs.pop('trace_sip'), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"), events=events)
     kwargs["presentity_uri"] = e.parse_sip_uri(kwargs["presentity_uri"])
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
