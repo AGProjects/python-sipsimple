@@ -23,9 +23,7 @@ from sipsimple.clients import enrollment
 from sipsimple.clients.log import Logger
 
 from sipsimple.applications import ParserError
-from sipsimple.applications.pidf import *
-from sipsimple.applications.presdm import *
-from sipsimple.applications.rpid import *
+from sipsimple.applications.presence import *
 
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.dns_lookup import *
@@ -96,7 +94,7 @@ def display_person(person, pidf, buf):
             buf.append("    %s" % format_note(note))
     # display activities
     if person.activities is not None:
-        activities = person.activities.values
+        activities = list(person.activities)
         if len(activities) > 0:
             text = "    Activities"
             if person.activities.since is not None or person.activities.until is not None:
@@ -116,7 +114,7 @@ def display_person(person, pidf, buf):
                 buf.append("      %s" % format_note(note))
     # display mood
     if person.mood is not None:
-        moods = person.mood.values
+        moods = list(person.mood)
         if len(moods) > 0:
             text = "    Mood"
             if person.mood.since is not None or person.mood.until is not None:
@@ -132,34 +130,48 @@ def display_person(person, pidf, buf):
                     buf.append("      %s" % format_note(note))
     # display place is
     if person.place_is is not None:
-        buf.append("    Place information:")
-        if person.place_is.audio is not None:
-            buf.append("      Audio: %s" % person.place_is.audio.values[0])
-        if person.place_is.video is not None:
-            buf.append("      Video: %s" % person.place_is.video.values[0])
-        if person.place_is.text is not None:
-            buf.append("      Text: %s" % person.place_is.text.values[0])
+        place_info = ', '.join('%s %s' % (key.capitalize(), getattr(person.place_is, key).value) for key in ('audio', 'video', 'text') if getattr(person.place_is, key) and getattr(person.place_is, key).value)
+        if place_info != '':
+            buf.append("    Place information: " + place_info)
     # display privacy
     if person.privacy is not None:
-        text = "    Communication that is private: "
+        text = "    Private conversation possible with: "
         private = []
         if person.privacy.audio:
-            private.append("audio")
+            private.append("Audio")
         if person.privacy.video:
-            private.append("video")
+            private.append("Video")
         if person.privacy.text:
-            private.append("text")
-        text += ", ".join(private)
+            private.append("Text")
+        if len(private) > 0:
+            text += ", ".join(private)
+        else:
+            text += "None"
         buf.append(text)
     # display sphere
     if person.sphere is not None:
-        buf.append("    Current sphere: %s" % person.sphere.values[0])
+        timeinfo = []
+        if person.sphere.since is not None:
+            timeinfo.append('from %s' % str(person.sphere.since))
+        if person.sphere.until is not None:
+            timeinfo.append('until %s' % str(person.sphere.until))
+        if len(timeinfo) != 0:
+            timeinfo = ' (' + ', '.join(timeinfo) + ')'
+        else:
+            timeinfo = ''
+        buf.append("    Current sphere%s: %s" % (timeinfo, person.sphere.value))
     # display status icon
     if person.status_icon is not None:
         buf.append("    Status icon: %s" % person.status_icon)
     # display time offset
     if person.time_offset is not None:
-        buf.append("    Time offset from UTC: %s minutes %s" % (person.time_offset, (person.time_offset.description is not None and ('(%s)' % person.time_offset.description) or '')))
+        ctime = datetime.datetime.utcnow() + datetime.timedelta(minutes=int(person.time_offset))
+        time_offset = int(person.time_offset)/60.0
+        if time_offset == int(time_offset):
+            offset_info = '(UTC+%d%s)' % (time_offset, (person.time_offset.description is not None and (' (%s)' % person.time_offset.description) or ''))
+        else:
+            offset_info = '(UTC+%.1f%s)' % (time_offset, (person.time_offset.description is not None and (' (%s)' % person.time_offset.description) or ''))
+        buf.append("    Current user time: %s %s" % (ctime.strftime("%H:%M"), offset_info))
     # display user input
     if person.user_input is not None:
         buf.append("    User is %s" % person.user_input)
@@ -323,8 +335,8 @@ class EventHandler(object):
                 queue.put(("print", "Subscription is pending"))
         elif notification.name == "SCSubscriptionGotNotify":
             return_code = 0
-            if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) in PIDF.accept_types:
-                queue.put(("print", "Received NOTIFY: %s" % notification.data))
+            if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) in ('multipart/related',):
+                queue.put(("print", "Received NOTIFY: %s" % notification.data.body))
         elif notification.name == "SCEngineSIPTrace":
             logger.log(notification.name, **notification.data.__dict__)
         elif notification.name != "SCEngineLog":
