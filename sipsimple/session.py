@@ -476,3 +476,5 @@ class SessionManager(object):
         if session is not None:
             self.notification_center.post_notification("SCSessionGotDTMF", session, data)
 
+
+__all__ = ["SessionManager", "Session"]
