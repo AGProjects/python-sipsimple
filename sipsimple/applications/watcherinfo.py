@@ -49,14 +49,13 @@ True
 See the classes for more information.
 """
 
-from lxml import etree
-
-from sipsimple.applications import XMLMeta, XMLApplication, XMLElement
+from sipsimple.applications import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute
+from sipsimple.applications.util import UnsignedLong, SIPURI
 
 __all__ = ['_namespace_',
            'NeedFullUpdateError',
-           'WatcherInfoMeta',
-           'Watcher', 
+           'WatcherInfoApplication',
+           'Watcher',
            'WatcherList',
            'WatcherInfo']
 
@@ -65,7 +64,33 @@ _namespace_ = 'urn:ietf:params:xml:ns:watcherinfo'
 
 class NeedFullUpdateError(Exception): pass
 
-class WatcherInfoMeta(XMLMeta): pass
+
+class WatcherInfoApplication(XMLApplication): pass
+WatcherInfoApplication.register_namespace(_namespace_, prefix=None)
+
+
+## Attribute value types
+
+class WatcherStatus(str):
+    def __new__(cls, value):
+        if value not in ('pending', 'active', 'waiting', 'terminated'):
+            raise ValueError('illegal status value for watcher')
+        return str.__new__(cls, value)
+
+class WatcherEvent(str):
+    def __new__(cls, value):
+        if value not in ('subscribe', 'approved', 'deactivated', 'probation', 'rejected', 'timeout', 'giveup', 'noresource'):
+            raise ValueError('illegal event value for watcher')
+        return str.__new__(cls, value)
+
+class WatcherInfoState(str):
+    def __new__(cls, value):
+        if value not in ('full', 'partial'):
+            raise ValueError('illegal state value for watcherinfo')
+        return str.__new__(cls, value)
+
+
+## XMLElements
 
 class Watcher(XMLElement):
     """
@@ -84,24 +109,55 @@ class Watcher(XMLElement):
     """
     _xml_tag = 'watcher'
     _xml_namespace = _namespace_
-    _xml_attrs = {
-            'id': {'id_attribute': True},
-            'status': {},
-            'event': {},
-            'display_name': {'xml_attribute': 'display-name'},
-            'expiration': {'test_equal': False},
-            'duration': {'test_equal': False}}
-    _xml_meta = WatcherInfoMeta
+    _xml_application = WatcherInfoApplication
+    
+    id           = XMLAttribute('id', type=str, required=True, test_equal=True)
+    status       = XMLAttribute('status', type=WatcherStatus, required=True, test_equal=True)
+    event        = XMLAttribute('event', type=WatcherEvent, required=True, test_equal=True)
+    display_name = XMLAttribute('display_name', xmlname='display-name', type=str, required=False, test_equal=True)
+    expiration   = XMLAttribute('expiration', type=UnsignedLong, required=False, test_equal=False)
+    duration     = XMLAttribute('duration', xmlname='duration-subscribed', type=UnsignedLong, required=False, test_equal=False)
+    _xml_id      = id
 
-    def _parse_element(self, element):
-        self.sipuri = element.text
+    def __init__(self, sipuri, id, status, event, display_name=None, expiration=None, duration=None):
+        XMLElement.__init__(self)
+        self.sipuri = sipuri
+        self.id = id
+        self.status = status
+        self.event = event
+        self.display_name = display_name
+        self.expiration = expiration
+        self.duration = duration
+
+    def _parse_element(self, element, *args, **kwargs):
+        try:
+            self.sipuri = element.text
+        except ValueError, e:
+            raise ValidationError("invalid SIPURI in Watcher: %s" % e.message)
+
+    def _build_element(self, *args, **kwargs):
+        pass
+
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.sipuri, self.id, self.status, self.event, self.display_name, self.expiration, self.duration)
 
     def __str__(self):
         return self.display_name and '"%s" <%s>' % (self.display_name, self.sipuri) or self.sipuri
 
-WatcherInfoMeta.register(Watcher)
+    def _get_sipuri(self):
+        return self._sipuri
 
-class WatcherList(XMLElement):
+    def _set_sipuri(self, value):
+        if not isinstance(value, SIPURI):
+            value = SIPURI(value)
+        self._sipuri = value
+        self.element.text = value
+    
+    sipuri = property(_get_sipuri, _set_sipuri)
+    del _get_sipuri, _set_sipuri
+
+
+class WatcherList(XMLListElement):
     """
     Definition for a list of watchers in a watcherinfo document
     
@@ -113,43 +169,87 @@ class WatcherList(XMLElement):
     """
     _xml_tag = 'watcher-list'
     _xml_namespace = _namespace_
-    _xml_attrs = {
-            'resource': {'id_attribute': True},
-            'package': {}}
-    _xml_meta = WatcherInfoMeta
+    _xml_application = WatcherInfoApplication
+    _xml_children_order = {Watcher.qname: 0}
 
-    def _parse_element(self, element, full_parse=True):
+    resource = XMLAttribute('resource', type=SIPURI, required=True, test_equal=True)
+    package  = XMLAttribute('package', type=str, required=True, test_equal=True)
+    _xml_id  = resource
+
+    def __init__(self, resource, package, watchers=[]):
+        XMLListElement.__init__(self)
+        self.resource = resource
+        self.package = package
         self._watchers = {}
-        if full_parse:
-            self.update(element)
+        self[:] = watchers
 
-    def update(self, element):
-        updated = []
+    def _parse_element(self, element, *args, **kwargs):
+        self._watchers = {}
         for child in element:
-            watcher = Watcher.from_element(child)
-            old = self._watchers.get(watcher.id)
+            if child.tag == Watcher.qname:
+                try:
+                    watcher = Watcher.from_element(child, *args, **kwargs)
+                except ValidationError:
+                    pass
+                else:
+                    if watcher.id in self._watchers:
+                        element.remove(child)
+                        continue
+                    self._watchers[watcher.id] = watcher
+                    list.append(self, watcher)
+
+    def _build_element(self, *args, **kwargs):
+        for watcher in self:
+            watcher.to_element(*args, **kwargs)
+
+    def update(self, watcherlist):
+        updated = []
+        for watcher in watcherlist:
+            old = self._watchers.get(watcher.id, None)
             self._watchers[watcher.id] = watcher
+            if old is not None:
+                self.element.remove(old.element)
+            self._insert_element(watcher.element)
             if old is None or old != watcher:
                 updated.append(watcher)
         return updated
+
+    def _add_item(self, watcher):
+        if not isinstance(watcher, Watcher):
+            raise TypeError("WatcherList can only contain Watcher elements")
+        old_watcher = self._watchers.get(watcher.id)
+        if old_watcher is not None:
+            self.remove(old_watcher)
+        self._watchers[watcher.id] = watcher
+        self._insert_element(watcher.element)
+        return watcher
+
+    def _del_item(self, watcher):
+        del self._watchers[watcher.id]
+        self.element.remove(watcher.element)
     
-    def __iter__(self):
-        return self._watchers.itervalues()
+    def get(self, id, default=None):
+        return self._watchers.get(id, default)
+    
+    # it also makes sense to be able to get a watcher by its id
+    def __getitem__(self, key):
+        if isinstance(key, basestring):
+            return self._watchers[key]
+        else:
+            return super(WatcherList, self).__getitem__(key)
 
-    def __getitem__(self, index):
-        return self._watchers.values()[index]
+    def __repr__(self):
+        return '%s(%r, %r, [%s])' % (self.__class__.__name__, self.resource, self.package, ', '.join('%r' % watcher for watcher in self._watchers.itervalues()))
 
-    def __len__(self):
-        return len(self._watchers)
+    __str__ = __repr__
 
     pending = property(lambda self: (watcher for watcher in self if watcher.status == 'pending'))
     waiting = property(lambda self: (watcher for watcher in self if watcher.status == 'waiting'))
     active = property(lambda self: (watcher for watcher in self if watcher.status == 'active'))
     terminated = property(lambda self: (watcher for watcher in self if watcher.status == 'terminated'))
 
-WatcherInfoMeta.register(WatcherList)
 
-class WatcherInfo(XMLApplication):
+class WatcherInfo(XMLListRootElement):
     """
     Definition for watcher info: a list of WatcherList elements
     
@@ -166,23 +266,42 @@ class WatcherInfo(XMLApplication):
      dictionaries can also be indexed by such strings.
     """
     
-    accept_types = ['application/watcherinfo+xml']
+    content_type = 'application/watcherinfo+xml'
 
     _xml_tag = 'watcherinfo'
     _xml_namespace = _namespace_
-    _xml_meta = WatcherInfoMeta
+    _xml_application = WatcherInfoApplication
+    _xml_children_order = {WatcherList.qname: 0}
     _xml_schema_file = 'watcherinfo.xsd'
-    
-    _parser_opts = {'remove_blank_text': True}
-    
-    def __init__(self):
-        self.version = -1
-        self._wlists = {}
 
-    def _parse_element(self, element):
-        self.version = -1
+    version = XMLAttribute('version', type=int, required=True, test_equal=True)
+    state   = XMLAttribute('state', type=WatcherInfoState, required=True, test_equal=True)
+    
+    def __init__(self, version=-1, state='full', wlists=[]):
+        XMLListRootElement.__init__(self)
+        self.version = version
+        self.state = state
         self._wlists = {}
-        self._update_from_element(element)
+        self[:] = wlists
+
+    def _parse_element(self, element, *args, **kwargs):
+        self._wlists = {}
+        for child in element:
+            if child.tag == WatcherList.qname:
+                try:
+                    wlist = WatcherList.from_element(child, *args, **kwargs)
+                except ValidationError:
+                    pass
+                else:
+                    if wlist.resource in self._wlists:
+                        element.remove(child)
+                        continue
+                    self._wlists[wlist.resource] = wlist
+                    list.append(self, wlist)
+
+    def _build_element(self, *args, **kwargs):
+        for wlist in self:
+            wlist.to_element(*args, **kwargs)
     
     def update(self, document):
         """
@@ -192,45 +311,60 @@ class WatcherInfo(XMLApplication):
         Will throw a NeedFullUpdateError if the current document is a partial
         update and the previous version wasn't received.
         """
-        root = etree.XML(document, self._parser)
-        return self._update_from_element(root)
-
-    def _update_from_element(self, element):
-        version = int(element.get('version'))
-        state = element.get('state')
-
-        if version <= self.version:
+        winfo = WatcherInfo.parse(document)
+        
+        if winfo.version <= self.version:
             return {}
-        if state == 'partial' and version != self.version + 1:
-            raise NeedFullUpdateError("Cannot update with version %d since last version received is %d" % (version, self.version))
-
-        self.version = version
+        if winfo.state == 'partial' and winfo.version != self.version + 1:
+            raise NeedFullUpdateError("cannot update with version %d since last version received is %d" % (winfo.version, self.version))
+        self.version = winfo.version
 
         updated_lists = {}
-        if state == 'full':
-            self._wlists = {}
-            for xml_wlist in element:
-                wlist = WatcherList.from_element(xml_wlist)
-                self._wlists[wlist.resource] = wlist
-                updated_lists[wlist] = list(wlist)
-        elif state == 'partial':
-            for xml_wlist in element:
-                wlist = WatcherList.from_element(xml_wlist, full_parse=False)
-                wlist = self._wlists.get(wlist.resource, wlist)
-                self._wlists[wlist.resource] = wlist
-                updated = wlist.update(xml_wlist)
-                if updated:
-                    updated_lists[wlist] = updated
+        if winfo.state == 'full':
+            self.clear()
+            for new_wlist in winfo:
+                self.append(new_wlist)
+                updated_lists[new_wlist] = list(new_wlist)
+        elif winfo.state == 'partial':
+            for new_wlist in winfo:
+                if new_wlist.resource in self._wlists:
+                    wlist = self._wlists.get(new_wlist.resource)
+                    updated = wlist.update(new_wlist)
+                    if updated:
+                        updated_lists[wlist] = updated
+                else:
+                    self.append(new_wlist)
+                    updated_lists[new_wlist] = list(new_wlist)
+        
         return updated_lists
-    
-    def __iter__(self):
-        return self._wlists.itervalues()
 
-    def __getitem__(self, index):
-        return self._wlists[index]
+    def _add_item(self, wlist):
+        if not isinstance(wlist, WatcherList):
+            raise TypeError("WatcherInfo can only contain WatcherList elements")
+        old_wlist = self._wlists.get(wlist.resource, None)
+        if old_wlist is not None:
+            self.remove(old_wlist)
+        self._wlists[wlist.resource] = wlist
+        self._insert_element(wlist.element)
+        return wlist
 
-    def __len__(self):
-        return len(self._wlists)
+    def _del_item(self, wlist):
+        del self._wlists[wlist.resource]
+        self.element.remove(wlist.element)
+
+    def get(self, id, default=None):
+        return self._wlists.get(id, default)
+
+    def __getitem__(self, key):
+        if isinstance(key, basestring):
+            return self._wlists[key]
+        else:
+            return super(WatcherInfo, self).__getitem__(key)
+
+    def __repr__(self):
+        return '%s(%r, %r, %s)' % (self.__class__.__name__, self.version, self.state, list.__repr__(self))
+
+    __str__ = __repr__
 
     wlists = property(lambda self: self._wlists.values())
     pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self))
@@ -238,4 +372,4 @@ class WatcherInfo(XMLApplication):
     active = property(lambda self: dict((wlist, list(wlist.active)) for wlist in self))
     terminated = property(lambda self: dict((wlist, list(wlist.terminated)) for wlist in self))
 
-WatcherInfoMeta.register(WatcherInfo)
+
