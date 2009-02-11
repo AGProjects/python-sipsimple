@@ -6,8 +6,8 @@ Example usage:
 >>> conditions = Conditions([Identity([IdentityOne('sip:user@example.com')])])
 >>> actions = Actions([SubHandling('allow')])
 >>> transformations = Transformations()
->>> psrv = ProvideServices([ServiceURIScheme('sip'), ServiceURIScheme('mailto')])
->>> ppers = ProvidePersons([AllPersons()])
+>>> psrv = ProvideServices(provides=[ServiceURIScheme('sip'), ServiceURIScheme('mailto')])
+>>> ppers = ProvidePersons(all=True)
 >>> transformations[0:0] = [psrv, ppers]
 >>> transformations.append(ProvideActivities('true'))
 >>> transformations.append(ProvideUserInput('bare'))
@@ -16,17 +16,17 @@ Example usage:
 >>> prules = PresRules([rule])
 >>> print prules.toxml(pretty_print=True)
 <?xml version='1.0' encoding='UTF-8'?>
-<cr:ruleset xmlns:pr="urn:ietf:params:xml:ns:pres-rules" xmlns:cr="urn:ietf:params:xml:ns:common-policy">
-  <cr:rule id="a">
-    <cr:conditions>
-      <cr:identity>
-        <cr:one id="sip:user@example.com"/>
-      </cr:identity>
-    </cr:conditions>
-    <cr:actions>
+<cp:ruleset xmlns:pr="urn:ietf:params:xml:ns:pres-rules" xmlns:cp="urn:ietf:params:xml:ns:common-policy">
+  <cp:rule id="a">
+    <cp:conditions>
+      <cp:identity>
+        <cp:one id="sip:user@example.com"/>
+      </cp:identity>
+    </cp:conditions>
+    <cp:actions>
       <pr:sub-handling>allow</pr:sub-handling>
-    </cr:actions>
-    <cr:transformations>
+    </cp:actions>
+    <cp:transformations>
       <pr:provide-services>
         <pr:service-uri-scheme>sip</pr:service-uri-scheme>
         <pr:service-uri-scheme>mailto</pr:service-uri-scheme>
@@ -37,21 +37,19 @@ Example usage:
       <pr:provide-activities>true</pr:provide-activities>
       <pr:provide-user-input>bare</pr:provide-user-input>
       <pr:provide-unknown-attribute ns="urn:vendor-specific:foo-namespace" name="foo">true</pr:provide-unknown-attribute>
-    </cr:transformations>
-  </cr:rule>
-</cr:ruleset>
+    </cp:transformations>
+  </cp:rule>
+</cp:ruleset>
 <BLANKLINE>
 
 """
 
-from lxml import etree
-
-from sipsimple.applications import XMLMeta, XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLApplication
-from sipsimple.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyMeta, ActionElement, TransformationElement, RuleSet
+from sipsimple.applications import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLRootElement, XMLAttribute, XMLElementChild
+from sipsimple.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyApplication, ActionElement, TransformationElement, RuleSet
 
 __all__ = ['_cp_namespace_',
            '_pr_namespace_',
-           'PresRulesMeta',
+           'PresRulesApplication',
            'SubHandling',
            'DeviceID',
            'Class',
@@ -84,260 +82,400 @@ __all__ = ['_cp_namespace_',
 
 _pr_namespace_ = 'urn:ietf:params:xml:ns:pres-rules'
 
-class PresRulesMeta(CommonPolicyMeta): pass
+class PresRulesApplication(CommonPolicyApplication): pass
+PresRulesApplication.register_namespace(_pr_namespace_, prefix='pr')
+
+
+## Marker mixins
+
+class ProvideDeviceElement(object): pass
+class ProvidePersonElement(object): pass
+class ProvideServiceElement(object): pass
+
+
+## Attribute value types
+
+class SubHandlingValue(str):
+    def __new__(cls, value):
+        if value not in ('block', 'confirm', 'polite-block', 'allow'):
+            raise ValueError("illegal value for SubHandling element")
+        return str.__new__(cls, value)
+
+
+class ProvideUserInputValue(str):
+    def __new__(cls, value):
+        if value not in ('false', 'bare', 'thresholds', 'full'):
+            raise ValueError("illega value for ProvideUserInput element")
+        return str.__new__(cls, value)
+
+
+## Action Elements
 
 class SubHandling(XMLStringElement, ActionElement):
     _xml_tag = 'sub-handling'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
     _xml_lang = False
-    _xml_values = ('block', 'confirm', 'polite-block', 'allow')
+    _xml_value_type = SubHandlingValue
 
-PresRulesMeta.register(SubHandling)
 
-class DeviceID(XMLStringElement):
-    _xml_tag = 'deviceID'
-    _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
-    _xml_lang = False
+## Transformation Elements
 
-PresRulesMeta.register(DeviceID)
-
-class Class(XMLStringElement):
+class Class(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, ProvideServiceElement):
     _xml_tag = 'class'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
     _xml_lang = False
 
-PresRulesMeta.register(Class)
+
+class OccurenceID(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, ProvideServiceElement):
+    _xml_tag = 'occurence-id'
+    _xml_namespace = _pr_namespace_
+    _xml_application = PresRulesApplication
+
+
+## Devices element
+
+
+class DeviceID(XMLStringElement, ProvideDeviceElement):
+    _xml_tag = 'deviceID'
+    _xml_namespace = _pr_namespace_
+    _xml_application = PresRulesApplication
+    _xml_lang = False
 
 class AllDevices(XMLEmptyElement):
     _xml_tag = 'all-devices'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
+    
+    def __init__(self, provide_all=True):
+        XMLEmptyElement.__init__(self)
+    
+    def __new__(cls, provide_all=True):
+        if not provide_all:
+            return None
+        return XMLEmptyElement.__new__(cls)
 
-PresRulesMeta.register(AllDevices)
 
 class ProvideDevices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-devices'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-    def __init__(self, provides=[]):
+    def _on_all_set(self, attribute):
+        if getattr(self, attribute.name) is not None:
+            self.clear()
+    all = XMLElementChild('all', type=AllDevices, required=False, test_equal=True, onset=_on_all_set)
+    del _on_all_set
+
+    def __init__(self, all=False, provides=[]):
+        XMLListElement.__init__(self)
+        self.all = all
         self[0:0] = provides
     
-    def _parse_element(self, element):
+    def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            child_cls = self._xml_meta.get(child.tag)
-            if child_cls is not None:
-                self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
+            if child.tag == AllDevices.qname:
+                continue
+            elif self.all:
+                element.remove(child)
+            else:
+                child_cls = self._xml_application.get_element(child.tag)
+                if child_cls is not None and issubclass(child_cls, ProvideDeviceElement):
+                    list.append(self, child_cls.from_element(child, *args, **kwargs))
 
-    def _build_element(self, element, nsmap):
-        for child in self:
-            child.to_element(parent=element, nsmap=nsmap)
+    def _build_element(self, *args, **kwargs):
+        if self.all:
+            self.clear()
+        else:
+            for child in self:
+                child.to_element(*args, **kwargs)
 
-PresRulesMeta.register(ProvideDevices)
+    def _add_item(self, value):
+        if not isinstance(value, ProvideDeviceElement):
+            raise TypeError("ProvideDevices elements can only have ProvideDeviceElement instances as children, got %s instead" % value.__class__.__name__)
+        self._insert_element(value.element)
+        return value
 
-class OccurenceID(XMLStringElement):
-    _xml_tag = 'occurence-id'
-    _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    def _del_item(self, value):
+        self.element.remove(value.element)
 
-PresRulesMeta.register(OccurenceID)
+    def __repr__(self):
+        return '%s(%r, %s)' % (self.__class__.__name__, self.all, list.__repr__(self))
+
+    __str__ = __repr__
+
+
+## Persons elmeent
 
 class AllPersons(XMLEmptyElement):
     _xml_tag = 'all-persons'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
+    
+    def __init__(self, provide_all=True):
+        XMLEmptyElement.__init__(self)
+    
+    def __new__(cls, provide_all=True):
+        if not provide_all:
+            return None
+        return XMLEmptyElement.__new__(cls)
 
-PresRulesMeta.register(AllPersons)
 
 class ProvidePersons(XMLListElement, TransformationElement):
     _xml_tag = 'provide-persons'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
+    
+    def _on_all_set(self, attribute):
+        if getattr(self, attribute.name) is not None:
+            self.clear()
+    all = XMLElementChild('all', type=AllPersons, required=False, test_equal=True, onset=_on_all_set)
+    del _on_all_set
 
-    def __init__(self, provides=[]):
+    def __init__(self, all=False, provides=[]):
+        XMLListElement.__init__(self)
+        self.all = all
         self[0:0] = provides
     
-    def _parse_element(self, element):
+    def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            child_cls = self._xml_meta.get(child.tag)
-            if child_cls is not None:
-                self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
+            if child.tag == AllPersons.qname:
+                continue
+            elif self.all:
+                element.remove(child)
+            else:
+                child_cls = self._xml_application.get_element(child.tag)
+                if child_cls is not None and issubclass(child_cls, ProvidePersonElement):
+                    list.append(self, child_cls.from_element(child, *args, **kwargs))
 
-    def _build_element(self, element, nsmap):
-        for child in self:
-            child.to_element(parent=element, nsmap=nsmap)
+    def _build_element(self, *args, **kwargs):
+        if self.all:
+            self.clear()
+        else:
+            for child in self:
+                child.to_element(*args, **kwargs)
 
-PresRulesMeta.register(ProvidePersons)
+    def _add_item(self, value):
+        if not isinstance(value, ProvidePersonElement):
+            raise TypeError("ProvidePersons elements can only have ProvidePersonElement instances as children, got %s instead" % value.__class__.__name__)
+        self._insert_element(value.element)
+        return value
 
-class ServiceURI(XMLStringElement):
+    def _del_item(self, value):
+        self.element.remove(value.element)
+
+    def __repr__(self):
+        return '%s(%r, %s)' % (self.__class__.__name__, self.all, list.__repr__(self))
+
+    __str__ = __repr__
+
+
+## Service elements
+
+class ServiceURI(XMLStringElement, ProvideServiceElement):
     _xml_tag = 'service-uri'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ServiceURI)
 
-class ServiceURIScheme(XMLStringElement):
+class ServiceURIScheme(XMLStringElement, ProvideServiceElement):
     _xml_tag = 'service-uri-scheme'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ServiceURIScheme)
 
 class AllServices(XMLEmptyElement):
     _xml_tag = 'all-services'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
+    
+    def __init__(self, provide_all=True):
+        XMLEmptyElement.__init__(self)
+    
+    def __new__(cls, provide_all=True):
+        if not provide_all:
+            return None
+        return XMLEmptyElement.__new__(cls)
 
-PresRulesMeta.register(AllServices)
 
 class ProvideServices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-services'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-    def __init__(self, provides=[]):
+    def _on_all_set(self, attribute):
+        if getattr(self, attribute.name) is not None:
+            self.clear()
+    all = XMLElementChild('all', type=AllServices, required=False, test_equal=True, onset=_on_all_set)
+    del _on_all_set
+
+    def __init__(self, all=False, provides=[]):
+        XMLListElement.__init__(self)
+        self.all = all
         self[0:0] = provides
     
-    def _parse_element(self, element):
+    def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            child_cls = self._xml_meta.get(child.tag)
-            if child_cls is not None:
-                self.append(child_cls.from_element(child, xml_meta=self._xml_meta))
+            if child.tag == AllServices.qname:
+                continue
+            elif self.all:
+                element.remove(child)
+            else:
+                child_cls = self._xml_application.get_element(child.tag)
+                if child_cls is not None and issubclass(child_cls, ProvideServiceElement):
+                    list.append(self, child_cls.from_element(child, *args, **kwargs))
 
-    def _build_element(self, element, nsmap):
-        for child in self:
-            child.to_element(parent=element, nsmap=nsmap)
+    def _build_element(self, *args, **kwargs):
+        if self.all:
+            self.clear()
+        else:
+            for child in self:
+                child.to_element(*args, **kwargs)
 
-PresRulesMeta.register(ProvideServices)
+    def _add_item(self, value):
+        if not isinstance(value, ProvideServiceElement):
+            raise TypeError("ProvideServices elements can only have ProvideServiceElement instances as children, got %s instead" % value.__class__.__name__)
+        self._insert_element(value.element)
+        return value
 
-class BooleanProvideElement(XMLStringElement):
-    class BooleanString(str):
-        def __eq__(self, obj):
-            return str(self).lower() == str(obj).lower()
+    def _del_item(self, value):
+        self.element.remove(value.element)
 
-        def __hash__(self):
-            return hash(str(self).lower())
+    def __repr__(self):
+        return '%s(%r, %s)' % (self.__class__.__name__, self.all, list.__repr__(self))
 
-    _xml_tag = None # to be defined
-    _xml_namespace = None # to be defined
-    _xml_attrs = {} # can be defined
-    _xml_meta = None # to be defined
-    _xml_values = (BooleanString('True'), BooleanString('False'))
+    __str__ = __repr__
+
+
+## Transformation elements
+
+class BooleanProvideElement(XMLElement):
+    def __init__(self, value=True):
+        XMLElement.__init__(self)
+        self.value = value
+
+    def _parse_element(self, element, *args, **kwargs):
+        if element.text.lower() == 'true':
+            self.value = True
+        else:
+            self.value = False
+
+    def _build_element(self, *args, **kwargs):
+        self.element.text = str(self.value).lower()
+    
+    def __nonzero__(self):
+        return self.value
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.value)
+
+    __str__ = __repr__
+
 
 class ProvideActivities(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-activities'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideActivities)
 
 class ProvideClass(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-class'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideClass)
 
 class ProvideDeviceID(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-deviceID'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideDeviceID)
 
 class ProvideMood(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-mood'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideMood)
 
 class ProvidePlaceIs(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-place-is'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvidePlaceIs)
 
 class ProvidePlaceType(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-place-type'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvidePlaceType)
 
 class ProvidePrivacy(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-privacy'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvidePrivacy)
 
 class ProvideRelationship(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-relationship'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideRelationship)
 
 class ProvideStatusIcon(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-status-icon'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideStatusIcon)
 
 class ProvideSphere(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-sphere'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideSphere)
 
 class ProvideTimeOffset(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-time-offset'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideTimeOffset)
 
 class ProvideUserInput(XMLStringElement, TransformationElement):
     _xml_tag = 'provide-user-input'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
     _xml_lang = False
-    _xml_values = ('false', 'bare', 'thresholds', 'full')
+    _xml_value_type = ProvideUserInputValue
 
-PresRulesMeta.register(ProvideUserInput)
 
 class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-unknown-attribute'
     _xml_namespace = _pr_namespace_
-    _xml_attrs = {'name': {},
-                 'ns': {}}
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
+
+    name = XMLAttribute('name', type=str, required=True, test_equal=True)
+    ns = XMLAttribute('ns', type=str, required=True, test_equal=True)
 
     def __init__(self, ns, name, value):
         BooleanProvideElement.__init__(self, value)
         self.ns = ns
         self.name = name
 
-PresRulesMeta.register(ProvideUnknownAttribute)
+    def __repr__(self):
+        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.ns, self.name, self.value)
+
+    __str__ = __repr__
+
 
 class ProvideAllAttributes(XMLEmptyElement, TransformationElement):
     _xml_tag = 'provide-all-attributes'
     _xml_namespace = _pr_namespace_
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
 
-PresRulesMeta.register(ProvideAllAttributes)
 
 class PresRules(RuleSet):
-    _xml_meta = PresRulesMeta
+    _xml_application = PresRulesApplication
     _xml_schema_file = 'pres-rules.xsd'
     _xml_nsmap = {'pr': _pr_namespace_,
                   'cr': _cp_namespace_}
 
-PresRulesMeta.register(PresRules)
+
