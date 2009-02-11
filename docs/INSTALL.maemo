@@ -72,7 +72,7 @@ apt-get install wget gcc make libc6-dev python2.5-setuptools subversion \
 libgnutls26 libgnutls-dev libasound2-dev patch openssl libssl-dev libxslt1-dev
 
 easy_install -U setuptools twisted dnspython python-application \
-python-gnutls mercurial cython lxml
+python-gnutls cython lxml
 
 cd /media/mmc1/work
 
@@ -93,8 +93,9 @@ cd ..
 # Download, patch and install greenlet
 
 # Download and install eventlet for twisted
-hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
-cd eventlet_twisted
+wget http://download.ag-projects.com/EventletTwisted/eventlet-0.9pre.tar.gz
+tar -xf eventlet-0.9pre.tar.gz
+cd eventlet-0.9pre
 python setup.py install
 cd ..
 

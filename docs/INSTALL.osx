@@ -55,7 +55,7 @@ cd ..
 
 # Download and install other Python dependencies
 sudo easy_install --script-dir /usr/bin -U setuptools
-sudo easy_install -U cython python-application dnspython twisted py mercurial
+sudo easy_install -U cython python-application dnspython twisted py
 
 Download and install dependencies available in AG Projects repositories:
 
@@ -72,18 +72,10 @@ fi
 cd ..
 
 # eventlet for twisted
-export LC_CTYPE=
-if [ -d eventlet_twisted ]; then
-	# Install eventlet the first time
-	cd eventlet_twisted
-	hg pull
-	hg update
-	sudo python setup.py install
-else
-	hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted
-	cd eventlet_twisted
-	sudo python setup.py install
-fi
+wget http://download.ag-projects.com/EventletTwisted/eventlet-0.9pre.tar.gz
+tar -xf eventlet-0.9pre.tar.gz
+cd eventlet-0.9pre
+sudo python setup.py install
 cd ..
 
 # python-xcaplib
