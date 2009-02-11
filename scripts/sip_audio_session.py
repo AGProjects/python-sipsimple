@@ -130,30 +130,6 @@ class EventHandler(object):
             queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
 
 
-class RingingThread(Thread):
-
-    def __init__(self, inbound):
-        self.inbound = inbound
-        self.stopping = False
-        Thread.__init__(self)
-        self.setDaemon(True)
-        self.start()
-
-    def stop(self):
-        self.stopping = True
-
-    def run(self):
-        global queue
-        while True:
-            if self.stopping:
-                return
-            if self.inbound:
-                queue.put(("play_wav", "ring_inbound.wav"))
-            else:
-                queue.put(("play_wav", "ring_outbound.wav"))
-            sleep(5)
-
-
 def print_control_keys():
     print "Available control keys:"
     print "  h: hang-up the active session"
@@ -252,7 +228,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         if "code" in args and args["code"] == 180:
                             if ringer is None:
                                 print "Ringing..."
-                                ringer = RingingThread(target_uri is None)
+                                ringer = WaveFile(get_path("ring_outbound.wav"))
+                                ringer.start(loop_count=0, pause_time=0.5)
                     elif args["state"] == "CONNECTING":
                         if "headers" in args and "User-Agent" in args["headers"]:
                             other_user_agent = args["headers"].get("User-Agent")
@@ -264,7 +241,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                                 inv = obj
                                 other_user_agent = args["headers"].get("User-Agent")
                                 if ringer is None:
-                                    ringer = RingingThread(True)
+                                    ringer = WaveFile(get_path("ring_inbound.wav"))
+                                    ringer.start(loop_count=0, pause_time=0.5)
                                 inv.respond_to_invite_provisionally()
                                 print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(inv.caller_uri)
                             else:
@@ -358,7 +336,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain))
                             try:
                                 file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), src, dst))
-                                rec_file = e.rec_wav_file(file_name)
+                                rec_file = RecordingWaveFile(file_name)
+                                rec_file.start()
                                 print 'Recording audio to "%s"' % rec_file.file_name
                             except OSError, e:
                                 print "Error while trying to record file: %s"
@@ -408,8 +387,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         ec_tail_length = min(500, ec_tail_length + 10)
                         e.auto_set_sound_devices(ec_tail_length)
                     print "Set echo cancellation tail length to %d ms" % ec_tail_length
-            if command == "play_wav":
-                e.play_wav_file(get_path(data))
             if command == "check_media":
                 if inv and audio:
                     if audio.transport.remote_rtp_address_received is None:
