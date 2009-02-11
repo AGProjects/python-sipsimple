@@ -90,6 +90,14 @@ Security and privacy
 Presence
 --------
 
+- Enhance XML Applications to in order to be able to: [LS]
+  * keep unknown elements/attributes in parsed documents for reconstruction [LS]
+  * allow parsing of partially valid documents [LS]
+  * make it more robust for applications which require ordering of elements [LS]
+  * remove need for using xml schemas [LS]
+  * generate of partial XCAP updates [LS]
+  * allow feature to update documents from xcap-diff to be easily added in [LS]
+    the future [LS]
 - Conference event package [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
