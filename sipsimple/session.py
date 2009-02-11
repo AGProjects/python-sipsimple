@@ -193,7 +193,8 @@ class Session(object):
     def _change_state(self, new_state):
         prev_state = self.state
         self.state = new_state
-        self.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
+        if prev_state != new_state:
+            self.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
     def _process_queue(self):
         was_on_hold = self.on_hold_by_local
@@ -349,12 +350,11 @@ class SessionManager(object):
             else:
                 inv.respond_to_invite_provisionally(180)
                 session = Session()
-                session.state = "INCOMING"
                 session._inv = inv
                 session.remote_user_agent = data.headers.get("User-Agent", None)
                 self.inv_mapping[inv] = session
+                session._change_state("INCOMING")
                 self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media))
-                self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state="NULL", state=session.state))
         else:
             session = self.inv_mapping.get(inv, None)
             if session is None:
@@ -371,7 +371,7 @@ class SessionManager(object):
                         if session.remote_user_agent is None:
                             session.remote_user_agent = data.headers.get("User-Agent", None)
                 elif data.state == "CONFIRMED":
-                    session.state = "ESTABLISHED"
+                    session._change_state("ESTABLISHED")
                     if data.prev_state == "CONNECTING":
                         self.notification_center.post_notification("SCSessionDidStart", session, TimestampedNotificationData())
                     # TODO: if data.prev_state == "REINVITING" and a stream is being added,
@@ -402,7 +402,7 @@ class SessionManager(object):
                         notification_dict["has_audio"] = "audio" not in current_remote_media and "audio" in proposed_remote_media
                         if True in notification_dict.values():
                             inv.respond_to_reinvite(180)
-                            session.state = "PROPOSED"
+                            session._change_state("PROPOSED")
                             self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(**notification_dict))
                         else:
                             inv.set_offered_local_sdp(session._make_next_sdp(False))
@@ -412,7 +412,6 @@ class SessionManager(object):
                         inv.respond_to_reinvite(488)
                 elif data.state == "DISCONNECTED":
                     del self.inv_mapping[inv]
-                    session.state = "TERMINATED"
                     if hasattr(data, "headers"):
                         if session.remote_user_agent is None:
                             session.remote_user_agent = data.headers.get("Server", None)
@@ -420,11 +419,10 @@ class SessionManager(object):
                             session.remote_user_agent = data.headers.get("User-Agent", None)
                     session._stop_media()
                     session._inv = None
+                    session._change_state("TERMINATED")
                     if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
                         self.notification_center.post_notification("SCSessionDidFail", session, TimestampedNotificationData())
                     self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData())
-                if prev_session_state != session.state:
-                    self.notification_center.post_notification("SCSessionChangedState", session, TimestampedNotificationData(prev_state=prev_session_state, state=session.state))
             finally:
                 session._lock.release()
 
