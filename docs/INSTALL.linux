@@ -94,13 +94,6 @@ cd python-sipsimple
 sudo python setup.py install
 
 
-Notes
------
-
-- The unix user must belong to the 'audio' group
-- Use the ALSA drivers
-
-
 Building a Debian package
 ---------------------------
 
@@ -132,11 +125,4 @@ debuild
 
 You will now have a debian package in the upper level of each directory that
 you can install using dpkg -i command.
-
-
-Notes
------
-
-- The unix user must belong to the 'audio' group
-- OSS drivers are not supported. You must use ALSA drivers.
 
