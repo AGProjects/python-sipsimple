@@ -39,7 +39,7 @@ version numbers:
 python-gnutls       http://pypi.python.org/simple/python-gnutls/      >=1.1.6
 python-lxml         http://codespeak.net/lxml                         >=2.1.2
 cython              http://www.cython.org                             >=0.10
-python-application  http://pypi.python.org/simple/python-application  >=1.0.9
+python-application  http://pypi.python.org/simple/python-application  >=1.1.0
 dnspython           http://www.dnspython.org                          >=1.6.0        
 twisted             http://twistedmatrix.com/trac/                    >=8.1.0
 pylib               http://codespeak.net/py                           >=0.9.2
