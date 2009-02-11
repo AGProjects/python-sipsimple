@@ -26,9 +26,7 @@ from sipsimple.clients import enrollment
 from sipsimple.clients.log import Logger
 
 from sipsimple.applications import BuilderError
-from sipsimple.applications.pidf import *
-from sipsimple.applications.presdm import *
-from sipsimple.applications.rpid import *
+from sipsimple.applications.presence import *
 
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.dns_lookup import *
@@ -96,30 +94,30 @@ def random_note():
 
 def auto_publish(interval):
     # initialize top level elements
-    tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
+    tuple = Service(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic='open'))
     tuple.contact = Contact("sip:%s@%s" % (sip_uri.user, sip_uri.host))
-    tuple.contact.priority = "0"
-    tuple.relationship = Relationship('self')
-    tuple.timestamp = Timestamp()
+    tuple.contact.priority = 0
+    tuple.relationship = 'self'
+    tuple.timestamp = ServiceTimestamp()
     pidf.append(tuple)
 
     # add email service
-    email_tuple = Tuple(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic=Basic('open')))
+    email_tuple = Service(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic='open'))
     email_tuple.contact = Contact("mailto:%s@%s" % (sip_uri.user, sip_uri.host))
-    email_tuple.contact.priority = "0.5"
-    email_tuple.relationship = Relationship('self')
-    email_tuple.timestamp = Timestamp()
+    email_tuple.contact.priority = 0.5
+    email_tuple.relationship = 'self'
+    email_tuple.timestamp = ServiceTimestamp()
     pidf.append(email_tuple)
 
     person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
     person.privacy = Privacy()
     person.time_offset = TimeOffset()
-    person.timestamp = DMTimestamp()
+    person.timestamp = PersonTimestamp()
     pidf.append(person)
 
     device = Device(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
-    device.notes.append(DMNote('Powered by %s' % user_agent, lang='en'))
-    device.timestamp = DMTimestamp()
+    device.notes.add(DeviceNote('Powered by %s' % user_agent, lang='en'))
+    device.timestamp = DeviceTimestamp()
     device.user_input = UserInput()
     pidf.append(device)
         
@@ -127,19 +125,19 @@ def auto_publish(interval):
         # 50% chance that basic status will change
         if random.randint(0, 1) == 1:
             if tuple.status.basic == 'open':
-                tuple.status.basic = Basic('closed')
+                tuple.status.basic = 'closed'
             else:
-                tuple.status.basic = Basic('open')
-            tuple.timestamp = Timestamp()
+                tuple.status.basic = 'open'
+            tuple.timestamp = ServiceTimestamp()
         
         # set sphere (9-18 at work (except on weekends), else at home)
         now = datetime.datetime.now()
         if (now.hour >= 9 and now.hour < 18) and now.isoweekday() not in (6, 7):
-            person.sphere = Sphere(Work())
+            person.sphere = 'work'
             person.sphere.since = datetime.datetime(now.year, now.month, now.day, 9, 0)
             person.sphere.until = datetime.datetime(now.year, now.month, now.day, 18, 0)
         else:
-            person.sphere = Sphere(Home())
+            person.sphere = 'home'
 
         # set privacy
         person.privacy.audio = random.choice((True, False))
@@ -152,38 +150,38 @@ def auto_publish(interval):
         # change person note
         if len(person.notes) > 0:
             del person.notes['en']
-        person.notes.append(DMNote(random_note(), lang='en'))
+        person.notes.add(PersonNote(random_note(), lang='en'))
         
         # change person activity
         if person.activities is None:
             person.activities = Activities()
         else:
             person.activities.clear()
-        values = list(Activities._xml_value_maps.get(value, value) for value in Activities._xml_values if value != 'unknown')
-        for i in xrange(random.randrange(3)):
-            person.activities.add(random.choice(values))
+        values = list(value for value in Activities.values if value != 'unknown')
+        for i in xrange(random.randrange(1, 3)):
+            person.activities.append(random.choice(values))
 
         # change person mood
         if person.mood is None:
             person.mood = Mood()
         else:
             person.mood.clear()
-        values = list(Mood._xml_value_maps.get(value, value) for value in Mood._xml_values if value != 'unknown')
-        for i in xrange(random.randrange(3)):
-            person.mood.add(random.choice(values))
+        values = list(value for value in Mood.values if value != 'unknown')
+        for i in xrange(random.randrange(1, 3)):
+            person.mood.append(random.choice(values))
 
         # change place is
         if person.place_is is None:
             person.place_is = PlaceIs()
         # 50% chance that place is will change
         if random.randint(0, 1) == 1:
-            person.place_is.audio = Audio(random.choice(list(Audio._xml_values)))
+            person.place_is.audio = random.choice(('noisy', 'ok', 'quiet', 'unknown'))
         if random.randint(0, 1) == 1:
-            person.place_is.video = Video(random.choice(list(Video._xml_values)))
+            person.place_is.video = random.choice(('toobright', 'ok', 'dark', 'unknown'))
         if random.randint(0, 1) == 1:
-            person.place_is.text = Text(random.choice(list(Text._xml_values)))
+            person.place_is.text = random.choice(('uncomfortable', 'inappropriate', 'ok', 'unknown'))
 
-        person.timestamp = DMTimestamp()
+        person.timestamp = PersonTimestamp()
         
         # set user-input
         if device.user_input.value == 'idle':
@@ -196,7 +194,7 @@ def auto_publish(interval):
             if random.randint(0, 1) == 1:
                 device.user_input.value = 'idle'
                 device.user_input.last_input = now - datetime.timedelta(seconds=30)
-
+        
         # publish new pidf
         publish_pidf()
         sleep(interval)
