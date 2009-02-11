@@ -25,7 +25,8 @@ from sipsimple.clients import enrollment
 from sipsimple.clients.log import Logger
 
 from sipsimple.applications import BuilderError
-from sipsimple.applications.presence import *
+from sipsimple.applications.presdm import *
+from sipsimple.applications.rpid import *
 
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.dns_lookup import *

@@ -3,7 +3,7 @@ from sipsimple.applications.presence import PIDF
 
 
 class PIDFTest(XMLApplicationTest):
-    _test_module = 'presence.presdm'
+    _test_module = 'presdm'
 
 
 if __name__ == '__main__':

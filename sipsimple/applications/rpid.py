@@ -10,7 +10,7 @@ from lxml import etree
 
 from sipsimple.applications import util
 from sipsimple.applications import parse_qname, ValidationError, XMLElement, XMLListElement, XMLEmptyElement, XMLStringElement, XMLAttribute, XMLElementChild
-from sipsimple.applications.presence.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NotesAttribute, Service, Person, Device
+from sipsimple.applications.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NotesAttribute, Service, Person, Device
 
 __all__ = ['_rpid_namespace_',
            'ActivityElement',
