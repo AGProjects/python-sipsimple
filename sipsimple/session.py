@@ -44,7 +44,7 @@ class Session(object):
         self._ringtone = None
 
     # user interface
-    def new(self, callee_uri, credentials, route=None, use_audio=False):
+    def new(self, callee_uri, credentials, route, use_audio=False):
         """Creates a new session to the callee with the requested stream(s).
            Moves the object from the NULL into the CALLING state."""
         self._lock.acquire()

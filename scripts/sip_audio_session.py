@@ -24,6 +24,7 @@ from application.configuration import *
 from application.notification import IObserver
 
 from sipsimple import *
+from sipsimple.session import *
 from sipsimple.clients import enrollment
 from sipsimple.clients.log import Logger
 
@@ -138,17 +139,14 @@ def print_control_keys():
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, transport, auto_hangup):
+def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup):
     global user_quit, lock, queue, return_code
     lock.acquire()
-    inv = None
-    audio = None
+    sess = None
     ringer = None
     printed = False
     rec_file = None
     want_quit = target_uri is not None
-    other_user_agent = None
-    on_hold = False
     session_start_time = None
     no_media_timer = None
     try:
@@ -168,11 +166,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                 print 'Registering "%s" at %s:%d' % (credentials.uri, route.host, route.port)
                 reg.register()
         else:
-            inv = Invitation(credentials, target_uri, route=route)
-            print "Call from %s to %s through proxy %s:%s:%d" % (inv.caller_uri, inv.callee_uri, route.transport, route.host, route.port)
-            audio = AudioTransport(transport)
-            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(True)]))
-            inv.send_invite()
+            sess = Session()
+            sess.new(target_uri, credentials, route, use_audio=True)
+            print "Call from %s to %s through proxy %s:%s:%d" % (sess._inv.caller_uri, sess._inv.callee_uri, route.transport, route.host, route.port)
             print_control_keys()
         while True:
             command, data = queue.get()
@@ -191,128 +187,71 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                     elif args["state"] == "unregistered":
                         if "code" in args and args["code"] / 100 != 2:
                             print "Unregistered: %(code)d %(reason)s" % args
-                        elif inv is None:
+                        elif sess is None:
                             return_code = 0
                         user_quit = False
                         command = "quit"
-                elif event_name == "SCInvitationGotSDPUpdate":
-                    if obj is inv:
-                        if args["succeeded"]:
-                            if not audio.is_started:
-                                if ringer is not None:
-                                    ringer.stop()
-                                    ringer = None
-                                session_start_time = time()
-                                audio.start(args["local_sdp"], args["remote_sdp"], 0)
-                                e.connect_audio_transport(audio)
-                                print 'Media negotiation done, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
-                                print "Audio RTP endpoints %s:%d <-> %s:%d" % (audio.transport.local_rtp_address, audio.transport.local_rtp_port, audio.transport.remote_rtp_address_sdp, audio.transport.remote_rtp_port_sdp)
-                                no_media_timer = Timer(10, lambda: queue.put(("check_media", None)))
-                                no_media_timer.start()
-                                return_code = 0
-                                if auto_hangup is not None:
-                                    Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
-                                if audio.transport.srtp_active:
-                                    print "RTP audio stream is encrypted"
-                            else:
-                                audio.update_direction(inv.get_active_local_sdp().media[0].get_direction())
-                        else:
-                            print "SDP negotation failed: %s" % args["error"]
-                elif event_name == "SCInvitationChangedState":
-                    if args["state"] == args["prev_state"] and args["state"] != "EARLY":
-                        print "SAME STATE"
-                        print args
-                        data, args = None, None
-                        continue
-                    if args["state"] == "EARLY":
-                        if "code" in args and args["code"] == 180:
-                            if ringer is None:
-                                print "Ringing..."
-                                ringer = WaveFile(get_path("ring_outbound.wav"))
-                                ringer.start(loop_count=0, pause_time=0.5)
-                    elif args["state"] == "CONNECTING":
-                        if "headers" in args and "User-Agent" in args["headers"]:
-                            other_user_agent = args["headers"].get("User-Agent")
-                    elif args["state"] == "INCOMING":
-                        print "Incoming session..."
-                        if inv is None:
-                            remote_sdp = obj.get_offered_remote_sdp()
-                            if remote_sdp is not None and len(remote_sdp.media) == 1 and remote_sdp.media[0].media == "audio":
-                                inv = obj
-                                other_user_agent = args["headers"].get("User-Agent")
-                                if ringer is None:
-                                    ringer = WaveFile(get_path("ring_inbound.wav"))
-                                    ringer.start(loop_count=0, pause_time=0.5)
-                                inv.respond_to_invite_provisionally()
-                                print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(inv.caller_uri)
-                            else:
-                                print "Not an audio call, rejecting."
-                                obj.disconnect()
-                        else:
-                            print "Rejecting."
-                            obj.disconnect()
-                    elif args["prev_state"] == "CONNECTING" and args["state"] == "CONFIRMED":
-                        if other_user_agent is not None:
-                            print 'Remote SIP User Agent is "%s"' % other_user_agent
-                    elif args["state"] == "REINVITED":
-                        # Just assume the call got placed on hold for now...
-                        prev_remote_direction = inv.get_active_remote_sdp().media[0].get_direction()
-                        remote_direction = inv.get_offered_remote_sdp().media[0].get_direction()
-                        if "recv" in prev_remote_direction and "recv" not in remote_direction:
-                            print "Remote party is placing us on hold"
-                        elif "recv" not in prev_remote_direction and "recv" in remote_direction:
-                            print "Remote party is taking us out of hold"
-                        local_sdp = inv.get_active_local_sdp()
-                        local_sdp.version += 1
-                        local_sdp.media[0] = audio.get_local_media(False)
-                        inv.set_offered_local_sdp(local_sdp)
-                        inv.respond_to_reinvite()
-                    elif args["state"] == "DISCONNECTED":
-                        if obj is inv:
-                            if rec_file is not None:
-                                rec_file.stop()
-                                print 'Stopped recording audio to "%s"' % rec_file.file_name
-                                rec_file = None
-                            if ringer is not None:
-                                ringer.stop()
-                                ringer = None
-                            if no_media_timer is not None:
-                                try:
-                                    no_media_timer.cancel()
-                                except:
-                                    pass
-                                no_media_timer = None
-                            if args["prev_state"] == "DISCONNECTING":
-                                disc_msg = "Session ended by local user"
-                            elif args["prev_state"] in ["CALLING", "EARLY"]:
-                                if "headers" in args:
-                                    if "Server" in args["headers"]:
-                                        print 'Remote SIP server is "%s"' % args["headers"]["Server"]
-                                    elif "User-Agent" in args["headers"]:
-                                        print 'Remote SIP User Agent is "%s"' % args["headers"]["User-Agent"]
-                                disc_msg = "Session could not be established"
-                            else:
-                                disc_msg = 'Session ended by "%s"' % inv.remote_uri
-                            if "code" in args and args["code"] / 100 != 2:
-                                print "%s: %d %s" % (disc_msg, args["code"], args["reason"])
-                                if args["code"] == 408 and args["prev_state"] == "CONNECTING":
-                                    print "Session failed because ACK was never received"
-                                if args["code"] in [301, 302]:
-                                    print 'Received redirect request to "%s"' % args["headers"]["Contact"]
-                                    return_code = 0
-                            else:
-                                print disc_msg
-                            if session_start_time is not None:
-                                duration = time() - session_start_time
-                                print "Session duration was %d minutes, %d seconds" % (duration / 60, duration % 60)
-                                session_start_time = None
-                            if want_quit:
-                                command = "unregister"
-                            else:
-                                if audio is not None:
-                                    audio.stop()
-                                audio = None
-                                inv = None
+                elif event_name == "SCSessionGotRingIndication":
+                    print "Ringing..."
+                elif event_name == "SCSessionNewIncoming":
+                    print "Incoming session..."
+                    if sess is None:
+                        sess = obj
+                        print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(sess._inv.caller_uri)
+                    else:
+                        print "Rejecting."
+                        obj.reject()
+                elif event_name == "SCSessionDidStart":
+                    session_start_time = time()
+                    audio = sess._audio_transport
+                    rtp = audio.transport
+                    print 'Session established, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
+                    print "Audio RTP endpoints %s:%d <-> %s:%d" % (rtp.local_rtp_address, rtp.local_rtp_port, rtp.remote_rtp_address_sdp, rtp.remote_rtp_port_sdp)
+                    if rtp.srtp_active:
+                        print "RTP audio stream is encrypted"
+                    if sess.remote_user_agent is not None:
+                        print 'Remote SIP User Agent is "%s"' % sess.remote_user_agent
+                    no_media_timer = Timer(10, lambda: queue.put(("check_media", None)))
+                    no_media_timer.start()
+                    return_code = 0
+                    if auto_hangup is not None:
+                        Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
+                elif event_name == "SCSessionGotHoldRequest":
+                    if args["originator"] == "local":
+                        print "Placing call on hold"
+                    else:
+                        print "Remote party is placing us on hold"
+                elif event_name == "SCSessionGotUnholdRequest":
+                    if args["originator"] == "local":
+                        print "Taking call out of hold"
+                    else:
+                        print "Remote party is taking us out of hold"
+                elif event_name == "SCSessionDidFail":
+                    if obj is sess:
+                        print "Session failed!"
+                elif event_name == "SCSessionWillEnd":
+                    if obj is sess:
+                        print "Ending session..."
+                elif event_name == "SCSessionDidEnd":
+                    if obj is sess:
+                        print "Session ended."
+                        if rec_file is not None:
+                            rec_file.stop()
+                            print 'Stopped recording audio to "%s"' % rec_file.file_name
+                            rec_file = None
+                        if no_media_timer is not None:
+                            try:
+                                no_media_timer.cancel()
+                            except:
+                                pass
+                            no_media_timer = None
+                        sess = None
+                        if session_start_time is not None:
+                            duration = time() - session_start_time
+                            print "Session duration was %d minutes, %d seconds" % (duration / 60, duration % 60)
+                            session_start_time = None
+                        if want_quit:
+                            command = "unregister"
                 elif event_name == "SCEngineDetectedNATType":
                     if args["succeeded"]:
                         print "Detected NAT type: %s" % args["nat_type"]
@@ -322,61 +261,45 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                     user_quit = False
                     command = "quit"
             if command == "user_input":
-                if inv is not None:
+                if sess is not None:
                     data = data[0]
                     if data.lower() == "h":
                         command = "end"
                         want_quit = target_uri is not None
-                    elif data in "0123456789*#ABCD" and audio is not None and audio.is_active:
-                        audio.send_dtmf(data)
-                    elif data.lower() == "r":
-                        if rec_file is None:
-                            src = '%s@%s' % (inv.caller_uri.user, inv.caller_uri.host)
-                            dst = '%s@%s' % (inv.callee_uri.user, inv.callee_uri.host)
-                            dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain))
-                            try:
-                                file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), src, dst))
-                                rec_file = RecordingWaveFile(file_name)
-                                rec_file.start()
-                                print 'Recording audio to "%s"' % rec_file.file_name
-                            except OSError, e:
-                                print "Error while trying to record file: %s"
-                        else:
-                            rec_file.stop()
-                            print 'Stopped recording audio to "%s"' % rec_file.file_name
-                            rec_file = None
-                    elif data == " ":
-                        if inv.state == "CONFIRMED":
-                            if not on_hold:
-                                on_hold = True
-                                print "Placing call on hold"
-                                if "send" in audio.direction:
-                                    new_direction = "sendonly"
-                                else:
-                                    new_direction = "inactive"
-                                e.disconnect_audio_transport(audio)
+                    if sess.state == "ESTABLISHED":
+                        if data in "0123456789*#ABCD":
+                            sess.send_dtmf(data)
+                        elif data.lower() == "r" :
+                            if rec_file is None:
+                                src = '%s@%s' % (sess._inv.caller_uri.user, sess._inv.caller_uri.host)
+                                dst = '%s@%s' % (sess._inv.callee_uri.user, sess._inv.callee_uri.host)
+                                dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain))
+                                try:
+                                    file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), src, dst))
+                                    rec_file = RecordingWaveFile(file_name)
+                                    rec_file.start()
+                                    print 'Recording audio to "%s"' % rec_file.file_name
+                                except OSError, e:
+                                    print "Error while trying to record file: %s"
                             else:
-                                on_hold = False
-                                print "Taking call out of hold"
-                                if "send" in audio.direction:
-                                    new_direction = "sendrecv"
+                                rec_file.stop()
+                                print 'Stopped recording audio to "%s"' % rec_file.file_name
+                                rec_file = None
+                        elif data == " ":
+                            try:
+                                if sess.on_hold_by_local:
+                                    sess.unhold()
                                 else:
-                                    new_direction = "recvonly"
-                                e.connect_audio_transport(audio)
-                            local_sdp = inv.get_active_local_sdp()
-                            local_sdp.version += 1
-                            local_sdp.media[0] = audio.get_local_media(True, new_direction)
-                            inv.set_offered_local_sdp(local_sdp)
-                            inv.send_reinvite()
-                    elif inv.state in ["INCOMING", "EARLY"] and target_uri is None:
+                                    sess.hold()
+                            except RuntimeError:
+                                pass
+                    elif sess.state == "INCOMING":
                         if data.lower() == "n":
-                            command = "end"
-                            want_quit = False
+                            sess.reject()
+                            print "Session rejected."
+                            sess = None
                         elif data.lower() == "y":
-                            remote_sdp = inv.get_offered_remote_sdp()
-                            audio = AudioTransport(transport, remote_sdp, 0)
-                            inv.set_offered_local_sdp(SDPSession(audio.transport.local_rtp_address, connection=SDPConnection(audio.transport.local_rtp_address), media=[audio.get_local_media(False)], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time))
-                            inv.accept_invite()
+                            sess.accept(use_audio=True)
                 if data in ",<":
                     if ec_tail_length > 0:
                         ec_tail_length = max(0, ec_tail_length - 10)
@@ -388,8 +311,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         e.auto_set_sound_devices(ec_tail_length)
                     print "Set echo cancellation tail length to %d ms" % ec_tail_length
             if command == "check_media":
-                if inv and audio:
-                    if audio.transport.remote_rtp_address_received is None:
+                if sess and sess.state == "ESTABLISHED":
+                    if sess._audio_transport.transport.remote_rtp_address_received is None:
                         print "No media received after 10 seconds, ending session"
                         return_code = 1
                         command = "end"
@@ -399,7 +322,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                 want_quit = True
             if command == "end":
                 try:
-                    inv.disconnect()
+                    sess.terminate()
                 except:
                     command = "unregister"
             if command == "unregister":
@@ -450,15 +373,13 @@ def do_invite(**kwargs):
 
     e = Engine()
     event_handler = EventHandler(e)
-    e.start(auto_sound=not kwargs.pop("disable_sound"), codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs["local_ip"], local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
+    e.start(auto_sound=not kwargs.pop("disable_sound"), codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     if kwargs["target_uri"] is not None:
         kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     transport_kwargs = AudioConfig.encryption.copy()
     transport_kwargs["use_ice"] = AccountConfig.use_ice
-    wait_for_stun = False
     if AccountConfig.use_stun_for_ice:
         if len(AccountConfig.stun_servers) > 0:
-            wait_for_stun = True
             try:
                 random_stun = random.choice(AccountConfig.stun_servers)
                 transport_kwargs["ice_stun_address"], ice_stun_port = random_stun.split(":")
@@ -469,22 +390,10 @@ def do_invite(**kwargs):
                 transport_kwargs["ice_stun_port"] = int(ice_stun_port)
         else:
             if len(kwargs["stun_servers"]) > 0:
-                wait_for_stun = True
                 transport_kwargs["ice_stun_address"], transport_kwargs["ice_stun_port"] = random.choice(kwargs["stun_servers"])
-    kwargs["transport"] = RTPTransport(kwargs.pop("local_ip"), **transport_kwargs)
-    if wait_for_stun:
-        print "Waiting for STUN response for ICE from %s:%d" % (transport_kwargs["ice_stun_address"], transport_kwargs["ice_stun_port"])
-        while True:
-            command, data = queue.get()
-            if command == "print":
-                print data
-            elif command == "core_event":
-                event_name, args = data
-                if event_name == "RTPTransport_init":
-                    if args["succeeded"]:
-                        break
-                    else:
-                        raise RuntimeError("STUN request failed")
+    sm = SessionManager()
+    sm.ringtone_config.default_ringtone = get_path("ring_inbound.wav")
+    sm.rtp_config.__dict__.update(transport_kwargs)
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
     try:
