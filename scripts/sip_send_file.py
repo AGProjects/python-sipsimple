@@ -8,8 +8,8 @@ from msrplib.connect import MSRPConnectFactory
 from msrplib.trafficlog import TrafficLogger, StateLogger, hook_std_output; hook_std_output()
 from msrplib.protocol import URI
 
-from sipsimple import Credentials, SDPAttribute, SDPMedia
-from sipsimple.green.engine import GreenEngine, Ringer
+from sipsimple import Credentials, SDPAttribute, SDPMedia, WaveFile
+from sipsimple.green.engine import GreenEngine
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.sdputil import FileSelector
 from sipsimple.clients.config import parse_options
@@ -55,6 +55,10 @@ class SDPOfferFactory:
 description = "Start a MSRP session file transfer to the specified target SIP address."
 usage = "%prog [options] target-user@target-domain.com filename"
 
+class SimpleRinger(WaveFile):
+
+    def start(self):
+        return WaveFile.start(self, loop_count=0)
 
 def main():
     options = parse_options(usage, description)
@@ -77,7 +81,7 @@ def main():
         inv = e.Invitation(credentials, options.target_uri, route=options.route)
         logger = TrafficLogger.to_file(is_enabled_func = lambda: options.trace_msrp)
         msrp_connector = MSRPConnectFactory.new(None, traffic_logger=logger, state_logger=StateLogger())
-        ringer = Ringer(e.play_wav_file, get_path("ring_outbound.wav"))
+        ringer = SimpleRinger(get_path("ring_outbound.wav"))
         local_uri = URI(use_tls = options.msrp_tls)
         session = MSRPSession.invite(inv, msrp_connector, sdp.make_SDPMedia, ringer=ringer, local_uri=local_uri)
         # XXX: msrpsession must accept file object
@@ -85,7 +89,6 @@ def main():
         print 'Sent %s.' % sdp.fileselector
         if not options.disable_sound:
             e.play_wav_file(get_path("message_sent.wav"))
-            sleep(0.5) # QQQ wait for wav
     except MSRPSessionErrors, ex:
         sys.exit(str(ex) or type(ex).__name__)
     finally:

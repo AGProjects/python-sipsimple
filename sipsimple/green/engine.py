@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from eventlet.api import sleep
 from eventlet import api, proc, coros
 
-from sipsimple import Engine, Registration, Invitation
+from sipsimple import Engine, Registration, Invitation, WaveFile
 from sipsimple.green import notification
 from sipsimple.green.util import wrapdict
 from sipsimple.logstate import RegistrationLogger, InvitationLogger, SIPTracer, PJSIPTracer, EngineTracer
@@ -112,6 +112,11 @@ class GreenEngine(Engine):
         finally:
             self.notification_center.remove_observer(observer, 'SCInvitationChangedState')
 
+    def play_wav_file(self, filepath, *args, **kwargs):
+        w = WaveFile(filepath)
+        w.start(*args, **kwargs)
+        notification.wait_notification(self.notification_center, name='SCWaveFileDidEnd', sender=w)
+        w.stop()
 
 class IncomingSessionHandler:
 

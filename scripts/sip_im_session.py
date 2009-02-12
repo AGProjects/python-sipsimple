@@ -13,7 +13,7 @@ from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
 
-from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError
+from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer
 from sipsimple.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
@@ -535,7 +535,7 @@ def start(options, console):
             reg = engine.Registration(credentials, route=options.route, expires=300)
             proc.spawn_greenlet(reg.register)
         console.set_ps('%s@%s> ' % (options.uri.user, options.uri.host))
-        sound = ThrottlingSoundPlayer(engine.play_wav_file)
+        sound = ThrottlingSoundPlayer()
         manager = ChatManager(engine, sound, credentials, console, msrplogger,
                               options.auto_accept_files,
                               route=options.route,
@@ -625,16 +625,22 @@ class ThrottlingSoundPlayer:
     LIMIT = 2
     VOLUME = 25
 
-    def __init__(self, play_wav_func):
-        self.play_wav_file = play_wav_func
-        self.last_times = {}
+    def __init__(self):
+        self.cache = {} # { filename: (WaveFile instance, last time it played) }
 
     def play(self, filename):
-        last_time = self.last_times.setdefault(filename, 0)
+        try:
+            wavefile, last_time = self.cache[filename]
+        except KeyError:
+            wavefile = WaveFile(get_path(filename))
+            last_time = 0
         current = time.time()
-        if current-last_time > self.LIMIT:
-            self.play_wav_file(get_path(filename), self.VOLUME)
-            self.last_times[filename] = current
+        if current - last_time > self.LIMIT:
+            if last_time:
+                wavefile.stop()
+            last_time = current
+            wavefile.start(self.VOLUME)
+            self.cache[filename] = (wavefile, last_time)
 
 
 description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."
