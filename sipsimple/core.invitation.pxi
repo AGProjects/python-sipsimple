@@ -370,26 +370,31 @@ cdef class Invitation:
 # callback functions
 
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
+    global _callback_exc
     cdef Invitation invitation
     cdef object state
     cdef pjsip_rx_data *rdata = NULL
     cdef PJSIPUA ua = c_get_ua()
-    if _ua != NULL:
-        ua = <object> _ua
-        if inv.state == PJSIP_INV_STATE_INCOMING:
-            return
-        if inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
-            state = pjsip_inv_state_name(inv.state)
-            if state == "DISCONNCTD":
-                state = "DISCONNECTED"
-            if e != NULL:
-                if e.type == PJSIP_EVENT_RX_MSG:
-                    rdata = e.body.rx_msg.rdata
-                elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                    if inv.state != PJSIP_INV_STATE_CONFIRMED or e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
-                        rdata = e.body.tsx_state.src.rdata
-            invitation._cb_state(state, rdata)
+    try:
+        ua = c_get_ua()
+        if _ua != NULL:
+            ua = <object> _ua
+            if inv.state == PJSIP_INV_STATE_INCOMING:
+                return
+            if inv.mod_data[ua.c_module.id] != NULL:
+                invitation = <object> inv.mod_data[ua.c_module.id]
+                state = pjsip_inv_state_name(inv.state)
+                if state == "DISCONNCTD":
+                    state = "DISCONNECTED"
+                if e != NULL:
+                    if e.type == PJSIP_EVENT_RX_MSG:
+                        rdata = e.body.rx_msg.rdata
+                    elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                        if inv.state != PJSIP_INV_STATE_CONFIRMED or e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
+                            rdata = e.body.tsx_state.src.rdata
+                invitation._cb_state(state, rdata)
+    except:
+        _callback_exc = sys.exc_info()
 
 cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
     global _callback_exc
