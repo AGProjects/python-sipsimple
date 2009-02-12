@@ -142,11 +142,17 @@ cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         elif hdr_name not in ["Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"]: # skip these
             string_hdr = <pjsip_generic_string_hdr *> hdr
             hdr_data = pj_str_to_str(string_hdr.hvalue)
+            if hdr_name == "Warning":
+                hdr_data = _re_warning_hdr.match(hdr_data)
+                if hdr_data is not None:
+                    hdr_data = hdr_data.groups()
+                    hdr_data = (int(hdr_data[0]), hdr_data[1], hdr_data[2])
         if hdr_data is not None:
             if hdr_multi:
                 headers.setdefault(hdr_name, []).append(hdr_data)
             else:
-                headers[hdr_name] = hdr_data
+                if hdr_name not in headers:
+                    headers[hdr_name] = hdr_data
         hdr = <pjsip_hdr *> (<pj_list *> hdr).next
     body = rdata.msg_info.msg.body
     if body == NULL:
@@ -164,3 +170,4 @@ cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
 # globals
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
+cdef object _re_warning_hdr = re.compile('([0-9]{3}) (.*?) "(.*?)"')
