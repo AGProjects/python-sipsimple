@@ -450,11 +450,14 @@ class SessionManager(object):
                             session.remote_user_agent = data.headers.get("Server", None)
                         if session.remote_user_agent is None:
                             session.remote_user_agent = data.headers.get("User-Agent", None)
+                        originator = "remote"
+                    else:
+                        originator = "local"
                     session._stop_media()
                     session._inv = None
                     session._change_state("TERMINATED")
                     if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
-                        failure_data = TimestampedNotificationData()
+                        failure_data = TimestampedNotificationData(originator=originator)
                         if hasattr(data, "code"):
                             if "Warning" in data.headers:
                                 failure_data.reason = "%s (%s)" % (data.reason, data.headers["Warning"][2])
@@ -463,7 +466,7 @@ class SessionManager(object):
                         else:
                             failure_data.reason = session._sdpneg_failure_reason
                         self.notification_center.post_notification("SCSessionDidFail", session, failure_data)
-                    self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData())
+                    self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData(originator=originator))
             finally:
                 session._lock.release()
 
