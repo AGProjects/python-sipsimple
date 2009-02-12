@@ -42,6 +42,7 @@ class Session(object):
         self._audio_transport = None
         self._queue = deque()
         self._ringtone = None
+        self._sdpneg_failure_reason = None
 
     # user interface
     def new(self, callee_uri, credentials, route, use_audio=False):
@@ -453,7 +454,15 @@ class SessionManager(object):
                     session._inv = None
                     session._change_state("TERMINATED")
                     if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
-                        self.notification_center.post_notification("SCSessionDidFail", session, TimestampedNotificationData())
+                        failure_data = TimestampedNotificationData()
+                        if hasattr(data, "code"):
+                            if "Warning" in data.headers:
+                                failure_data.reason = "%s (%s)" % (data.reason, data.headers["Warning"][2])
+                            else:
+                                failure_data.reason = data.reason
+                        else:
+                            failure_data.reason = session._sdpneg_failure_reason
+                        self.notification_center.post_notification("SCSessionDidFail", session, failure_data)
                     self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData())
             finally:
                 session._lock.release()
@@ -466,8 +475,10 @@ class SessionManager(object):
         try:
             if data.succeeded:
                 session._update_media(data.local_sdp, data.remote_sdp)
+                session._sdpneg_failure_reason = None
             else:
                 session._cancel_media()
+                session._sdpneg_failure_reason = data.error
         finally:
             session._lock.release()
 
