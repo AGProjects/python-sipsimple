@@ -28,6 +28,38 @@ sipclient (0.4.0) unstable; urgency=low
     a specified amount of time
   * Enhanced XML applications in order to be more robust in usage and allow for
     future implementation of features such as xcap-diff
+  * Updated eventlet-based interface to engine and moved it to green package
+  * Moved logging from green classes into logstate.py module
+  * Fixed bug: in CPIM headers 'sips' was parsed as 'sip'
+  * Fixed bug: CPIM content was not generated / parsed properly (must add
+    space before Content-Type line)
+  * sip_im_session: throttle played sounds and play them at specified volume
+  * sip_im_session: calling from command line is equivalent to issuing :call
+  * sip_im_session: do things in the background when possible (like
+    registrations and closing sessions)
+  * sip_im_session: print a calming message if it takes longer than 1 sec to
+    finish SIP transactions before exit
+  * sip_im_session: added --no-register option
+  * sip_im_session and sip_send_file: added --msrp-tcp option
+  * sip_im_session: save chat history under .sipclient/history
+  * sip_im_session: hide "Early session" messages
+  * sip_im_session and sip_send file: relay can no longer be used for outgoing
+    session. -r auto option is deprecated.
+  * sip_send_file: fixed -m option to work
+  * sip_im_session and sip_send_file: added --trace-engine option
+  * sip_im_session: fixed to ignore path in incoming file transfers
+  * sip_send_file: fixed not to put path in file transfer description
+  * Added iso8601.py by Michael Twomey for parsing CPIM's DateTime header
+  * CPIM now puts DateTime header in every message. DateTime is also used now
+    when displaying incoming messages
+  * Fixed green package to end session with 500 in case of exception (not 488)
+  * sip_im_session: don't exit if failed to parse an incoming message
+  * Fixed shutdown functions not to silent pypjua errors
+  * Avoid hiding tracebacks by not using potentially blocking code in finally
+  * Fixed a number of bugs in chat scripts
+  * Removed debug_util.py
+  * Removed chatroom.py
+  * Removed trafficlog.py
 
  -- Adrian Georgescu <ag@ag-projects.com>  Mon, 19 Jan 2009 17:26:02 +0100
 
