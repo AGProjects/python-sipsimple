@@ -229,12 +229,17 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                 elif event_name == "SCSessionDidFail":
                     if obj is sess:
                         print "Session failed: %s" % args["reason"]
+                        if args["originator"] == "remote" and sess.remote_user_agent is not None:
+                            print 'Remote SIP User Agent is "%s"' % sess.remote_user_agent
                 elif event_name == "SCSessionWillEnd":
                     if obj is sess:
                         print "Ending session..."
                 elif event_name == "SCSessionDidEnd":
                     if obj is sess:
-                        print "Session ended."
+                        if args["originator"] == "local":
+                            print "Session by local party."
+                        else:
+                            print "Session ended by remote party."
                         if rec_file is not None:
                             rec_file.stop()
                             print 'Stopped recording audio to "%s"' % rec_file.file_name
