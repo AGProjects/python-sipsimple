@@ -228,7 +228,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         print "Remote party is taking us out of hold"
                 elif event_name == "SCSessionDidFail":
                     if obj is sess:
-                        print "Session failed!"
+                        print "Session failed: %s" % args["reason"]
                 elif event_name == "SCSessionWillEnd":
                     if obj is sess:
                         print "Ending session..."
