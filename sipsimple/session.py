@@ -459,7 +459,7 @@ class SessionManager(object):
                     if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
                         failure_data = TimestampedNotificationData(originator=originator)
                         if hasattr(data, "code"):
-                            if "Warning" in data.headers:
+                            if hasattr(data, "headers") and "Warning" in data.headers:
                                 failure_data.reason = "%s (%s)" % (data.reason, data.headers["Warning"][2])
                             else:
                                 failure_data.reason = data.reason
