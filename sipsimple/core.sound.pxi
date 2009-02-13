@@ -221,7 +221,7 @@ cdef class RecordingWaveFile:
             if _ua == NULL:
                 return False
             else:
-                return bool(self.timer_is_active or self.port != NULL)
+                return self.port != NULL
 
     def start(self):
         cdef int status
