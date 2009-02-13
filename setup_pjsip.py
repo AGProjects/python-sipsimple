@@ -151,9 +151,8 @@ class PJSIP_build_ext(build_ext):
         if extension.name == "sipsimple.core":
             self.check_cython_version()
             svn_updated = self.fetch_pjsip_from_svn()
-            if svn_updated:
-                if self.patch_files:
-                    self.patch_pjsip()
+            if self.patch_files:
+                self.patch_pjsip()
             compile_needed = svn_updated
             if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
                 self.configure_pjsip()
