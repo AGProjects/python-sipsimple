@@ -600,7 +600,8 @@ class XMLStringElement(XMLElement):
             self.lang = None
 
     def _build_element(self, *args, **kwargs):
-        self.element.text = str(self.value)
+        if self.value is not None:
+            self.element.text = str(self.value)
         if not self._xml_lang and self.lang is not None:
             del self.element[self.__class__.lang.xmlname]
 
