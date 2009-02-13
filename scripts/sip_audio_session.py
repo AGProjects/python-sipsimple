@@ -276,11 +276,11 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             sess.send_dtmf(data)
                         elif data.lower() == "r" :
                             if rec_file is None:
-                                src = '%s@%s' % (sess._inv.caller_uri.user, sess._inv.caller_uri.host)
-                                dst = '%s@%s' % (sess._inv.callee_uri.user, sess._inv.callee_uri.host)
+                                remote = '%s@%s' % (sess._inv.remote_uri.user, sess._inv.remote_uri.host)
+                                direction = "outgoing" if sess._inv.is_outgoing else "incoming"
                                 dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain))
                                 try:
-                                    file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), src, dst))
+                                    file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction))
                                     rec_file = RecordingWaveFile(file_name)
                                     rec_file.start()
                                     print 'Recording audio to "%s"' % rec_file.file_name
