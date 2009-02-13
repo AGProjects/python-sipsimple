@@ -3,8 +3,8 @@ SIP core
 --------
 
 - Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
-- Handle incomming SUBSCRIBE requests [RK] [DB]
-- Handle incomming REGISTER requests [RK] [DB]
+- Handle incoming SUBSCRIBE requests [RK] [DB]
+- Handle incoming REGISTER requests [RK] [DB]
 - Detect loops [RK]
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
@@ -25,10 +25,10 @@ Middleware
 ----------
 
 - Account manager high-level class []
-- Session manager high level class [RK] [DB]
-- Session high level class [RK] [DB]
-- Audio stream high level class [RK]
-- MSRP stream high level class [RK] [DB]
+- Session manager high level class [RK]
+- Session high level class [RK]
+- Integrate audio into session high-level class [RK]
+- Integrate MSRP into high level class [RK] [DB]
 - Handle 301/302 redirect within the Session class [RK]
 - Desktop sharing high level class []
 - Conference established sessions [RK] [DB]
