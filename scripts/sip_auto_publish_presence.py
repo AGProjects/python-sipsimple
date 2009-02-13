@@ -162,7 +162,9 @@ def auto_publish(interval):
             person.activities.clear()
         values = list(value for value in Activities.values if value != 'unknown')
         for i in xrange(random.randrange(1, 3)):
-            person.activities.append(random.choice(values))
+            value = random.choice(values)
+            values.remove(value)
+            person.activities.append(value)
 
         # change person mood
         if person.mood is None:
@@ -171,7 +173,9 @@ def auto_publish(interval):
             person.mood.clear()
         values = list(value for value in Mood.values if value != 'unknown')
         for i in xrange(random.randrange(1, 3)):
-            person.mood.append(random.choice(values))
+            value = random.choice(values)
+            values.remove(value)
+            person.mood.append(value)
 
         # change place is
         if person.place_is is None:
