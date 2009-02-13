@@ -375,7 +375,7 @@ def do_invite(**kwargs):
 
     e = Engine()
     event_handler = EventHandler(e)
-    e.start(auto_sound=not kwargs.pop("disable_sound"), codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
+    e.start(auto_sound=not kwargs.pop("disable_sound"), trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     if kwargs["target_uri"] is not None:
         kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     transport_kwargs = AudioConfig.encryption.copy()
