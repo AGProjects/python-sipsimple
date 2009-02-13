@@ -601,7 +601,12 @@ class XMLStringElement(XMLElement):
 
     def _build_element(self, *args, **kwargs):
         if self.value is not None:
-            self.element.text = str(self.value)
+            try:
+                self.element.text = str(self.value)
+            except ValueError:
+                self.element.text = self.value.decode('utf-8')
+        else:
+            self.element.text = None
         if not self._xml_lang and self.lang is not None:
             del self.element.attrib[self.__class__.lang.xmlname]
 
