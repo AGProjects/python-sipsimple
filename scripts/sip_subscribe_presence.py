@@ -345,7 +345,7 @@ class EventHandler(object):
                 else:
                     handle_pidf(pidf)
         elif notification.name == "SCEngineSIPTrace":
-            logger.log(event_name, **notification.data.__dict__)
+            logger.log(notification.name, **notification.data.__dict__)
         elif notification.name != "SCEngineLog":
             queue.put(("core_event", (notification.name, notification.sender, notification.data)))
         elif do_trace_pjsip:
