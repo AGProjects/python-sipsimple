@@ -1,0 +1,19 @@
+Index: pjlib/include/pj/compat/m_auto.h.in
+===================================================================
+--- pjlib/include/pj/compat/m_auto.h.in	(revision 2452)
++++ pjlib/include/pj/compat/m_auto.h.in	(working copy)
+@@ -29,7 +29,13 @@
+ #undef PJ_M_NAME
+ 
+ /* Endianness, as detected by autoconf */
+-#undef WORDS_BIGENDIAN
++#ifdef PJ_DARWINOS
++#  ifdef __BIG_ENDIAN__
++#    define WORDS_BIGENDIAN 1
++#  endif
++#else
++#  undef WORDS_BIGENDIAN
++#endif
+ 
+ #ifdef WORDS_BIGENDIAN
+ #  define PJ_IS_LITTLE_ENDIAN	0
