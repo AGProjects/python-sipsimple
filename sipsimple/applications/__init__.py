@@ -603,7 +603,7 @@ class XMLStringElement(XMLElement):
         if self.value is not None:
             self.element.text = str(self.value)
         if not self._xml_lang and self.lang is not None:
-            del self.element[self.__class__.lang.xmlname]
+            del self.element.attrib[self.__class__.lang.xmlname]
 
     def _get_value(self):
         return self._value
