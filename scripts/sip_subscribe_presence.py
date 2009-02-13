@@ -378,10 +378,8 @@ def read_queue(e, username, domain, password, display_name, presentity_uri, rout
                 want_quit = True
             if command == "end":
                 try:
-                    print 'Unsubscribing'
                     sub.unsubscribe()
                 except:
-                    print "Couldn't unsubscribe"
                     pass
             if command == "quit":
                 user_quit = False
