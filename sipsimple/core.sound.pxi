@@ -209,10 +209,12 @@ cdef class RecordingWaveFile:
     cdef unsigned int conf_slot
     cdef readonly object file_name
     cdef int was_started
+    cdef int c_is_paused
 
     def __cinit__(self, file_name):
         self.file_name = file_name
         self.was_started = 0
+        self.c_is_paused = 0
 
     property is_active:
 
@@ -222,6 +224,11 @@ cdef class RecordingWaveFile:
                 return False
             else:
                 return self.port != NULL
+
+    property is_paused:
+
+        def __get__(self):
+            return bool(self.c_is_paused)
 
     def start(self):
         cdef int status
@@ -245,6 +252,24 @@ cdef class RecordingWaveFile:
             raise
         self.was_started = 1
 
+    def pause(self):
+        cdef PJSIPUA ua = c_get_ua()
+        if self.conf_slot == 0:
+            raise SIPCoreError("This RecordingWaveFile is not active")
+        if self.c_is_paused:
+            raise SIPCoreError("This RecordingWaveFile is already paused")
+        ua.c_conf_bridge._disconnect_slot(self.conf_slot)
+        self.c_is_paused = 1
+
+    def resume(self):
+        cdef PJSIPUA ua = c_get_ua()
+        if self.conf_slot == 0:
+            raise SIPCoreError("This RecordingWaveFile is not active")
+        if not self.c_is_paused:
+            raise SIPCoreError("This RecordingWaveFile is not paused")
+        ua.c_conf_bridge._connect_output_slot(self.conf_slot)
+        self.c_is_paused = 0
+
     def stop(self):
         cdef PJSIPUA ua = c_get_ua()
         self._stop(ua)
@@ -260,6 +285,7 @@ cdef class RecordingWaveFile:
         if self.pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
             self.pool = NULL
+        self.c_is_paused = 0
         return 0
 
     def __dealloc__(self):
