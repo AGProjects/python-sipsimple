@@ -64,4 +64,33 @@ class OutboundProxy(SIPURI):
         return SIPURI(host=host, port=port, parameters=parameters)
 
 
-__all__ = ["format_cmdline_uri", "IPAddressOrHostname", "OutboundProxy"]
+class TraceSIPValue(object):
+    def __init__(self, value):
+        value = str(value).lower()
+        if value not in ('none', 'true', 'false', 'file', 'stdout', 'all'):
+            raise ValueError("illegal trace-sip option value: %s" % (value,))
+        if value == 'false':
+            value = 'none'
+        elif value == 'true':
+            value = 'file'
+        self._value = value
+
+    value = property(lambda self: self._value)
+    to_file = property(lambda self: self._value in ('file', 'all'))
+
+    def _get_to_stdout(self):
+        return self.value in ('stdout', 'all')
+    def _set_to_stdout(self, to_stdout):
+        value_map = {'none': 'stdout', 'file': 'all'}
+        if not to_stdout:
+            value_map = dict(map(None, value_map.values(), value_map.keys()))
+        self._value = value_map.get(self.value, self.value)
+    to_stdout = property(_get_to_stdout, _set_to_stdout)
+    del _get_to_stdout, _set_to_stdout
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.value)
+    __str__ = __repr__
+
+
+__all__ = ["format_cmdline_uri", "IPAddressOrHostname", "OutboundProxy", "TraceSIPValue"]
