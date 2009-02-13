@@ -218,14 +218,14 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
                 elif event_name == "SCSessionGotHoldRequest":
                     if args["originator"] == "local":
-                        print "Placing call on hold"
+                        print "Call is put on hold"
                     else:
-                        print "Remote party is placing us on hold"
+                        print "Remote party has put the call on hold"
                 elif event_name == "SCSessionGotUnholdRequest":
                     if args["originator"] == "local":
-                        print "Taking call out of hold"
+                        print "Call is taken out of hold"
                     else:
-                        print "Remote party is taking us out of hold"
+                        print "Remote party has taken the call out of hold"
                 elif event_name == "SCSessionDidFail":
                     if obj is sess:
                         print "Session failed: %s" % args["reason"]
