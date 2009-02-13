@@ -147,7 +147,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
     printed = False
     rec_file = None
     want_quit = target_uri is not None
-    session_start_time = None
     no_media_timer = None
     try:
         if not use_bonjour:
@@ -202,7 +201,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                         print "Rejecting."
                         obj.reject()
                 elif event_name == "SCSessionDidStart":
-                    session_start_time = time()
                     audio = sess._audio_transport
                     rtp = audio.transport
                     print 'Session established, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
@@ -250,11 +248,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                             except:
                                 pass
                             no_media_timer = None
+                        if sess.stop_time is not None:
+                            duration = sess.stop_time - sess.start_time
+                            print "Session duration was %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
                         sess = None
-                        if session_start_time is not None:
-                            duration = time() - session_start_time
-                            print "Session duration was %d minutes, %d seconds" % (duration / 60, duration % 60)
-                            session_start_time = None
                         if want_quit:
                             command = "unregister"
                 elif event_name == "SCEngineDetectedNATType":
