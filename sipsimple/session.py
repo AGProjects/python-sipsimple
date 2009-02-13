@@ -36,6 +36,8 @@ class Session(object):
         self.remote_user_agent = None
         self.on_hold_by_local = False
         self.on_hold_by_remote = False
+        self.start_time = None
+        self.stop_time = None
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
@@ -404,6 +406,7 @@ class SessionManager(object):
                             pass
                     self.notification_center.post_notification("SCSessionGotRingIndication", session, TimestampedNotificationData())
                 elif data.state == "CONNECTING":
+                    session.start_time = datetime.now()
                     self.notification_center.post_notification("SCSessionWillStart", session, TimestampedNotificationData())
                     if inv.is_outgoing:
                         session.remote_user_agent = data.headers.get("Server", None)
@@ -450,6 +453,8 @@ class SessionManager(object):
                         # version increase is not exactly one more
                         inv.respond_to_reinvite(488)
                 elif data.state == "DISCONNECTED":
+                    if session.start_time is not None:
+                        session.stop_time = datetime.now()
                     del self.inv_mapping[inv]
                     if hasattr(data, "headers"):
                         if session.remote_user_agent is None:
