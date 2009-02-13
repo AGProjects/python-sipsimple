@@ -450,12 +450,13 @@ class SessionManager(object):
                             session.remote_user_agent = data.headers.get("Server", None)
                         if session.remote_user_agent is None:
                             session.remote_user_agent = data.headers.get("User-Agent", None)
-                        originator = "remote"
-                    else:
-                        originator = "local"
                     session._stop_media()
                     session._inv = None
                     session._change_state("TERMINATED")
+                    if data.prev_state == "DISCONNECTING":
+                        originator = "local"
+                    else:
+                        originator = "remote"
                     if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
                         failure_data = TimestampedNotificationData(originator=originator)
                         if hasattr(data, "code"):
