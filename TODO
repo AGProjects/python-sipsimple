@@ -46,9 +46,7 @@ Audio
 -----
 
 - Revise conference bridge API to support mute and multiple rooms [RK] [DB]
-- Improve WAV playback, volume level, looping until stopped by caller [RK]
 - Add method to core for playing arbitrary tones on the conference bridge [RK]
-- Configurable ringtones per remote SIPURI, account and a default [RK]
 - Play a non-disruptive tone when a session is received while in another
   session using the tone generator [RK] [DB]
 - Play a soft-tone while on hold every 30 seconds, use tone generator [RK]
