@@ -237,7 +237,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, t
                 elif event_name == "SCSessionDidEnd":
                     if obj is sess:
                         if args["originator"] == "local":
-                            print "Session by local party."
+                            print "Session ended by local party."
                         else:
                             print "Session ended by remote party."
                         if rec_file is not None:
