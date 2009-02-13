@@ -65,6 +65,7 @@ class Session(object):
             self._inv.set_offered_local_sdp(local_sdp)
             self.session_manager.inv_mapping[self._inv] = self
             self._inv.send_invite()
+            self._ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
             self._change_state("CALLING")
             self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio_proposed=use_audio))
         except:
@@ -202,9 +203,8 @@ class Session(object):
                         self._ringtone.start(loop_count=0, pause_time=0.5)
                     except:
                         pass
-            if prev_state == "INCOMING":
+            if prev_state == "INCOMING" or prev_state == "CALLING":
                 if self._ringtone is not None:
-                    self._ringtone.stop()
                     self._ringtone = None
             self.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
@@ -326,7 +326,8 @@ class RTPConfiguration(object):
 class RingtoneConfiguration(object):
 
     def __init__(self):
-        self.default_ringtone = None
+        self.default_inbound_ringtone = None
+        self.outbound_ringtone = None
         self._user_host_mapping = {}
 
     def add_ringtone_for_sipuri(self, sipuri, ringtone):
@@ -336,7 +337,7 @@ class RingtoneConfiguration(object):
         del self._user_host_mapping[(sipuri.user, sipuri.host)]
 
     def get_ringtone_for_sipuri(self, sipuri):
-        return self._user_host_mapping.get((sipuri.user, sipuri.host), self.default_ringtone)
+        return self._user_host_mapping.get((sipuri.user, sipuri.host), self.default_inbound_ringtone)
 
 
 class SessionManager(object):
@@ -396,6 +397,11 @@ class SessionManager(object):
             try:
                 prev_session_state = session.state
                 if data.state == "EARLY" and inv.is_outgoing and hasattr(data, "code") and data.code == 180:
+                    if session._ringtone is not None and not session._ringtone.is_active:
+                        try:
+                            session._ringtone.start(loop_count=0, pause_time=0.5)
+                        except:
+                            pass
                     self.notification_center.post_notification("SCSessionGotRingIndication", session, TimestampedNotificationData())
                 elif data.state == "CONNECTING":
                     self.notification_center.post_notification("SCSessionWillStart", session, TimestampedNotificationData())

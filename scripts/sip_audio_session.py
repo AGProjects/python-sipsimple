@@ -397,7 +397,8 @@ def do_invite(**kwargs):
             if len(kwargs["stun_servers"]) > 0:
                 transport_kwargs["ice_stun_address"], transport_kwargs["ice_stun_port"] = random.choice(kwargs["stun_servers"])
     sm = SessionManager()
-    sm.ringtone_config.default_ringtone = get_path("ring_inbound.wav")
+    sm.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
+    sm.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
     sm.rtp_config.__dict__.update(transport_kwargs)
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
