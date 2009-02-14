@@ -140,9 +140,9 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                     command = "quit"
             if command == "user_input":
                 key = data
-                if key == 's':
-                    logger.trace_sip = not logger.trace_sip
-                    print "SIP tracing is now %s" % ("activated" if logger.trace_sip else "deactivated")
+                if key == 't':
+                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
+                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
                 if key == 'l':
                     do_trace_pjsip = not do_trace_pjsip
                     print "PJSIP logging is now %s" % ("activated" if do_trace_pjsip else "deactivated")
