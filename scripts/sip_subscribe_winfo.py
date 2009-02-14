@@ -38,7 +38,7 @@ from xcaplib.client import XCAPClient
 from xcaplib.error import HTTPError
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": TraceSIPValue}
     local_ip = None
     sip_local_udp_port = 0
     sip_local_tcp_port = 0
@@ -398,13 +398,13 @@ def do_subscribe(**kwargs):
     except IndexError:
         raise RuntimeError("No route found to SIP proxy")
 
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
-    if kwargs['trace_sip']:
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
+    if logger.trace_sip.to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
 
     e = Engine()
     EventHandler(e)
-    e.start(auto_sound=False, trace_sip=kwargs.pop('trace_sip'), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
+    e.start(auto_sound=False, trace_sip=True, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     start_new_thread(read_queue, (e,), kwargs)
     atexit.register(termios_restore)
 
@@ -430,6 +430,23 @@ def parse_outbound_proxy(option, opt_str, value, parser):
     except ValueError, e:
         raise OptionValueError(e.message)
 
+def parse_trace_sip(option, opt_str, value, parser):
+    try:
+        value = parser.rargs[0]
+    except IndexError:
+        value = TraceSIPValue('file')
+    else:
+        if value == '' or value[0] == '-':
+            value = TraceSIPValue('file')
+        else:
+            try:
+                value = TraceSIPValue(value)
+            except ValueError:
+                value = TraceSIPValue('file')
+            else:
+                del parser.rargs[0]
+    parser.values.trace_sip = value
+
 def parse_options():
     retval = {}
     description = "This script displays the current presence rules, SUBSCRIBEs to the presence.winfo event of itself and prompts the user to update the presence rules document when a new watcher is in 'pending'/'waiting' state. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
@@ -443,7 +460,7 @@ def parse_options():
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in SUBSCRIBE. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
     parser.add_option("-x", "--xcap-root", type="string", dest="xcap_root", help = 'The XCAP root to use to access the pres-rules document for authorizing subscriptions to presence.')
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_sip, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
 
