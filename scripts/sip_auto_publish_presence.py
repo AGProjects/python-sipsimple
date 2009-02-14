@@ -43,7 +43,7 @@ class GeneralConfig(ConfigSection):
     sip_local_tls_port = 0
     sip_transports = ["tls", "tcp", "udp"]
     trace_pjsip = False
-    trace_sip = False
+    trace_sip = TraceSIPValue('none')
     log_directory = '~/.sipclient/log'
 
 
