@@ -33,7 +33,7 @@ from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import *
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": TraceSIPValue}
     local_ip = None
     sip_local_udp_port = 0
     sip_local_tcp_port = 0
@@ -139,7 +139,7 @@ def print_control_keys():
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, trace_sip, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup):
+def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup):
     global user_quit, lock, queue, return_code
     lock.acquire()
     sess = None
@@ -369,8 +369,8 @@ def do_invite(**kwargs):
         except IndexError:
             raise RuntimeError("No route found to SIP proxy")
     
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
-    if kwargs['trace_sip']:
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
+    if logger.trace_sip.to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
 
     e = Engine()
@@ -441,6 +441,23 @@ def parse_auto_hangup(option, opt_str, value, parser):
 def split_codec_list(option, opt_str, value, parser):
     parser.values.codecs = value.split(",")
 
+def parse_trace_sip(option, opt_str, value, parser):
+    try:
+        value = parser.rargs[0]
+    except IndexError:
+        value = TraceSIPValue('file')
+    else:
+        if value == '' or value[0] == '-':
+            value = TraceSIPValue('file')
+        else:
+            try:
+                value = TraceSIPValue(value)
+            except ValueError:
+                value = TraceSIPValue('file')
+            else:
+                del parser.rargs[0]
+    parser.values.trace_sip = value
+
 def parse_options():
     retval = {}
     description = "This script can sit idle waiting for an incoming audio call, or perform an outgoing audio call to the target SIP account. The program will close the session and quit when Ctrl+D is pressed."
@@ -452,7 +469,7 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_sip, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 50 ms.')
     parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
