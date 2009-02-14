@@ -140,7 +140,7 @@ def print_control_keys():
     print "  Ctrl-d: quit the program"
 
 def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup):
-    global user_quit, lock, queue, return_code
+    global user_quit, lock, queue, return_code, logger
     lock.acquire()
     sess = None
     ringer = None
@@ -312,6 +312,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                         ec_tail_length = min(500, ec_tail_length + 10)
                         e.auto_set_sound_devices(ec_tail_length)
                     print "Set echo cancellation tail length to %d ms" % ec_tail_length
+                elif data == 't':
+                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
+                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
             if command == "check_media":
                 if sess and sess.state == "ESTABLISHED":
                     if sess._audio_transport.transport.remote_rtp_address_received is None:
