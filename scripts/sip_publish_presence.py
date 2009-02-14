@@ -516,7 +516,7 @@ class EventHandler(object):
             queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
 
 def read_queue(e, username, domain, password, display_name, route, expires, do_trace_pjsip):
-    global user_quit, lock, queue, pub, sip_uri, pidf, person, tuple
+    global user_quit, lock, queue, pub, sip_uri, pidf, person, tuple, logger
     lock.acquire()
     try:
         sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -578,8 +578,12 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
                 user_quit = False
                 break
             if command == "user_input":
-                menu_stack[-1].process_input(data)
-                menu_stack[-1].print_prompt()
+                if data == 't':
+                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
+                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                else:
+                    menu_stack[-1].process_input(data)
+                    menu_stack[-1].print_prompt()
     except:
         user_quit = False
         traceback.print_exc()
