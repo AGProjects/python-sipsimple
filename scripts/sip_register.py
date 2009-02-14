@@ -24,7 +24,7 @@ from sipsimple.clients.dns_lookup import *
 from sipsimple.clients import *
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": TraceSIPValue}
     local_ip = None
     sip_local_udp_port = 0
     sip_local_tcp_port = 0
@@ -180,7 +180,7 @@ def do_register(**kwargs):
         raise RuntimeError("No route found to SIP proxy")
 
     logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
-    if logger.trace_sip:
+    if logger.trace_sip.to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
 
     e = Engine()
@@ -209,6 +209,23 @@ def parse_outbound_proxy(option, opt_str, value, parser):
     except ValueError, e:
         raise OptionValueError(e.message)
 
+def parse_trace_sip(option, opt_str, value, parser):
+    try:
+        value = parser.rargs[0]
+    except IndexError:
+        value = TraceSIPValue('file')
+    else:
+        if value == '' or value[0] == '-':
+            value = TraceSIPValue('file')
+        else:
+            try:
+                value = TraceSIPValue(value)
+            except ValueError:
+                value = TraceSIPValue('file')
+            else:
+                del parser.rargs[0]
+    parser.values.trace_sip = value
+
 def parse_options():
     retval = {}
     description = "This script will register a SIP account to a SIP registrar and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
@@ -221,7 +238,7 @@ def parse_options():
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_sip, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     parser.add_option("-r", "--max-registers", type="int", dest="max_registers", help="Max number of REGISTERs sent (default 1, set to 0 for infinite).")
     options, args = parser.parse_args()
