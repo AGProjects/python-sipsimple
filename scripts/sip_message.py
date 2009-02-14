@@ -22,7 +22,7 @@ from sipsimple.clients import *
 from sipsimple.clients.log import Logger
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": datatypes.Boolean}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": TraceSIPValue}
     local_ip = None
     sip_local_udp_port = 0
     sip_local_tcp_port = 0
@@ -165,12 +165,12 @@ def do_message(**kwargs):
         kwargs["route"] = routes[0]
     except IndexError:
         raise RuntimeError("No route found to SIP proxy")
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs['trace_sip'])
-    if kwargs['trace_sip']:
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
+    if logger.trace_sip.to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     e = Engine()
     event_handler = EventHandler(e)
-    e.start(auto_sound=False, trace_sip=kwargs.pop("trace_sip"), local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
+    e.start(auto_sound=False, trace_sip=True, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     if kwargs["target_uri"] is not None:
         kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
     start_new_thread(read_queue, (e,), kwargs)
@@ -196,6 +196,23 @@ def parse_outbound_proxy(option, opt_str, value, parser):
     except ValueError, e:
         raise OptionValueError(e.message)
 
+def parse_trace_sip(option, opt_str, value, parser):
+    try:
+        value = parser.rargs[0]
+    except IndexError:
+        value = TraceSIPValue('file')
+    else:
+        if value == '' or value[0] == '-':
+            value = TraceSIPValue('file')
+        else:
+            try:
+                value = TraceSIPValue(value)
+            except ValueError:
+                value = TraceSIPValue('file')
+            else:
+                del parser.rargs[0]
+    parser.values.trace_sip = value
+
 def parse_options():
     retval = {}
     description = "This will either sit idle waiting for an incoming MESSAGE request, or send a MESSAGE request to the specified SIP target. In outgoing mode the program will read the contents of the messages to be sent from standard input, Ctrl+D signalling EOF as usual. In listen mode the program will quit when Ctrl+D is pressed."
@@ -207,7 +224,7 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_sip, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.add_option("-m", "--message", type="string", dest="message", help="Contents of the message to send. This disables reading the message from standard input.")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
