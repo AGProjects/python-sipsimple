@@ -344,7 +344,10 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
                     command = "quit"
             if command == "user_input":
                 key = data
-                if len(pending) > 0:
+                if key == 't':
+                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
+                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                elif len(pending) > 0:
                     if key == 'a':
                         watcher = pending.popleft()
                         allow_watcher(watcher)
