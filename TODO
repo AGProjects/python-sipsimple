@@ -105,13 +105,12 @@ Command line tools
 - SIP register must be performed in the background [DB]
 - Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
 - Fix STUN blocking [RK]
-- Print SIP messages also on the console [LS]
 - Logging, based on trace_x configuration options: []
  - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt [RK]
  - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
  - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt [LS]
  - Add timestamp and packet counters as for SIP trace for all other protocols [LS]
- - Toggle sip and pjsip logging at run time in the test scripts [LS]
+ - Toggle pjsip logging at run time in the test scripts [LS]
  
 
 Sessions
