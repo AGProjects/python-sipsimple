@@ -135,6 +135,7 @@ def print_control_keys():
     print "Available control keys:"
     print "  h: hang-up the active session"
     print "  r: toggle audio recording"
+    print "  t: toggle SIP trace on the console"
     print "  <> : adjust echo cancellation"
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
