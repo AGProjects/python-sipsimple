@@ -479,8 +479,12 @@ class Privacy(XMLListElement, PersonExtension):
         for note in self.notes:
             note.to_element(*args, **kwargs)
         if self.unknown:
-            etree.SubElement(self.element, '{%s}unknown' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
+            if self.element.find('{%s}unknown' % self._xml_namespace) is None:
+                etree.SubElement(self.element, '{%s}unknown' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
         else:
+            unknown_element = self.element.find('{%s}unknown' % self._xml_namespace)
+            if unknown_element is not None:
+                self.element.remove(unknown_element)
             for child in self:
                 child.to_element(*args, **kwargs)
 
