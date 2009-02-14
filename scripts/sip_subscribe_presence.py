@@ -373,6 +373,9 @@ def read_queue(e, username, domain, password, display_name, presentity_uri, rout
                     command = "quit"
             if command == "user_input":
                 key = data
+                if key == 't':
+                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
+                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
             if command == "eof":
                 command = "end"
                 want_quit = True
