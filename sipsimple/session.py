@@ -2,6 +2,7 @@ from thread import allocate_lock
 from datetime import datetime
 from collections import deque
 from threading import Timer
+import os.path
 
 from zope.interface import implements
 
@@ -10,7 +11,7 @@ from application.python.util import Singleton
 from application.system import default_host_ip
 
 from sipsimple.engine import Engine
-from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport, WaveFile
+from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile
 
 class TimestampedNotificationData(NotificationData):
 
@@ -47,6 +48,18 @@ class Session(object):
         self._ringtone = None
         self._sdpneg_failure_reason = None
         self._no_audio_timer = None
+        self._audio_rec = None
+
+    @property
+    def on_hold(self):
+        return self.on_hold_by_local or self.on_hold_by_remote
+
+    @property
+    def audio_recording_file_name(self):
+        if self._audio_rec is None:
+            return None
+        else:
+            return self._audio_rec.file_name
 
     # user interface
     def new(self, callee_uri, credentials, route, use_audio=False):
@@ -197,6 +210,55 @@ class Session(object):
         finally:
             self._lock.release()
 
+    def start_recording_audio(self, path, file_name=None):
+        self._lock.acquire()
+        try:
+            if self._audio_transport is None or not self._audio_transport.is_active:
+                raise RuntimeError("No audio stream is active on this session")
+            if self._audio_rec is not None:
+                raise RuntimeError("Already recording audio to a file")
+            if file_name is None:
+                direction = "outgoing" if self._inv.is_outgoing else "incoming"
+                remote = '%s@%s' % (self._inv.remote_uri.user, self._inv.remote_uri.host)
+                file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
+            self._audio_rec = RecordingWaveFile(os.path.join(path, file_name))
+            if not self.on_hold:
+                self._audio_rec.start()
+            self.notification_center.post_notification("SCSessionStartedRecordingAudio", self, TimestampedNotificationData(file_name=self.audio_recording_file_name))
+        finally:
+            self._lock.release()
+
+    def stop_recording_audio(self):
+        self._lock.acquire()
+        try:
+            if self._audio_rec is None:
+                raise RuntimeError("Not recording any audio")
+            self._stop_recording_audio()
+        finally:
+            self._lock.release()
+
+    def _stop_recording_audio(self):
+        file_name = self.audio_recording_file_name
+        self._audio_rec.stop()
+        self._audio_rec = None
+        self.notification_center.post_notification("SCSessionStoppedRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+
+    def _check_recording_hold(self):
+        if self._audio_rec is None:
+            return
+        if self.on_hold:
+            if self._audio_rec.is_active and not self._audio_rec.is_paused:
+                self._audio_rec.pause()
+        else:
+            if self._audio_rec.is_active:
+                if self._audio_rec.is_paused:
+                    self._audio_rec.resume()
+            else:
+                try:
+                    self._audio_rec.start()
+                except:
+                    self._audio_rec = None
+
     def _start_ringtone(self):
         try:
             self._ringtone.start(loop_count=0, pause_time=0.5)
@@ -238,8 +300,10 @@ class Session(object):
         self._inv.set_offered_local_sdp(local_sdp)
         self._inv.send_reinvite()
         if not was_on_hold and self.on_hold_by_local:
+            self._check_recording_hold()
             self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
         elif was_on_hold and not self.on_hold_by_local:
+            self._check_recording_hold()
             self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
 
     def _init_audio(self, remote_sdp=None):
@@ -273,8 +337,10 @@ class Session(object):
             self.on_hold_by_remote = "send" not in new_direction
             self._audio_transport.update_direction(new_direction)
             if not was_on_hold and self.on_hold_by_remote:
+                self._check_recording_hold()
                 self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
             elif was_on_hold and not self.on_hold_by_remote:
+                self._check_recording_hold()
                 self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
         else:
             self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
@@ -297,6 +363,8 @@ class Session(object):
             if self._no_audio_timer is not None:
                 self._no_audio_timer.cancel()
                 self._no_audio_timer = None
+            if self._audio_rec is not None:
+                self._stop_recording_audio()
         del self.session_manager.audio_transport_mapping[self._audio_transport]
         self._audio_transport = None
 
