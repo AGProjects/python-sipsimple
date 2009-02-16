@@ -515,10 +515,19 @@ class EventHandler(object):
         elif do_trace_pjsip:
             queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
 
+
+def print_control_keys():
+    print "Available control keys:"
+    print "  t: toggle SIP trace on the console"
+    print "  Ctrl-d: quit the program"
+    print "  ?: display this help message"
+
 def read_queue(e, username, domain, password, display_name, route, expires, do_trace_pjsip):
     global user_quit, lock, queue, pub, sip_uri, pidf, person, tuple, logger
     lock.acquire()
     try:
+        print_control_keys()
+
         sip_uri = SIPURI(user=username, host=domain, display=display_name)
         pub = Publication(Credentials(sip_uri, password), "presence", route=route, expires=expires)
 
@@ -581,6 +590,8 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
                 if data == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                elif key == '?':
+                    print_control_keys()
                 else:
                     menu_stack[-1].process_input(data)
                     menu_stack[-1].print_prompt()
