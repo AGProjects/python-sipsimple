@@ -338,12 +338,20 @@ class EventHandler(object):
             return_code = 0
             if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) in ('multipart/related',):
                 queue.put(("print", "Received NOTIFY: %s" % notification.data.body))
+                print_control_keys()
         elif notification.name == "SCEngineSIPTrace":
             logger.log(notification.name, **notification.data.__dict__)
         elif notification.name != "SCEngineLog":
             queue.put(("core_event", (notification.name, notification.sender, notification.data)))
         elif do_trace_pjsip:
             queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
+
+
+def print_control_keys():
+    queue.put(("print", "Available control keys:"))
+    queue.put(("print", "  t: toggle SIP trace on the console"))
+    queue.put(("print", "  Ctrl-d: quit the program"))
+    queue.put(("print", "  ?: display this help message"))
 
 def read_queue(e, username, domain, password, display_name, presentity_uri, route, expires, content_type, do_trace_pjsip):
     global user_quit, lock, queue, logger
@@ -370,6 +378,8 @@ def read_queue(e, username, domain, password, display_name, presentity_uri, rout
                 if key == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                elif key == '?':
+                    print_control_keys()
             if command == "eof":
                 command = "end"
                 want_quit = True
