@@ -1,6 +1,7 @@
 from thread import allocate_lock
 from datetime import datetime
 from collections import deque
+from threading import Timer
 
 from zope.interface import implements
 
@@ -45,6 +46,7 @@ class Session(object):
         self._queue = deque()
         self._ringtone = None
         self._sdpneg_failure_reason = None
+        self._no_audio_timer = None
 
     # user interface
     def new(self, callee_uri, credentials, route, use_audio=False):
@@ -277,6 +279,8 @@ class Session(object):
         else:
             self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
             Engine().connect_audio_transport(self._audio_transport)
+            self._no_audio_timer = Timer(5, self._check_audio)
+            self._no_audio_timer.start()
 
     def _stop_media(self):
         """Stop all media streams. This will be called by SessionManager when
@@ -290,8 +294,20 @@ class Session(object):
         if self._audio_transport.is_active:
             Engine().disconnect_audio_transport(self._audio_transport)
             self._audio_transport.stop()
+            if self._no_audio_timer is not None:
+                self._no_audio_timer.cancel()
+                self._no_audio_timer = None
         del self.session_manager.audio_transport_mapping[self._audio_transport]
         self._audio_transport = None
+
+    def _check_audio(self):
+        self._lock.acquire()
+        try:
+            self._no_audio_timer = None
+            if self._audio_transport.transport.remote_rtp_address_received is None:
+                self.notification_center.post_notification("SCSessionGotNoAudio", self, TimestampedNotificationData())
+        finally:
+            self._lock.release()
 
     def _cancel_media(self):
         if self._audio_transport is not None and not self._audio_transport.is_active:
