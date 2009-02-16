@@ -139,6 +139,7 @@ def print_control_keys():
     print "  <> : adjust echo cancellation"
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
+    print "  ?: display this help message"
 
 def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup):
     global user_quit, lock, queue, return_code, logger
@@ -316,6 +317,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 elif data == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                elif data == '?':
+                    print_control_keys()
             if command == "check_media":
                 if sess and sess.state == "ESTABLISHED":
                     if sess._audio_transport.transport.remote_rtp_address_received is None:
