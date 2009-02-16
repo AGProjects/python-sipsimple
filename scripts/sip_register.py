@@ -95,6 +95,13 @@ class EventHandler(object):
             queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
 
 
+def print_control_keys():
+    print "Available control keys:"
+    print "  l: toggle PJSIP trace on the console"
+    print "  t: toggle SIP trace on the console"
+    print "  Ctrl-d: quit the program"
+    print "  ?: display this help message"
+
 def read_queue(e, username, domain, password, display_name, route, expires, max_registers):
     global user_quit, lock, queue, do_trace_pjsip, logger, return_code
     lock.acquire()
@@ -119,7 +126,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                             print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
                             if len(args["contact_uri_list"]) > 1:
                                 print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
-                            print "Press Ctrl+D to stop the program."
+                            print_control_keys()
                             printed = True
                         if max_registers is not None:
                             max_registers -= 1
@@ -143,9 +150,11 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
                 if key == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
-                if key == 'l':
+                elif key == 'l':
                     do_trace_pjsip = not do_trace_pjsip
                     print "PJSIP logging is now %s" % ("activated" if do_trace_pjsip else "deactivated")
+                elif key == '?':
+                    print_control_keys()
             if command == "eof":
                 reg.unregister()
             if command == "quit":
