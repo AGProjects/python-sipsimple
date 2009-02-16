@@ -147,7 +147,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
     sess = None
     ringer = None
     printed = False
-    rec_file = None
     want_quit = target_uri is not None
     try:
         if not use_bonjour:
@@ -237,10 +236,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                             print "Session ended by local party."
                         else:
                             print "Session ended by remote party."
-                        if rec_file is not None:
-                            rec_file.stop()
-                            print 'Stopped recording audio to "%s"' % rec_file.file_name
-                            rec_file = None
                         if sess.stop_time is not None:
                             duration = sess.stop_time - sess.start_time
                             print "Session duration was %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
@@ -252,6 +247,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                     return_code = 1
                     command = "end"
                     want_quit = target_uri is not None
+                elif event_name == "SCSessionStartedRecordingAudio":
+                    print 'Recording audio to "%s"' % args["file_name"]
+                elif event_name == "SCSessionStoppedRecordingAudio":
+                    print 'Stopped recording audio to "%s"' % args["file_name"]
                 elif event_name == "SCEngineDetectedNATType":
                     if args["succeeded"]:
                         print "Detected NAT type: %s" % args["nat_type"]
@@ -270,21 +269,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                         if data in "0123456789*#ABCD":
                             sess.send_dtmf(data)
                         elif data.lower() == "r" :
-                            if rec_file is None:
-                                remote = '%s@%s' % (sess._inv.remote_uri.user, sess._inv.remote_uri.host)
-                                direction = "outgoing" if sess._inv.is_outgoing else "incoming"
-                                dir = os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain))
-                                try:
-                                    file_name = os.path.join(dir, '%s-%s-%s.wav' % (datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction))
-                                    rec_file = RecordingWaveFile(file_name)
-                                    rec_file.start()
-                                    print 'Recording audio to "%s"' % rec_file.file_name
-                                except OSError, e:
-                                    print "Error while trying to record file: %s"
+                            if sess.audio_recording_file_name is None:
+                                sess.start_recording_audio(os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain)))
                             else:
-                                rec_file.stop()
-                                print 'Stopped recording audio to "%s"' % rec_file.file_name
-                                rec_file = None
+                                sess.stop_recording_audio()
                         elif data == " ":
                             try:
                                 if sess.on_hold_by_local:
