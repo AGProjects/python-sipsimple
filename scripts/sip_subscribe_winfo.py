@@ -301,6 +301,13 @@ class EventHandler(object):
         elif do_trace_pjsip:
             queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
 
+
+def print_control_keys():
+    print "Available control keys:"
+    print "  t: toggle SIP trace on the console"
+    print "  Ctrl-d: quit the program"
+    print "  ?: display this help message"
+
 def read_queue(e, username, domain, password, display_name, route, xcap_root, expires, do_trace_pjsip):
     global user_quit, lock, queue, sip_uri, winfo, xcap_client, logger
     lock.acquire()
@@ -326,6 +333,10 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
             for identity in polite_block_rule_identities:
                 print '\t%s' % identity
 
+        print
+        print_control_keys()
+        print
+
         print 'Subscribing to "%s@%s" for the presence.winfo event, at %s:%d' % (sip_uri.user, sip_uri.host, route.host, route.port)
         sub.subscribe()
 
@@ -347,6 +358,8 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
                 if key == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                elif key == '?':
+                    print_control_keys()
                 elif len(pending) > 0:
                     if key == 'a':
                         watcher = pending.popleft()
