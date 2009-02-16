@@ -195,16 +195,19 @@ class Session(object):
         finally:
             self._lock.release()
 
+    def _start_ringtone(self):
+        try:
+            self._ringtone.start(loop_count=0, pause_time=0.5)
+        except:
+            pass
+
     def _change_state(self, new_state):
         prev_state = self.state
         self.state = new_state
         if prev_state != new_state:
             if new_state == "INCOMING":
                 if self._ringtone is not None:
-                    try:
-                        self._ringtone.start(loop_count=0, pause_time=0.5)
-                    except:
-                        pass
+                    self._start_ringtone()
             if prev_state == "INCOMING" or prev_state == "CALLING":
                 if self._ringtone is not None:
                     self._ringtone = None
@@ -400,10 +403,7 @@ class SessionManager(object):
                 prev_session_state = session.state
                 if data.state == "EARLY" and inv.is_outgoing and hasattr(data, "code") and data.code == 180:
                     if session._ringtone is not None and not session._ringtone.is_active:
-                        try:
-                            session._ringtone.start(loop_count=0, pause_time=0.5)
-                        except:
-                            pass
+                        session._start_ringtone()
                     self.notification_center.post_notification("SCSessionGotRingIndication", session, TimestampedNotificationData())
                 elif data.state == "CONNECTING":
                     session.start_time = datetime.now()
