@@ -149,7 +149,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
     printed = False
     rec_file = None
     want_quit = target_uri is not None
-    no_media_timer = None
     try:
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -211,8 +210,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                         print "RTP audio stream is encrypted"
                     if sess.remote_user_agent is not None:
                         print 'Remote SIP User Agent is "%s"' % sess.remote_user_agent
-                    no_media_timer = Timer(10, lambda: queue.put(("check_media", None)))
-                    no_media_timer.start()
                     return_code = 0
                     if auto_hangup is not None:
                         Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
@@ -244,18 +241,17 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                             rec_file.stop()
                             print 'Stopped recording audio to "%s"' % rec_file.file_name
                             rec_file = None
-                        if no_media_timer is not None:
-                            try:
-                                no_media_timer.cancel()
-                            except:
-                                pass
-                            no_media_timer = None
                         if sess.stop_time is not None:
                             duration = sess.stop_time - sess.start_time
                             print "Session duration was %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
                         sess = None
                         if want_quit:
                             command = "unregister"
+                elif event_name == "SCSessionGotNoAudio":
+                    print "No media received, ending session"
+                    return_code = 1
+                    command = "end"
+                    want_quit = target_uri is not None
                 elif event_name == "SCEngineDetectedNATType":
                     if args["succeeded"]:
                         print "Detected NAT type: %s" % args["nat_type"]
@@ -319,13 +315,6 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
                 elif data == '?':
                     print_control_keys()
-            if command == "check_media":
-                if sess and sess.state == "ESTABLISHED":
-                    if sess._audio_transport.transport.remote_rtp_address_received is None:
-                        print "No media received after 10 seconds, ending session"
-                        return_code = 1
-                        command = "end"
-                        want_quit = target_uri is not None
             if command == "eof":
                 command = "end"
                 want_quit = True
