@@ -68,6 +68,7 @@ Instant messaging
 - Is-composing payload [DB]
 - Rich text format, see jabber standards [DB]
 - Fix sip_im_session to accept unicode characters [DB]
+- File transfer support for draft-ietf-mmusic-file-transfer-mech-10.txt
 
 
 Security and privacy
