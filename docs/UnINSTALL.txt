@@ -23,6 +23,7 @@ sudo rm -r pypjua*
 sudo rm -r eventlet*
 sudo rm -r /usr/share/pypjua
 sudo rm -r /usr/share/sipclient
+sudo rm -r /usr/local/share/sipclient
 sudo rm -r /usr/local/bin/sip_*
 sudo rm -r /usr/local/bin/xcap_*
 
