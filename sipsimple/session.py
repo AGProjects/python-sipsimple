@@ -553,12 +553,17 @@ class SessionManager(object):
                     else:
                         originator = "remote"
                     if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
-                        failure_data = TimestampedNotificationData(originator=originator)
+                        failure_data = TimestampedNotificationData(originator=originator, code=0)
                         if hasattr(data, "code"):
-                            if hasattr(data, "headers") and "Warning" in data.headers:
+                            failure_data.code = data.code
+                            if data.prev_state == "CONNECTING" and data.code == 408:
+                                failure_data.reason == "No ACK received"
+                            elif hasattr(data, "headers") and "Warning" in data.headers:
                                 failure_data.reason = "%s (%s)" % (data.reason, data.headers["Warning"][2])
                             else:
                                 failure_data.reason = data.reason
+                        elif hasattr(data, "method") and data.method == "CANCEL":
+                                failure_data.reason = "Request cancelled"
                         else:
                             failure_data.reason = session._sdpneg_failure_reason
                         self.notification_center.post_notification("SCSessionDidFail", session, failure_data)
