@@ -43,10 +43,10 @@ class Session(object):
         self.start_time = None
         self.stop_time = None
         self.direction = None
+        self.audio_transport = None
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
-        self._audio_transport = None
         self._queue = deque()
         self._ringtone = None
         self._sdpneg_failure_reason = None
@@ -57,21 +57,21 @@ class Session(object):
         if hasattr(self, "_inv"):
             if attr in ["caller_uri", "callee_uri", "local_uri", "remote_uri", "credentials", "route"]:
                 return getattr(self._inv, attr)
-        if hasattr(self, "_audio_transport"):
+        if hasattr(self, "audio_transport"):
             if attr.startswith("audio_"):
                 attr = attr.split("audio_", 1)[1]
                 if attr in ["sample_rate", "codec"]:
-                    return getattr(self._audio_transport, attr)
+                    return getattr(self.audio_transport, attr)
                 elif attr in ["srtp_active", "local_rtp_port", "local_rtp_address", "remote_rtp_port_received", "remote_rtp_address_received", "remote_rtp_port_sdp", "remote_rtp_address_sdp"]:
-                    return getattr(self._audio_transport.transport, attr)
+                    return getattr(self.audio_transport.transport, attr)
         raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
 
     @property
     def audio_was_received(self):
-        if self._audio_transport is None or not self._audio_transport.is_active:
+        if self.audio_transport is None or not self.audio_transport.is_active:
             return False
         else:
-            return self._audio_transport.transport.remote_rtp_address_received is not None
+            return self.audio_transport.transport.remote_rtp_address_received is not None
 
     @property
     def on_hold(self):
@@ -164,7 +164,7 @@ class Session(object):
         with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
-            if self._audio_transport is not None:
+            if self.audio_transport is not None:
                 raise RuntimeError("An audio stream is already active whithin this session")
             # TODO: implement and emit SCSessionGotStreamProposal
 
@@ -219,7 +219,7 @@ class Session(object):
 
     def start_recording_audio(self, path, file_name=None):
         with self._lock:
-            if self._audio_transport is None or not self._audio_transport.is_active:
+            if self.audio_transport is None or not self.audio_transport.is_active:
                 raise RuntimeError("No audio stream is active on this session")
             if self._audio_rec is not None:
                 raise RuntimeError("Already recording audio to a file")
@@ -285,16 +285,16 @@ class Session(object):
             if command == "hold":
                 if self.on_hold_by_local:
                     continue
-                if self._audio_transport is not None and self._audio_transport.is_active:
-                    Engine().disconnect_audio_transport(self._audio_transport)
+                if self.audio_transport is not None and self.audio_transport.is_active:
+                    Engine().disconnect_audio_transport(self.audio_transport)
                 local_sdp = self._make_next_sdp(True, True)
                 self.on_hold_by_local = True
                 break
             elif command == "unhold":
                 if not self.on_hold_by_local:
                     continue
-                if self._audio_transport is not None and self._audio_transport.is_active:
-                    Engine().connect_audio_transport(self._audio_transport)
+                if self.audio_transport is not None and self.audio_transport.is_active:
+                    Engine().connect_audio_transport(self.audio_transport)
                 local_sdp = self._make_next_sdp(True, False)
                 self.on_hold_by_local = False
                 break
@@ -312,17 +312,17 @@ class Session(object):
            SDPMedia object describing it. Called internally."""
         rtp_transport = RTPTransport(**self.rtp_options)
         if remote_sdp is None:
-            self._audio_transport = AudioTransport(rtp_transport)
+            self.audio_transport = AudioTransport(rtp_transport)
         else:
-            self._audio_transport = AudioTransport(rtp_transport, remote_sdp, self._audio_sdp_index)
-        self.session_manager.audio_transport_mapping[self._audio_transport] = self
-        return self._audio_transport.get_local_media(remote_sdp is None)
+            self.audio_transport = AudioTransport(rtp_transport, remote_sdp, self._audio_sdp_index)
+        self.session_manager.audio_transport_mapping[self.audio_transport] = self
+        return self.audio_transport.get_local_media(remote_sdp is None)
 
     def _update_media(self, local_sdp, remote_sdp):
         """Update the media stream(s) according to the newly negotiated SDP.
            This will start, stop or change the stream(s). Called by
            SessionManager."""
-        if self._audio_transport:
+        if self.audio_transport:
             if local_sdp.media[self._audio_sdp_index].port and remote_sdp.media[self._audio_sdp_index].port:
                 self._update_audio(local_sdp, remote_sdp)
             else:
@@ -331,12 +331,12 @@ class Session(object):
     def _update_audio(self, local_sdp, remote_sdp):
         """Update the audio stream. Will be called locally from
            _update_media()."""
-        if self._audio_transport.is_active:
+        if self.audio_transport.is_active:
             # TODO: check for ip/port/codec changes and restart AudioTransport if needed
             was_on_hold = self.on_hold_by_remote
             new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
             self.on_hold_by_remote = "send" not in new_direction
-            self._audio_transport.update_direction(new_direction)
+            self.audio_transport.update_direction(new_direction)
             if not was_on_hold and self.on_hold_by_remote:
                 self._check_recording_hold()
                 self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
@@ -344,30 +344,30 @@ class Session(object):
                 self._check_recording_hold()
                 self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
         else:
-            self._audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
-            Engine().connect_audio_transport(self._audio_transport)
+            self.audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
+            Engine().connect_audio_transport(self.audio_transport)
             self._no_audio_timer = Timer(5, self._check_audio)
             self._no_audio_timer.start()
 
     def _stop_media(self):
         """Stop all media streams. This will be called by SessionManager when
            the session ends."""
-        if self._audio_transport:
+        if self.audio_transport:
             self._stop_audio()
 
     def _stop_audio(self):
         """Stop the audio stream. This will be called locally, either from
         _update_media() or _stop_media()."""
-        if self._audio_transport.is_active:
-            Engine().disconnect_audio_transport(self._audio_transport)
-            self._audio_transport.stop()
+        if self.audio_transport.is_active:
+            Engine().disconnect_audio_transport(self.audio_transport)
+            self.audio_transport.stop()
             if self._no_audio_timer is not None:
                 self._no_audio_timer.cancel()
                 self._no_audio_timer = None
             if self._audio_rec is not None:
                 self._stop_recording_audio()
-        del self.session_manager.audio_transport_mapping[self._audio_transport]
-        self._audio_transport = None
+        del self.session_manager.audio_transport_mapping[self.audio_transport]
+        self.audio_transport = None
 
     def _check_audio(self):
         with self._lock:
@@ -376,26 +376,26 @@ class Session(object):
                 self.notification_center.post_notification("SCSessionGotNoAudio", self, TimestampedNotificationData())
 
     def _cancel_media(self):
-        if self._audio_transport is not None and not self._audio_transport.is_active:
+        if self.audio_transport is not None and not self.audio_transport.is_active:
             self._stop_audio()
 
     def send_dtmf(self, digit):
-        if self._audio_transport is None or not self._audio_transport.is_active:
+        if self.audio_transport is None or not self.audio_transport.is_active:
             raise RuntimeError("This session does not have an audio stream to transmit DMTF over")
-        self._audio_transport.send_dtmf(digit)
+        self.audio_transport.send_dtmf(digit)
 
     def _make_next_sdp(self, is_offer, on_hold=False):
         local_sdp = self._inv.get_active_local_sdp()
         local_sdp.version += 1
-        if self._audio_transport is not None:
+        if self.audio_transport is not None:
             if is_offer:
-                if "send" in self._audio_transport.direction:
+                if "send" in self.audio_transport.direction:
                     direction = ("sendonly" if on_hold else "sendrecv")
                 else:
                     direction = ("inactive" if on_hold else "recvonly")
             else:
                 direction = None
-            local_sdp.media[self._audio_sdp_index] = self._audio_transport.get_local_media(is_offer, direction)
+            local_sdp.media[self._audio_sdp_index] = self.audio_transport.get_local_media(is_offer, direction)
         return local_sdp
 
 
