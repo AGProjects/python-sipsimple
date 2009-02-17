@@ -423,6 +423,7 @@ cdef extern from "pjsip.h":
         pj_str_t subtype
         pj_str_t param
     enum pjsip_method_e:
+        PJSIP_CANCEL_METHOD
         PJSIP_OTHER_METHOD
     struct pjsip_method:
         pjsip_method_e id
@@ -614,10 +615,12 @@ cdef extern from "pjsip.h":
     enum pjsip_event_id_e:
         PJSIP_EVENT_TSX_STATE
         PJSIP_EVENT_RX_MSG
+        PJSIP_EVENT_TX_MSG
         PJSIP_EVENT_TRANSPORT_ERROR
         PJSIP_EVENT_TIMER
     union pjsip_event_body_tsx_state_src:
         pjsip_rx_data *rdata
+        pjsip_tx_data *tdata
     struct pjsip_event_body_tsx_state:
         pjsip_event_body_tsx_state_src src
         pjsip_transaction *tsx

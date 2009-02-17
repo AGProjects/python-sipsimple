@@ -336,6 +336,8 @@ cdef class Invitation:
             raise SIPCoreError("INVITE session is not active")
         if response_code / 100 < 3:
             raise SIPCoreError("Not a non-2xx final response: %d" % response_code)
+        if response_code == 487:
+            raise SIPCoreError("487 response can only be used following a CANCEL request")
         if self.state == "INCOMING":
             status = pjsip_inv_answer(self.c_obj, response_code, NULL, NULL, &tdata)
         else:
@@ -374,6 +376,7 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
     cdef Invitation invitation
     cdef object state
     cdef pjsip_rx_data *rdata = NULL
+    cdef pjsip_tx_data *tdata = NULL
     cdef PJSIPUA ua = c_get_ua()
     try:
         ua = c_get_ua()
@@ -387,7 +390,12 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
                 if state == "DISCONNCTD":
                     state = "DISCONNECTED"
                 if e != NULL:
-                    if e.type == PJSIP_EVENT_RX_MSG:
+                    if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_TX_MSG:
+                        tdata = e.body.tsx_state.src.tdata
+                        if tdata.msg.type == PJSIP_RESPONSE_MSG and tdata.msg.line.status.code == 487 \
+                                and state == "DISCONNECTED" and invitation.state in ["INCOMING", "EARLY"]:
+                            return
+                    elif e.type == PJSIP_EVENT_RX_MSG:
                         rdata = e.body.rx_msg.rdata
                     elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
                         if inv.state != PJSIP_INV_STATE_CONFIRMED or e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
@@ -433,19 +441,19 @@ cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
         ua = c_get_ua()
         if _ua != NULL:
             ua = <object> _ua
-            if tsx == NULL or tsx.state != PJSIP_TSX_STATE_TERMINATED:
+            if tsx == NULL or e == NULL:
                 return
-            if inv.mod_data[ua.c_module.id] != NULL:
+            if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                rdata = e.body.tsx_state.src.rdata
+            if rdata != NULL and inv.mod_data[ua.c_module.id] != NULL:
                 invitation = <object> inv.mod_data[ua.c_module.id]
-                if invitation.state != "REINVITING":
-                    return
-                if e != NULL:
-                    if e.type == PJSIP_EVENT_RX_MSG:
-                        rdata = e.body.rx_msg.rdata
-                    elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                        rdata = e.body.tsx_state.src.rdata
-                if rdata != NULL:
+                if tsx.state == PJSIP_TSX_STATE_TERMINATED and invitation.state == "REINVITING":
                     invitation._cb_state("CONFIRMED", rdata)
+                elif (invitation.state == "INCOMING" or invitation.state == "EARLY") \
+                        and invitation.c_credentials is None \
+                        and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG \
+                        and rdata.msg_info.msg.line.req.method.id == PJSIP_CANCEL_METHOD:
+                    invitation._cb_state("DISCONNECTED", rdata)
     except:
         _callback_exc = sys.exc_info()
 
