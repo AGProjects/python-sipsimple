@@ -61,7 +61,7 @@ class GreenEngine(Engine):
         """
         if greenlet is None:
             greenlet = api.getcurrent()
-        error_observer = notification.Function_CallFromThread(lambda n: greenlet.throw(RuntimeError(str(n))))
+        error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(RuntimeError(str(n))))
         self.notification_center.add_observer(error_observer, 'SCEngineGotException')
 
     def start(self, *args, **kwargs):
@@ -82,7 +82,9 @@ class GreenEngine(Engine):
     def makeGreenRegistration(self, *args, **kwargs):
         realobj = Registration(*args, **kwargs)
         logger = RegistrationLogger()
-        logger.register_observer(self.notification_center, realobj, notification.Observer_CallFromThread(logger))
+        logger.register_observer(self.notification_center,
+                                 realobj,
+                                 notification.NotifyFromThreadObserver(logger))
         obj = GreenRegistration(realobj, self.notification_center)
         self.managed_objs.append(obj)
         return obj
@@ -90,7 +92,9 @@ class GreenEngine(Engine):
     def makeGreenInvitation(self, *args, **kwargs):
         realobj = Invitation(*args, **kwargs)
         logger = InvitationLogger()
-        logger.register_observer(self.notification_center, realobj, notification.Observer_CallFromThread(logger))
+        logger.register_observer(self.notification_center,
+                                 realobj,
+                                 notification.NotifyFromThreadObserver(logger))
         obj = GreenInvitation(realobj, self.notification_center)
         self.managed_objs.append(obj)
         return obj
@@ -101,11 +105,13 @@ class GreenEngine(Engine):
             queue = coros.queue()
         def wrap_and_send_to_queue(n):
             logger = InvitationLogger()
-            logger.register_observer(self.notification_center, n.sender, notification.Observer_CallFromThread(logger))
+            logger.register_observer(self.notification_center,
+                                     n.sender,
+                                     notification.NotifyFromThreadObserver(logger))
             obj = GreenInvitation(n.sender, self.notification_center)
             self.managed_objs.append(obj)
             queue.send(obj)
-        observer = notification.Function_CallFromThread(wrap_and_send_to_queue, lambda n: n.data.state=='INCOMING')
+        observer = notification.CallFromThreadObserver(wrap_and_send_to_queue, lambda n: n.data.state=='INCOMING')
         self.notification_center.add_observer(observer, 'SCInvitationChangedState')
         try:
             yield queue
@@ -273,7 +279,7 @@ class GreenInvitation(GreenBase):
     shutdown = end
 
     def call_on_disconnect(self, func):
-        observer = notification.Function_CallFromThread(func, condition=lambda n: n.data.state=='DISCONNECTED')
+        observer = notification.CallFromThreadObserver(func, condition=lambda n: n.data.state=='DISCONNECTED')
         self.nc.add_observer(observer, self.event_names[0], self._obj)
         return Cancellable(lambda : self.nc.remove_observer(observer, self.event_names[0], self._obj))
 

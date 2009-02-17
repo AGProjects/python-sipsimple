@@ -17,7 +17,8 @@ class Function_CallFromThread(object):
         poster's thread. If it returns true value, `function' is scheduled
         to be called in twisted's thread.
         """
-        assert callable(function), 'Is not a function: %r' % (function, )
+        if not callable(function):
+            raise TypeError('Is not callable: %r' % (function, ))
         self.function = function
         if condition is not None:
             self.condition = condition
@@ -32,22 +33,24 @@ class Function_CallFromThread(object):
     def condition(self, notification):
         return True
 
-class Observer_CallFromThread(Function_CallFromThread):
+
+class NotifyFromThreadObserver(CallFromThreadObserver):
+    """Observer that checks that notification meets the provided condition
+    and then nofifies a provided observer in the twisted's thread (mainloop greenlet)"""
+
+    implements(IObserver)
 
     def __init__(self, observer, condition=None):
-        Function_CallFromThread.__init__(self, observer.handle_notification, condition)
-
-class Observer_SendNotificationToQueue(Function_CallFromThread):
-
-    def __init__(self, queue, condition=None):
-        Function_CallFromThread.__init__(self, queue.send, condition)
+        if IObserver(observer) is None:
+            raise TypeError('Is not IObserver: %r' % observer)
+        CallFromThreadObserver.__init__(self, observer.handle_notification)
 
 
 def wait_notification(notification_center, name=Any, sender=Any, condition=None):
     """Wait for a specific notification and return it.
     """
     waiter = proc.Waiter()
-    observer = Observer_SendNotificationToQueue(waiter, condition)
+    observer = CallFromThreadObserver(waiter.send, condition)
     notification_center.add_observer(observer, name, sender)
     try:
         return waiter.wait()
@@ -59,7 +62,7 @@ def wait_notification(notification_center, name=Any, sender=Any, condition=None)
 def linked_notification(notification_center, name=Any, sender=Any, queue=None, condition=None):
     if queue is None:
         queue = coros.queue()
-    observer = Observer_SendNotificationToQueue(queue, condition)
+    observer = CallFromThreadObserver(queue.send, condition)
     notification_center.add_observer(observer, name, sender)
     try:
         yield queue
@@ -68,10 +71,10 @@ def linked_notification(notification_center, name=Any, sender=Any, queue=None, c
 
 
 @contextmanager
-def linked_notifications(notification_center, names=[Any], sender=Any, queue=None):
+def linked_notifications(notification_center, names=[Any], sender=Any, queue=None, condition=None):
     if queue is None:
         queue = coros.queue()
-    observer = Observer_SendNotificationToQueue(queue)
+    observer = CallFromThreadObserver(queue.send, condition)
     for name in names:
         notification_center.add_observer(observer, name, sender)
     try:
