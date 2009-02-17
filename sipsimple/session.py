@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 from thread import allocate_lock
 from datetime import datetime
 from collections import deque
@@ -159,83 +161,64 @@ class Session(object):
 
     def add_audio(self):
         """Add an audio stream to an already established session."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self._audio_transport is not None:
                 raise RuntimeError("An audio stream is already active whithin this session")
             # TODO: implement and emit SCSessionGotStreamProposal
-        finally:
-            self._lock.release()
 
     def accept_proposal(self):
         """Accept a proposal of stream(s) being added. Moves the object from
            the PROPOSED state to the ESTABLISHED state."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
             # TODO: implement and emit SCSessionAcceptedStreamProposal
-        finally:
-            self._lock.release()
 
     def reject_proposal(self):
         """Reject a proposal of stream(s) being added. Moves the object from
            the PROPOSED state to the ESTABLISHED state."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
             self._inv.respond_to_reinvite(488)
             self._change_state("ESTABLISHED")
             self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(originator="local"))
-        finally:
-            self._lock.release()
 
     def hold(self):
         """Put an established session on hold. This moves the object from the
            ESTABLISHED state to the ONHOLD state."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("Session is not active")
             self._queue.append("hold")
             if len(self._queue) == 1:
                 self._process_queue()
-        finally:
-            self._lock.release()
 
     def unhold(self):
         """Takes a session that was previous put on hold out of hold. This
            moves the object from the ONHOLD state to the ESTABLISHED state."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("Session is not active")
             self._queue.append("unhold")
             if len(self._queue) == 1:
                 self._process_queue()
-        finally:
-            self._lock.release()
 
     def terminate(self):
         """Terminates the session from whatever state it is in.
            Moves the object to the TERMINATING state."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
                 return
             if self._inv.state != "DISCONNECTING":
                 self._inv.disconnect()
             self._change_state("TERMINATING")
             self.notification_center.post_notification("SCSessionWillEnd", self, TimestampedNotificationData())
-        finally:
-            self._lock.release()
 
     def start_recording_audio(self, path, file_name=None):
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self._audio_transport is None or not self._audio_transport.is_active:
                 raise RuntimeError("No audio stream is active on this session")
             if self._audio_rec is not None:
@@ -248,17 +231,12 @@ class Session(object):
             if not self.on_hold:
                 self._audio_rec.start()
             self.notification_center.post_notification("SCSessionStartedRecordingAudio", self, TimestampedNotificationData(file_name=self.audio_recording_file_name))
-        finally:
-            self._lock.release()
 
     def stop_recording_audio(self):
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self._audio_rec is None:
                 raise RuntimeError("Not recording any audio")
             self._stop_recording_audio()
-        finally:
-            self._lock.release()
 
     def _stop_recording_audio(self):
         file_name = self.audio_recording_file_name
@@ -392,13 +370,10 @@ class Session(object):
         self._audio_transport = None
 
     def _check_audio(self):
-        self._lock.acquire()
-        try:
+        with self._lock:
             self._no_audio_timer = None
             if not self.audio_was_received:
                 self.notification_center.post_notification("SCSessionGotNoAudio", self, TimestampedNotificationData())
-        finally:
-            self._lock.release()
 
     def _cancel_media(self):
         if self._audio_transport is not None and not self._audio_transport.is_active:
@@ -505,8 +480,7 @@ class SessionManager(object):
             session = self.inv_mapping.get(inv, None)
             if session is None:
                 return
-            session._lock.acquire()
-            try:
+            with session._lock:
                 prev_session_state = session.state
                 if data.state == "EARLY" and inv.is_outgoing and hasattr(data, "code") and data.code == 180:
                     if session._ringtone is not None and not session._ringtone.is_active:
@@ -591,23 +565,18 @@ class SessionManager(object):
                             failure_data.reason = session._sdpneg_failure_reason
                         self.notification_center.post_notification("SCSessionDidFail", session, failure_data)
                     self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData(originator=originator))
-            finally:
-                session._lock.release()
 
     def _handle_SCInvitationGotSDPUpdate(self, inv, data):
         session = self.inv_mapping.get(inv, None)
         if session is None:
             return
-        session._lock.acquire()
-        try:
+        with session._lock:
             if data.succeeded:
                 session._update_media(data.local_sdp, data.remote_sdp)
                 session._sdpneg_failure_reason = None
             else:
                 session._cancel_media()
                 session._sdpneg_failure_reason = data.error
-        finally:
-            session._lock.release()
 
     def _handle_SCAudioTransportGotDTMF(self, audio_transport, data):
         session = self.audio_transport_mapping.get(audio_transport, None)
