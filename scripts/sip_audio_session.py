@@ -224,7 +224,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                         print "Remote party has taken the call out of hold"
                 elif event_name == "SCSessionDidFail":
                     if obj is sess:
-                        print "Session failed: %s" % args["reason"]
+                        if args["code"]:
+                            print "Session failed: %d %s" % (args["code"], args["reason"])
+                        else:
+                            print "Session failed: %s" % args["reason"]
                         if args["originator"] == "remote" and sess.remote_user_agent is not None:
                             print 'Remote SIP User Agent is "%s"' % sess.remote_user_agent
                 elif event_name == "SCSessionWillEnd":
