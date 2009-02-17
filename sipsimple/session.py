@@ -40,6 +40,7 @@ class Session(object):
         self.on_hold_by_remote = False
         self.start_time = None
         self.stop_time = None
+        self.direction = None
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
@@ -49,6 +50,26 @@ class Session(object):
         self._sdpneg_failure_reason = None
         self._no_audio_timer = None
         self._audio_rec = None
+
+    def __getattr__(self, attr):
+        if hasattr(self, "_inv"):
+            if attr in ["caller_uri", "callee_uri", "local_uri", "remote_uri", "credentials", "route"]:
+                return getattr(self._inv, attr)
+        if hasattr(self, "_audio_transport"):
+            if attr.startswith("audio_"):
+                attr = attr.split("audio_", 1)[1]
+                if attr in ["sample_rate", "codec"]:
+                    return getattr(self._audio_transport, attr)
+                elif attr in ["srtp_active", "local_rtp_port", "local_rtp_address", "remote_rtp_port_received", "remote_rtp_address_received", "remote_rtp_port_sdp", "remote_rtp_address_sdp"]:
+                    return getattr(self._audio_transport.transport, attr)
+        raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
+
+    @property
+    def audio_was_received(self):
+        if self._audio_transport is None or not self._audio_transport.is_active:
+            return False
+        else:
+            return self._audio_transport.transport.remote_rtp_address_received is not None
 
     @property
     def on_hold(self):
@@ -85,6 +106,7 @@ class Session(object):
             self._ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
             self._change_state("CALLING")
             self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio_proposed=use_audio))
+            self.direction = "outgoing"
         except:
             self._stop_media()
             self._audio_sdp_index = -1
@@ -120,6 +142,7 @@ class Session(object):
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.accept_invite()
             self._change_state("ACCEPTING")
+            self.direction = "incoming"
         except:
             self._stop_media()
             self._audio_sdp_index = -1
@@ -372,7 +395,7 @@ class Session(object):
         self._lock.acquire()
         try:
             self._no_audio_timer = None
-            if self._audio_transport.transport.remote_rtp_address_received is None:
+            if not self.audio_was_received:
                 self.notification_center.post_notification("SCSessionGotNoAudio", self, TimestampedNotificationData())
         finally:
             self._lock.release()
