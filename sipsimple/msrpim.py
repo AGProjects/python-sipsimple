@@ -36,14 +36,15 @@ class MSRPIMSession:
         raise NotImplementedError
 
     def cleanup(self):
-        """Call me if prepare() was called but it's impossible to call complete().
-        This will the connection or an opened port started by prepare().
-        If complete() was called, calling cleanup() is unnecessary.
+        """Call me if initialize() was called but it's impossible to call start().
+        This will close the connection or an opened port started by initialize().
+        If start() was called, calling cleanup() is unnecessary.
         """
         raise NotImplementedError
 
     def start(self, remote_media):
-        """Complete the MSRP connection; this includes binding MSRP session.
+        """Complete the MSRP connection establishment; this includes binding
+        MSRP session.
 
         When done, fire MSRPIMSessionDidStart. At this point each incoming message
         is posted as a notification, MSRPIMSessionGotMessage, with the following
