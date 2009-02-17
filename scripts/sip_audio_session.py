@@ -167,7 +167,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
         else:
             sess = Session()
             sess.new(target_uri, credentials, route, use_audio=True)
-            print "Call from %s to %s through proxy %s:%s:%d" % (sess._inv.caller_uri, sess._inv.callee_uri, route.transport, route.host, route.port)
+            print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, route.transport, route.host, route.port)
             print_control_keys()
         while True:
             command, data = queue.get()
@@ -196,16 +196,14 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                     print "Incoming session..."
                     if sess is None:
                         sess = obj
-                        print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(sess._inv.caller_uri)
+                        print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(sess.caller_uri)
                     else:
                         print "Rejecting."
                         obj.reject()
                 elif event_name == "SCSessionDidStart":
-                    audio = sess._audio_transport
-                    rtp = audio.transport
-                    print 'Session established, using "%s" codec at %dHz' % (audio.codec, audio.sample_rate)
-                    print "Audio RTP endpoints %s:%d <-> %s:%d" % (rtp.local_rtp_address, rtp.local_rtp_port, rtp.remote_rtp_address_sdp, rtp.remote_rtp_port_sdp)
-                    if rtp.srtp_active:
+                    print 'Session established, using "%s" codec at %dHz' % (sess.audio_codec, sess.audio_sample_rate)
+                    print "Audio RTP endpoints %s:%d <-> %s:%d" % (sess.audio_local_rtp_address, sess.audio_local_rtp_port, sess.audio_remote_rtp_address_sdp, sess.audio_remote_rtp_port_sdp)
+                    if sess.audio_srtp_active:
                         print "RTP audio stream is encrypted"
                     if sess.remote_user_agent is not None:
                         print 'Remote SIP User Agent is "%s"' % sess.remote_user_agent
