@@ -67,6 +67,7 @@ Instant messaging
 - MSRP multiparty chat [DB]
 - Is-composing payload [DB]
 - Rich text format, see jabber standards [DB]
+- Fix sip_im_session to accept unicode characters [DB]
 
 
 Security and privacy
