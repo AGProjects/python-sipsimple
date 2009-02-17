@@ -5,7 +5,8 @@ of the methods of XXX are synchronous, i.e. they block the calling greenlet
 until the job is done.
 
 For example, GreenRegistration.register calls Registration.register and then
-waits for 'registered' or 'unregistered' event. It returns kwargs of that event.
+waits for 'registered' or 'unregistered' event. If the event received is
+'unregistered', it raises RegistrationError().
 """
 from __future__ import with_statement
 from contextlib import contextmanager
@@ -57,7 +58,7 @@ class GreenEngine(Engine):
         self.link_exception()
 
     def link_exception(self, greenlet=None):
-        """Raise an exception in `greenlet' the current one by default) when SCEngine signals failure.
+        """Raise an exception in `greenlet' (the current one by default) when the engine signals failure.
         """
         if greenlet is None:
             greenlet = api.getcurrent()
@@ -124,6 +125,7 @@ class GreenEngine(Engine):
         notification.wait_notification(self.notification_center, name='SCWaveFileDidEnd', sender=w)
         w.stop()
 
+
 class IncomingSessionHandler:
 
     def __init__(self):
@@ -187,7 +189,7 @@ class GreenRegistration(GreenBase):
         if self.state != 'registered':
             if self.state != 'registering':
                 self._obj.register()
-            n = self.wait_notification(condition=lambda n: n.data.state in ['registered', 'unregistered'])
+            n = self.wait_notification(condition = lambda n: n.data.state in ['registered', 'unregistered'])
             if n.data.state != 'registered':
                 raise RegistrationError(n.data.__dict__)
 

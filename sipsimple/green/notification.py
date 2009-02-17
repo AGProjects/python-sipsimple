@@ -1,4 +1,5 @@
-"""Helpers to simplify use of application.notification with eventlet."""
+"""Utilities for using notifications with twisted and for converting
+asynchronous notifications into synchronous function calls"""
 
 from contextlib import contextmanager
 from zope.interface import implements
@@ -6,8 +7,10 @@ from application.notification import IObserver, Any
 from eventlet import proc, coros
 
 
-class Function_CallFromThread(object):
-    """Observer that calls `function' from twisted thread (mainloop greenlet)."""
+class CallFromThreadObserver(object):
+    """Observer that checks that notification meets the provided condition
+    and then calls a provided function from twisted's thread (mainloop greenlet)
+    passing notification as an argument"""
 
     implements(IObserver)
 
@@ -47,8 +50,7 @@ class NotifyFromThreadObserver(CallFromThreadObserver):
 
 
 def wait_notification(notification_center, name=Any, sender=Any, condition=None):
-    """Wait for a specific notification and return it.
-    """
+    """Wait for a specific notification and return it"""
     waiter = proc.Waiter()
     observer = CallFromThreadObserver(waiter.send, condition)
     notification_center.add_observer(observer, name, sender)
