@@ -79,7 +79,7 @@ class GreenEngine(Engine):
         jobs = [proc.spawn(obj.shutdown) for obj in self.managed_objs]
         proc.waitall(jobs, trap_errors=True)
 
-    def Registration(self, *args, **kwargs):
+    def makeGreenRegistration(self, *args, **kwargs):
         realobj = Registration(*args, **kwargs)
         logger = RegistrationLogger()
         logger.register_observer(self.notification_center, realobj, notification.Observer_CallFromThread(logger))
@@ -87,7 +87,7 @@ class GreenEngine(Engine):
         self.managed_objs.append(obj)
         return obj
 
-    def Invitation(self, *args, **kwargs):
+    def makeGreenInvitation(self, *args, **kwargs):
         realobj = Invitation(*args, **kwargs)
         logger = InvitationLogger()
         logger.register_observer(self.notification_center, realobj, notification.Observer_CallFromThread(logger))

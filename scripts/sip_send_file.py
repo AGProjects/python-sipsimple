@@ -78,7 +78,7 @@ def main():
             local_udp_port=options.local_port)
     try:
         credentials = Credentials(options.uri, options.password)
-        inv = e.Invitation(credentials, options.target_uri, route=options.route)
+        inv = e.makeGreenInvitation(credentials, options.target_uri, route=options.route)
         logger = TrafficLogger.to_file(is_enabled_func = lambda: options.trace_msrp)
         msrp_connector = MSRPConnectFactory.new(None, traffic_logger=logger, state_logger=StateLogger())
         ringer = SimpleRinger(get_path("ring_outbound.wav"))

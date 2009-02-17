@@ -455,7 +455,7 @@ class ChatManager:
                 raise UserCommandError(str(ex))
             target_uri = SIPURI(user=target_address.username, host=target_address.domain,
                                 secure=target_address.scheme=='sips')
-        inv = self.engine.Invitation(self.credentials, target_uri, route=self.route)
+        inv = self.engine.makeGreenInvitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
         msrp_connector = MSRPConnectFactory.new(None, traffic_logger=self.traffic_logger, state_logger=self.state_logger)
         local_uri = URI(use_tls=self.msrp_tls)
@@ -532,7 +532,7 @@ def start(options, console):
         msrplogger = trafficlog.TrafficLogger.to_file(console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()
         if options.register:
-            reg = engine.Registration(credentials, route=options.route, expires=300)
+            reg = engine.makeGreenRegistration(credentials, route=options.route, expires=10)
             proc.spawn_greenlet(reg.register)
         console.set_ps('%s@%s> ' % (options.uri.user, options.uri.host))
         sound = ThrottlingSoundPlayer()
