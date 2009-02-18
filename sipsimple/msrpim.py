@@ -22,8 +22,9 @@ class MSRPIMSession:
         self.relay = None
         self.accept_types = accept_types
         self.accept_wrapped_types = accept_wrapped_types
+        self._initialize()
 
-    def initialize(self, local_uri=None):
+    def _initialize(self, local_uri=None):
         """Initialize the MSRP connection; connect to the relay if necessary.
         When done, fire MSRPIMSessionDidInitialize (with 'sdpmedia' attribute,
         containing the appropriate 'SDPMedia' instance)
