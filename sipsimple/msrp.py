@@ -37,7 +37,7 @@ from msrplib.protocol import URI
 
 class MSRPChat:
 
-    def __init__(self, from_uri, to_uri, outgoing, relay=None, accept_types=['message/cpim'], accept_wrapped_types=['*']):
+    def __init__(self, from_uri, to_uri, outgoing, relay=None, accept_types=['message/cpim', 'text/*'], accept_wrapped_types=['*']):
         """Initialize MSRPChat instance.
 
         * 'outgoing' (bool) - whether you are an active endpoint or not;
@@ -56,7 +56,7 @@ class MSRPChat:
         self.accept_types = accept_types
         self.accept_wrapped_types = accept_wrapped_types
 
-    def initialize(self, local_uri=None):
+    def initialize(self, ip=None, port=None, use_tls=True):
         """Initialize the MSRP connection; connect to the relay if necessary.
         When done, fire MSRPChatDidInitialize (with 'sdpmedia' attribute,
         containing the appropriate 'SDPMedia' instance)
@@ -92,7 +92,7 @@ class MSRPChat:
         """
         raise NotImplementedError
 
-    def send_message(self, content, to_uri=None, content_type='text/plain', dt=None):
+    def send_message(self, content, content_type='text/plain', to_uri=None):
         """Wrap message in Message/CPIM wrapper and send it to the other party.
         If called before the connection was established, the messages will be
         queued until MSRPChatDidStart notification.
@@ -102,8 +102,6 @@ class MSRPChat:
           if None, use the default supplied in __init__
         * 'content_type' - str instance, Content-Type of wrapped message;
           (Content-Type of MSRP message is always Message/CPIM in that case)
-        * dt - datetime.datetime instance, "DateTime" header of CPIM wrapper;
-          if None, datetime.now() is used.
 
         Return Message-ID (str), unique string identifying the message.
 
