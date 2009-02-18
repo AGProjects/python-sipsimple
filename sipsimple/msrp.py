@@ -1,14 +1,10 @@
 from msrplib.connect import MSRPRelaySettings
 from msrplib.protocol import URI
 
-class MSRPIMSession:
+class MSRPChat:
 
-    def __init__(self, outgoing,
-                 relay=None,
-                 from_=None,
-                 accept_types=['message/cpim'],
-                 accept_wrapped_types=['*']):
-        """Initialize MSRPIMSession object.
+    def __init__(self, outgoing, relay=None, from_=None, accept_types=['message/cpim'], accept_wrapped_types=['*']):
+        """Initialize MSRPChat object.
 
         * 'outgoing' (bool) - whether you are an active endpoint or not;
         * 'relay' (MSRPRelaySettings) - if None, no relay is used;
@@ -26,7 +22,7 @@ class MSRPIMSession:
 
     def _initialize(self, local_uri=None):
         """Initialize the MSRP connection; connect to the relay if necessary.
-        When done, fire MSRPIMSessionDidInitialize (with 'sdpmedia' attribute,
+        When done, fire MSRPChatDidInitialize (with 'sdpmedia' attribute,
         containing the appropriate 'SDPMedia' instance)
 
         * 'local_uri' -  URI instance, if provided passed to msrplib;
@@ -47,8 +43,8 @@ class MSRPIMSession:
         """Complete the MSRP connection establishment; this includes binding
         MSRP session.
 
-        When done, fire MSRPIMSessionDidStart. At this point each incoming message
-        is posted as a notification, MSRPIMSessionGotMessage, with the following
+        When done, fire MSRPChatDidStart. At this point each incoming message
+        is posted as a notification, MSRPChatGotMessage, with the following
         attributes:
          * cpim_headers (dict)
          * msrp_headers (dict)
@@ -68,7 +64,7 @@ class MSRPIMSession:
                      dt=None):
         """Wrap message in Message/CPIM wrapper and send it to the other party.
         If called before the connection was established, the messages will be
-        queued until MSRPIMSessionDidStart notification.
+        queued until MSRPChatDidStart notification.
 
         * 'message' - str or unicode instance, content of the message;
         * 'to' - SIPURI instance, "To" header of CPIM wrapper;
