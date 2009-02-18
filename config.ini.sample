@@ -106,9 +106,18 @@ use_ice=false
 ; Use STUN to determine server reflexive candidates for SDP/RTP negotiation
 use_stun_for_ice=false 
 
+; MSRP settings
+
 ; MSRP relay address, syntax: auto|domain|hostname|hostname:port|ip:port
 ; auto means the relay is looked-up using DNS SRV _msrps._tcp.domain
 msrp_relay=auto
+
+; By default the MSRP relay is used only for inbound sessions
+use_msrp_relay_for_outbound=false
+
+; Local IP and port used for MSRP sessions
+; msrp_local_ip=auto
+; msrp_local_port_range=auto
 
 
 ; Presence settings
