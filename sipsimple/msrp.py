@@ -1,3 +1,37 @@
+"""
+
+on reports
+----------
+
+If you set Success-Report header in an outgoing chunk to 'yes', then the
+remote party is required by MSRP protocol to generate a Success report, acknowledging
+your message. Upon receiving such a report, MSRPChat will post MSRPChatDidDeliverMessage
+notification.
+
+If you set Failure-Report to 'partial' or 'yes' or leave it out completely,
+you may get either error transaction response or a failure report. Any of this will
+be converted to MSRPChatDidNotDeliverMessage.
+
+To customize the values of these headers use success_report and failure_report arguments
+of the send_message or send_raw_message.
+
+The default setting of send_raw_message is to leave out these headers completely,
+thus enabling MSRP's default:
+  * Success-Report: no
+  * Failure-Report: yes
+
+The default setting of send_message is to enable end-to-end success reports but
+disable hop-to-hop successful confirmations:
+  * Success-Report: yes
+  * Failure-Report: partial
+
+For is-composing notification, you don't need a success report (what would you
+do with it?), however, you should receive failure notifications as their indicate
+problems with the connection. Therefore, the following settings should be used:
+  * Failure-Report: partial
+  * Success-Report: no (default)
+"""
+
 from msrplib.connect import MSRPRelaySettings
 from msrplib.protocol import URI
 
@@ -70,7 +104,9 @@ class MSRPChat:
                      message,
                      to,
                      content_type='text/plain',
-                     dt=None):
+                     dt=None,
+                     failure_report='partial',
+                     success_report='yes'):
         """Wrap message in Message/CPIM wrapper and send it to the other party.
         If called before the connection was established, the messages will be
         queued until MSRPChatDidStart notification.
@@ -83,19 +119,6 @@ class MSRPChat:
           if None, datetime.now() is used.
 
         Return Message-ID (str), unique string identifying the message.
-
-        The following headers are attached to each MSRP chunk:
-        Failure-Report: partial
-        Success-Report: yes
-
-        For each send_message() call, MSRPIMSessionGotConfirmation will be issued
-        upon receiving Success-Report/Failure-Report/Error transaction response.
-
-        MSRPIMSessionGotConfirmation has the following attributes:
-
-        * message_id (str) - Message-ID for which notification has been received.
-        * succeeded (bool)
-        * error (Exception subclass)
         """
         raise NotImplementedError
 
