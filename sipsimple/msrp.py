@@ -76,7 +76,7 @@ class MSRPChat:
         is posted as a notification, MSRPChatGotMessage, with the following
         attributes:
          * cpim_headers (dict)
-         * msrp_headers (dict)
+         * msrpdata (MSRPData)
          * cpim_content (str) - the actual string that the remote user has typed
         """
         raise NotImplementedError
@@ -92,19 +92,13 @@ class MSRPChat:
         """
         raise NotImplementedError
 
-    def send_message(self,
-                     message,
-                     to=None,
-                     content_type='text/plain',
-                     dt=None,
-                     failure_report='partial',
-                     success_report='yes'):
+    def send_message(self, content, to_uri=None, content_type='text/plain', dt=None):
         """Wrap message in Message/CPIM wrapper and send it to the other party.
         If called before the connection was established, the messages will be
         queued until MSRPChatDidStart notification.
 
-        * 'message' - str or unicode instance, content of the message;
-        * 'to' - SIPURI instance, "To" header of CPIM wrapper;
+        * 'content' - str instance, content of the message;
+        * 'to_uri' - SIPURI instance, "To" header of CPIM wrapper;
           if None, use the default supplied in __init__
         * 'content_type' - str instance, Content-Type of wrapped message;
           (Content-Type of MSRP message is always Message/CPIM in that case)
@@ -112,6 +106,11 @@ class MSRPChat:
           if None, datetime.now() is used.
 
         Return Message-ID (str), unique string identifying the message.
+
+        These MSRP headers are used to enable end-to-end success reports and 
+        to disable hop-to-hop successful responses:
+        Failure-Report: partial
+        Success-Report: yes
         """
         raise NotImplementedError
 
