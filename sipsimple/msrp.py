@@ -83,7 +83,7 @@ class MSRPChat:
         """Close the MSRP connection."""
         raise NotImplementedError
 
-    def send_raw_message(self, message, content_typa, failure_report=None, success_report=None):
+    def _send_raw_message(self, message, content_typa, failure_report=None, success_report=None):
         """Send raw MSRP message. For IM prefer send_message.
 
         Return Message-ID (str), unique string identifying the message.
