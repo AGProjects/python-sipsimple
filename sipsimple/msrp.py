@@ -32,6 +32,9 @@ class MSRPChat:
         """
         raise NotImplementedError
 
+    def __del__(self):
+        self.cleanup()
+
     def cleanup(self):
         """Call me if initialize() was called but it's impossible to call start().
         This will close the connection or an opened port started by initialize().
