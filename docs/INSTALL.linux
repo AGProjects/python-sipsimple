@@ -36,6 +36,8 @@ dnspython           http://www.dnspython.org                          >=1.6.0
 twisted             http://twistedmatrix.com/trac                     >=8.1.0
 pylib               http://codespeak.net/py                           >=0.9.2
 zope-interface      http://www.zope.org                               >=3.3.1
+x11vnc              http://www.karlrunge.com/x11vnc                   >=0.9.6
+python-pygame       http://www.pygame.org                             >=1.7.1
 
 Alternatively, you can use the easy_install script provided by the
 python-setuptools package to install the packages:
