@@ -9,7 +9,6 @@ SIP core
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
-- Handle exceptions caused by PJSIP more gracefull, especially within PJSIP callbacks [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
 - Registration requestion URI should be settable by application [RK]
 - Handle incomming OPTIONS requests [RK]
