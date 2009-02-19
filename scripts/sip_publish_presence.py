@@ -571,6 +571,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
                 if event_name == "SCEngineGotException":
                     print "An exception occured within the SIP core:"
                     print args.traceback
+                elif event_name == "SCEngineDidFail":
                     user_quit = False
                     command = "quit"
             if command == "user_input":
