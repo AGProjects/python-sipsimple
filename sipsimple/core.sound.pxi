@@ -214,18 +214,27 @@ cdef class RecordingWaveFile:
         self.was_started = 0
         self.c_is_paused = 0
 
+    cdef PJSIPUA _check_ua(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+            return ua
+        except:
+            self.pool = NULL
+            self.port = NULL
+            self.conf_slot = 0
+            self.c_is_paused = 0
+
     property is_active:
 
         def __get__(self):
-            global _ua
-            if _ua == NULL:
-                return False
-            else:
-                return self.port != NULL
+            self._check_ua()
+            return self.port != NULL
 
     property is_paused:
 
         def __get__(self):
+            self._check_ua()
             return bool(self.c_is_paused)
 
     def start(self):
@@ -251,7 +260,7 @@ cdef class RecordingWaveFile:
         self.was_started = 1
 
     def pause(self):
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
         if self.conf_slot == 0:
             raise SIPCoreError("This RecordingWaveFile is not active")
         if self.c_is_paused:
@@ -260,7 +269,7 @@ cdef class RecordingWaveFile:
         self.c_is_paused = 1
 
     def resume(self):
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
         if self.conf_slot == 0:
             raise SIPCoreError("This RecordingWaveFile is not active")
         if not self.c_is_paused:
@@ -269,7 +278,7 @@ cdef class RecordingWaveFile:
         self.c_is_paused = 0
 
     def stop(self):
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
         self._stop(ua)
 
     cdef int _stop(self, PJSIPUA ua) except -1:
@@ -309,14 +318,22 @@ cdef class WaveFile:
         self.file_name = file_name
         self.timer_is_active = 0
 
+    cdef PJSIPUA _check_ua(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+            return ua
+        except:
+            self.pool = NULL
+            self.port = NULL
+            self.conf_slot = 0
+            self.timer_is_active = 0
+
     property is_active:
 
         def __get__(self):
-            global _ua
-            if _ua == NULL:
-                return False
-            else:
-                return bool(self.timer_is_active or self.port != NULL)
+            self._check_ua()
+            return bool(self.timer_is_active or self.port != NULL)
 
     cdef int _start(self, PJSIPUA ua) except -1:
         cdef int status
@@ -390,7 +407,7 @@ cdef class WaveFile:
             c_add_event("SCWaveFileDidEnd", dict(obj=self))
 
     def stop(self):
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
         self._stop(ua, 0, 1)
 
     def __dealloc__(self):
