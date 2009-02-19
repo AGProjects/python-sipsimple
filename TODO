@@ -23,22 +23,22 @@ SIP core
 Middleware
 ----------
 
-- Account manager high-level class []
 - Session manager high level class [RK]
 - Session high level class [RK]
 - Integrate audio into session high-level class [RK]
 - Integrate MSRP into high level class [RK] [DB]
-- Handle 301/302 redirect within the Session class [RK]
-- Desktop sharing high level class []
-- Conference established sessions [RK] [DB]
-- Unified configuration framework [RK] [DB] [LS]
-- Buddylist high-level library [RK] [LS]
+- Desktop sharing high level class [DB]
+- Conference audio sessions [RK] [DB]
+- Account manager [LS]
+- Configuration manager [LS]
+- Buddylist high-level class [RK] [LS]
 - Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
 - Auto PUBLISH event=presence with device status when enter/exit audio session [RK] [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
-- SIP account enrollment [LS]
+- Enrollment [LS]
 - Enviroment detection and feed to presence place-is element []
 - Geographical detection and feed to presence location element []
+- Handle 301/302 redirect within the Session class [RK]
 
 
 Audio

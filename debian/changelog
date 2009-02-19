@@ -1,5 +1,6 @@
 sipclient (0.4.0) unstable; urgency=low
 
+  * Added desktop sharing using VNC over MSRP
   * Added PJSIP patch to write and parse i= line to SDP and updated SDP
     wrapper classes to use it
   * Added --pjsip-clean-compile option to setup.py
