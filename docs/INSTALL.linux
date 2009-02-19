@@ -120,7 +120,7 @@ the corresponding debian package by using debuild command.
 Example for python-msrplib:
 
 cd python-msrplib
-python setup.py sdist
+python setup.py sdist -f
 cd dist
 tar xvzf python-msrplib-X.X.X.tar.gz
 cd python-msrplib-X.X.X
