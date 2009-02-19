@@ -1,5 +1,3 @@
-import sys
-
 # main function
 
 def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route = None):
@@ -68,6 +66,9 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
+    except:
+        return
+    try:
         saved_data = <object> token
         credentials, to_uri_req, to_uri = saved_data
         if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
@@ -105,4 +106,4 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
                 if exc is not None:
                     raise exc
     except:
-        _callback_exc = sys.exc_info()
+        ua.c_handle_exception(1)

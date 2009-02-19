@@ -1,5 +1,6 @@
 import random
 import sys
+import traceback
 
 # main class
 
@@ -27,6 +28,7 @@ cdef class PJSIPUA:
     cdef int c_rtp_port_index
     cdef readonly unsigned int ec_tail_length
     cdef pj_stun_config c_stun_cfg
+    cdef int c_fatal_error
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -444,7 +446,6 @@ cdef class PJSIPUA:
             self.c_event_handler(event_name, **event_params)
 
     def poll(self):
-        global _callback_exc
         cdef int status
         cdef object retval = None
         self.c_check_self()
@@ -456,11 +457,17 @@ cdef class PJSIPUA:
         ELSE:
             if status != 0:
                 raise PJSIPError("Error while handling events", status)
+        c_handle_post_queue(self)
         self._poll_log()
-        if _callback_exc is not None:
-            retval = _callback_exc
-            _callback_exc = None
-        return retval
+        if self.c_fatal_error:
+            return True
+        else:
+            return False
+
+    cdef c_handle_exception(self, int is_fatal):
+        if is_fatal:
+            self.c_fatal_error = is_fatal
+        c_add_event("SCEngineGotException", dict(traceback="".join(traceback.format_exc())))
 
     cdef int c_check_self(self) except -1:
         global _ua
@@ -538,11 +545,14 @@ cdef class PJSIPThread:
 # callback functions
 
 cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil:
-    global _callback_exc
     cdef PJSIPUA c_ua
-    cdef dict event_dict = dict()
+    cdef dict event_dict
     try:
         c_ua = c_get_ua()
+    except:
+        return
+    try:
+        event_dict = dict()
         event_dict["succeeded"] = res.status == 0
         if res.status == 0:
             event_dict["nat_type"] = res.nat_type_name
@@ -550,23 +560,26 @@ cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_cons
             event_dict["error"] = res.status_text
         c_add_event("SCEngineDetectedNATType", event_dict)
     except:
-        _callback_exc = sys.exc_info()
+        c_ua.c_handle_exception(1)
 
 cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil:
-    global _callback_exc
     cdef PJSIPUA c_ua
     try:
         c_ua = c_get_ua()
+    except:
+        return 0
+    try:
         return c_ua._rx_request(rdata)
     except:
-        _callback_exc = sys.exc_info()
-        return 0
+        c_ua.c_handle_exception(1)
 
 cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
-    global _callback_exc
     cdef PJSIPUA c_ua
     try:
         c_ua = c_get_ua()
+    except:
+        return 0
+    try:
         if c_ua.c_trace_sip:
             c_add_event("SCEngineSIPTrace", dict(received=True,
                                                  source_ip=rdata.pkt_info.src_name,
@@ -576,14 +589,16 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
                                                  data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
                                                  transport=rdata.tp_info.transport.type_name))
     except:
-        _callback_exc = sys.exc_info()
+        c_ua.c_handle_exception(1)
     return 0
 
 cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
-    global _callback_exc
     cdef PJSIPUA c_ua
     try:
         c_ua = c_get_ua()
+    except:
+        return 0
+    try:
         if c_ua.c_trace_sip:
             c_add_event("SCEngineSIPTrace", dict(received=False,
                                                  source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
@@ -593,7 +608,7 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
                                                  data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
                                                  transport=tdata.tp_info.transport.type_name))
     except:
-        _callback_exc = sys.exc_info()
+        c_ua.c_handle_exception(1)
     return 0
 
 # utility function
@@ -610,4 +625,3 @@ cdef PJSIPUA c_get_ua():
 # globals
 
 cdef void *_ua = NULL
-cdef object _callback_exc = None

@@ -1,5 +1,3 @@
-import sys
-
 # classes
 
 cdef class PJMEDIASoundDevice:
@@ -406,10 +404,13 @@ cdef class WaveFile:
 # callback functions
 
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
-    global _callback_exc
     cdef WaveFile wav_file
     cdef int status
-    cdef PJSIPUA ua = c_get_ua()
+    cdef PJSIPUA ua
+    try:
+        ua = c_get_ua()
+    except:
+        return 0
     try:
         ua = c_get_ua()
         wav_file = <object> user_data
@@ -421,15 +422,22 @@ cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
             if wav_file.pause_time.sec or wav_file.pause_time.msec:
                 wav_file._stop(ua, 1, 1)
             else:
-                wav_file._rewind()
+                try:
+                    wav_file._rewind()
+                except:
+                    ua.c_handle_exception(0)
+                    wav_file._stop(ua, 0, 1)
     except:
-        _callback_exc = sys.exc_info()
+        ua.c_handle_exception(1)
     return 0
 
 cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
-    global _callback_exc
     cdef WaveFile wav_file
-    cdef PJSIPUA ua = c_get_ua()
+    cdef PJSIPUA ua
+    try:
+        ua = c_get_ua()
+    except:
+        return
     try:
         if entry.user_data != NULL:
             wav_file = <object> entry.user_data
@@ -437,6 +445,7 @@ cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry
             try:
                 wav_file._start(ua)
             except:
+                ua.c_handle_exception(0)
                 wav_file._stop(ua, 0, 1)
     except:
-        _callback_exc = sys.exc_info()
+        ua.c_handle_exception(1)

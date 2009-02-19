@@ -1,6 +1,7 @@
 import sys
 import traceback
 
+from datetime import datetime
 from thread import start_new_thread, allocate_lock
 
 from application.system import default_host_ip
@@ -82,12 +83,10 @@ class Engine(object):
         try:
             while not self._thread_stopping:
                 try:
-                    exc_info = self._ua.poll()
+                    self._thread_stopping = self._ua.poll()
                 except:
-                    exc_info = sys.exc_info()
-                if exc_info is not None:
-                    self.notification_center.post_notification("SCEngineGotException", self, NotificationData(traceback="".join(traceback.format_exception(*exc_info))))
-                    exc_info = None
+                    self.notification_center.post_notification("SCEngineGotException", self, NotificationData(timestamp=datetime.now(), traceback="".join(traceback.format_exc())))
+                    self._thread_stopping = True
             self._ua.dealloc()
             del self._ua
         finally:

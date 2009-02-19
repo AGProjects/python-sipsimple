@@ -1,5 +1,3 @@
-import sys
-
 # main class
 
 cdef class Subscription:
@@ -185,41 +183,47 @@ cdef class EventPackage:
 # callback functions
 
 cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
-    global _callback_exc
     cdef Subscription subscription
     cdef pjsip_transaction *tsx = NULL
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
+    except:
+        return
+    try:
         subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
         if event != NULL:
             if event.type == PJSIP_EVENT_TSX_STATE and event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
                 tsx = event.body.tsx_state.tsx
         subscription._cb_state(tsx)
     except:
-        _callback_exc = sys.exc_info()
+        ua.c_handle_exception(1)
 
 cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
-    global _callback_exc
     cdef Subscription subscription
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
+    except:
+        return
+    try:
         subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
         subscription._cb_notify(rdata)
     except:
-        _callback_exc = sys.exc_info()
+        ua.c_handle_exception(1)
 
 cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil:
-    global _callback_exc
     cdef Subscription subscription
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
+    except:
+        return
+    try:
         subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
         subscription._cb_refresh()
     except:
-        _callback_exc = sys.exc_info()
+        ua.c_handle_exception(1)
 
 # globals
 

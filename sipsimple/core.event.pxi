@@ -11,6 +11,12 @@ cdef struct core_event:
     void *data
     int len
 
+cdef struct post_handler:
+    post_handler *next
+    post_handler *prev
+    int func(object obj) except -1
+    void *obj
+
 # functions
 
 cdef void cb_log(int level, char_ptr_const data, int len):
@@ -100,9 +106,43 @@ cdef list c_get_clear_event_queue():
         free(event_free)
     return events
 
+cdef int c_add_post_handler(int func(object obj) except -1, object obj) except -1:
+    global _post_queue_head, _post_queue_tail
+    cdef post_handler *post
+    post = <post_handler *> malloc(sizeof(post_handler))
+    if post == NULL:
+        raise MemoryError()
+    post.func = func
+    post.obj = <void *> obj
+    post.next = NULL
+    if _post_queue_head == NULL:
+        post.prev = NULL
+        _post_queue_head = post
+        _post_queue_tail = post
+    else:
+        _post_queue_tail.next = post
+        post.prev = _post_queue_tail
+        _post_queue_tail = post
+
+cdef int c_handle_post_queue(PJSIPUA ua) except -1:
+    global _post_queue_head, _post_queue_tail
+    cdef post_handler *post, *post_free
+    post = _post_queue_head
+    _post_queue_head = _post_queue_tail = NULL
+    while post != NULL:
+        try:
+            post.func(<object> post.obj)
+        except:
+            ua.c_handle_exception(1)
+        post_free = post
+        post = post.next
+        free(post_free)
+
 # globals
 
 cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)\.(?P<millisecond>\d+)\s+(?P<sender>\S+)?\s+(?P<message>.*)$")
 cdef pj_mutex_t *_event_queue_lock = NULL
 cdef core_event *_event_queue_head = NULL
 cdef core_event *_event_queue_tail = NULL
+cdef post_handler *_post_queue_head = NULL
+cdef post_handler *_post_queue_tail = NULL

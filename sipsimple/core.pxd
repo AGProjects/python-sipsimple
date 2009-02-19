@@ -798,14 +798,6 @@ cdef object c_retrieve_nameservers()
 cdef dict c_pjsip_param_to_dict(pjsip_param *param_list)
 cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
 
-# core.event
-
-cdef struct core_event
-cdef int c_event_queue_append(core_event *event)
-cdef void cb_log(int level, char_ptr_const data, int len)
-cdef int c_add_event(object event_name, dict params) except -1
-cdef list c_get_clear_event_queue()
-
 # core.helper
 
 cdef class Route
@@ -823,6 +815,17 @@ cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_cons
 cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil
 cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil
 cdef PJSIPUA c_get_ua()
+
+# core.event
+
+cdef struct core_event
+cdef struct post_handler
+cdef int c_event_queue_append(core_event *event)
+cdef void cb_log(int level, char_ptr_const data, int len)
+cdef int c_add_event(object event_name, dict params) except -1
+cdef list c_get_clear_event_queue()
+cdef int c_add_post_handler(int func(object obj) except -1, object obj) except -1
+cdef int c_handle_post_queue(PJSIPUA ua) except -1
 
 # core.message
 
@@ -856,6 +859,7 @@ cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
 cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
 cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil
+cdef int cb_Invitation_fail_post(object obj) except -1
 
 # core.sdp
 

@@ -64,16 +64,32 @@ cdef class Invitation:
         self.c_callee_uri = c_make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
         return 0
 
-    def __dealloc__(self):
+    cdef int _do_dealloc(self) except -1:
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
         except SIPCoreError:
-            return
+            return 0
         if self.c_obj != NULL:
             self.c_obj.mod_data[ua.c_module.id] = NULL
-            if self.c_obj != NULL and self.state not in ["DISCONNECTING", "DISCONNECTED"]:
+            if self.state != "DISCONNECTING":
                 pjsip_inv_terminate(self.c_obj, 481, 0)
+            self.c_obj = NULL
+        return 0
+
+    def __dealloc__(self):
+        self._do_dealloc()
+
+    cdef int _fail(self, PJSIPUA ua) except -1:
+        ua.c_handle_exception(0)
+        self.c_obj.mod_data[ua.c_module.id] = NULL
+        if self.state != "DISCONNECTED":
+            self.state = "DISCONNECTED"
+            # Set prev_state to DISCONNECTED toindicate that we caused the disconnect
+            c_add_event("SCInvitationChangedState", dict(obj=self, prev_state="DISCONNECTING", state="DISCONNECTED", code=0, reason="Internal exception occured"))
+        # calling do_dealloc from within a callback makes PJSIP crash
+        # post_handlers will be executed after pjsip_endpt_handle_events returns
+        c_add_post_handler(cb_Invitation_fail_post, self)
 
     property caller_uri:
 
@@ -185,13 +201,14 @@ cdef class Invitation:
                 self.disconnect(488)
                 return 0
         if self.c_obj.cancelling and state == "DISCONNECTED":
+            # Hack to indicate that we caused the disconnect
             self.state = "DISCONNECTING"
         event_dict = dict(obj=self, prev_state=self.state, state=state)
         self.state = state
         if rdata != NULL:
             c_rdata_info_to_dict(rdata, event_dict)
-        if state == "DISCONNECTED" and not self.c_obj.cancelling:
-            if rdata == NULL and self.c_obj.cause > 0:
+        if state == "DISCONNECTED":
+            if not self.c_obj.cancelling and rdata == NULL and self.c_obj.cause > 0:
                 event_dict["code"] = self.c_obj.cause
                 event_dict["reason"] = pj_str_to_str(self.c_obj.cause_text)
             self.c_obj.mod_data[ua.c_module.id] = NULL
@@ -372,94 +389,113 @@ cdef class Invitation:
 # callback functions
 
 cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
-    global _callback_exc
     cdef Invitation invitation
     cdef object state
     cdef pjsip_rx_data *rdata = NULL
     cdef pjsip_tx_data *tdata = NULL
-    cdef PJSIPUA ua = c_get_ua()
+    cdef PJSIPUA ua
     try:
         ua = c_get_ua()
-        if _ua != NULL:
-            ua = <object> _ua
-            if inv.state == PJSIP_INV_STATE_INCOMING:
-                return
-            if inv.mod_data[ua.c_module.id] != NULL:
-                invitation = <object> inv.mod_data[ua.c_module.id]
-                state = pjsip_inv_state_name(inv.state)
-                if state == "DISCONNCTD":
-                    state = "DISCONNECTED"
-                if e != NULL:
-                    if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_TX_MSG:
-                        tdata = e.body.tsx_state.src.tdata
-                        if tdata.msg.type == PJSIP_RESPONSE_MSG and tdata.msg.line.status.code == 487 \
-                                and state == "DISCONNECTED" and invitation.state in ["INCOMING", "EARLY"]:
-                            return
-                    elif e.type == PJSIP_EVENT_RX_MSG:
-                        rdata = e.body.rx_msg.rdata
-                    elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                        if inv.state != PJSIP_INV_STATE_CONFIRMED or e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
-                            rdata = e.body.tsx_state.src.rdata
-                invitation._cb_state(state, rdata)
     except:
-        _callback_exc = sys.exc_info()
+        return
+    try:
+        if inv.state == PJSIP_INV_STATE_INCOMING:
+            return
+        if inv.mod_data[ua.c_module.id] != NULL:
+            invitation = <object> inv.mod_data[ua.c_module.id]
+            state = pjsip_inv_state_name(inv.state)
+            if state == "DISCONNCTD":
+                state = "DISCONNECTED"
+            if e != NULL:
+                if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_TX_MSG:
+                    tdata = e.body.tsx_state.src.tdata
+                    if tdata.msg.type == PJSIP_RESPONSE_MSG and tdata.msg.line.status.code == 487 \
+                            and state == "DISCONNECTED" and invitation.state in ["INCOMING", "EARLY"]:
+                        return
+                elif e.type == PJSIP_EVENT_RX_MSG:
+                    rdata = e.body.rx_msg.rdata
+                elif e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                    if inv.state != PJSIP_INV_STATE_CONFIRMED or e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
+                        rdata = e.body.tsx_state.src.rdata
+            try:
+                invitation._cb_state(state, rdata)
+            except:
+                invitation._fail(ua)
+    except:
+        ua.c_handle_exception(1)
 
 cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
-    global _callback_exc
     cdef Invitation invitation
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
-        if _ua != NULL:
-            ua = <object> _ua
-            if inv.mod_data[ua.c_module.id] != NULL:
-                invitation = <object> inv.mod_data[ua.c_module.id]
-                invitation._cb_sdp_done(status)
     except:
-        _callback_exc = sys.exc_info()
+        return
+    try:
+        if inv.mod_data[ua.c_module.id] != NULL:
+            invitation = <object> inv.mod_data[ua.c_module.id]
+            try:
+                invitation._cb_sdp_done(status)
+            except:
+                invitation._fail(ua)
+    except:
+        ua.c_handle_exception(1)
 
 cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil:
-    global _callback_exc
     cdef Invitation invitation
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
-        if _ua != NULL:
-            ua = <object> _ua
-            if inv.mod_data[ua.c_module.id] != NULL:
-                invitation = <object> inv.mod_data[ua.c_module.id]
-                invitation._cb_state("REINVITED", rdata)
     except:
-        _callback_exc = sys.exc_info()
+        return
+    try:
+        if inv.mod_data[ua.c_module.id] != NULL:
+            invitation = <object> inv.mod_data[ua.c_module.id]
+            try:
+                invitation._cb_state("REINVITED", rdata)
+            except:
+                invitation._fail(ua)
+    except:
+        ua.c_handle_exception(1)
 
 cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
-    global _callback_exc
     cdef Invitation invitation
     cdef pjsip_rx_data *rdata = NULL
     cdef PJSIPUA ua
     try:
         ua = c_get_ua()
-        if _ua != NULL:
-            ua = <object> _ua
-            if tsx == NULL or e == NULL:
-                return
-            if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                rdata = e.body.tsx_state.src.rdata
-            if rdata != NULL and inv.mod_data[ua.c_module.id] != NULL:
-                invitation = <object> inv.mod_data[ua.c_module.id]
-                if tsx.state == PJSIP_TSX_STATE_TERMINATED and invitation.state == "REINVITING":
-                    invitation._cb_state("CONFIRMED", rdata)
-                elif (invitation.state == "INCOMING" or invitation.state == "EARLY") \
-                        and invitation.c_credentials is None \
-                        and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG \
-                        and rdata.msg_info.msg.line.req.method.id == PJSIP_CANCEL_METHOD:
-                    invitation._cb_state("DISCONNECTED", rdata)
     except:
-        _callback_exc = sys.exc_info()
+        return
+    try:
+        if tsx == NULL or e == NULL:
+            return
+        if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+            rdata = e.body.tsx_state.src.rdata
+        if rdata != NULL and inv.mod_data[ua.c_module.id] != NULL:
+            invitation = <object> inv.mod_data[ua.c_module.id]
+            if tsx.state == PJSIP_TSX_STATE_TERMINATED and invitation.state == "REINVITING":
+                try:
+                    invitation._cb_state("CONFIRMED", rdata)
+                except:
+                    invitation._fail(ua)
+            elif invitation.state in ["INCOMING", "EARLY"] \
+                    and invitation.c_credentials is None \
+                    and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG \
+                    and rdata.msg_info.msg.line.req.method.id == PJSIP_CANCEL_METHOD:
+                try:
+                    invitation._cb_state("DISCONNECTED", rdata)
+                except:
+                    invitation._fail(ua)
+    except:
+        ua.c_handle_exception(1)
 
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!
     pass
+
+cdef int cb_Invitation_fail_post(object obj) except -1:
+    cdef Invitation invitation = obj
+    invitation._do_dealloc()
 
 # globals
 
