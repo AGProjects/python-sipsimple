@@ -55,22 +55,31 @@ class Engine(object):
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
         init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
-        self._ua = PJSIPUA(self._handle_event, **init_options)
-        if auto_sound:
-            try:
-                self._ua.auto_set_sound_devices()
-            except SIPCoreError:
-                self._ua = None
-                raise
-        self._lock = allocate_lock()
-        self._thread_stopping = False
-        self._lock.acquire()
+        self.notification_center.post_notification("SCEngineWillStart", self, NotificationData(timestamp=datetime.now()))
         try:
+            self._ua = PJSIPUA(self._handle_event, **init_options)
+            if auto_sound:
+                self._ua.auto_set_sound_devices()
+            self._lock = allocate_lock()
+            self._thread_stopping = False
+            self._lock.acquire()
             self._thread_started = True
             start_new_thread(self._run, ())
         except:
-            self._lock.release()
+            self._thread_started = False
+            if hasattr(self, "_thread_stopping"):
+                del self._thread_stopping
+            if hasattr(self, "_lock"):
+                if self._lock.locked():
+                    self._lock.release()
+                del self._lock
+            if hasattr(self, "_ua"):
+                self._ua.dealloc()
+                del self._ua
+            self.notification_center.post_notification("SCEngineDidFail", self, NotificationData(timestamp=datetime.now()))
             raise
+        else:
+            self.notification_center.post_notification("SCEngineDidStart", self, NotificationData(timestamp=datetime.now()))
 
     def stop(self):
         if self._thread_started:
@@ -80,17 +89,24 @@ class Engine(object):
 
     # worker thread
     def _run(self):
+        failed = False
         try:
             while not self._thread_stopping:
                 try:
-                    self._thread_stopping = self._ua.poll()
+                    failed = self._ua.poll()
                 except:
                     self.notification_center.post_notification("SCEngineGotException", self, NotificationData(timestamp=datetime.now(), traceback="".join(traceback.format_exc())))
-                    self._thread_stopping = True
+                    failed = True
+                if failed:
+                    self.notification_center.post_notification("SCEngineDidFail", self, NotificationData(timestamp=datetime.now()))
+                    break
+            if not failed:
+                self.notification_center.post_notification("SCEngineWillEnd", self, NotificationData(timestamp=datetime.now()))
             self._ua.dealloc()
             del self._ua
         finally:
             self._lock.release()
+            self.notification_center.post_notification("SCEngineDidEnd", self, NotificationData(timestamp=datetime.now()))
 
     def _handle_event(self, event_name, **kwargs):
         sender = kwargs.pop("obj", None)
