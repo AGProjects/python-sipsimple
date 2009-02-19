@@ -421,9 +421,10 @@ cdef class PJSIPUA:
         self.dealloc()
 
     def dealloc(self):
-        global _ua, _event_queue_lock
+        global _ua, _event_queue_lock, _RTPTransport_stun_list
         if _ua == NULL:
             return
+        _RTPTransport_stun_list = []
         self.c_check_thread()
         self.c_conf_bridge = None
         if _event_queue_lock != NULL:

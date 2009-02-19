@@ -77,7 +77,6 @@ cdef class RTPTransport:
             self.state = "WAIT_STUN"
 
     def __dealloc__(self):
-        global _RTPTransport_stun_list
         cdef PJSIPUA ua
         try:
             ua = c_get_ua()
@@ -92,8 +91,18 @@ cdef class RTPTransport:
             pjmedia_transport_close(self.c_wrapped_transport)
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
-        if self in _RTPTransport_stun_list:
-            _RTPTransport_stun_list.remove(self)
+
+    cdef PJSIPUA _check_ua(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+            return ua
+        except:
+            self.state = "INVALID"
+            self.c_obj = NULL
+            self.c_wrapped_transport = NULL
+            self.c_pool = NULL
+            return None
 
     cdef int _get_info(self, pjmedia_transport_info *info) except -1:
         cdef int status
@@ -107,7 +116,8 @@ cdef class RTPTransport:
 
         def __get__(self):
             cdef pjmedia_transport_info info
-            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
+            self._check_ua()
+            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
                 return None
             self._get_info(&info)
             if info.sock_info.rtp_addr_name.addr.sa_family != 0:
@@ -120,7 +130,8 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
-            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
+            self._check_ua()
+            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
                 return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.sock_info.rtp_addr_name):
@@ -132,7 +143,8 @@ cdef class RTPTransport:
 
         def __get__(self):
             cdef pjmedia_transport_info info
-            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
+            self._check_ua()
+            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
                 return None
             self._get_info(&info)
             if info.src_rtp_name.addr.sa_family != 0:
@@ -145,7 +157,8 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
-            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
+            self._check_ua()
+            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
                 return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.src_rtp_name):
@@ -159,7 +172,8 @@ cdef class RTPTransport:
             cdef pjmedia_transport_info info
             cdef pjmedia_srtp_info *srtp_info
             cdef int i
-            if self.state in ["WAIT_STUN", "STUN_FAILED"]:
+            self._check_ua()
+            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
                 return False
             self._get_info(&info)
             for i from 0 <= i < info.specific_info_cnt:
@@ -180,6 +194,7 @@ cdef class RTPTransport:
         return 0
 
     def set_LOCAL(self, SDPSession local_sdp, unsigned int sdp_index):
+        self._check_ua()
         if local_sdp is None:
             raise SIPCoreError("local_sdp argument cannot be None")
         if self.state == "LOCAL":
@@ -192,7 +207,7 @@ cdef class RTPTransport:
 
     def set_ESTABLISHED(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
         cdef int status
-        cdef PJSIPUA = c_get_ua()
+        cdef PJSIPUA = self._check_ua()
         if None in [local_sdp, remote_sdp]:
             raise SIPCoreError("SDP arguments cannot be None")
         if self.state == "ESTABLISHED":
@@ -216,6 +231,7 @@ cdef class RTPTransport:
 
     def set_INIT(self):
         cdef int status
+        self._check_ua()
         if self.state == "INIT":
             return
         if self.state not in ["LOCAL", "ESTABLISHED"]:
@@ -282,9 +298,20 @@ cdef class AudioTransport:
         if self.c_pool != NULL:
             pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
 
+    cdef PJSIPUA _check_ua(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+            return ua
+        except:
+            self.c_obj = NULL
+            self.c_pool = NULL
+            return None
+
     property is_active:
 
         def __get__(self):
+            self._check_ua()
             return bool(self.c_obj != NULL)
 
     property is_started:
@@ -295,6 +322,7 @@ cdef class AudioTransport:
     property codec:
 
         def __get__(self):
+            self._check_ua()
             if self.c_obj == NULL:
                 return None
             else:
@@ -303,6 +331,7 @@ cdef class AudioTransport:
     property sample_rate:
 
         def __get__(self):
+            self._check_ua()
             if self.c_obj == NULL:
                 return None
             else:
@@ -381,9 +410,9 @@ cdef class AudioTransport:
         self.c_started = 1
 
     def stop(self):
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
         if self.c_obj == NULL:
-            raise SIPCoreError("Stream is not active")
+            return
         ua.c_conf_bridge._disconnect_slot(self.c_conf_slot)
         pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
         pjmedia_stream_destroy(self.c_obj)
@@ -393,6 +422,7 @@ cdef class AudioTransport:
     def update_direction(self, direction):
         cdef int status1 = 0
         cdef int status2 = 0
+        self._check_ua()
         if self.c_obj == NULL:
             raise SIPCoreError("Stream is not active")
         if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
@@ -420,7 +450,7 @@ cdef class AudioTransport:
     def send_dtmf(self, digit):
         cdef pj_str_t c_digit
         cdef int status
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
         if self.c_obj == NULL:
             raise SIPCoreError("Stream is not active")
         if len(digit) != 1 or digit not in "0123456789*#ABCD":
