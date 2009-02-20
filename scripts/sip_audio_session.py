@@ -196,7 +196,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                     print "Incoming session..."
                     if sess is None:
                         sess = obj
-                        print 'Incoming audio session from "%s", do you want to accept? (y/n)' % str(sess.caller_uri)
+                        print 'Incoming audio session from "sip%s:%s@%s", do you want to accept? (y/n)' % (("s" if sess.caller_uri.secure else ""), sess.caller_uri.user, sess.caller_uri.host)
                     else:
                         print "Rejecting."
                         obj.reject()
