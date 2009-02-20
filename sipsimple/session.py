@@ -262,7 +262,7 @@ class Session(object):
 
     def _start_ringtone(self):
         try:
-            self._ringtone.start(loop_count=0, pause_time=0.5)
+            self._ringtone.start(loop_count=0, pause_time=1)
         except:
             pass
 
