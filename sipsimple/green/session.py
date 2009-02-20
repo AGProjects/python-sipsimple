@@ -5,6 +5,7 @@ from twisted.internet.error import ConnectionClosed, DNSLookupError, BindError, 
 from gnutls.errors import GNUTLSError
 from msrplib import MSRPError
 from msrplib import protocol as msrp_protocol
+from msrplib import transport
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from sipsimple import SDPAttribute, SDPMedia, SDPConnection, SDPSession
@@ -45,7 +46,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
                 break
         if full_remote_path is None:
             raise Error("No MSRP URI path attribute found in remote SDP")
-        msrp = msrp_connector.complete(full_remote_path)
+        msrp = transport.MSRPSession(msrp_connector.complete(full_remote_path))
         return invite_response, msrp
     except:
         proc.spawn_greenlet(inv.end)
@@ -53,7 +54,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
     finally:
         msrp_connector.cleanup()
 
-
+# XXX rename as it conflicts with msrplib's MSRPSession
 class MSRPSession:
     """SIP + MSRP: an MSRP chat session"""
 
@@ -189,7 +190,7 @@ class IncomingMSRPHandler(object):
                 local_sdp = self.make_local_SDPSession(inv, full_local_path, local_ip)
                 inv.set_offered_local_sdp(local_sdp)
                 inv.accept()
-                msrp = acceptor.complete(full_remote_path)
+                msrp = transport.MSRPSession(acceptor.complete(full_remote_path))
                 ERROR = None
                 return msrp
             finally:
