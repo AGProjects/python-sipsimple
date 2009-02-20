@@ -44,6 +44,7 @@ Middleware
 Audio
 -----
 
+- Persistent sounds device references for configuration [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK] [DB]
 - Add method to core for playing arbitrary tones on the conference bridge [RK]
 - Play a non-disruptive tone when a session is received while in another
