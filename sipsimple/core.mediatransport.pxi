@@ -481,7 +481,7 @@ cdef void cb_RTPTransport_ice_complete(pjmedia_transport *tp, pj_ice_strans_op o
         if op != PJ_ICE_STRANS_OP_INIT:
             return
         for rtp_transport in _RTPTransport_stun_list:
-            if rtp_transport.c_obj == tp:
+            if (rtp_transport.c_wrapped_transport == NULL and rtp_transport.c_obj == tp) or (rtp_transport.c_wrapped_transport != NULL and rtp_transport.c_wrapped_transport == tp):
                 if status == 0:
                     rtp_transport.state = "INIT"
                 else:
