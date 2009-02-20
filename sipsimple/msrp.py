@@ -57,7 +57,7 @@ class MSRPChat:
         self.accept_wrapped_types = accept_wrapped_types
         self._message_received_sound = None
         self._message_sent_sound = None
-        self._sound_level = 100
+        self._sound_level = 20
 
     def initialize(self, ip=None, port=None, use_tls=True):
         """Initialize the MSRP connection; connect to the relay if necessary.
