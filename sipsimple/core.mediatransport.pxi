@@ -4,6 +4,7 @@ cdef class RTPTransport:
     cdef pjmedia_transport *c_obj
     cdef pjmedia_transport *c_wrapped_transport
     cdef pj_pool_t *c_pool
+    cdef object c_local_rtp_address
     cdef readonly object remote_rtp_port_sdp
     cdef readonly object remote_rtp_address_sdp
     cdef readonly object state
@@ -14,18 +15,10 @@ cdef class RTPTransport:
     cdef readonly object ice_stun_port
 
     def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
-        global _RTPTransport_stun_list, _ice_cb
         cdef object pool_name = "RTPTransport_%d" % id(self)
-        cdef char c_local_rtp_address[PJ_INET6_ADDRSTRLEN]
-        cdef int af = pj_AF_INET()
-        cdef pj_str_t c_local_ip
-        cdef pj_str_t *c_local_ip_p = &c_local_ip
-        cdef pjmedia_srtp_setting srtp_setting
-        cdef pj_ice_strans_cfg ice_cfg
-        cdef int i
-        cdef int status
         cdef PJSIPUA ua = c_get_ua()
-        self.state = "CINIT"
+        self.state = "NULL"
+        self.c_local_rtp_address = local_rtp_address
         self.use_srtp = use_srtp
         self.srtp_forced = srtp_forced
         self.use_ice = use_ice
@@ -34,47 +27,6 @@ cdef class RTPTransport:
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise MemoryError()
-        if local_rtp_address is None:
-            c_local_ip_p = NULL
-        else:
-            if ":" in local_rtp_address:
-                af = pj_AF_INET6()
-            str_to_pj_str(local_rtp_address, &c_local_ip)
-        if use_ice:
-            pj_ice_strans_cfg_default(&ice_cfg)
-            pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint.c_obj))
-            if ice_stun_address is not None:
-                str_to_pj_str(ice_stun_address, &ice_cfg.stun.server)
-                ice_cfg.stun.port = ice_stun_port
-            status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, c_local_ip_p, 0)
-            if status != 0:
-                raise PJSIPError("Could not init ICE bound address", status)
-            status = pjmedia_ice_create2(ua.c_pjmedia_endpoint.c_obj, NULL, 2, &ice_cfg, &_ice_cb, 0, &self.c_obj)
-            if status != 0:
-                raise PJSIPError("Could not create ICE media transport", status)
-        else:
-            status = PJ_EBUG
-            for i in xrange(ua.c_rtp_port_index, ua.c_rtp_port_index + ua.c_rtp_port_stop - ua.c_rtp_port_start, 2):
-                status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
-                if status != PJ_ERRNO_START_SYS + EADDRINUSE:
-                    ua.c_rtp_port_index = (i + 2) % (ua.c_rtp_port_stop - ua.c_rtp_port_start)
-                    break
-            if status != 0:
-                raise PJSIPError("Could not create UDP/RTP media transport", status)
-        if use_srtp:
-            self.c_wrapped_transport = self.c_obj
-            self.c_obj = NULL
-            pjmedia_srtp_setting_default(&srtp_setting)
-            if srtp_forced:
-                srtp_setting.use = PJMEDIA_SRTP_MANDATORY
-            status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint.c_obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
-            if status != 0:
-                raise PJSIPError("Could not create SRTP media transport", status)
-        if ice_stun_address is None:
-            self.state = "INIT"
-        else:
-            _RTPTransport_stun_list.append(self)
-            self.state = "WAIT_STUN"
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -117,7 +69,7 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             self._check_ua()
-            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
+            if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                 return None
             self._get_info(&info)
             if info.sock_info.rtp_addr_name.addr.sa_family != 0:
@@ -131,7 +83,7 @@ cdef class RTPTransport:
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
             self._check_ua()
-            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
+            if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                 return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.sock_info.rtp_addr_name):
@@ -144,7 +96,7 @@ cdef class RTPTransport:
         def __get__(self):
             cdef pjmedia_transport_info info
             self._check_ua()
-            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
+            if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                 return None
             self._get_info(&info)
             if info.src_rtp_name.addr.sa_family != 0:
@@ -158,7 +110,7 @@ cdef class RTPTransport:
             cdef pjmedia_transport_info info
             cdef char buf[PJ_INET6_ADDRSTRLEN]
             self._check_ua()
-            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
+            if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                 return None
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.src_rtp_name):
@@ -173,7 +125,7 @@ cdef class RTPTransport:
             cdef pjmedia_srtp_info *srtp_info
             cdef int i
             self._check_ua()
-            if self.state in ["WAIT_STUN", "STUN_FAILED", "INVALID"]:
+            if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                 return False
             self._get_info(&info)
             for i from 0 <= i < info.specific_info_cnt:
@@ -230,18 +182,72 @@ cdef class RTPTransport:
         self.state = "ESTABLISHED"
 
     def set_INIT(self):
+        global _RTPTransport_stun_list, _ice_cb
+        cdef int af = pj_AF_INET()
+        cdef pj_str_t c_local_ip
+        cdef pj_str_t *c_local_ip_p = &c_local_ip
+        cdef pjmedia_srtp_setting srtp_setting
+        cdef pj_ice_strans_cfg ice_cfg
+        cdef int i
         cdef int status
-        self._check_ua()
+        cdef PJSIPUA ua = self._check_ua()
         if self.state == "INIT":
             return
-        if self.state not in ["LOCAL", "ESTABLISHED"]:
-            raise SIPCoreError('set_INIT can only be called in the "LOCAL" and "ESTABLISHED" states')
-        status = pjmedia_transport_media_stop(self.c_obj)
-        if status != 0:
-            raise PJSIPError("Could not stop media transport", status)
-        self.remote_rtp_address_sdp = None
-        self.remote_rtp_port_sdp = None
-        self.state = "INIT"
+        if self.state in ["LOCAL", "ESTABLISHED"]:
+            status = pjmedia_transport_media_stop(self.c_obj)
+            if status != 0:
+                raise PJSIPError("Could not stop media transport", status)
+            self.remote_rtp_address_sdp = None
+            self.remote_rtp_port_sdp = None
+            self.state = "INIT"
+        elif self.state == "NULL":
+            if self.c_local_rtp_address is None:
+                c_local_ip_p = NULL
+            else:
+                if ":" in self.c_local_rtp_address:
+                    af = pj_AF_INET6()
+                str_to_pj_str(self.c_local_rtp_address, &c_local_ip)
+            if self.use_ice:
+                pj_ice_strans_cfg_default(&ice_cfg)
+                pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint.c_obj))
+                if self.ice_stun_address is not None:
+                    str_to_pj_str(self.ice_stun_address, &ice_cfg.stun.server)
+                    ice_cfg.stun.port = self.ice_stun_port
+                # IIRC we can't choose the port for ICE
+                status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, c_local_ip_p, 0)
+                if status != 0:
+                    raise PJSIPError("Could not init ICE bound address", status)
+                status = pjmedia_ice_create2(ua.c_pjmedia_endpoint.c_obj, NULL, 2, &ice_cfg, &_ice_cb, 0, &self.c_obj)
+                if status != 0:
+                    raise PJSIPError("Could not create ICE media transport", status)
+            else:
+                status = PJ_EBUG
+                for i in xrange(ua.c_rtp_port_index, ua.c_rtp_port_index + ua.c_rtp_port_stop - ua.c_rtp_port_start, 2):
+                    status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
+                    if status != PJ_ERRNO_START_SYS + EADDRINUSE:
+                        ua.c_rtp_port_index = (i + 2) % (ua.c_rtp_port_stop - ua.c_rtp_port_start)
+                        break
+                if status != 0:
+                    raise PJSIPError("Could not create UDP/RTP media transport", status)
+            if self.use_srtp:
+                self.c_wrapped_transport = self.c_obj
+                self.c_obj = NULL
+                pjmedia_srtp_setting_default(&srtp_setting)
+                if self.srtp_forced:
+                    srtp_setting.use = PJMEDIA_SRTP_MANDATORY
+                status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint.c_obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
+                if status != 0:
+                    pjmedia_transport_close(self.c_wrapped_transport)
+                    self.c_wrapped_transport = NULL
+                    raise PJSIPError("Could not create SRTP media transport", status)
+            if self.ice_stun_address is None:
+                self.state = "INIT"
+                c_add_event("SCRTPTransportDidInitialize", dict(obj=self))
+            else:
+                self.state = "WAIT_STUN"
+                _RTPTransport_stun_list.append(self)
+        else:
+            raise SIPCoreError('set_INIT can only be called in the "NULL", "LOCAL" and "ESTABLISHED" states')
 
 cdef class AudioTransport:
     cdef pjmedia_stream *c_obj
@@ -479,8 +485,11 @@ cdef void cb_RTPTransport_ice_complete(pjmedia_transport *tp, pj_ice_strans_op o
                 if status == 0:
                     rtp_transport.state = "INIT"
                 else:
-                    rtp_transport.state = "STUN_FAILED"
-                c_add_event("SCRTPTransportGotSTUNResponse", dict(obj=rtp_transport, succeeded=status==0, status=pj_status_to_str(status)))
+                    rtp_transport.state = "INVALID"
+                if status == 0:
+                    c_add_event("SCRTPTransportDidInitialize", dict(obj=rtp_transport))
+                else:
+                    c_add_event("SCRTPTransportDidFail", dict(obj=rtp_transport, reason=pj_status_to_str(status)))
                 _RTPTransport_stun_list.remove(rtp_transport)
                 return
     except:
