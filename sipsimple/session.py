@@ -22,7 +22,61 @@ class TimestampedNotificationData(NotificationData):
         NotificationData.__init__(self, **kwargs)
 
 
-class Session(object):
+class NotificationHandler(object):
+    implements(IObserver)
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_handle_%s' % notification.name, None)
+        if handler is not None:
+            handler(notification.sender, notification.data)
+
+
+class MediaTransportInitializer(NotificationHandler):
+    implements(IObserver)
+
+    def __init__(self, continuation_func, failure_func, audio_rtp):
+        self.continuation_func = continuation_func
+        self.failure_func = failure_func
+        self.audio_rtp = audio_rtp
+        self.notification_center = NotificationCenter()
+        self.waiting_for = []
+        self._lock = allocate_lock()
+        with self._lock:
+            for rtp in [audio_rtp]:
+                self.waiting_for.append(rtp)
+                self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", rtp)
+                self.notification_center.add_observer(self, "SCRTPTransportDidFail", rtp)
+                rtp.set_INIT()
+
+    def _check_done(self):
+        if len(self.waiting_for) == 0:
+            self.continuation_func(self.audio_rtp)
+
+    def _fail(self, sender, reason):
+        for obj in self.waiting_for:
+            if obj is self.audio_rtp:
+                self.notification_center.remove_observer(self, "SCRTPTransportDidInitialize", obj)
+                self.notification_center.remove_observer(self, "SCRTPTransportDidFail", obj)
+        self.waiting_for = []
+        if sender is self.audio_rtp:
+            reason = "Failed to initialize audio RTP transport: %s" % reason
+        self.failure_func(reason)
+
+    def _handle_SCRTPTransportDidInitialize(self, rtp, data):
+        with self._lock:
+            if len(self.waiting_for) == 0:
+                return
+            self.waiting_for.remove(rtp)
+            self.notification_center.remove_observer(self, "SCRTPTransportDidInitialize", rtp)
+            self.notification_center.remove_observer(self, "SCRTPTransportDidFail", rtp)
+            self._check_done()
+
+    def _handle_SCRTPTransportDidFail(self, rtp, data):
+        with self._lock:
+            self._fail(rtp, data.reason)
+
+
+class Session(NotificationHandler):
     """Represents a session.
        Attributes:
        state: The state of the object as a string
@@ -88,67 +142,108 @@ class Session(object):
     def new(self, callee_uri, credentials, route, audio=False):
         """Creates a new session to the callee with the requested stream(s).
            Moves the object from the NULL into the CALLING state."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state != "NULL":
                 raise RuntimeError("This method can only be called while in the NULL state")
             if not any([audio]):
                 raise RuntimeError("No media stream requested")
+            if audio:
+                audio_rtp = RTPTransport(**self.rtp_options)
+            else:
+                audio_rtp = None
+            ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
+            inv = Invitation(credentials, callee_uri, route=route)
+            media_initializer = MediaTransportInitializer(self._new_continue, self._new_fail, audio_rtp)
+            self._inv = inv
+            self.session_manager.inv_mapping[inv] = self
+            self._ringtone = ringtone
+            self.direction = "outgoing"
+            self._change_state("CALLING")
+            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio=audio))
+
+    def _do_fail(self, reason):
+        self._stop_media()
+        originator = "local"
+        del self.session_manager.inv_mapping[self._inv]
+        self._inv = None
+        self._change_state("TERMINATED")
+        self.notification_center.post_notification("SCSessionDidFail", self, TimestampedNotificationData(originator=originator, code=0, reason=reason))
+        self.notification_center.post_notification("SCSessionDidEnd", self, TimestampedNotificationData(originator=originator))
+
+    def _new_fail(self, reason):
+        with self._lock:
+            if self.state != "CALLING":
+                return
+            self._do_fail(reason)
+
+    def _new_continue(self, audio_rtp):
+        self._lock.acquire()
+        try:
+            if self.state != "CALLING":
+                return
             sdp_index = 0
             local_address = self.rtp_options["local_rtp_address"]
             local_sdp = SDPSession(local_address, connection=SDPConnection(local_address))
-            if audio:
+            if audio_rtp:
                 self._audio_sdp_index = sdp_index
                 sdp_index += 1
-                local_sdp.media.append(self._init_audio())
-            self._inv = Invitation(credentials, callee_uri, route=route)
+                local_sdp.media.append(self._init_audio(audio_rtp))
             self._inv.set_offered_local_sdp(local_sdp)
-            self.session_manager.inv_mapping[self._inv] = self
             self._inv.send_invite()
-            self._ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
-            self._change_state("CALLING")
-            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio_proposed=audio))
-            self.direction = "outgoing"
-        except:
-            self._stop_media()
-            self._audio_sdp_index = -1
-            raise
+        except Exception, e:
+            self._do_fail(e.args[0])
         finally:
             self._lock.release()
 
     def accept(self, audio=False):
         """Accept an incoming session, using the requested stream(s).
            Moves the object from the INCOMING to the ACCEPTING state."""
-        self._lock.acquire()
-        try:
+        with self._lock:
             if self.state != "INCOMING":
                 raise RuntimeError("This method can only be called while in the INCOMING state")
+            audio_sdp_index = -1
+            remote_sdp = self._inv.get_offered_remote_sdp()
+            for sdp_index, sdp_media in enumerate(remote_sdp.media):
+                if sdp_media.media == "audio" and audio:
+                    audio_sdp_index = sdp_index
+            if audio:
+                if audio_sdp_index == -1:
+                    raise RuntimeError("Use of audio requested, but audio was not proposed by remote party")
+                audio_rtp = RTPTransport(**self.rtp_options)
+            else:
+                audio_rtp = None
+            if not any([audio_rtp]):
+                raise RuntimeError("None of the streams proposed by the remote party is accepted")
+            media_initializer = MediaTransportInitializer(self._accept_continue, self._accept_fail, audio_rtp)
+            self._audio_sdp_index = audio_sdp_index
+            self._change_state("ACCEPTING")
+
+    def _accept_fail(self, reason):
+        with self._lock:
+            if self.state != "ACCEPTING":
+                return
+            self._do_fail(reason)
+
+    def _accept_continue(self, audio_rtp):
+        self._lock.acquire()
+        try:
+            if self.state != "ACCEPTING":
+                return
             remote_sdp = self._inv.get_offered_remote_sdp()
             local_address = self.rtp_options["local_rtp_address"]
             local_sdp = SDPSession(local_address, connection=SDPConnection(local_address), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time)
             sdp_media_todo = range(len(remote_sdp.media))
-            if audio:
-                for audio_sdp_index, sdp_media in enumerate(remote_sdp.media):
-                    if sdp_media.media == "audio":
-                        sdp_media_todo.remove(audio_sdp_index)
-                        self._audio_sdp_index = audio_sdp_index
-                        local_sdp.media[audio_sdp_index] = (self._init_audio(remote_sdp))
-                        break
-                if self._audio_sdp_index == -1:
-                    raise RuntimeError("Use of audio requested, but audio was not proposed by remote party")
-            if len(sdp_media_todo) == len(remote_sdp.media):
-                raise RuntimeError("None of the streams proposed by the remote party is enabled")
+            if audio_rtp:
+                sdp_media_todo.remove(self._audio_sdp_index)
+                local_sdp.media[self._audio_sdp_index] = self._init_audio(audio_rtp, remote_sdp)
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.accept_invite()
-            self._change_state("ACCEPTING")
-            self.direction = "incoming"
         except:
-            self._stop_media()
-            self._audio_sdp_index = -1
-            raise
+            self._inv.disconnect(500)
+            self._do_fail(e.args[0])
         finally:
             self._lock.release()
 
@@ -307,10 +402,9 @@ class Session(object):
             self._check_recording_hold()
             self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
 
-    def _init_audio(self, remote_sdp=None):
+    def _init_audio(self, rtp_transport, remote_sdp=None):
         """Initialize everything needed for an audio stream and return a
            SDPMedia object describing it. Called internally."""
-        rtp_transport = RTPTransport(**self.rtp_options)
         if remote_sdp is None:
             self.audio_transport = AudioTransport(rtp_transport)
         else:
@@ -427,7 +521,7 @@ class RingtoneConfiguration(object):
         return self._user_host_mapping.get((sipuri.user, sipuri.host), self.default_inbound_ringtone)
 
 
-class SessionManager(object):
+class SessionManager(NotificationHandler):
     """The one and only SessionManager, a singleton.
        The application needs to create this and then pass its handle_event
        method to the Engine as event_handler.
@@ -449,15 +543,6 @@ class SessionManager(object):
         self.notification_center.add_observer(self, "SCAudioTransportGotDTMF")
         self.ringtone_config = RingtoneConfiguration()
 
-    def handle_notification(self, notification):
-        """Catches the SCInvitationChangedState and SCInvitationGotSDPUpdate
-           notifications and takes the appropriate action on the associated
-           Session object. If needed, it will also post a notification related
-           to the Session for consumption by the application."""
-        handler = getattr(self, '_handle_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification.sender, notification.data)
-
     def _handle_SCInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
             remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
@@ -474,6 +559,7 @@ class SessionManager(object):
                 ringtone = self.ringtone_config.get_ringtone_for_sipuri(inv.caller_uri)
                 if ringtone is not None:
                     session._ringtone = WaveFile(ringtone)
+                session.direction = "incoming"
                 session._change_state("INCOMING")
                 self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media))
         else:
