@@ -59,7 +59,11 @@ def format_datetime(dt):
     '20:30:04'
     """
     if dt.tzinfo is None or not dt.tzinfo.utcoffset(dt):
-        return (dt - datetime.timedelta(seconds=time.timezone)).strftime('%X')
+        dt -= datetime.timedelta(seconds=time.timezone)
+        if dt.date()==datetime.date.today():
+            return dt.strftime('%X')
+        else:
+            return dt.strftime('%X %x')
     else:
         return repr(dt)
 
