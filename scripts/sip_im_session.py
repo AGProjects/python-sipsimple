@@ -8,7 +8,7 @@ from collections import deque
 from twisted.internet.error import ConnectionClosed
 
 from eventlet import api, coros, proc
-from msrplib.connect import MSRPConnectFactory, MSRPAcceptFactory
+from msrplib import connect
 from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
@@ -457,7 +457,7 @@ class ChatManager:
                                 secure=target_address.scheme=='sips')
         inv = self.engine.makeGreenInvitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
-        msrp_connector = MSRPConnectFactory.new(None, traffic_logger=self.traffic_logger, state_logger=self.state_logger)
+        msrp_connector = connect.get_connector(None, traffic_logger=self.traffic_logger, state_logger=self.state_logger)
         local_uri = URI(use_tls=self.msrp_tls)
         chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, self.outbound_ringer, target_uri, local_uri)
         self.add_session(chatsession)
@@ -475,7 +475,7 @@ class ChatManager:
             downloadsession = DownloadFileSession(msrpsession)
             self.add_download(downloadsession)
         def get_acceptor():
-            return MSRPAcceptFactory.new(self.relay, traffic_logger=self.traffic_logger, state_logger=self.state_logger)
+            return connect.get_acceptor(self.relay, traffic_logger=self.traffic_logger, state_logger=self.state_logger)
         file = IncomingFileTransferHandler(get_acceptor, self.console,
                                            new_receivefile_session, inbound_ringer,
                                            auto_accept=self.auto_accept_files)

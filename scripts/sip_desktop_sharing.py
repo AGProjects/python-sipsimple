@@ -4,7 +4,7 @@ from __future__ import with_statement
 from eventlet.coros import queue
 from eventlet import api, proc
 
-from msrplib.connect import MSRPConnectFactory, MSRPAcceptFactory
+from msrplib import connect
 from msrplib.trafficlog import TrafficLogger, StateLogger, hook_std_output
 from msrplib.protocol import URI
 
@@ -116,7 +116,7 @@ def main():
                     console,
                     is_enabled_func = lambda: options.trace_msrp
                 )
-                get_acceptor = lambda: MSRPAcceptFactory.new(
+                get_acceptor = lambda: connect.get_acceptor(
                     options.relay, 
                     traffic_logger=logger,
                     state_logger=StateLogger()
@@ -256,7 +256,7 @@ def main():
             logger = TrafficLogger.to_file(
                 is_enabled_func = lambda: options.trace_msrp
             )
-            msrp_connector = MSRPConnectFactory.new(
+            msrp_connector = connect.get_connector(
                 None, 
                 traffic_logger=logger,
                 state_logger=StateLogger()
