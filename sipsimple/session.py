@@ -85,19 +85,19 @@ class Session(object):
             return self._audio_rec.file_name
 
     # user interface
-    def new(self, callee_uri, credentials, route, use_audio=False):
+    def new(self, callee_uri, credentials, route, audio=False):
         """Creates a new session to the callee with the requested stream(s).
            Moves the object from the NULL into the CALLING state."""
         self._lock.acquire()
         try:
             if self.state != "NULL":
                 raise RuntimeError("This method can only be called while in the NULL state")
-            if not any([use_audio]):
+            if not any([audio]):
                 raise RuntimeError("No media stream requested")
             sdp_index = 0
             local_address = self.rtp_options["local_rtp_address"]
             local_sdp = SDPSession(local_address, connection=SDPConnection(local_address))
-            if use_audio:
+            if audio:
                 self._audio_sdp_index = sdp_index
                 sdp_index += 1
                 local_sdp.media.append(self._init_audio())
@@ -107,7 +107,7 @@ class Session(object):
             self._inv.send_invite()
             self._ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
             self._change_state("CALLING")
-            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio_proposed=use_audio))
+            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio_proposed=audio))
             self.direction = "outgoing"
         except:
             self._stop_media()
@@ -116,7 +116,7 @@ class Session(object):
         finally:
             self._lock.release()
 
-    def accept(self, use_audio=False):
+    def accept(self, audio=False):
         """Accept an incoming session, using the requested stream(s).
            Moves the object from the INCOMING to the ACCEPTING state."""
         self._lock.acquire()
@@ -127,7 +127,7 @@ class Session(object):
             local_address = self.rtp_options["local_rtp_address"]
             local_sdp = SDPSession(local_address, connection=SDPConnection(local_address), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time)
             sdp_media_todo = range(len(remote_sdp.media))
-            if use_audio:
+            if audio:
                 for audio_sdp_index, sdp_media in enumerate(remote_sdp.media):
                     if sdp_media.media == "audio":
                         sdp_media_todo.remove(audio_sdp_index)

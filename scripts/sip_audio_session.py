@@ -166,7 +166,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 reg.register()
         else:
             sess = Session()
-            sess.new(target_uri, credentials, route, use_audio=True)
+            sess.new(target_uri, credentials, route, audio=True)
             print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, route.transport, route.host, route.port)
             print_control_keys()
         while True:
@@ -289,7 +289,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                             print "Session rejected."
                             sess = None
                         elif data.lower() == "y":
-                            sess.accept(use_audio=True)
+                            sess.accept(audio=True)
                 if data in ",<":
                     if ec_tail_length > 0:
                         ec_tail_length = max(0, ec_tail_length - 10)
