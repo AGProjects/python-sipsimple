@@ -439,6 +439,8 @@ cdef extern from "pjsip.h":
         pj_str_t *values
     struct pjsip_generic_string_hdr:
         pj_str_t hvalue
+    struct pjsip_cid_hdr:
+        pj_str_t id
     struct pjsip_contact_hdr:
         int star
         pjsip_uri *uri
@@ -656,6 +658,7 @@ cdef extern from "pjsip.h":
     ctypedef pjsip_module pjsip_user_agent
     struct pjsip_dialog:
         pjsip_auth_clt_sess auth_sess
+        pjsip_cid_hdr *call_id
     struct pjsip_ua_init_param:
         pjsip_dialog *on_dlg_forked(pjsip_dialog *first_set, pjsip_rx_data *res)
     int pjsip_ua_init_module(pjsip_endpoint *endpt, pjsip_ua_init_param *prm)

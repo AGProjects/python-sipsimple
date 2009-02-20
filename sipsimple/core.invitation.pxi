@@ -158,6 +158,15 @@ cdef class Invitation:
         def __get__(self):
             return self.c_credentials is not None
 
+    property call_id:
+
+        def __get__(self):
+            self._check_ua()
+            if self.c_dlg == NULL:
+                return None
+            else:
+                return pj_str_to_str(self.c_dlg.call_id.id)
+
     def get_active_local_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
         self._check_ua()
