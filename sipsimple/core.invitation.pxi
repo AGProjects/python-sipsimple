@@ -51,7 +51,7 @@ cdef class Invitation:
                 raise PJSIPError("Could not create initial (unused) response to INTIVE", status)
             pjsip_tx_data_dec_ref(tdata)
             self.c_obj.mod_data[ua.c_module.id] = <void *> self
-            self._cb_state("INCOMING", rdata)
+            self._cb_state(ua, "INCOMING", rdata)
         except:
             if self.c_obj != NULL:
                 pjsip_inv_terminate(self.c_obj, 500, 0)
@@ -63,6 +63,16 @@ cdef class Invitation:
         self.c_caller_uri = c_make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
         self.c_callee_uri = c_make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
         return 0
+
+    cdef PJSIPUA _check_ua(self):
+        cdef PJSIPUA ua
+        try:
+            ua = c_get_ua()
+            return ua
+        except:
+            self.state = "DISCONNECTED"
+            self.c_obj = NULL
+            self.c_dlg = NULL
 
     cdef int _do_dealloc(self) except -1:
         cdef PJSIPUA ua
@@ -150,6 +160,7 @@ cdef class Invitation:
 
     def get_active_local_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
+        self._check_ua()
         if self.c_obj != NULL and self.c_has_active_sdp:
             pjmedia_sdp_neg_get_active_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -158,6 +169,7 @@ cdef class Invitation:
 
     def get_active_remote_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
+        self._check_ua()
         if self.c_obj != NULL and self.c_has_active_sdp:
             pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -166,6 +178,7 @@ cdef class Invitation:
 
     def get_offered_remote_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
+        self._check_ua()
         if self.c_obj != NULL and pjmedia_sdp_neg_get_state(self.c_obj.neg) in [PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER, PJMEDIA_SDP_NEG_STATE_WAIT_NEGO]:
             pjmedia_sdp_neg_get_neg_remote(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -174,6 +187,7 @@ cdef class Invitation:
 
     def get_offered_local_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
+        self._check_ua()
         if self.c_obj != NULL and pjmedia_sdp_neg_get_state(self.c_obj.neg) in [PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER, PJMEDIA_SDP_NEG_STATE_WAIT_NEGO]:
             pjmedia_sdp_neg_get_neg_local(self.c_obj.neg, &sdp)
             return c_make_SDPSession(sdp)
@@ -182,6 +196,7 @@ cdef class Invitation:
 
     def set_offered_local_sdp(self, local_sdp):
         cdef pjmedia_sdp_neg_state neg_state = PJMEDIA_SDP_NEG_STATE_NULL
+        self._check_ua()
         if self.c_obj != NULL:
             neg_state = pjmedia_sdp_neg_get_state(self.c_obj.neg)
         if neg_state in [PJMEDIA_SDP_NEG_STATE_NULL, PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER, PJMEDIA_SDP_NEG_STATE_DONE]:
@@ -189,10 +204,9 @@ cdef class Invitation:
         else:
             raise SIPCoreError("Cannot set offered local SDP in this state")
 
-    cdef int _cb_state(self, object state, pjsip_rx_data *rdata) except -1:
+    cdef int _cb_state(self, PJSIPUA ua, object state, pjsip_rx_data *rdata) except -1:
         cdef pjsip_tx_data *tdata
         cdef int status
-        cdef PJSIPUA ua = c_get_ua()
         cdef dict event_dict
         if state == "CALLING" and state == self.state:
             return 0
@@ -221,7 +235,7 @@ cdef class Invitation:
         c_add_event("SCInvitationChangedState", event_dict)
         return 0
 
-    cdef int _cb_sdp_done(self, int status) except -1:
+    cdef int _cb_sdp_done(self, PJSIPUA ua, int status) except -1:
         cdef dict event_dict
         cdef pjmedia_sdp_session_ptr_const local_sdp
         cdef pjmedia_sdp_session_ptr_const remote_sdp
@@ -241,7 +255,7 @@ cdef class Invitation:
             event_dict["error"] = pj_status_to_str(status)
         c_add_event("SCInvitationGotSDPUpdate", event_dict)
         if self.state == "REINVITED":
-            self._cb_state("CONFIRMED", NULL)
+            self._cb_state(ua, "CONFIRMED", NULL)
         elif self.state in ["INCOMING", "EARLY"] and status != 0:
             self.disconnect(488)
         return 0
@@ -312,26 +326,27 @@ cdef class Invitation:
             raise
 
     def respond_to_invite_provisionally(self, int response_code=180, dict extra_headers=None):
+        cdef PJSIPUA ua = self._check_ua()
         if self.state != "INCOMING":
             raise SIPCoreError("Can only transition to the EARLY state from the INCOMING state")
         if response_code / 100 != 1:
             raise SIPCoreError("Not a provisional response: %d" % response_code)
-        self._send_response(response_code, extra_headers)
+        self._send_response(ua, response_code, extra_headers)
 
     def accept_invite(self, dict extra_headers=None):
+        cdef PJSIPUA ua = self._check_ua()
         if self.state not in ["INCOMING", "EARLY"]:
             raise SIPCoreError("Can only transition to the EARLY state from the INCOMING or EARLY states")
         try:
-            self._send_response(200, extra_headers)
+            self._send_response(ua, 200, extra_headers)
         except PJSIPError, e:
             if not pj_status_to_def(e.status).startswith("PJMEDIA_SDPNEG"):
                 raise
 
-    cdef int _send_response(self, int response_code, dict extra_headers) except -1:
+    cdef int _send_response(self, PJSIPUA ua, int response_code, dict extra_headers) except -1:
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef pjmedia_sdp_session *local_sdp = NULL
-        cdef PJSIPUA ua = c_get_ua()
         if response_code / 100 == 2:
             if self.c_local_sdp_proposed is None:
                 raise SIPCoreError("Local SDP has not been set")
@@ -346,7 +361,9 @@ cdef class Invitation:
     def disconnect(self, int response_code=486, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
         cdef int status
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
+        if self.state == "DISCONNECTED":
+            return
         if self.state == "DISCONNECTING":
             raise SIPCoreError("INVITE session is already DISCONNECTING")
         if self.c_obj == NULL:
@@ -361,20 +378,21 @@ cdef class Invitation:
             status = pjsip_inv_end_session(self.c_obj, response_code, NULL, &tdata)
         if status != 0:
             raise PJSIPError("Could not create message to end INVITE session", status)
-        self._cb_state("DISCONNECTING", NULL)
+        self._cb_state(ua, "DISCONNECTING", NULL)
         if tdata != NULL:
             self._send_msg(ua, tdata, extra_headers or {})
 
     def respond_to_reinvite(self, int response_code=200, dict extra_headers=None):
+        cdef PJSIPUA ua = self._check_ua()
         if self.state != "REINVITED":
             raise SIPCoreError("Can only send a response to a re-INVITE in the REINVITED state")
-        self._send_response(response_code, extra_headers)
+        self._send_response(ua, response_code, extra_headers)
 
     def send_reinvite(self, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef pjmedia_sdp_session *local_sdp = NULL
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = self._check_ua()
         if self.state != "CONFIRMED":
             raise SIPCoreError("Cannot send re-INVITE in CONFIRMED state")
         if self.c_local_sdp_proposed is not None:
@@ -384,7 +402,7 @@ cdef class Invitation:
         if status != 0:
             raise PJSIPError("Could not create re-INVITE message", status)
         self._send_msg(ua, tdata, extra_headers or {})
-        self._cb_state("REINVITING", NULL)
+        self._cb_state(ua, "REINVITING", NULL)
 
 # callback functions
 
@@ -418,7 +436,7 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
                     if inv.state != PJSIP_INV_STATE_CONFIRMED or e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
                         rdata = e.body.tsx_state.src.rdata
             try:
-                invitation._cb_state(state, rdata)
+                invitation._cb_state(ua, state, rdata)
             except:
                 invitation._fail(ua)
     except:
@@ -435,7 +453,7 @@ cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
         if inv.mod_data[ua.c_module.id] != NULL:
             invitation = <object> inv.mod_data[ua.c_module.id]
             try:
-                invitation._cb_sdp_done(status)
+                invitation._cb_sdp_done(ua, status)
             except:
                 invitation._fail(ua)
     except:
@@ -452,7 +470,7 @@ cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_sessi
         if inv.mod_data[ua.c_module.id] != NULL:
             invitation = <object> inv.mod_data[ua.c_module.id]
             try:
-                invitation._cb_state("REINVITED", rdata)
+                invitation._cb_state(ua, "REINVITED", rdata)
             except:
                 invitation._fail(ua)
     except:
@@ -475,7 +493,7 @@ cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
             invitation = <object> inv.mod_data[ua.c_module.id]
             if tsx.state == PJSIP_TSX_STATE_TERMINATED and invitation.state == "REINVITING":
                 try:
-                    invitation._cb_state("CONFIRMED", rdata)
+                    invitation._cb_state(ua, "CONFIRMED", rdata)
                 except:
                     invitation._fail(ua)
             elif invitation.state in ["INCOMING", "EARLY"] \
@@ -483,7 +501,7 @@ cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
                     and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG \
                     and rdata.msg_info.msg.line.req.method.id == PJSIP_CANCEL_METHOD:
                 try:
-                    invitation._cb_state("DISCONNECTED", rdata)
+                    invitation._cb_state(ua, "DISCONNECTED", rdata)
                 except:
                     invitation._fail(ua)
     except:
