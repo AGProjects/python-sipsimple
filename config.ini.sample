@@ -50,9 +50,6 @@ history_directory=~/.sipclient/history
 ; File transfer directory for saving incomming files
 file_transfers_directory=~/.sipclient/file_transfers
 
-; Automatically accept incomming file transfer requests
-auto_accept_file_transfers=false
-
 
 [Audio]
 
@@ -64,18 +61,6 @@ echo_cancellation_tail_length=100
 
 ; Use a dummy sound device, useful on platforms that do not have a sound card
 disable_sound=false
-
-; Supported audio codecs and their prefered order
-codec_list=speex,g711,ilbc,gsm,g722
-
-; Use sRTP to encrypt RTP streams using symmetric key, valid options are
-; optional (use sRTP when possible), mandatory (calls fails if sRTP
-; negotiation fails) and disabled (sRTP is never used)
-encryption=disabled
-
-; By default sRTP is used only over TLS secured signaling otherwise the
-; encryption key may be compromissed
-encryption_over_non_tls_sip_transport=false
 
 
 [Account]
@@ -162,4 +147,39 @@ xcap_root=https://xcap.example.com/xcap-root/
 ; sip_tls_verify_server=false
 ; msrp_tls_verify_server=false ; not implemented
 ; xcap_tls_verify_server=false ; not implemented
+
+
+; Audio settings
+
+; Supported audio codecs and their prefered order
+codec_list=speex,g711,ilbc,gsm,g722
+
+; Use sRTP to encrypt RTP streams using symmetric key, valid options are
+; optional (use sRTP when possible), mandatory (calls fails if sRTP
+; negotiation fails) and disabled (sRTP is never used)
+encryption=disabled
+
+; By default sRTP is used only over TLS secured signaling otherwise the
+; encryption key may be compromissed
+encryption_over_non_tls_sip_transport=false
+
+; Automatically accept incomming file transfer requests
+auto_accept_file_transfers=false
+
+
+; Ring tones
+
+; SIP session events
+; inbound_ringtone=ring_inbound.wav
+; outbound_ringtone=ring_outbound.wav
+
+; MSRP chat events
+; message_received_sound=message_received.wav
+; message_sent_sound=message_sent.wav
+
+
+[InboundRingtones]
+
+; user1@domain=user.wav
+; user2@domain=user.wav
 
