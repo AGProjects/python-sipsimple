@@ -47,7 +47,7 @@ log_directory=~/.sipclient/log
 ; History directory for saving audio and IM sessions
 history_directory=~/.sipclient/history
 
-; File transfer directory for saving incomming files
+; File transfer directory for saving incoming files
 file_transfers_directory=~/.sipclient/file_transfers
 
 
@@ -163,7 +163,7 @@ encryption=disabled
 ; encryption key may be compromissed
 encryption_over_non_tls_sip_transport=false
 
-; Automatically accept incomming file transfer requests
+; Automatically accept incoming file transfer requests
 auto_accept_file_transfers=false
 
 
