@@ -44,11 +44,12 @@ class GeneralConfig(ConfigSection):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "sip_subscribe_interval": int}
     sip_address = None
     password = None
     display_name = None
     outbound_proxy = None
+    sip_subscribe_interval = 600
 
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -505,7 +506,7 @@ def parse_options():
     if account_section not in configuration.parser.sections():
         raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
     configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=300, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
+    default_options = dict(expires=AccountConfig.sip_subscribe_interval, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
