@@ -12,10 +12,10 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.1.0), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib, python-msrplib (>= 0.9.1), python-codespeak-lib, python-gnutls, python-eventlet, python-eventlet (>= 0.8.9-1), python-pygame, x11vnc
 Provides: ${python:Provides}
 Description: SIP SIMPLE client Python library
- SIP SIMPLE client is a Python software library that allows for easy
+ SIP SIMPLE client is a Python software library that allows for easy  
  development of Internet communications end-points based on SIP and related
- protocols for voice, rich presence, instant messaging (IM) and file
- transfers. Other session types can be easily added by using an extensible
- high-level API.
+ protocols for voice, rich presence, session based instant messaging (IM),  
+ file transfers and desktop sharing. Other media types can be easily added by
+ using an extensible high-level API.
  .
 XB-Python-Version: ${python:Versions}

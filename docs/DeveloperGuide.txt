@@ -1,0 +1,76 @@
+
+Developer guide
+---------------
+
+The software allows you to create elegant real-time communications
+applications without having to read the +1200 RFC documents behind it. As a
+library with a high-level API, the toolkit can be used to add voice, IM and
+Presence functionality to any network devices as long as Python/C
+environment is supported by such platform.
+
+
+Middleware
+----------
+
+The main goal of this Python library is to provide a simple to use, high
+level interface that hides complexity of the lower level protocols and their
+interactions. To develop your SIP application you should use the middleware
+API that allows for easy creation of real-time communications applications
+using Python programming language.
+
+
+Components
+----------
+
+If you rather develop your own high level API and/or application without
+using our high-level design, you can use the following API that provides
+granular control of their respective components:
+
+ * SIP core API - The API for the SIP, RTP, ICE and audio engine
+ * MSRP API - The API for Message Session Relay Protocol used for instant
+   messaging, file transfer and desktop sharing
+ * Presence API - The API for Presence used for publication, subscription and
+   notifications for SIP events
+ * XCAP API - The API for XCAP used for storage of buddy lists and presence
+   policy documents in XCAP format
+
+
+Contributing
+------------
+
+If you found a bug or you want contribute with a feature you must be
+familiar with the darcs version control system from http://darcs.net. First
+make sure you are using the latest version by doing a 'darcs pull'. Then
+record your changes using 'darcs record'. Follow the following guidelines
+for recording your changes:
+
+* Keep a patch name under 74 characters, so that a darcs changes in a 80
+  char console is consistent and readable. If you need to write more than
+  that, use --edit-long-comment or do not specify -m "patch name" and it
+  will automatically ask for a patch name and a long comment. Also keep the
+  long comment inside the 80 char frame
+
+* When you add a long comment, you have the patch name on the first line. 
+  After that, leave an empty line and then add the long comment starting
+  from the 1st column. If you need to add bulleted entries in the long
+  comment, use a dash (-) not an asterisk (*), to avoid confusion with the
+  asterisk darcs places before every patch name.  Record separate patches
+  for each distinct changes you make. Do not mix different changes in a
+  single record.
+
+* Use darcs replace to rename tokens if possible instead of using a search
+  and replace in your editor. It correctly handles cases where someone else
+  still kept using the old name (it will automatically rename this uses of
+  the old name when he pull the darcs replace patch, which a simple token
+  rename done by the editor and recorded as a standard diff will never do,
+  requiring further patches to rename the old tokens that the other
+  developer added in his code while you were doing the renaming).  Finally
+  open a ticket at http://sipsimpleclient.com/newticket describing your
+  patch and the problem solved and submit the patch using:
+
+  darcs send --to devel@ag-projects.com
+
+The documentation of the API is available online at:
+
+http://sipsimpleclient.com/wiki/SipApiDocumentation
+

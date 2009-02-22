@@ -2,7 +2,7 @@
 SIP SIMPLE client
 -----------------
 
-Copyright (c) 2008 AG Projects
+Copyright (c) 2008-2009 AG Projects
 http://ag-projects.com
 
 
@@ -11,9 +11,9 @@ Description
 
 SIP SIMPLE client is a Python software library that allows for easy
 development of Internet communications end-points based on SIP and related
-protocols for voice, rich presence, instant messaging (IM) and file
-transfers. Other session types can be easily added by using an extensible
-high-level API.
+protocols for voice, rich presence, session based instant messaging (IM),
+file transfers and desktop sharing. Other media types can be easily added by
+using an extensible high-level API.
 
 
 Background
@@ -23,11 +23,6 @@ SIP stands for 'Sessions Initiation Protocol', an IETF standard described by
 RFC3261. SIP is an application-layer control protocol that can establish,
 modify and terminate multimedia sessions such as Internet telephony calls
 (VoIP). Media can be added to (and removed from) an existing session.
-
-SIP transparently supports name mapping and redirection services, which
-supports personal mobility, users can maintain a single externally visible
-address identifier, which can be in the form of a standard email address or
-E.164 telephone number regardless of their physical network location.
 
 SIP allows the endpoints to negotiate and combine any type of session they
 mutually understand like video, instant messaging (IM), file transfer,
@@ -55,21 +50,22 @@ presence information such as availability, moods, activities and
 geo-location, management for presence rules, resource lists, RLS services
 documents using XCAP protocol.
 
- * Locating SIP services RFC3263
- * Rich Presence Information Data model and Format (RPIDF) RFC3856, RFC3863 ,
- * RFC4479, RFC4481, RFC4482, RFC5196
- * Watcher-info event package RFC3857, RFC3858
+ * Rich presence data model RFC3856, RFC3863 , RFC4479, RFC4481, RFC4482,
+ * RFC5196
+ * Presence watcher-info event package RFC3857, RFC3858
  * XCAP protocol RFC4825
- * XCAP presence rules RFC5025, resource-lists and RLS-services RFC4826
+ * XCAP presence rules RFC5025
+ * XCAP resource-lists and RLS-services RFC4826
  * XCAP PIDF manipulation RFC4827
  * XCAP-diff event package draft-ietf-simple-xcap-diff-09
- * Conference event package RFC4575
+ * MSRP conference event package RFC4575
  * MSRP protocol RFC4975
  * MSRP protocol relay extension RFC4976
  * MSRP ad-hoc multi-party chat sessions draft-ietf-simple-chat-03
+ * MSRP file transfer draft-ietf-mmusic-file-transfer-mech-11
+ * Desktop sharing draft-garcia-mmusic-sdp-collaboration-00
  * Message summary event package RFC3842
  * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-03
-
 
 Documentation
 -------------

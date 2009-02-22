@@ -1,5 +1,0 @@
-
-The documentation of the API is available online at:
-
-http://sipsimpleclient.com/wiki/SipApiDocumentation
-
