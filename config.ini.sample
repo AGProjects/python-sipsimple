@@ -36,6 +36,7 @@ rtp_port_range=8000 8100
 ; bonjour=true ; not implemented
 
 ; Logging setting
+
 trace_sip=false
 trace_pjsip=false
 ; trace_xcap=false ; not implemented
@@ -77,7 +78,6 @@ display_name=
 ; syntax: host|transport:host|host:port|transport:host:port
 outbound_proxy=
 
-
 ; NAT traversal settings
 
 ; By default STUN servers are looked-up using DNS SRV _stun._udp .domain
@@ -91,6 +91,9 @@ use_ice=false
 ; Use STUN to determine server reflexive candidates for SDP/RTP negotiation
 use_stun_for_ice=false 
 
+; Use STUN to determine the public contact address used for REGISTER
+; use_stun_for_register=false ; not implemented
+
 ; MSRP settings
 
 ; MSRP relay address, syntax: auto|domain|hostname|hostname:port|ip:port
@@ -103,7 +106,6 @@ use_msrp_relay_for_outbound=false
 ; Local IP and port used for MSRP sessions
 ; msrp_local_ip=auto
 ; msrp_local_port_range=auto
-
 
 ; Presence settings
 
@@ -128,26 +130,22 @@ xcap_root=https://xcap.example.com/xcap-root/
 ; Subscribe to xcap-diff to be notified when XCAP documents are changed
 ; subscribe_xcap_diff=false ; not implemented
 
-
 ; ENUM settings
 
 ; List of top level domains for ENUM lookups
 ; enum_tld_list=e164.arpa ; not implemented
  
-
 ; Refresh intervals
 
 ; sip_register_interval=600 ; not implemented
 ; sip_subscribe_interval=600 ; not implemented
 ; sip_publish_interval=600 ; not implemented
 
-
 ; TLS settings
 
 ; sip_tls_verify_server=false
 ; msrp_tls_verify_server=false ; not implemented
 ; xcap_tls_verify_server=false ; not implemented
-
 
 ; Audio settings
 
