@@ -2,23 +2,21 @@
 SIP core
 --------
 
+- Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
+- Registration requestion URI should be settable by application [RK]
+- Use STUN to determine the public contact address used for REGISTER
 - Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
 - Handle incoming SUBSCRIBE requests [RK] [DB]
 - Handle incoming REGISTER requests [RK] [DB]
-- Use STUN to determine the public contact address used for REGISTER
 - Detect loops [RK]
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
-- Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
-- Registration requestion URI should be settable by application [RK]
-- Handle incomming OPTIONS requests [RK]
-- Handle incomming REFER requests [RK]
+- Handle incoming OPTIONS requests [RK]
+- Handle incoming REFER requests [RK]
 - Add feature to send OPTIONS method and parse the replies [RK]
 - Handle sending and receiving of multipart bodies for Invitation [RK]
 - Handle UPDATE for re-INVITE [RK]
-- Means to query RTP statistics [RK]
-- Remove any DNS or lookups from pjsip (lookup is always done outside PJSIP) [RK]
 
 
 Middleware
@@ -37,8 +35,6 @@ Middleware
 - Auto PUBLISH event=presence with device status when enter/exit audio session [RK] [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
 - Enrollment [LS]
-- Enviroment detection and feed to presence place-is element []
-- Geographical detection and feed to presence location element []
 - Handle 301/302 redirect within the Session class [RK]
 
 
@@ -65,7 +61,6 @@ Instant messaging
 - Add --auto-answer parameter to sip_im_session [DB]
 - Document MSRP client library usage [DB]
 - Port eventlet/greenlet to ARM [DB]
-- MSRP multiparty chat [DB]
 - Is-composing payload [DB]
 - Rich text format, see jabber standards [DB]
 - Fix sip_im_session to accept unicode characters [DB]
@@ -76,8 +71,7 @@ Security and privacy
 --------------------
 
 - Off-the-Record Messaging for IM [DB]
-- zRTP for audio []
-- Enable/disable chat logging []
+- zRTP for audio [RK]
 - Anonymous URI multi-party chat support [DB]
 
 
@@ -101,19 +95,15 @@ Other applications
 Command line tools
 ------------------
 
+- auto_answer for audio script 
 - sip_subscribe_xcap_diff script [LS]
 - xcap_pidf_manipulation script [LS]
-- Display NOTIFY multi-part bodies in sip_subscribe_rls [LS]
 - sip_subscribe_conference script [LS]
-- SIP register must be performed in the background [DB]
 - Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
-- Fix STUN blocking [RK]
-- Logging, based on trace_x configuration options: []
- - Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt [RK]
- - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
- - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt [LS]
- - Add timestamp and packet counters as for SIP trace for all other protocols [LS]
- - Toggle pjsip logging at run time in the test scripts [LS]
+- Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt [RK]
+- Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
+- Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt [LS]
+- Add timestamp and packet counters as for SIP trace for all other protocols [LS]
  
 
 Sessions
@@ -121,7 +111,6 @@ Sessions
 
 - Video (H.264) []
 - Real time text over RTP (RFC4103) []
-- Desktop sharing session []
 
 
 Porting
@@ -131,12 +120,4 @@ Porting
 - iPhone []
 - Android []
 - Symbian []
-
-
-Clean up
---------
-
-- Merge the eventlet_twisted library into its main trunk [DB]
-- Merge re-invite patch into pjsip main trunk [RK]
-- Remove print statements for logged messages []
 
