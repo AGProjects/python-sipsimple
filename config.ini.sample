@@ -137,9 +137,9 @@ xcap_root=https://xcap.example.com/xcap-root/
  
 ; Refresh intervals
 
-; sip_register_interval=600 ; not implemented
-; sip_subscribe_interval=600 ; not implemented
-; sip_publish_interval=600 ; not implemented
+sip_register_interval=600
+sip_subscribe_interval=600
+sip_publish_interval=600
 
 ; TLS settings
 
