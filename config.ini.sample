@@ -103,9 +103,8 @@ msrp_relay=auto
 ; By default the MSRP relay is used only for inbound sessions
 use_msrp_relay_for_outbound=false
 
-; Local IP and port used for MSRP sessions
+; Local IP used for MSRP sessions
 ; msrp_local_ip=auto
-; msrp_local_port_range=auto
 
 ; Presence settings
 
