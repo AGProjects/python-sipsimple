@@ -64,7 +64,7 @@ class OutboundProxy(SIPURI):
         return SIPURI(host=host, port=port, parameters=parameters)
 
 
-class TraceSIPValue(object):
+class LoggingOption(object):
     def __init__(self, value):
         value = str(value).lower()
         if value not in ('none', 'true', 'false', 'file', 'stdout', 'all'):
@@ -93,4 +93,4 @@ class TraceSIPValue(object):
     __str__ = __repr__
 
 
-__all__ = ["format_cmdline_uri", "IPAddressOrHostname", "OutboundProxy", "TraceSIPValue"]
+__all__ = ["format_cmdline_uri", "IPAddressOrHostname", "OutboundProxy", "LoggingOption"]

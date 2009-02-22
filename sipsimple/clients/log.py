@@ -1,6 +1,6 @@
 import os
 
-from sipsimple.clients import TraceSIPValue
+from sipsimple.clients import LoggingOption
 
 class Logger(object):
     def __init__(self, account, log_directory, **kwargs):
@@ -8,7 +8,7 @@ class Logger(object):
         self.log_directory = log_directory
 
         # sip trace
-        self.trace_sip = kwargs.get('trace_sip', TraceSIPValue('none'))
+        self.trace_sip = kwargs.get('trace_sip', LoggingOption('none'))
         self._siptrace_filename = os.path.join(os.path.expanduser(log_directory), account.sip_address, 'sip_trace.txt')
         self._siptrace_file = None
         self._siptrace_start_time = None

@@ -36,14 +36,14 @@ from sipsimple.clients.dns_lookup import *
 from sipsimple.clients import *
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": TraceSIPValue}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": LoggingOption}
     local_ip = None
     sip_local_udp_port = 0
     sip_local_tcp_port = 0
     sip_local_tls_port = 0
     sip_transports = ["tls", "tcp", "udp"]
     trace_pjsip = False
-    trace_sip = TraceSIPValue('none')
+    trace_sip = LoggingOption('none')
     log_directory = '~/.sipclient/log'
 
 
@@ -422,15 +422,15 @@ def parse_trace_sip(option, opt_str, value, parser):
     try:
         value = parser.rargs[0]
     except IndexError:
-        value = TraceSIPValue('file')
+        value = LoggingOption('file')
     else:
         if value == '' or value[0] == '-':
-            value = TraceSIPValue('file')
+            value = LoggingOption('file')
         else:
             try:
-                value = TraceSIPValue(value)
+                value = LoggingOption(value)
             except ValueError:
-                value = TraceSIPValue('file')
+                value = LoggingOption('file')
             else:
                 del parser.rargs[0]
     parser.values.trace_sip = value
