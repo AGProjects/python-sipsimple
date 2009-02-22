@@ -46,7 +46,7 @@ class GeneralConfig(ConfigSection):
 
 
 class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "use_ice": datatypes.Boolean, "use_stun_for_ice": datatypes.Boolean, "stun_servers": datatypes.StringList}
+    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "use_ice": datatypes.Boolean, "use_stun_for_ice": datatypes.Boolean, "stun_servers": datatypes.StringList, "sip_register_interval": int}
     sip_address = None
     password = None
     display_name = None
@@ -54,6 +54,7 @@ class AccountConfig(ConfigSection):
     use_ice = False
     use_stun_for_ice = False
     stun_servers = []
+    sip_register_interval = 600 
 
 
 class SRTPOptions(dict):
@@ -162,7 +163,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 print_control_keys()
                 print 'Waiting for incoming SIP session requests...'
             else:
-                reg = Registration(credentials, route=route)
+                reg = Registration(credentials, route=route, expires=AccountConfig.sip_register_interval)
                 print 'Registering "%s" at %s:%d' % (credentials.uri, route.host, route.port)
                 reg.register()
         else:
