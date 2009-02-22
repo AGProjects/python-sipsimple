@@ -25,9 +25,10 @@ sip_transports=tls,tcp,udp
 ; Security settings
 
 ; List of certificate authorities, that may sign remote X.509 certificates
-tls_ca_file=~/.sipclient/tls/ca.crt
+tls_ca_file=~/.sipclient/tls/ca.crt ; not implemented
 
 ; Verify that the X.509 certificate common name matches the remote hostname
+; sip_tls_verify_server=false ; not implemented
 
 ; Range of IP ports used for listening to RTP/RTCP streams
 rtp_port_range=8000 8100
@@ -98,10 +99,10 @@ use_stun_for_ice=false
 
 ; MSRP relay address, syntax: auto|domain|hostname|hostname:port|ip:port
 ; auto means the relay is looked-up using DNS SRV _msrps._tcp.domain
-msrp_relay=auto
+; msrp_relay=auto
 
 ; By default the MSRP relay is used only for inbound sessions
-use_msrp_relay_for_outbound=false
+use_msrp_relay_for_outbound=false ; not implemented
 
 ; Local IP used for MSRP sessions
 ; msrp_local_ip=auto
@@ -142,7 +143,7 @@ xcap_root=https://xcap.example.com/xcap-root/
 
 ; TLS settings
 
-; sip_tls_verify_server=false
+; Verify that the X.509 certificate common name matches the remote hostname
 ; msrp_tls_verify_server=false ; not implemented
 ; xcap_tls_verify_server=false ; not implemented
 
@@ -160,9 +161,10 @@ encryption=disabled
 ; encryption key may be compromissed
 encryption_over_non_tls_sip_transport=false
 
+; MSRP file transfers
+
 ; Automatically accept incoming file transfer requests
 auto_accept_file_transfers=false
-
 
 ; Ring tones
 
@@ -177,6 +179,6 @@ auto_accept_file_transfers=false
 
 [InboundRingtones]
 
-; user1@domain=user.wav
-; user2@domain=user.wav
+; user1@domain=user1.wav
+; user2@domain=user2.wav
 
