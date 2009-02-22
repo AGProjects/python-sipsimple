@@ -141,13 +141,14 @@ def print_control_keys():
     print "  Ctrl-d: quit the program"
     print "  ?: display this help message"
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup):
+def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup, auto_answer):
     global user_quit, lock, queue, return_code, logger
     lock.acquire()
     sess = None
     ringer = None
     printed = False
     want_quit = target_uri is not None
+    auto_answer_timer = None
     try:
         if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
@@ -197,6 +198,13 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                     if sess is None:
                         sess = obj
                         print 'Incoming audio session from "sip%s:%s@%s", do you want to accept? (y/n)' % (("s" if sess.caller_uri.secure else ""), sess.caller_uri.user, sess.caller_uri.host)
+                        if auto_answer is not None:
+                            def auto_answer_call():
+                                print 'Auto-answering call.'
+                                sess.accept(audio=True)
+                                auto_answer_timer = None
+                            auto_answer_timer = Timer(auto_answer, auto_answer_call)
+                            auto_answer_timer.start()
                     else:
                         print "Rejecting."
                         obj.reject()
@@ -243,6 +251,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                         sess = None
                         if want_quit:
                             command = "unregister"
+                        if auto_answer_timer is not None:
+                            auto_answer_timer.cancel()
+                            auto_answer_timer = None
                 elif event_name == "SCSessionGotNoAudio":
                     print "No media received, ending session"
                     return_code = 1
@@ -289,6 +300,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                             print "Session rejected."
                             sess = None
                         elif data.lower() == "y":
+                            if auto_answer_timer is not None:
+                                auto_answer_timer.cancel()
+                                auto_answer_timer = None
                             sess.accept(audio=True)
                 if data in ",<":
                     if ec_tail_length > 0:
@@ -424,6 +438,23 @@ def parse_auto_hangup(option, opt_str, value, parser):
                 del parser.rargs[0]
     parser.values.auto_hangup = value
 
+def parse_auto_answer(option, opt_str, value, parser):
+    try:
+        value = parser.rargs[0]
+    except IndexError:
+        value = 0
+    else:
+        if value == "" or value[0] == '-':
+            value = 0
+        else:
+            try:
+                value = int(value)
+            except ValueError:
+                value = 0
+            else:
+                del parser.rargs[0]
+    parser.values.auto_answer = value
+
 def split_codec_list(option, opt_str, value, parser):
     parser.values.codecs = value.split(",")
 
@@ -462,6 +493,7 @@ def parse_options():
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     parser.add_option("--auto-hangup", action="callback", callback=parse_auto_hangup, help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
+    parser.add_option("--auto-answer", action="callback", callback=parse_auto_answer, help="Interval after which to answer an incoming call (disabled by default). If the option is specified but the interval is not, it defaults to 0 (answer the call as soon as it starts ringing).", metavar="[INTERVAL]")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
@@ -473,7 +505,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, auto_hangup=None)
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, auto_hangup=None, auto_answer=None)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
