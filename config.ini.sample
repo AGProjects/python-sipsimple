@@ -9,7 +9,7 @@
 
 ; SIP transport settings
 
-; IP address used for SIP signaling, syntax: 0.0.0.0|any|ip:port|ip
+; IP address used for SIP signaling, syntax: 0.0.0.0|any|ip
 local_ip=any
 
 ; Ports used for each supported SIP transport, can be 0 (port will be
