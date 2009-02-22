@@ -5,6 +5,7 @@ SIP core
 - Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
 - Handle incoming SUBSCRIBE requests [RK] [DB]
 - Handle incoming REGISTER requests [RK] [DB]
+- Use STUN to determine the public contact address used for REGISTER
 - Detect loops [RK]
 - Use Server header in replies instead of User-Agent header [RK]
 - Properly decrease reference counts of pjsip_tx_data structs [RK]
