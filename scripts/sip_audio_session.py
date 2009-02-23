@@ -33,13 +33,13 @@ from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import *
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": LoggingOption}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": LoggingOption, "trace_sip": LoggingOption}
     local_ip = None
     sip_local_udp_port = 0
     sip_local_tcp_port = 0
     sip_local_tls_port = 0
     sip_transports = ["tls", "tcp", "udp"]
-    trace_pjsip = False
+    trace_pjsip = LoggingOption('none')
     trace_sip = LoggingOption('none')
     history_directory = '~/.sipclient/history'
     log_directory = '~/.sipclient/log'
@@ -86,8 +86,6 @@ configuration.read_settings("Audio", AudioConfig)
 configuration.read_settings("General", GeneralConfig)
 
 queue = Queue()
-packet_count = 0
-start_time = None
 old = None
 user_quit = True
 lock = allocate_lock()
@@ -123,13 +121,7 @@ class EventHandler(object):
         engine.notification_center.add_observer(self)
 
     def handle_notification(self, notification):
-        global start_time, packet_count, queue, do_trace_pjsip, logger
-        if notification.name == "SCEngineSIPTrace":
-            logger.log(notification.name, **notification.data.__dict__)
-        elif notification.name == "SCEngineLog" and do_trace_pjsip:
-            queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
-        else:
-            queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
+        queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
 
 
 def print_control_keys():
@@ -137,12 +129,13 @@ def print_control_keys():
     print "  h: hang-up the active session"
     print "  r: toggle audio recording"
     print "  t: toggle SIP trace on the console"
+    print "  j: toggle PJSIP trace on the console"
     print "  <> : adjust echo cancellation"
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
     print "  ?: display this help message"
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, do_trace_pjsip, use_bonjour, stun_servers, auto_hangup, auto_answer):
+def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, use_bonjour, stun_servers, auto_hangup, auto_answer):
     global user_quit, lock, queue, return_code, logger
     lock.acquire()
     sess = None
@@ -318,6 +311,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 elif data == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                elif data == 'j':
+                    logger.trace_pjsip.to_stdout = not logger.trace_pjsip.to_stdout
+                    print "PJSIP tracing to console is now %s" % ("activated" if logger.trace_pjsip.to_stdout else "deactivated")
                 elif data == '?':
                     print_control_keys()
             if command == "eof":
@@ -352,9 +348,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
         lock.release()
 
 def do_invite(**kwargs):
-    global user_quit, lock, queue, do_trace_pjsip, logger
+    global user_quit, lock, queue, logger
     ctrl_d_pressed = False
-    do_trace_pjsip = kwargs["do_trace_pjsip"]
     outbound_proxy = kwargs.pop("outbound_proxy")
     kwargs["stun_servers"] = lookup_service_for_sip_uri(SIPURI(host=kwargs["domain"]), "stun")
     if kwargs["use_bonjour"]:
@@ -370,9 +365,12 @@ def do_invite(**kwargs):
         except IndexError:
             raise RuntimeError("No route found to SIP proxy")
     
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'), trace_pjsip=kwargs.pop('trace_pjsip'))
+    logger.start()
     if logger.trace_sip.to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    if logger.trace_pjsip.to_file:
+        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
     e = Engine()
     event_handler = EventHandler(e)
@@ -459,7 +457,7 @@ def parse_auto_answer(option, opt_str, value, parser):
 def split_codec_list(option, opt_str, value, parser):
     parser.values.codecs = value.split(",")
 
-def parse_trace_sip(option, opt_str, value, parser):
+def parse_trace_option(option, opt_str, value, parser, name):
     try:
         value = parser.rargs[0]
     except IndexError:
@@ -474,7 +472,7 @@ def parse_trace_sip(option, opt_str, value, parser):
                 value = LoggingOption('file')
             else:
                 del parser.rargs[0]
-    parser.values.trace_sip = value
+    setattr(parser.values, name, value)
 
 def parse_options():
     retval = {}
@@ -487,12 +485,12 @@ def parse_options():
     parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
     parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_sip, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_option, callback_args=('trace_sip',), help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 50 ms.')
     parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('trace_pjsip',), help="Print PJSIP logging output (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.add_option("--auto-hangup", action="callback", callback=parse_auto_hangup, help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
     parser.add_option("--auto-answer", action="callback", callback=parse_auto_answer, help="Interval after which to answer an incoming call (disabled by default). If the option is specified but the interval is not, it defaults to 0 (answer the call as soon as it starts ringing).", metavar="[INTERVAL]")
     options, args = parser.parse_args()
@@ -506,7 +504,7 @@ def parse_options():
         if account_section not in configuration.parser.sections():
             raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
         configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, auto_hangup=None, auto_answer=None)
+    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, auto_hangup=None, auto_answer=None)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
