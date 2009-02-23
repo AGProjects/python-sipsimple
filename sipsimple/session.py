@@ -34,10 +34,11 @@ class NotificationHandler(object):
 class MediaTransportInitializer(NotificationHandler):
     implements(IObserver)
 
-    def __init__(self, continuation_func, failure_func, audio_rtp):
+    def __init__(self, continuation_func, failure_func, audio_rtp, msrp_chat):
         self.continuation_func = continuation_func
         self.failure_func = failure_func
         self.audio_rtp = audio_rtp
+        self.msrp_chat = msrp_chat
         self.notification_center = NotificationCenter()
         self.waiting_for = []
         self._lock = allocate_lock()
@@ -47,33 +48,61 @@ class MediaTransportInitializer(NotificationHandler):
                 self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", rtp)
                 self.notification_center.add_observer(self, "SCRTPTransportDidFail", rtp)
                 rtp.set_INIT()
+            if msrp_chat is not None:
+                self.waiting_for.append(msrp_chat)
+                self.notification_center.add_observer(self, "MSRPChatDidInitialize", rtp)
+                self.notification_center.add_observer(self, "MSRPChatDidFail", rtp)
+                msrp_chat.initialize()
+
+    def _remove_observer(self, obj):
+        self.waiting_for.remove(obj)
+        if obj is self.msrp_chat:
+            self.notification_center.remove_observer(self, "MSRPChatDidInitialize", obj)
+            self.notification_center.remove_observer(self, "MSRPChatDidFail", obj)
+        else:
+            self.notification_center.remove_observer(self, "SCRTPTransportDidInitialize", obj)
+            self.notification_center.remove_observer(self, "SCRTPTransportDidFail", obj)
 
     def _check_done(self):
         if len(self.waiting_for) == 0:
-            self.continuation_func(self.audio_rtp)
+            self.continuation_func(self.audio_rtp, self.msrp_chat)
 
     def _fail(self, sender, reason):
         for obj in self.waiting_for:
-            if obj is self.audio_rtp:
-                self.notification_center.remove_observer(self, "SCRTPTransportDidInitialize", obj)
-                self.notification_center.remove_observer(self, "SCRTPTransportDidFail", obj)
-        self.waiting_for = []
+            self._remove_observer(obj)
+        if self.msrp_chat is not None:
+            self.msrp_chat.end()
         if sender is self.audio_rtp:
             reason = "Failed to initialize audio RTP transport: %s" % reason
+        elif sender is self.msrp_chat:
+            reason = "Failed to initialize MSRP chat transport: %s" % reason
         self.failure_func(reason)
 
     def _handle_SCRTPTransportDidInitialize(self, rtp, data):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
-            self.waiting_for.remove(rtp)
-            self.notification_center.remove_observer(self, "SCRTPTransportDidInitialize", rtp)
-            self.notification_center.remove_observer(self, "SCRTPTransportDidFail", rtp)
+            self._remove_observer(rtp)
             self._check_done()
 
     def _handle_SCRTPTransportDidFail(self, rtp, data):
         with self._lock:
+            if len(self.waiting_for) == 0:
+                return
             self._fail(rtp, data.reason)
+
+    def _handle_MSRPChatDidInitialize(self, msrp, data):
+        with self._lock:
+            if len(self.waiting_for) == 0:
+                return
+            self._remove_observer(msrp)
+            self._check_done()
+
+    def _handle_MSRPChatDidFail(self, msrp, data):
+        with self._lock:
+            if len(self.waiting_for) == 0:
+                return
+            self._fail(msrp, data.reason)
 
 
 class Session(NotificationHandler):
@@ -153,7 +182,7 @@ class Session(NotificationHandler):
                 audio_rtp = None
             ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
             inv = Invitation(credentials, callee_uri, route=route)
-            media_initializer = MediaTransportInitializer(self._new_continue, self._new_fail, audio_rtp)
+            media_initializer = MediaTransportInitializer(self._new_continue, self._new_fail, audio_rtp, None)
             self._inv = inv
             self.session_manager.inv_mapping[inv] = self
             self._ringtone = ringtone
@@ -176,7 +205,7 @@ class Session(NotificationHandler):
                 return
             self._do_fail(reason)
 
-    def _new_continue(self, audio_rtp):
+    def _new_continue(self, audio_rtp, msrp_chat):
         self._lock.acquire()
         try:
             if self.state != "CALLING":
@@ -214,7 +243,7 @@ class Session(NotificationHandler):
                 audio_rtp = None
             if not any([audio_rtp]):
                 raise RuntimeError("None of the streams proposed by the remote party is accepted")
-            media_initializer = MediaTransportInitializer(self._accept_continue, self._accept_fail, audio_rtp)
+            media_initializer = MediaTransportInitializer(self._accept_continue, self._accept_fail, audio_rtp, None)
             self._audio_sdp_index = audio_sdp_index
             self._change_state("ACCEPTING")
 
@@ -224,7 +253,7 @@ class Session(NotificationHandler):
                 return
             self._do_fail(reason)
 
-    def _accept_continue(self, audio_rtp):
+    def _accept_continue(self, audio_rtp, msrp_chat):
         self._lock.acquire()
         try:
             if self.state != "ACCEPTING":
