@@ -556,9 +556,8 @@ class Session(NotificationHandler):
         self.audio_transport = None
 
     def _stop_chat(self):
-        self.chat_transport.end()
-        self.session_manager.msrp_chat_mapping.pop(self.chat_transport)
-        self.chat_transport = None
+        if self.chat_transport.is_initialized:
+            self.chat_transport.end()
 
     def _check_audio(self):
         with self._lock:
@@ -656,6 +655,7 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "MSRPChatGotMessage")
         self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
         self.notification_center.add_observer(self, "MSRPChatDidNotDeliverMessage")
+        self.notification_center.add_observer(self, "MSRPChatDidEnd")
         self.ringtone_config = RingtoneConfiguration()
 
     def _handle_SCInvitationChangedState(self, inv, data):
@@ -799,6 +799,13 @@ class SessionManager(NotificationHandler):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             self.notification_center.post_notification("SCSessionDidNotDeliverMessage", session, data)
+
+    def _handle_MSRPChatDidEnd(self, msrp_chat, data):
+        session = self.msrp_chat_mapping.get(msrp_chat, None)
+        if session is not None:
+            with session._lock:
+                session.chat_transport = None
+                del self.msrp_chat_mapping[msrp_chat]
 
 
 __all__ = ["SessionManager", "Session"]
