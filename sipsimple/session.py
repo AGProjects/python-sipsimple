@@ -228,6 +228,8 @@ class Session(NotificationHandler):
                 self._audio_sdp_index = sdp_index
                 sdp_index += 1
                 local_sdp.media.append(self._init_audio(audio_rtp))
+                if self.rtp_options["use_ice"]:
+                    local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
             if msrp_chat:
                 self._chat_sdp_index = sdp_index
                 sdp_index += 1
@@ -299,6 +301,8 @@ class Session(NotificationHandler):
             if audio_rtp:
                 sdp_media_todo.remove(self._audio_sdp_index)
                 local_sdp.media[self._audio_sdp_index] = self._init_audio(audio_rtp, remote_sdp)
+                if self.rtp_options["use_ice"]:
+                    local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
             if msrp_chat:
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
                 local_sdp.media.append(msrp_chat.get_local_media())
