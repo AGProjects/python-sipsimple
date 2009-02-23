@@ -55,7 +55,7 @@ class Engine(object):
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
         init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
-        self.notification_center.post_notification("SCEngineWillStart", self, NotificationData(timestamp=datetime.now()))
+        self._post_notification("SCEngineWillStart")
         try:
             self._ua = PJSIPUA(self._handle_event, **init_options)
             if auto_sound:
@@ -76,10 +76,10 @@ class Engine(object):
             if hasattr(self, "_ua"):
                 self._ua.dealloc()
                 del self._ua
-            self.notification_center.post_notification("SCEngineDidFail", self, NotificationData(timestamp=datetime.now()))
+            self._post_notification("SCEngineDidFail")
             raise
         else:
-            self.notification_center.post_notification("SCEngineDidStart", self, NotificationData(timestamp=datetime.now()))
+            self._post_notification("SCEngineDidStart")
 
     def stop(self):
         if self._thread_started:
@@ -95,31 +95,38 @@ class Engine(object):
                 try:
                     failed = self._ua.poll()
                 except:
-                    self.notification_center.post_notification("SCEngineGotException", self, NotificationData(timestamp=datetime.now(), traceback="".join(traceback.format_exc())))
+                    self._post_notification("SCEngineGotException", traceback="".join(traceback.format_exc()))
                     failed = True
                 if failed:
-                    self.notification_center.post_notification("SCEngineDidFail", self, NotificationData(timestamp=datetime.now()))
+                    self._post_notification("SCEngineDidFail")
                     break
             if not failed:
-                self.notification_center.post_notification("SCEngineWillEnd", self, NotificationData(timestamp=datetime.now()))
+                self._post_notification("SCEngineWillEnd")
             self._ua.dealloc()
             del self._ua
         finally:
             self._lock.release()
-            self.notification_center.post_notification("SCEngineDidEnd", self, NotificationData(timestamp=datetime.now()))
+            self._post_notification("SCEngineDidEnd")
 
     def _handle_event(self, event_name, **kwargs):
         sender = kwargs.pop("obj", None)
         if sender is None:
             sender = self
-        self.notification_center.post_notification(event_name, sender, NotificationData(**kwargs))
+        if self.notification_center is not None:
+            self.notification_center.post_notification(event_name, sender, NotificationData(**kwargs))
+
+    def _post_notification(self, name, **kwargs):
+        if self.notification_center is not None:
+            self.notification_center.post_notification(name, self, NotificationData(timestamp=datetime.now(), **kwargs))
 
 
 class EngineStopper(object):
 
     def __del__(self):
         if hasattr(Engine, '_instance_creator'):
-            Engine().stop()
+            engine = Engine()
+            engine.notification_center = None
+            engine.stop()
 
 
 _helper = EngineStopper()
