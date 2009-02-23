@@ -95,12 +95,10 @@ Other applications
 Command line tools
 ------------------
 
-- auto_answer for audio script 
 - sip_subscribe_xcap_diff script [LS]
 - xcap_pidf_manipulation script [LS]
 - sip_subscribe_conference script [LS]
 - Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
-- Append PJSIP messages to .sipclient/log/user@domain/pjsip_trace.txt [RK]
 - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
 - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt [LS]
 - Add timestamp and packet counters as for SIP trace for all other protocols [LS]
