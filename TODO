@@ -45,11 +45,11 @@ Audio
 - Persistent sounds device references for configuration [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK] [DB]
 - Add method to core for playing arbitrary tones on the conference bridge [RK]
-- Play a non-disruptive tone when a session is received while in another
-  session using the tone generator [RK] [DB]
+- Added general volume control for the conference bridge [RK]
+- Play a non-disruptive tone when a session is received while in another [RK]
 - Play a soft-tone while on hold every 30 seconds, use tone generator [RK]
-- Play a tone when a session is terminated, use tone generator [RK]
-- Fix high CPU usage for sound card access on OS X [RK]
+- Play a short tone when a session is terminated, use tone generator [RK]
+- Fix high CPU usage on OS X [RK]
 - Comfort noise generator (CNG) [RK]
 - N810 maemo audio driver [LS]
 - Acoustic Echo Cancellation (a.k.a. AEC or The Holly Grail) []
@@ -118,3 +118,4 @@ Porting
 - iPhone []
 - Android [RK]
 - Symbian [LS]
+
