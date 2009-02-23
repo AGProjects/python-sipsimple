@@ -108,6 +108,7 @@ cdef extern from "pjlib.h":
     char *pj_sockaddr_print(pj_sockaddr *addr, char *buf, int size, unsigned int flags)
     int pj_sockaddr_has_addr(pj_sockaddr *addr)
     int pj_sockaddr_init(int af, pj_sockaddr *addr, pj_str_t *cp, unsigned int port)
+    int pj_inet_pton(int af, pj_str_t *src, void *dst)
 
     # time
     struct pj_time_val:
@@ -800,6 +801,8 @@ cdef object pj_status_to_def(int status)
 cdef object c_retrieve_nameservers()
 cdef dict c_pjsip_param_to_dict(pjsip_param *param_list)
 cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
+cdef int c_is_valid_ip(int af, object ip) except -1
+cdef int c_get_ip_version(object ip) except -1
 
 # core.helper
 

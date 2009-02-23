@@ -167,6 +167,25 @@ cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         info_dict["reason"] = pj_str_to_str(rdata.msg_info.msg.line.status.reason)
     return 0
 
+cdef int c_is_valid_ip(int af, object ip) except -1:
+    cdef char buf[16]
+    cdef pj_str_t src
+    cdef int status
+    str_to_pj_str(ip, &src)
+    status = pj_inet_pton(af, &src, buf)
+    if status == 0:
+        return 1
+    else:
+        return 0
+
+cdef int c_get_ip_version(object ip) except -1:
+    if c_is_valid_ip(pj_AF_INET(), ip):
+        return 4
+    elif c_is_valid_ip(pj_AF_INET6(), ip):
+        return 6
+    else:
+        return 0
+
 # globals
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
