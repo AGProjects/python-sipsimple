@@ -105,7 +105,7 @@ class MediaTransportInitializer(NotificationHandler):
 
 
 class Session(NotificationHandler):
-    """Represents a session.
+    """Represents a SIP session.
        Attributes:
        state: The state of the object as a string
        remote_user_agent: The user agent of the remote party, once detected
@@ -114,7 +114,7 @@ class Session(NotificationHandler):
 
     def __init__(self):
         """Instatiates a new Session object for an incoming or outgoing
-           session. Initially the object is in the NULL state."""
+           SIP session. Initially the object is in the NULL state."""
         self.session_manager = SessionManager()
         self.notification_center = NotificationCenter()
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
@@ -171,7 +171,7 @@ class Session(NotificationHandler):
 
     # user interface
     def new(self, callee_uri, credentials, route, audio=False, chat=False):
-        """Creates a new session to the callee with the requested stream(s).
+        """Creates a new SIP session to the callee with the requested stream(s).
            Moves the object from the NULL into the CALLING state."""
         with self._lock:
             if self.state != "NULL":
@@ -242,7 +242,7 @@ class Session(NotificationHandler):
 
     # TODO: fetch password (used for MSRP relay) from AccountManager
     def accept(self, audio=False, chat=False, password=None):
-        """Accept an incoming session, using the requested stream(s).
+        """Accept an incoming SIP session, using the requested stream(s).
            Moves the object from the INCOMING to the ACCEPTING state."""
         with self._lock:
             if self.state != "INCOMING":
@@ -314,19 +314,19 @@ class Session(NotificationHandler):
             self._lock.release()
 
     def reject(self):
-        """Rejects an incoming session. Moves the object from the INCOMING to
+        """Rejects an incoming SIP session. Moves the object from the INCOMING to
            the TERMINATING state."""
         if self.state != "INCOMING":
             raise RuntimeError("This method can only be called while in the INCOMING state")
         self.terminate()
 
     def add_audio(self):
-        """Add an audio stream to an already established session."""
+        """Add an audio RTP stream to an already established SIP session."""
         with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self.audio_transport is not None:
-                raise RuntimeError("An audio stream is already active whithin this session")
+                raise RuntimeError("An audio RTP stream is already active within this SIP session")
             raise NotImplementedError
             # TODO: implement and emit SCSessionGotStreamProposal
 
@@ -335,7 +335,7 @@ class Session(NotificationHandler):
             if self.state != "ESTABLISHED":
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self.msrp_transport is not None:
-                raise RuntimeError("An MSRP chat stream is already active whithin this session")
+                raise RuntimeError("An MSRP chat stream is already active within this SIP session")
             raise NotImplementedError
             # TODO: implement and emit SCSessionGotStreamProposal
 
@@ -359,7 +359,7 @@ class Session(NotificationHandler):
             self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(originator="local"))
 
     def hold(self):
-        """Put an established session on hold. This moves the object from the
+        """Put an established SIP session on hold. This moves the object from the
            ESTABLISHED state to the ONHOLD state."""
         with self._lock:
             if self.state != "ESTABLISHED":
@@ -369,7 +369,7 @@ class Session(NotificationHandler):
                 self._process_queue()
 
     def unhold(self):
-        """Takes a session that was previous put on hold out of hold. This
+        """Takes a SIP session that was previous put on hold out of hold. This
            moves the object from the ONHOLD state to the ESTABLISHED state."""
         with self._lock:
             if self.state != "ESTABLISHED":
@@ -379,7 +379,7 @@ class Session(NotificationHandler):
                 self._process_queue()
 
     def terminate(self):
-        """Terminates the session from whatever state it is in.
+        """Terminates the SIP session from whatever state it is in.
            Moves the object to the TERMINATING state."""
         with self._lock:
             if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
@@ -392,7 +392,7 @@ class Session(NotificationHandler):
     def start_recording_audio(self, path, file_name=None):
         with self._lock:
             if self.audio_transport is None or not self.audio_transport.is_active:
-                raise RuntimeError("No audio stream is active on this session")
+                raise RuntimeError("No audio RTP stream is active on this SIP session")
             if self._audio_rec is not None:
                 raise RuntimeError("Already recording audio to a file")
             if file_name is None:
@@ -495,7 +495,7 @@ class Session(NotificationHandler):
             self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
 
     def _init_audio(self, rtp_transport, remote_sdp=None):
-        """Initialize everything needed for an audio stream and return a
+        """Initialize everything needed for an audio RTP stream and return a
            SDPMedia object describing it. Called internally."""
         if remote_sdp is None:
             self.audio_transport = AudioTransport(rtp_transport)
@@ -520,7 +520,7 @@ class Session(NotificationHandler):
                 self._stop_chat()
 
     def _update_audio(self, local_sdp, remote_sdp):
-        """Update the audio stream. Will be called locally from
+        """Update the audio RTP stream. Will be called locally from
            _update_media()."""
         if self.audio_transport.is_active:
             # TODO: check for ip/port/codec changes and restart AudioTransport if needed
@@ -549,14 +549,14 @@ class Session(NotificationHandler):
 
     def _stop_media(self):
         """Stop all media streams. This will be called by SessionManager when
-           the session ends."""
+           the SIP session ends."""
         if self.audio_transport:
             self._stop_audio()
         if self.chat_transport:
             self._stop_chat()
 
     def _stop_audio(self):
-        """Stop the audio stream. This will be called locally, either from
+        """Stop the audio RTP stream. This will be called locally, either from
         _update_media() or _stop_media()."""
         if self.audio_transport.is_active:
             Engine().disconnect_audio_transport(self.audio_transport)
@@ -587,7 +587,7 @@ class Session(NotificationHandler):
 
     def send_dtmf(self, digit):
         if self.audio_transport is None or not self.audio_transport.is_active:
-            raise RuntimeError("This session does not have an active audio stream to transmit DMTF over")
+            raise RuntimeError("This SIP session does not have an active audio RTP stream to transmit DMTF over")
         self.audio_transport.send_dtmf(digit)
 
     def _make_next_sdp(self, is_offer, on_hold=False):
@@ -608,7 +608,7 @@ class Session(NotificationHandler):
 
     def send_message(self, content, content_type="text/plain", to_uri=None):
         if self.chat_transport is none or not self.chat_transport.is_active:
-            raise RuntimeError("This session does not have an active MSRP stream to send chat message over")
+            raise RuntimeError("This SIP session does not have an active MSRP stream to send chat message over")
         self.chat_transport(content, content_type, to_uri)
 
 
