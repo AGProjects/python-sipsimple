@@ -150,16 +150,17 @@ sip_publish_interval=600
 ; Audio settings
 
 ; Supported audio codecs and their prefered order
-codec_list=speex,g711,ilbc,gsm,g722
+audio_codec_list=speex,g711,ilbc,gsm,g722
 
 ; Use sRTP to encrypt RTP streams using symmetric key, valid options are
 ; optional (use sRTP when possible), mandatory (calls fails if sRTP
 ; negotiation fails) and disabled (sRTP is never used)
-encryption=disabled
+audio_srtp_encryption=disabled
 
 ; By default sRTP is used only over TLS secured signaling otherwise the
-; encryption key may be compromissed
-encryption_over_non_tls_sip_transport=false
+; symmetric encryption key may be compromissed
+use_srtp_with_non_tls_sip=false
+
 
 ; MSRP file transfers
 
