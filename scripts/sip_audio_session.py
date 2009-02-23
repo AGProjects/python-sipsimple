@@ -420,7 +420,7 @@ def parse_outbound_proxy(option, opt_str, value, parser):
     except ValueError, e:
         raise OptionValueError(e.message)
 
-def parse_auto_hangup(option, opt_str, value, parser):
+def parse_handle_call_option(option, opt_str, value, parser, name):
     try:
         value = parser.rargs[0]
     except IndexError:
@@ -435,24 +435,7 @@ def parse_auto_hangup(option, opt_str, value, parser):
                 value = 0
             else:
                 del parser.rargs[0]
-    parser.values.auto_hangup = value
-
-def parse_auto_answer(option, opt_str, value, parser):
-    try:
-        value = parser.rargs[0]
-    except IndexError:
-        value = 0
-    else:
-        if value == "" or value[0] == '-':
-            value = 0
-        else:
-            try:
-                value = int(value)
-            except ValueError:
-                value = 0
-            else:
-                del parser.rargs[0]
-    parser.values.auto_answer = value
+    setattr(parser.values, name, value)
 
 def split_codec_list(option, opt_str, value, parser):
     parser.values.codecs = value.split(",")
@@ -491,8 +474,8 @@ def parse_options():
     parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
     parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('trace_pjsip',), help="Print PJSIP logging output (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("--auto-hangup", action="callback", callback=parse_auto_hangup, help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
-    parser.add_option("--auto-answer", action="callback", callback=parse_auto_answer, help="Interval after which to answer an incoming call (disabled by default). If the option is specified but the interval is not, it defaults to 0 (answer the call as soon as it starts ringing).", metavar="[INTERVAL]")
+    parser.add_option("--auto-hangup", action="callback", callback=parse_handle_call_option, callback_args=('auto_hangup',), help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
+    parser.add_option("--auto-answer", action="callback", callback=parse_handle_call_option, callback_args=('auto_answer',), help="Interval after which to answer an incoming call (disabled by default). If the option is specified but the interval is not, it defaults to 0 (answer the call as soon as it starts ringing).", metavar="[INTERVAL]")
     options, args = parser.parse_args()
 
     retval["use_bonjour"] = options.account_name == "bonjour"
