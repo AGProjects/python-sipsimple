@@ -78,6 +78,7 @@ Presence
 --------
 
 - Conference event package [LS]
+- Dialog event package http://tools.ietf.org/html/rfc4235 [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
 - xcap-diff payload [LS]
