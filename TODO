@@ -27,6 +27,7 @@ Middleware
 - Integrate audio into session high-level class [RK]
 - Integrate MSRP into high level class [RK] [DB]
 - Desktop sharing high level class [DB]
+- Improve DNS lookups and fallback on 408 timeout after 5 seconds [RK]
 - Conference audio sessions [RK] [DB]
 - Account manager [LS]
 - Configuration manager [LS]
@@ -57,14 +58,12 @@ Audio
 Instant messaging
 -----------------
 
-- Add --auto-echo parameter to sip_im_session for automated tests [DB]
-- Add --auto-answer parameter to sip_im_session [DB]
-- Document MSRP client library usage [DB]
+- Document MSRP library API [DB]
 - Port eventlet/greenlet to ARM [DB]
 - Is-composing payload [DB]
 - Rich text format, see jabber standards [DB]
 - Fix sip_im_session to accept unicode characters [DB]
-- File transfer support based on draft-ietf-mmusic-file-transfer-mech-11
+- File transfer support based on draft-ietf-mmusic-file-transfer-mech-11 [DB]
 
 
 Security and privacy
@@ -88,17 +87,19 @@ Other applications
 ------------------
 
 - Message-summary payload [DB]
-- ENUM lookup [LS] [RK]
-- Bonjour, serverless LAN operations [LS]
+- ENUM lookups [RK]
+- Bonjour [LS]
 
 
 Command line tools
 ------------------
 
-- sip_subscribe_xcap_diff script [LS]
+- Add --auto-echo parameter to sip_im_session for automated tests [DB]
+- Add --auto-answer parameter to sip_im_session [DB]
+- Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
 - xcap_pidf_manipulation script [LS]
 - sip_subscribe_conference script [LS]
-- Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
+- sip_subscribe_xcap_diff script [LS]
 - Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
 - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt [LS]
 - Add timestamp and packet counters as for SIP trace for all other protocols [LS]
@@ -107,8 +108,7 @@ Command line tools
 Sessions
 --------
 
-- Video (H.264) []
-- Real time text over RTP (RFC4103) []
+- Video (H.264) [RK]
 
 
 Porting
@@ -116,6 +116,5 @@ Porting
 
 - Windows []
 - iPhone []
-- Android []
-- Symbian []
-
+- Android [RK]
+- Symbian [LS]
