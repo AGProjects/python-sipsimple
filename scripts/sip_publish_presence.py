@@ -33,13 +33,13 @@ from sipsimple.clients.dns_lookup import *
 from sipsimple.clients import *
 
 class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": LoggingOption}
+    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": LoggingOption, "trace_sip": LoggingOption}
     local_ip = None
     sip_local_udp_port = 0
     sip_local_tcp_port = 0
     sip_local_tls_port = 0
     sip_transports = ["tls", "tcp", "udp"]
-    trace_pjsip = False
+    trace_pjsip = LoggingOption('none')
     trace_sip = LoggingOption('none')
     log_directory = '~/.sipclient/log'
 
@@ -62,8 +62,6 @@ configuration.read_settings("General", GeneralConfig)
 
 queue = Queue()
 getstr_event = Event()
-packet_count = 0
-start_time = None
 old = None
 user_quit = True
 lock = allocate_lock()
@@ -499,7 +497,7 @@ class EventHandler(object):
         engine.notification_center.add_observer(self)
 
     def handle_notification(self, notification):
-        global packet_count, start_time, queue, do_trace_pjsip, logger, return_code
+        global queue, return_code
         if notification.name == "SCPublicationChangedState":
             if notification.data.state == "unpublished":
                 queue.put(("print", "Unpublished: %(code)d %(reason)s" % notification.data.__dict__))
@@ -509,21 +507,18 @@ class EventHandler(object):
             elif notification.data.state == "published":
                 #queue.put(("print", "PUBLISH was successful"))
                 pass
-        elif notification.name == "SCEngineSIPTrace":
-            logger.log(notification.name, **notification.data.__dict__)
-        elif notification.name != "SCEngineLog":
+        else:
             queue.put(("core_event", (notification.name, notification.sender, notification.data)))
-        elif do_trace_pjsip:
-            queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
 
 
 def print_control_keys():
     print "Available control keys:"
     print "  t: toggle SIP trace on the console"
+    print "  j: toggle PJSIP trace on the console"
     print "  Ctrl-d: quit the program"
     print "  ?: display this help message"
 
-def read_queue(e, username, domain, password, display_name, route, expires, do_trace_pjsip):
+def read_queue(e, username, domain, password, display_name, route, expires):
     global user_quit, lock, queue, pub, sip_uri, pidf, person, tuple, logger
     lock.acquire()
     try:
@@ -592,6 +587,9 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
                 if data == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
                     print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                elif data == 'j':
+                    logger.trace_pjsip.to_stdout = not logger.trace_pjsip.to_stdout
+                    print "PJSIP tracing to console is now %s" % ("activated" if logger.trace_pjsip.to_stdout else "deactivated")
                 elif key == '?':
                     print_control_keys()
                 else:
@@ -614,7 +612,6 @@ def read_queue(e, username, domain, password, display_name, route, expires, do_t
 def do_publish(**kwargs):
     global user_quit, lock, queue, do_trace_pjsip, string, getstr_event, old, logger
     ctrl_d_pressed = False
-    do_trace_pjsip = kwargs["do_trace_pjsip"]
 
     outbound_proxy = kwargs.pop("outbound_proxy")
     if outbound_proxy is None:
@@ -627,9 +624,12 @@ def do_publish(**kwargs):
     except IndexError:
         raise RuntimeError("No route found to SIP proxy")
 
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
+    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'), trace_pjsip=kwargs.pop('trace_pjsip'))
+    logger.start()
     if logger.trace_sip.to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    if logger.trace_pjsip.to_file:
+        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
     e = Engine()
     EventHandler(e)
@@ -676,7 +676,7 @@ def parse_outbound_proxy(option, opt_str, value, parser):
     except ValueError, e:
         raise OptionValueError(e.message)
 
-def parse_trace_sip(option, opt_str, value, parser):
+def parse_trace_option(option, opt_str, value, parser, name):
     try:
         value = parser.rargs[0]
     except IndexError:
@@ -691,7 +691,7 @@ def parse_trace_sip(option, opt_str, value, parser):
                 value = LoggingOption('file')
             else:
                 del parser.rargs[0]
-    parser.values.trace_sip = value
+    setattr(parser.values, name, value)
 
 def parse_options():
     retval = {}
@@ -703,8 +703,8 @@ def parse_options():
     parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP address of the user in the form user@domain")
     parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in PUBLISH. Default is 300 seconds.')
     parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_sip, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_option, callback_args=('trace_sip',), help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('trace_pjsip',), help="Print PJSIP logging output (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     options, args = parser.parse_args()
 
     if options.account_name is None:
@@ -716,7 +716,7 @@ def parse_options():
     configuration.read_settings(account_section, AccountConfig)
     if not AccountConfig.use_presence_agent:
         raise RuntimeError("Presence is not enabled for this account. Please set use_presence_agent=True in the config file")
-    default_options = dict(expires=AccountConfig.sip_publish_interval, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
+    default_options = dict(expires=AccountConfig.sip_publish_interval, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
     options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
 
     for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
