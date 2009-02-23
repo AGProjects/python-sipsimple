@@ -253,9 +253,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                     return_code = 1
                     command = "end"
                     want_quit = target_uri is not None
-                elif event_name == "SCSessionStartedRecordingAudio":
+                elif event_name == "SCSessionDidStartRecordingAudio":
                     print 'Recording audio to "%s"' % args["file_name"]
-                elif event_name == "SCSessionStoppedRecordingAudio":
+                elif event_name == "SCSessionDidStopRecordingAudio":
                     print 'Stopped recording audio to "%s"' % args["file_name"]
                 elif event_name == "SCEngineDetectedNATType":
                     if args["succeeded"]:
@@ -278,6 +278,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                         elif data.lower() == "r" :
                             if sess.audio_recording_file_name is None:
                                 sess.start_recording_audio(os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain)))
+                                print "Audio recording requested"
                             else:
                                 sess.stop_recording_audio()
                         elif data == " ":
