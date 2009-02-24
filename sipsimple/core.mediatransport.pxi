@@ -99,7 +99,7 @@ cdef class RTPTransport:
             cdef char buf[PJ_INET6_ADDRSTRLEN]
             self._check_ua()
             if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
-                return None
+                return self.c_local_rtp_address
             self._get_info(&info)
             if pj_sockaddr_has_addr(&info.sock_info.rtp_addr_name):
                 return pj_sockaddr_print(&info.sock_info.rtp_addr_name, buf, PJ_INET6_ADDRSTRLEN, 0)
