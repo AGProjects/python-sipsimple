@@ -751,7 +751,7 @@ class SessionManager(NotificationHandler):
                                 return
                         notification_dict = {}
                         do_notify = False
-                        for media in current_remote_sdp.media:
+                        for media in proposed_remote_sdp.media:
                             if media.media == "audio" and media.port != 0:
                                 notification_dict["has_audio"] = True
                                 if session.audio_transport is None:
