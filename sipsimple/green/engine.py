@@ -269,6 +269,8 @@ class GreenInvitation(GreenBase):
                     ringer.stop()
 
     def end(self, *args, **kwargs):
+        if self.state == 'NULL':
+            return
         if self.state != 'DISCONNECTED':
             if self.state != 'DISCONNECTING':
                 self._obj.disconnect(*args, **kwargs)
