@@ -4,6 +4,7 @@ cdef class RTPTransport:
     cdef pjmedia_transport *c_obj
     cdef pjmedia_transport *c_wrapped_transport
     cdef pj_pool_t *c_pool
+    cdef int c_af
     cdef object c_local_rtp_address
     cdef readonly object remote_rtp_port_sdp
     cdef readonly object remote_rtp_address_sdp
@@ -16,7 +17,21 @@ cdef class RTPTransport:
 
     def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
         cdef object pool_name = "RTPTransport_%d" % id(self)
+        cdef int local_af = 0
+        cdef int stun_af = 0
         cdef PJSIPUA ua = c_get_ua()
+        if local_rtp_address is not None:
+            local_af = c_get_ip_version(local_rtp_address)
+            if not local_af:
+                raise SIPCoreError("Not a valid IP address: %s" % local_rtp_address)
+        if ice_stun_address is not None:
+            stun_af = c_get_ip_version(ice_stun_address)
+            if not stun_af:
+                raise SIPCoreError("Not a valid IP address: %s" % ice_stun_address)
+        if local_rtp_address is not None and ice_stun_address is not None:
+            if local_af != stun_af:
+                raise SIPCoreError("IP version mismatch between local_rtp_address and ice_stun_address")
+        self.c_af = local_af or stun_af or pj_AF_INET()
         self.state = "NULL"
         self.c_local_rtp_address = local_rtp_address
         self.use_srtp = use_srtp
@@ -183,7 +198,6 @@ cdef class RTPTransport:
 
     def set_INIT(self):
         global _RTPTransport_stun_list, _ice_cb
-        cdef int af = pj_AF_INET()
         cdef pj_str_t c_local_ip
         cdef pj_str_t *c_local_ip_p = &c_local_ip
         cdef pjmedia_srtp_setting srtp_setting
@@ -204,11 +218,10 @@ cdef class RTPTransport:
             if self.c_local_rtp_address is None:
                 c_local_ip_p = NULL
             else:
-                if ":" in self.c_local_rtp_address:
-                    af = pj_AF_INET6()
                 str_to_pj_str(self.c_local_rtp_address, &c_local_ip)
             if self.use_ice:
                 pj_ice_strans_cfg_default(&ice_cfg)
+                ice_cfg.af = self.c_af
                 pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint.c_obj))
                 if self.ice_stun_address is not None:
                     str_to_pj_str(self.ice_stun_address, &ice_cfg.stun.server)
@@ -223,7 +236,7 @@ cdef class RTPTransport:
             else:
                 status = PJ_EBUG
                 for i in xrange(ua.c_rtp_port_index, ua.c_rtp_port_index + ua.c_rtp_port_stop - ua.c_rtp_port_start, 2):
-                    status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
+                    status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, self.c_af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
                     if status != PJ_ERRNO_START_SYS + EADDRINUSE:
                         ua.c_rtp_port_index = (i + 2) % (ua.c_rtp_port_stop - ua.c_rtp_port_start)
                         break
