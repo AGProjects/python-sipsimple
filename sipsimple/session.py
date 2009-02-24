@@ -88,7 +88,20 @@ class MediaTransportInitializer(NotificationHandler):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
-            self._fail(rtp, data.reason)
+            try:
+                new_rtp = RTPTransport(rtp.local_rtp_address, rtp.use_srtp, rtp.srtp_forced, rtp.use_ice)
+            except:
+                self._fail(rtp, data.reason)
+            self._remove_observer(rtp)
+            if rtp is self.audio_rtp:
+                self.audio_rtp = new_rtp
+            self.waiting_for.append(new_rtp)
+            self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", new_rtp)
+            self.notification_center.add_observer(self, "SCRTPTransportDidFail", new_rtp)
+            try:
+                new_rtp.set_INIT()
+            except Exception, e:
+                self._fail(new_rtp, e.args[0])
 
     def _handle_MSRPChatDidInitialize(self, msrp, data):
         with self._lock:
