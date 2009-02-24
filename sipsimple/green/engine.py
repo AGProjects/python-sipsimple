@@ -10,6 +10,7 @@ waits for 'registered' or 'unregistered' event. If the event received is
 """
 from __future__ import with_statement
 from contextlib import contextmanager
+from application.notification import NotificationCenter
 
 from eventlet.api import sleep
 from eventlet import api, proc, coros
@@ -86,7 +87,7 @@ class GreenEngine(Engine):
         logger.register_observer(self.notification_center,
                                  realobj,
                                  notification.NotifyFromThreadObserver(logger))
-        obj = GreenRegistration(realobj, self.notification_center)
+        obj = GreenRegistration(realobj)
         self.managed_objs.append(obj)
         return obj
 
@@ -96,7 +97,7 @@ class GreenEngine(Engine):
         logger.register_observer(self.notification_center,
                                  realobj,
                                  notification.NotifyFromThreadObserver(logger))
-        obj = GreenInvitation(realobj, self.notification_center)
+        obj = GreenInvitation(realobj)
         self.managed_objs.append(obj)
         return obj
 
@@ -151,9 +152,8 @@ class IncomingSessionHandler:
 
 class GreenBase(object):
 
-    def __init__(self, obj, notification_center):
+    def __init__(self, obj):
         self._obj = obj
-        self.nc = notification_center
 
     def __getattr__(self, item):
         if item == '_obj':
@@ -165,21 +165,21 @@ class GreenBase(object):
             name = self.event_name
         if sender is None:
             sender = self._obj
-        return notification.wait_notification(self.nc, name=name, sender=sender, condition=condition)
+        return notification.wait_notification(name=name, sender=sender, condition=condition)
 
     def linked_notification(self, name=None, sender=None):
         if name is None:
             name = self.event_name
         if sender is None:
             sender = self._obj
-        return notification.linked_notification(self.nc, name=name, sender=sender)
+        return notification.linked_notification(name=name, sender=sender)
 
     def linked_notifications(self, names=None, sender=None):
         if names is None:
             names = self.event_names
         if sender is None:
             sender = self._obj
-        return notification.linked_notifications(self.nc, names=names, sender=sender)
+        return notification.linked_notifications(names=names, sender=sender)
 
 
 class GreenRegistration(GreenBase):
@@ -284,8 +284,9 @@ class GreenInvitation(GreenBase):
 
     def call_on_disconnect(self, func):
         observer = notification.CallFromThreadObserver(func, condition=lambda n: n.data.state=='DISCONNECTED')
-        self.nc.add_observer(observer, self.event_names[0], self._obj)
-        return Cancellable(lambda : self.nc.remove_observer(observer, self.event_names[0], self._obj))
+        notification_center = NotificationCenter()
+        notification_center.add_observer(observer, self.event_names[0], self._obj)
+        return Cancellable(lambda : notification_center.remove_observer(observer, self.event_names[0], self._obj))
 
 
 class Cancellable:

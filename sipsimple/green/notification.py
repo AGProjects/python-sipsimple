@@ -3,7 +3,7 @@ asynchronous notifications into synchronous function calls"""
 
 from contextlib import contextmanager
 from zope.interface import implements
-from application.notification import IObserver, Any
+from application.notification import IObserver, Any, NotificationCenter
 from eventlet import proc, coros
 
 
@@ -49,8 +49,9 @@ class NotifyFromThreadObserver(CallFromThreadObserver):
         CallFromThreadObserver.__init__(self, observer.handle_notification)
 
 
-def wait_notification(notification_center, name=Any, sender=Any, condition=None):
+def wait_notification(name=Any, sender=Any, condition=None):
     """Wait for a specific notification and return it"""
+    notification_center = NotificationCenter()
     waiter = proc.Waiter()
     observer = CallFromThreadObserver(waiter.send, condition)
     notification_center.add_observer(observer, name, sender)
@@ -61,7 +62,8 @@ def wait_notification(notification_center, name=Any, sender=Any, condition=None)
 
 
 @contextmanager
-def linked_notification(notification_center, name=Any, sender=Any, queue=None, condition=None):
+def linked_notification(name=Any, sender=Any, queue=None, condition=None):
+    notification_center = NotificationCenter()
     if queue is None:
         queue = coros.queue()
     observer = CallFromThreadObserver(queue.send, condition)
@@ -73,7 +75,8 @@ def linked_notification(notification_center, name=Any, sender=Any, queue=None, c
 
 
 @contextmanager
-def linked_notifications(notification_center, names=[Any], sender=Any, queue=None, condition=None):
+def linked_notifications(names=[Any], sender=Any, queue=None, condition=None):
+    notification_center = NotificationCenter()
     if queue is None:
         queue = coros.queue()
     observer = CallFromThreadObserver(queue.send, condition)
