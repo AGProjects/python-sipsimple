@@ -54,6 +54,7 @@ class MediaTransportInitializer(NotificationHandler):
                 self.notification_center.add_observer(self, "MSRPChatDidInitialize", rtp)
                 self.notification_center.add_observer(self, "MSRPChatDidFail", rtp)
                 msrp_chat.initialize(session.msrp_options["local_ip"], session.msrp_options["local_port"], session.msrp_options["local_use_tls"])
+            self._check_done()
 
     def _remove_observer(self, obj):
         self.waiting_for.remove(obj)
@@ -362,8 +363,65 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
-            raise NotImplementedError
-            # TODO: implement and emit SCSessionAcceptedStreamProposal
+            remote_sdp = self._inv.get_offered_remote_sdp()
+            audio_rtp = None
+            msrp_chat = None
+            for media in remote_sdp.media:
+                if self.audio_transport is None and media.media == "audio" and media.port != 0 and audio_rtp is None:
+                    audio_rtp = RTPTransport(**self.rtp_options)
+                elif self.chat_transport is None and media.media == "message" and media.port != 0 and msrp_chat is None:
+                    if self.msrp_options.use_relay_incoming:
+                        local_uri = self._inv.local_uri
+                        remote_uri = self._inv.remote_uri
+                        msrp_relay = MSRPRelaySettings(local_uri.host, local_uri.user, password, self.msrp_options.relay_host, self.msrp_options.relay_port, self.msrp_options.relay_use_tls)
+                    else:
+                        msrp_relay = None
+                    msrp_chat = MSRPChat(local_uri, to_uri, False, msrp_relay)
+            media_initializer = MediaTransportInitializer(self, self._accept_proposal_continue, self._accept_proposal_fail, audio_rtp, msrp_chat)
+            self.chat_transport = msrp_chat
+
+    def _do_reject_proposal(self, reason=None):
+        self._inv.respond_to_reinvite(488)
+        self._change_state("ESTABLISHED")
+        notification_data = TimeStampedNotificationData(originator="local")
+        if reason is not None:
+            notification_data.reason = reason
+        self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, notification_data)
+
+    def _accept_proposal_fail(self, reason):
+        with self._lock:
+            if self.state != "PROPOSED":
+                return
+            self._cancel_media()
+            self._do_reject_proposal()
+
+    def _accept_proposal_continue(self, audio_rtp, msrp_chat):
+        self._lock.acquire()
+        try:
+            if self.state != "PROPOSED":
+                return
+            remote_sdp = self._inv.get_offered_remote_sdp()
+            local_sdp = self._make_next_sdp(False)
+            audio_sdp_index = -1
+            chat_sdp_index = -1
+            for sdp_index, media in enumerate(remote_sdp.media):
+                if audio_rtp is not None and media.media == "audio" and media.port != 0 and audio_sdp_index == -1:
+                    audio_sdp_index = sdp_index
+                    local_sdp.media[sdp_index] = self._init_audio(audio_rtp, remote_sdp)
+                    if self.rtp_options["use_ice"]:
+                        local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
+                elif msrp_chat is not None and media.media == "audio" and media.port != 0 and audio_sdp_index == -1:
+                    self.session_manager.msrp_chat_mapping[msrp_chat] = self
+                    local_sdp.media.append(msrp_chat.get_local_media())
+                elif sdp_index >= len(local_sdp.media):
+                    remote_media = remote_sdp.media[sdp_index]
+                    local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
+            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.respond_to_reinvite(200)
+        except Exception, e:
+            self._do_reject_proposal(e.args[0])
+        finally:
+            self._lock.release()
 
     def reject_proposal(self):
         """Reject a proposal of stream(s) being added. Moves the object from
@@ -371,9 +429,7 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
-            self._inv.respond_to_reinvite(488)
-            self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(originator="local"))
+            self._do_reject_proposal()
 
     def hold(self):
         """Put an established SIP session on hold. This moves the object from the
@@ -749,21 +805,36 @@ class SessionManager(NotificationHandler):
                                 # difference in contents of o= line
                                 inv.respond_to_reinvite(488)
                                 return
-                        notification_dict = {}
-                        do_notify = False
-                        for media in proposed_remote_sdp.media:
-                            if media.media == "audio" and media.port != 0:
-                                notification_dict["has_audio"] = True
-                                if session.audio_transport is None:
-                                    do_notify = True
-                            elif media.media == "message" and media.port != 0:
-                                notification_dict["has_chat"] = True
-                                if session.chat_transport is None:
-                                    do_notify = True
-                        if do_notify:
+                        if len(proposed_remote_sdp.media) < len(current_remote_sdp.media):
+                            # reduction in number of media streams, don't accept
+                            inv.respond_to_reinvite(488)
+                            return
+                        add_audio, remove_audio, add_chat, remove_chat = False, False, False, False
+                        for sdp_index, media in enumerate(proposed_remote_sdp.media):
+                            if sdp_index == session._audio_sdp_index and session.audio_transport is not None:
+                                if media.media != "audio":
+                                    inv.respond_to_reinvite(488)
+                                    return
+                                if media.port == 0:
+                                    remove_audio = True
+                            elif sdp_index == session._chat_sdp_index and session.audio_transport is not None:
+                                if media.media != "message":
+                                    inv.respond_to_reinvite(488)
+                                    return
+                                if media.port == 0:
+                                    remove_chat = True
+                            elif media.media == "audio" and session.audio_transport is None and media.port != 0:
+                                add_audo = True
+                            elif media.media == "message" and session.chat_transport is None and media.port != 0:
+                                add_audo = True
+                        if any([add_audio, add_chat]):
+                            if any([remove_audio, remove_chat]):
+                                # We don't support adding AND removing a stream in the same proposal
+                                inv.respond_to_reinvite(488)
+                                return
                             inv.respond_to_reinvite(180)
                             session._change_state("PROPOSED")
-                            self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(**notification_dict))
+                            self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(adds_audio=add_audio, adds_chat=add_chat))
                         else:
                             inv.set_offered_local_sdp(session._make_next_sdp(False))
                             inv.respond_to_reinvite(200)
