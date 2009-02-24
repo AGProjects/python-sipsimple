@@ -356,6 +356,15 @@ class Session(NotificationHandler):
             raise NotImplementedError
             # TODO: implement and emit SCSessionGotStreamProposal
 
+    def remove_audio(self):
+        with self._lock:
+            if self.state != "ESTABLISHED":
+                raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+            if self.audio_transport is None:
+                raise RuntimeError("No audio RTP stream is active within this SIP session")
+            raise NotImplementedError
+            # TODO: implement
+
     def add_chat(self):
         with self._lock:
             if self.state != "ESTABLISHED":
@@ -364,6 +373,15 @@ class Session(NotificationHandler):
                 raise RuntimeError("An MSRP chat stream is already active within this SIP session")
             raise NotImplementedError
             # TODO: implement and emit SCSessionGotStreamProposal
+
+    def remove_chat(self):
+        with self._lock:
+            if self.state != "ESTABLISHED":
+                raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+            if self.chat_transport is None:
+                raise RuntimeError("No MSRP chat stream is active within this SIP session")
+            raise NotImplementedError
+            # TODO: implement
 
     def accept_proposal(self):
         """Accept a proposal of stream(s) being added. Moves the object from
@@ -565,7 +583,7 @@ class Session(NotificationHandler):
                 local_sdp = self._make_next_sdp(True, False)
                 self.on_hold_by_local = False
                 break
-            # TODO: add "add_stream" command
+            # TODO: add "add_stream" and "remove_stream" command
         self._inv.set_offered_local_sdp(local_sdp)
         self._inv.send_reinvite()
         if not was_on_hold and self.on_hold_by_local:
