@@ -180,9 +180,9 @@ cdef int c_is_valid_ip(int af, object ip) except -1:
 
 cdef int c_get_ip_version(object ip) except -1:
     if c_is_valid_ip(pj_AF_INET(), ip):
-        return 4
+        return pj_AF_INET()
     elif c_is_valid_ip(pj_AF_INET6(), ip):
-        return 6
+        return pj_AF_INET()
     else:
         return 0
 
