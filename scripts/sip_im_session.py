@@ -13,7 +13,7 @@ from msrplib.transport import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
 
-from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile
+from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile, PJSIPError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer
 from sipsimple.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
@@ -23,6 +23,8 @@ from sipsimple.clients import enrollment
 from sipsimple.clients.cpim import MessageCPIMParser, SIPAddress
 from sipsimple.clients.sdputil import FileSelector
 enrollment.verify_account_config()
+
+PJSIP_EINVALIDURI = 171039
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 
@@ -132,6 +134,12 @@ class ChatSession(object):
             return MSRPSession.invite(inv, msrp_connector, make_SDPMedia, ringer, local_uri)
         except MSRPSessionErrors, ex:
             print 'Connection to %s FAILED: %s' % (target_uri, ex)
+            return ex
+        except PJSIPError, ex:
+            if ex.status == PJSIP_EINVALIDURI:
+                print ex.message
+            else:
+                raise
             return ex
 
     def _on_invite(self, result):
