@@ -183,6 +183,14 @@ class Session(NotificationHandler):
         else:
             return self._audio_rec.file_name
 
+    @property
+    def has_audio(self):
+        return self.audio_transport is not None
+
+    @property
+    def has_chat(self):
+        return self.chat_transport is not None
+
     # user interface
     def new(self, callee_uri, credentials, route, audio=False, chat=False):
         """Creates a new SIP session to the callee with the requested stream(s).
