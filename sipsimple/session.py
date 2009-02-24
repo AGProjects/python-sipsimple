@@ -619,8 +619,6 @@ class Session(NotificationHandler):
             else:
                 direction = None
             local_sdp.media[self._audio_sdp_index] = self.audio_transport.get_local_media(is_offer, direction)
-        if self.chat_transport is not None:
-            local_sdp.media[self._chat_sdp_index] = self.chat_transport.get_local_media()
         return local_sdp
 
     def send_message(self, content, content_type="text/plain", to_uri=None):
@@ -751,12 +749,18 @@ class SessionManager(NotificationHandler):
                                 # difference in contents of o= line
                                 inv.respond_to_reinvite(488)
                                 return
-                        current_remote_media = [media.media for media in current_remote_sdp.media if media.port != 0]
-                        proposed_remote_media = [media.media for media in proposed_remote_sdp.media if media.port != 0]
                         notification_dict = {}
-                        notification_dict["has_audio"] = "audio" not in current_remote_media and "audio" in proposed_remote_media
-                        notification_dict["has_chat"] = "message" not in current_remote_media and "message" in proposed_remote_media
-                        if True in notification_dict.values():
+                        do_notify = False
+                        for media in current_remote_sdp.media:
+                            if media.media == "audio" and media.port != 0:
+                                notification_dict["has_audio"] = True
+                                if session.audio_transport is None:
+                                    do_notify = True
+                            elif media.media == "message" and media.port != 0:
+                                notification_dict["has_chat"] = True
+                                if session.chat_transport is None:
+                                    do_notify = True
+                        if do_notify:
                             inv.respond_to_reinvite(180)
                             session._change_state("PROPOSED")
                             self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(**notification_dict))
