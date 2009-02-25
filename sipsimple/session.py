@@ -362,8 +362,11 @@ class Session(NotificationHandler):
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self.audio_transport is None:
                 raise RuntimeError("No audio RTP stream is active within this SIP session")
-            raise NotImplementedError
-            # TODO: implement
+            if not any([self.chat_transport]):
+                raise RuntimeError("Removing audio would leave the SIP session without active media")
+            self._queue.append("remove_audio")
+            if len(self._queue) == 1:
+                self._process_queue()
 
     def add_chat(self):
         with self._lock:
@@ -380,8 +383,11 @@ class Session(NotificationHandler):
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self.chat_transport is None:
                 raise RuntimeError("No MSRP chat stream is active within this SIP session")
-            raise NotImplementedError
-            # TODO: implement
+            if not any([self.audio_transport]):
+                raise RuntimeError("Removing MSRP chat would leave the SIP session without active media")
+            self._queue.append("remove_chat")
+            if len(self._queue) == 1:
+                self._process_queue()
 
     def accept_proposal(self):
         """Accept a proposal of stream(s) being added. Moves the object from
@@ -565,6 +571,7 @@ class Session(NotificationHandler):
 
     def _process_queue(self):
         was_on_hold = self.on_hold_by_local
+        local_sdp = None
         while self._queue:
             command = self._queue.popleft()
             if command == "hold":
@@ -583,15 +590,27 @@ class Session(NotificationHandler):
                 local_sdp = self._make_next_sdp(True, False)
                 self.on_hold_by_local = False
                 break
-            # TODO: add "add_stream" and "remove_stream" command
-        self._inv.set_offered_local_sdp(local_sdp)
-        self._inv.send_reinvite()
-        if not was_on_hold and self.on_hold_by_local:
-            self._check_recording_hold()
-            self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
-        elif was_on_hold and not self.on_hold_by_local:
-            self._check_recording_hold()
-            self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
+            elif command == "remove_audio":
+                if self.audio_transport is None:
+                    continue
+                self._stop_audio()
+                local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
+                break
+            elif command == "remove_chat":
+                if self.chat_transport is None:
+                    continue
+                self._stop_chat()
+                local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
+                break
+        if local_sdp is not None:
+            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.send_reinvite()
+            if not was_on_hold and self.on_hold_by_local:
+                self._check_recording_hold()
+                self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
+            elif was_on_hold and not self.on_hold_by_local:
+                self._check_recording_hold()
+                self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
 
     def _init_audio(self, rtp_transport, remote_sdp=None):
         """Initialize everything needed for an audio RTP stream and return a
@@ -692,15 +711,20 @@ class Session(NotificationHandler):
     def _make_next_sdp(self, is_offer, on_hold=False):
         local_sdp = self._inv.get_active_local_sdp()
         local_sdp.version += 1
-        if self.audio_transport is not None:
-            if is_offer:
-                if "send" in self.audio_transport.direction:
-                    direction = ("sendonly" if on_hold else "sendrecv")
-                else:
-                    direction = ("inactive" if on_hold else "recvonly")
+        if self._audio_sdp_index != -1:
+            if self.audio_transport is None:
+                local_sdp.media[self._audio_sdp_index].port = 0
             else:
-                direction = None
-            local_sdp.media[self._audio_sdp_index] = self.audio_transport.get_local_media(is_offer, direction)
+                if is_offer:
+                    if "send" in self.audio_transport.direction:
+                        direction = ("sendonly" if on_hold else "sendrecv")
+                    else:
+                        direction = ("inactive" if on_hold else "recvonly")
+                else:
+                    direction = None
+                local_sdp.media[self._audio_sdp_index] = self.audio_transport.get_local_media(is_offer, direction)
+        if self._chat_sdp_index != -1 and self.chat_transport is None:
+            local_sdp.media[self._chat_sdp_index].port = 0
         return local_sdp
 
     def send_message(self, content, content_type="text/plain", to_uri=None):
