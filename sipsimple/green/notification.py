@@ -49,7 +49,29 @@ class NotifyFromThreadObserver(CallFromThreadObserver):
 
 
 def wait_notification(name=Any, sender=Any, condition=None):
-    """Wait for a specific notification and return it"""
+    """Wait for a specific notification and return it.
+
+    Danger: you should probably be using linked_notification(s).
+
+    The reason is that it's quite easy to miss the expected notification and block forever.
+    For example, you have disconnect() function that posts 'DISCONNECTED' event once complete.
+
+    This usage has a bug:
+
+        disconnect()
+        wait_notification('DISCONNECTED')
+
+    The notification may be posted inside disconnect() call or there could be a context
+    switch and the message will be posted in another thread, before this thread enters wait_notification().
+    In such case, message will never be available to wait_notification, because it is posted
+    before wait_notification subscribed to it.
+
+    The correct usage is:
+
+        with linked_notification('DISCONNECTED') as q:
+            disconnect()
+            q.wait()
+    """
     notification_center = NotificationCenter()
     waiter = proc.Waiter()
     observer = CallFromThreadObserver(waiter.send, condition)

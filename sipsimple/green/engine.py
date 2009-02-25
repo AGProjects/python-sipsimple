@@ -122,9 +122,10 @@ class GreenEngine(Engine):
 
     def play_wav_file(self, filepath, *args, **kwargs):
         w = WaveFile(filepath)
-        w.start(*args, **kwargs)
-        notification.wait_notification(self.notification_center, name='SCWaveFileDidEnd', sender=w)
-        w.stop()
+        with notification.linked_notification(name='SCWaveFileDidEnd', sender=w) as q:
+            w.start(*args, **kwargs)
+            q.wait()
+            w.stop()
 
 
 class IncomingSessionHandler:
@@ -160,26 +161,19 @@ class GreenBase(object):
             raise AttributeError(item)
         return getattr(self._obj, item)
 
-    def wait_notification(self, name=None, sender=None, condition=None):
+    def linked_notification(self, name=None, sender=None, queue=None, condition=None):
         if name is None:
             name = self.event_name
         if sender is None:
             sender = self._obj
-        return notification.wait_notification(name=name, sender=sender, condition=condition)
+        return notification.linked_notification(name=name, sender=sender, queue=queue, condition=condition)
 
-    def linked_notification(self, name=None, sender=None):
-        if name is None:
-            name = self.event_name
-        if sender is None:
-            sender = self._obj
-        return notification.linked_notification(name=name, sender=sender)
-
-    def linked_notifications(self, names=None, sender=None):
+    def linked_notifications(self, names=None, sender=None, queue=None, condition=None):
         if names is None:
             names = self.event_names
         if sender is None:
             sender = self._obj
-        return notification.linked_notifications(names=names, sender=sender)
+        return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
 
 
 class GreenRegistration(GreenBase):
@@ -187,17 +181,22 @@ class GreenRegistration(GreenBase):
 
     def register(self):
         if self.state != 'registered':
-            if self.state != 'registering':
-                self._obj.register()
-            n = self.wait_notification(condition = lambda n: n.data.state in ['registered', 'unregistered'])
-            if n.data.state != 'registered':
-                raise RegistrationError(n.data.__dict__)
+            with self.linked_notification(condition = lambda n: n.data.state in ['registered', 'unregistered']) as q:
+                if self.state != 'registering':
+                    self._obj.register()
+                n = q.wait()
+                if n.data.state != 'registered':
+                    raise RegistrationError(n.data.__dict__)
 
     def unregister(self):
         if self.state != 'unregistered':
-            if self.state != 'unregistering':
-                self._obj.unregister()
-            return self.wait_notification(condition=lambda n: n.data.state=='unregistered')
+            with self.linked_notification(condition=lambda n: n.data.state in ['unregistered', 'registered']) as q:
+                if self.state != 'unregistering':
+                    self._obj.unregister()
+                n = q.wait()
+                if n.data.state != 'unregistered':
+                    raise RuntimeError('Unexpected notification: %r' % (n, ))
+                return n
 
     shutdown = unregister
 
@@ -247,8 +246,8 @@ class GreenInvitation(GreenBase):
         assert self.state not in ['CONFIRMED', 'CONNECTING', 'EARLY'], self.state
         ringer = kwargs.pop('ringer', None)
         ringing = False
-        self._obj.send_invite(*args, **kwargs)
         with self.linked_notifications() as q:
+            self._obj.send_invite(*args, **kwargs)
             try:
                 while True:
                     notification = q.wait()
@@ -272,13 +271,15 @@ class GreenInvitation(GreenBase):
         if self.state == 'NULL':
             return
         if self.state != 'DISCONNECTED':
-            if self.state != 'DISCONNECTING':
-                self._obj.disconnect(*args, **kwargs)
-            return self.wait_notification(self.event_names[0], condition=lambda n: n.data.state=='DISCONNECTED')
+            with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='DISCONNECTED') as q:
+                if self.state != 'DISCONNECTING':
+                    self._obj.disconnect(*args, **kwargs)
+                return q.wait()
 
     def accept(self, *args, **kwargs):
-        self._obj.accept_invite(*args, **kwargs)
-        return self.wait_notification(self.event_names[0], condition=lambda n: n.data.state=='CONFIRMED')
+        with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='CONFIRMED') as q:
+            self._obj.accept_invite(*args, **kwargs)
+            return q.wait()
 
     shutdown = end
 
