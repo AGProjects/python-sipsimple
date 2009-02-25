@@ -95,7 +95,8 @@ class Engine(object):
                 try:
                     failed = self._ua.poll()
                 except:
-                    self._post_notification("SCEngineGotException", traceback="".join(traceback.format_exc()))
+                    exc_type, exc_val, exc_tb = sys.exc_info()
+                    self._post_notification("SCEngineGotException", type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
                     failed = True
                 if failed:
                     self._post_notification("SCEngineDidFail")

@@ -466,9 +466,13 @@ cdef class PJSIPUA:
             return False
 
     cdef c_handle_exception(self, int is_fatal):
+        cdef object exc_type
+        cdef object exc_val
+        cdef object exc_tb
         if is_fatal:
             self.c_fatal_error = is_fatal
-        c_add_event("SCEngineGotException", dict(traceback="".join(traceback.format_exc())))
+        exc_type, exc_val, exc_tb = sys.exc_info()
+        c_add_event("SCEngineGotException", dict(type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
 
     cdef int c_check_self(self) except -1:
         global _ua
