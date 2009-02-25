@@ -46,7 +46,7 @@ class NotifyFromThreadObserver(CallFromThreadObserver):
     def __init__(self, observer, condition=None):
         if IObserver(observer) is None:
             raise TypeError('Is not IObserver: %r' % observer)
-        CallFromThreadObserver.__init__(self, observer.handle_notification)
+        CallFromThreadObserver.__init__(self, observer.handle_notification, condition)
 
 
 def wait_notification(name=Any, sender=Any, condition=None):
