@@ -9,7 +9,7 @@ from twisted.internet.error import ConnectionClosed
 
 from eventlet import api, coros, proc
 from msrplib import connect
-from msrplib.transport import ConnectionClosedErrors
+from msrplib.session import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
 
