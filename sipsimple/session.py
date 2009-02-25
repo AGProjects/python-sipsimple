@@ -388,7 +388,8 @@ class Session(NotificationHandler):
             if len(self._queue) == 1:
                 self._process_queue()
 
-    def accept_proposal(self, password):
+    # TODO: fetch password (used for MSRP relay) from AccountManager
+    def accept_proposal(self, password=None):
         """Accept a proposal of stream(s) being added. Moves the object from
            the PROPOSED state to the ESTABLISHED state."""
         with self._lock:
