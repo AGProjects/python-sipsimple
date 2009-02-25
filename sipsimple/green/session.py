@@ -55,7 +55,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
         msrp_connector.cleanup()
 
 # XXX rename as it conflicts with msrplib's MSRPSession
-class MSRPSession:
+class MSRPSession(object):
     """SIP + MSRP: an MSRP chat session"""
 
     # after we have issued BYE, how many seconds to wait for the other
