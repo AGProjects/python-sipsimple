@@ -13,7 +13,7 @@ from application.python.util import Singleton
 from application.system import default_host_ip
 
 from sipsimple.engine import Engine
-from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile
+from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile
 from sipsimple.msrp import MSRPChat, MSRPRelaySettings
 
 class TimestampedNotificationData(NotificationData):
@@ -142,6 +142,7 @@ class Session(NotificationHandler):
         self.direction = None
         self.audio_transport = None
         self.chat_transport = None
+        self.proposed_audio = True
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
@@ -352,8 +353,9 @@ class Session(NotificationHandler):
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self.audio_transport is not None:
                 raise RuntimeError("An audio RTP stream is already active within this SIP session")
-            raise NotImplementedError
-            # TODO: implement and emit SCSessionGotStreamProposal
+            self._queue.append("add_audio")
+            if len(self._queue) == 1:
+                self._process_queue()
 
     def remove_audio(self):
         with self._lock:
@@ -609,6 +611,14 @@ class Session(NotificationHandler):
                 self._stop_chat()
                 local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
                 break
+            elif command == "add_audio":
+                if self.audio_transport is not None:
+                    continue
+                media_initializer = MediaTransportInitializer(self, self._add_audio_continue, self._add_audio_fail, RTPTransport(**self.rtp_options), None)
+                self.proposed_audio = True
+                self._change_state("PROPOSING")
+                self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(has_audio=True, has_chat=False, proposer="local"))
+                break
         if local_sdp is not None:
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.send_reinvite()
@@ -618,6 +628,38 @@ class Session(NotificationHandler):
             elif was_on_hold and not self.on_hold_by_local:
                 self._check_recording_hold()
                 self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
+
+    def _add_audio_fail(self, reason):
+        with self._lock:
+            if self.state != "PROPOSING":
+                return
+            self.proposed_audio = False
+            self._change_state("ESTABLISHED")
+            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(has_audio=True, has_chat=False, proposer="local", reason=reason))
+
+    def _add_audio_continue(self, audio_rtp, msrp_chat):
+        self._lock.acquire()
+        try:
+            if self.state != "PROPOSING":
+                return
+            local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
+            audio_sdp_index = self._audio_sdp_index
+            if audio_sdp_index == -1:
+                audio_sdp_index = len(local_sdp.media)
+            local_sdp.media.append(self._init_audio(audio_rtp))
+            if self.on_hold_by_local:
+                local_sdp.media[audio_sdp_index].attributes.append(SDPAttribute("sendonly", ""))
+            if self.rtp_options["use_ice"]:
+                local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
+            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.send_reinvite()
+        except Exception, e:
+            self.proposed_audio = False
+            self._cancel_media()
+            self._change_state("ESTABLISHED")
+            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(has_audio=True, has_chat=False, proposer="local", reason=e.args[0]))
+        finally:
+            self._lock.release()
 
     def _init_audio(self, rtp_transport, remote_sdp=None):
         """Initialize everything needed for an audio RTP stream and return a
@@ -649,21 +691,22 @@ class Session(NotificationHandler):
            _update_media()."""
         if self.audio_transport.is_active:
             # TODO: check for ip/port/codec changes and restart AudioTransport if needed
-            was_on_hold = self.on_hold_by_remote
-            new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
-            self.on_hold_by_remote = "send" not in new_direction
-            self.audio_transport.update_direction(new_direction)
-            if not was_on_hold and self.on_hold_by_remote:
-                self._check_recording_hold()
-                self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
-            elif was_on_hold and not self.on_hold_by_remote:
-                self._check_recording_hold()
-                self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
+            pass
         else:
             self.audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
             Engine().connect_audio_transport(self.audio_transport)
             self._no_audio_timer = Timer(5, self._check_audio)
             self._no_audio_timer.start()
+        was_on_hold = self.on_hold_by_remote
+        new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
+        self.on_hold_by_remote = "send" not in new_direction
+        self.audio_transport.update_direction(new_direction)
+        if not was_on_hold and self.on_hold_by_remote:
+            self._check_recording_hold()
+            self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
+        elif was_on_hold and not self.on_hold_by_remote:
+            self._check_recording_hold()
+            self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
 
     def _update_chat(self, remote_sdp):
         if self.chat_transport.is_active:
@@ -840,9 +883,24 @@ class SessionManager(NotificationHandler):
                     session._change_state("ESTABLISHED")
                     if data.prev_state == "CONNECTING":
                         self.notification_center.post_notification("SCSessionDidStart", session, TimestampedNotificationData())
-                    # TODO: if data.prev_state == "REINVITING" and a stream is being added,
-                    #       evaluate the result and emit either SCSessionAcceptedStreamProposal
-                    #       or SCSessionRejectedStreamProposal
+                    elif session.state == "PROPOSING":
+                        failure_reason = None
+                        if data.code / 100 == 2:
+                            # SCInvitiationGotSDPUpdate was already sent at this point
+                            remote_sdp = inv.get_active_remote_sdp()
+                            local_sdp = inv.get_active_local_sdp()
+                            if session.audio_proposed:
+                                if session.audio_transport is None or not session.audio_transport.is_active:
+                                    failure_reason = "SDP negotation failed"
+                                    if session._sdpneg_failure_reason is not None:
+                                        failure_reason += ": %s" % session._sdpneg_failure_reason
+                            else:
+                                failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
+                        if failure_reason is None:
+                            self.notification_center.post_notification("SCSessionAcceptedStreamProposal", session, TimestampedNotificationData(proposer="local"))
+                        else:
+                            session._cancel_media()
+                            self.notification_center.post_notification("SCSessionRejectedStreamProposal", session, TimestampedNotificationData(proposer="local", reason=failure_reason))
                     if session._queue:
                         session._process_queue()
                 elif data.state == "REINVITED":
