@@ -20,6 +20,20 @@ from sipsimple.green import notification
 from sipsimple.green.util import wrapdict
 from sipsimple.logstate import RegistrationLogger, InvitationLogger, SIPTracer, PJSIPTracer, EngineTracer
 
+# make logstate.py handle all objects without need to register them here
+
+__all__ = ['Error',
+           'SIPError',
+           'RegistrationError',
+           'InviteError',
+           'SDPNegotiationError',
+           'GreenEngine',
+           'IncomingSessionHandler',
+           'GreenRegistration',
+           'Ringer',
+           'GreenInvitation']
+
+
 class Error(RuntimeError):
     pass
 
