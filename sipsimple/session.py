@@ -414,7 +414,7 @@ class Session(NotificationHandler):
     def _do_reject_proposal(self, reason=None):
         self._inv.respond_to_reinvite(488)
         self._change_state("ESTABLISHED")
-        notification_data = TimestampedNotificationData(originator="local")
+        notification_data = TimestampedNotificationData(proposer="remote")
         if reason is not None:
             notification_data.reason = reason
         self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, notification_data)
@@ -454,6 +454,8 @@ class Session(NotificationHandler):
                 self._audio_sdp_index = audio_sdp_index
             if msrp_chat is not None:
                 self._chat_sdp_index = chat_sdp_index
+            self._change_state("ESTABLISHED")
+            self.notification_center.post_notification("SCSessionAcceptedStreamProposal", self, TimestampedNotificationData(proposer="remote"))
         except Exception, e:
             self._cancel_media()
             self._do_reject_proposal(e.args[0])
