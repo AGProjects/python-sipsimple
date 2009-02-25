@@ -110,7 +110,7 @@ class GreenEngine(Engine):
             logger.register_observer(self.notification_center,
                                      n.sender,
                                      notification.NotifyFromThreadObserver(logger))
-            obj = GreenInvitation(n.sender, self.notification_center)
+            obj = GreenInvitation(n.sender)
             self.managed_objs.append(obj)
             queue.send(obj)
         observer = notification.CallFromThreadObserver(wrap_and_send_to_queue, lambda n: n.data.state=='INCOMING')
