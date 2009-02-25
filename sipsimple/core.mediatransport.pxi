@@ -41,7 +41,7 @@ cdef class RTPTransport:
         self.ice_stun_port = ice_stun_port
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
-            raise MemoryError()
+            raise SIPCoreError("Could not allocate memory pool")
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -290,7 +290,7 @@ cdef class AudioTransport:
         self.c_started = 0
         self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
-            raise MemoryError()
+            raise SIPCoreError("Could not allocate memory pool")
         transport._get_info(&info)
         status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint.c_obj, self.c_pool, 1, &info.sock_info, &c_local_sdp)
         if status != 0:

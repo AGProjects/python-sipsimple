@@ -37,7 +37,7 @@ cdef class PJMEDIAConferenceBridge:
     cdef int _enable_playback_dtmf(self) except -1:
         self.c_tonegen_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "dtmf_tonegen", 4096, 4096)
         if self.c_tonegen_pool == NULL:
-            raise MemoryError("Could not allocate memory pool")
+            raise SIPCoreError("Could not allocate memory pool")
         status = pjmedia_tonegen_create(self.c_tonegen_pool, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_tonegen)
         if status != 0:
             pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
@@ -79,7 +79,7 @@ cdef class PJMEDIAConferenceBridge:
             self._destroy_snd_port(1)
         self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
         if self.c_pool == NULL:
-            raise MemoryError("Could not allocate memory pool")
+            raise SIPCoreError("Could not allocate memory pool")
         status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_snd)
         if status != 0:
             raise PJSIPError("Could not create sound device", status)
@@ -245,7 +245,7 @@ cdef class RecordingWaveFile:
             raise SIPCoreError("This RecordingWaveFile was already started once")
         self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.pool == NULL:
-            raise MemoryError("Could not allocate memory pool")
+            raise SIPCoreError("Could not allocate memory pool")
         try:
             status = pjmedia_wav_writer_port_create(self.pool, self.file_name, ua.c_pjmedia_endpoint.c_sample_rate * 1000, 1, ua.c_pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_FILE_WRITE_PCM, 0, &self.port)
             if status != 0:
@@ -340,7 +340,7 @@ cdef class WaveFile:
         cdef object pool_name = "playwav_%s" % self.file_name
         self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
         if self.pool == NULL:
-            raise MemoryError("Could not allocate memory pool")
+            raise SIPCoreError("Could not allocate memory pool")
         status = pjmedia_wav_player_port_create(self.pool, self.file_name, 0, PJMEDIA_FILE_NO_LOOP, 0, &self.port)
         if status != 0:
             raise PJSIPError("Could not open WAV file", status)

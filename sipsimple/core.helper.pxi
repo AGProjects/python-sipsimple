@@ -207,7 +207,7 @@ cdef SIPURI c_parse_SIPURI(object uri_str):
     cdef PJSIPUA ua = c_get_ua()
     pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, "parse_SIPURI", 4096, 4096)
     if pool == NULL:
-        raise MemoryError("Could not allocate memory pool")
+        raise SIPCoreError("Could not allocate memory pool")
     try:
         uri = pjsip_parse_uri(pool, uri_str, len(uri_str), PJSIP_PARSE_URI_AS_NAMEADDR)
         if uri == NULL:

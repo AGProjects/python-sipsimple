@@ -48,7 +48,7 @@ cdef class PJSIPEndpoint:
             raise PJSIPError("Could not initialize PJSIP endpoint", status)
         self.c_pool = pjsip_endpt_create_pool(self.c_obj, "lifetime", 4096, 4096)
         if self.c_pool == NULL:
-            raise MemoryError("Could not allocate memory pool")
+            raise SIPCoreError("Could not allocate memory pool")
         status = pjsip_tsx_layer_init_module(self.c_obj)
         if status != 0:
             raise PJSIPError("Could not initialize transaction layer module", status)

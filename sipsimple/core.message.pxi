@@ -36,7 +36,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     tdata.msg.body = pjsip_msg_body_create(tdata.pool, &content_type_pj.pj_str, &content_subtype_pj.pj_str, &body_pj.pj_str)
     if tdata.msg.body == NULL:
         pjsip_tx_data_dec_ref(tdata)
-        raise MemoryError()
+        raise SIPCoreError("Could not allocate memory pool")
     size = pjsip_msg_print(tdata.msg, test_buf, 1300)
     if size == -1:
         pjsip_tx_data_dec_ref(tdata)
