@@ -214,7 +214,7 @@ class Session(NotificationHandler):
             else:
                 msrp_chat = None
             ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
-            media_initializer = MediaTransportInitializer(self, self._new_continue, self._new_fail, audio_rtp, None)
+            media_initializer = MediaTransportInitializer(self, self._new_continue, self._new_fail, audio_rtp, msrp_chat)
             self._inv = inv
             self.chat_transport = msrp_chat
             self.session_manager.inv_mapping[inv] = self
