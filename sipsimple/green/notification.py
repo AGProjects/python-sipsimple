@@ -23,18 +23,17 @@ class CallFromThreadObserver(object):
         if not callable(function):
             raise TypeError('Is not callable: %r' % (function, ))
         self.function = function
-        if condition is not None:
-            self.condition = condition
+        self.condition = condition
         from twisted.internet import reactor
         self.reactor = reactor
 
+    def __repr__(self):
+        return '<%s at %s function=%r condition=%r>' % (type(self).__name__, hex(id(self)), self.function, self.condition)
+
     def handle_notification(self, notification):
-        if self.condition(notification):
+        if self.condition is None or self.condition(notification):
             callFromThread = self.reactor.callFromThread
             callFromThread(self.function, notification)
-
-    def condition(self, notification):
-        return True
 
 
 class NotifyFromThreadObserver(CallFromThreadObserver):
