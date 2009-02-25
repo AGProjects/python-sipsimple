@@ -256,7 +256,7 @@ class Session(NotificationHandler):
                 self._chat_sdp_index = sdp_index
                 sdp_index += 1
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                local_sdp.media.append(msrp_chat.get_local_media())
+                local_sdp.media.append(msrp_chat.local_media)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.send_invite()
         except Exception, e:
@@ -327,7 +327,7 @@ class Session(NotificationHandler):
                     local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
             if msrp_chat:
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                local_sdp.media.append(msrp_chat.get_local_media())
+                local_sdp.media.append(msrp_chat.local_media)
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
@@ -438,7 +438,7 @@ class Session(NotificationHandler):
                         local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
                 elif msrp_chat is not None and media.media == "audio" and media.port != 0 and audio_sdp_index == -1:
                     self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                    local_sdp.media.append(msrp_chat.get_local_media())
+                    local_sdp.media.append(msrp_chat.local_media)
                 elif sdp_index >= len(local_sdp.media):
                     remote_media = remote_sdp.media[sdp_index]
                     local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
