@@ -13,7 +13,7 @@ from application.python.util import Singleton
 from application.system import default_host_ip
 
 from sipsimple.engine import Engine
-from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile
+from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
 from sipsimple.msrp import MSRPChat, MSRPRelaySettings
 
 class TimestampedNotificationData(NotificationData):
@@ -91,7 +91,7 @@ class MediaTransportInitializer(NotificationHandler):
                 return
             try:
                 new_rtp = RTPTransport(rtp.local_rtp_address, rtp.use_srtp, rtp.srtp_forced, rtp.use_ice)
-            except:
+            except SIPCoreError:
                 self._fail(rtp, data.reason)
             self._remove_observer(rtp)
             if rtp is self.audio_rtp:
@@ -101,7 +101,7 @@ class MediaTransportInitializer(NotificationHandler):
             self.notification_center.add_observer(self, "SCRTPTransportDidFail", new_rtp)
             try:
                 new_rtp.set_INIT()
-            except Exception, e:
+            except SIPCoreError, e:
                 self._fail(new_rtp, e.args[0])
 
     def _handle_MSRPChatDidInitialize(self, msrp, data):
@@ -260,7 +260,7 @@ class Session(NotificationHandler):
                 local_sdp.media.append(msrp_chat.local_media)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.send_invite()
-        except Exception, e:
+        except SIPCoreError, e:
             self._do_fail(e.args[0])
         finally:
             self._lock.release()
@@ -333,7 +333,7 @@ class Session(NotificationHandler):
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.accept_invite()
-        except Exception, e:
+        except SIPCoreError, e:
             self._inv.disconnect(500)
             self._do_fail(e.args[0])
         finally:
@@ -458,7 +458,7 @@ class Session(NotificationHandler):
                 self._chat_sdp_index = chat_sdp_index
             self._change_state("ESTABLISHED")
             self.notification_center.post_notification("SCSessionAcceptedStreamProposal", self, TimestampedNotificationData(proposer="remote"))
-        except Exception, e:
+        except SIPCoreError, e:
             self._cancel_media()
             self._do_reject_proposal(e.args[0])
         finally:
@@ -518,7 +518,7 @@ class Session(NotificationHandler):
                 self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
                 try:
                     self._audio_rec.start()
-                except:
+                except SIPCoreError:
                     self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
                     raise
                 else:
@@ -554,7 +554,7 @@ class Session(NotificationHandler):
                 self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
                 try:
                     self._audio_rec.start()
-                except:
+                except SIPCoreError:
                     self._audio_rec = None
                     self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
                 else:
@@ -563,7 +563,7 @@ class Session(NotificationHandler):
     def _start_ringtone(self):
         try:
             self._ringtone.start(loop_count=0, pause_time=2)
-        except:
+        except SIPCoreError:
             pass
 
     def _change_state(self, new_state):
@@ -653,7 +653,7 @@ class Session(NotificationHandler):
                 local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.send_reinvite()
-        except Exception, e:
+        except SIPCoreError, e:
             self.proposed_audio = False
             self._cancel_media()
             self._change_state("ESTABLISHED")
