@@ -294,7 +294,7 @@ class Session(NotificationHandler):
                     msrp_relay = MSRPRelaySettings(local_uri.host, local_uri.user, password, self.msrp_options.relay_host, self.msrp_options.relay_port, self.msrp_options.relay_use_tls)
                 else:
                     msrp_relay = None
-                msrp_chat = MSRPChat(local_uri, to_uri, False, msrp_relay)
+                msrp_chat = MSRPChat(local_uri, self._inv.remote_uri, False, msrp_relay)
             else:
                 msrp_chat = None
             if not any([audio_rtp, msrp_chat]):
@@ -333,7 +333,7 @@ class Session(NotificationHandler):
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.accept_invite()
-        except:
+        except Exception, e:
             self._inv.disconnect(500)
             self._do_fail(e.args[0])
         finally:
@@ -389,7 +389,7 @@ class Session(NotificationHandler):
             if len(self._queue) == 1:
                 self._process_queue()
 
-    def accept_proposal(self):
+    def accept_proposal(self, password):
         """Accept a proposal of stream(s) being added. Moves the object from
            the PROPOSED state to the ESTABLISHED state."""
         with self._lock:
@@ -408,14 +408,14 @@ class Session(NotificationHandler):
                         msrp_relay = MSRPRelaySettings(local_uri.host, local_uri.user, password, self.msrp_options.relay_host, self.msrp_options.relay_port, self.msrp_options.relay_use_tls)
                     else:
                         msrp_relay = None
-                    msrp_chat = MSRPChat(local_uri, to_uri, False, msrp_relay)
+                    msrp_chat = MSRPChat(local_uri, self._inv.remote_uri, False, msrp_relay)
             media_initializer = MediaTransportInitializer(self, self._accept_proposal_continue, self._accept_proposal_fail, audio_rtp, msrp_chat)
             self.chat_transport = msrp_chat
 
     def _do_reject_proposal(self, reason=None):
         self._inv.respond_to_reinvite(488)
         self._change_state("ESTABLISHED")
-        notification_data = TimeStampedNotificationData(originator="local")
+        notification_data = TimestampedNotificationData(originator="local")
         if reason is not None:
             notification_data.reason = reason
         self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, notification_data)
@@ -728,7 +728,7 @@ class Session(NotificationHandler):
         return local_sdp
 
     def send_message(self, content, content_type="text/plain", to_uri=None):
-        if self.chat_transport is none or not self.chat_transport.is_active:
+        if self.chat_transport is None or not self.chat_transport.is_active:
             raise RuntimeError("This SIP session does not have an active MSRP stream to send chat message over")
         self.chat_transport(content, content_type, to_uri)
 
@@ -951,7 +951,7 @@ class SessionManager(NotificationHandler):
         if session is not None:
             self.notification_center.post_notification("SCSessionDidDeliverMessage", session, data)
 
-    def _handle_MSRPChatDidDeliverMessage(self, msrp_chat, data):
+    def _handle_MSRPChatDidNotDeliverMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             self.notification_center.post_notification("SCSessionDidNotDeliverMessage", session, data)
