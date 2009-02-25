@@ -290,7 +290,6 @@ class Session(NotificationHandler):
                     raise RuntimeError("Use of MSRP chat requested, but MSRP chat was not proposed by remote party")
                 if self.msrp_options.use_relay_incoming:
                     local_uri = self._inv.local_uri
-                    remote_uri = self._inv.remote_uri
                     msrp_relay = MSRPRelaySettings(local_uri.host, local_uri.user, password, self.msrp_options.relay_host, self.msrp_options.relay_port, self.msrp_options.relay_use_tls)
                 else:
                     msrp_relay = None
@@ -372,7 +371,7 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
-            if self.msrp_transport is not None:
+            if self.chat_transport is not None:
                 raise RuntimeError("An MSRP chat stream is already active within this SIP session")
             raise NotImplementedError
             # TODO: implement and emit SCSessionGotStreamProposal
@@ -404,7 +403,6 @@ class Session(NotificationHandler):
                 elif self.chat_transport is None and media.media == "message" and media.port != 0 and msrp_chat is None:
                     if self.msrp_options.use_relay_incoming:
                         local_uri = self._inv.local_uri
-                        remote_uri = self._inv.remote_uri
                         msrp_relay = MSRPRelaySettings(local_uri.host, local_uri.user, password, self.msrp_options.relay_host, self.msrp_options.relay_port, self.msrp_options.relay_use_tls)
                     else:
                         msrp_relay = None
@@ -442,7 +440,8 @@ class Session(NotificationHandler):
                     local_sdp.media[sdp_index] = self._init_audio(audio_rtp, remote_sdp)
                     if self.rtp_options["use_ice"]:
                         local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
-                elif msrp_chat is not None and media.media == "audio" and media.port != 0 and audio_sdp_index == -1:
+                elif msrp_chat is not None and media.media == "message" and media.port != 0 and chat_sdp_index == -1:
+                    chat_sdp_index = sdp_index
                     self.session_manager.msrp_chat_mapping[msrp_chat] = self
                     local_sdp.media.append(msrp_chat.local_media)
                 elif sdp_index >= len(local_sdp.media):
@@ -450,7 +449,12 @@ class Session(NotificationHandler):
                     local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.respond_to_reinvite(200)
+            if audio_rtp is not None:
+                self._audio_sdp_index = audio_sdp_index
+            if msrp_chat is not None:
+                self._chat_sdp_index = chat_sdp_index
         except Exception, e:
+            self._cancel_media()
             self._do_reject_proposal(e.args[0])
         finally:
             self._lock.release()
@@ -633,7 +637,7 @@ class Session(NotificationHandler):
                 self._stop_audio()
         if self.chat_transport:
             if local_sdp.media[self._chat_sdp_index].port and remote_sdp.media[self._chat_sdp_index].port:
-                self._update_chat()
+                self._update_chat(remote_sdp)
             else:
                 self._stop_chat()
 
@@ -658,7 +662,7 @@ class Session(NotificationHandler):
             self._no_audio_timer = Timer(5, self._check_audio)
             self._no_audio_timer.start()
 
-    def _update_chat(self, local_sdp, remote_sdp):
+    def _update_chat(self, remote_sdp):
         if self.chat_transport.is_active:
             # TODO: what do we do with new SDP?
             pass
@@ -783,6 +787,7 @@ class SessionManager(NotificationHandler):
         self.msrp_config = MSRPConfiguration()
         self.inv_mapping = {}
         self.audio_transport_mapping = {}
+        self.msrp_chat_mapping = {}
         self.notification_center = NotificationCenter()
         self.notification_center.add_observer(self, "SCInvitationChangedState")
         self.notification_center.add_observer(self, "SCInvitationGotSDPUpdate")
@@ -805,7 +810,6 @@ class SessionManager(NotificationHandler):
                 session._inv = inv
                 session.remote_user_agent = data.headers.get("User-Agent", None)
                 self.inv_mapping[inv] = session
-                caller_uri = inv.caller_uri
                 ringtone = self.ringtone_config.get_ringtone_for_sipuri(inv.caller_uri)
                 if ringtone is not None:
                     session._ringtone = WaveFile(ringtone)
@@ -874,9 +878,9 @@ class SessionManager(NotificationHandler):
                                 if media.port == 0:
                                     remove_chat = True
                             elif media.media == "audio" and session.audio_transport is None and media.port != 0:
-                                add_audo = True
+                                add_audio = True
                             elif media.media == "message" and session.chat_transport is None and media.port != 0:
-                                add_audo = True
+                                add_chat = True
                         if any([add_audio, add_chat]):
                             if any([remove_audio, remove_chat]):
                                 # We don't support adding AND removing a stream in the same proposal
@@ -912,7 +916,7 @@ class SessionManager(NotificationHandler):
                         if hasattr(data, "code"):
                             failure_data.code = data.code
                             if data.prev_state == "CONNECTING" and data.code == 408:
-                                failure_data.reason == "No ACK received"
+                                failure_data.reason = "No ACK received"
                             elif hasattr(data, "headers") and "Warning" in data.headers:
                                 failure_data.reason = "%s (%s)" % (data.reason, data.headers["Warning"][2])
                             else:
