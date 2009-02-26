@@ -4,12 +4,10 @@ SIP core
 
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
 - Registration requestion URI should be settable by application [RK]
-- Use STUN to determine the public contact address used for REGISTER
+- Use STUN to determine the public contact address used for REGISTER [RK]
 - Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
 - Handle incoming SUBSCRIBE requests [RK] [DB]
 - Handle incoming REGISTER requests [RK] [DB]
-- Use Server header in replies instead of User-Agent header [RK]
-- Properly decrease reference counts of pjsip_tx_data structs [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
 - Handle incoming OPTIONS requests [RK]
 - Handle incoming REFER requests [RK]
