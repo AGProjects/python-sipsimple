@@ -52,8 +52,8 @@ class MediaTransportInitializer(NotificationHandler):
                 rtp.set_INIT()
             if msrp_chat is not None:
                 self.waiting_for.append(msrp_chat)
-                self.notification_center.add_observer(self, "MSRPChatDidInitialize", rtp)
-                self.notification_center.add_observer(self, "MSRPChatDidFail", rtp)
+                self.notification_center.add_observer(self, "MSRPChatDidInitialize", msrp_chat)
+                self.notification_center.add_observer(self, "MSRPChatDidFail", msrp_chat)
                 msrp_chat.initialize(session.msrp_options["local_ip"], session.msrp_options["local_port"], session.msrp_options["local_use_tls"])
             self._check_done()
 
@@ -71,7 +71,7 @@ class MediaTransportInitializer(NotificationHandler):
             self.continuation_func(self.audio_rtp, self.msrp_chat)
 
     def _fail(self, sender, reason):
-        for obj in self.waiting_for:
+        for obj in self.waiting_for[:]:
             self._remove_observer(obj)
         if sender is self.audio_rtp:
             reason = "Failed to initialize audio RTP transport: %s" % reason
