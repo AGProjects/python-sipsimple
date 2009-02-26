@@ -130,9 +130,6 @@ class MSRPChat(object):
         self.msrp_connector.cleanup()
         self._post_failure('start', reason)
 
-    def __del__(self):
-        self.end()
-
     def end(self):
         """Close the MSRP connection or cleanup after initialize(), whatever is necessary.
 
