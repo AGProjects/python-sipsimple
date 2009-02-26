@@ -492,13 +492,33 @@ cdef class PJSIPUA:
 
     cdef int _rx_request(self, pjsip_rx_data *rdata) except 0:
         cdef int status
-        cdef pjsip_tx_data *tdata
+        cdef pjsip_tx_data *tdata = NULL
         cdef pjsip_hdr_ptr_const hdr_add
         cdef Invitation inv
         cdef dict message_params
+        cdef pj_str_t tsx_key
+        cdef pjsip_via_hdr *top_via, *via
+        cdef pjsip_transaction *tsx = NULL
         cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
         cdef object method_name = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
-        if method_name == "OPTIONS":
+        # Temporarily trick PJSIP into believing the last Via header is actually the first
+        if method_name != "ACK":
+            top_via = via = rdata.msg_info.via
+            while True:
+                rdata.msg_info.via = via
+                via = <pjsip_via_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_VIA, (<pj_list *> via).next)
+                if via == NULL:
+                    break
+            status = pjsip_tsx_create_key(rdata.tp_info.pool, &tsx_key, PJSIP_ROLE_UAC, &rdata.msg_info.msg.line.req.method, rdata)
+            rdata.msg_info.via = top_via
+            if status != 0:
+                raise PJSIPError("Could not generate transaction key for incoming request", status)
+            tsx = pjsip_tsx_layer_find_tsx(&tsx_key, 0)
+        if tsx != NULL:
+            status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 482, NULL, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create response", status)
+        elif method_name == "OPTIONS":
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)

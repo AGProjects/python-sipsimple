@@ -432,6 +432,8 @@ cdef extern from "pjsip.h":
     struct pjsip_host_port:
         pj_str_t host
         int port
+    enum pjsip_hdr_e:
+        PJSIP_H_VIA
     struct pjsip_hdr:
         pj_str_t name
     ctypedef pjsip_hdr *pjsip_hdr_ptr_const "const pjsip_hdr*"
@@ -527,12 +529,14 @@ cdef extern from "pjsip.h":
         pjsip_msg *msg
         pjsip_name_addr *from_hdr "from"
         pjsip_fromto_hdr *to_hdr "to"
+        pjsip_via_hdr *via
     struct pjsip_rx_data:
         pjsip_rx_data_pkt_info pkt_info
         pjsip_rx_data_tp_info tp_info
         pjsip_rx_data_msg_info msg_info
     void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
+    void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start)
     void pjsip_generic_string_hdr_init2(pjsip_generic_string_hdr *hdr, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
@@ -613,6 +617,8 @@ cdef extern from "pjsip.h":
         pjsip_tx_data *last_tx
         pjsip_tsx_state_e state
     int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
+    int pjsip_tsx_create_key(pj_pool_t *pool, pj_str_t *key, pjsip_role_e role, pjsip_method *method, pjsip_rx_data *rdata)
+    pjsip_transaction *pjsip_tsx_layer_find_tsx(pj_str_t *key, int lock)
 
     # event
     enum pjsip_event_id_e:
