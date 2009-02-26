@@ -73,13 +73,14 @@ def format_incoming_message(uri, message):
     if message.content_type == 'message/cpim':
         headers, text = MessageCPIMParser.parse_string(message.data)
         cpim_uri = headers.get('From')
+        dt = headers.get('DateTime')
     else:
         cpim_uri = None
         if message.content_type == 'text/plain':
             text = message.data
         else:
             text = repr(message)
-    dt = headers.get('DateTime')
+        dt = None
     if dt is None:
         return '%s: %s' % (format_uri(uri, cpim_uri), text)
     else:
