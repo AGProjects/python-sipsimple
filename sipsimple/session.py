@@ -143,7 +143,9 @@ class Session(NotificationHandler):
         self.direction = None
         self.audio_transport = None
         self.chat_transport = None
-        self.proposed_audio = True
+        # TODO: make the following two attributes reflect the current proposal in all states, not just PROPOSING
+        self.proposed_audio = False
+        self.proposed_chat = False
         self._lock = allocate_lock()
         self._inv = None
         self._audio_sdp_index = -1
@@ -384,8 +386,9 @@ class Session(NotificationHandler):
                 raise RuntimeError("This method can only be called while in the ESTABLISHED state")
             if self.chat_transport is not None:
                 raise RuntimeError("An MSRP chat stream is already active within this SIP session")
-            raise NotImplementedError
-            # TODO: implement and emit SCSessionGotStreamProposal
+            self._queue.append("add_chat")
+            if len(self._queue) == 1:
+                self._process_queue()
 
     def remove_chat(self):
         with self._lock:
@@ -639,6 +642,16 @@ class Session(NotificationHandler):
                     self._change_state("PROPOSING")
                     self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(has_audio=True, has_chat=False, proposer="local"))
                     break
+                elif command == "add_chat":
+                    if self.chat_transport is not None:
+                        continue
+                    # TODO: optionally enable using relay once we can query the password from the account manager
+                    self.chat_transport = MSRPChat(self._inv.local_uri, self._inv.remote_uri, True, None)
+                    media_initializer = MediaTransportInitializer(self, self._add_chat_continue, self._add_chat_fail, None, self.chat_transport)
+                    self.proposed_chat = True
+                    self._change_state("PROPOSING")
+                    self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(has_audio=False, has_chat=True, proposer="local"))
+                    break
             if local_sdp is not None:
                 self._inv.set_offered_local_sdp(local_sdp)
                 self._inv.send_reinvite()
@@ -657,7 +670,7 @@ class Session(NotificationHandler):
                 return
             self.proposed_audio = False
             self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(has_audio=True, has_chat=False, proposer="local", reason=reason))
+            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
 
     def _add_audio_continue(self, audio_rtp, msrp_chat):
         self._lock.acquire()
@@ -679,7 +692,37 @@ class Session(NotificationHandler):
             self.proposed_audio = False
             self._cancel_media()
             self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(has_audio=True, has_chat=False, proposer="local", reason=e.args[0]))
+            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
+        finally:
+            self._lock.release()
+
+    def _add_chat_fail(self, reason):
+        with self._lock:
+            if self.state != "PROPOSING":
+                return
+            self.proposed_chat = False
+            self._stop_chat()
+            self._change_state("ESTABLISHED")
+            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
+
+    def _add_chat_continue(self, audio_rtp, msrp_chat):
+        self._lock.acquire()
+        try:
+            if self.state != "PROPOSING":
+                return
+            local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
+            chat_sdp_index = self._chat_sdp_index
+            if chat_sdp_index == -1:
+                chat_sdp_index = len(local_sdp.media)
+            self.session_manager.msrp_chat_mapping[msrp_chat] = self
+            local_sdp.media.append(msrp_chat.local_media)
+            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.send_reinvite()
+        except SIPCoreError, e:
+            self.proposed_chat = False
+            self._cancel_media()
+            self._change_state("ESTABLISHED")
+            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
         finally:
             self._lock.release()
 
@@ -910,11 +953,14 @@ class SessionManager(NotificationHandler):
                     elif session.state == "PROPOSING":
                         failure_reason = None
                         if data.code / 100 == 2:
-                            if session.audio_proposed:
+                            if session.proposed_audio:
                                 if session.audio_transport is None or not session.audio_transport.is_active:
-                                    failure_reason = "SDP negotation failed"
-                                    if session._sdpneg_failure_reason is not None:
-                                        failure_reason += ": %s" % session._sdpneg_failure_reason
+                                    failure_reason = "Audio SDP negotation failed"
+                            elif session.proposed_chat:
+                                if session.chat_transport is None or not session.chat_transport.is_active:
+                                    failure_reason = "MSRP chat SDP negotation failed"
+                            if failure_reason is not None and session._sdpneg_failure_reason is not None:
+                                failure_reason += ": %s" % session._sdpneg_failure_reason
                             else:
                                 failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
                         if failure_reason is None:
