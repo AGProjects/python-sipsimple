@@ -216,7 +216,7 @@ class MSRPChat(object):
         if self.cpim_enabled:
             if to_uri is None:
                 to_uri = self.to_uri
-            elif self.private_messages_allowed and to_uri != self.to_uri:
+            elif not self.private_messages_allowed and to_uri != self.to_uri:
                 raise MSRPChatError('The remote end does not support private messages')
             msg = MessageCPIM(content, content_type, from_=self.from_uri, to=to_uri, datetime=datetime.now())
             return self._send_raw_message(str(msg), 'message/cpim', failure_report='partial', success_report='yes')
