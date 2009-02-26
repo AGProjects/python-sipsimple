@@ -28,7 +28,7 @@ class NotificationHandler(object):
     implements(IObserver)
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_handle_%s' % notification.name, None)
+        handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification.sender, notification.data)
 
@@ -79,14 +79,14 @@ class MediaTransportInitializer(NotificationHandler):
             reason = "Failed to initialize MSRP chat transport: %s" % reason
         self.failure_func(reason)
 
-    def _handle_SCRTPTransportDidInitialize(self, rtp, data):
+    def _NH_SCRTPTransportDidInitialize(self, rtp, data):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
             self._remove_observer(rtp)
             self._check_done()
 
-    def _handle_SCRTPTransportDidFail(self, rtp, data):
+    def _NH_SCRTPTransportDidFail(self, rtp, data):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
@@ -105,14 +105,14 @@ class MediaTransportInitializer(NotificationHandler):
             except SIPCoreError, e:
                 self._fail(new_rtp, e.args[0])
 
-    def _handle_MSRPChatDidInitialize(self, msrp, data):
+    def _NH_MSRPChatDidInitialize(self, msrp, data):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
             self._remove_observer(msrp)
             self._check_done()
 
-    def _handle_MSRPChatDidFail(self, msrp, data):
+    def _NH_MSRPChatDidFail(self, msrp, data):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
@@ -911,7 +911,7 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "MSRPChatDidEnd")
         self.ringtone_config = RingtoneConfiguration()
 
-    def _handle_SCInvitationChangedState(self, inv, data):
+    def _NH_SCInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
             remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
             # TODO: check if the To header/request URI is one of ours
@@ -1059,7 +1059,7 @@ class SessionManager(NotificationHandler):
                         self.notification_center.post_notification("SCSessionDidFail", session, failure_data)
                     self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData(originator=originator))
 
-    def _handle_SCInvitationGotSDPUpdate(self, inv, data):
+    def _NH_SCInvitationGotSDPUpdate(self, inv, data):
         session = self.inv_mapping.get(inv, None)
         if session is None:
             return
@@ -1075,27 +1075,27 @@ class SessionManager(NotificationHandler):
                 session._cancel_media()
                 session._sdpneg_failure_reason = data.error
 
-    def _handle_SCAudioTransportGotDTMF(self, audio_transport, data):
+    def _NH_SCAudioTransportGotDTMF(self, audio_transport, data):
         session = self.audio_transport_mapping.get(audio_transport, None)
         if session is not None:
             self.notification_center.post_notification("SCSessionGotDTMF", session, data)
 
-    def _handle_MSRPChatGotMessage(self, msrp_chat, data):
+    def _NH_MSRPChatGotMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             self.notification_center.post_notification("SCSessionGotMessage", session, data)
 
-    def _handle_MSRPChatDidDeliverMessage(self, msrp_chat, data):
+    def _NH_MSRPChatDidDeliverMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             self.notification_center.post_notification("SCSessionDidDeliverMessage", session, data)
 
-    def _handle_MSRPChatDidNotDeliverMessage(self, msrp_chat, data):
+    def _NH_MSRPChatDidNotDeliverMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             self.notification_center.post_notification("SCSessionDidNotDeliverMessage", session, data)
 
-    def _handle_MSRPChatDidEnd(self, msrp_chat, data):
+    def _NH_MSRPChatDidEnd(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             with session._lock:
