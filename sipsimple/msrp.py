@@ -147,7 +147,7 @@ class MSRPChat(object):
         self.notification_center.post_notification('MSRPChatDidEnd', self)
 
     def _post_did_end_fail(self, reason):
-        self.notification_center.post_notification('MSRPChatDidFail', self, reason)
+        self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='end', reason=reason))
         self.notification_center.post_notification('MSRPChatDidEnd', self)
 
     def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
