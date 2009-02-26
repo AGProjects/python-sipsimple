@@ -94,7 +94,7 @@ def parse_cpim_address(s, default_domain=None):
     uri = SIPAddress.parse(uri, default_domain=default_domain)
     return SIPURI(user=uri.username, host=uri.domain, display=display, secure=uri.secure)
 
-class MessageCPIMParser:
+class MessageCPIMParser(object):
     _mapping = {'From': parse_cpim_address,
                 'To': parse_cpim_address,
                 'cc': parse_cpim_address,

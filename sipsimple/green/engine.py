@@ -142,7 +142,7 @@ class GreenEngine(Engine):
             w.stop()
 
 
-class IncomingSessionHandler:
+class IncomingSessionHandler(object):
 
     def __init__(self):
         self.handlers = []
@@ -215,7 +215,7 @@ class GreenRegistration(GreenBase):
     shutdown = unregister
 
 
-class Ringer:
+class Ringer(object):
 
     delay = 5
 
@@ -304,7 +304,7 @@ class GreenInvitation(GreenBase):
         return Cancellable(lambda : notification_center.remove_observer(observer, self.event_names[0], self._obj))
 
 
-class Cancellable:
+class Cancellable(object):
 
     def __init__(self, cancel_function):
         self.on_cancel = cancel_function

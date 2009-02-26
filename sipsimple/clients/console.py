@@ -49,7 +49,7 @@ class ServerProtocol(insults.ServerProtocol):
             pass
         self.write('\n')
 
-class ChannelProxy:
+class ChannelProxy(object):
 
     def __init__(self, source, output):
         self.source = source
@@ -231,7 +231,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
         self.drawInputLine()
 
 
-class GreenConsole:
+class GreenConsole(object):
 
     last_header = None
 
