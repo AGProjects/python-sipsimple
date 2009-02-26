@@ -71,9 +71,9 @@ class MSRPChat(object):
         self._message_sent_sound = None
         self._sound_level = 20
         if outgoing:
-            self.msrp_connector = get_connector(relay, accept_types=accept_types, accept_wrapped_types=accept_wrapped_types)
+            self.msrp_connector = get_connector(relay)
         else:
-            self.msrp_connector = get_acceptor(relay, accept_types=accept_types, accept_wrapped_types=accept_wrapped_types)
+            self.msrp_connector = get_acceptor(relay)
         self.cpim_enabled = None
         self.private_messages_allowed = None
 
