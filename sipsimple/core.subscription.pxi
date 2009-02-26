@@ -136,7 +136,6 @@ cdef class Subscription:
             status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
             if status != 0:
                 raise PJSIPError("Could not create SUBSCRIBE message", status)
-            pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &ua.c_user_agent_hdr.c_obj))
             for header in self.c_extra_headers:
                 pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &header.c_obj))
             status = pjsip_evsub_send_request(self.c_obj, c_tdata)

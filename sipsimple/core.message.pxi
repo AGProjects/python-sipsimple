@@ -26,7 +26,6 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
     if status != 0:
         raise PJSIPError("Could not create MESSAGE request", status)
-    pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
     if route is not None:
         route._to_c(ua)
         pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))

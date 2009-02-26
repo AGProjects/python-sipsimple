@@ -274,7 +274,6 @@ cdef class Invitation:
         cdef object name, value
         cdef GenericStringHeader header
         cdef list c_extra_headers = [GenericStringHeader(name, value) for name, value in extra_headers.iteritems()]
-        pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &ua.c_user_agent_hdr.c_obj))
         for header in c_extra_headers:
             pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &header.c_obj))
         status = pjsip_inv_send_msg(self.c_obj, tdata)

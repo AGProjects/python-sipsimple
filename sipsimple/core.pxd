@@ -538,6 +538,7 @@ cdef extern from "pjsip.h":
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start)
     void pjsip_generic_string_hdr_init2(pjsip_generic_string_hdr *hdr, pj_str_t *hname, pj_str_t *hvalue)
+    pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
@@ -555,6 +556,7 @@ cdef extern from "pjsip.h":
     enum pjsip_module_priority:
         PJSIP_MOD_PRIORITY_APPLICATION
         PJSIP_MOD_PRIORITY_DIALOG_USAGE
+        PJSIP_MOD_PRIORITY_TRANSPORT_LAYER
     struct pjsip_module:
         pj_str_t name
         int id
@@ -826,6 +828,8 @@ cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil
 cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
 cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil
 cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil
+cdef int cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil
+cdef int cb_add_server_hdr(pjsip_tx_data *tdata) with gil
 cdef PJSIPUA c_get_ua()
 
 # core.event

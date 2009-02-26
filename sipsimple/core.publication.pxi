@@ -200,7 +200,6 @@ cdef class Publication:
             status = pjsip_publishc_unpublish(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise PJSIPError("Could not create PUBLISH request", status)
-        pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &ua.c_user_agent_hdr.c_obj))
         for header in self.c_extra_headers:
             pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &header.c_obj))
 

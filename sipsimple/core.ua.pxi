@@ -16,10 +16,12 @@ cdef class PJSIPUA:
     cdef PJSTR c_module_name
     cdef pjsip_module c_trace_module
     cdef PJSTR c_trace_module_name
+    cdef pjsip_module c_ua_tag_module
+    cdef PJSTR c_ua_tag_module_name
     cdef pjsip_module c_event_module
     cdef PJSTR c_event_module_name
     cdef bint c_trace_sip
-    cdef GenericStringHeader c_user_agent_hdr
+    cdef PJSTR c_user_agent
     cdef list c_events
     cdef object c_sent_messages
     cdef pj_time_val c_max_timeout
@@ -89,6 +91,15 @@ cdef class PJSIPUA:
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_trace_module)
         if status != 0:
             raise PJSIPError("Could not load sip trace module", status)
+        self.c_ua_tag_module_name = PJSTR("mod-core-ua-tag")
+        self.c_ua_tag_module.name = self.c_ua_tag_module_name.pj_str
+        self.c_ua_tag_module.id = -1
+        self.c_ua_tag_module.priority = PJSIP_MOD_PRIORITY_TRANSPORT_LAYER+1
+        self.c_ua_tag_module.on_tx_request = cb_add_user_agent_hdr
+        self.c_ua_tag_module.on_tx_response = cb_add_server_hdr
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_ua_tag_module)
+        if status != 0:
+            raise PJSIPError("Could not load User-Agent/Server header tagging module", status)
         self.c_event_module_name = PJSTR("mod-core-events")
         self.c_event_module.name = self.c_event_module_name.pj_str
         self.c_event_module.id = -1
@@ -96,7 +107,7 @@ cdef class PJSIPUA:
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
         if status != 0:
             raise PJSIPError("Could not load events module", status)
-        self.user_agent = kwargs["user_agent"]
+        self.c_user_agent = PJSTR(kwargs["user_agent"])
         for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
         self.rtp_port_range = kwargs["rtp_port_range"]
@@ -320,13 +331,11 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_user_agent_hdr.hvalue
+            return self.c_user_agent.str
 
         def __set__(self, value):
             self.c_check_self()
-            cdef GenericStringHeader user_agent_hdr
-            user_agent_hdr = GenericStringHeader("User-Agent", value)
-            self.c_user_agent_hdr = user_agent_hdr
+            self.c_user_agent = PJSTR("value")
 
     property log_level:
 
@@ -547,7 +556,6 @@ cdef class PJSIPUA:
             if status != 0:
                 raise PJSIPError("Could not create response", status)
         if tdata != NULL:
-            pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &self.c_user_agent_hdr.c_obj))
             status = pjsip_endpt_send_response2(self.c_pjsip_endpoint.c_obj, rdata, tdata, NULL, NULL)
             if status != 0:
                 pjsip_tx_data_dec_ref(tdata)
@@ -599,13 +607,13 @@ cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil:
         c_ua.c_handle_exception(1)
 
 cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
-    cdef PJSIPUA c_ua
+    cdef PJSIPUA ua
     try:
-        c_ua = c_get_ua()
+        ua = c_get_ua()
     except:
         return 0
     try:
-        if c_ua.c_trace_sip:
+        if ua.c_trace_sip:
             c_add_event("SCEngineSIPTrace", dict(received=True,
                                                  source_ip=rdata.pkt_info.src_name,
                                                  source_port=rdata.pkt_info.src_port,
@@ -614,17 +622,17 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
                                                  data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
                                                  transport=rdata.tp_info.transport.type_name))
     except:
-        c_ua.c_handle_exception(1)
+        ua.c_handle_exception(1)
     return 0
 
 cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
-    cdef PJSIPUA c_ua
+    cdef PJSIPUA ua
     try:
-        c_ua = c_get_ua()
+        ua = c_get_ua()
     except:
         return 0
     try:
-        if c_ua.c_trace_sip:
+        if ua.c_trace_sip:
             c_add_event("SCEngineSIPTrace", dict(received=False,
                                                  source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
                                                  source_port=tdata.tp_info.transport.local_name.port,
@@ -633,7 +641,39 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
                                                  data=PyString_FromStringAndSize(tdata.buf.start, tdata.buf.cur - tdata.buf.start),
                                                  transport=tdata.tp_info.transport.type_name))
     except:
-        c_ua.c_handle_exception(1)
+        ua.c_handle_exception(1)
+    return 0
+
+cdef int cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil:
+    cdef PJSIPUA ua
+    cdef pjsip_hdr *hdr
+    try:
+        ua = c_get_ua()
+    except:
+        return 0
+    try:
+        hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &_user_agent_hdr_name.pj_str, &ua.c_user_agent.pj_str)
+        if hdr == NULL:
+            raise SIPCoreError('Could not add "User-Agent" header to outgoing request')
+        pjsip_msg_add_hdr(tdata.msg, hdr)
+    except:
+        ua.c_handle_exception(1)
+    return 0
+
+cdef int cb_add_server_hdr(pjsip_tx_data *tdata) with gil:
+    cdef PJSIPUA ua
+    cdef pjsip_hdr *hdr
+    try:
+        ua = c_get_ua()
+    except:
+        return 0
+    try:
+        hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &_server_hdr_name.pj_str, &ua.c_user_agent.pj_str)
+        if hdr == NULL:
+            raise SIPCoreError('Could not add "Server" header to outgoing response')
+        pjsip_msg_add_hdr(tdata.msg, hdr)
+    except:
+        ua.c_handle_exception(1)
     return 0
 
 # utility function
@@ -650,3 +690,5 @@ cdef PJSIPUA c_get_ua():
 # globals
 
 cdef void *_ua = NULL
+cdef PJSTR _user_agent_hdr_name = PJSTR("User-Agent")
+cdef PJSTR _server_hdr_name = PJSTR("Server")
