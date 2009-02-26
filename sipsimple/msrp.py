@@ -47,7 +47,7 @@ class MSRPChatError(Exception):
     pass
 
 
-class MSRPChat:
+class MSRPChat(object):
 
     def __init__(self, from_uri, to_uri, outgoing, relay=None, accept_types=['message/cpim', 'text/*'], accept_wrapped_types=['*']):
         """Initialize MSRPChat instance.
