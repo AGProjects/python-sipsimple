@@ -271,11 +271,7 @@ cdef class Invitation:
 
     cdef int _send_msg(self, PJSIPUA ua, pjsip_tx_data *tdata, dict extra_headers) except -1:
         cdef int status
-        cdef object name, value
-        cdef GenericStringHeader header
-        cdef list c_extra_headers = [GenericStringHeader(name, value) for name, value in extra_headers.iteritems()]
-        for header in c_extra_headers:
-            pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &header.c_obj))
+        c_add_headers_to_tdata(tdata, extra_headers)
         status = pjsip_inv_send_msg(self.c_obj, tdata)
         if status != 0:
             pjsip_tx_data_dec_ref(tdata)

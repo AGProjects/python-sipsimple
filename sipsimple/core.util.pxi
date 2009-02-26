@@ -1,22 +1,5 @@
 import re
 
-cdef class GenericStringHeader:
-    cdef pjsip_generic_string_hdr c_obj
-    cdef readonly hname
-    cdef readonly hvalue
-
-    def __cinit__(self, hname, hvalue):
-        cdef pj_str_t c_hname
-        cdef pj_str_t c_hvalue
-        self.hname = hname
-        self.hvalue = hvalue
-        str_to_pj_str(self.hname, &c_hname)
-        str_to_pj_str(self.hvalue, &c_hvalue)
-        pjsip_generic_string_hdr_init2(&self.c_obj, &c_hname, &c_hvalue)
-
-    def __repr__(self):
-        return '<GenericStringHeader "%s: %s">' % (self.hname, self.hvalue)
-
 cdef class PJSTR:
     cdef pj_str_t pj_str
     cdef object str
@@ -185,6 +168,16 @@ cdef int c_get_ip_version(object ip) except -1:
         return pj_AF_INET()
     else:
         return 0
+
+cdef int c_add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1:
+    cdef object name, value
+    cdef pj_str_t name_pj, value_pj
+    cdef pjsip_hdr *hdr
+    for name, value in headers.iteritems():
+        str_to_pj_str(name, &name_pj)
+        str_to_pj_str(value, &value_pj)
+        hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &name_pj, &value_pj)
+        pjsip_msg_add_hdr(tdata.msg, hdr)
 
 # globals
 

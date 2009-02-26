@@ -9,7 +9,7 @@ cdef class Subscription:
     cdef readonly SIPURI c_to_uri
     cdef PJSTR c_event
     cdef readonly object state
-    cdef list c_extra_headers
+    cdef dict c_extra_headers
 
     def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route = None, expires = 300, extra_headers = {}):
         cdef int status
@@ -32,7 +32,7 @@ cdef class Subscription:
         if event not in ua.events:
             raise SIPCoreError('Event "%s" is unknown' % event)
         self.state = "TERMINATED"
-        self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
+        self.c_extra_headers = extra_headers.copy()
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -60,7 +60,7 @@ cdef class Subscription:
     property extra_headers:
 
         def __get__(self):
-            return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
+            return self.c_extra_headers.copy()
 
     property credentials:
 
@@ -109,7 +109,6 @@ cdef class Subscription:
         cdef int status
         cdef object transport
         cdef PJSTR c_from, c_to, c_to_req, c_contact_uri
-        cdef GenericStringHeader header
         cdef PJSIPUA ua = c_get_ua()
         try:
             if first_subscribe:
@@ -136,8 +135,7 @@ cdef class Subscription:
             status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
             if status != 0:
                 raise PJSIPError("Could not create SUBSCRIBE message", status)
-            for header in self.c_extra_headers:
-                pjsip_msg_add_hdr(c_tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(c_tdata.pool, &header.c_obj))
+            c_add_headers_to_tdata(c_tdata, self.c_extra_headers)
             status = pjsip_evsub_send_request(self.c_obj, c_tdata)
             if status != 0:
                 raise PJSIPError("Could not send SUBSCRIBE message", status)

@@ -537,7 +537,6 @@ cdef extern from "pjsip.h":
     void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start)
-    void pjsip_generic_string_hdr_init2(pjsip_generic_string_hdr *hdr, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
@@ -800,7 +799,6 @@ cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry
 
 # core.util
 
-cdef class GenericStringHeader
 cdef class PJSTR
 cdef int str_to_pj_str(object string, pj_str_t *pj_str) except -1
 cdef object pj_str_to_str(pj_str_t pj_str)
@@ -811,6 +809,7 @@ cdef dict c_pjsip_param_to_dict(pjsip_param *param_list)
 cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
 cdef int c_is_valid_ip(int af, object ip) except -1
 cdef int c_get_ip_version(object ip) except -1
+cdef int c_add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1
 
 # core.helper
 

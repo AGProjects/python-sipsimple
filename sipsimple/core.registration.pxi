@@ -12,7 +12,7 @@ cdef class Registration:
     cdef bint c_want_register
     cdef pj_timer_entry c_timer
     cdef PJSTR c_contact_uri
-    cdef list c_extra_headers
+    cdef dict c_extra_headers
 
     def __cinit__(self, Credentials credentials, route = None, expires = 300, extra_headers = {}):
         cdef int status
@@ -48,7 +48,7 @@ cdef class Registration:
             status = pjsip_regc_set_route_set(self.c_obj, &self.c_route.c_route_set)
             if status != 0:
                 raise PJSIPError("Could not set route set on registration", status)
-        self.c_extra_headers = [GenericStringHeader(key, val) for key, val in extra_headers.iteritems()]
+        self.c_extra_headers = extra_headers.copy()
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -92,7 +92,7 @@ cdef class Registration:
     property extra_headers:
 
         def __get__(self):
-            return dict([(header.hname, header.hvalue) for header in self.c_extra_headers])
+            return self.c_extra_headers.copy()
 
     property credentials:
 
@@ -180,7 +180,6 @@ cdef class Registration:
         self.c_want_register = 0
 
     cdef int _create_reg(self, bint register) except -1:
-        cdef GenericStringHeader header
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if register:
@@ -191,8 +190,7 @@ cdef class Registration:
             status = pjsip_regc_unregister(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise PJSIPError("Could not create unregistration request", status)
-        for header in self.c_extra_headers:
-            pjsip_msg_add_hdr(self.c_tx_data.msg, <pjsip_hdr *> pjsip_hdr_clone(self.c_tx_data.pool, &header.c_obj))
+        c_add_headers_to_tdata(self.c_tx_data, self.c_extra_headers)
 
     cdef int _send_reg(self, bint register) except -1:
         cdef int status
