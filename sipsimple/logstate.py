@@ -150,7 +150,7 @@ class RegistrationLogger(StateLoggerBase):
 
     def log_state_default(self, notification_data):
         state = notification_data.state
-        x = (state.capitalize(), self.obj.credentials.uri, self.obj.route.host, self.obj.route.port,
+        x = (state.capitalize(), self.obj.credentials.uri, self.obj.route.address, self.obj.route.port,
              _format_reason(notification_data))
         self.write('%s %s at %s:%s%s' % x)
 
@@ -203,7 +203,7 @@ class InvitationLogger(StateLoggerBase):
     def _format_fromtoproxy(self):
         result = 'from %s to %s' % (self.obj.local_uri, self.obj.remote_uri)
         if self.obj.route:
-            result += " through proxy %s:%d" % (self.obj.route.host, self.obj.route.port)
+            result += " through proxy %s:%d" % (self.obj.route.address, self.obj.route.port)
         return result
 
     def _get_verb(self, state, prev_state):
