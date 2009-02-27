@@ -124,6 +124,7 @@ class MSRPChat(object):
         # TODO: update accept_types and accept_wrapped_types from remote_media
         # TODO: chatroom, recvonly/sendonly?
         self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
+        self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
         spawn_from_thread(self._do_start, media_attributes)
 
     def _do_start(self, media_attributes):
