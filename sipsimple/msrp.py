@@ -36,6 +36,7 @@ import random
 from datetime import datetime
 from eventlet import proc
 from twisted.python.failure import Failure
+from twisted.internet.error import ConnectionDone
 from application.notification import NotificationCenter, NotificationData
 from msrplib.connect import MSRPRelaySettings, get_acceptor, get_connector
 from msrplib.session import MSRPSession, contains_mime_type
@@ -164,7 +165,10 @@ class MSRPChat(object):
 
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
-            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='reading', failure=error))
+            if isinstance(error.value, ConnectionDone):
+                self.notification_center.post_notification('MSRPChatDidEnd', self)
+            else:
+                self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='reading', failure=error))
         if chunk.method=='REPORT':
             # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to
             # the part of the message.
