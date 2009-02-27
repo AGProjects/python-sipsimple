@@ -176,12 +176,14 @@ class MSRPChat(object):
         elif chunk.method=='SEND':
             if chunk.content_type.lower()=='message/cpim':
                 cpim_headers, content = MessageCPIMParser.parse_string(chunk.data)
+                content_type = cpim_headers.get('Content-Type')
             else:
                 cpim_headers = {}
                 content = chunk.data
+                content_type = chunk.content_type
             # TODO: issue a success report if needed
             # TODO: check wrapped content-type and issue a report if it's invalid
-            ndata = NotificationData(cpim_headers=cpim_headers, message=chunk, content=content)
+            ndata = NotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
 
     def _on_transaction_response(self, message_id, response):
