@@ -1038,7 +1038,7 @@ class SessionManager(NotificationHandler):
                         traceback.print_exc()
                     session._inv = None
                     session._change_state("TERMINATED")
-                    if data.prev_state == "DISCONNECTING":
+                    if data.prev_state == "DISCONNECTING" or (hasattr(data, "code") and not hasattr(data, "headers")):
                         originator = "local"
                     else:
                         originator = "remote"
