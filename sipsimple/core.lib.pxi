@@ -40,7 +40,7 @@ cdef class PJSIPEndpoint:
     cdef PJSTR c_tls_ca_file
     cdef object c_local_ip_used
 
-    def __cinit__(self, PJCachingPool caching_pool, nameservers, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file):
+    def __cinit__(self, PJCachingPool caching_pool, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file):
         global _inv_cb
         cdef int status
         status = pjsip_endpt_create(&caching_pool.c_obj.factory, "core",  &self.c_obj)
@@ -77,8 +77,6 @@ cdef class PJSIPEndpoint:
             self.c_tls_ca_file = PJSTR(tls_ca_file)
         if local_tls_port is not None:
             self._start_tls_transport(local_tls_port)
-        if nameservers:
-            self._init_nameservers(nameservers)
 
     cdef int _make_local_addr(self, pj_sockaddr_in *local_addr, object local_ip, int local_port) except -1:
         cdef int status
@@ -139,24 +137,6 @@ cdef class PJSIPEndpoint:
         self.c_tls_transport.destroy(self.c_tls_transport)
         self.c_tls_transport = NULL
         return 0
-
-    cdef int _init_nameservers(self, nameservers) except -1:
-        cdef int status
-        cdef pj_str_t c_servers_str[PJ_DNS_RESOLVER_MAX_NS]
-        cdef pj_dns_resolver *c_resolver
-        for index, nameserver in enumerate(nameservers):
-            if index < PJ_DNS_RESOLVER_MAX_NS:
-                c_servers_str[index].ptr = nameserver
-                c_servers_str[index].slen = len(nameserver)
-        status = pjsip_endpt_create_resolver(self.c_obj, &c_resolver)
-        if status != 0:
-            raise PJSIPError("Could not create DNS resolver from endpoint", status)
-        status = pj_dns_resolver_set_ns(c_resolver, len(nameservers), c_servers_str, NULL)
-        if status != 0:
-            raise PJSIPError("Could not set nameservers on resolver", status)
-        status = pjsip_endpt_set_resolver(self.c_obj, c_resolver)
-        if status != 0:
-            raise PJSIPError("Could not set DNS resolver at endpoint", status)
 
     def __dealloc__(self):
         if self.c_udp_transport != NULL:

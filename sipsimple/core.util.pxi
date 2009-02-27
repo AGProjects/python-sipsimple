@@ -25,21 +25,6 @@ cdef object pj_status_to_str(int status):
 cdef object pj_status_to_def(int status):
     return _re_pj_status_str_def.match(pj_status_to_str(status)).group(1)
 
-cdef object c_retrieve_nameservers():
-    nameservers = []
-    IF UNAME_SYSNAME != "Windows":
-        re_ip = re.compile(r"^nameserver\s([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})$")
-        try:
-            for line in open("/etc/resolv.conf"):
-                match = re_ip.match(line)
-                if re_ip.match(line):
-                    nameservers.append(match.group(1))
-        except:
-            raise SIPCoreError("Could not parse /etc/resolv.conf")
-    ELSE:
-        raise NotImplementedError("Nameserver lookup not yet implemented for windows")
-    return nameservers
-
 cdef dict c_pjsip_param_to_dict(pjsip_param *param_list):
     cdef pjsip_param *param
     cdef dict retval = {}

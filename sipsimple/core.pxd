@@ -135,12 +135,6 @@ cdef extern from "pjlib-util.h":
     # init
     int pjlib_util_init()
 
-    # dns
-    enum:
-        PJ_DNS_RESOLVER_MAX_NS
-    struct pj_dns_resolver
-    int pj_dns_resolver_set_ns(pj_dns_resolver *resolver, int count, pj_str_t *servers, int *ports)
-
 cdef extern from "pjnath.h":
 
     # init
@@ -573,8 +567,6 @@ cdef extern from "pjsip.h":
     struct pjsip_endpoint
     int pjsip_endpt_create(pj_pool_factory *pf, char *name, pjsip_endpoint **endpt)
     void pjsip_endpt_destroy(pjsip_endpoint *endpt)
-    int pjsip_endpt_create_resolver(pjsip_endpoint *endpt, pj_dns_resolver **p_resv)
-    int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv)
     pj_pool_t *pjsip_endpt_create_pool(pjsip_endpoint *endpt, char *pool_name, int initial, int increment)
     void pjsip_endpt_release_pool(pjsip_endpoint *endpt, pj_pool_t *pool)
     int pjsip_endpt_handle_events(pjsip_endpoint *endpt, pj_time_val *max_timeout) nogil
@@ -807,7 +799,6 @@ cdef int str_to_pj_str(object string, pj_str_t *pj_str) except -1
 cdef object pj_str_to_str(pj_str_t pj_str)
 cdef object pj_status_to_str(int status)
 cdef object pj_status_to_def(int status)
-cdef object c_retrieve_nameservers()
 cdef dict c_pjsip_param_to_dict(pjsip_param *param_list)
 cdef int c_rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
 cdef int c_is_valid_ip(int af, object ip) except -1

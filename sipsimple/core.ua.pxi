@@ -59,7 +59,7 @@ cdef class PJSIPUA:
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
-        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, c_retrieve_nameservers(), kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_verify_server"], kwargs["tls_ca_file"])
+        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_verify_server"], kwargs["tls_ca_file"])
         status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
