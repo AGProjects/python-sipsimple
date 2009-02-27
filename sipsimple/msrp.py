@@ -104,7 +104,7 @@ class MSRPChat(object):
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
         except Exception, ex:
-            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='initialize', reason=Failure()))
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='initialize', failure=Failure()))
             raise
         else:
             self.notification_center.post_notification('MSRPChatDidInitialize', self)
@@ -130,14 +130,14 @@ class MSRPChat(object):
         remote_uri_path = media_attributes.get('path')
         if remote_uri_path is None:
             failure = Failure(AttributeError("remote SDP media does not have `path' attribute"))
-            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='sdp_negotiation', reason=failure))
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='sdp_negotiation', failure=failure))
             return
         full_remote_path = [parse_uri(uri) for uri in remote_uri_path]
         try:
             msrp_transport = self.msrp_connector.complete(full_remote_path)
             self.msrp = MSRPSession(msrp_transport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
         except Exception, ex:
-            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='start', reason=Failure()))
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='start', failure=Failure()))
             raise
         else:
             self.notification_center.post_notification('MSRPChatDidStart', self)
@@ -163,7 +163,7 @@ class MSRPChat(object):
 
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
-            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='reading', reason=error))
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='reading', failure=error))
         if chunk.method=='REPORT':
             # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to
             # the part of the message.
