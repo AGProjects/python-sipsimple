@@ -84,9 +84,9 @@ class MSRPChat(object):
         self.outgoing = outgoing
         self.accept_types = accept_types
         self.accept_wrapped_types = accept_wrapped_types
-        self._message_received_sound = None
-        self._message_sent_sound = None
-        self._sound_level = 20
+        self.message_received_sound = None
+        self.message_sent_sound = None
+        self.sound_level = 20
         self.msrp = None ## Placeholder for the MSRPSession that will be added when started
         self.msrp_connector = get_connector(relay) if outgoing else get_acceptor(relay)
         self.local_media = None
