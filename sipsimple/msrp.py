@@ -167,10 +167,11 @@ class MSRPChat(object):
         if chunk.method=='REPORT':
             # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to
             # the part of the message.
+            data = NotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.reason)
             if chunk.status.code == 200:
-                self.notification_center.post_notification('MSRPChatDidDeliverMessage', self, NotificationData(msrpdata=chunk))
+                self.notification_center.post_notification('MSRPChatDidDeliverMessage', self, data)
             else:
-                self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, NotificationData(msrpdata=chunk))
+                self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, data)
         elif chunk.method=='SEND':
             if chunk.content_type.lower()=='message/cpim':
                 cpim_headers, content = MessageCPIMParser.parse_string(chunk.data)
@@ -182,9 +183,10 @@ class MSRPChat(object):
             ndata = NotificationData(cpim_headers=cpim_headers, msrpdata=chunk, content=content)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
 
-    def _on_transaction_response(self, response):
+    def _on_transaction_response(self, message_id, response):
         if response.code!=200:
-            self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, NotificationData(msrpdata=response))
+            data = NotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
+            self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, data)
 
     def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
         """Send raw MSRP message. For IM prefer send_message.
@@ -202,7 +204,7 @@ class MSRPChat(object):
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
         from twisted.internet import reactor
-        reactor.callFromThread(self.msrp.send_chunk, chunk, response_cb=self._on_transaction_response)
+        reactor.callFromThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return message_id
 
     def send_message(self, content, content_type='text/plain', to_uri=None):
