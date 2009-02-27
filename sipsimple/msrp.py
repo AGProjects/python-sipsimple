@@ -117,7 +117,7 @@ class MSRPChat(object):
         is posted as a notification, MSRPChatGotMessage, with the following
         attributes:
         - cpim_headers (dict); if cpim wrapper was not used, empty dict
-        - msrpdata (MSRPData)
+        - message (MSRPData)
         - content (str) - the actual string that the remote user has typed
         """
         media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
@@ -181,7 +181,7 @@ class MSRPChat(object):
                 content = chunk.data
             # TODO: issue a success report if needed
             # TODO: check wrapped content-type and issue a report if it's invalid
-            ndata = NotificationData(cpim_headers=cpim_headers, msrpdata=chunk, content=content)
+            ndata = NotificationData(cpim_headers=cpim_headers, message=chunk, content=content)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
 
     def _on_transaction_response(self, message_id, response):
