@@ -11,7 +11,7 @@ cdef class Subscription:
     cdef readonly object state
     cdef dict c_extra_headers
 
-    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route = None, expires = 300, extra_headers = {}):
+    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route, expires=300, extra_headers={}):
         cdef int status
         cdef EventPackage pkg
         cdef PJSIPUA ua = c_get_ua()
@@ -23,8 +23,7 @@ cdef class Subscription:
             raise SIPCoreError("to_uri parameter cannot be None")
         self.c_credentials = credentials.copy()
         self.c_credentials._to_c()
-        if route is not None:
-            self.c_route = route.copy()
+        self.c_route = route.copy()
         self.expires = expires
         self.c_to_uri = to_uri.copy()
         self.c_event = PJSTR(event)
@@ -114,8 +113,7 @@ cdef class Subscription:
                 c_from = PJSTR(self.c_credentials.uri._as_str(0))
                 c_to = PJSTR(self.c_to_uri._as_str(0))
                 c_to_req = PJSTR(self.c_to_uri._as_str(1))
-                if self.c_route is not None:
-                    transport = self.c_route.transport
+                transport = self.c_route.transport
                 c_contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
                 status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_from.pj_str, &c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
                 if status != 0:
@@ -126,10 +124,9 @@ cdef class Subscription:
                 status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
                 if status != 0:
                     raise PJSIPError("Could not set SUBSCRIBE credentials", status)
-                if self.c_route is not None:
-                    status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
-                    if status != 0:
-                        raise PJSIPError("Could not set route on SUBSCRIBE", status)
+                status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
+                if status != 0:
+                    raise PJSIPError("Could not set route on SUBSCRIBE", status)
                 pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
             status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
             if status != 0:

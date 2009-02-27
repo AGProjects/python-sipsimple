@@ -1,6 +1,6 @@
 # main function
 
-def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route = None):
+def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route):
     cdef pjsip_tx_data *tdata
     cdef int status
     cdef PJSTR message_method_name = PJSTR("MESSAGE")
@@ -16,6 +16,8 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
         raise SIPCoreError("No SIP URI set on credentials")
     if to_uri is None:
         raise SIPCoreError("to_uri parameter cannot be None")
+    if route is None:
+        raise SIPCoreError("route parameter cannot be None")
     from_uri = PJSTR(credentials.uri._as_str(0))
     to_uri_to = PJSTR(to_uri._as_str(0))
     to_uri_req = PJSTR(to_uri._as_str(1))
@@ -26,8 +28,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
     if status != 0:
         raise PJSIPError("Could not create MESSAGE request", status)
-    if route is not None:
-        pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
+    pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
     content_type_pj = PJSTR(content_type)
     content_subtype_pj = PJSTR(content_subtype)
     body_pj = PJSTR(body)

@@ -17,7 +17,7 @@ cdef class Publication:
     cdef pj_timer_entry c_timer
     cdef dict c_extra_headers
 
-    def __cinit__(self, Credentials credentials, event, route = None, expires = 300, extra_headers = {}):
+    def __cinit__(self, Credentials credentials, event, route, expires=300, extra_headers={}):
         cdef int status
         cdef PJSTR request_uri, fromto_uri
         cdef pj_str_t c_event
@@ -26,11 +26,12 @@ cdef class Publication:
             raise SIPCoreError("credentials parameter cannot be None")
         if credentials.uri is None:
             raise SIPCoreError("No SIP URI set on credentials")
+        if route is None:
+            raise SIPCoreError("route parameter cannot be None")
         self.state = "unpublished"
         self.c_expires = expires
         self.c_credentials = credentials.copy()
-        if route is not None:
-            self.c_route = route.copy()
+        self.c_route = route.copy()
         self.event = event
         self.c_new_publish = 0
         request_uri = PJSTR(credentials.uri._as_str(1))
@@ -46,10 +47,9 @@ cdef class Publication:
         status = pjsip_publishc_set_credentials(self.c_obj, 1, &self.c_credentials.c_obj)
         if status != 0:
             raise PJSIPError("Could not set publication credentials", status)
-        if self.c_route is not None:
-            status = pjsip_publishc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
-            if status != 0:
-                raise PJSIPError("Could not set route set on publication", status)
+        status = pjsip_publishc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
+        if status != 0:
+            raise PJSIPError("Could not set route set on publication", status)
         self.c_extra_headers = extra_headers.copy()
 
     def __dealloc__(self):

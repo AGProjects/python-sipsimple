@@ -14,7 +14,7 @@ cdef class Registration:
     cdef PJSTR c_contact_uri
     cdef dict c_extra_headers
 
-    def __cinit__(self, Credentials credentials, route = None, expires = 300, extra_headers = {}):
+    def __cinit__(self, Credentials credentials, route, expires=300, extra_headers={}):
         cdef int status
         cdef object transport
         cdef PJSTR request_uri, fromto_uri
@@ -27,9 +27,8 @@ cdef class Registration:
         self.c_expires = expires
         self.c_credentials = credentials.copy()
         self.c_credentials._to_c()
-        if route is not None:
-            self.c_route = route.copy()
-            transport = self.c_route.transport
+        self.c_route = route.copy()
+        transport = self.c_route.transport
         self.c_want_register = 0
         self.c_contact_uri = ua.c_create_contact_uri(credentials.token, transport)
         request_uri = PJSTR(str(SIPURI(credentials.uri.host)))
@@ -43,10 +42,9 @@ cdef class Registration:
         status = pjsip_regc_set_credentials(self.c_obj, 1, &self.c_credentials.c_obj)
         if status != 0:
             raise PJSIPError("Could not set registration credentials", status)
-        if self.c_route is not None:
-            status = pjsip_regc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
-            if status != 0:
-                raise PJSIPError("Could not set route set on registration", status)
+        status = pjsip_regc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
+        if status != 0:
+            raise PJSIPError("Could not set route set on registration", status)
         self.c_extra_headers = extra_headers.copy()
 
     def __dealloc__(self):

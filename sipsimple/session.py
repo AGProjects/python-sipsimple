@@ -204,7 +204,7 @@ class Session(NotificationHandler):
                 raise RuntimeError("This method can only be called while in the NULL state")
             if not any([audio, chat]):
                 raise RuntimeError("No media stream requested")
-            inv = Invitation(credentials, callee_uri, route=route)
+            inv = Invitation(credentials, callee_uri, route)
             if audio:
                 audio_rtp = RTPTransport(**self.rtp_options)
             else:

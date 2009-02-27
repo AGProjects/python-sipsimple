@@ -12,26 +12,23 @@ cdef class Invitation:
     cdef int c_sdp_neg_status
     cdef int c_has_active_sdp
 
-    def __cinit__(self, *args, route=None):
+    def __cinit__(self, Credentials credentials=None, SIPURI callee_uri=None, Route route=None):
         cdef PJSIPUA ua = c_get_ua()
         self.state = "NULL"
         self.c_sdp_neg_status = -1
         self.c_has_active_sdp = 0
-        if len(args) != 0:
-            if None in args[:2]:
-                raise TypeError("Positional arguments cannot be None")
-            try:
-                self.c_credentials, self.c_callee_uri = args[:2]
-            except ValueError:
-                raise TypeError("Expected at least 2 positional arguments")
+        if all([credentials, callee_uri, route]):
+            self.c_credentials = credentials
+            self.c_callee_uri = callee_uri
             if self.c_credentials.uri is None:
                 raise SIPCoreError("No SIP URI set on credentials")
             self.c_credentials = self.c_credentials.copy()
             if self.c_credentials.password is not None:
                 self.c_credentials._to_c()
             self.c_caller_uri = self.c_credentials.uri
-            if route is not None:
-                self.c_route = route.copy()
+            self.c_route = route.copy()
+        elif any([credentials, callee_uri, route]):
+            raise ValueError("All arguments need to be supplied when creating an outbound Invitation")
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
