@@ -104,7 +104,7 @@ def read_queue(e, username, domain, password, display_name, route, expires, max_
     try:
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         reg = Registration(credentials, route=route, expires=expires)
-        print 'Registering "%s" at %s:%s:%d' % (credentials.uri, route.transport, route.host, route.port)
+        print 'Registering "%s" at %s:%s:%d' % (credentials.uri, route.transport, route.address, route.port)
         reg.register()
         while True:
             command, data = queue.get()

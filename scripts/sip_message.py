@@ -79,7 +79,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, m
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         if target_uri is None:
             reg = Registration(credentials, route=route)
-            print 'Registering "%s" at %s:%s:%d' % (credentials.uri, route.transport, route.host, route.port)
+            print 'Registering "%s" at %s:%s:%d' % (credentials.uri, route.transport, route.address, route.port)
             reg.register()
         else:
             if message is None:
@@ -134,7 +134,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, m
                     reg.unregister()
                 elif not sent:
                     sent = True
-                    print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (credentials.uri, target_uri, route.transport, route.host, route.port)
+                    print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (credentials.uri, target_uri, route.transport, route.address, route.port)
                     send_message(credentials, target_uri, "text", "plain", "\n".join(msg_buf), route)
             if command == "quit":
                 break

@@ -25,7 +25,6 @@ cdef class Subscription:
         self.c_credentials._to_c()
         if route is not None:
             self.c_route = route.copy()
-            self.c_route._to_c(ua)
         self.expires = expires
         self.c_to_uri = to_uri.copy()
         self.c_event = PJSTR(event)
@@ -128,7 +127,7 @@ cdef class Subscription:
                 if status != 0:
                     raise PJSIPError("Could not set SUBSCRIBE credentials", status)
                 if self.c_route is not None:
-                    status = pjsip_dlg_set_route_set(self.c_dlg, &self.c_route.c_route_set)
+                    status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
                     if status != 0:
                         raise PJSIPError("Could not set route on SUBSCRIBE", status)
                 pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)

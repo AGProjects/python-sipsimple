@@ -4,45 +4,70 @@ import string
 # classes
 
 cdef class Route:
-    cdef pjsip_route_hdr c_route_set
+    cdef pj_list c_route_set
     cdef pjsip_route_hdr c_route_hdr
     cdef pjsip_sip_uri c_sip_uri
-    cdef public object host
-    cdef public int port
-    cdef public object transport
+    cdef public PJSTR c_address
+    cdef public PJSTR c_transport
 
-    def __cinit__(self, host, port=5060, transport=None):
-        self.host = host
-        self.port = port
-        self.transport = transport
+    def __cinit__(self, object address, int port=5060, object transport="udp"):
         pjsip_route_hdr_init(NULL, <void *> &self.c_route_hdr)
         pjsip_sip_uri_init(&self.c_sip_uri, 0)
         self.c_sip_uri.lr_param = 1
         self.c_route_hdr.name_addr.uri = <pjsip_uri *> &self.c_sip_uri
-        pj_list_init(<pj_list_type *> &self.c_route_set)
-        pj_list_push_back(<pj_list_type *> &self.c_route_set, <pj_list_type *> &self.c_route_hdr)
+        (<pj_list *> &self.c_route_hdr).next = &self.c_route_set
+        (<pj_list *> &self.c_route_hdr).prev = &self.c_route_set
+        self.c_route_set.next = &self.c_route_hdr
+        self.c_route_set.prev = &self.c_route_hdr
+        self.address = address
+        self.port = port
+        self.transport = transport
 
     def __repr__(self):
-        if self.transport is None:
-            return '<Route to "%s:%d">' % (self.host, self.port)
-        else:
-            return '<Route to "%s:%d" over "%s">' % (self.host, self.port, self.transport)
+        return '<Route to "%s:%d" over "%s">' % (self.address, self.port, self.transport or "udp")
 
-    cdef int _to_c(self, PJSIPUA ua) except -1:
-        cdef object transport_lower
-        str_to_pj_str(self.host, &self.c_sip_uri.host)
-        if self.port < 0 or self.port > 65535:
-            raise SIPCoreError("Invalid port: %d" % self.port)
-        self.c_sip_uri.port = self.port
-        if self.transport is not None:
-            transport_lower = self.transport.lower()
-            if (ua.c_pjsip_endpoint.c_udp_transport == NULL or transport_lower != "udp") and (ua.c_pjsip_endpoint.c_tcp_transport == NULL or transport_lower != "tcp") and (ua.c_pjsip_endpoint.c_tls_transport == NULL or transport_lower != "tls"):
-                raise SIPCoreError("Unknown transport: %s" % self.transport)
-            str_to_pj_str(self.transport, &self.c_sip_uri.transport_param)
-        return 0
+    property address:
+
+        def __get__(self):
+            return self.c_address.str
+
+        def __set__(self, object value):
+            if value is None:
+                raise ValueError("None value of transport is not allowed")
+            if c_get_ip_version(value) == 0:
+                raise ValueError("Not a valid IP address: %s" % value)
+            self.c_address = PJSTR(value)
+            str_to_pj_str(self.c_address.str, &self.c_sip_uri.host)
+
+    property port:
+
+        def __get__(self):
+            return self.c_sip_uri.port
+
+        def __set__(self, int value):
+            if value < 0 or value > 65535:
+                raise ValueError("Invalid port: %d" % value)
+            self.c_sip_uri.port = value
+
+    property transport:
+
+        def __get__(self):
+            return self.c_transport.str
+
+        def __set__(self, object value):
+            if value is None:
+                raise ValueError("None value of transport is not allowed")
+            value = value.lower()
+            if value not in ["udp", "tcp", "tls"]:
+                raise ValueError("Unknown transport: %s" % value)
+            self.c_transport = PJSTR(value)
+            str_to_pj_str(self.c_transport.str, &self.c_sip_uri.transport_param)
+
+    def __copy__(self):
+        return Route(self.address, self.port, self.transport)
 
     def copy(self):
-        return Route(self.host, self.port, self.transport)
+        return self.__copy__()
 
 cdef class Credentials:
     cdef pjsip_cred_info c_obj

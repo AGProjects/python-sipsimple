@@ -362,7 +362,7 @@ def read_queue(e, username, domain, password, display_name, presentity_uri, rout
     try:
         credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         sub = Subscription(credentials, presentity_uri, 'presence', route=route, expires=expires)
-        print 'Subscribing to "%s" for the presence event, at %s:%s:%d' % (presentity_uri, route.transport, route.host, route.port)
+        print 'Subscribing to "%s" for the presence event, at %s:%s:%d' % (presentity_uri, route.transport, route.address, route.port)
         sub.subscribe()
 
         while True:

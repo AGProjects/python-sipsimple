@@ -124,10 +124,8 @@ cdef extern from "pjlib.h":
 
     # lists
     struct pj_list:
+        void *prev
         void *next
-    struct pj_list_type
-    void pj_list_init(pj_list_type *node)
-    void pj_list_push_back(pj_list_type *list, pj_list_type *node)
 
     # random
     void pj_srand(unsigned int seed)

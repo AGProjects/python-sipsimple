@@ -157,12 +157,12 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 print 'Waiting for incoming SIP session requests...'
             else:
                 reg = Registration(credentials, route=route, expires=AccountConfig.sip_register_interval)
-                print 'Registering "%s" at %s:%d' % (credentials.uri, route.host, route.port)
+                print 'Registering "%s" at %s:%d' % (credentials.uri, route.address, route.port)
                 reg.register()
         else:
             sess = Session()
             sess.new(target_uri, credentials, route, audio=True)
-            print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, route.transport, route.host, route.port)
+            print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, route.transport, route.address, route.port)
             print_control_keys()
         while True:
             command, data = queue.get()

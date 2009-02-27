@@ -333,7 +333,7 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
         print_control_keys()
         print
 
-        print 'Subscribing to "%s@%s" for the presence.winfo event, at %s:%d' % (sip_uri.user, sip_uri.host, route.host, route.port)
+        print 'Subscribing to "%s@%s" for the presence.winfo event, at %s:%d' % (sip_uri.user, sip_uri.host, route.address, route.port)
         sub.subscribe()
 
         while True:

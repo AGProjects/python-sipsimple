@@ -29,7 +29,6 @@ cdef class Registration:
         self.c_credentials._to_c()
         if route is not None:
             self.c_route = route.copy()
-            self.c_route._to_c(ua)
             transport = self.c_route.transport
         self.c_want_register = 0
         self.c_contact_uri = ua.c_create_contact_uri(credentials.token, transport)
@@ -45,7 +44,7 @@ cdef class Registration:
         if status != 0:
             raise PJSIPError("Could not set registration credentials", status)
         if self.c_route is not None:
-            status = pjsip_regc_set_route_set(self.c_obj, &self.c_route.c_route_set)
+            status = pjsip_regc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
             if status != 0:
                 raise PJSIPError("Could not set route set on registration", status)
         self.c_extra_headers = extra_headers.copy()

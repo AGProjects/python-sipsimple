@@ -31,7 +31,6 @@ cdef class Publication:
         self.c_credentials = credentials.copy()
         if route is not None:
             self.c_route = route.copy()
-            self.c_route._to_c(ua)
         self.event = event
         self.c_new_publish = 0
         request_uri = PJSTR(credentials.uri._as_str(1))
@@ -48,7 +47,7 @@ cdef class Publication:
         if status != 0:
             raise PJSIPError("Could not set publication credentials", status)
         if self.c_route is not None:
-            status = pjsip_publishc_set_route_set(self.c_obj, &self.c_route.c_route_set)
+            status = pjsip_publishc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
             if status != 0:
                 raise PJSIPError("Could not set route set on publication", status)
         self.c_extra_headers = extra_headers.copy()

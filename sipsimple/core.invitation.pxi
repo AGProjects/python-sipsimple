@@ -32,7 +32,6 @@ cdef class Invitation:
             self.c_caller_uri = self.c_credentials.uri
             if route is not None:
                 self.c_route = route.copy()
-                self.c_route._to_c(ua)
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
@@ -313,7 +312,7 @@ cdef class Invitation:
                 if status != 0:
                     raise PJSIPError("Could not set credentials for INVITE session", status)
             if self.c_route is not None:
-                status = pjsip_dlg_set_route_set(self.c_dlg, &self.c_route.c_route_set)
+                status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
                 if status != 0:
                     raise PJSIPError("Could not set route for INVITE session", status)
             status = pjsip_inv_invite(self.c_obj, &tdata)
