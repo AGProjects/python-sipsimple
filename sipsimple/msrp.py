@@ -81,7 +81,6 @@ class MSRPChat(object):
         self.notification_center = NotificationCenter()
         self.from_uri = from_uri
         self.to_uri = to_uri
-        self.outgoing = outgoing
         self.accept_types = accept_types
         self.accept_wrapped_types = accept_wrapped_types
         self.message_received_sound = None
