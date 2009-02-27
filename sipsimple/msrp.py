@@ -34,13 +34,30 @@ problems with the connection. Therefore, the following settings should be used:
 
 import random
 from datetime import datetime
+from eventlet import proc
+from twisted.python.failure import Failure
 from application.notification import NotificationCenter, NotificationData
 from msrplib.connect import MSRPRelaySettings, get_acceptor, get_connector
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from sipsimple.green.session import make_SDPMedia
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
-from sipsimple.eventletutil import spawn_from_thread
+
+
+#
+# TODO
+#
+# 1. Capture exception more precisely in the _do_xxx methods.
+# 2. Review Notifications and the NotificationData. Publish consistent
+#    notification data attributes and only relevant information.
+# 3. Update docstrings
+#
+
+
+def spawn_from_thread(function, *args, **kw):
+    """Call `function' in a separate greenlet in twisted thread from a foreign (non-twisted) thread."""
+    from twisted.internet import reactor
+    reactor.callFromThread(proc.spawn_greenlet, lambda: function(*args, **kw))
 
 
 class MSRPChatError(Exception):
@@ -70,32 +87,28 @@ class MSRPChat(object):
         self._message_received_sound = None
         self._message_sent_sound = None
         self._sound_level = 20
-        if outgoing:
-            self.msrp_connector = get_connector(relay)
-        else:
-            self.msrp_connector = get_acceptor(relay)
-        self.cpim_enabled = None
-        self.private_messages_allowed = None
+        self.msrp = None ## Placeholder for the MSRPSession that will be added when started
+        self.msrp_connector = get_connector(relay) if outgoing else get_acceptor(relay)
+        self.local_media = None
+        self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
+        self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
 
     def initialize(self, ip=None, port=None, use_tls=True):
         """Initialize the MSRP connection; connect to the relay if necessary.
         When done, fire MSRPChatDidInitialize (with 'sdpmedia' attribute,
         containing the appropriate 'SDPMedia' instance)
         """
-        local_uri = URI(host=ip, port=port, use_tls=use_tls)
-        spawn_from_thread(self.msrp_connector.prepare, local_uri, on_success=self._on_initialize_succeed, on_failure=self._on_initialize_failed)
+        spawn_from_thread(self._do_initialize, URI(host=ip, port=port, use_tls=use_tls))
 
-    # NOTE: _on_* functions will be called in a foreign thread
-
-    def _on_initialize_succeed(self, full_local_path):
-        self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
-        self.notification_center.post_notification('MSRPChatDidInitialize', self)
-
-    def _on_initialize_failed(self, reason):
-        self._post_failure('initialize', reason)
-
-    def _post_failure(self, context, reason):
-        self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context=context, reason=reason))
+    def _do_initialize(self, local_uri):
+        try:
+            full_local_path = self.msrp_connector.prepare(local_uri)
+            self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
+        except Exception, ex:
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='initialize', reason=Failure()))
+            raise
+        else:
+            self.notification_center.post_notification('MSRPChatDidInitialize', self)
 
     def start(self, remote_media):
         """Complete the MSRP connection establishment; this includes binding
@@ -108,72 +121,50 @@ class MSRPChat(object):
         - msrpdata (MSRPData)
         - content (str) - the actual string that the remote user has typed
         """
-        full_remote_path = None
-        attrs = dict((attr.name, attr.value)for attr in remote_media.attributes)
-        remote_uri_path = attrs.get('path')
+        media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
         # TODO: update accept_types and accept_wrapped_types from remote_media
         # TODO: chatroom, recvonly/sendonly?
         self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
-        self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
+        spawn_from_thread(self._do_start, media_attributes)
+
+    def _do_start(self, media_attributes):
+        remote_uri_path = media_attributes.get('path')
         if remote_uri_path is None:
-            self._post_failure('sdp_negotiation', Exception('remote SDP media does not have "path" attribute'))
+            failure = Failure(AttributeError("remote SDP media does not have `path' attribute"))
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='sdp_negotiation', reason=failure))
+            return
+        full_remote_path = [parse_uri(uri) for uri in remote_uri_path]
+        try:
+            msrp_transport = self.msrp_connector.complete(full_remote_path)
+            self.msrp = MSRPSession(msrp_transport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
+        except Exception, ex:
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='start', reason=Failure()))
+            raise
         else:
-            full_remote_path = [parse_uri(uri) for uri in remote_uri_path]
-            spawn_from_thread(self.msrp_connector.complete, full_remote_path,
-                              on_success=self._on_start_succeed, on_failure=self._on_start_failed)
-
-    def _on_start_succeed(self, msrptransport):
-        self.msrp = MSRPSession(msrptransport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
-        self.notification_center.post_notification('MSRPChatDidStart', self)
-
-    def _on_start_failed(self, reason):
-        self.msrp_connector.cleanup()
-        self._post_failure('start', reason)
+            self.notification_center.post_notification('MSRPChatDidStart', self)
 
     def end(self):
         """Close the MSRP connection or cleanup after initialize(), whatever is necessary.
 
         Before doing anything post MSRPChatWillEnd.
         After end is complete, post MSRPChatDidEnd. If there was an error during closure
-        procedure, post MSRPChatDidFail first (MSRPChatDidEnd will be posted anyway).
+        procedure, post MSRPChatDidRaiseException first (MSRPChatDidEnd will be posted anyway).
         """
+        spawn_from_thread(self._do_end)
+
+    def _do_end(self):
         self.notification_center.post_notification('MSRPChatWillEnd', self)
-        if hasattr(self, 'msrp'):
-            spawn_from_thread(self.msrp.shutdown, on_success=self._post_did_end, on_failure=self._post_did_end_fail)
-        else:
-            spawn_from_thread(self.msrp_connector.cleanup, on_success=self._post_did_end, on_failure=self._post_did_end_fail)
-
-    def _post_did_end(self, _result):
-        self.notification_center.post_notification('MSRPChatDidEnd', self)
-
-    def _post_did_end_fail(self, reason):
-        self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='end', reason=reason))
-        self.notification_center.post_notification('MSRPChatDidEnd', self)
-
-    def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
-        """Send raw MSRP message. For IM prefer send_message.
-
-        Return Message-ID (str), unique string identifying the message.
-        """
-        if not contains_mime_type(self.accept_types, content_type):
-            raise MSRPChatError('Invalid content_type for outgoing message: %r' % (content_type, ))
-        message_id = '%x' % random.getrandbits(64)
-        chunk = self.msrp.make_message(message, content_type=content_type, message_id=message_id)
-        if failure_report is not None:
-            chunk.add_header(FailureReportHeader(failure_report))
-        if success_report is not None:
-            chunk.add_header(SuccessReportHeader(success_report))
-        from twisted.internet import reactor
-        reactor.callFromThread(self.msrp.send_chunk, chunk, response_cb=self._on_transaction_response)
-        return message_id
-
-    def _on_transaction_response(self, response):
-        if response.code!=200:
-            self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, NotificationData(msrpdata=response))
+        try:
+            if self.msrp is not None:
+                self.msrp.shutdown()
+                self.msrp = None
+            self.msrp_connector.cleanup()
+        finally:
+            self.notification_center.post_notification('MSRPChatDidEnd', self)
 
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
-            self._post_failure('reading', error)
+            self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='reading', reason=error))
         if chunk.method=='REPORT':
             # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to
             # the part of the message.
@@ -191,6 +182,29 @@ class MSRPChat(object):
             # TODO: check wrapped content-type and issue a report if it's invalid
             ndata = NotificationData(cpim_headers=cpim_headers, msrpdata=chunk, content=content)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
+
+    def _on_transaction_response(self, response):
+        if response.code!=200:
+            self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, NotificationData(msrpdata=response))
+
+    def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
+        """Send raw MSRP message. For IM prefer send_message.
+
+        Return Message-ID (str), unique string identifying the message.
+        """
+        if self.msrp is None:
+            raise RuntimeError("MSRP connection is not yet started")
+        if not contains_mime_type(self.accept_types, content_type):
+            raise MSRPChatError('Invalid content_type for outgoing message: %r' % (content_type, ))
+        message_id = '%x' % random.getrandbits(64)
+        chunk = self.msrp.make_message(message, content_type=content_type, message_id=message_id)
+        if failure_report is not None:
+            chunk.add_header(FailureReportHeader(failure_report))
+        if success_report is not None:
+            chunk.add_header(SuccessReportHeader(success_report))
+        from twisted.internet import reactor
+        reactor.callFromThread(self.msrp.send_chunk, chunk, response_cb=self._on_transaction_response)
+        return message_id
 
     def send_message(self, content, content_type='text/plain', to_uri=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
@@ -224,3 +238,4 @@ class MSRPChat(object):
             if to_uri is not None and to_uri != self.to_uri:
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
+
