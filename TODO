@@ -14,6 +14,8 @@ SIP core
 - Add feature to send OPTIONS method and parse the replies [RK]
 - Handle sending and receiving of multipart bodies for Invitation [RK]
 - Handle UPDATE for re-INVITE [RK]
+- Set list of codecs in order of preference on each AudioTransport instance,
+  not at the global level [RK]
 
 
 Middleware
