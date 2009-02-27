@@ -1,16 +1,5 @@
 # classes
 
-cdef class PJMEDIASoundDevice:
-    cdef int c_index
-    cdef readonly object name
-
-    def __cinit__(self, index, name):
-        self.c_index = index
-        self.name = name
-
-    def __repr__(self):
-        return '<Sound Device "%s">' % self.name
-
 cdef class PJMEDIAConferenceBridge:
     cdef pjmedia_conf *c_obj
     cdef pjsip_endpoint *c_pjsip_endpoint
@@ -70,8 +59,37 @@ cdef class PJMEDIAConferenceBridge:
             else:
                 c_count = c_info.input_count
             if c_count:
-                retval.append(PJMEDIASoundDevice(i, c_info.name))
+                retval.append(c_info.name)
         return retval
+
+    cdef int _find_sound_device(self, object device_name) except -1:
+        cdef int i
+        cdef pjmedia_snd_dev_info_ptr_const info
+        for i from 0 <= i < pjmedia_snd_get_dev_count():
+            info = pjmedia_snd_get_dev_info(i)
+            if info.name == device_name:
+                return i
+        raise SIPCoreError('Sound device not found: "%s"' % device_name)
+
+    cdef object _get_current_device(self, int playback):
+        cdef pjmedia_snd_stream_info snd_info
+        cdef pjmedia_snd_dev_info_ptr_const dev_info
+        cdef int dev_id
+        cdef int status
+        if self.c_snd == NULL:
+            return None
+        status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(self.c_snd), &snd_info)
+        if status != 0:
+            raise PJSIPError("Could not get sounds device info", status)
+        if playback:
+            dev_id = snd_info.play_id
+        else:
+            dev_id = snd_info.rec_id
+        if dev_id == -1:
+            return None
+        else:
+            dev_info = pjmedia_snd_get_dev_info(dev_id)
+            return dev_info.name
 
     cdef int _set_sound_devices(self, int playback_index, int recording_index, unsigned int tail_length) except -1:
         cdef int status

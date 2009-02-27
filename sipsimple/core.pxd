@@ -196,9 +196,14 @@ cdef extern from "pjmedia.h":
         char *name
         int input_count
         int output_count
+    struct pjmedia_snd_stream_info:
+        int play_id
+        int rec_id
+    struct pjmedia_snd_stream
     ctypedef pjmedia_snd_dev_info *pjmedia_snd_dev_info_ptr_const "const pjmedia_snd_dev_info *"
     int pjmedia_snd_get_dev_count()
     pjmedia_snd_dev_info_ptr_const pjmedia_snd_get_dev_info(int index)
+    int pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm, pjmedia_snd_stream_info *pi)
 
     # sound port
     struct pjmedia_port
@@ -208,6 +213,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port)
     int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options)
     int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port)
+    pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port)
 
     # conference bridge
     enum pjmedia_conf_option:
@@ -790,7 +796,6 @@ cdef class PJMEDIAEndpoint
 
 # core.sound
 
-cdef class PJMEDIASoundDevice
 cdef class PJMEDIAConferenceBridge
 cdef class RecordingWaveFile
 cdef class WaveFile

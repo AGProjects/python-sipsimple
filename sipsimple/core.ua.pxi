@@ -147,21 +147,30 @@ cdef class PJSIPUA:
             self.c_check_self()
             return self.c_conf_bridge._get_sound_devices(False)
 
-    def set_sound_devices(self, PJMEDIASoundDevice playback_device, PJMEDIASoundDevice recording_device, tail_length = None):
-        cdef unsigned int c_tail_length = self.ec_tail_length
-        self.c_check_self()
-        if tail_length is not None:
-            c_tail_length = tail_length
-        self.c_conf_bridge._set_sound_devices(playback_device.c_index, recording_device.c_index, c_tail_length)
-        if tail_length is not None:
-            self.ec_tail_length = c_tail_length
+    property current_playback_device:
 
-    def auto_set_sound_devices(self, tail_length = None):
+        def __get__(self):
+            self.c_check_self()
+            return self.c_conf_bridge._get_current_device(1)
+
+    property current_recording_device:
+
+        def __get__(self):
+            self.c_check_self()
+            return self.c_conf_bridge._get_current_device(0)
+
+    def set_sound_devices(self, object playback_device=None, object recording_device=None, object tail_length=None):
+        cdef int c_playback_device = -1
+        cdef int c_recording_device = -1
         cdef unsigned int c_tail_length = self.ec_tail_length
         self.c_check_self()
+        if playback_device is not None:
+            c_playback_device = self.c_conf_bridge._find_sound_device(playback_device)
+        if recording_device is not None:
+            c_recording_device = self.c_conf_bridge._find_sound_device(recording_device)
         if tail_length is not None:
             c_tail_length = tail_length
-        self.c_conf_bridge._set_sound_devices(-1, -1, c_tail_length)
+        self.c_conf_bridge._set_sound_devices(c_playback_device, c_recording_device, c_tail_length)
         if tail_length is not None:
             self.ec_tail_length = c_tail_length
 

@@ -59,7 +59,7 @@ class Engine(object):
         try:
             self._ua = PJSIPUA(self._handle_event, **init_options)
             if auto_sound:
-                self._ua.auto_set_sound_devices()
+                self._ua.set_sound_devices()
             self._lock = allocate_lock()
             self._thread_stopping = False
             self._lock.acquire()
