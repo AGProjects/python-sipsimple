@@ -100,30 +100,30 @@ sudo python setup.py install
 Building a Debian package
 ---------------------------
 
-You can build a deb package that can be installed on Debian or Ubuntu. You
-need to install the following packages before building the debian package:
+You can build debian packages that can be installed on Debian or Ubuntu.
 
-sudo apt-get install darcs subversion devscripts python-dnspython \
-python-setuptools python-lxml cython python-application python-twisted \
-build-essential libasound2-dev cdbs debhelper python-all-dev python-support \
-libssl-dev
+Install development tools
 
-You must have cython version >=0.10 installed. If your Linux distribution
-has an older version, upgrade it using python setuptools:
+apt-get install build-essential dpkg-dev fakeroot devscripts python-setuptools
 
-sudo easy_install -U cython
+Install dependencies
 
-Foreach dependency hosted on AG Projects repositories (python-sipsimple,
-eventlet_twisted, python-xcaplib and python-msrplib directory you can build
-the corresponding debian package by using debuild command. 
+sudo apt-get build-dep sipclient python-eventlet python-msrplib python-xcaplib
 
-Example for python-msrplib:
+You need Cython version 0.10 or higher. If your Linux distribution has an
+older version, install the lastest version using:
 
-cd python-msrplib
-python setup.py sdist -f
-cd dist
-tar xvzf python-msrplib-X.X.X.tar.gz
-cd python-msrplib-X.X.X
+sudo easy_install cython
+
+Download the source code
+
+apt-get source python-eventlet
+apt-get source python-msrplib
+apt-get source python-xcaplib
+apt-get source sipclient
+
+Go to each of the directories created by the above commands and type:
+
 debuild
 
 You will now have a debian package in the upper level of each directory that
