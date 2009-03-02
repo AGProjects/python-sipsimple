@@ -5,7 +5,7 @@ import hashlib
 import traceback
 from eventlet.api import sleep
 from msrplib import connect
-from msrplib.trafficlog import TrafficLogger, StateLogger, hook_std_output; hook_std_output()
+from msrplib.trafficlog import Logger, hook_std_output; hook_std_output()
 from msrplib.protocol import URI
 
 from sipsimple import Credentials, SDPAttribute, SDPMedia, WaveFile
@@ -79,8 +79,8 @@ def main():
     try:
         credentials = Credentials(options.uri, options.password)
         inv = e.makeGreenInvitation(credentials, options.target_uri, route=options.route)
-        logger = TrafficLogger.to_file(is_enabled_func = lambda: options.trace_msrp)
-        msrp_connector = connect.get_connector(None, traffic_logger=logger, state_logger=StateLogger())
+        logger = Logger(is_enabled_func = lambda: options.trace_msrp)
+        msrp_connector = connect.get_connector(None, logger=logger)
         ringer = SimpleRinger(get_path("ring_outbound.wav"))
         local_uri = URI(use_tls = options.msrp_tls)
         session = MSRPSession.invite(inv, msrp_connector, sdp.make_SDPMedia, ringer=ringer, local_uri=local_uri)

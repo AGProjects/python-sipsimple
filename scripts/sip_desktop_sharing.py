@@ -5,7 +5,7 @@ from eventlet.coros import queue
 from eventlet import api, proc
 
 from msrplib import connect
-from msrplib.trafficlog import TrafficLogger, StateLogger, hook_std_output
+from msrplib.trafficlog import Logger, hook_std_output
 from msrplib.protocol import URI
 
 from sipsimple import Credentials
@@ -112,15 +112,8 @@ def main():
                 get_path("ring_inbound.wav")
             )
             with setup_console() as console:
-                logger = TrafficLogger.to_file(
-                    console,
-                    is_enabled_func = lambda: options.trace_msrp
-                )
-                get_acceptor = lambda: connect.get_acceptor(
-                    options.relay, 
-                    traffic_logger=logger,
-                    state_logger=StateLogger()
-                )
+                logger = Logger(fileobj=console, is_enabled_func = lambda: options.trace_msrp)
+                get_acceptor = lambda: connect.get_acceptor(options.relay, logger=logger)
                 console.sessions = list()
                 console.active_session = None
 
@@ -253,14 +246,8 @@ def main():
                 options.target_uri, 
                 route=options.route
             )
-            logger = TrafficLogger.to_file(
-                is_enabled_func = lambda: options.trace_msrp
-            )
-            msrp_connector = connect.get_connector(
-                None, 
-                traffic_logger=logger,
-                state_logger=StateLogger()
-            )
+            logger = Logger(is_enabled_func = lambda: options.trace_msrp)
+            msrp_connector = connect.get_connector(None, logger=logger)
             ringer = Ringer(
                 e.play_wav_file, 
                 get_path("ring_outbound.wav")

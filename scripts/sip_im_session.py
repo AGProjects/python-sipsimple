@@ -352,14 +352,13 @@ class DownloadFileSession(object):
 
 class ChatManager:
 
-    def __init__(self, engine, sound, credentials, console, traffic_logger,
-                 auto_accept_files=False, route=None, relay=None, msrp_tls=True):
+    def __init__(self, engine, sound, credentials, console, logger, auto_accept_files=False, route=None, relay=None, msrp_tls=True):
         self.engine = engine
         self.sound = sound
         self.credentials = credentials
         self.default_domain = credentials.uri.host
         self.console = console
-        self.traffic_logger = traffic_logger
+        self.logger = logger
         self.auto_accept_files = auto_accept_files
         self.route = route
         self.relay = relay
@@ -369,7 +368,6 @@ class ChatManager:
         self.accept_incoming_worker = None
         self.current_session = None
         self.message_renderer_job = proc.spawn_link_exception(self._message_renderer)
-        self.state_logger = trafficlog.StateLogger()
         self.outbound_ringer = Ringer(self.sound.play, "ring_outbound.wav")
 
     # is there a need for special process for it? just calling the function is good enough
@@ -470,7 +468,7 @@ class ChatManager:
                                 secure=target_address.scheme=='sips')
         inv = self.engine.makeGreenInvitation(self.credentials, target_uri, route=self.route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
-        msrp_connector = connect.get_connector(None, traffic_logger=self.traffic_logger, state_logger=self.state_logger)
+        msrp_connector = connect.get_connector(None, logger=self.logger)
         local_uri = URI(use_tls=self.msrp_tls)
         chatsession = ChatSession.invite(inv, msrp_connector, self.make_SDPMedia, self.outbound_ringer, target_uri, local_uri)
         self.add_session(chatsession)
@@ -488,7 +486,7 @@ class ChatManager:
             downloadsession = DownloadFileSession(msrpsession)
             self.add_download(downloadsession)
         def get_acceptor():
-            return connect.get_acceptor(self.relay, traffic_logger=self.traffic_logger, state_logger=self.state_logger)
+            return connect.get_acceptor(self.relay, logger=self.logger)
         file = IncomingFileTransferHandler(get_acceptor, self.console,
                                            new_receivefile_session, inbound_ringer,
                                            auto_accept=self.auto_accept_files)
@@ -543,14 +541,14 @@ def start(options, console):
                 local_udp_port=options.local_port)
     try:
         credentials = Credentials(options.uri, options.password)
-        msrplogger = trafficlog.TrafficLogger.to_file(console, is_enabled_func=lambda: options.trace_msrp)
+        logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()
         if options.register:
             reg = engine.makeGreenRegistration(credentials, route=options.route, expires=10)
             proc.spawn_greenlet(reg.register)
         console.set_ps('%s@%s> ' % (options.uri.user, options.uri.host))
         sound = ThrottlingSoundPlayer()
-        manager = ChatManager(engine, sound, credentials, console, msrplogger,
+        manager = ChatManager(engine, sound, credentials, console, logger,
                               options.auto_accept_files,
                               route=options.route,
                               relay=options.relay,
