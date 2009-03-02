@@ -9,7 +9,7 @@ import glob
 
 from setup_pjsip import PJSIP_build_ext
 
-version = "0.4.1"
+version = re.match("^.*?=\s\"(.*?)\"",open(os.path.join(os.path.dirname(__file__), "sipsimple", "__init__.py")).readline()).group(1)
 
 title = "SIP SIMPLE client"
 description = "Python SIP SIMPLE client library using PJSIP"
