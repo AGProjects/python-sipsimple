@@ -102,15 +102,16 @@ Building a Debian package
 
 You can build debian packages that can be installed on Debian or Ubuntu.
 
-Install development tools
+Install the basic development tools
 
 apt-get install build-essential dpkg-dev fakeroot devscripts python-setuptools
 
-Install dependencies
+Install the building dependencies
 
-sudo apt-get build-dep sipclient python-eventlet python-msrplib python-xcaplib
+sudo apt-get build-dep sipclient python-eventlet python-msrplib \
+python-xcaplib libssl-dev
 
-You need Cython version 0.10 or higher. If your Linux distribution has an
+You need Cython version 0.10 or higher. If your Debian distribution has an
 older version, install the lastest version using:
 
 sudo easy_install cython
@@ -124,8 +125,17 @@ apt-get source sipclient
 
 Go to each of the directories created by the above commands and type:
 
-debuild
+debuild  
+
+to build binary and source packages or
+
+debuild -B 
+
+To build a binary only package. If you maintain a debian repository, you
+must use -B for every new architecture the packages is compiled for
+otherwise dput will fail to upload an already uploaded source package.
 
 You will now have a debian package in the upper level of each directory that
-you can install using dpkg -i command.
+you can install using dpkg -i command. The dependencies of each package must
+be installed manually using apt-get install command.
 
