@@ -34,8 +34,8 @@ cdef class Route:
         def __set__(self, object value):
             if value is None:
                 raise ValueError("None value of transport is not allowed")
-            if c_get_ip_version(value) == 0:
-                raise ValueError("Not a valid IP address: %s" % value)
+            if not c_is_valid_ip(pj_AF_INET(), value):
+                raise ValueError("Not a valid IPv4 address: %s" % value)
             self.c_address = PJSTR(value)
             str_to_pj_str(self.c_address.str, &self.c_sip_uri.host)
 
