@@ -423,6 +423,8 @@ cdef class PJSIPUA:
         cdef pj_sockaddr_in stun_server
         cdef int status
         self.c_check_self()
+        if not c_is_valid_ip(pj_AF_INET(), stun_server_address):
+            raise ValueError("Not a valid IPv4 address: %s" % stun_server_address)
         str_to_pj_str(stun_server_address, &c_stun_server_address)
         status = pj_sockaddr_in_init(&stun_server, &c_stun_server_address, stun_server_port)
         if status != 0:
