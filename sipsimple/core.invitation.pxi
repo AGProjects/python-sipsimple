@@ -81,6 +81,7 @@ cdef class Invitation:
             if self.state != "DISCONNECTING":
                 pjsip_inv_terminate(self.c_obj, 481, 0)
             self.c_obj = NULL
+            self.c_dlg = NULL
         return 0
 
     def __dealloc__(self):
@@ -232,6 +233,7 @@ cdef class Invitation:
                 event_dict["reason"] = pj_str_to_str(self.c_obj.cause_text)
             self.c_obj.mod_data[ua.c_module.id] = NULL
             self.c_obj = NULL
+            self.c_dlg = NULL
         elif state == "REINVITED":
             status = pjsip_inv_initial_answer(self.c_obj, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
@@ -270,7 +272,6 @@ cdef class Invitation:
         c_add_headers_to_tdata(tdata, extra_headers)
         status = pjsip_inv_send_msg(self.c_obj, tdata)
         if status != 0:
-            pjsip_tx_data_dec_ref(tdata)
             raise PJSIPError("Could not send message in context of INVITE session", status)
         return 0
 
@@ -319,10 +320,10 @@ cdef class Invitation:
         except:
             if self.c_obj != NULL:
                 pjsip_inv_terminate(self.c_obj, 500, 0)
-                self.c_obj = NULL
             elif self.c_dlg != NULL:
                 pjsip_dlg_terminate(self.c_dlg)
-                self.c_dlg = NULL
+            self.c_obj = NULL
+            self.c_dlg = NULL
             raise
 
     def respond_to_invite_provisionally(self, int response_code=180, dict extra_headers=None):
