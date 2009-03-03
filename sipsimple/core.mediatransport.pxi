@@ -17,21 +17,12 @@ cdef class RTPTransport:
 
     def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
         cdef object pool_name = "RTPTransport_%d" % id(self)
-        cdef int local_af = 0
-        cdef int stun_af = 0
         cdef PJSIPUA ua = c_get_ua()
-        if local_rtp_address is not None:
-            local_af = c_get_ip_version(local_rtp_address)
-            if not local_af:
-                raise SIPCoreError("Not a valid IP address: %s" % local_rtp_address)
-        if ice_stun_address is not None:
-            stun_af = c_get_ip_version(ice_stun_address)
-            if not stun_af:
-                raise SIPCoreError("Not a valid IP address: %s" % ice_stun_address)
-        if local_rtp_address is not None and ice_stun_address is not None:
-            if local_af != stun_af:
-                raise SIPCoreError("IP version mismatch between local_rtp_address and ice_stun_address")
-        self.c_af = local_af or stun_af or pj_AF_INET()
+        self.c_af = pj_AF_INET()
+        if local_rtp_address is not None and not c_is_valid_ip(self.c_af, local_rtp_address):
+            raise ValueError("Not a valid IPv4 address: %s" % local_rtp_address)
+        if ice_stun_address is not None and not c_is_valid_ip(self.c_af, ice_stun_address):
+            raise ValueError("Not a valid IPv4 address: %s" % ice_stun_address)
         self.state = "NULL"
         self.c_local_rtp_address = local_rtp_address
         self.use_srtp = use_srtp
