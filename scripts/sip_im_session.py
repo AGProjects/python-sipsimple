@@ -13,7 +13,7 @@ from msrplib.session import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
 
-from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile, PJSIPError
+from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile, PJSIPError, Route
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer
 from sipsimple.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
@@ -539,6 +539,8 @@ def start(options, console):
                 ec_tail_length=0,
                 local_ip=options.local_ip,
                 local_udp_port=options.local_port)
+    if options.use_bonjour:
+        options.route = Route(options.uri.host, options.uri.port, transport='udp')
     try:
         credentials = Credentials(options.uri, options.password)
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)

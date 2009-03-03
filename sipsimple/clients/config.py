@@ -5,12 +5,12 @@ import glob
 import datetime
 from optparse import OptionValueError, OptionParser
 from ConfigParser import NoSectionError
+from getpass import getuser
 
 from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
-
+from application.system import default_host_ip
 from msrplib.connect import MSRPRelaySettings
-
 from sipsimple import SIPURI, Route
 from sipsimple.clients.dns_lookup import lookup_srv
 from sipsimple.clients import IPAddressOrHostname
@@ -102,7 +102,6 @@ def parse_msrp_relay(option, opt_str, value, parser):
     parser.values.msrp_relay = _parse_msrp_relay(value)
 
 def parse_uri(sip_address, default_domain=None, display_name=None):
-    # XXX there some to be parse_SIPURI in core.helper - reuse that one?
     address = SIPAddress.parse(sip_address, default_domain=default_domain)
     return SIPURI(user=address.username,
                   host=address.domain,
@@ -173,7 +172,8 @@ def parse_options(usage, description, extra_options=()):
     if options.account_name not in [None, 'bonjour'] and account_section not in configuration.parser.sections():
         msg = "Section [%s] was not found in the configuration file %s" % (account_section, config_ini)
         raise RuntimeError(msg)
-    configuration.read_settings(account_section, AccountConfig)
+    else:
+        configuration.read_settings(account_section, AccountConfig)
     default_options = dict(outbound_proxy=AccountConfig.outbound_proxy,
                            msrp_relay=_parse_msrp_relay(AccountConfig.msrp_relay),
                            sip_address=AccountConfig.sip_address,
@@ -210,14 +210,21 @@ def parse_options(usage, description, extra_options=()):
     accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
     accounts.sort()
     print "Accounts available: %s" % ', '.join(accounts)
+
+    if options.use_bonjour:
+        options.sip_address = getuser() + '@' + default_host_ip
+        options.password = ''
+        options.register = False
+
+    if not options.use_bonjour:
+        if not all([options.sip_address, options.password]):
+            raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
+
     if options.account_name is None:
         print "Using default account: %s" % options.sip_address
     else:
         print "Using account '%s': %s" % (options.account_name, options.sip_address)
 
-    if not options.use_bonjour:
-        if not all([options.sip_address, options.password]):
-            raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
     options.uri = parse_uri(options.sip_address, display_name=AccountConfig.display_name)
     if args:
         options.target_uri = parse_uri(args[0], default_domain=options.uri.host)
