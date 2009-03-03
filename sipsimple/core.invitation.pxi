@@ -292,8 +292,7 @@ cdef class Invitation:
         caller_uri = PJSTR(self.c_caller_uri._as_str(0))
         callee_uri = PJSTR(self.c_callee_uri._as_str(0))
         callee_target = PJSTR(self.c_callee_uri._as_str(1))
-        if self.c_route is not None:
-            transport = self.c_route.transport
+        transport = self.c_route.transport
         contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
         try:
             status = pjsip_dlg_create_uac(pjsip_ua_instance(), &caller_uri.pj_str, &contact_uri.pj_str, &callee_uri.pj_str, &callee_target.pj_str, &self.c_dlg)
@@ -309,10 +308,9 @@ cdef class Invitation:
                 status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
                 if status != 0:
                     raise PJSIPError("Could not set credentials for INVITE session", status)
-            if self.c_route is not None:
-                status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
-                if status != 0:
-                    raise PJSIPError("Could not set route for INVITE session", status)
+            status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
+            if status != 0:
+                raise PJSIPError("Could not set route for INVITE session", status)
             status = pjsip_inv_invite(self.c_obj, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create INVITE message", status)
