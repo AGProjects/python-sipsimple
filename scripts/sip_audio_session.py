@@ -144,10 +144,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
     want_quit = target_uri is not None
     auto_answer_timer = None
     try:
-        if use_bonjour:
-            sip_uri = SIPURI(user="bonjour", host=e.local_ip)
-            credentials = Credentials(sip_uri, None)
-        else:
+        if not use_bonjour:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
             credentials = Credentials(sip_uri, password)
             if len(stun_servers) > 0:
@@ -155,7 +152,12 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
         if target_uri is None:
             if use_bonjour:
                 print "Using bonjour"
-                print "Listening on local interface %s:%d" % (e.local_ip, e.local_udp_port)
+                if e.local_udp_port is not None:
+                    print 'Listening on UDP: "%s"' % SIPURI(host=e.local_ip, user="bonjour", port=e.local_udp_port, parameters={"transport": "udp"})
+                if e.local_tcp_port is not None:
+                    print 'Listening on TCP: "%s"' % SIPURI(host=e.local_ip, user="bonjour", port=e.local_tcp_port, parameters={"transport": "tcp"})
+                if e.local_tls_port is not None:
+                    print 'Listening on TLS: "%s"' % SIPURI(host=e.local_ip, user="bonjour", port=e.local_tls_port, parameters={"transport": "tls"})
                 print_control_keys()
                 print 'Waiting for incoming SIP session requests...'
             else:
@@ -163,6 +165,9 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 print 'Registering "%s" at %s:%d' % (credentials.uri, route.address, route.port)
                 reg.register()
         else:
+            if use_bonjour:
+                port = getattr(e, "local_%s_port" % route.transport)
+                credentials = Credentials(SIPURI(host=e.local_ip, user="bonjour", port=port, parameters={"transport": route.transport}))
             sess = Session()
             sess.new(target_uri, credentials, route, audio=True)
             print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, route.transport, route.address, route.port)
@@ -358,8 +363,9 @@ def do_invite(**kwargs):
     outbound_proxy = kwargs.pop("outbound_proxy")
     kwargs["stun_servers"] = lookup_service_for_sip_uri(SIPURI(host=kwargs["domain"]), "stun")
     if kwargs["use_bonjour"]:
-        kwargs["route"] = None
-        del kwargs["sip_transports"]
+        if kwargs["target_uri"] is None:
+            kwargs["route"] = None
+            del kwargs["sip_transports"]
     else:
         if outbound_proxy is None:
             routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
@@ -384,7 +390,10 @@ def do_invite(**kwargs):
     if kwargs["target_uri"] is not None:
         kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
         if kwargs["use_bonjour"]:
-            kwargs["route"] = Route(kwargs["target_uri"].host, kwargs["target_uri"].port or 5060)
+            try:
+                kwargs["route"] = lookup_routes_for_sip_uri(kwargs["target_uri"], kwargs.pop("sip_transports"))[0]
+            except IndexError:
+                raise RuntimeError("No route found to SIP proxy")
     transport_kwargs = AudioConfig.encryption.copy()
     transport_kwargs["use_ice"] = AccountConfig.use_ice
     if AccountConfig.use_stun_for_ice:
