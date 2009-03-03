@@ -52,6 +52,7 @@ def verify_account_config():
         except OSError, e:
             print "Configuration directory '%s' does not exist and cannot be created: %s" % (process._system_config_directory, str(e))
             sys.exit(1)
+    
     # create file_transfer directory
     file_transfer_dir = os.path.expanduser(GeneralConfig.file_transfers_directory)
     if not os.access(file_transfer_dir, os.F_OK):
@@ -60,6 +61,16 @@ def verify_account_config():
         except OSError, e:
             print "File transfer directory '%s' does not exist and cannot be created: %s" % (file_transfer_dir, str(e))
             sys.exit(1)
+    
+    # create log directory for bonjour
+    log_dir = os.path.join(os.path.expanduser(GeneralConfig.log_directory), 'bonjour')
+    if not os.access(log_dir, os.F_OK):
+        try:
+            os.makedirs(log_dir)
+        except OSError, e:
+            print "Log directory '%s' does not exist and cannot be created: %s" % (log_dir, str(e))
+            sys.exit(1)
+
     # other, per account initiation
     for section in configuration.parser.sections():
         if not section.startswith('Account'):
