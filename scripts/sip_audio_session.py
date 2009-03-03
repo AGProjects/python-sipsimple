@@ -144,7 +144,10 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
     want_quit = target_uri is not None
     auto_answer_timer = None
     try:
-        if not use_bonjour:
+        if use_bonjour:
+            sip_uri = SIPURI(user="bonjour", host=e.local_ip)
+            credentials = Credentials(sip_uri, None)
+        else:
             sip_uri = SIPURI(user=username, host=domain, display=display_name)
             credentials = Credentials(sip_uri, password)
             if len(stun_servers) > 0:
@@ -356,6 +359,7 @@ def do_invite(**kwargs):
     kwargs["stun_servers"] = lookup_service_for_sip_uri(SIPURI(host=kwargs["domain"]), "stun")
     if kwargs["use_bonjour"]:
         kwargs["route"] = None
+        del kwargs["sip_transports"]
     else:
         if outbound_proxy is None:
             routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
@@ -379,6 +383,8 @@ def do_invite(**kwargs):
     e.start(auto_sound=not kwargs.pop("disable_sound"), trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
     if kwargs["target_uri"] is not None:
         kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
+        if kwargs["use_bonjour"]:
+            kwargs["route"] = Route(kwargs["target_uri"].host, kwargs["target_uri"].port or 5060)
     transport_kwargs = AudioConfig.encryption.copy()
     transport_kwargs["use_ice"] = AccountConfig.use_ice
     if AccountConfig.use_stun_for_ice:

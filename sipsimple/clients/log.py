@@ -15,14 +15,14 @@ class Logger(object):
 
         # sip trace
         self.trace_sip = trace_sip
-        self._siptrace_filename = os.path.join(os.path.expanduser(log_directory), account.sip_address, 'sip_trace.txt')
+        self._siptrace_filename = os.path.join(os.path.expanduser(log_directory), account.sip_address or "bonjour", 'sip_trace.txt')
         self._siptrace_file = None
         self._siptrace_start_time = None
         self._siptrace_packet_count = 0
 
         # pjsip trace
         self.trace_pjsip = trace_pjsip
-        self._pjsiptrace_filename = os.path.join(os.path.expanduser(log_directory), account.sip_address, 'pjsip_trace.txt')
+        self._pjsiptrace_filename = os.path.join(os.path.expanduser(log_directory), account.sip_address or "bonjour", 'pjsip_trace.txt')
         self._pjsiptrace_file = None
 
     def start(self):
