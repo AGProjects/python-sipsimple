@@ -174,7 +174,7 @@ cdef class RTPTransport:
 
     def set_ESTABLISHED(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
         cdef int status
-        cdef PJSIPUA = self._check_ua()
+        self._check_ua()
         if None in [local_sdp, remote_sdp]:
             raise SIPCoreError("SDP arguments cannot be None")
         if self.state == "ESTABLISHED":
