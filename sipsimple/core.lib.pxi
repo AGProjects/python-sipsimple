@@ -44,6 +44,8 @@ cdef class PJSIPEndpoint:
         global _inv_cb
         cdef pj_dns_resolver *resolver
         cdef int status
+        if local_ip is not None and not c_is_valid_ip(pj_AF_INET(), local_ip):
+            raise ValueError("Not a valid IPv4 address: %s" % local_ip)
         status = pjsip_endpt_create(&caching_pool.c_obj.factory, "core",  &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not initialize PJSIP endpoint", status)
