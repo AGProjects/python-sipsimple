@@ -8,6 +8,7 @@ from collections import deque
 from twisted.internet.error import ConnectionClosed
 
 from eventlet import api, coros, proc
+from eventlet.green.socket import gethostbyname
 from msrplib import connect
 from msrplib.session import ConnectionClosedErrors
 from msrplib import trafficlog
@@ -17,9 +18,9 @@ from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreErr
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer
 from sipsimple.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
-from sipsimple.clients.config import parse_options, get_download_path, parse_uri, get_history_file
+from sipsimple.clients.config import parse_options, update_options, get_download_path, get_history_file, get_credentials
 from sipsimple.clients.clientconfig import get_path
-from sipsimple.clients import enrollment
+from sipsimple.clients import enrollment, format_cmdline_uri
 from sipsimple.clients.cpim import MessageCPIMParser, SIPAddress
 from sipsimple.clients.sdputil import FileSelector
 enrollment.verify_account_config()
@@ -461,12 +462,13 @@ class ChatManager:
         target_uri = args[0]
         if not isinstance(target_uri, SIPURI):
             try:
-                target_address = SIPAddress.parse(target_uri, default_domain=self.default_domain)
+                target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.credentials.uri.host))
             except ValueError, ex:
                 raise UserCommandError(str(ex))
-            target_uri = SIPURI(user=target_address.username, host=target_address.domain,
-                                secure=target_address.scheme=='sips')
-        inv = self.engine.makeGreenInvitation(self.credentials, target_uri, route=self.route)
+        route = self.route
+        if route is None:
+            route = Route(gethostbyname(target_uri.host or self.credentials.uri.host), target_uri.port or 5060)
+        inv = self.engine.makeGreenInvitation(self.credentials, target_uri, route=route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
         msrp_connector = connect.get_connector(None, logger=self.logger)
         local_uri = URI(use_tls=self.msrp_tls)
@@ -501,7 +503,8 @@ class ChatManager:
             self.accept_incoming_worker.kill()
 
     def _accept_incoming_loop(self, handler):
-        local_uri = URI(use_tls=self.msrp_tls)
+        credentials = get_credentials() if self.msrp_tls else None
+        local_uri = URI(port=0, use_tls=self.msrp_tls, credentials=credentials)
         with self.engine.linked_incoming() as q:
             while True:
                 inv = q.wait()
@@ -539,8 +542,7 @@ def start(options, console):
                 ec_tail_length=0,
                 local_ip=options.local_ip,
                 local_udp_port=options.local_port)
-    if options.use_bonjour:
-        options.route = Route(options.uri.host, options.uri.port, transport='udp')
+    update_options(options, engine)
     try:
         credentials = Credentials(options.uri, options.password)
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
@@ -548,7 +550,7 @@ def start(options, console):
         if options.register:
             reg = engine.makeGreenRegistration(credentials, route=options.route, expires=10)
             proc.spawn_greenlet(reg.register)
-        console.set_ps('%s@%s> ' % (options.uri.user, options.uri.host))
+        console.set_ps(str(options.uri).replace('sip:', '') + '> ')
         sound = ThrottlingSoundPlayer()
         manager = ChatManager(engine, sound, credentials, console, logger,
                               options.auto_accept_files,
@@ -558,15 +560,11 @@ def start(options, console):
         try:
             manager.spawn_link_accept_incoming()
             print "Press Ctrl-d to quit or Control-n to switch between active sessions"
-            if options.target_uri is None:
+            if not options.args:
                 print 'Waiting for incoming SIP session requests...'
             else:
-                target_uris = [options.target_uri]
                 for x in options.args:
-                    uri = parse_uri(x, default_domain=target_uris[-1].host)
-                    target_uris.append(uri)
-                for target_uri in target_uris:
-                    manager.call(target_uri)
+                    manager.call(x)
             while True:
                 try:
                     readloop(console, manager, get_commands(manager), get_shortcuts(manager))

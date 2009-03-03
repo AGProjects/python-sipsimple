@@ -13,7 +13,7 @@ from application.system import default_host_ip
 from msrplib.connect import MSRPRelaySettings
 from sipsimple import SIPURI, Route
 from sipsimple.clients.dns_lookup import lookup_srv
-from sipsimple.clients import IPAddressOrHostname
+from sipsimple.clients import IPAddressOrHostname, format_cmdline_uri
 from sipsimple.clients.cpim import SIPAddress
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
@@ -100,13 +100,6 @@ def _parse_msrp_relay(value):
 
 def parse_msrp_relay(option, opt_str, value, parser):
     parser.values.msrp_relay = _parse_msrp_relay(value)
-
-def parse_uri(sip_address, default_domain=None, display_name=None):
-    address = SIPAddress.parse(sip_address, default_domain=default_domain)
-    return SIPURI(user=address.username,
-                  host=address.domain,
-                  display=display_name,
-                  secure=address.secure)
 
 def parse_options(usage, description, extra_options=()):
     configuration = ConfigFile(config_ini)
@@ -212,7 +205,7 @@ def parse_options(usage, description, extra_options=()):
     print "Accounts available: %s" % ', '.join(accounts)
 
     if options.use_bonjour:
-        options.sip_address = getuser() + '@' + default_host_ip
+        options.sip_address = 'sip:' + getuser() + '@' + default_host_ip
         options.password = ''
         options.register = False
 
@@ -222,23 +215,25 @@ def parse_options(usage, description, extra_options=()):
 
     if options.account_name is None:
         print "Using default account: %s" % options.sip_address
-    else:
+    elif options.account_name!='bonjour':
         print "Using account '%s': %s" % (options.account_name, options.sip_address)
-
-    options.uri = parse_uri(options.sip_address, display_name=AccountConfig.display_name)
-    if args:
-        options.target_uri = parse_uri(args[0], default_domain=options.uri.host)
-        del args[0]
-    else:
-        options.target_uri = None
     options.args = args
+    return options
+
+def update_options(options, engine):
+    options.uri = engine.parse_sip_uri(format_cmdline_uri(options.sip_address, None))
+    options.relay = None
+    options.route = None
+
+    if options.use_bonjour:
+        options.uri.port = engine.local_udp_port
 
     if options.msrp_relay == 'srv':
         options.relay = MSRPRelaySettings(domain=options.uri.host,
                                           username=options.uri.user, password=options.password)
     elif options.msrp_relay == 'none':
         options.relay = None
-    else:
+    elif not options.use_bonjour:
         host, port, is_ip = options.msrp_relay
         if is_ip or port is not None:
             options.relay = MSRPRelaySettings(domain=options.uri.host, host=host, port=port,
@@ -246,13 +241,72 @@ def parse_options(usage, description, extra_options=()):
         else:
             options.relay = MSRPRelaySettings(domain=options.uri.host,
                                               username=options.uri.user, password=options.password)
-    if options.use_bonjour:
-        options.route = None
-    else:
+
+    if not options.use_bonjour:
         if options.outbound_proxy is None:
             proxy_host, proxy_port, proxy_is_ip = options.uri.host, None, False
         else:
             proxy_host, proxy_port, proxy_is_ip = options.outbound_proxy
-        options.route = Route(*lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060))
-    return options
+        h, p = lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060)
+        options.route = Route(h, p, transport='udp')
 
+
+def get_credentials():
+    from gnutls.interfaces.twisted import X509Credentials
+    from gnutls.crypto import X509Certificate,  X509PrivateKey
+    return X509Credentials(X509Certificate(certificate), X509PrivateKey(private_key))
+
+certificate = """-----BEGIN CERTIFICATE-----
+MIIF3jCCA8agAwIBAgIBATANBgkqhkiG9w0BAQUFADCBqzELMAkGA1UEBhMCTkwx
+FjAUBgNVBAgTDU5vb3JkLUhvb2xhbmQxEDAOBgNVBAcTB0hhYXJsZW0xFDASBgNV
+BAoTC0FHIFByb2plY3RzMRQwEgYDVQQLEwtEZXZlbG9wbWVudDEgMB4GA1UEAxMX
+QUcgUHJvamVjdHMgRGV2ZWxvcG1lbnQxJDAiBgkqhkiG9w0BCQEWFWRldmVsQGFn
+LXByb2plY3RzLmNvbTAeFw0wNzA0MDMxMjEwNTFaFw0xNzAzMzExMjEwNTFaMIGk
+MQswCQYDVQQGEwJOTDEWMBQGA1UECBMNTm9vcmQtSG9vbGFuZDEQMA4GA1UEBxMH
+SGFhcmxlbTEUMBIGA1UEChMLQUcgUHJvamVjdHMxFDASBgNVBAsTC0RldmVsb3Bt
+ZW50MRowGAYDVQQDExFWYWxpZCBjZXJ0aWZpY2F0ZTEjMCEGCSqGSIb3DQEJARYU
+dGVzdEBhZy1wcm9qZWN0cy5jb20wgZ8wDQYJKoZIhvcNAQEBBQADgY0AMIGJAoGB
+AKYb9BLca4J3yszyRaMC+zvJKheOsROYFN9wIc+EAFO5RUFEFRQ/Ahfw2AmY+1bn
+S5K7tMV8J54coHI0ROohskTEXKx1iF+67Krezf3tfUY0zGPhTGaXJ2OkReAmZQvj
+a4IhWxBTQBFq1bbpDpOy/DJ24nBEgJoPTULfqGx5IVoJAgMBAAGjggGUMIIBkDAJ
+BgNVHRMEAjAAMBEGCWCGSAGG+EIBAQQEAwIGQDArBglghkgBhvhCAQ0EHhYcVGlu
+eUNBIEdlbmVyYXRlZCBDZXJ0aWZpY2F0ZTAdBgNVHQ4EFgQUDN4YV9HDpJrHcbzV
+8Ayu0Lymh2AwgeAGA1UdIwSB2DCB1YAUlndPzCUDtctDM6fXnveiAcMIOPqhgbGk
+ga4wgasxCzAJBgNVBAYTAk5MMRYwFAYDVQQIEw1Ob29yZC1Ib29sYW5kMRAwDgYD
+VQQHEwdIYWFybGVtMRQwEgYDVQQKEwtBRyBQcm9qZWN0czEUMBIGA1UECxMLRGV2
+ZWxvcG1lbnQxIDAeBgNVBAMTF0FHIFByb2plY3RzIERldmVsb3BtZW50MSQwIgYJ
+KoZIhvcNAQkBFhVkZXZlbEBhZy1wcm9qZWN0cy5jb22CCQD1dqnIe6qBGTAgBgNV
+HRIEGTAXgRVkZXZlbEBhZy1wcm9qZWN0cy5jb20wHwYDVR0RBBgwFoEUdGVzdEBh
+Zy1wcm9qZWN0cy5jb20wDQYJKoZIhvcNAQEFBQADggIBABCal7eKH7K5UmMt2CRh
+xjLdpLfo2d83dCSvAerabfyLYuSE4qg4pP6x1P3vBGFVuMc504AF+TwZIOLWQ47U
+b0NbzNi49NGPKjCUsjZiAhGE9SBjiac2xZXUW7UytkVlboyeqKn3Tc9rMT+THd/y
+wJj5Nqz2vcAcJ1LSpKs/c+NFE3KX+gdaiQtkgUZfkGBz2N6gvXn6r6w1sY/j8Gdw
+wuVXHv2pbM2zkhUFIFJbuT/3AEQlM2sqk7fVEHlm9cLOtzHsoBVo0pnSw/8mcl5J
+Z6oss51eR8zLVBhU3XrKTbammHv8uZ2vawRKuUR2Ot2RfINAPdwiW6r61ugBj/ux
+HGTmY8uO1Zx8dpNS/cC+HtjTKqD2zaBa6dX+6USf+4jgrVismMGAtUCX7IlwjNYV
+/p5TiwovA5p+xC2KWb9d0vTr8pGHV6vyDaE5Ba0jLfEjkT6b4MbZmWanUDUkYHuy
+P31NTgUPrIiU83bKfBlQZbS5YsyspdJQBzuGuon68Bw/ULpfERdRlipeTpkDhUn3
+gAAS0iLwgPybw8d9/d16nKPCdtSjDBvOUmMLPc0FqggvSGeFkkDn5hiN6eJ4DgTA
+Ze5X9kpc57dV2SvA1eqPCkmA8pZfPWaJtwf5AiiOzhGUAAx4+4hXyRWULIJXNCcD
+175SpToDKAei7ZSJfaiqPU/T
+-----END CERTIFICATE-----"""
+
+# these are not here to enhance security, but to make direct TLS
+# connections possible without implementing anonymous connections
+# in python-gnutls
+
+private_key = """-----BEGIN RSA PRIVATE KEY-----
+MIICWwIBAAKBgQCmG/QS3GuCd8rM8kWjAvs7ySoXjrETmBTfcCHPhABTuUVBRBUU
+PwIX8NgJmPtW50uSu7TFfCeeHKByNETqIbJExFysdYhfuuyq3s397X1GNMxj4Uxm
+lydjpEXgJmUL42uCIVsQU0ARatW26Q6TsvwyduJwRICaD01C36hseSFaCQIDAQAB
+AoGAC6qs8uIuXuSBBvIBOBjOgn13il4IS+MDnEno5gVUbIz3s0TP4jMmt32//rSS
++qCWK0EpyjEVK0LBdiP7ryIcviC3EMU33SErqSPdpJN/UOYePn5CX45d30OyDL/J
+1ai4AsQbG9twe5cOJae8ZLa76O4Q82MTxN2agrSoV41lcu0CQQDZID9NbHioGBPE
+cgwzwgTAWXc+sdHKsEJERxCPGyqChuFwFjgTdl0MQms3mclAOUq/23j6XYHkjG7o
+YS3FcBaTAkEAw9lnMKN5kF3/9xxZxmr62qm6RlgvpdgW4zs9m7SVGSq7fio07i4z
+a/5RGC0Tr/WzfjHD1+SyUEXmT1DMl7eycwJAQUX2gdoYM8B5QNdgX7b2IrVCqfBf
+N2XhphEPI1ZxYygVYdLsLL2qn2LgRKjQ3aPbmu3p4qp1wDWPqgB8+BwITQJAP1nA
+fkQy21b8qCM8iukp8bc7MOvvpbarWJ9eA1K7c+OVuG7Qpka9jW47LxXNq3pPsD9K
+uTgZ0ct6fyeEtoLOLwJAM1Eeopu3wSkNbf2p4TbhePc5ASZRR2c1GZZQE4GIYamB
+yEk53aQ5MDpHLffWdWI7vZ449s/AHwrN6txlu/+VTQ==
+-----END RSA PRIVATE KEY-----"""
