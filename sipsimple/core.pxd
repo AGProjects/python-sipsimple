@@ -110,6 +110,9 @@ cdef extern from "pjlib.h":
     int pj_sockaddr_init(int af, pj_sockaddr *addr, pj_str_t *cp, unsigned int port)
     int pj_inet_pton(int af, pj_str_t *src, void *dst)
 
+    # dns
+    struct pj_dns_resolver
+
     # time
     struct pj_time_val:
         long sec
@@ -583,6 +586,8 @@ cdef extern from "pjsip.h":
     int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata, pjsip_tx_data *tdata, void *token, void *cb)
     int pjsip_endpt_create_request(pjsip_endpoint *endpt, pjsip_method *method, pj_str_t *target, pj_str_t *frm, pj_str_t *to, pj_str_t *contact, pj_str_t *call_id, int cseq, pj_str_t *text, pjsip_tx_data **p_tdata)
     pj_timer_heap_t *pjsip_endpt_get_timer_heap(pjsip_endpoint *endpt)
+    int pjsip_endpt_create_resolver(pjsip_endpoint *endpt, pj_dns_resolver **p_resv)
+    int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv)
 
     # transports
     struct pjsip_transport:

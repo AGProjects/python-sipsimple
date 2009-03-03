@@ -42,6 +42,7 @@ cdef class PJSIPEndpoint:
 
     def __cinit__(self, PJCachingPool caching_pool, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file):
         global _inv_cb
+        cdef pj_dns_resolver *resolver
         cdef int status
         status = pjsip_endpt_create(&caching_pool.c_obj.factory, "core",  &self.c_obj)
         if status != 0:
@@ -67,6 +68,12 @@ cdef class PJSIPEndpoint:
         status = pjsip_inv_usage_init(self.c_obj, &_inv_cb)
         if status != 0:
             raise PJSIPError("Could not initialize invitation module", status)
+        pjsip_endpt_create_resolver(self.c_obj, &resolver)
+        if status != 0:
+            raise PJSIPError("Could not create fake DNS resolver for endpoint", status)
+        pjsip_endpt_set_resolver(self.c_obj, resolver)
+        if status != 0:
+            raise PJSIPError("Could not set fake DNS resolver on endpoint", status)
         self.c_local_ip_used = local_ip
         if local_udp_port is not None:
             self._start_udp_transport(local_udp_port)
