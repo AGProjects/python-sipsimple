@@ -32,11 +32,15 @@ cdef class Invitation:
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
-        cdef PJSTR contact_uri
+        cdef SIPURI contact_uri
+        cdef PJSTR contact_uri_str
         cdef int status
         try:
-            contact_uri = PJSTR(c_make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)._as_str(1))
-            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri.pj_str, &self.c_dlg)
+            contact_uri = SIPURI(host=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                 port=rdata.tp_info.transport.local_name.port,
+                                 parameters={"transport":rdata.tp_info.transport.type_name.lower()})
+            contact_uri_str = PJSTR(contact_uri._as_str(1))
+            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri_str.pj_str, &self.c_dlg)
             if status != 0:
                 raise PJSIPError("Could not create dialog for new INTIVE session", status)
             status = pjsip_inv_create_uas(self.c_dlg, rdata, NULL, inv_options, &self.c_obj)
