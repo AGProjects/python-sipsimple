@@ -1,5 +1,5 @@
 from __future__ import with_statement
-
+from copy import copy
 from thread import allocate_lock
 from datetime import datetime
 from collections import deque
@@ -45,16 +45,16 @@ class MediaTransportInitializer(NotificationHandler):
         self.waiting_for = []
         self._lock = allocate_lock()
         with self._lock:
-            for rtp in [audio_rtp]:
-                self.waiting_for.append(rtp)
-                self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", rtp)
-                self.notification_center.add_observer(self, "SCRTPTransportDidFail", rtp)
-                rtp.set_INIT()
+            if audio_rtp is not None:
+                self.waiting_for.append(audio_rtp)
+                self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", audio_rtp)
+                self.notification_center.add_observer(self, "SCRTPTransportDidFail", audio_rtp)
+                audio_rtp.set_INIT()
             if msrp_chat is not None:
                 self.waiting_for.append(msrp_chat)
                 self.notification_center.add_observer(self, "MSRPChatDidInitialize", msrp_chat)
                 self.notification_center.add_observer(self, "MSRPChatDidFail", msrp_chat)
-                msrp_chat.initialize(session.msrp_options["local_ip"], session.msrp_options["local_port"], session.msrp_options["local_use_tls"])
+                msrp_chat.initialize(session.msrp_options.local_ip, session.msrp_options.local_port, session.msrp_options.local_use_tls)
             self._check_done()
 
     def _remove_observer(self, obj):
@@ -133,7 +133,7 @@ class Session(NotificationHandler):
         self.session_manager = SessionManager()
         self.notification_center = NotificationCenter()
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
-        self.msrp_options = self.session_manager.msrp_config.__dict__.copy()
+        self.msrp_options = copy(self.session_manager.msrp_config)
         self.state = "NULL"
         self.remote_user_agent = None
         self.on_hold_by_local = False
