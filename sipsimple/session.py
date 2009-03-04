@@ -803,8 +803,7 @@ class Session(NotificationHandler):
         self.audio_transport = None
 
     def _stop_chat(self):
-        if self.chat_transport.is_initialized:
-            self.chat_transport.end()
+        self.chat_transport.end()
 
     def _check_audio(self):
         with self._lock:
