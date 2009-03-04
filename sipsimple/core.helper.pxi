@@ -7,8 +7,8 @@ cdef class Route:
     cdef pj_list c_route_set
     cdef pjsip_route_hdr c_route_hdr
     cdef pjsip_sip_uri c_sip_uri
-    cdef public PJSTR c_address
-    cdef public PJSTR c_transport
+    cdef PJSTR c_address
+    cdef PJSTR c_transport
 
     def __cinit__(self, object address, int port=5060, object transport="udp"):
         pjsip_route_hdr_init(NULL, <void *> &self.c_route_hdr)
@@ -24,7 +24,7 @@ cdef class Route:
         self.transport = transport
 
     def __repr__(self):
-        return '<Route to "%s:%d" over "%s">' % (self.address, self.port, self.transport or "udp")
+        return '<Route to "%s:%d" over "%s">' % (self.address, self.port, self.transport)
 
     property address:
 
@@ -37,7 +37,7 @@ cdef class Route:
             if not c_is_valid_ip(pj_AF_INET(), value):
                 raise ValueError("Not a valid IPv4 address: %s" % value)
             self.c_address = PJSTR(value)
-            str_to_pj_str(self.c_address.str, &self.c_sip_uri.host)
+            self.c_sip_uri.host = self.c_address.pj_str
 
     property port:
 
@@ -61,7 +61,11 @@ cdef class Route:
             if value not in ["udp", "tcp", "tls"]:
                 raise ValueError("Unknown transport: %s" % value)
             self.c_transport = PJSTR(value)
-            str_to_pj_str(self.c_transport.str, &self.c_sip_uri.transport_param)
+            if value == "udp":
+                self.c_sip_uri.transport_param.ptr = NULL
+                self.c_sip_uri.transport_param.slen = 0
+            else:
+                self.c_sip_uri.transport_param = self.c_transport.pj_str
 
     def __copy__(self):
         return Route(self.address, self.port, self.transport)
