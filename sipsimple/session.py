@@ -45,11 +45,12 @@ class MediaTransportInitializer(NotificationHandler):
         self.waiting_for = []
         self._lock = allocate_lock()
         with self._lock:
-            if audio_rtp is not None:
-                self.waiting_for.append(audio_rtp)
-                self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", audio_rtp)
-                self.notification_center.add_observer(self, "SCRTPTransportDidFail", audio_rtp)
-                audio_rtp.set_INIT()
+            for rtp in [audio_rtp]:
+                if rtp is not None:
+                    self.waiting_for.append(rtp)
+                    self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", rtp)
+                    self.notification_center.add_observer(self, "SCRTPTransportDidFail", rtp)
+                    rtp.set_INIT()
             if msrp_chat is not None:
                 self.waiting_for.append(msrp_chat)
                 self.notification_center.add_observer(self, "MSRPChatDidInitialize", msrp_chat)
