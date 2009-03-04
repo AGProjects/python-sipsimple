@@ -292,6 +292,7 @@ cdef class Invitation:
         cdef object transport
         cdef PJSTR caller_uri
         cdef PJSTR callee_uri
+        cdef SIPURI callee_target_uri
         cdef PJSTR callee_target
         cdef PJSTR contact_uri
         cdef pjmedia_sdp_session *local_sdp = NULL
@@ -303,7 +304,10 @@ cdef class Invitation:
             raise SIPCoreError("Local SDP has not been set")
         caller_uri = PJSTR(self.c_caller_uri._as_str(0))
         callee_uri = PJSTR(self.c_callee_uri._as_str(0))
-        callee_target = PJSTR(self.c_callee_uri._as_str(1))
+        callee_target_uri = self.c_callee_uri.copy()
+        if callee_target_uri.parameters.get("transport", "udp").lower() != self.c_route.transport:
+            callee_target_uri.parameters["transport"] = self.c_route.transport
+        callee_target = PJSTR(callee_target_uri._as_str(1))
         transport = self.c_route.transport
         contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
         try:
