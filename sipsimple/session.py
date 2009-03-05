@@ -779,7 +779,7 @@ class Session(NotificationHandler):
             # TODO: what do we do with new SDP?
             pass
         else:
-            self.chat_transport.start(remote_sdp[self._chat_sdp_index])
+            self.chat_transport.start(remote_sdp.media[self._chat_sdp_index])
 
     def _stop_media(self):
         """Stop all media streams. This will be called by SessionManager when
