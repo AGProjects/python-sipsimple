@@ -134,7 +134,7 @@ class MSRPChat(object):
             failure = Failure(AttributeError("remote SDP media does not have `path' attribute"))
             self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='sdp_negotiation', failure=failure))
             return
-        full_remote_path = [parse_uri(uri) for uri in remote_uri_path]
+        full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
         try:
             msrp_transport = self.msrp_connector.complete(full_remote_path)
             self.msrp = MSRPSession(msrp_transport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
@@ -169,10 +169,10 @@ class MSRPChat(object):
                 self.notification_center.post_notification('MSRPChatDidEnd', self)
             else:
                 self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='reading', failure=error))
-        if chunk.method=='REPORT':
+        elif chunk.method=='REPORT':
             # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to
             # the part of the message.
-            data = NotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.reason)
+            data = NotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
             if chunk.status.code == 200:
                 self.notification_center.post_notification('MSRPChatDidDeliverMessage', self, data)
             else:
