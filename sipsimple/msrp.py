@@ -92,6 +92,8 @@ class MSRPChat(object):
         self.local_media = None
         self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
+        self.is_active = False
+        self.is_started = False
 
     def initialize(self, ip=None, port=None, use_tls=True):
         """Initialize the MSRP connection; connect to the relay if necessary.
@@ -121,6 +123,7 @@ class MSRPChat(object):
         - message (MSRPData)
         - content (str) - the actual string that the remote user has typed
         """
+        self.is_active = True
         media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
         # TODO: update accept_types and accept_wrapped_types from remote_media
         # TODO: chatroom, recvonly/sendonly?
@@ -131,6 +134,7 @@ class MSRPChat(object):
     def _do_start(self, media_attributes):
         remote_uri_path = media_attributes.get('path')
         if remote_uri_path is None:
+            self.is_active = False
             failure = Failure(AttributeError("remote SDP media does not have `path' attribute"))
             self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='sdp_negotiation', failure=failure))
             return
@@ -139,9 +143,11 @@ class MSRPChat(object):
             msrp_transport = self.msrp_connector.complete(full_remote_path)
             self.msrp = MSRPSession(msrp_transport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
         except Exception, ex:
+            self.is_active = False
             self.notification_center.post_notification('MSRPChatDidFail', self, NotificationData(context='start', failure=Failure()))
             raise
         else:
+            self.is_started = True
             self.notification_center.post_notification('MSRPChatDidStart', self)
 
     def end(self):
@@ -161,10 +167,14 @@ class MSRPChat(object):
                 self.msrp = None
             self.msrp_connector.cleanup()
         finally:
+            self.is_active = False
+            self.is_started = False
             self.notification_center.post_notification('MSRPChatDidEnd', self)
 
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
+            self.is_active = False
+            self.is_started = False
             if isinstance(error.value, ConnectionDone):
                 self.notification_center.post_notification('MSRPChatDidEnd', self)
             else:
