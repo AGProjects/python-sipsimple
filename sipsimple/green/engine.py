@@ -72,6 +72,12 @@ class GreenEngine(Engine):
         self.managed_objs = []
         self.link_exception()
 
+    def stop(self):
+        if self._thread_started:
+            with notification.linked_notifications(['SCEngineDidEnd', 'SCEngineDidFail', 'SCEngineGotException'],sender=self) as q:
+                self._thread_stopping = True
+                q.wait()
+
     def link_exception(self, greenlet=None):
         """Raise an exception in `greenlet' (the current one by default) when the engine signals failure.
         """
