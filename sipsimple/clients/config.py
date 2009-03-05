@@ -224,6 +224,8 @@ def update_options(options, engine):
     options.uri = engine.parse_sip_uri(format_cmdline_uri(options.sip_address, None))
     options.relay = None
     options.route = None
+    if options.args:
+        options.target_uri = engine.parse_sip_uri(format_cmdline_uri(options.args[0], options.uri.host))
 
     if options.use_bonjour:
         options.uri.port = engine.local_udp_port
