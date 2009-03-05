@@ -847,7 +847,7 @@ class Session(NotificationHandler):
     def send_message(self, content, content_type="text/plain", to_uri=None):
         if self.chat_transport is None or not self.chat_transport.is_active:
             raise RuntimeError("This SIP session does not have an active MSRP stream to send chat message over")
-        self.chat_transport.send_message(content, content_type, to_uri)
+        return self.chat_transport.send_message(content, content_type, to_uri)
 
 
 class RTPConfiguration(object):
