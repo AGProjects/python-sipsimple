@@ -23,33 +23,23 @@ class GreenSession(GreenBase):
     def __init__(self, *args, **kwargs):
         self._obj = Session(*args, **kwargs) # XXX move this to GreenBase
 
-    def new(self, callee_uri, credentials, route, audio=False, chat=False, ringer=None):
-        ringing = False
-        event_names = ['SCSessionGotRingIndication',
-                       'SCSessionDidStart',
+    def new(self, callee_uri, credentials, route, audio=False, chat=False):
+        event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
         with self.linked_notifications(event_names) as q:
             self._obj.new(callee_uri, credentials, route, audio=audio, chat=chat)
-            try:
-                while True:
-                    notification = q.wait()
-                    if notification.name == "SCSessionGotRingIndication":
-                        if ringer is not None and not ringing:
-                            ringing = True
-                            ringer.start()
-                    elif notification.name == 'SCSessionDidStart':
-                        break
-                    elif notification.name == 'SCSessionDidFail':
-                        raise SessionError(notification.data.reason)
-                    elif notification.name == 'SCSessionDidEnd':
-                        if notification.data.originator == "local":
-                            raise SessionError("Session ended by local party")
-                        else:
-                            raise SessionError("Session ended by remote party")
-            finally:
-                if ringer is not None and ringing:
-                    ringer.stop()
+            while True:
+                notification = q.wait()
+                if notification.name == 'SCSessionDidStart':
+                    break
+                elif notification.name == 'SCSessionDidFail':
+                    raise SessionError(notification.data.reason)
+                elif notification.name == 'SCSessionDidEnd':
+                    if notification.data.originator == "local":
+                        raise SessionError("Session ended by local party")
+                    else:
+                        raise SessionError("Session ended by remote party")
         # XXX I would expect Session instance not to fire SCSessionDidStart until all the transports started
         # XXX otherwise I have to go into session and manually wait for different types of events
         # XXX the same goes for terminating - wait for MSRPChatDidEnd before firing SCSessionDidEnd

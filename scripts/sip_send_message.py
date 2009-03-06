@@ -14,10 +14,6 @@ from sipsimple.session import SessionManager
 description = "Start a MSRP session to the specified target SIP address, send a message and exit."
 usage = "%prog [options] target-user@target-domain.com message"
 
-class SimpleRinger(WaveFile):
-
-    def start(self):
-        return WaveFile.start(self, loop_count=0)
 
 def main():
     options = parse_options(usage, description)
@@ -37,9 +33,8 @@ def main():
     sm.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
     try:
         credentials = Credentials(options.uri, options.password)
-        ringer = SimpleRinger(get_path("ring_outbound.wav"))
         session = GreenSession()
-        session.new(options.target_uri, credentials, options.route, chat=True, ringer=ringer)
+        session.new(options.target_uri, credentials, options.route, chat=True)
         session.deliver_message(message)
     finally:
         e.shutdown()
