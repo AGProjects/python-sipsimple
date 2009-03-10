@@ -1,7 +1,7 @@
 import sys
 from pprint import pformat
 from zope.interface import implements
-from application.notification import IObserver, NotificationCenter
+from application.notification import IObserver, NotificationCenter, Any
 
 
 class FileLoggerBase(object):
@@ -68,6 +68,7 @@ class EngineTracer(FileLoggerBase):
 
     implements(IObserver)
 
+    event_name = Any
     excluded_notifications  = ["SCEngineLog"]
 
     def handle_notification(self, notification):
