@@ -1,8 +1,7 @@
 """Synchronous versions of Engine and related classes (Invitation, Registration)
 
-GreenXXX typically has the same methods as XXX with the exception that some
-of the methods of XXX are synchronous, i.e. they block the calling greenlet
-until the job is done.
+GreenXXX typically has the same methods as XXX with the exception that the methods
+of XXX are synchronous, i.e. they block the calling greenlet until the job is done.
 
 For example, GreenRegistration.register calls Registration.register and then
 waits for 'registered' or 'unregistered' event. If the event received is
