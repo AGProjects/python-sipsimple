@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from eventlet import coros
 from sipsimple.session import Session
 from sipsimple.green.engine import GreenBase
-from sipsimple.green.notification import CallFromThreadObserver, linked_notifications
+from sipsimple.green.notification import CallFromThreadObserver
 
 class SessionError(Exception):
     pass
@@ -74,7 +74,7 @@ class GreenSession(GreenBase):
 
     def deliver_message(self, content, content_type='text/plain', to_uri=None):
         events = ['MSRPChatDidDeliverMessage', 'MSRPChatDidNotDeliverMessage']
-        with linked_notifications(events, sender=self.chat_transport) as q:
+        with self.linked_notifications(events, sender=self.chat_transport) as q:
             message_id = self.send_message(content, content_type, to_uri)
             while True:
                 n = q.wait()
