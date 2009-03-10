@@ -52,7 +52,7 @@ class GreenSession(GreenBase):
              return
          with self.linked_notifications(['SCSessionDidFail', 'SCSessionDidEnd']) as q:
              if self.state != 'TERMINATING':
-                 self.terminate()
+                 self._obj.terminate()
                  while True:
                      notification = q.wait()
                      if notification.name == 'SCSessionDidFail':
