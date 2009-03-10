@@ -18,9 +18,6 @@ from eventlet import api, proc, coros
 from sipsimple import Engine, Registration, Invitation, WaveFile
 from sipsimple.green import notification
 from sipsimple.green.util import wrapdict
-from sipsimple.logstate import RegistrationLogger, InvitationLogger, SIPTracer, PJSIPTracer, EngineTracer
-
-# make logstate.py handle all objects without need to register them here
 
 __all__ = ['Error',
            'SIPError',
@@ -86,37 +83,18 @@ class GreenEngine(Engine):
         error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(RuntimeError(str(n))))
         self.notification_center.add_observer(error_observer, 'SCEngineGotException')
 
-    def start(self, *args, **kwargs):
-        self.siptracer = SIPTracer()
-        self.siptracer.register_observer(self.notification_center)
-        if kwargs.pop('trace_pjsip', False):
-            self.pjsiptracer = PJSIPTracer()
-            self.pjsiptracer.register_observer(self.notification_center)
-        if kwargs.pop('trace_engine', False):
-            self.enginetracer = EngineTracer()
-            self.enginetracer.register_observer(self.notification_center)
-        return Engine.start(self, *args, **kwargs)
-
     def shutdown(self):
         jobs = [proc.spawn(obj.shutdown) for obj in self.managed_objs]
         proc.waitall(jobs, trap_errors=True)
 
     def makeGreenRegistration(self, *args, **kwargs):
         realobj = Registration(*args, **kwargs)
-        logger = RegistrationLogger()
-        logger.register_observer(self.notification_center,
-                                 realobj,
-                                 notification.NotifyFromThreadObserver(logger))
         obj = GreenRegistration(realobj)
         self.managed_objs.append(obj)
         return obj
 
     def makeGreenInvitation(self, *args, **kwargs):
         realobj = Invitation(*args, **kwargs)
-        logger = InvitationLogger()
-        logger.register_observer(self.notification_center,
-                                 realobj,
-                                 notification.NotifyFromThreadObserver(logger))
         obj = GreenInvitation(realobj)
         self.managed_objs.append(obj)
         return obj
@@ -126,10 +104,6 @@ class GreenEngine(Engine):
         if queue is None:
             queue = coros.queue()
         def wrap_and_send_to_queue(n):
-            logger = InvitationLogger()
-            logger.register_observer(self.notification_center,
-                                     n.sender,
-                                     notification.NotifyFromThreadObserver(logger))
             obj = GreenInvitation(n.sender)
             self.managed_objs.append(obj)
             queue.send(obj)

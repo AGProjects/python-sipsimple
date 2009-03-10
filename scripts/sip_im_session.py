@@ -23,6 +23,8 @@ from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import enrollment, format_cmdline_uri
 from sipsimple.clients.cpim import MessageCPIMParser, SIPAddress
 from sipsimple.clients.sdputil import FileSelector
+from sipsimple import logstate
+
 enrollment.verify_account_config()
 
 PJSIP_EINVALIDURI = 171039
@@ -536,14 +538,14 @@ def start(options, console):
     ###console.disable()
     engine = GreenEngine()
     engine.start(not options.disable_sound,
-                trace_sip=options.trace_sip,
-                trace_pjsip=options.trace_pjsip,
-                trace_engine=options.trace_engine,
                 ec_tail_length=0,
                 local_ip=options.local_ip,
                 local_udp_port=options.local_port)
     try:
         update_options(options, engine)
+        logstate.start_loggers(trace_sip=options.trace_sip,
+                               trace_pjsip=options.trace_pjsip,
+                               trace_engine=options.trace_engine)
         credentials = Credentials(options.uri, options.password)
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()

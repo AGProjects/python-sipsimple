@@ -97,8 +97,11 @@ def main():
             ec_tail_length=0,
             local_ip=options.local_ip,
             local_port=options.local_port)
-    update_options(options, e)
     try:
+        update_options(options, e)
+        logstate.start_loggers(trace_sip=options.trace_sip,
+                               trace_pjsip=options.trace_pjsip,
+                               trace_engine=options.trace_engine)
         credentials = Credentials(options.uri, options.password)
         if options.register:
             reg = e.makeGreenRegistration(credentials, route=options.route, expires=10)

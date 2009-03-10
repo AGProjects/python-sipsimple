@@ -1,7 +1,7 @@
 import sys
 from pprint import pformat
 from zope.interface import implements
-from application.notification import IObserver
+from application.notification import IObserver, NotificationCenter
 
 
 class FileLoggerBase(object):
@@ -14,11 +14,11 @@ class FileLoggerBase(object):
     def write(self, msg):
         self.fileobj.write(msg + '\n')
 
-    def register_observer(self, notification_center):
-        notification_center.add_observer(self, self.event_name)
+    def start(self):
+        NotificationCenter().add_observer(self, self.event_name)
 
-    def unregister_observer(self, notification_center):
-        notification_center.remove_observer(self, self.event_name)
+    def stop(self):
+        NotificationCenter().remove_observer(self, self.event_name)
 
 
 class SIPTracer(FileLoggerBase):
@@ -70,17 +70,45 @@ class EngineTracer(FileLoggerBase):
 
     excluded_notifications  = ["SCEngineLog"]
 
-    def register_observer(self, notification_center):
-        notification_center.add_observer(self)
-
-    def unregister_observer(self, notification_center):
-        notification_center.remove_observer(self)
-
     def handle_notification(self, notification):
         if notification.name in self.excluded_notifications:
             return
         self.write("Notification name=%r sender=%r\n%s" % (notification.name, notification.sender,
                                                            pformat(notification.data.__dict__)))
+
+
+class LoggerManager(object):
+    """Maintain a mapping sending object -> logger intance. Delegate
+    a notification to the logger responsible for an object. Automatically
+    create a new logger for unknown sender.
+    """
+
+    implements(IObserver)
+
+    def __init__(self, logger_class=None, events=None):
+        if logger_class is not None:
+            self.logger_class = logger_class
+        if events is not None:
+            self.events = events
+        self.objects = {} # map sender -> logger
+        # XXX we add __weakref__ to core.Registration and core.Invitation and
+        # XXX use WeakKeyDictionary?
+
+    def start(self):
+        for event_name in self.events:
+            NotificationCenter().add_observer(self, event_name)
+
+    def handle_notification(self, notification):
+        logger = self.objects.get(notification.sender)
+        if logger is None:
+            logger = self.logger_class()
+            center = NotificationCenter()
+            name = RegistrationLogger.event_name
+            center.add_observer(self, name=name, sender=notification.sender)
+            self.objects[notification.sender] = logger
+        logger.obj = notification.sender # XXX
+        logger.handle_notification(notification)
+
 
 
 class StateLoggerBase(FileLoggerBase):
@@ -106,18 +134,6 @@ class StateLoggerBase(FileLoggerBase):
 
     def log_state_default(self, notification_data):
         pass
-
-    def register_observer(self, notification_center, sender, observer=None):
-        self.obj = sender
-        if observer is None:
-            observer = self
-        notification_center.add_observer(observer, self.event_name, self.obj)
-
-    def unregister_observer(self, notification_center, sender, observer=None):
-        self.obj = sender
-        if observer is None:
-            observer = self
-        notification_center.remove_observer(observer, self.event_name, self.obj)
 
 
 def _format_reason(notification_data):
@@ -174,21 +190,8 @@ class RegistrationLogger(StateLoggerBase):
 class InvitationLogger(StateLoggerBase):
 
     event_name = 'SCInvitationChangedState'
+    events = [event_name, 'SCInvitationGotSDPUpdate']
     confirmed = False
-
-    def register_observer(self, notification_center, sender, observer=None):
-        self.obj = sender
-        if observer is None:
-            observer = self
-        notification_center.add_observer(observer, 'SCInvitationGotSDPUpdate', self.obj)
-        notification_center.add_observer(observer, self.event_name, self.obj)
-
-    def unregister_observer(self, notification_center, sender, observer=None):
-        self.obj = sender
-        if observer is None:
-            observer = self
-        notification_center.remove_observer(observer, self.event_name, self.obj)
-        notification_center.remove_observer(observer, 'SCInvitationGotSDPUpdate', self.obj)
 
     @property
     def session_name(self):
@@ -254,4 +257,22 @@ class InvitationLogger(StateLoggerBase):
     def log_SCInvitationGotSDPUpdate(self, notification_data):
         if not notification_data.succeeded:
             self.write('SDP negotiation failed: %s' % notification_data.error)
+
+
+class RegistrationLoggerManager(LoggerManager):
+    logger_class = RegistrationLogger
+    events = [RegistrationLogger.event_name]
+
+class InvitationLoggerManager(LoggerManager):
+    logger_class = InvitationLogger
+    events = InvitationLogger.events
+
+def start_loggers(trace_pjsip=False, trace_engine=False, trace_sip=False, log_reg=True, log_inv=True):
+    SIPTracer().start()
+    if trace_pjsip:
+        PJSIPTracer().start()
+    if trace_engine:
+        EngineTracer().start()
+    RegistrationLoggerManager().start()
+    InvitationLoggerManager().start()
 

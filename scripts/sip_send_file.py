@@ -14,6 +14,7 @@ from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.sdputil import FileSelector
 from sipsimple.clients.config import parse_options, update_options
 from sipsimple.green.session import MSRPSessionErrors, MSRPSession
+from sipsimple import logstate
 
 file_cmd = "file -b --mime '%s'"
 
@@ -71,13 +72,13 @@ def main():
     sdp = SDPOfferFactory(filename)
     e = GreenEngine()
     e.start(not options.disable_sound,
-            trace_sip=options.trace_sip,
-            trace_pjsip=options.trace_pjsip,
-            trace_engine=options.trace_engine,
             local_ip=options.local_ip,
             local_udp_port=options.local_port)
     try:
         update_options(options, e)
+        logstate.start_loggers(trace_sip=options.trace_sip,
+                               trace_pjsip=options.trace_pjsip,
+                               trace_engine=options.trace_engine)
         credentials = Credentials(options.uri, options.password)
         inv = e.makeGreenInvitation(credentials, options.target_uri, route=options.route)
         logger = Logger(is_enabled_func = lambda: options.trace_msrp)
