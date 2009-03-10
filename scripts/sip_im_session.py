@@ -542,8 +542,8 @@ def start(options, console):
                 ec_tail_length=0,
                 local_ip=options.local_ip,
                 local_udp_port=options.local_port)
-    update_options(options, engine)
     try:
+        update_options(options, engine)
         credentials = Credentials(options.uri, options.password)
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()

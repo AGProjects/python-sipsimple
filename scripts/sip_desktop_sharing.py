@@ -12,7 +12,7 @@ from sipsimple import Credentials
 from sipsimple.green.engine import GreenEngine, Ringer, IncomingSessionHandler
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.console import setup_console, EOF
-from sipsimple.clients.config import parse_options
+from sipsimple.clients.config import parse_options, update_options
 from sipsimple.green.session import MSRPSessionErrors, MSRPSession, IncomingMSRPHandler
 
 from sipsimple.clients.cpim import parse_cpim_address
@@ -97,7 +97,7 @@ def main():
             ec_tail_length=0,
             local_ip=options.local_ip,
             local_port=options.local_port)
-
+    update_options(options, e)
     try:
         credentials = Credentials(options.uri, options.password)
         if options.register:

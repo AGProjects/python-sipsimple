@@ -12,7 +12,7 @@ from sipsimple import Credentials, SDPAttribute, SDPMedia, WaveFile
 from sipsimple.green.engine import GreenEngine
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.sdputil import FileSelector
-from sipsimple.clients.config import parse_options
+from sipsimple.clients.config import parse_options, update_options
 from sipsimple.green.session import MSRPSessionErrors, MSRPSession
 
 file_cmd = "file -b --mime '%s'"
@@ -62,11 +62,11 @@ class SimpleRinger(WaveFile):
 
 def main():
     options = parse_options(usage, description)
-    if not options.target_uri:
-        sys.exit('Please provide target uri.')
     if not options.args:
+        sys.exit('Please provide target uri.')
+    if not options.args[1:]:
         sys.exit('Please provide filename.')
-    filename = options.args[0]
+    filename = options.args[1]
     source = file(filename)
     sdp = SDPOfferFactory(filename)
     e = GreenEngine()
@@ -77,6 +77,7 @@ def main():
             local_ip=options.local_ip,
             local_udp_port=options.local_port)
     try:
+        update_options(options, e)
         credentials = Credentials(options.uri, options.password)
         inv = e.makeGreenInvitation(credentials, options.target_uri, route=options.route)
         logger = Logger(is_enabled_func = lambda: options.trace_msrp)
