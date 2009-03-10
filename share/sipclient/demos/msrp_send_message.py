@@ -38,8 +38,8 @@ def main():
         session = GreenSession()
         session.new(options.target_uri, credentials, options.route, chat=True)
         session.deliver_message(message)
+        session.terminate()
     finally:
-        e.shutdown()
         e.stop()
 
 if __name__=='__main__':
