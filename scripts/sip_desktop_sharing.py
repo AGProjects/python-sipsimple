@@ -14,6 +14,7 @@ from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.console import setup_console, EOF
 from sipsimple.clients.config import parse_options, update_options
 from sipsimple.green.session import MSRPSessionErrors, MSRPSession, IncomingMSRPHandler
+from sipsimple import logstate
 
 from sipsimple.clients.cpim import parse_cpim_address
 
