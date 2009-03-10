@@ -69,7 +69,6 @@ class EngineTracer(FileLoggerBase):
     implements(IObserver)
 
     excluded_notifications  = ["SCEngineLog"]
-    enabled = True
 
     def register_observer(self, notification_center):
         notification_center.add_observer(self)
@@ -78,8 +77,6 @@ class EngineTracer(FileLoggerBase):
         notification_center.remove_observer(self)
 
     def handle_notification(self, notification):
-        if not self.enabled:
-            return
         if notification.name in self.excluded_notifications:
             return
         self.write("Notification name=%r sender=%r\n%s" % (notification.name, notification.sender,
