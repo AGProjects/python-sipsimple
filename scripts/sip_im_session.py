@@ -538,9 +538,10 @@ def start(options, console):
     ###console.disable()
     engine = GreenEngine()
     engine.start(not options.disable_sound,
-                ec_tail_length=0,
-                local_ip=options.local_ip,
-                local_udp_port=options.local_port)
+                 trace_sip=options.trace_sip,
+                 ec_tail_length=0,
+                 local_ip=options.local_ip,
+                 local_udp_port=options.local_port)
     try:
         update_options(options, engine)
         logstate.start_loggers(trace_sip=options.trace_sip,

@@ -93,7 +93,6 @@ def main():
     e = GreenEngine()
     e.start(not options.disable_sound,
             trace_sip=options.trace_sip,
-            tracepjsip=options.trace_pjsip,
             ec_tail_length=0,
             local_ip=options.local_ip,
             local_port=options.local_port)

@@ -72,6 +72,7 @@ def main():
     sdp = SDPOfferFactory(filename)
     e = GreenEngine()
     e.start(not options.disable_sound,
+            trace_sip=options.trace_sip,
             local_ip=options.local_ip,
             local_udp_port=options.local_port)
     try:
