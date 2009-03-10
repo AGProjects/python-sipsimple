@@ -21,7 +21,7 @@ def main():
         sys.exit(usage.replace('%prog', sys.argv[0]))
     message = ' '.join(options.args[1:])
     e = GreenEngine()
-    e.start(False,
+    e.start(not options.disable_sound,
             trace_sip=options.trace_sip,
             trace_pjsip=options.trace_pjsip,
             trace_engine=options.trace_engine,
@@ -42,3 +42,4 @@ def main():
 
 if __name__=='__main__':
     main()
+
