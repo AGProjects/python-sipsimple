@@ -159,10 +159,10 @@ class Session(NotificationHandler):
         self._audio_rec = None
 
     def __getattr__(self, attr):
-        if hasattr(self, "_inv"):
+        if self._inv is not None:
             if attr in ["caller_uri", "callee_uri", "local_uri", "remote_uri", "credentials", "route"]:
                 return getattr(self._inv, attr)
-        if hasattr(self, "audio_transport"):
+        if self.audio_transport is not None:
             if attr.startswith("audio_"):
                 attr = attr.split("audio_", 1)[1]
                 if attr in ["sample_rate", "codec"]:
