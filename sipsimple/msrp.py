@@ -37,7 +37,7 @@ from datetime import datetime
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
 from application.notification import NotificationCenter, NotificationData
-from msrplib.connect import MSRPRelaySettings, get_acceptor, get_connector
+from msrplib.connect import get_acceptor, get_connector
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from sipsimple.green.session import make_SDPMedia
@@ -64,7 +64,7 @@ class MSRPChat(object):
         """Initialize MSRPChat instance.
 
         - outgoing (bool) - whether you are an active endpoint or not;
-        - relay (MSRPRelaySettings) - if None, no relay is used;
+        - relay (msrplib.connect.MSRPRelaySettings) - if None, no relay is used;
         - from_uri (SIPURI) - what to put in 'From' CPIM header;
         - to_uri (SIPURI) - what to put in 'To' CPIM header;
         - accept_types (list of strings) - to put in SDP media;

@@ -4,7 +4,6 @@
 For a higher level interface look at msrp_send_message.py which uses a higher-level GreenSession class
 """
 import sys
-from eventlet import proc
 from eventlet.green.socket import gethostbyname
 
 from msrplib.trafficlog import Logger, hook_std_output; hook_std_output()
