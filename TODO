@@ -17,6 +17,7 @@ SIP core
 - Handle UPDATE for re-INVITE [RK]
 - Set list of codecs in order of preference on each AudioTransport instance,
   not at the global level [RK]
+- Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 
 
 Middleware
@@ -37,6 +38,7 @@ Middleware
 - Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
 - Enrollment [LS]
 - Handle 301/302 redirect within the Session class [RK]
+- Detect IP address changes (OS specific) and signal Engine [RK]
 
 
 Audio
