@@ -912,6 +912,10 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "MSRPChatDidEnd")
         self.ringtone_config = RingtoneConfiguration()
 
+    @property
+    def sessions(self):
+        return self.inv_mapping.values()
+
     def _NH_SCInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
             remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
