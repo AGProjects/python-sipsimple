@@ -12,10 +12,11 @@ from zope.interface import implements
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Singleton
 from application.system import default_host_ip
+from msrplib.connect import MSRPRelaySettings
 
 from sipsimple.engine import Engine
 from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
-from sipsimple.msrp import MSRPChat, MSRPRelaySettings
+from sipsimple.msrp import MSRPChat
 
 class TimestampedNotificationData(NotificationData):
 
