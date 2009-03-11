@@ -38,7 +38,7 @@ class CallFromThreadObserver(object):
 
 class NotifyFromThreadObserver(CallFromThreadObserver):
     """Observer that checks that notification meets the provided condition
-    and then nofifies a provided observer in the twisted's thread (mainloop greenlet)"""
+    and then notifies a provided observer in the twisted's thread (mainloop greenlet)"""
 
     implements(IObserver)
 
