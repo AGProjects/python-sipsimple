@@ -41,7 +41,7 @@ def main():
         try:
             msrp = invite(inv, get_connector(None))
             msg = MessageCPIM(message, 'text/plain')
-            msrp.send_message(str(msg), 'message/cpim')
+            msrp.deliver_message(str(msg), 'message/cpim')
         finally:
             inv.end()
     finally:
