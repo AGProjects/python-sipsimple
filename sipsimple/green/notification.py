@@ -6,10 +6,11 @@ from zope.interface import implements
 from application.notification import IObserver, Any, NotificationCenter
 from eventlet import proc, coros
 
+from sipsimple.green import callFromAnyThread
 
 class CallFromThreadObserver(object):
-    """Observer that checks that notification meets the provided condition
-    and then calls a provided function from twisted's thread (mainloop greenlet)
+    """Observer that checks that notification meets a provided condition
+    and then calls a provided function from twisted's IO thread (mainloop greenlet)
     passing notification as an argument"""
 
     implements(IObserver)
@@ -32,8 +33,7 @@ class CallFromThreadObserver(object):
 
     def handle_notification(self, notification):
         if self.condition is None or self.condition(notification):
-            callFromThread = self.reactor.callFromThread
-            callFromThread(self.function, notification)
+            callFromAnyThread(self.function, notification)
 
 
 class NotifyFromThreadObserver(CallFromThreadObserver):

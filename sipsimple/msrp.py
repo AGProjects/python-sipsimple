@@ -34,7 +34,6 @@ problems with the connection. Therefore, the following settings should be used:
 
 import random
 from datetime import datetime
-from eventlet import proc
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
 from application.notification import NotificationCenter, NotificationData
@@ -43,6 +42,7 @@ from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from sipsimple.green.session import make_SDPMedia
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
+from sipsimple.green import callFromAnyThread, spawn_from_thread
 
 
 #
@@ -53,13 +53,6 @@ from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
 #    notification data attributes and only relevant information.
 # 3. Update docstrings
 #
-
-
-def spawn_from_thread(function, *args, **kw):
-    """Call `function' in a separate greenlet in twisted thread from a foreign (non-twisted) thread."""
-    from twisted.internet import reactor
-    reactor.callFromThread(proc.spawn_greenlet, lambda: function(*args, **kw))
-
 
 class MSRPChatError(Exception):
     pass
@@ -220,8 +213,7 @@ class MSRPChat(object):
             chunk.add_header(FailureReportHeader(failure_report))
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
-        from twisted.internet import reactor
-        reactor.callFromThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
+        callFromAnyThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return message_id
 
     def send_message(self, content, content_type='text/plain', to_uri=None):
