@@ -311,12 +311,12 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 if data in ",<":
                     if ec_tail_length > 0:
                         ec_tail_length = max(0, ec_tail_length - 10)
-                        e.auto_set_sound_devices(ec_tail_length)
+                        e.set_sound_devices(tail_length=ec_tail_length)
                     print "Set echo cancellation tail length to %d ms" % ec_tail_length
                 elif data in ".>":
                     if ec_tail_length < 500:
                         ec_tail_length = min(500, ec_tail_length + 10)
-                        e.auto_set_sound_devices(ec_tail_length)
+                        e.set_sound_devices(tail_length=ec_tail_length)
                     print "Set echo cancellation tail length to %d ms" % ec_tail_length
                 elif data == 't':
                     logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
