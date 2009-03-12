@@ -586,7 +586,6 @@ def start(options, console):
         finally:
             t.cancel()
         engine.stop()
-        api.sleep(0.1) # flush the output
 
 def get_commands(manager):
     return {#'end sip': manager.end_sip,
