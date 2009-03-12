@@ -339,6 +339,7 @@ class Session(NotificationHandler):
                 if self.rtp_options["use_ice"]:
                     local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
             if msrp_chat:
+                sdp_media_todo.remove(self._chat_sdp_index)
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
                 local_sdp.media.append(msrp_chat.local_media)
             for reject_media_index in sdp_media_todo:
