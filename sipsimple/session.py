@@ -224,7 +224,8 @@ class Session(NotificationHandler):
             self._inv = inv
             self.chat_transport = msrp_chat
             self.session_manager.inv_mapping[inv] = self
-            self._ringtone = ringtone
+            if self.session_manager.ringtone_config.outbound_ringtone is not None:
+                self._ringtone = WaveFile(self.session_manager.ringtone_config.outbound_ringtone)
             self.direction = "outgoing"
             self._change_state("CALLING")
             self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio=audio))
