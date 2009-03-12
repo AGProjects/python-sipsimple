@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pprint import pformat
 from zope.interface import implements
 from application.notification import IObserver, NotificationCenter, Any
@@ -74,8 +75,8 @@ class EngineTracer(FileLoggerBase):
     def handle_notification(self, notification):
         if notification.name in self.excluded_notifications:
             return
-        self.write("Notification name=%r sender=%r\n%s" % (notification.name, notification.sender,
-                                                           pformat(notification.data.__dict__)))
+        self.write("%s Notification name=%r sender=%r\n%s" % (datetime.now(), notification.name, notification.sender,
+                                                              pformat(notification.data.__dict__)))
 
 
 class LoggerManager(object):
