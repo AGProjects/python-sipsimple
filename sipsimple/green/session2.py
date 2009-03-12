@@ -44,6 +44,27 @@ class GreenSession(Session, GreenMixin):
             if not self.chat_transport.is_started:
                 q.wait()
 
+    def accept(self, audio=False, chat=False, password=None):
+        event_names = ['SCSessionDidStart',
+                       'SCSessionDidFail',
+                       'SCSessionDidEnd']
+        with self.linked_notifications(event_names) as q:
+            Session.accept(self, audio=audio, chat=chat, password=password)
+            while True:
+                notification = q.wait()
+                if notification.name == 'SCSessionDidStart':
+                    break
+                elif notification.name == 'SCSessionDidFail':
+                    raise SessionError(notification.data.reason)
+                elif notification.name == 'SCSessionDidEnd':
+                    if notification.data.originator == "local":
+                        raise SessionError("Session ended by local party")
+                    else:
+                        raise SessionError("Session ended by remote party")
+        with self.linked_notification('MSRPChatDidStart', sender=self.chat_transport) as q:
+            if self.chat_transport is not None and not self.chat_transport.is_started:
+                q.wait()
+
     def terminate(self):
          if self.state in ["NULL", "TERMINATED"]:
              return
