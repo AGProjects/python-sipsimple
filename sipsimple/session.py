@@ -341,7 +341,7 @@ class Session(NotificationHandler):
             if msrp_chat:
                 sdp_media_todo.remove(self._chat_sdp_index)
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                local_sdp.media.append(msrp_chat.local_media)
+                local_sdp.media[self._chat_sdp_index] = msrp_chat.local_media
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
