@@ -898,6 +898,8 @@ class SessionManager(NotificationHandler):
     __metaclass__ = Singleton
     implements(IObserver)
 
+    session_class = Session
+
     def __init__(self):
         """Creates a new SessionManager object."""
         self.rtp_config = RTPConfiguration()
@@ -927,7 +929,7 @@ class SessionManager(NotificationHandler):
                 inv.disconnect(415)
             else:
                 inv.respond_to_invite_provisionally(180)
-                session = Session()
+                session = self.session_class()
                 session._inv = inv
                 session.remote_user_agent = data.headers.get("User-Agent", None)
                 self.inv_mapping[inv] = session
