@@ -646,7 +646,7 @@ class Session(NotificationHandler):
                     media_initializer = MediaTransportInitializer(self, self._add_audio_continue, self._add_audio_fail, RTPTransport(**self.rtp_options), None)
                     self.proposed_audio = True
                     self._change_state("PROPOSING")
-                    self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(has_audio=True, has_chat=False, proposer="local"))
+                    self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(adds_audio=True, adds_chat=False, proposer="local"))
                     break
                 elif command == "add_chat":
                     if self.chat_transport is not None:
@@ -656,7 +656,7 @@ class Session(NotificationHandler):
                     media_initializer = MediaTransportInitializer(self, self._add_chat_continue, self._add_chat_fail, None, self.chat_transport)
                     self.proposed_chat = True
                     self._change_state("PROPOSING")
-                    self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(has_audio=False, has_chat=True, proposer="local"))
+                    self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(adds_audio=False, adds_chat=True, proposer="local"))
                     break
             if local_sdp is not None:
                 self._inv.set_offered_local_sdp(local_sdp)
@@ -1025,7 +1025,7 @@ class SessionManager(NotificationHandler):
                                 return
                             inv.respond_to_reinvite(180)
                             session._change_state("PROPOSED")
-                            self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(adds_audio=add_audio, adds_chat=add_chat))
+                            self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(adds_audio=add_audio, adds_chat=add_chat, proposer="remote"))
                         else:
                             inv.set_offered_local_sdp(session._make_next_sdp(False))
                             inv.respond_to_reinvite(200)
