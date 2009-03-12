@@ -78,18 +78,6 @@ class GreenSession(Session, GreenMixin):
                      elif notification.name == 'SCSessionDidEnd':
                          return notification
 
-    @classmethod
-    @contextmanager
-    def linked_incoming(self, queue=None):
-        if queue is None:
-            queue = coros.queue()
-        observer = CallFromThreadObserver(queue.send)
-        self.notification_center.add_observer(observer, 'SCSessionNewIncoming')
-        try:
-            yield queue
-        finally:
-            self.notification_center.remove_observer(observer, 'SCSessionNewIncoming')
-
     def deliver_message(self, content, content_type='text/plain', to_uri=None):
         events = ['MSRPChatDidDeliverMessage', 'MSRPChatDidNotDeliverMessage']
         with self.linked_notifications(events, sender=self.chat_transport) as q:
@@ -101,4 +89,17 @@ class GreenSession(Session, GreenMixin):
                         return n.data
                     else:
                         raise CannotDeliverError(code=n.data.code, reason=n.data.reason, message_id=n.data.message_id)
+
+
+
+def linked_incoming(queue=None):
+    if queue is None:
+        queue = coros.queue()
+    observer = CallFromThreadObserver(queue.send)
+    NotificationCenter().add_observer(observer, 'SCSessionNewIncoming')
+    try:
+        yield queue
+    finally:
+        NotificationCenter.remove_observer(observer, 'SCSessionNewIncoming')
+
 
