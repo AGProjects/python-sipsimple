@@ -61,6 +61,8 @@ cdef class SDPSession:
         if self.c_obj.attr_count > PJMEDIA_MAX_SDP_ATTR:
             raise SIPCoreError("Too many attributes")
         for index, attr in enumerate(self.attributes):
+            if attr is None:
+                raise TypeError("Items in SDPSession attribute list cannot be None")
             attr._to_c()
             self.c_obj.attr[index] = &attr.c_obj
         if self.media is None:
@@ -69,6 +71,8 @@ cdef class SDPSession:
         if self.c_obj.media_count > PJMEDIA_MAX_SDP_MEDIA:
             raise SIPCoreError("Too many attributes")
         for index, media in enumerate(self.media):
+            if media is None:
+                raise TypeError("Items in SDPSession media list cannot be None")
             media._to_c()
             self.c_obj.media[index] = &media.c_obj
         return 0
@@ -187,6 +191,8 @@ cdef class SDPMedia:
         if self.c_obj.attr_count > PJMEDIA_MAX_SDP_ATTR:
             raise SIPCoreError("Too many attributes")
         for index, attr in enumerate(self.attributes):
+            if attr is None:
+                raise TypeError("Items in SDPMedia attribute list cannot be None")
             attr._to_c()
             self.c_obj.attr[index] = &attr.c_obj
         return 0
