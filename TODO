@@ -44,6 +44,7 @@ Middleware
 Audio
 -----
 
+- Add dummy sounds device [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK] [DB]
 - Add method to core for playing arbitrary tones on the conference bridge [RK]
 - Added general volume control for the conference bridge [RK]
