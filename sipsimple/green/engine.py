@@ -65,7 +65,6 @@ class GreenEngine(Engine):
 
     def __init__(self):
         Engine.__init__(self)
-        self.managed_objs = []
         self.link_exception()
 
     def stop(self):
@@ -82,29 +81,12 @@ class GreenEngine(Engine):
         error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(RuntimeError(str(n))))
         self.notification_center.add_observer(error_observer, 'SCEngineGotException')
 
-    def shutdown(self):
-        jobs = [proc.spawn(obj.shutdown) for obj in self.managed_objs]
-        proc.waitall(jobs, trap_errors=True)
-
-    def makeGreenRegistration(self, *args, **kwargs):
-        realobj = Registration(*args, **kwargs)
-        obj = GreenRegistration(realobj)
-        self.managed_objs.append(obj)
-        return obj
-
-    def makeGreenInvitation(self, *args, **kwargs):
-        realobj = Invitation(*args, **kwargs)
-        obj = GreenInvitation(realobj)
-        self.managed_objs.append(obj)
-        return obj
-
     @contextmanager
     def linked_incoming(self, queue=None):
         if queue is None:
             queue = coros.queue()
         def wrap_and_send_to_queue(n):
-            obj = GreenInvitation(n.sender)
-            self.managed_objs.append(obj)
+            obj = GreenInvitation(__obj=n.sender)
             queue.send(obj)
         observer = notification.CallFromThreadObserver(wrap_and_send_to_queue, lambda n: n.data.state=='INCOMING')
         self.notification_center.add_observer(observer, 'SCInvitationChangedState')
@@ -146,7 +128,15 @@ class IncomingSessionHandler(object):
 
 class GreenBase(object):
 
-    def __init__(self, obj):
+    klass = None
+
+    def __init__(self, *args, **kwargs):
+        obj = kwargs.pop('__obj', None)
+        if obj is None:
+            obj = self.klass(*args, **kwargs)
+        else:
+            assert not args, args
+            assert not kwargs, kwargs
         self._obj = obj
 
     def __getattr__(self, item):
@@ -169,25 +159,9 @@ class GreenBase(object):
         return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
 
 
-class GreenMixin(object):
-
-   def linked_notification(self, name=None, sender=None, queue=None, condition=None):
-        if name is None:
-            name = self.event_name
-        if sender is None:
-            sender = self
-        return notification.linked_notification(name=name, sender=sender, queue=queue, condition=condition)
-
-   def linked_notifications(self, names=None, sender=None, queue=None, condition=None):
-        if names is None:
-            names = self.event_names
-        if sender is None:
-            sender = self
-        return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
-
-
 class GreenRegistration(GreenBase):
     event_name = 'SCRegistrationChangedState'
+    klass = Registration
 
     def register(self):
         if self.state != 'registered':
@@ -247,6 +221,7 @@ class GreenInvitation(GreenBase):
     event_names = ['SCInvitationChangedState', 'SCInvitationGotSDPUpdate']
     confirmed = False
     session_name = 'SIP session'
+    klass = Invitation
 
     @property
     def connected(self):

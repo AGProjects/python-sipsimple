@@ -2,7 +2,7 @@ from __future__ import with_statement
 from contextlib import contextmanager
 from eventlet import coros
 from sipsimple.session import Session
-from sipsimple.green.engine import GreenMixin
+from sipsimple.green.engine import GreenBase
 from sipsimple.green.notification import CallFromThreadObserver
 
 class SessionError(Exception):
@@ -18,14 +18,15 @@ class CannotDeliverError(Exception):
     def __str__(self):
         return 'Failed to deliver Mesage-ID=%s: %s %s' % (self.message_id, self.code, self.reason)
 
-class GreenSession(Session, GreenMixin):
+class GreenSession(GreenBase):
+    klass = Session
 
     def new(self, callee_uri, credentials, route, audio=False, chat=False):
         event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
         with self.linked_notifications(event_names) as q:
-            Session.new(self, callee_uri, credentials, route, audio=audio, chat=chat)
+            self._obj.new(callee_uri, credentials, route, audio=audio, chat=chat)
             while True:
                 notification = q.wait()
                 if notification.name == 'SCSessionDidStart':
@@ -49,7 +50,7 @@ class GreenSession(Session, GreenMixin):
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
         with self.linked_notifications(event_names) as q:
-            Session.accept(self, audio=audio, chat=chat, password=password)
+            self._obj.accept(audio=audio, chat=chat, password=password)
             while True:
                 notification = q.wait()
                 if notification.name == 'SCSessionDidStart':
@@ -70,7 +71,7 @@ class GreenSession(Session, GreenMixin):
              return
          with self.linked_notifications(['SCSessionDidFail', 'SCSessionDidEnd']) as q:
              if self.state != 'TERMINATING':
-                 Session.terminate(self)
+                 self._obj.terminate()
                  while True:
                      notification = q.wait()
                      if notification.name == 'SCSessionDidFail':

@@ -36,7 +36,7 @@ def main():
                            trace_engine=options.trace_engine)
     try:
         credentials = Credentials(options.uri, options.password)
-        inv = e.makeGreenInvitation(credentials, options.target_uri, route=options.route)
+        inv = GreenInvitation(credentials, options.target_uri, route=options.route)
         try:
             msrp = invite(inv, get_connector(None))
             msg = MessageCPIM(message, 'text/plain')

@@ -16,7 +16,7 @@ from msrplib.protocol import URI
 
 from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile, PJSIPError, Route
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
-from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer
+from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer, GreenInvitation, GreenRegistration
 from sipsimple.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
 from sipsimple.clients.config import parse_options, update_options, get_download_path, get_history_file, get_credentials
 from sipsimple.clients.clientconfig import get_path
@@ -391,12 +391,6 @@ class ChatManager:
         except proc.ProcExit:
             pass
 
-    def close(self):
-        self.stop_accept_incoming()
-        for session in self.sessions[:]:
-            proc.spawn_greenlet(session.end)
-            self.remove_session(session)
-
     def close_current_session(self):
         if self.current_session is not None:
             proc.spawn_greenlet(self.current_session.end)
@@ -470,7 +464,7 @@ class ChatManager:
         route = self.route
         if route is None:
             route = Route(gethostbyname(target_uri.host or self.credentials.uri.host), target_uri.port or 5060)
-        inv = self.engine.makeGreenInvitation(self.credentials, target_uri, route=route)
+        inv = GreenInvitation(self.credentials, target_uri, route=route)
         # XXX should use relay if ti was provided; actually, 2 params needed incoming_relay, outgoing_relay
         msrp_connector = connect.get_connector(None, logger=self.logger)
         local_uri = URI(use_tls=self.msrp_tls)
@@ -542,6 +536,7 @@ def start(options, console):
                  ec_tail_length=0,
                  local_ip=options.local_ip,
                  local_udp_port=options.local_port)
+    registration = None
     try:
         update_options(options, engine)
         logstate.start_loggers(trace_sip=options.trace_sip,
@@ -551,8 +546,8 @@ def start(options, console):
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()
         if options.register:
-            reg = engine.makeGreenRegistration(credentials, route=options.route, expires=10)
-            proc.spawn_greenlet(reg.register)
+            registration = GreenRegistration(credentials, route=options.route, expires=10)
+            proc.spawn_greenlet(registration.register)
         console.set_ps(str(options.uri).replace('sip:', '') + '> ')
         sound = ThrottlingSoundPlayer()
         manager = ChatManager(engine, sound, credentials, console, logger,
@@ -577,14 +572,14 @@ def start(options, console):
                     else:
                         raise
         finally:
-            manager.close()
             console_next_line(console)
+            manager.stop_accept_incoming()
+            if registration is not None:
+                registration = proc.spawn(registration.unregister)
+            proc.waitall([proc.spawn(session.end) for session in manager.sessions], trap_errors=True)
+            if registration is not None:
+                registration.wait()
     finally:
-        t = api.get_hub().schedule_call(1, sys.stdout.write, 'Disconnecting the session(s)...\n')
-        try:
-            engine.shutdown()
-        finally:
-            t.cancel()
         engine.stop()
 
 def get_commands(manager):

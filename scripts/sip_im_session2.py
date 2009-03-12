@@ -13,7 +13,7 @@ from msrplib import trafficlog
 
 from sipsimple import Credentials, SIPURI, SIPCoreError, Route
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
-from sipsimple.green.engine import GreenEngine
+from sipsimple.green.engine import GreenEngine, GreenRegistration
 from sipsimple.green.session import make_SDPMedia
 from sipsimple.green.session2 import GreenSession
 from sipsimple.session import SessionManager, NotificationHandler
@@ -90,7 +90,7 @@ class MessageRenderer(object):
     def handle_notification(self, notification):
         assert notification.name == self.event_name, notification.name
         data = notification.data
-        session = notification.sender
+        session = notification.sender._green
         try:
             msg = format_incoming_message(data.content, session._inv.remote_uri,
                                           data.cpim_headers.get('From'), data.cpim_headers.get('DateTime'))
@@ -107,10 +107,11 @@ class ChatSession(GreenSession, NotificationHandler):
 
     def __init__(self, *args, **kwargs):
         GreenSession.__init__(self, *args, **kwargs)
+        self._obj._green = self
         self.history_file = None
         NotificationCenter().add_observer(self, 'SCSessionDidStart')
 
-    def _NH_SCSessionDidStart(self, _session, _data):
+    def _NH_SCSessionDidStart(self, session, _data):
         self.history_file = get_history_file(self._inv)
 
     def terminate(self):
@@ -121,7 +122,7 @@ class ChatSession(GreenSession, NotificationHandler):
 
     def send_message(self, msg):
         dt = datetime.datetime.utcnow()
-        chunk = GreenSession.send_message(self, msg, dt=dt)
+        chunk = self._obj.send_message(msg, dt=dt)
         printed_msg = format_outgoing_message(self._inv.local_uri, msg, dt=dt)
         print printed_msg
         self.history_file.write(printed_msg + '\n')
@@ -136,6 +137,25 @@ class ChatSession(GreenSession, NotificationHandler):
             traceback.print_exc()
             return 'Error> '
 
+class JobPool(object):
+
+    def __init__(self):
+        self.jobs = set()
+
+    def add(self, p):
+        self.jobs.add(p)
+        p.link(lambda *_: self.jobs.discard(p))
+
+    def spawn(self, func, *args, **kwargs):
+        p = proc.spawn(func, *args, **kwargs)
+        self.add(p)
+        return p
+
+    def waitall(self, trap_errors=True):
+        while self.jobs:
+            proc.waitall(self.jobs, trap_errors=trap_errors)
+
+
 class ChatManager(NotificationHandler):
 
     def __init__(self, engine, credentials, console, logger, auto_accept_files=False, route=None, relay=None, msrp_tls=True):
@@ -149,13 +169,14 @@ class ChatManager(NotificationHandler):
         self.msrp_tls = msrp_tls
         self.sessions = []
         self.current_session = None
+        self.jobpool = JobPool()
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidFail')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionNewIncoming')
 
     def _NH_SCSessionDidEnd(self, session, data):
         try:
-            self.remove_session(session)
+            self.remove_session(session._green)
         except ValueError:
             pass
 
@@ -165,23 +186,25 @@ class ChatManager(NotificationHandler):
         proc.spawn_greenlet(self._handle_incoming, session, data)
 
     def _handle_incoming(self, session, data):
+        session._green = ChatSession(__obj=session)
         inv = session._inv
         q = 'Incoming SIP request from %s, do you accept? (y/n) ' % (inv.caller_uri, )
         if self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY':
             session.accept(chat=True, password=self.credentials.password)
-            self.add_session(session)
+            self.add_session(session._green)
         else:
             session.reject()
 
     def close(self):
         for session in self.sessions[:]:
-            proc.spawn_greenlet(session.terminate)
+            self.jobpool.spawn(session.terminate)
         self.sessions = []
         self.update_ps()
+        self.jobpool.waitall()
 
     def close_current_session(self):
         if self.current_session is not None:
-            proc.spawn_greenlet(self.current_session.terminate)
+            self.jobpool.spawn(self.current_session.terminate)
             self.remove_session(self.current_session)
 
     def update_ps(self):
@@ -203,6 +226,7 @@ class ChatManager(NotificationHandler):
             self.update_ps()
 
     def remove_session(self, session):
+        assert isinstance(session, ChatSession), repr(session)
         if session is None:
             return
         try:
@@ -265,6 +289,7 @@ def start(options, console):
                  ec_tail_length=0,
                  local_ip=options.local_ip,
                  local_udp_port=options.local_port)
+    registration = None
     try:
         update_options(options, engine)
         logstate.start_loggers(trace_sip=options.trace_sip,
@@ -273,11 +298,10 @@ def start(options, console):
         credentials = Credentials(options.uri, options.password)
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
         if options.register:
-            reg = engine.makeGreenRegistration(credentials, route=options.route, expires=10)
-            proc.spawn_greenlet(reg.register)
+            registration = GreenRegistration(credentials, route=options.route, expires=10)
+            proc.spawn_greenlet(registration.register)
         console.set_ps(str(options.uri).replace('sip:', '') + '> ')
         MessageRenderer().start()
-        SessionManager.session_class = ChatSession
         sm = SessionManager()
         sm.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
         sm.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
@@ -302,8 +326,12 @@ def start(options, console):
                     else:
                         raise
         finally:
-            manager.close()
             console_next_line(console)
+            if registration is not None:
+                registration = proc.spawn(registration.unregister)
+            manager.close()
+            if registration is not None:
+                registration.wait()
     finally:
         t = api.get_hub().schedule_call(1, sys.stdout.write, 'Disconnecting the session(s)...\n')
         try:

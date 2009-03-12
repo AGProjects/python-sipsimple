@@ -254,7 +254,6 @@ def update_options(options, engine):
         h, p = lookup_srv(proxy_host, proxy_port, proxy_is_ip, 5060)
         options.route = Route(h, p, transport='udp')
 
-
 def get_credentials():
     from gnutls.interfaces.twisted import X509Credentials
     from gnutls.crypto import X509Certificate,  X509PrivateKey
