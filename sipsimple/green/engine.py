@@ -169,6 +169,23 @@ class GreenBase(object):
         return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
 
 
+class GreenMixin(object):
+
+   def linked_notification(self, name=None, sender=None, queue=None, condition=None):
+        if name is None:
+            name = self.event_name
+        if sender is None:
+            sender = self
+        return notification.linked_notification(name=name, sender=sender, queue=queue, condition=condition)
+
+   def linked_notifications(self, names=None, sender=None, queue=None, condition=None):
+        if names is None:
+            names = self.event_names
+        if sender is None:
+            sender = self
+        return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
+
+
 class GreenRegistration(GreenBase):
     event_name = 'SCRegistrationChangedState'
 
