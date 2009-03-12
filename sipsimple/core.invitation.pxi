@@ -14,10 +14,10 @@ cdef class Invitation:
 
     def __cinit__(self, Credentials credentials=None, SIPURI callee_uri=None, Route route=None):
         cdef PJSIPUA ua = c_get_ua()
-        self.state = "NULL"
         self.c_sdp_neg_status = -1
         self.c_has_active_sdp = 0
         if all([credentials, callee_uri, route]):
+            self.state = "NULL"
             self.c_credentials = credentials
             self.c_callee_uri = callee_uri
             if self.c_credentials.uri is None:
@@ -29,6 +29,8 @@ cdef class Invitation:
             self.c_route = route.copy()
         elif any([credentials, callee_uri, route]):
             raise ValueError("All arguments need to be supplied when creating an outbound Invitation")
+        else:
+            self.state = "INVALID"
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
