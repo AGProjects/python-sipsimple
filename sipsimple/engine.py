@@ -2,7 +2,7 @@ import sys
 import traceback
 
 from datetime import datetime
-from thread import start_new_thread, allocate_lock
+from thread import start_new_thread, allocate_lock, get_ident as get_thread_ident
 
 from application.system import default_host_ip
 from application.python.util import Singleton
@@ -64,7 +64,7 @@ class Engine(object):
             self._thread_stopping = False
             self._lock.acquire()
             self._thread_started = True
-            start_new_thread(self._run, ())
+            self._thread_id = start_new_thread(self._run, ())
         except:
             self._thread_started = False
             if hasattr(self, "_thread_stopping"):
@@ -84,8 +84,9 @@ class Engine(object):
     def stop(self):
         if self._thread_started:
             self._thread_stopping = True
-            self._lock.acquire()
-            self._lock.release()
+            if get_thread_ident() != self._thread_id:
+                self._lock.acquire()
+                self._lock.release()
 
     # worker thread
     def _run(self):
