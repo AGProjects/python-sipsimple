@@ -201,7 +201,7 @@ class MSRPChat(object):
     def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
         """Send raw MSRP message. For IM prefer send_message.
 
-        Return Message-ID (str), unique string identifying the message.
+        Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
         """
         if self.msrp is None:
             raise RuntimeError("MSRP connection is not yet started")
@@ -214,7 +214,7 @@ class MSRPChat(object):
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
         callFromAnyThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
-        return message_id
+        return chunk
 
     def send_message(self, content, content_type='text/plain', to_uri=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
@@ -230,7 +230,7 @@ class MSRPChat(object):
           (Content-Type of MSRP message is always Message/CPIM in that case)
           If Message/CPIM is not supported, Content-Type of MSRP message.
 
-        Return Message-ID (str), unique string identifying the message.
+        Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
 
         These MSRP headers are used to enable end-to-end success reports and
         to disable hop-to-hop successful responses:
