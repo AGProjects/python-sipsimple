@@ -542,14 +542,15 @@ class Session(NotificationHandler):
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
             self._audio_rec = RecordingWaveFile(os.path.join(path, file_name))
             if not self.on_hold:
-                self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+                self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
                 try:
                     self._audio_rec.start()
                 except SIPCoreError:
-                    self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+                    self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
+                    self._audio_rec = None
                     raise
                 else:
-                    self.notification_center.post_notification("SCSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+                    self.notification_center.post_notification("SCSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
 
     def stop_recording_audio(self):
         with self._lock:
@@ -559,12 +560,12 @@ class Session(NotificationHandler):
 
     def _stop_recording_audio(self):
         file_name = self.audio_recording_file_name
-        self.notification_center.post_notification("SCSessionWillStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+        self.notification_center.post_notification("SCSessionWillStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
         try:
             self._audio_rec.stop()
-            self._audio_rec = None
         finally:
-            self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+            self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
+            self._audio_rec = None
 
     def _check_recording_hold(self):
         if self._audio_rec is None:
