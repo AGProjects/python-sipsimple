@@ -2,7 +2,7 @@ from __future__ import with_statement
 from contextlib import contextmanager
 from eventlet import coros
 from sipsimple.session import Session
-from sipsimple.green.engine import GreenBase
+from sipsimple.green.engine import GreenMixin
 from sipsimple.green.notification import CallFromThreadObserver
 
 class SessionError(Exception):
@@ -18,17 +18,14 @@ class CannotDeliverError(Exception):
     def __str__(self):
         return 'Failed to deliver Mesage-ID=%s: %s %s' % (self.message_id, self.code, self.reason)
 
-class GreenSession(GreenBase):
-
-    def __init__(self, *args, **kwargs):
-        self._obj = Session(*args, **kwargs) # XXX move this to GreenBase
+class GreenSession(Session, GreenMixin):
 
     def new(self, callee_uri, credentials, route, audio=False, chat=False):
         event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
         with self.linked_notifications(event_names) as q:
-            self._obj.new(callee_uri, credentials, route, audio=audio, chat=chat)
+            Session.new(self, callee_uri, credentials, route, audio=audio, chat=chat)
             while True:
                 notification = q.wait()
                 if notification.name == 'SCSessionDidStart':
@@ -52,7 +49,7 @@ class GreenSession(GreenBase):
              return
          with self.linked_notifications(['SCSessionDidFail', 'SCSessionDidEnd']) as q:
              if self.state != 'TERMINATING':
-                 self._obj.terminate()
+                 Session.terminate(self)
                  while True:
                      notification = q.wait()
                      if notification.name == 'SCSessionDidFail':
