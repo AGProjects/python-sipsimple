@@ -216,7 +216,7 @@ class MSRPChat(object):
         callFromAnyThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return chunk
 
-    def send_message(self, content, content_type='text/plain', to_uri=None):
+    def send_message(self, content, content_type='text/plain', to_uri=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
         queued until MSRPChatDidStart notification. (TODO)
@@ -242,7 +242,9 @@ class MSRPChat(object):
                 to_uri = self.to_uri
             elif not self.private_messages_allowed and to_uri != self.to_uri:
                 raise MSRPChatError('The remote end does not support private messages')
-            msg = MessageCPIM(content, content_type, from_=self.from_uri, to=to_uri, datetime=datetime.now())
+            if dt is None:
+                dt = datetime.utcnow()
+            msg = MessageCPIM(content, content_type, from_=self.from_uri, to=to_uri, datetime=dt)
             return self._send_raw_message(str(msg), 'message/cpim', failure_report='partial', success_report='yes')
         else:
             if to_uri is not None and to_uri != self.to_uri:

@@ -848,10 +848,10 @@ class Session(NotificationHandler):
             local_sdp.media[self._chat_sdp_index].port = 0
         return local_sdp
 
-    def send_message(self, content, content_type="text/plain", to_uri=None):
+    def send_message(self, content, content_type="text/plain", to_uri=None, dt=None):
         if self.chat_transport is None or not self.chat_transport.is_active:
             raise RuntimeError("This SIP session does not have an active MSRP stream to send chat message over")
-        return self.chat_transport.send_message(content, content_type, to_uri)
+        return self.chat_transport.send_message(content, content_type, to_uri, dt=dt)
 
 
 class RTPConfiguration(object):
