@@ -453,6 +453,8 @@ class Session(NotificationHandler):
                 return
             remote_sdp = self._inv.get_offered_remote_sdp()
             local_sdp = self._make_next_sdp(False)
+            if len(remote_sdp.media) > len(local_sdp.media):
+                local_sdp.media.extend((len(remote_sdp.media) - len(local_sdp.media))*[None])
             audio_sdp_index = -1
             chat_sdp_index = -1
             for sdp_index, media in enumerate(remote_sdp.media):
@@ -465,7 +467,7 @@ class Session(NotificationHandler):
                     chat_sdp_index = sdp_index
                     self.session_manager.msrp_chat_mapping[msrp_chat] = self
                     local_sdp.media.append(msrp_chat.local_media)
-                elif sdp_index >= len(local_sdp.media):
+                elif local_sdp[sdp_index] is None:
                     remote_media = remote_sdp.media[sdp_index]
                     local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
             self._inv.set_offered_local_sdp(local_sdp)
