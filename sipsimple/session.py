@@ -430,10 +430,7 @@ class Session(NotificationHandler):
 
     def _do_reject_proposal(self, code=488, reason=None):
         self._change_state("ESTABLISHED")
-        notification_data = TimestampedNotificationData(proposer="remote")
-        if reason is not None:
-            notification_data.reason = reason
-        self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, notification_data)
+        self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="remote", reason=reason))
         self._inv.respond_to_reinvite(code)
 
     def _accept_proposal_fail(self, reason):
@@ -493,7 +490,7 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state != "PROPOSED":
                 raise RuntimeError("This method can only be called while in the PROPOSED state")
-            self._do_reject_proposal()
+            self._do_reject_proposal(reason="Rejected by user")
 
     def hold(self):
         """Put an established SIP session on hold. This moves the object from the
