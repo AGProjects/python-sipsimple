@@ -6,7 +6,6 @@ SIP core
 - Registration requestion URI should be settable by application [RK]
 - Use STUN to determine the public contact address used for REGISTER [RK]
 - Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
-- Add tls_key and tls_cert attributes to Engine for TLS server mode [RK]
 - Handle incoming SUBSCRIBE requests [RK] [DB]
 - Handle incoming REGISTER requests [RK] [DB]
 - Make MESSAGE handling a class, fix timeout [RK]
