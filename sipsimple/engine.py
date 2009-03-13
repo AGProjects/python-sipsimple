@@ -20,6 +20,8 @@ class Engine(object):
                              "local_tls_port": None,
                              "tls_verify_server": False,
                              "tls_ca_file": None,
+                             "tls_cert_file": None,
+                             "tls_privkey_file": None,
                              "tls_timeout": 1000,
                              "ec_tail_length": 50,
                              "user_agent": "sip2sip-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),

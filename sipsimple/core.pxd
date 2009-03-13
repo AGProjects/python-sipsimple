@@ -598,6 +598,8 @@ cdef extern from "pjsip.h":
         int destroy(pjsip_tpfactory *factory)
     struct pjsip_tls_setting:
         pj_str_t ca_list_file
+        pj_str_t cert_file
+        pj_str_t privkey_file
         int verify_server
         pj_time_val timeout
     int pjsip_transport_shutdown(pjsip_transport *tp)

@@ -60,7 +60,7 @@ cdef class PJSIPUA:
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
-        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_verify_server"], kwargs["tls_ca_file"], kwargs["tls_timeout"])
+        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_verify_server"], kwargs["tls_ca_file"], kwargs["tls_cert_file"], kwargs["tls_privkey_file"], kwargs["tls_timeout"])
         status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
@@ -339,13 +339,25 @@ cdef class PJSIPUA:
             self.c_check_self()
             return self.c_pjsip_endpoint.c_tls_ca_file and self.c_pjsip_endpoint.c_tls_ca_file.str or None
 
+    property tls_cert_file:
+
+        def __get__(self):
+            self.c_check_self()
+            return self.c_pjsip_endpoint.c_tls_cert_file and self.c_pjsip_endpoint.c_tls_cert_file.str or None
+
+    property tls_privkey_file:
+
+        def __get__(self):
+            self.c_check_self()
+            return self.c_pjsip_endpoint.c_tls_privkey_file and self.c_pjsip_endpoint.c_tls_privkey_file.str or None
+
     property tls_timeout:
 
         def __get__(self):
             self.c_check_self()
             return self.c_pjsip_endpoint.c_tls_timeout
 
-    def set_tls_options(self, local_port=None, verify_server=False, ca_file=None, int timeout=1000):
+    def set_tls_options(self, local_port=None, verify_server=False, ca_file=None, cert_file=None, privkey_file=None, int timeout=1000):
         cdef int port
         self.c_check_self()
         if local_port is None:
@@ -358,6 +370,10 @@ cdef class PJSIPUA:
                 raise ValueError("Not a valid TCP port: %d" % local_port)
             if ca_file is not None and not os.path.isfile(ca_file):
                 raise ValueError("Cannot find the specified CA file: %s" % ca_file)
+            if cert_file is not None and not os.path.isfile(cert_file):
+                raise ValueError("Cannot find the specified certificate file: %s" % cert_file)
+            if privkey_file is not None and not os.path.isfile(privkey_file):
+                raise ValueError("Cannot find the specified private key file: %s" % privkey_file)
             if timeout < 0:
                 raise ValueError("Invalid TLS timeout value: %d" % timeout)
             if self.c_pjsip_endpoint.c_tls_transport != NULL:
@@ -367,6 +383,14 @@ cdef class PJSIPUA:
                 self.c_pjsip_endpoint.c_tls_ca_file = None
             else:
                 self.c_pjsip_endpoint.c_tls_ca_file = PJSTR(ca_file)
+            if cert_file is None:
+                self.c_pjsip_endpoint.c_tls_cert_file = None
+            else:
+                self.c_pjsip_endpoint.c_tls_cert_file = PJSTR(cert_file)
+            if privkey_file is None:
+                self.c_pjsip_endpoint.c_tls_privkey_file = None
+            else:
+                self.c_pjsip_endpoint.c_tls_privkey_file = PJSTR(privkey_file)
             self.c_pjsip_endpoint.c_tls_timeout = timeout
             self.c_pjsip_endpoint._start_tls_transport(port)
 

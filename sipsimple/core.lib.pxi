@@ -38,10 +38,12 @@ cdef class PJSIPEndpoint:
     cdef pjsip_tpfactory *c_tls_transport
     cdef int c_tls_verify_server
     cdef PJSTR c_tls_ca_file
+    cdef PJSTR c_tls_cert_file
+    cdef PJSTR c_tls_privkey_file
     cdef object c_local_ip_used
     cdef int c_tls_timeout
 
-    def __cinit__(self, PJCachingPool caching_pool, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file, int tls_timeout):
+    def __cinit__(self, PJCachingPool caching_pool, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file, tls_cert_file, tls_privkey_file, int tls_timeout):
         global _inv_cb
         cdef pj_dns_resolver *resolver
         cdef int status
@@ -85,6 +87,10 @@ cdef class PJSIPEndpoint:
         self.c_tls_verify_server = int(tls_verify_server)
         if tls_ca_file is not None:
             self.c_tls_ca_file = PJSTR(tls_ca_file)
+        if tls_cert_file is not None:
+            self.c_tls_ca_file = PJSTR(tls_cert_file)
+        if tls_privkey_file is not None:
+            self.c_tls_ca_file = PJSTR(tls_privkey_file)
         if tls_timeout < 0:
             raise ValueError("Invalid TLS timeout value: %d" % tls_timeout)
         self.c_tls_timeout = tls_timeout
@@ -140,6 +146,10 @@ cdef class PJSIPEndpoint:
         tls_setting.timeout.msec = self.c_tls_timeout % 1000
         if self.c_tls_ca_file is not None:
             tls_setting.ca_list_file = self.c_tls_ca_file.pj_str
+        if self.c_tls_cert_file is not None:
+            tls_setting.cert_file = self.c_tls_cert_file.pj_str
+        if self.c_tls_privkey_file is not None:
+            tls_setting.privkey_file = self.c_tls_privkey_file.pj_str
         tls_setting.verify_server = self.c_tls_verify_server
         status = pjsip_tls_transport_start(self.c_obj, &tls_setting, &local_addr, NULL, 1, &self.c_tls_transport)
         if status != 0:
