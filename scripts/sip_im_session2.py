@@ -335,7 +335,7 @@ def start(options, console):
     finally:
         t = api.get_hub().schedule_call(1, sys.stdout.write, 'Disconnecting the session(s)...\n')
         try:
-            proc.waitall([proc.spawn(session.terminate()) for session in SessionManager().sessions])
+            proc.waitall([proc.spawn(session.terminate) for session in SessionManager().sessions])
         finally:
             t.cancel()
         engine.stop()
