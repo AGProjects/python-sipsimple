@@ -193,7 +193,7 @@ class ChatManager(NotificationHandler):
             session.accept(chat=True, password=self.credentials.password)
             self.add_session(session._green)
         else:
-            session.reject()
+            session.terminate()
 
     def close(self):
         for session in self.sessions[:]:
