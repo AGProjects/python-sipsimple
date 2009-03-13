@@ -44,6 +44,7 @@ Middleware
 Audio
 -----
 
+- Switch back to trunk and use new PJSIP sound device API [RK]
 - Add dummy sounds device [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK] [DB]
 - Add method to core for playing arbitrary tones on the conference bridge [RK]
