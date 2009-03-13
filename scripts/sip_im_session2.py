@@ -188,9 +188,15 @@ class ChatManager(NotificationHandler):
     def _handle_incoming(self, session, data):
         session._green = ChatSession(__obj=session)
         inv = session._inv
-        q = 'Incoming SIP request from %s, do you accept? (y/n) ' % (inv.caller_uri, )
+        txt = []
+        if data.has_chat:
+            txt.append('Chat')
+        if data.has_audio:
+            txt.append('Audio')
+        txt = '/'.join(txt)
+        q = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
         if self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY':
-            session.accept(chat=True, password=self.credentials.password)
+            session.accept(chat=data.has_chat, audio=data.has_audio, password=self.credentials.password)
             self.add_session(session._green)
         else:
             session.terminate()
