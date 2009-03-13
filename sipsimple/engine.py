@@ -37,6 +37,13 @@ class Engine(object):
         self.notification_center = NotificationCenter()
         self._thread_started = False
 
+    @property
+    def is_running(self):
+        return hasattr(self, "_ua") \
+                and hasattr(self, "_thread_started") \
+                and self._thread_started \
+                and not self._thread_stopping
+
     def __getattr__(self, attr):
         if hasattr(self, "_ua"):
             if hasattr(self._ua, attr) and attr != "poll":
