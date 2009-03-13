@@ -14,7 +14,7 @@ cdef class Registration:
     cdef PJSTR c_contact_uri
     cdef dict c_extra_headers
 
-    def __cinit__(self, Credentials credentials, route, expires=300, extra_headers={}):
+    def __cinit__(self, Credentials credentials, route, expires=300, extra_headers=None):
         cdef int status
         cdef object transport
         cdef PJSTR request_uri, fromto_uri
@@ -45,7 +45,10 @@ cdef class Registration:
         status = pjsip_regc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
         if status != 0:
             raise PJSIPError("Could not set route set on registration", status)
-        self.c_extra_headers = extra_headers.copy()
+        if extra_headers is None:
+            self.c_extra_headers = {}
+        else:
+            self.c_extra_headers = extra_headers.copy()
 
     def __dealloc__(self):
         cdef PJSIPUA ua

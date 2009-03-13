@@ -17,7 +17,7 @@ cdef class Publication:
     cdef pj_timer_entry c_timer
     cdef dict c_extra_headers
 
-    def __cinit__(self, Credentials credentials, event, route, expires=300, extra_headers={}):
+    def __cinit__(self, Credentials credentials, event, route, expires=300, extra_headers=None):
         cdef int status
         cdef PJSTR request_uri, fromto_uri
         cdef pj_str_t c_event
@@ -50,7 +50,10 @@ cdef class Publication:
         status = pjsip_publishc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
         if status != 0:
             raise PJSIPError("Could not set route set on publication", status)
-        self.c_extra_headers = extra_headers.copy()
+        if extra_headers is None:
+            self.c_extra_headers = {}
+        else:
+            self.c_extra_headers = extra_headers.copy()
 
     def __dealloc__(self):
         cdef PJSIPUA ua

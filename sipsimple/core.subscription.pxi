@@ -11,7 +11,7 @@ cdef class Subscription:
     cdef readonly object state
     cdef dict c_extra_headers
 
-    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route, expires=300, extra_headers={}):
+    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route, expires=300, extra_headers=None):
         cdef int status
         cdef EventPackage pkg
         cdef PJSIPUA ua = c_get_ua()
@@ -30,7 +30,10 @@ cdef class Subscription:
         if event not in ua.events:
             raise SIPCoreError('Event "%s" is unknown' % event)
         self.state = "TERMINATED"
-        self.c_extra_headers = extra_headers.copy()
+        if extra_headers is None:
+            self.c_extra_headers = {}
+        else:
+            self.c_extra_headers = extra_headers.copy()
 
     def __dealloc__(self):
         cdef PJSIPUA ua

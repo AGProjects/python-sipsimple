@@ -119,15 +119,21 @@ cdef class SIPURI:
     cdef public dict parameters
     cdef public dict headers
 
-    def __init__(self, host, user=None, password=None, port=None, display=None, secure=False, parameters={}, headers={}):
+    def __init__(self, host, user=None, password=None, port=None, display=None, secure=False, parameters=None, headers=None):
         self.host = host
         self.user = user
         self.password = password
         self.port = port or 0
         self.display = display
         self.secure = secure
-        self.parameters = parameters
-        self.headers = headers
+        if parameters is None:
+            self.parameters = {}
+        else:
+            self.parameters = parameters
+        if headers is None:
+            self.headers = {}
+        else:
+            self.headers = headers
 
     def __repr__(self):
         return '<SIPURI "%s">' % str(self)

@@ -12,7 +12,7 @@ cdef class SDPSession:
     cdef public list attributes
     cdef public list media
 
-    def __cinit__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ", info=None, SDPConnection connection=None, start_time=0, stop_time=0, attributes=[], media=[]):
+    def __cinit__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ", info=None, SDPConnection connection=None, start_time=0, stop_time=0, attributes=None, media=None):
         cdef unsigned int c_version_id = 2208988800UL
         cdef pj_time_val c_tv
         self.user = user
@@ -34,8 +34,14 @@ cdef class SDPSession:
         self.connection = connection
         self.c_obj.time.start = start_time
         self.c_obj.time.stop = stop_time
-        self.attributes = attributes
-        self.media = media
+        if attributes is None:
+            self.attributes = []
+        else:
+            self.attributes = attributes
+        if media is None:
+            self.media = []
+        else:
+            self.media = media
 
     cdef int _to_c(self) except -1:
         cdef int index
@@ -136,16 +142,22 @@ cdef class SDPMedia:
     cdef public SDPConnection connection
     cdef public list attributes
 
-    def __cinit__(self, media, port, transport, port_count=1, formats=[], info=None, SDPConnection connection=None, attributes=[]):
+    def __cinit__(self, media, port, transport, port_count=1, formats=None, info=None, SDPConnection connection=None, attributes=None):
         cdef SDPAttribute c_attr
         self.media = media
         self.c_obj.desc.port = port
         self.c_obj.desc.port_count = port_count
         self.transport = transport
-        self.formats = formats
+        if formats is None:
+            self.formats = []
+        else:
+            self.formats = formats
         self.info = info
         self.connection = connection
-        self.attributes = attributes
+        if attributes is None:
+            self.attributes = []
+        else:
+            self.attributes = attributes
 
     property port:
 
