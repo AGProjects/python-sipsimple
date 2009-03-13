@@ -220,7 +220,6 @@ cdef class PJSIPUA:
 
     def set_local_udp_port(self, value):
         cdef int port
-        cdef int old_port = -1
         self.c_check_self()
         if value is None:
             if self.c_pjsip_endpoint.c_udp_transport == NULL:
@@ -228,17 +227,13 @@ cdef class PJSIPUA:
             self.c_pjsip_endpoint._stop_udp_transport()
         else:
             port = value
+            if port < 0 or port > 65535:
+                raise ValueError("Not a valid UDP port: %d" % value)
             if self.c_pjsip_endpoint.c_udp_transport != NULL:
-                old_port = self.c_pjsip_endpoint.c_udp_transport.local_name.port
-                if old_port == value:
+                if port == self.c_pjsip_endpoint.c_udp_transport.local_name.port:
                     return
                 self.c_pjsip_endpoint._stop_udp_transport()
-            try:
-                self.c_pjsip_endpoint._start_udp_transport(port)
-            except SIPCoreError:
-                if old_port == -1:
-                    raise
-                self.c_pjsip_endpoint._start_udp_transport(old_port)
+            self.c_pjsip_endpoint._start_udp_transport(port)
 
     property local_tcp_port:
 
@@ -250,7 +245,6 @@ cdef class PJSIPUA:
 
     def set_local_tcp_port(self, value):
         cdef int port
-        cdef int old_port = -1
         self.c_check_self()
         if value is None:
             if self.c_pjsip_endpoint.c_tcp_transport == NULL:
@@ -258,17 +252,13 @@ cdef class PJSIPUA:
             self.c_pjsip_endpoint._stop_tcp_transport()
         else:
             port = value
+            if port < 0 or port > 65535:
+                raise ValueError("Not a valid TCP port: %d" % value)
             if self.c_pjsip_endpoint.c_tcp_transport != NULL:
-                old_port = self.c_pjsip_endpoint.c_tcp_transport.addr_name.port
-                if old_port == value:
+                if port == self.c_pjsip_endpoint.c_tcp_transport.addr_name.port:
                     return
                 self.c_pjsip_endpoint._stop_tcp_transport()
-            try:
-                self.c_pjsip_endpoint._start_tcp_transport(port)
-            except SIPCoreError:
-                if old_port == -1:
-                    raise
-                self.c_pjsip_endpoint._start_tcp_transport(old_port)
+            self.c_pjsip_endpoint._start_tcp_transport(port)
 
     property local_tls_port:
 
@@ -280,7 +270,6 @@ cdef class PJSIPUA:
 
     def set_local_tls_port(self, value):
         cdef int port
-        cdef int old_port = -1
         self.c_check_self()
         if value is None:
             if self.c_pjsip_endpoint.c_tls_transport == NULL:
@@ -288,17 +277,13 @@ cdef class PJSIPUA:
             self.c_pjsip_endpoint._stop_tls_transport()
         else:
             port = value
+            if port < 0 or port > 65535:
+                raise ValueError("Not a valid TCP port: %d" % value)
             if self.c_pjsip_endpoint.c_tls_transport != NULL:
-                old_port = self.c_pjsip_endpoint.c_tls_transport.addr_name.port
-                if old_port == value:
+                if port == self.c_pjsip_endpoint.c_tls_transport.addr_name.port:
                     return
                 self.c_pjsip_endpoint._stop_tls_transport()
-            try:
-                self.c_pjsip_endpoint._start_tls_transport(port)
-            except SIPCoreError:
-                if old_port == -1:
-                    raise
-                self.c_pjsip_endpoint._start_tls_transport(old_port)
+            self.c_pjsip_endpoint._start_tls_transport(port)
 
     property rtp_port_range:
 
