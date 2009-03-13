@@ -357,7 +357,7 @@ class Session(NotificationHandler):
     def reject(self):
         """Rejects an incoming SIP session. Moves the object from the INCOMING to
            the TERMINATING state."""
-        if self.state != "INCOMING":
+        if self.state != ["INCOMING", "TERMINATED"]:
             raise RuntimeError("This method can only be called while in the INCOMING state")
         self.terminate()
 
