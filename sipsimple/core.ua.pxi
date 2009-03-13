@@ -60,7 +60,7 @@ cdef class PJSIPUA:
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
-        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_verify_server"], kwargs["tls_ca_file"], kwargs["tls_cert_file"], kwargs["tls_privkey_file"], kwargs["tls_timeout"])
+        self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_protocol"], kwargs["tls_verify_server"], kwargs["tls_ca_file"], kwargs["tls_cert_file"], kwargs["tls_privkey_file"], kwargs["tls_timeout"])
         status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
@@ -327,6 +327,12 @@ cdef class PJSIPUA:
                 raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
             pj_log_set_level(value)
 
+    property tls_protocol:
+
+        def __get__(self):
+            self.c_check_self()
+            return self.c_pjsip_endpoint.c_tls_protocol
+
     property tls_verify_server:
 
         def __get__(self):
@@ -357,7 +363,8 @@ cdef class PJSIPUA:
             self.c_check_self()
             return self.c_pjsip_endpoint.c_tls_timeout
 
-    def set_tls_options(self, local_port=None, verify_server=False, ca_file=None, cert_file=None, privkey_file=None, int timeout=1000):
+    def set_tls_options(self, local_port=None, protocol="TLSv1", verify_server=False, ca_file=None, cert_file=None, privkey_file=None, int timeout=1000):
+        global _tls_protocol_mapping
         cdef int port
         self.c_check_self()
         if local_port is None:
@@ -368,6 +375,8 @@ cdef class PJSIPUA:
             port = local_port
             if port < 0 or port > 65535:
                 raise ValueError("Not a valid TCP port: %d" % local_port)
+            if protocol not in _tls_protocol_mapping:
+                raise ValueError("Unknown TLS protocol: %s" % protocol)
             if ca_file is not None and not os.path.isfile(ca_file):
                 raise ValueError("Cannot find the specified CA file: %s" % ca_file)
             if cert_file is not None and not os.path.isfile(cert_file):
@@ -378,6 +387,7 @@ cdef class PJSIPUA:
                 raise ValueError("Invalid TLS timeout value: %d" % timeout)
             if self.c_pjsip_endpoint.c_tls_transport != NULL:
                 self.c_pjsip_endpoint._stop_tls_transport()
+            self.c_pjsip_endpoint.c_tls_protocol = protocol
             self.c_pjsip_endpoint.c_tls_verify_server = int(bool(verify_server))
             if ca_file is None:
                 self.c_pjsip_endpoint.c_tls_ca_file = None

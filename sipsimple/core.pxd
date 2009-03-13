@@ -590,6 +590,12 @@ cdef extern from "pjsip.h":
     int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv)
 
     # transports
+    enum pjsip_ssl_method:
+        PJSIP_SSL_UNSPECIFIED_METHOD
+        PJSIP_TLSV1_METHOD
+        PJSIP_SSLV2_METHOD
+        PJSIP_SSLV3_METHOD
+        PJSIP_SSLV23_METHOD
     struct pjsip_transport:
         char *type_name
         pjsip_host_port local_name
@@ -600,6 +606,7 @@ cdef extern from "pjsip.h":
         pj_str_t ca_list_file
         pj_str_t cert_file
         pj_str_t privkey_file
+        int method
         int verify_server
         pj_time_val timeout
     int pjsip_transport_shutdown(pjsip_transport *tp)

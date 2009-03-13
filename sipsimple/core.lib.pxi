@@ -42,9 +42,10 @@ cdef class PJSIPEndpoint:
     cdef PJSTR c_tls_privkey_file
     cdef object c_local_ip_used
     cdef int c_tls_timeout
+    cdef object c_tls_protocol
 
-    def __cinit__(self, PJCachingPool caching_pool, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_verify_server, tls_ca_file, tls_cert_file, tls_privkey_file, int tls_timeout):
-        global _inv_cb
+    def __cinit__(self, PJCachingPool caching_pool, local_ip, local_udp_port, local_tcp_port, local_tls_port, tls_protocol, tls_verify_server, tls_ca_file, tls_cert_file, tls_privkey_file, int tls_timeout):
+        global _inv_cb, _tls_protocol_mapping
         cdef pj_dns_resolver *resolver
         cdef int status
         if local_ip is not None and not c_is_valid_ip(pj_AF_INET(), local_ip):
@@ -84,6 +85,8 @@ cdef class PJSIPEndpoint:
             self._start_udp_transport(local_udp_port)
         if local_tcp_port is not None:
             self._start_tcp_transport(local_tcp_port)
+        if tls_protocol not in _tls_protocol_mapping:
+            raise ValueError("Unknown TLS protocol: %s" % tls_protocol)
         self.c_tls_verify_server = int(tls_verify_server)
         if tls_ca_file is not None:
             self.c_tls_ca_file = PJSTR(tls_ca_file)
@@ -138,6 +141,7 @@ cdef class PJSIPEndpoint:
         return 0
 
     cdef int _start_tls_transport(self, local_port) except -1:
+        global _tls_protocol_mapping
         cdef pj_sockaddr_in local_addr
         cdef pjsip_tls_setting tls_setting
         self._make_local_addr(&local_addr, self.c_local_ip_used, local_port)
@@ -150,6 +154,7 @@ cdef class PJSIPEndpoint:
             tls_setting.cert_file = self.c_tls_cert_file.pj_str
         if self.c_tls_privkey_file is not None:
             tls_setting.privkey_file = self.c_tls_privkey_file.pj_str
+        tls_setting.method = _tls_protocol_mapping[self.c_tls_protocol]
         tls_setting.verify_server = self.c_tls_verify_server
         status = pjsip_tls_transport_start(self.c_obj, &tls_setting, &local_addr, NULL, 1, &self.c_tls_transport)
         if status != 0:
@@ -224,3 +229,11 @@ cdef class PJMEDIAEndpoint:
 
     def codec_speex_deinit(self):
         pjmedia_codec_speex_deinit()
+
+# globals
+
+cdef dict _tls_protocol_mapping = {None: PJSIP_SSL_UNSPECIFIED_METHOD,
+                                   "TLSv1": PJSIP_TLSV1_METHOD,
+                                   "SSLv2": PJSIP_SSLV2_METHOD,
+                                   "SSlv3": PJSIP_SSLV3_METHOD,
+                                   "SSlv23": PJSIP_SSLV23_METHOD}

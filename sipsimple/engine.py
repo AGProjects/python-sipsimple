@@ -18,6 +18,7 @@ class Engine(object):
                              "local_udp_port": 0,
                              "local_tcp_port": None,
                              "local_tls_port": None,
+                             "tls_protocol": "TLSv1",
                              "tls_verify_server": False,
                              "tls_ca_file": None,
                              "tls_cert_file": None,
