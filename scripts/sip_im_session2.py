@@ -109,7 +109,7 @@ class ChatSession(GreenSession, NotificationHandler):
         GreenSession.__init__(self, *args, **kwargs)
         self._obj._green = self
         self.history_file = None
-        NotificationCenter().add_observer(self, 'SCSessionDidStart')
+        NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
 
     def _NH_SCSessionDidStart(self, session, _data):
         self.history_file = get_history_file(self._inv)
