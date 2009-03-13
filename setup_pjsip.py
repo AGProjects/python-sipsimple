@@ -53,8 +53,7 @@ class PJSIP_build_ext(build_ext):
     config_site = ["#define PJ_SCANNER_USE_BITWISE 0",
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 65536",
-                   "#define PJSIP_UNESCAPE_IN_PLACE 1",
-                   "#define PJMEDIA_HAS_L16_CODEC 0"]
+                   "#define PJSIP_UNESCAPE_IN_PLACE 1"]
     patch_files = ["patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2425-sdp_media_line.patch",
                    "patches/pjsip-2451-osx_unified_binary_endianness_fix.patch",
@@ -73,7 +72,7 @@ class PJSIP_build_ext(build_ext):
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.pjsip_clean_compile = 0
-        self.pjsip_svn_repo = os.environ.get("PJSIP_SVN_REPO", "http://svn.pjsip.org/repos/pjproject/trunk")
+        self.pjsip_svn_repo = os.environ.get("PJSIP_SVN_REPO", "http://svn.pjsip.org/repos/pjproject/branches/1.0")
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
 
     def check_cython_version(self):
