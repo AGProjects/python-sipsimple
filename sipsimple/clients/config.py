@@ -222,6 +222,8 @@ def parse_options(usage, description, extra_options=()):
 
 def update_options(options, engine):
     options.uri = engine.parse_sip_uri(format_cmdline_uri(options.sip_address, None))
+    if options.display_name:
+        options.uri.display = options.display_name
     options.relay = None
     options.route = None
     options.target_uri = None

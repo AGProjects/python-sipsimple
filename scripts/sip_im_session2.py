@@ -300,7 +300,6 @@ def start(options, console):
         if options.register:
             registration = GreenRegistration(credentials, route=options.route, expires=10)
             proc.spawn_greenlet(registration.register)
-        console.set_ps(str(options.uri).replace('sip:', '') + '> ')
         MessageRenderer().start()
         sm = SessionManager()
         sm.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
@@ -310,6 +309,7 @@ def start(options, console):
                               route=options.route,
                               relay=options.relay,
                               msrp_tls=options.msrp_tls)
+        manager.update_ps()
         try:
             print "Press Ctrl-d to quit or Control-n to switch between active sessions"
             if not options.args:
