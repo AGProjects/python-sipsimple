@@ -1,6 +1,7 @@
 import random
 import sys
 import traceback
+import os
 
 # main class
 
@@ -268,23 +269,6 @@ cdef class PJSIPUA:
                 return None
             return self.c_pjsip_endpoint.c_tls_transport.addr_name.port
 
-    def set_local_tls_port(self, value):
-        cdef int port
-        self.c_check_self()
-        if value is None:
-            if self.c_pjsip_endpoint.c_tls_transport == NULL:
-                return
-            self.c_pjsip_endpoint._stop_tls_transport()
-        else:
-            port = value
-            if port < 0 or port > 65535:
-                raise ValueError("Not a valid TCP port: %d" % value)
-            if self.c_pjsip_endpoint.c_tls_transport != NULL:
-                if port == self.c_pjsip_endpoint.c_tls_transport.addr_name.port:
-                    return
-                self.c_pjsip_endpoint._stop_tls_transport()
-            self.c_pjsip_endpoint._start_tls_transport(port)
-
     property rtp_port_range:
 
         def __get__(self):
@@ -349,42 +333,33 @@ cdef class PJSIPUA:
             self.c_check_self()
             return bool(self.c_pjsip_endpoint.c_tls_verify_server)
 
-    def set_tls_verify_server(self, value):
-        cdef int local_tls_port
-        cdef int tls_verify_server = int(value)
-        self.c_check_self()
-        if bool(tls_verify_server) == bool(self.c_pjsip_endpoint.c_tls_verify_server):
-            return
-        self.c_pjsip_endpoint.c_tls_verify_server = tls_verify_server
-        if self.c_pjsip_endpoint.c_tls_transport != NULL:
-            local_tls_port = self.c_pjsip_endpoint.c_tls_transport.addr_name.port
-            self.c_pjsip_endpoint._stop_tls_transport()
-            self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
-
     property tls_ca_file:
 
         def __get__(self):
             self.c_check_self()
             return self.c_pjsip_endpoint.c_tls_ca_file and self.c_pjsip_endpoint.c_tls_ca_file.str or None
 
-    def set_tls_ca_file(self, value):
-        cdef int local_tls_port
-        cdef PJSTR old_tls_ca_file = self.c_pjsip_endpoint.c_tls_ca_file
+    def set_tls_options(self, local_port=None, verify_server=False, ca_file=None):
+        cdef int port
         self.c_check_self()
-        if (value is None and old_tls_ca_file is None) or (old_tls_ca_file is not None and old_tls_ca_file.str == value):
-            return
-        if value is None:
-            self.c_pjsip_endpoint.c_tls_ca_file = None
-        else:
-            self.c_pjsip_endpoint.c_tls_ca_file = PJSTR(value)
-        if self.c_pjsip_endpoint.c_tls_transport != NULL:
-            local_tls_port = self.c_pjsip_endpoint.c_tls_transport.addr_name.port
+        if local_port is None:
+            if self.c_pjsip_endpoint.c_tls_transport == NULL:
+                return
             self.c_pjsip_endpoint._stop_tls_transport()
-            try:
-                self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
-            except SIPCoreError:
-                self.c_pjsip_endpoint.c_tls_ca_file = old_tls_ca_file
-                self.c_pjsip_endpoint._start_tls_transport(local_tls_port)
+        else:
+            port = local_port
+            if port < 0 or port > 65535:
+                raise ValueError("Not a valid TCP port: %d" % local_port)
+            if ca_file is not None and not os.path.isfile(ca_file):
+                raise ValueError("Cannot find the specified CA file: %s" % ca_file)
+            if self.c_pjsip_endpoint.c_tls_transport != NULL:
+                self.c_pjsip_endpoint._stop_tls_transport()
+            self.c_pjsip_endpoint.c_tls_verify_server = int(bool(verify_server))
+            if ca_file is None:
+                self.c_pjsip_endpoint.c_tls_ca_file = None
+            else:
+                self.c_pjsip_endpoint.c_tls_ca_file = PJSTR(ca_file)
+            self.c_pjsip_endpoint._start_tls_transport(port)
 
     property sample_rate:
 
