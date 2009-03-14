@@ -238,6 +238,8 @@ if __name__ == '__main__':
         if unknown_accounts:
             print 'Inexistent account%s: %s.' % ('s' if len(unknown_accounts) > 1 else '', ', '.join(unknown_accounts))
             sys.exit(1)
+
+    print 'This script migrates settings from %s configuration file in SIP SIMPLE 0.4 format to %s in SIP SIMPLE 0.5 and later format.' % (options.input_file, options.output_file)
     
     # ask the user if he wants to proceed with the migration
     migrate = []
