@@ -183,7 +183,7 @@ class AccountConfigurator(object):
                     print '%s: %s' % (attrname, str(e))
         
         account.save()
-        print 'Account configured'
+        print 'Account updated'
 
 
 class SIPSimpleConfigurator(object):
@@ -225,7 +225,7 @@ class SIPSimpleConfigurator(object):
                     print '%s: %s' % (attrname, str(e))
         
         sipsimple_settings.save()
-        print 'SIP SIMPLE configured'
+        print 'SIP SIMPLE general settings updated'
 
 
 if __name__ == '__main__':
