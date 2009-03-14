@@ -9,6 +9,7 @@ __all__ = ['SIPSimpleSettings']
 
 class AudioSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
+    auto_accept = Setting(type=bool, default=False)
     input_device = Setting(type=str, default=None, nillable=True)
     output_device = Setting(type=str, default=None, nillable=True)
     echo_delay = Setting(type=NonNegativeInteger, default=200)
