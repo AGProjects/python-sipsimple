@@ -29,8 +29,6 @@ Middleware
 - Desktop sharing high level class [DB]
 - Improve DNS lookups and fallback on 408 timeout after 5 seconds [RK]
 - Conference audio sessions [RK] [DB]
-- Account manager [LS]
-- Configuration manager [LS]
 - Buddylist high-level class [RK] [LS]
 - Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
 - Auto PUBLISH event=presence with device status when enter/exit audio session [RK] [LS]
