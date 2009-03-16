@@ -233,22 +233,20 @@ def update_options(options, engine):
 
     if options.use_bonjour:
         options.uri.port = engine.local_udp_port
-
-    if options.msrp_relay == 'srv':
-        options.relay = MSRPRelaySettings(domain=options.uri.host,
-                                          username=options.uri.user, password=options.password)
-    elif options.msrp_relay == 'none':
-        options.relay = None
-    elif not options.use_bonjour:
-        host, port, is_ip = options.msrp_relay
-        if is_ip or port is not None:
-            options.relay = MSRPRelaySettings(domain=options.uri.host, host=host, port=port,
-                                              username=options.uri.user, password=options.password)
-        else:
+    else:
+        if options.msrp_relay == 'srv':
             options.relay = MSRPRelaySettings(domain=options.uri.host,
                                               username=options.uri.user, password=options.password)
-
-    if not options.use_bonjour:
+        elif options.msrp_relay == 'none':
+            options.relay = None
+        elif not options.use_bonjour:
+            host, port, is_ip = options.msrp_relay
+            if is_ip or port is not None:
+                options.relay = MSRPRelaySettings(domain=options.uri.host, host=host, port=port,
+                                                  username=options.uri.user, password=options.password)
+            else:
+                options.relay = MSRPRelaySettings(domain=options.uri.host,
+                                                  username=options.uri.user, password=options.password)
         if options.outbound_proxy is None:
             proxy_host, proxy_port, proxy_is_ip = options.uri.host, None, False
         else:
