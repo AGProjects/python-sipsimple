@@ -15,8 +15,8 @@ from sipsimple import Credentials, SIPURI, SIPCoreError, Route
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.engine import GreenEngine, GreenRegistration
 from sipsimple.green.session import make_SDPMedia
-from sipsimple.green.session2 import GreenSession
-from sipsimple.session import SessionManager, NotificationHandler
+from sipsimple.green.session2 import GreenSession, SessionError
+from sipsimple.session import SessionManager, NotificationHandler, MSRPConfiguration
 from sipsimple.clients.config import parse_options, update_options, get_history_file
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import enrollment, format_cmdline_uri
@@ -307,9 +307,14 @@ def start(options, console):
             registration = GreenRegistration(credentials, route=options.route, expires=10)
             proc.spawn_greenlet(registration.register)
         MessageRenderer().start()
-        sm = SessionManager()
-        sm.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
-        sm.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
+        session_manager = SessionManager()
+        session_manager.msrp_config = MSRPConfiguration(use_relay_outgoing=False,
+                                                        use_relay_incoming=options.relay is not None,
+                                                        relay_host=options.relay.host,
+                                                        relay_port=options.relay.port,
+                                                        relay_use_tls=options.relay.use_tls)
+        session_manager.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
+        session_manager.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
         manager = ChatManager(engine, credentials, console, logger,
                               options.auto_accept_files,
                               route=options.route,
