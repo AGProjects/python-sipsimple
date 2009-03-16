@@ -173,7 +173,6 @@ class SIPProxy(object):
         self.transport = transport
         if self.transport not in ('udp', 'tcp', 'tls'):
             raise ValueError("invalid transport: %s" % transport)
-        #SIPURI.__init__(self, host=host, port=port, parameters={'transport': transport})
 
 
 class SRTPEncryption(str):
