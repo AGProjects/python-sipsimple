@@ -92,7 +92,7 @@ class Account(SettingsObject):
 
     id = Setting(type=str, default=None)
     enabled = Setting(type=bool, default=False)
-    password = Setting(type=str, default=None)
+    password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)
     
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
