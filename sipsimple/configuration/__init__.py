@@ -146,6 +146,10 @@ class Setting(object):
         return self.objects.get(id(obj), self.default)
 
     def __set__(self, obj, value):
+        # check whether the old value is the same as the new value
+        if (value is DefaultValue and id(obj) not in self.objects) or (self.objects.get(id(obj), self.default) == value):
+            return
+
         if value is None:
             if self.nillable:
                 self.objects[id(obj)] = None
