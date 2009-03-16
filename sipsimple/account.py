@@ -110,8 +110,7 @@ class Account(SettingsObject):
     ringtone = RingtoneSettings
 
     def __init__(self, id):
-        if self.id is None:
-            self.id = id
+        self.id = id
 
         manager = AccountManager()
         manager._internal_add_account(self)
