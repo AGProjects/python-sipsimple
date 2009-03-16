@@ -41,9 +41,10 @@ class GreenSession(GreenBase):
         # XXX I would expect Session instance not to fire SCSessionDidStart until all the transports started
         # XXX otherwise I have to go into session and manually wait for different types of events
         # XXX the same goes for terminating - wait for MSRPChatDidEnd before firing SCSessionDidEnd
-        with self.linked_notification('MSRPChatDidStart', sender=self.chat_transport) as q:
-            if not self.chat_transport.is_started:
-                q.wait()
+        if self.chat_transport is not None:
+            with self.linked_notification('MSRPChatDidStart', sender=self.chat_transport) as q:
+                if not self.chat_transport.is_started:
+                    q.wait()
 
     def accept(self, audio=False, chat=False, password=None):
         event_names = ['SCSessionDidStart',
