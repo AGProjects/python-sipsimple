@@ -36,11 +36,14 @@ class ConfigurationManager(object):
         The other methods of the object cannot be used unless this method was
         called.
         """
+        from sipsimple.configuration.backend import IBackend
         if self.backend is not None:
             raise RuntimeError("ConfigurationManager already started")
         if backend is None:
             from sipsimple.configuration.backend.configfile import ConfigFileBackend
             backend = ConfigFileBackend()
+        elif not IBackend.providedBy(backend):
+            raise TypeError("backend must implement the IBackend interface")
         self.backend = backend
 
     def set(self, section, name, object):
