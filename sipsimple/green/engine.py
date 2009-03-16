@@ -61,16 +61,50 @@ class SDPNegotiationError(Error):
     pass
 
 
-class GreenEngine(Engine):
+class GreenBase(object):
+
+    klass = None
+
+    def __init__(self, *args, **kwargs):
+        obj = kwargs.pop('__obj', None)
+        if obj is None:
+            obj = self.klass(*args, **kwargs)
+        else:
+            assert not args, args
+            assert not kwargs, kwargs
+        self._obj = obj
+
+    def __getattr__(self, item):
+        if item == '_obj':
+            raise AttributeError(item)
+        return getattr(self._obj, item)
+
+    def linked_notification(self, name=None, sender=None, queue=None, condition=None):
+        if name is None:
+            name = self.event_name
+        if sender is None:
+            sender = self._obj
+        return notification.linked_notification(name=name, sender=sender, queue=queue, condition=condition)
+
+    def linked_notifications(self, names=None, sender=None, queue=None, condition=None):
+        if names is None:
+            names = self.event_names
+        if sender is None:
+            sender = self._obj
+        return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
+
+
+class GreenEngine(GreenBase):
+    klass = Engine
 
     def __init__(self):
-        Engine.__init__(self)
+        GreenBase.__init__(self)
         self.link_exception()
 
     def stop(self):
         if self._thread_started:
-            with notification.linked_notifications(['SCEngineDidEnd', 'SCEngineDidFail', 'SCEngineGotException'],sender=self) as q:
-                self._thread_stopping = True
+            with self.linked_notifications(['SCEngineDidEnd', 'SCEngineDidFail', 'SCEngineGotException']) as q:
+                self._obj._thread_stopping = True
                 q.wait()
 
     def link_exception(self, greenlet=None):
@@ -124,39 +158,6 @@ class IncomingSessionHandler(object):
         finally:
             if ERROR is not None:
                 proc.spawn_greenlet(inv.end, ERROR)
-
-
-class GreenBase(object):
-
-    klass = None
-
-    def __init__(self, *args, **kwargs):
-        obj = kwargs.pop('__obj', None)
-        if obj is None:
-            obj = self.klass(*args, **kwargs)
-        else:
-            assert not args, args
-            assert not kwargs, kwargs
-        self._obj = obj
-
-    def __getattr__(self, item):
-        if item == '_obj':
-            raise AttributeError(item)
-        return getattr(self._obj, item)
-
-    def linked_notification(self, name=None, sender=None, queue=None, condition=None):
-        if name is None:
-            name = self.event_name
-        if sender is None:
-            sender = self._obj
-        return notification.linked_notification(name=name, sender=sender, queue=queue, condition=condition)
-
-    def linked_notifications(self, names=None, sender=None, queue=None, condition=None):
-        if names is None:
-            names = self.event_names
-        if sender is None:
-            sender = self._obj
-        return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
 
 
 class GreenRegistration(GreenBase):
