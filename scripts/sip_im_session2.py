@@ -271,8 +271,11 @@ class ChatManager(NotificationHandler):
         route = self.route
         if route is None:
             route = Route(gethostbyname(target_uri.host or self.credentials.uri.host), target_uri.port or 5060)
-        session = ChatSession()
-        session.new(target_uri, self.credentials, route, chat=True)
+        try:
+            session = ChatSession()
+            session.new(target_uri, self.credentials, route, chat=use_chat, audio=use_audio)
+        except SessionError, ex:
+            raise UserCommandError(str(ex))
         self.add_session(session)
 
     @staticmethod
@@ -330,7 +333,10 @@ def start(options, console):
                 print 'Waiting for incoming SIP session requests...'
             else:
                 for x in options.args:
-                    manager.call(x)
+                    try:
+                        manager.call(x)
+                    except UserCommandError, ex:
+                        print str(ex)
             while True:
                 try:
                     readloop(console, manager, get_commands(manager), get_shortcuts(manager))
