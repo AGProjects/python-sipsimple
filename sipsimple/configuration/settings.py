@@ -8,8 +8,6 @@ __all__ = ['SIPSimpleSettings']
 
 
 class AudioSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
-    auto_accept = Setting(type=bool, default=False)
     input_device = Setting(type=str, default=None, nillable=True)
     output_device = Setting(type=str, default=None, nillable=True)
     echo_delay = Setting(type=NonNegativeInteger, default=200)
@@ -19,15 +17,11 @@ class AudioSettings(SettingsGroup):
 
 
 class ChatSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
-    auto_accept = Setting(type=bool, default=False)
     message_received_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('message_received.wav'), nillable=True)
     message_sent_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('message_sent.wav'), nillable=True)
 
 
 class DesktopSharingSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
-    auto_accept = Setting(type=bool, default=False)
     depth = Setting(type=ImageDepth, default=8)
     resolution = Setting(type=Resolution, default=Resolution(width=1024, height=768))
     client_command = Setting(type=AbsolutePath, default=None, nillable=True)
@@ -35,9 +29,7 @@ class DesktopSharingSettings(SettingsGroup):
 
 
 class FileTransferSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
     directory = Setting(type=DataPath, default=DataPath('file_transfers'))
-    auto_accept = Setting(type=bool, default=False)
     file_received_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('file_received.wav'), nillable=True)
     file_sent_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('file_sent.wav'), nillable=True)
 
