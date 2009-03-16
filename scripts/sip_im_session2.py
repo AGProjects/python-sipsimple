@@ -73,7 +73,10 @@ def format_incoming_message(text, uri, cpim_from, dt):
         return '%s %s: %s' % (format_datetime(dt), format_uri(uri, cpim_from), text)
 
 def format_nosessions_ps(myuri):
-    return '%s@%s> ' % (myuri.user, myuri.host)
+    if myuri.port in [None, 0, 5060]:
+        return '%s@%s> ' % (myuri.user, myuri.host)
+    else:
+        return '%s@%s:%s> ' % (myuri.user, myuri.host, myuri.port)
 
 def format_outgoing_message(uri, message, dt):
     return '%s %s: %s' % (format_datetime(dt), format_uri(uri), message)
