@@ -2,68 +2,18 @@ import cPickle
 
 from application.notification import NotificationCenter, NotificationData
 from application.python.util import Singleton
-from zope.interface import Interface
 
 
-__all__ = ['ConfigurationError', 'ConfigurationBackendError', 'DuplicateSectionError', 'UnknownSectionError', 'UnknownNameError',
-           'ConfigurationManager', 'DefaultValue', 'IBackend', 'Setting', 'SettingsGroup', 'SettingsObject']
+__all__ = ['ConfigurationError', 'DuplicateSectionError', 'UnknownSectionError', 'UnknownNameError',
+           'ConfigurationManager', 'DefaultValue', 'Setting', 'SettingsGroup', 'SettingsObject']
 
 
 ## Exceptions
 
 class ConfigurationError(Exception): pass
-class ConfigurationBackendError(ConfigurationError): pass
 class DuplicateSectionError(ConfigurationError): pass
 class UnknownSectionError(ConfigurationError): pass
 class UnknownNameError(ConfigurationError): pass
-
-
-## Configuration backends
-
-class IBackend(Interface):
-    """
-    Interface describing a backend used for storing and retrieving configuration
-    data.
-
-    Data is kept as name, value pairs, with pairs kept in groups called
-    sections. Name, value and section names can be arbitrary strings.
-    """
-    def add_section(section):
-        """
-        Add a section with a specified name or raise DuplicateSectionError if
-        the section already exists.
-        """
-    def delete_section(section):
-        """
-        Delete a section identified by a name or raise UnknownSectionError if
-        the section does not exist.
-        """
-    def set(section, name, value):
-        """
-        Set a name, value pair inside a section. Will overwrite the previous
-        pair, if it exists; otherwise raise UnknownSectionError if the section
-        does not exist.
-        """
-    def delete(section, name):
-        """
-        Delete a name, value pair from a section or raise UnknownSectionError if
-        the section does not exist.
-        """
-    def get(section, name):
-        """
-        Get the value associated to the name, in the specified section or raise
-        UnknownNameError if such a name, value pair does not exist and
-        UnknownSectionError if the section does not exist.
-        """
-    def get_names(section):
-        """
-        Get all the names from  the specified section or raise
-        UnknownSectionError if the section does not exist.
-        """
-    def save():
-        """
-        Flush the modified name, value pairs.
-        """
 
 
 ## ConfigurationManager

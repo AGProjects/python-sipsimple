@@ -4,8 +4,8 @@ import os
 
 from zope.interface import implements
 
-from sipsimple.configuration import IBackend
-from sipsimple.configuration import ConfigurationBackendError, DuplicateSectionError, UnknownNameError, UnknownSectionError
+from sipsimple.configuration import DuplicateSectionError, UnknownNameError, UnknownSectionError
+from sipsimple.configuration.backend import ConfigurationBackendError, IBackend
 
 
 class ConfigFileBackend(object):
