@@ -46,7 +46,7 @@ def format_display_user_host(display, user, host):
 
 def format_uri(sip_uri, cpim_uri=None):
     if cpim_uri is not None:
-        if (sip_uri.host, sip_uri.user) == (cpim_uri.user, cpim_uri.host):
+        if (sip_uri.host, sip_uri.user) == (cpim_uri.host, cpim_uri.user):
             return format_display_user_host(cpim_uri.display or sip_uri.display, sip_uri.user, sip_uri.host)
         else:
             # conference, pasting only header from cpim
