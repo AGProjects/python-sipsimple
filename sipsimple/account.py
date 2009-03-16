@@ -90,7 +90,7 @@ class Account(SettingsObject):
     
     __section__ = 'Accounts'
 
-    id = Setting(type=str, default=None)
+    id = Setting(type=str)
     enabled = Setting(type=bool, default=False)
     password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)
