@@ -260,9 +260,16 @@ class ChatManager(NotificationHandler):
             self.update_ps()
 
     def call(self, *args):
-        if len(args)!=1:
+        if not args:
             raise UserCommandError('Please provide uri')
         target_uri = args[0]
+        use_audio=True
+        use_chat=True
+        if args[1:]:
+            if args[1]=='chat':
+                use_audio=False
+            elif args[1]=='audio':
+                use_chat=False
         if not isinstance(target_uri, SIPURI):
             try:
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.credentials.uri.host))
