@@ -35,7 +35,7 @@ class ICESettings(SettingsGroup):
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=False)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
-    voicemail_uri = Setting(type=str, default=None, nillable=None)
+    voicemail_uri = Setting(type=str, default=None, nillable=True)
 
 
 class MSRPSettings(SettingsGroup):
