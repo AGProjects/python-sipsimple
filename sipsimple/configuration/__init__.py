@@ -133,6 +133,8 @@ class Setting(object):
     the value None. All other values are passed to the type specified.
     """
     def __init__(self, type, default=None, nillable=False):
+        if default is None and not nillable:
+            raise TypeError("default must be specified if object is not nillable")
         self.type = type
         self.default = default
         self.nillable = nillable
@@ -146,22 +148,20 @@ class Setting(object):
         return self.objects.get(id(obj), self.default)
 
     def __set__(self, obj, value):
+        if value is None and not self.nillable:
+            raise ValueError("Setting attribute is not nillable")
+
+        # DefaultValue is equivalent to passing the defined default value
+        value = self.default if value is DefaultValue else value
+        if value is not None and not isinstance(value, self.type):
+            value = self.type(value)
         # check whether the old value is the same as the new value
-        if (value is DefaultValue and id(obj) not in self.objects) or (self.objects.get(id(obj), self.default) == value):
+        if self.objects.get(id(obj), self.default) == value:
             return
 
-        if value is None:
-            if self.nillable:
-                self.objects[id(obj)] = None
-            else:
-                raise ValueError("Setting attribute is not nillable")
-        elif value is DefaultValue:
-            if self.default is None and not self.nillable:
-                raise ValueError("Setting attribute is not nillable")
+        if value == self.default:
             self.objects.pop(id(obj), None)
         else:
-            if not isinstance(value, self.type):
-                value = self.type(value)
             self.objects[id(obj)] = value
         self.dirty[id(obj)] = True
 
