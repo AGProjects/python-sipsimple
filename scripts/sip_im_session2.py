@@ -103,8 +103,9 @@ class MessageRenderer(object):
             # XXX: issue REPORT here?
         else:
             print msg
-            session.history_file.write(msg + '\n')
-            session.history_file.flush()
+            if session.history_file:
+                session.history_file.write(msg + '\n')
+                session.history_file.flush()
 
 class ChatSession(GreenSession, NotificationHandler):
 
@@ -112,10 +113,13 @@ class ChatSession(GreenSession, NotificationHandler):
         GreenSession.__init__(self, *args, **kwargs)
         self._obj._green = self
         self.history_file = None
-        NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
+        if self._inv is None:
+            NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
+        else:
+            self.history_file = get_history_file(self._inv)
 
     def _NH_SCSessionDidStart(self, session, _data):
-        self.history_file = get_history_file(self._inv)
+        self.history_file = get_history_file(session._inv)
 
     def terminate(self):
         GreenSession.terminate(self)
@@ -128,8 +132,9 @@ class ChatSession(GreenSession, NotificationHandler):
         chunk = self._obj.send_message(msg, dt=dt)
         printed_msg = format_outgoing_message(self._inv.local_uri, msg, dt=dt)
         print printed_msg
-        self.history_file.write(printed_msg + '\n')
-        self.history_file.flush()
+        if self.history_file:
+            self.history_file.write(printed_msg + '\n')
+            self.history_file.flush()
         return chunk
 
     def format_ps(self):
