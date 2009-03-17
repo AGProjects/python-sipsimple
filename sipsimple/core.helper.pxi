@@ -162,7 +162,6 @@ cdef class SIPURI:
     cdef _as_str(self, int skip_display):
         cdef object name
         cdef object val
-        cdef object header_delim = "?"
         cdef object string = self.host
         if self.port > 0:
             string = "%s:%d" % (string, self.port)
@@ -171,15 +170,14 @@ cdef class SIPURI:
                 string = "%s:%s@%s" % (self.user, self.password, string)
             else:
                 string = "%s@%s" % (self.user, string)
-        for name, val in self.parameters.iteritems():
-            string += ";%s=%s" % (name, val)
-        for name, val in self.headers.iteritems():
-            string += "%s%s=%s" % (header_delim, name, val)
-            header_delim = "&"
+        if self.parameters:
+            string += ";" + ";".join(["%s=%s" % (name, val) for name, val in self.parameters.iteritems()])
+        if self.headers:
+            string += "?" + "&".join(["%s=%s" % (name, val) for name, val in self.headers.iteritems()])
         if self.secure:
-            string = "sips:%s" % string
+            string = "sips:" + string
         else:
-            string = "sip:%s" % string
+            string = "sip:" + string
         if self.display is None or skip_display:
             return string
         else:
