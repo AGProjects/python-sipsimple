@@ -1,3 +1,9 @@
+"""
+SIP SIMPLE settings.
+
+Definition of general (non-account related) settings.
+"""
+
 import os
 
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject

@@ -1,3 +1,7 @@
+"""
+Configuration backend for storing settings in INI files.
+"""
+
 import base64
 import ConfigParser
 import os

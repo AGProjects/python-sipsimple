@@ -1,3 +1,7 @@
+"""
+Generic configuration management.
+"""
+
 import cPickle
 
 from application.notification import NotificationCenter, NotificationData

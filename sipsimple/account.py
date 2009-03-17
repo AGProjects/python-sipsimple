@@ -1,3 +1,7 @@
+"""
+Account management system.
+"""
+
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Singleton
 from zope.interface import implements
