@@ -303,8 +303,8 @@ class Session(NotificationHandler):
             if chat:
                 if chat_sdp_index == -1:
                     raise RuntimeError("Use of MSRP chat requested, but MSRP chat was not proposed by remote party")
+                local_uri = self._inv.local_uri
                 if self.msrp_options.use_relay_incoming:
-                    local_uri = self._inv.local_uri
                     msrp_relay = MSRPRelaySettings(local_uri.host, local_uri.user, password, self.msrp_options.relay_host, self.msrp_options.relay_port, self.msrp_options.relay_use_tls)
                 else:
                     msrp_relay = None
