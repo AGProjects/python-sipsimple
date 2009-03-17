@@ -18,6 +18,10 @@ from sipsimple.engine import Engine
 from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
 from sipsimple.msrp import MSRPChat
 
+class SessionStateError(Exception):
+    pass
+
+
 class TimestampedNotificationData(NotificationData):
 
     def __init__(self, **kwargs):
@@ -203,9 +207,9 @@ class Session(NotificationHandler):
            Moves the object from the NULL into the CALLING state."""
         with self._lock:
             if self.state != "NULL":
-                raise RuntimeError("This method can only be called while in the NULL state")
+                raise SessionStateError("This method can only be called while in the NULL state")
             if not any([audio, chat]):
-                raise RuntimeError("No media stream requested")
+                raise ValueError("No media stream requested")
             inv = Invitation(credentials, callee_uri, route)
             if audio:
                 audio_rtp = RTPTransport(**self.rtp_options)
@@ -285,7 +289,7 @@ class Session(NotificationHandler):
            Moves the object from the INCOMING to the ACCEPTING state."""
         with self._lock:
             if self.state != "INCOMING":
-                raise RuntimeError("This method can only be called while in the INCOMING state")
+                raise SessionStateError("This method can only be called while in the INCOMING state")
             audio_sdp_index = -1
             chat_sdp_index = -1
             remote_sdp = self._inv.get_offered_remote_sdp()
@@ -296,13 +300,13 @@ class Session(NotificationHandler):
                     chat_sdp_index = sdp_index
             if audio:
                 if audio_sdp_index == -1:
-                    raise RuntimeError("Use of audio requested, but audio was not proposed by remote party")
+                    raise ValueError("Use of audio requested, but audio was not proposed by remote party")
                 audio_rtp = RTPTransport(**self.rtp_options)
             else:
                 audio_rtp = None
             if chat:
                 if chat_sdp_index == -1:
-                    raise RuntimeError("Use of MSRP chat requested, but MSRP chat was not proposed by remote party")
+                    raise ValueError("Use of MSRP chat requested, but MSRP chat was not proposed by remote party")
                 local_uri = self._inv.local_uri
                 if self.msrp_options.use_relay_incoming:
                     msrp_relay = MSRPRelaySettings(local_uri.host, local_uri.user, password, self.msrp_options.relay_host, self.msrp_options.relay_port, self.msrp_options.relay_use_tls)
@@ -312,7 +316,7 @@ class Session(NotificationHandler):
             else:
                 msrp_chat = None
             if not any([audio_rtp, msrp_chat]):
-                raise RuntimeError("None of the streams proposed by the remote party is accepted")
+                raise ValueError("None of the streams proposed by the remote party is accepted")
             media_initializer = MediaTransportInitializer(self, self._accept_continue, self._accept_fail, audio_rtp, msrp_chat)
             self._audio_sdp_index = audio_sdp_index
             self._chat_sdp_index = chat_sdp_index
@@ -358,14 +362,14 @@ class Session(NotificationHandler):
         """Rejects an incoming SIP session. Moves the object from the INCOMING to
            the TERMINATING state."""
         if self.state != ["INCOMING", "TERMINATED"]:
-            raise RuntimeError("This method can only be called while in the INCOMING state")
+            raise SessionStateError("This method can only be called while in the INCOMING state")
         self.terminate()
 
     def add_audio(self):
         """Add an audio RTP stream to an already established SIP session."""
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.audio_transport is not None:
                 raise RuntimeError("An audio RTP stream is already active within this SIP session")
             self._queue.append("add_audio")
@@ -375,7 +379,7 @@ class Session(NotificationHandler):
     def remove_audio(self):
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.audio_transport is None:
                 raise RuntimeError("No audio RTP stream is active within this SIP session")
             if not any([self.chat_transport]):
@@ -387,7 +391,7 @@ class Session(NotificationHandler):
     def add_chat(self):
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.chat_transport is not None:
                 raise RuntimeError("An MSRP chat stream is already active within this SIP session")
             self._queue.append("add_chat")
@@ -397,7 +401,7 @@ class Session(NotificationHandler):
     def remove_chat(self):
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("This method can only be called while in the ESTABLISHED state")
+                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.chat_transport is None:
                 raise RuntimeError("No MSRP chat stream is active within this SIP session")
             if not any([self.audio_transport]):
@@ -412,7 +416,7 @@ class Session(NotificationHandler):
            the PROPOSED state to the ESTABLISHED state."""
         with self._lock:
             if self.state != "PROPOSED":
-                raise RuntimeError("This method can only be called while in the PROPOSED state")
+                raise SessionStateError("This method can only be called while in the PROPOSED state")
             remote_sdp = self._inv.get_offered_remote_sdp()
             audio_rtp = None
             msrp_chat = None
@@ -490,7 +494,7 @@ class Session(NotificationHandler):
            the PROPOSED state to the ESTABLISHED state."""
         with self._lock:
             if self.state != "PROPOSED":
-                raise RuntimeError("This method can only be called while in the PROPOSED state")
+                raise SessionStateError("This method can only be called while in the PROPOSED state")
             self._do_reject_proposal(reason="Rejected by user")
 
     def hold(self):
@@ -498,7 +502,7 @@ class Session(NotificationHandler):
            ESTABLISHED state to the ONHOLD state."""
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("Session is not active")
+                raise SessionStateError("Session is not active")
             self._queue.append("hold")
             if len(self._queue) == 1:
                 self._process_queue()
@@ -508,7 +512,7 @@ class Session(NotificationHandler):
            moves the object from the ONHOLD state to the ESTABLISHED state."""
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("Session is not active")
+                raise SessionStateError("Session is not active")
             self._queue.append("unhold")
             if len(self._queue) == 1:
                 self._process_queue()
