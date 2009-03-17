@@ -2,7 +2,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 from zope.interface import implements
 
-from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, UnknownSectionError
+from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
 from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Port, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 
@@ -90,7 +90,7 @@ class Account(SettingsObject):
     
     __section__ = 'Accounts'
 
-    id = Setting(type=str)
+    id = SettingsObjectID(type=str)
     enabled = Setting(type=bool, default=False)
     password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)

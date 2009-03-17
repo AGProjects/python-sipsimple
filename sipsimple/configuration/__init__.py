@@ -5,7 +5,7 @@ from application.python.util import Singleton
 
 
 __all__ = ['ConfigurationError', 'DuplicateSectionError', 'UnknownSectionError', 'UnknownNameError',
-           'ConfigurationManager', 'DefaultValue', 'Setting', 'SettingsGroup', 'SettingsObject']
+           'ConfigurationManager', 'DefaultValue', 'SettingsObjectID', 'Setting', 'SettingsGroup', 'SettingsObject']
 
 
 ## Exceptions
@@ -122,6 +122,31 @@ class ModifiedValue(object):
 
     def __repr__(self):
         return '%s(old=%r, new=%r)' % (self.__class__.__name__, self.old, self.new)
+
+
+class SettingsObjectID(object):
+    """
+    Simple write-once descriptor used for SettingsObject subclasses which have
+    dynamic ids.
+    """
+    def __init__(self, type):
+        self.type = type
+        self.objects = {}
+
+    def __get__(self, obj, objtype):
+        if obj is None:
+            return self
+        try:
+            return self.objects[id(obj)]
+        except KeyError:
+            raise AttributeError("SettingsObject ID has not been defined")
+
+    def __set__(self, obj, value):
+        if self.objects.get(id(obj), value) != value:
+            raise AttributeError("SettingsObject ID cannot be overwritten")
+        if not isinstance(value, self.type):
+            value = self.type(value)
+        self.objects[id(obj)] = value
 
 
 class Setting(object):
