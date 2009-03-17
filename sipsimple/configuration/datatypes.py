@@ -193,6 +193,7 @@ class PortRange(object):
 
 class SIPAddress(str):
     def __new__(cls, address):
+        address = address.replace('@', '%40', address.count('@')-1)
         try:
             username, domain = address.split('@')
             Hostname(domain)
