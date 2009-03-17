@@ -328,9 +328,9 @@ def start(options, console):
         session_manager = SessionManager()
         session_manager.msrp_config = MSRPConfiguration(use_relay_outgoing=False,
                                                         use_relay_incoming=options.relay is not None,
-                                                        relay_host=options.relay.host,
-                                                        relay_port=options.relay.port,
-                                                        relay_use_tls=options.relay.use_tls)
+                                                        relay_host=getattr(options.relay, 'host', None),
+                                                        relay_port=getattr(options.relay, 'port', None),
+                                                        relay_use_tls=getattr(options.relay, 'use_tls', True))
         session_manager.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
         session_manager.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
         manager = ChatManager(engine, credentials, console, logger,
