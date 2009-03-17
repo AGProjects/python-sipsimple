@@ -529,7 +529,7 @@ class Session(NotificationHandler):
                 try:
                     self._inv.disconnect()
                 except SIPCoreError:
-                    self._change_state("TERMINATIED")
+                    self._change_state("TERMINATED")
                     self.notification_center.post_notification("SCSessionDidEnd", self, TimestampedNotificationData(originator="local"))
 
     def start_recording_audio(self, path, file_name=None):
