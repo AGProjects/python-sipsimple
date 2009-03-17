@@ -115,6 +115,7 @@ Sessions
 Porting
 -------
 
+- Separate debian package into sub-packages [LS]
 - Windows []
 - iPhone []
 - Android [RK]
