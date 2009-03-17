@@ -123,6 +123,15 @@ class LocalIPAddress(object):
             return 'auto'
         return self.address
 
+    def __eq__(self, other):
+        try:
+            return self.address == other.address
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        return hash(self.address)
+
 
 class MSRPTransport(str):
     available_transports = ('tls', 'tcp')
@@ -146,6 +155,15 @@ class MSRPRelayAddress(object):
     def __str__(self):
         return '%s:%s:%d' % (self.transport, self.host, self.port)
 
+    def __eq__(self, other):
+        try:
+            return self.host == other.host and self.port == other.port and self.transport == other.transport
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        return hash((self.host, self.port, self.transport))
+
 
 class Port(int):
     def __new__(cls, value):
@@ -163,6 +181,15 @@ class PortRange(object):
     def __repr__(self):
         return '%s(start=%r, end=%r)' % (self.__class__.__name__, self.start, self.end)
 
+    def __eq__(self, other):
+        try:
+            return self.start == other.start and self.end == other.end
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        return hash((self.start, self.end))
+
 
 class SIPProxy(object):
     def __init__(self, host, port=5060, transport='udp'):
@@ -173,6 +200,15 @@ class SIPProxy(object):
         self.transport = transport
         if self.transport not in ('udp', 'tcp', 'tls'):
             raise ValueError("invalid transport: %s" % transport)
+
+    def __eq__(self, other):
+        try:
+            return self.host == other.host and self.port == other.port and self.transport == other.transport
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        return hash((self.host, self.port, self.transport))
 
 
 class SRTPEncryption(str):
@@ -251,6 +287,15 @@ class Resolution(object):
     def __str__(self):
         return '%dx%d' % (self.width, self.height)
 
+    def __eq__(self, other):
+        try:
+            return self.width == other.width and self.height == other.height
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        return hash((self.width, self.height))
+
 
 ## Path related
 
@@ -283,5 +328,14 @@ class DataPath(object):
 
     def __str__(self):
         return self.path
+
+    def __eq__(self, other):
+        try:
+            return self.path == other.path
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        return hash(self.path)
 
 
