@@ -34,6 +34,7 @@ problems with the connection. Therefore, the following settings should be used:
 
 import random
 from datetime import datetime
+from collections import deque
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
 from application.notification import NotificationCenter, NotificationData
@@ -57,6 +58,7 @@ from sipsimple.green import callFromAnyThread, spawn_from_thread
 class MSRPChatError(Exception):
     pass
 
+NULL, INITIALIZING, INITIALIZED, STARTING, STARTED, ENDING, ENDED, ERROR = range(8)
 
 class MSRPChat(object):
 
@@ -85,30 +87,41 @@ class MSRPChat(object):
         self.local_media = None
         self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
-        self.is_active = False
-        self.is_started = False
+        self.state = NULL
+        self.message_queue = deque() # messages stored here until the connection established
+
+    @property
+    def is_active(self):
+        return self.state in [STARTING, STARTED]
+
+    @property
+    def is_started(self):
+        return self.state == STARTED
 
     def initialize(self, ip=None, port=None, use_tls=True):
         """Initialize the MSRP connection; connect to the relay if necessary.
         When done, fire MSRPChatDidInitialize (with 'sdpmedia' attribute,
         containing the appropriate 'SDPMedia' instance)
         """
+        assert self.state == NULL, self.state
         spawn_from_thread(self._do_initialize, URI(host=ip, port=port, use_tls=use_tls))
 
     def _do_initialize(self, local_uri):
+        self.state = INITIALIZING
         try:
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
         except Exception, ex:
+            self.state = ERROR
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
             self.notification_center.post_notification('MSRPChatDidFail', self, ndata)
             raise
         else:
+            self.state = INITIALIZED
             self.notification_center.post_notification('MSRPChatDidInitialize', self)
 
     def start(self, remote_media):
-        """Complete the MSRP connection establishment; this includes binding
-        MSRP session.
+        """Complete the MSRP connection establishment; this includes binding the MSRP session.
 
         When done, fire MSRPChatDidStart. At this point each incoming message
         is posted as a notification, MSRPChatGotMessage, with the following
@@ -117,18 +130,19 @@ class MSRPChat(object):
         - message (MSRPData)
         - content (str) - the actual string that the remote user has typed
         """
-        self.is_active = True
+        assert self.state == INITIALIZED, self.state
+        spawn_from_thread(self._do_start, remote_media)
+
+    def _do_start(self, remote_media):
+        self.state = STARTING
         media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
         # TODO: update accept_types and accept_wrapped_types from remote_media
         # TODO: chatroom, recvonly/sendonly?
         self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
         self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
-        spawn_from_thread(self._do_start, media_attributes)
-
-    def _do_start(self, media_attributes):
         remote_uri_path = media_attributes.get('path')
         if remote_uri_path is None:
-            self.is_active = False
+            self.state = ERROR
             text = "remote SDP media does not have `path' attribute"
             failure = Failure(AttributeError(text))
             ndata = NotificationData(context='sdp_negotiation', failure=failure, reason=text)
@@ -139,13 +153,16 @@ class MSRPChat(object):
             msrp_transport = self.msrp_connector.complete(full_remote_path)
             self.msrp = MSRPSession(msrp_transport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
         except Exception, ex:
-            self.is_active = False
+            self.state = ERROR
             ndata = NotificationData(context='start', failure=Failure(), reason=str(ex) or type(ex).__name__)
             self.notification_center.post_notification('MSRPChatDidFail', self, ndata)
             raise
         else:
-            self.is_started = True
+            self.state = STARTED
             self.notification_center.post_notification('MSRPChatDidStart', self)
+            for send_args in self.message_queue:
+                self._send_raw_message(*send_args)
+            self.message_queue.clear()
 
     def end(self):
         """Close the MSRP connection or cleanup after initialize(), whatever is necessary.
@@ -154,32 +171,34 @@ class MSRPChat(object):
         After end is complete, post MSRPChatDidEnd. If there was an error during closure
         procedure, post MSRPChatDidRaiseException first (MSRPChatDidEnd will be posted anyway).
         """
+        if self.state in [ENDING, ENDED]:
+            return
         spawn_from_thread(self._do_end)
 
     def _do_end(self):
+        self.state = ENDING
         self.notification_center.post_notification('MSRPChatWillEnd', self)
         try:
             if self.msrp is not None:
                 self.msrp.shutdown()
                 self.msrp = None
-            self.msrp_connector.cleanup()
+            if self.msrp_connector is not None:
+                self.msrp_connector.cleanup()
+                self.msrp_connector = None
         finally:
-            self.is_active = False
-            self.is_started = False
+            self.state = ENDED
             self.notification_center.post_notification('MSRPChatDidEnd', self)
 
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
-            self.is_active = False
-            self.is_started = False
+            self.state = ERROR
             if isinstance(error.value, ConnectionDone):
                 self.notification_center.post_notification('MSRPChatDidEnd', self)
             else:
                 ndata = NotificationData(context='reading', failure=error, reason=error.getErrorMessage())
                 self.notification_center.post_notification('MSRPChatDidFail', self, ndata)
         elif chunk.method=='REPORT':
-            # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to
-            # the part of the message.
+            # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
             data = NotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
             if chunk.status.code == 200:
                 self.notification_center.post_notification('MSRPChatDidDeliverMessage', self, data)
@@ -193,7 +212,7 @@ class MSRPChat(object):
                 cpim_headers = {}
                 content = chunk.data
                 content_type = chunk.content_type
-            # TODO: issue a success report if needed
+            # Note: success reports are issued by msrplib
             # TODO: check wrapped content-type and issue a report if it's invalid
             ndata = NotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
@@ -208,8 +227,10 @@ class MSRPChat(object):
 
         Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
         """
-        if self.msrp is None:
-            raise RuntimeError("MSRP connection is not yet started")
+        if self.state!=STARTED:
+            self.message_queue.append((message, content_type, failure_report, success_report))
+            return
+        assert self.msrp is not None, self.msrp
         if not contains_mime_type(self.accept_types, content_type):
             raise MSRPChatError('Invalid content_type for outgoing message: %r' % (content_type, ))
         message_id = '%x' % random.getrandbits(64)

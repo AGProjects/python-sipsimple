@@ -852,7 +852,7 @@ class Session(NotificationHandler):
         return local_sdp
 
     def send_message(self, content, content_type="text/plain", to_uri=None, dt=None):
-        if self.chat_transport is None or not self.chat_transport.is_active:
+        if self.chat_transport is None:
             raise RuntimeError("This SIP session does not have an active MSRP stream to send chat message over")
         return self.chat_transport.send_message(content, content_type, to_uri, dt=dt)
 
