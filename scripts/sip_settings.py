@@ -126,7 +126,11 @@ class AccountConfigurator(object):
         if self.account_manager.has_account(sip_address):
             print 'Account %s already exists' % sip_address
             return
-        account = Account(sip_address)
+        try:
+            account = Account(sip_address)
+        except ValueError, e:
+            print 'Cannot add SIP account: %s' % str(e)
+            return
         account.password = password
         account.save()
         print 'Account added'
