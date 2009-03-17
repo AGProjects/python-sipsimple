@@ -6,6 +6,7 @@ Definition of general (non-account related) settings.
 
 import os
 
+from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import AbsolutePath, DataPath, ImageDepth, LocalIPAddress, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, TLSProtocol, Transports
 
@@ -87,7 +88,7 @@ class SIPSimpleSettings(SettingsObject):
     data_directory = Setting(type=AbsolutePath, default=os.path.expanduser('~/.sipclient'))
     default_account = Setting(type=str, default='bonjour', nillable=True)
     local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
-    user_agent = Setting(type=str, default='sip2sip')
+    user_agent = Setting(type=str, default='sipsimple %s' % __version__)
 
     audio = AudioSettings
     desktop_sharing = DesktopSharingSettings
