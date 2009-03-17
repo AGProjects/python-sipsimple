@@ -201,6 +201,12 @@ class SIPProxy(object):
         if self.transport not in ('udp', 'tcp', 'tls'):
             raise ValueError("invalid transport: %s" % transport)
 
+    def __repr__(self):
+        return '%s(%r, port=%r, transport=%r)' % (self.__class__.__name__, self.host, self.port, self.transport)
+
+    def __str__(self):
+        return '%s:%s:%d' % (self.transport, self.host, self.port)
+
     def __eq__(self, other):
         try:
             return self.host == other.host and self.port == other.port and self.transport == other.transport
