@@ -8,8 +8,8 @@ import sys
 import urlparse
 
 
-__all__ = ['NonNegativeInteger', 'AudioCodecs', 'SampleRate', 'DomainList', 'Hostname', 'LocalIPAddress', 'Port', 'PortRange',
-           'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'MSRPRelayAddress', 'MSRPTransport',
+__all__ = ['NonNegativeInteger', 'AudioCodecs', 'SampleRate', 'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport',
+           'Port', 'PortRange', 'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses',
            'TLSProtocol', 'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath']
 
 
@@ -189,6 +189,19 @@ class PortRange(object):
 
     def __hash__(self):
         return hash((self.start, self.end))
+
+
+class SIPAddress(str):
+    def __new__(cls, address):
+        try:
+            username, domain = address.split('@')
+            Hostname(domain)
+        except ValueError:
+            raise ValueError("illegal SIP address")
+        return str.__new__(cls, address)
+
+    username = property(lambda self: self.split('@')[0])
+    domain = property(lambda self: self.split('@')[1])
 
 
 class SIPProxy(object):
