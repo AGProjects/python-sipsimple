@@ -306,8 +306,8 @@ class AccountManager(object):
     def _NH_AMAccountDidDeactivate(self, notification):
         if self.default_account is notification.sender:
             try:
-                self.default_account = [account for account in self.accounts.itervalues() if account.enabled][0]
-            except IndexError:
+                self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+            except StopIteration:
                 self.default_account = None
 
     def _internal_add_account(self, account):
