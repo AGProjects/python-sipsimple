@@ -8,9 +8,10 @@ import sys
 import urlparse
 
 
-__all__ = ['NonNegativeInteger', 'AudioCodecs', 'SampleRate', 'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport',
-           'Port', 'PortRange', 'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses',
-           'TLSProtocol', 'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath']
+__all__ = ['ContentType', 'ContentTypeList', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate', 'DomainList', 'Hostname',
+           'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange', 'SIPAddress', 'SIPProxy',
+           'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol', 'Transports', 'XCAPRoot',
+           'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -18,6 +19,25 @@ application_directory = os.path.join(os.path.dirname(os.path.dirname(os.path.rea
 
 
 ## General datatypes
+
+class ContentType(str):
+    def __new__(cls, value):
+        if value == '*':
+            return value
+        try:
+            type, subtype = value.split('/')
+        except ValueError:
+            raise ValueError("illegal content-type")
+        else:
+            if type == '*':
+                raise ValueError("illegal content-type")
+        return value
+
+
+class ContentTypeList(tuple):
+    def __new__(cls, values):
+        return tuple(ContentType(value) for value in values)
+
 
 class NonNegativeInteger(int):
     def __new__(cls, value):

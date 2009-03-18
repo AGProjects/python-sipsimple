@@ -8,7 +8,7 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import AbsolutePath, DataPath, ImageDepth, LocalIPAddress, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, TLSProtocol, Transports
+from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, TLSProtocol, Transports
 
 
 __all__ = ['SIPSimpleSettings']
@@ -27,6 +27,8 @@ class ChatSettings(SettingsGroup):
     message_received_sound = Setting(type=AbsolutePath, default=None, nillable=True)
     message_sent_sound = Setting(type=AbsolutePath, default=None, nillable=True)
     history_directory = Setting(type=DataPath, default=DataPath('history'))
+    accept_types = Setting(type=ContentTypeList, default=('message/cpim', 'text/*'))
+    accept_wrapped_types = Setting(type=ContentTypeList, default=('*',))
 
 
 class DesktopSharingSettings(SettingsGroup):
