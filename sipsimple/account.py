@@ -144,7 +144,7 @@ class Account(SettingsObject):
         
     def _NH_CFGSettingsDidChange(self, notification):
         enabled_value = notification.data.modified.get('enabled', None)
-        if enabled_value is not None and enabled_value.old != enabled_value.new:
+        if enabled_value is not None:
             if self.enabled:
                 self._activate()
             else:
