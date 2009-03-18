@@ -33,7 +33,7 @@ class DialogEventSettings(SettingsGroup):
 
 
 class ENUMSettings(SettingsGroup):
-    tld_list = Setting(type=DomainList, default=('e164.arpa'))
+    tld_list = Setting(type=DomainList, default=('e164.arpa',))
 
 
 class ICESettings(SettingsGroup):
