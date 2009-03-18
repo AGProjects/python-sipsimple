@@ -111,6 +111,7 @@ class MessageRenderer(object):
 class ChatSession(GreenSession, NotificationHandler):
 
     def __init__(self, *args, **kwargs):
+        self.remote_party = kwargs.pop('remote_party', None)
         GreenSession.__init__(self, *args, **kwargs)
         self._obj._green = self
         self.history_file = None
@@ -118,6 +119,8 @@ class ChatSession(GreenSession, NotificationHandler):
             NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
         else:
             self.history_file = get_history_file(self._inv)
+            if self.remote_party is None:
+                self.remote_party = format_uri(self._inv.remote_uri)
 
     def _NH_SCSessionDidStart(self, session, _data):
         self.history_file = get_history_file(session._inv)
@@ -139,12 +142,11 @@ class ChatSession(GreenSession, NotificationHandler):
         return chunk
 
     def format_ps(self):
-        try:
-            return 'Chat to %s: ' % format_uri(self._inv.remote_uri)
-        except Exception:
-            import traceback
-            traceback.print_exc()
-            return 'Error> '
+        result = 'Chat to %s' % self.remote_party
+        if self.state != 'ESTABLISHED':
+            result += ' [%s]' % self.state
+        return result + ': '
+
 
 class JobPool(object):
 
@@ -182,6 +184,7 @@ class ChatManager(NotificationHandler):
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidFail')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionNewIncoming')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionChangedState')
 
     def _NH_SCSessionDidEnd(self, session, data):
         try:
@@ -192,7 +195,10 @@ class ChatManager(NotificationHandler):
     _NH_SCSessionDidFail = _NH_SCSessionDidEnd
 
     def _NH_SCSessionNewIncoming(self, session, data):
-        proc.spawn_greenlet(self._handle_incoming, session, data)
+        self.jobpool.spawn(self._handle_incoming, session, data)
+
+    def _NH_SCSessionChangedState(self, session, data):
+        self.update_ps()
 
     def _handle_incoming(self, session, data):
         session._green = ChatSession(__obj=session)
@@ -204,7 +210,8 @@ class ChatManager(NotificationHandler):
             txt.append('Audio')
         txt = '/'.join(txt)
         q = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
-        if self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY':
+        result = self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
+        if result:
             session.accept(chat=data.has_chat, audio=data.has_audio, password=self.credentials.password)
             self.add_session(session._green)
         else:
@@ -281,15 +288,18 @@ class ChatManager(NotificationHandler):
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.credentials.uri.host))
             except ValueError, ex:
                 raise UserCommandError(str(ex))
+        self.jobpool.spawn(self._call, target_uri, use_audio, use_chat)
+
+    def _call(self, target_uri, use_audio, use_chat):
         route = self.route
         if route is None:
             route = Route(gethostbyname(target_uri.host or self.credentials.uri.host), target_uri.port or 5060)
         try:
-            session = ChatSession()
+            session = ChatSession(remote_party=format_uri(target_uri))
+            self.add_session(session)
             session.new(target_uri, self.credentials, route, chat=use_chat, audio=use_audio)
-        except SessionError, ex:
-            raise UserCommandError(str(ex))
-        self.add_session(session)
+        except SessionError:
+            pass # was already logged by InvitationLogger
 
     @staticmethod
     def make_SDPMedia(uri_path):
