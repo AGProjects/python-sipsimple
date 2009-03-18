@@ -94,6 +94,7 @@ class SIPSimpleSettings(SettingsObject):
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)
 
     audio = AudioSettings
+    chat = ChatSettings
     desktop_sharing = DesktopSharingSettings
     file_transfer = FileTransferSettings
     logging = LoggingSettings
