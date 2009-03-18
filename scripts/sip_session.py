@@ -148,7 +148,7 @@ class ChatSession(GreenSession, NotificationHandler):
         return result + ': '
 
 
-class JobPool(object):
+class JobGroup(object):
 
     def __init__(self):
         self.jobs = set()
@@ -180,7 +180,7 @@ class ChatManager(NotificationHandler):
         self.msrp_tls = msrp_tls
         self.sessions = []
         self.current_session = None
-        self.jobpool = JobPool()
+        self.jobgroup = JobGroup()
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidFail')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionNewIncoming')
@@ -195,7 +195,7 @@ class ChatManager(NotificationHandler):
     _NH_SCSessionDidFail = _NH_SCSessionDidEnd
 
     def _NH_SCSessionNewIncoming(self, session, data):
-        self.jobpool.spawn(self._handle_incoming, session, data)
+        self.jobgroup.spawn(self._handle_incoming, session, data)
 
     def _NH_SCSessionChangedState(self, session, data):
         self.update_ps()
@@ -219,14 +219,14 @@ class ChatManager(NotificationHandler):
 
     def close(self):
         for session in self.sessions[:]:
-            self.jobpool.spawn(session.terminate)
+            self.jobgroup.spawn(session.terminate)
         self.sessions = []
         self.update_ps()
-        self.jobpool.waitall()
+        self.jobgroup.waitall()
 
     def close_current_session(self):
         if self.current_session is not None:
-            self.jobpool.spawn(self.current_session.terminate)
+            self.jobgroup.spawn(self.current_session.terminate)
             self.remove_session(self.current_session)
 
     def update_ps(self):
@@ -288,7 +288,7 @@ class ChatManager(NotificationHandler):
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.credentials.uri.host))
             except ValueError, ex:
                 raise UserCommandError(str(ex))
-        self.jobpool.spawn(self._call, target_uri, use_audio, use_chat)
+        self.jobgroup.spawn(self._call, target_uri, use_audio, use_chat)
 
     def _call(self, target_uri, use_audio, use_chat):
         route = self.route
