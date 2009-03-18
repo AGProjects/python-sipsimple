@@ -41,7 +41,8 @@ from application.notification import NotificationCenter, NotificationData
 from msrplib.connect import get_acceptor, get_connector
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
-from sipsimple.green.session import make_SDPMedia
+from msrplib.trafficlog import Logger
+from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
 from sipsimple.green import callFromAnyThread, spawn_from_thread
 

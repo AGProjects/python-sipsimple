@@ -10,7 +10,7 @@ from select import error as select_error
 from gnutls.errors import GNUTLSError
 
 from sipsimple import SDPSession, SDPConnection, SDPAttribute, SDPMedia
-from sipsimple.green.session import IncomingMSRPHandler
+from sipsimple.green.sessionold import IncomingMSRPHandler
 from sipsimple.clients.cpim import MessageCPIMParser
 
 AUTO_ANSWER_ALL  = 'all' # Just an object to check if we accept all 

@@ -15,7 +15,7 @@ from eventlet.api import sleep
 from eventlet import api, proc, coros
 
 from sipsimple import Engine, Registration, Invitation, WaveFile
-from sipsimple.green import notification
+from sipsimple.green import notification, GreenBase
 
 __all__ = ['Error',
            'SIPError',
@@ -60,39 +60,6 @@ class SDPNegotiationError(Error):
     pass
 
 
-class GreenBase(object):
-
-    klass = None
-
-    def __init__(self, *args, **kwargs):
-        obj = kwargs.pop('__obj', None)
-        if obj is None:
-            obj = self.klass(*args, **kwargs)
-        else:
-            assert not args, args
-            assert not kwargs, kwargs
-        self._obj = obj
-
-    def __getattr__(self, item):
-        if item == '_obj':
-            raise AttributeError(item)
-        return getattr(self._obj, item)
-
-    def linked_notification(self, name=None, sender=None, queue=None, condition=None):
-        if name is None:
-            name = self.event_name
-        if sender is None:
-            sender = self._obj
-        return notification.linked_notification(name=name, sender=sender, queue=queue, condition=condition)
-
-    def linked_notifications(self, names=None, sender=None, queue=None, condition=None):
-        if names is None:
-            names = self.event_names
-        if sender is None:
-            sender = self._obj
-        return notification.linked_notifications(names=names, sender=sender, queue=queue, condition=condition)
-
-
 class GreenEngine(GreenBase):
     klass = Engine
 
@@ -107,8 +74,7 @@ class GreenEngine(GreenBase):
                 q.wait()
 
     def link_exception(self, greenlet=None):
-        """Raise an exception in `greenlet' (the current one by default) when the engine signals failure.
-        """
+        """Raise an exception in `greenlet' (the current one by default) when the engine signals failure."""
         if greenlet is None:
             greenlet = api.getcurrent()
         error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(RuntimeError(str(n))))

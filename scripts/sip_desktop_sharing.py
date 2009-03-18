@@ -9,11 +9,11 @@ from msrplib.trafficlog import Logger, hook_std_output
 from msrplib.protocol import URI
 
 from sipsimple import Credentials
-from sipsimple.green.engine import GreenEngine, Ringer, IncomingSessionHandler
+from sipsimple.green.core import GreenEngine, Ringer, IncomingSessionHandler, GreenRegistration, GreenInvitation
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.console import setup_console, EOF
 from sipsimple.clients.config import parse_options, update_options
-from sipsimple.green.session import MSRPSessionErrors, MSRPSession, IncomingMSRPHandler
+from sipsimple.green.sessionold import MSRPSessionErrors, MSRPSession, IncomingMSRPHandler
 from sipsimple import logstate
 
 from sipsimple.clients.cpim import parse_cpim_address
@@ -97,6 +97,7 @@ def main():
             ec_tail_length=0,
             local_ip=options.local_ip,
             local_port=options.local_port)
+    session = None
     try:
         update_options(options, e)
         logstate.start_loggers(trace_sip=options.trace_sip,
@@ -104,7 +105,7 @@ def main():
                                trace_engine=options.trace_engine)
         credentials = Credentials(options.uri, options.password)
         if options.register:
-            reg = e.makeGreenRegistration(credentials, route=options.route, expires=10)
+            reg = GreenRegistration(credentials, route=options.route, expires=10)
             #proc.spawn_greenlet(reg.register)
             reg.register()
 
@@ -244,11 +245,7 @@ def main():
                         elif value[0] == KEY_NEXT_SESSION:
                             next_console_session(console)
         else:
-            inv = e.makeGreenInvitation(
-                credentials, 
-                options.target_uri, 
-                route=options.route
-            )
+            inv = GreenInvitation(credentials, options.target_uri, route=options.route)
             logger = Logger(is_enabled_func = lambda: options.trace_msrp)
             msrp_connector = connect.get_connector(None, logger=logger)
             ringer = Ringer(
@@ -273,8 +270,8 @@ def main():
     except EOF:
         print 'Closing connection...'
         pass
-
-    e.shutdown()
+    if session:
+        session.end()
     e.stop()
     api.sleep(0.1) # flush the output
 

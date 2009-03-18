@@ -9,11 +9,11 @@ from msrplib.trafficlog import Logger, hook_std_output; hook_std_output()
 from msrplib.protocol import URI
 
 from sipsimple import Credentials, SDPAttribute, SDPMedia, WaveFile
-from sipsimple.green.engine import GreenEngine
+from sipsimple.green.core import GreenEngine, GreenInvitation
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.sdputil import FileSelector
 from sipsimple.clients.config import parse_options, update_options
-from sipsimple.green.session import MSRPSessionErrors, MSRPSession
+from sipsimple.green.sessionold import MSRPSessionErrors, MSRPSession
 from sipsimple import logstate
 
 file_cmd = "file -b --mime '%s'"
@@ -81,7 +81,7 @@ def main():
                                trace_pjsip=options.trace_pjsip,
                                trace_engine=options.trace_engine)
         credentials = Credentials(options.uri, options.password)
-        inv = e.makeGreenInvitation(credentials, options.target_uri, route=options.route)
+        inv = GreenInvitation(credentials, options.target_uri, route=options.route)
         logger = Logger(is_enabled_func = lambda: options.trace_msrp)
         msrp_connector = connect.get_connector(None, logger=logger)
         ringer = SimpleRinger(get_path("ring_outbound.wav"))
@@ -92,10 +92,10 @@ def main():
         print 'Sent %s.' % sdp.fileselector
         if not options.disable_sound:
             e.play_wav_file(get_path("message_sent.wav"))
+        session.end()
     except MSRPSessionErrors, ex:
         sys.exit(str(ex) or type(ex).__name__)
     finally:
-        e.shutdown()
         e.stop()
         sleep(0.1) # flush the output
 

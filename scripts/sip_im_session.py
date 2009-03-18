@@ -16,8 +16,8 @@ from msrplib.protocol import URI
 
 from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile, PJSIPError, Route
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
-from sipsimple.green.engine import GreenEngine, IncomingSessionHandler, Ringer, GreenInvitation, GreenRegistration
-from sipsimple.green.session import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
+from sipsimple.green.core import GreenEngine, IncomingSessionHandler, Ringer, GreenInvitation, GreenRegistration
+from sipsimple.green.sessionold import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia
 from sipsimple.clients.config import parse_options, update_options, get_download_path, get_history_file, get_credentials
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import enrollment, format_cmdline_uri
