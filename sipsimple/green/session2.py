@@ -93,7 +93,7 @@ class GreenSession(GreenBase):
                         raise CannotDeliverError(code=n.data.code, reason=n.data.reason, message_id=n.data.message_id)
 
 
-
+@contextmanager
 def linked_incoming(queue=None):
     if queue is None:
         queue = coros.queue()
