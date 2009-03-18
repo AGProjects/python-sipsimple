@@ -5,6 +5,8 @@ Account management system.
 import random
 import string
 
+from itertools import chain
+
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Singleton
 from zope.interface import implements
@@ -327,6 +329,18 @@ class AccountManager(object):
 
     def iter_accounts(self):
         return self.accounts.itervalues()
+
+    def find_account(self, contact_uri):
+        contact_address = '%s@%s' % (contact_uri.user, contact_uri.host)
+        port = 5061 if contact_uri.parameters.get('transport', 'udp')=='tls' else 5060
+        if contact_uri.port != port:
+            contact_address = '%s:%d' % (contact_address, contact_uri.port)
+        
+        # compare contact_address with account contact
+        exact_matches = (account for account in self.accounts.itervalues() if account.enabled and account.match_contact(contact_address))
+        # compare username in contact URI with account username
+        loose_matches = (account for account in self.accounts.itervalues() if account.enabled and account.id.username==contact_uri.user)
+        return chain(exact_matches, loose_matches, [None]).next()
     
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
