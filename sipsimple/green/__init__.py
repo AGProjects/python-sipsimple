@@ -1,3 +1,4 @@
+"""Integration of sipsimple with eventlet and twisted."""
 from twisted.python import threadable
 from eventlet import proc
 

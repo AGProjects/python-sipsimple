@@ -64,6 +64,10 @@ class GreenEngine(GreenBase):
     klass = Engine
 
     def __init__(self):
+        """Create a new instance.
+        Link SCEngineGotException to the current greenlet, that is, raise RuntimeError in the current
+        greenlet if SCEngineGotException notification is posted.
+        """
         GreenBase.__init__(self)
         self.link_exception()
 
@@ -82,6 +86,7 @@ class GreenEngine(GreenBase):
 
     @contextmanager
     def linked_incoming(self, queue=None):
+        # DEPRECATED, it's here for older scripts. for newer ones, use a notification
         if queue is None:
             queue = coros.queue()
         def wrap_and_send_to_queue(n):
@@ -93,6 +98,7 @@ class GreenEngine(GreenBase):
             yield queue
         finally:
             self.notification_center.remove_observer(observer, 'SCInvitationChangedState')
+
 
 def play_wav_file(filepath, *args, **kwargs):
     w = WaveFile(filepath)
@@ -229,12 +235,14 @@ class GreenInvitation(GreenBase):
             return q.wait()
 
     def call_on_disconnect(self, func):
+        # legacy function still used by the old script; use a notification in new scripts
         observer = notification.CallFromThreadObserver(func, condition=lambda n: n.data.state=='DISCONNECTED')
         notification_center = NotificationCenter()
         notification_center.add_observer(observer, self.event_names[0], self._obj)
         return Cancellable(lambda : notification_center.remove_observer(observer, self.event_names[0], self._obj))
 
 
+# legacy, used only by call_on_disconnect
 class Cancellable(object):
 
     def __init__(self, cancel_function):

@@ -49,7 +49,7 @@ class NotifyFromThreadObserver(CallFromThreadObserver):
 
 
 def wait_notification(name=Any, sender=Any, condition=None):
-    """Wait for a specific notification and return it.
+    """Subscribe to a notification, wait for it, unsubscribe and return it.
 
     Danger: you should probably be using linked_notification(s).
 
@@ -84,6 +84,16 @@ def wait_notification(name=Any, sender=Any, condition=None):
 
 @contextmanager
 def linked_notification(name=Any, sender=Any, queue=None, condition=None):
+    """A with-block that subscribes to the notification identified by `name' and `sender'.
+    The notifications are sent to the `queue' if they match the `condition'. The subscription
+    is cancelled upon exiting the block.
+
+    The following example prints a couple notifications 'XXX' sent by sender:
+
+      with linked_notification('XXX', sender) as q:
+          print q.wait()
+          print q.wait()
+    """
     notification_center = NotificationCenter()
     if queue is None:
         queue = coros.queue()
@@ -97,6 +107,15 @@ def linked_notification(name=Any, sender=Any, queue=None, condition=None):
 
 @contextmanager
 def linked_notifications(names=[Any], sender=Any, queue=None, condition=None):
+    """A with-block that subscribes to the notifications identified by `names' and `sender'.
+    The notifications are sent to the `queue' if they match the `condition'. The subscription
+    is cancelled upon exiting the block.
+
+    The following example prints one notification (either 'XXX' or 'YYY') sent by sender:
+
+      with linked_notifications(['XXX', 'YYY'], sender) as q:
+          print q.wait()
+    """
     notification_center = NotificationCenter()
     if queue is None:
         queue = coros.queue()
