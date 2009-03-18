@@ -94,12 +94,12 @@ class GreenEngine(GreenBase):
         finally:
             self.notification_center.remove_observer(observer, 'SCInvitationChangedState')
 
-    def play_wav_file(self, filepath, *args, **kwargs):
-        w = WaveFile(filepath)
-        with notification.linked_notification(name='SCWaveFileDidEnd', sender=w) as q:
-            w.start(*args, **kwargs)
-            q.wait()
-            w.stop()
+def play_wav_file(filepath, *args, **kwargs):
+    w = WaveFile(filepath)
+    with notification.linked_notification(name='SCWaveFileDidEnd', sender=w) as q:
+        w.start(*args, **kwargs)
+        q.wait()
+        w.stop()
 
 
 class IncomingSessionHandler(object):

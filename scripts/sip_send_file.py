@@ -9,7 +9,7 @@ from msrplib.trafficlog import Logger, hook_std_output; hook_std_output()
 from msrplib.protocol import URI
 
 from sipsimple import Credentials, SDPAttribute, SDPMedia, WaveFile
-from sipsimple.green.core import GreenEngine, GreenInvitation
+from sipsimple.green.core import GreenEngine, GreenInvitation, play_wav_file
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.sdputil import FileSelector
 from sipsimple.clients.config import parse_options, update_options
@@ -91,7 +91,7 @@ def main():
         session.deliver_message(source.read(), sdp.fileselector.type)
         print 'Sent %s.' % sdp.fileselector
         if not options.disable_sound:
-            e.play_wav_file(get_path("message_sent.wav"))
+            play_wav_file(get_path("message_sent.wav"))
         session.end()
     except MSRPSessionErrors, ex:
         sys.exit(str(ex) or type(ex).__name__)

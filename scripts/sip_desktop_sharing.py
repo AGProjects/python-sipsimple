@@ -9,7 +9,7 @@ from msrplib.trafficlog import Logger, hook_std_output
 from msrplib.protocol import URI
 
 from sipsimple import Credentials
-from sipsimple.green.core import GreenEngine, Ringer, IncomingSessionHandler, GreenRegistration, GreenInvitation
+from sipsimple.green.core import GreenEngine, Ringer, IncomingSessionHandler, GreenRegistration, GreenInvitation, play_wav_file
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.console import setup_console, EOF
 from sipsimple.clients.config import parse_options, update_options
@@ -111,10 +111,7 @@ def main():
 
         if not options.target_uri:
             handler = IncomingSessionHandler()
-            ringer = Ringer(
-                e.play_wav_file, 
-                get_path("ring_inbound.wav")
-            )
+            ringer = Ringer(play_wav_file, get_path("ring_inbound.wav"))
             with setup_console() as console:
                 logger = Logger(fileobj=console, is_enabled_func = lambda: options.trace_msrp)
                 get_acceptor = lambda: connect.get_acceptor(options.relay, logger=logger)
@@ -248,10 +245,7 @@ def main():
             inv = GreenInvitation(credentials, options.target_uri, route=options.route)
             logger = Logger(is_enabled_func = lambda: options.trace_msrp)
             msrp_connector = connect.get_connector(None, logger=logger)
-            ringer = Ringer(
-                e.play_wav_file, 
-                get_path("ring_outbound.wav")
-            )
+            ringer = Ringer(play_wav_file, get_path("ring_outbound.wav"))
             session = MSRPSession.invite(
                 inv, 
                 msrp_connector, 
