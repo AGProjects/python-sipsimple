@@ -267,11 +267,11 @@ class AccountManager(object):
         """
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='AMAccountDidActivate')
+        notification_center.add_observer(self, name='AMAccountDidDeactivate')
         # initialize bonjour account
         bonjour_account = BonjourAccount()
         self.accounts['bonjour'] = bonjour_account
-        notification_center.add_observer(self, name='AMAccountDidActivate', sender=bonjour_account)
-        notification_center.add_observer(self, name='AMAccountDidDeactivate', sender=bonjour_account)
         notification_center.post_notification('AMAccountWasAdded', sender=self, data=NotificationData(account=bonjour_account))
         # and the other accounts
         try:
@@ -316,8 +316,6 @@ class AccountManager(object):
         """
         self.accounts[account.id] = account
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='AMAccountDidActivate', sender=account)
-        notification_center.add_observer(self, name='AMAccountDidDeactivate', sender=account)
         notification_center.post_notification('AMAccountWasAdded', sender=self, data=NotificationData(account=account))
 
     def _internal_remove_account(self, account):
@@ -326,8 +324,6 @@ class AccountManager(object):
         """
         del self.accounts[account.id]
         notification_center = NotificationCenter()
-        notification_center.remove_observer(self, name='AMAccountDidActivate', sender=account)
-        notification_center.remove_observer(self, name='AMAccountDidDeactivate', sender=account)
         notification_center.post_notification('AMAccountWasRemoved', sender=self, data=NotificationData(account=account))
 
     def _get_default_account(self):
