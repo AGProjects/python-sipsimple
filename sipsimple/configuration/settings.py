@@ -66,9 +66,9 @@ class RTPSettings(SettingsGroup):
 
 
 class SIPSettings(SettingsGroup):
-    local_udp_port = Setting(type=Port, default=0)
-    local_tcp_port = Setting(type=Port, default=0)
-    local_tls_port = Setting(type=Port, default=0)
+    local_udp_port = Setting(type=Port, default=5060)
+    local_tcp_port = Setting(type=Port, default=5060)
+    local_tls_port = Setting(type=Port, default=5061)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
 
