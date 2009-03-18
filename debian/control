@@ -5,11 +5,11 @@ Maintainer: Lucian Stanescu <luci@ag-projects.com>
 Uploaders: Ruud Klaver <ruud@ag-projects.com>, Adrian Georgescu <ag@ag-projects.com>, Denis Bilenko <denis@ag-projects.com>, Dan Pascu <dan@ag-projects.com>
 Build-Depends: cdbs (>= 0.4.47), debhelper (>= 7), python-all-dev (>= 2.5), python-support, cython, libasound2-dev, libssl-dev
 Standards-Version: 3.8.0
-Homepage: http://www.ag-projects.com/SipClient
+Homepage: http://sipsimpleclient.com
 
 Package: sipclient
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.1.0), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib, python-msrplib (>= 0.9.2), python-codespeak-lib, python-gnutls, python-eventlet, python-eventlet (>= 0.8.9-2), python-pygame, x11vnc
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, python-application (>= 1.1.0), python-twisted, python-dnspython (>= 1.6), python-setuptools, python-lxml, python-xcaplib, python-msrplib (>= 1.0.0), python-codespeak-lib, python-gnutls, python-eventlet, python-eventlet (>= 0.8.9-2), python-pygame, x11vnc
 Provides: ${python:Provides}
 Description: SIP SIMPLE client Python library
  SIP SIMPLE client is a Python software library that allows for easy  
