@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import with_statement
+from contextlib import contextmanager
 import sys
 import datetime
 import time
@@ -361,16 +362,27 @@ def start(options, console):
             console_next_line(console)
             if registration is not None:
                 registration = proc.spawn(registration.unregister)
-            manager.close()
+            with calming_message(1, "Disconnecting the session(s)..."):
+                manager.close()
             if registration is not None:
-                registration.wait()
+                with calming_message(1, "Unregistering..."):
+                    registration.wait()
     finally:
-        t = api.get_hub().schedule_call(1, sys.stdout.write, 'Disconnecting the session(s)...\n')
-        try:
+        with calming_message(1, "Disconnecting the session(s)..."):
             proc.waitall([proc.spawn(session.terminate) for session in SessionManager().sessions])
-        finally:
-            t.cancel()
-        engine.stop()
+        with calming_message(1, "Stopping the engine..."):
+            engine.stop()
+        from eventlet.api import sleep
+        sleep(0.1)
+
+@contextmanager
+def calming_message(seconds, message):
+    """Print `message' after `seconds'."""
+    t = api.get_hub().schedule_call(seconds, sys.stdout.write, message + '\n')
+    try:
+        yield t
+    finally:
+        t.cancel()
 
 def get_commands(manager):
     return {'switch': manager.switch,
