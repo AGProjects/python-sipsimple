@@ -69,10 +69,10 @@ class RegistrationSettings(SettingsGroup):
 
 
 class RingtoneSettings(SettingsGroup):
-    audio_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
-    chat_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
-    file_transfer_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
-    desktop_sharing_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
+    audio_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    chat_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    file_transfer_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    desktop_sharing_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
 
 
 class Account(SettingsObject):

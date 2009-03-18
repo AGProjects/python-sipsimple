@@ -24,8 +24,8 @@ class AudioSettings(SettingsGroup):
 
 
 class ChatSettings(SettingsGroup):
-    message_received_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('message_received.wav'), nillable=True)
-    message_sent_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('message_sent.wav'), nillable=True)
+    message_received_sound = Setting(type=AbsolutePath, default=None, nillable=True)
+    message_sent_sound = Setting(type=AbsolutePath, default=None, nillable=True)
 
 
 class DesktopSharingSettings(SettingsGroup):
@@ -37,8 +37,8 @@ class DesktopSharingSettings(SettingsGroup):
 
 class FileTransferSettings(SettingsGroup):
     directory = Setting(type=DataPath, default=DataPath('file_transfers'))
-    file_received_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('file_received.wav'), nillable=True)
-    file_sent_sound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('file_sent.wav'), nillable=True)
+    file_received_sound = Setting(type=AbsolutePath, default=None, nillable=True)
+    file_sent_sound = Setting(type=AbsolutePath, default=None, nillable=True)
 
 
 class LoggingSettings(SettingsGroup):
@@ -51,14 +51,14 @@ class LoggingSettings(SettingsGroup):
 
 
 class RingtoneSettings(SettingsGroup):
-    audio_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
-    audio_outbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_outbound.wav'), nillable=True)
-    chat_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
-    chat_outbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_outbound.wav'), nillable=True)
-    file_transfer_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
-    file_transfer_outbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_outbound.wav'), nillable=True)
-    desktop_sharing_inbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_inbound.wav'), nillable=True)
-    desktop_sharing_outbound = Setting(type=AbsolutePath, default=AbsolutePath.get_application_path('ring_outbound.wav'), nillable=True)
+    audio_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    audio_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    chat_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    chat_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    file_transfer_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    file_transfer_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    desktop_sharing_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    desktop_sharing_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
 
 
 class RTPSettings(SettingsGroup):
