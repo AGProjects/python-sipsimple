@@ -148,8 +148,6 @@ class GreenRegistration(GreenBase):
                     raise RuntimeError('Unexpected notification: %r' % (n, ))
                 return n
 
-    shutdown = unregister
-
 
 class Ringer(object):
 
@@ -231,8 +229,6 @@ class GreenInvitation(GreenBase):
         with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='CONFIRMED') as q:
             self._obj.accept_invite(*args, **kwargs)
             return q.wait()
-
-    shutdown = end
 
     def call_on_disconnect(self, func):
         observer = notification.CallFromThreadObserver(func, condition=lambda n: n.data.state=='DISCONNECTED')
