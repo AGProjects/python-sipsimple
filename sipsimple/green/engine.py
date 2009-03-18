@@ -16,7 +16,6 @@ from eventlet import api, proc, coros
 
 from sipsimple import Engine, Registration, Invitation, WaveFile
 from sipsimple.green import notification
-from sipsimple.green.util import wrapdict
 
 __all__ = ['Error',
            'SIPError',
@@ -43,7 +42,7 @@ class SIPError(Error):
             self.msg = msg
 
     def __str__(self):
-        return self.msg + '%(code)s %(reason)s' % wrapdict(self.params)
+        return self.msg + '%s %s' % (self.params.get('code'), self.params.get('reason'))
 
     def __getattr__(self, item):
         try:
