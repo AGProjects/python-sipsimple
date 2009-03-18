@@ -70,7 +70,7 @@ class EngineTracer(FileLoggerBase):
     implements(IObserver)
 
     event_name = Any
-    excluded_notifications  = ["SCEngineLog"]
+    excluded_notifications  = ["SCEngineLog", 'SCEngineSIPTrace']
 
     def handle_notification(self, notification):
         if notification.name in self.excluded_notifications:
