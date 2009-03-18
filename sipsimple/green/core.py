@@ -183,8 +183,6 @@ class Ringer(object):
 class GreenInvitation(GreenBase):
 
     event_names = ['SCInvitationChangedState', 'SCInvitationGotSDPUpdate']
-    confirmed = False
-    session_name = 'SIP session'
     klass = Invitation
 
     @property

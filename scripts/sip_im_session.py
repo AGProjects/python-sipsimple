@@ -266,7 +266,7 @@ class IncomingChatHandler(IncomingMSRPHandler_Interactive):
         return True
 
     def _ask_user(self, inv):
-        q = 'Incoming %s request from %s, do you accept? (y/n) ' % (inv.session_name, inv.caller_uri)
+        q = 'Incoming SIP request request from %s, do you accept? (y/n) ' % (inv.caller_uri, )
         inv.respond_to_invite_provisionally()
         self.ringer.start()
         try:
