@@ -368,6 +368,12 @@ def start(options, console):
                         manager.close_current_session()
                     else:
                         raise
+        except BaseException, ex:
+            # will print the exception myself, because finally section takes
+            # time and maybe interrupted thus hiding the original exception
+            if type(ex) is not EOF:
+                import traceback
+                traceback.print_exc()
         finally:
             console_next_line(console)
             if registration is not None:
