@@ -128,7 +128,11 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsDidChange', sender=self)
         
-        if self.enabled:
+        engine = Engine()
+        notification_center.add_observer(self, name='SCEngineDidStart', sender=engine)
+        notification_center.add_observer(self, name='SCEngineWillEnd', sender=engine)
+
+        if self.enabled and engine.is_running:
             self._activate()
 
     def delete(self):
@@ -142,9 +146,6 @@ class Account(SettingsObject):
 
         manager = AccountManager()
         manager._internal_remove_account(self)
-
-    def match_contact(self, contact_address):
-        return self.contact == contact_address
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
@@ -163,7 +164,6 @@ class Account(SettingsObject):
         settings = SIPSimpleSettings()
         username = ''.join(random.sample(string.lowercase, 8))
         self.contact = SIPAddress('%s@%s' % (username, settings.local_ip.value))
-        # TODO determine port based on transport selected for registration
         
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidActivate', sender=self)
@@ -228,19 +228,6 @@ class BonjourAccount(SettingsObject):
         
         if self.enabled:
             self._activate()
-
-    def match_contact(self, contact_address):
-        engine = Engine()
-        for transport in self.transports:
-            default_port = 5061 if transport=='tls' else 5060
-            listen_port = getattr(engine, 'local_%s_port' % transport)
-            if listen_port == default_port:
-                account_contact = self.contact
-            else:
-                account_contact = '%s:%d' % (self.contact, listen_port)
-            if contact_address == account_contact:
-                return True
-        return False
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
@@ -332,12 +319,9 @@ class AccountManager(object):
 
     def find_account(self, contact_uri):
         contact_address = '%s@%s' % (contact_uri.user, contact_uri.host)
-        port = 5061 if contact_uri.parameters.get('transport', 'udp')=='tls' else 5060
-        if contact_uri.port != port:
-            contact_address = '%s:%d' % (contact_address, contact_uri.port)
         
         # compare contact_address with account contact
-        exact_matches = (account for account in self.accounts.itervalues() if account.enabled and account.match_contact(contact_address))
+        exact_matches = (account for account in self.accounts.itervalues() if account.enabled and account.contact==contact_address)
         # compare username in contact URI with account username
         loose_matches = (account for account in self.accounts.itervalues() if account.enabled and account.id.username==contact_uri.user)
         return chain(exact_matches, loose_matches, [None]).next()
