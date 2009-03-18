@@ -435,7 +435,10 @@ cdef extern from "pjsip.h":
         int port
     enum pjsip_hdr_e:
         PJSIP_H_VIA
+        PJSIP_H_CALL_ID
+        PJSIP_H_CSEQ
     struct pjsip_hdr:
+        pjsip_hdr_e type
         pj_str_t name
     ctypedef pjsip_hdr *pjsip_hdr_ptr_const "const pjsip_hdr*"
     struct pjsip_generic_array_hdr:
@@ -544,6 +547,7 @@ cdef extern from "pjsip.h":
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
     int pjsip_msg_print(pjsip_msg *msg, char *buf, unsigned int size)
     int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata)
+    void pjsip_tx_data_add_ref(pjsip_tx_data *tdata)
     pj_str_t *pjsip_uri_get_scheme(pjsip_uri *uri)
     void *pjsip_uri_get_uri(pjsip_uri *uri)
     int pjsip_uri_print(pjsip_uri_context_e context, void *uri, char *buf, unsigned int size)
@@ -551,12 +555,15 @@ cdef extern from "pjsip.h":
     enum:
         PJSIP_PARSE_URI_AS_NAMEADDR
     pjsip_uri *pjsip_parse_uri(pj_pool_t *pool, char *buf, unsigned int size, unsigned int options)
+    void pjsip_method_init_np(pjsip_method *m, pj_str_t *str)
 
     # module
     enum pjsip_module_priority:
         PJSIP_MOD_PRIORITY_APPLICATION
         PJSIP_MOD_PRIORITY_DIALOG_USAGE
         PJSIP_MOD_PRIORITY_TRANSPORT_LAYER
+    struct pjsip_event
+    struct pjsip_transaction
     struct pjsip_module:
         pj_str_t name
         int id
@@ -565,6 +572,7 @@ cdef extern from "pjsip.h":
         int on_rx_response(pjsip_rx_data *rdata) with gil
         int on_tx_request(pjsip_tx_data *tdata) with gil
         int on_tx_response(pjsip_tx_data *tdata) with gil
+        void on_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 
     # endpoint
     struct pjsip_endpoint
@@ -620,6 +628,8 @@ cdef extern from "pjsip.h":
     enum pjsip_role_e:
         PJSIP_ROLE_UAC
     enum pjsip_tsx_state_e:
+        PJSIP_TSX_STATE_PROCEEDING
+        PJSIP_TSX_STATE_COMPLETED
         PJSIP_TSX_STATE_TERMINATED
     struct pjsip_transaction:
         int status_code
@@ -627,9 +637,13 @@ cdef extern from "pjsip.h":
         pjsip_role_e role
         pjsip_tx_data *last_tx
         pjsip_tsx_state_e state
+        void **mod_data
     int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
     int pjsip_tsx_create_key(pj_pool_t *pool, pj_str_t *key, pjsip_role_e role, pjsip_method *method, pjsip_rx_data *rdata)
     pjsip_transaction *pjsip_tsx_layer_find_tsx(pj_str_t *key, int lock)
+    int pjsip_tsx_create_uac(pjsip_module *tsx_user, pjsip_tx_data *tdata, pjsip_transaction **p_tsx)
+    int pjsip_tsx_terminate(pjsip_transaction *tsx, int code)
+    int pjsip_tsx_send_msg(pjsip_transaction *tsx, pjsip_tx_data *tdata)
 
     # event
     enum pjsip_event_id_e:
@@ -849,6 +863,12 @@ cdef int c_add_event(object event_name, dict params) except -1
 cdef list c_get_clear_event_queue()
 cdef int c_add_post_handler(int func(object obj) except -1, object obj) except -1
 cdef int c_handle_post_queue(PJSIPUA ua) except -1
+
+# core.request
+
+cdef class Request
+cdef void cb_Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
+cdef void _cb_Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
 # core.message
 
