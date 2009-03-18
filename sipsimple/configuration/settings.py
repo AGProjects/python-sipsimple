@@ -26,6 +26,7 @@ class AudioSettings(SettingsGroup):
 class ChatSettings(SettingsGroup):
     message_received_sound = Setting(type=AbsolutePath, default=None, nillable=True)
     message_sent_sound = Setting(type=AbsolutePath, default=None, nillable=True)
+    history_directory = Setting(type=DataPath, default=DataPath('history'))
 
 
 class DesktopSharingSettings(SettingsGroup):
