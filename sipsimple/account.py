@@ -2,6 +2,9 @@
 Account management system.
 """
 
+import random
+import string
+
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Singleton
 from zope.interface import implements
@@ -115,6 +118,7 @@ class Account(SettingsObject):
 
     def __init__(self, id):
         self.id = id
+        self.contact = None
 
         manager = AccountManager()
         manager._internal_add_account(self)
@@ -137,6 +141,9 @@ class Account(SettingsObject):
         manager = AccountManager()
         manager._internal_remove_account(self)
 
+    def match_contact(self, contact_address):
+        return self.contact == contact_address
+
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
@@ -151,10 +158,17 @@ class Account(SettingsObject):
                 self._deactivate()
 
     def _activate(self):
+        settings = SIPSimpleSettings()
+        username = ''.join(random.sample(string.lowercase, 8))
+        self.contact = SIPAddress('%s@%s' % (username, settings.local_ip.value))
+        # TODO determine port based on transport selected for registration
+        
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidActivate', sender=self)
 
     def _deactivate(self):
+        self.contact = None
+
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidDeactivate', sender=self)
 
@@ -197,6 +211,8 @@ class BonjourAccount(SettingsObject):
     ringtone = RingtoneSettings
 
     def __init__(self):
+        self.contact = None
+
         # initialize msrp settings
         self.msrp = MSRPSettings()
         self.msrp.relay = None
@@ -210,6 +226,19 @@ class BonjourAccount(SettingsObject):
         
         if self.enabled:
             self._activate()
+
+    def match_contact(self, contact_address):
+        engine = Engine()
+        for transport in self.transports:
+            default_port = 5061 if transport=='tls' else 5060
+            listen_port = getattr(engine, 'local_%s_port' % transport)
+            if listen_port == default_port:
+                account_contact = self.contact
+            else:
+                account_contact = '%s:%d' % (self.contact, listen_port)
+            if contact_address == account_contact:
+                return True
+        return False
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
@@ -225,10 +254,16 @@ class BonjourAccount(SettingsObject):
                 self._deactivate()
 
     def _activate(self):
+        settings = SIPSimpleSettings()
+        username = ''.join(random.sample(string.lowercase, 8))
+        self.contact = SIPAddress('%s@%s' % (username, settings.local_ip.value))
+        
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidActivate', sender=self)
 
     def _deactivate(self):
+        self.contact = None
+
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidDeactivate', sender=self)
 
