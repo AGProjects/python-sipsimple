@@ -32,7 +32,7 @@ class ChatSettings(SettingsGroup):
 
 
 class DesktopSharingSettings(SettingsGroup):
-    depth = Setting(type=ImageDepth, default=8)
+    color_depth = Setting(type=ImageDepth, default=8)
     resolution = Setting(type=Resolution, default=Resolution(width=1024, height=768))
     client_command = Setting(type=AbsolutePath, default=None, nillable=True)
     server_command = Setting(type=AbsolutePath, default=None, nillable=True)
