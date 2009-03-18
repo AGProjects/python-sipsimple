@@ -186,7 +186,7 @@ class BonjourAccount(SettingsObject):
     implements(IObserver)
     
     __section__ = 'Accounts'
-    __id__ = 'bonjour'
+    __id__ = SIPAddress('bonjour@local')
     
     id = property(lambda self: self.__id__)
     enabled = Setting(type=bool, default=True)
