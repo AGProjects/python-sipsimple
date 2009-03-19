@@ -17,6 +17,7 @@ from msrplib.connect import MSRPRelaySettings
 from sipsimple.engine import Engine
 from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
 from sipsimple.msrp import MSRPChat
+from sipsimple.account import AccountManager
 
 class SessionStateError(Exception):
     pass
@@ -133,11 +134,12 @@ class Session(NotificationHandler):
        rtp_options: the RTPTransport options fetched from the SessionManager
            at object creation."""
 
-    def __init__(self):
+    def __init__(self, account):
         """Instatiates a new Session object for an incoming or outgoing
            SIP session. Initially the object is in the NULL state."""
         self.session_manager = SessionManager()
         self.notification_center = NotificationCenter()
+        self.account = account
         self.rtp_options = self.session_manager.rtp_config.__dict__.copy()
         self.msrp_options = copy(self.session_manager.msrp_config)
         self.state = "NULL"
@@ -927,21 +929,24 @@ class SessionManager(NotificationHandler):
     def _NH_SCInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
             remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
-            # TODO: check if the To header/request URI is one of ours
+            account = AccountManager().find_account(data.request_uri)
+            if account is None or "To" not in data.headers.iterkeys() or account.id.username != data.headers["To"].user or account.id.domain != data.headers["To"].host:
+                inv.disconnect(404)
+                return
             if not any(supported_media in remote_media for supported_media in ["audio", "message"]):
                 inv.disconnect(415)
-            else:
-                inv.respond_to_invite_provisionally(180)
-                session = Session()
-                session._inv = inv
-                session.remote_user_agent = data.headers.get("User-Agent", None)
-                self.inv_mapping[inv] = session
-                ringtone = self.ringtone_config.get_ringtone_for_sipuri(inv.caller_uri)
-                if ringtone is not None:
-                    session._ringtone = WaveFile(ringtone)
-                session.direction = "incoming"
-                session._change_state("INCOMING")
-                self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media, has_chat="message" in remote_media))
+                return
+            inv.respond_to_invite_provisionally(180)
+            session = Session(account)
+            session._inv = inv
+            session.remote_user_agent = data.headers.get("User-Agent", None)
+            self.inv_mapping[inv] = session
+            ringtone = self.ringtone_config.get_ringtone_for_sipuri(inv.caller_uri)
+            if ringtone is not None:
+                session._ringtone = WaveFile(ringtone)
+            session.direction = "incoming"
+            session._change_state("INCOMING")
+            self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media, has_chat="message" in remote_media))
         else:
             session = self.inv_mapping.get(inv, None)
             if session is None:
