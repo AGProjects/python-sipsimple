@@ -12,7 +12,7 @@ from application.python.util import Singleton
 from zope.interface import implements
 
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Port, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
+from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, Port, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 
@@ -49,8 +49,6 @@ class MessageSummarySettings(SettingsGroup):
 
 class MSRPSettings(SettingsGroup):
     relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
-    local_transport = Setting(type=MSRPTransport, default='tls')
-    local_port = Setting(type=Port, default=0)
     use_relay_for_inbound = Setting(type=bool, default=True)
     use_relay_for_outbound = Setting(type=bool, default=False)
 
@@ -218,8 +216,6 @@ class BonjourAccount(SettingsObject):
         # initialize msrp settings
         self.msrp = MSRPSettings()
         self.msrp.relay = None
-        self.msrp.transport = 'tls'
-        self.msrp.local_port = 0
         self.msrp.use_relay_for_inbound = False
         self.msrp.use_relay_for_outbound = False
 

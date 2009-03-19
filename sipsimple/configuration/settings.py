@@ -8,7 +8,7 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, TLSProtocol, Transports
+from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, TLSProtocol, Transports
 
 
 __all__ = ['SIPSimpleSettings']
@@ -51,6 +51,11 @@ class LoggingSettings(SettingsGroup):
     trace_msrp = Setting(type=bool, default=False)
     trace_xcap = Setting(type=bool, default=False)
     pjsip_level = Setting(type=NonNegativeInteger, default=5)
+
+
+class MSRPSettings(SettingsGroup):
+    local_transport = Setting(type=MSRPTransport, default='tls')
+    local_port = Setting(type=Port, default=0)
 
 
 class RingtoneSettings(SettingsGroup):
@@ -98,6 +103,7 @@ class SIPSimpleSettings(SettingsObject):
     desktop_sharing = DesktopSharingSettings
     file_transfer = FileTransferSettings
     logging = LoggingSettings
+    msrp = MSRPSettings
     ringtone = RingtoneSettings
     rtp = RTPSettings
     sip = SIPSettings
