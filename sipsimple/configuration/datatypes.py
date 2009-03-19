@@ -27,10 +27,10 @@ class ContentType(str):
         try:
             type, subtype = value.split('/')
         except ValueError:
-            raise ValueError("illegal content-type")
+            raise ValueError("illegal content-type: %s" % value)
         else:
             if type == '*':
-                raise ValueError("illegal content-type")
+                raise ValueError("illegal content-type: %s" % value)
         return value
 
 
@@ -218,7 +218,7 @@ class SIPAddress(str):
             username, domain = address.split('@')
             Hostname(domain)
         except ValueError:
-            raise ValueError("illegal SIP address")
+            raise ValueError("illegal SIP address: %s" % address)
         return str.__new__(cls, address)
 
     username = property(lambda self: self.split('@')[0])
@@ -255,7 +255,7 @@ class SRTPEncryption(str):
     available_values = ('disabled', 'optional', 'mandatory')
     def __new__(cls, value):
         if value not in cls.available_values:
-            raise ValueError("illegal value for srtp encryption" % value)
+            raise ValueError("illegal value for srtp encryption: %s" % value)
         return value
 
 
