@@ -11,6 +11,7 @@ cdef class Invitation:
     cdef SDPSession c_local_sdp_proposed
     cdef int c_sdp_neg_status
     cdef int c_has_active_sdp
+    cdef readonly object transport
 
     def __cinit__(self, Credentials credentials=None, SIPURI callee_uri=None, Route route=None):
         cdef PJSIPUA ua = c_get_ua()
@@ -27,6 +28,7 @@ cdef class Invitation:
                 self.c_credentials._to_c()
             self.c_caller_uri = self.c_credentials.uri
             self.c_route = route.copy()
+            self.transport = route.transport
         elif any([credentials, callee_uri, route]):
             raise ValueError("All arguments need to be supplied when creating an outbound Invitation")
         else:
@@ -44,11 +46,11 @@ cdef class Invitation:
             if c_is_valid_ip(pj_AF_INET(), request_uri.host):
                 contact_uri = request_uri
             else:
-                transport = rdata.tp_info.transport.type_name.lower()
+                self.transport = rdata.tp_info.transport.type_name.lower()
                 contact_uri = SIPURI(host=pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                      user=request_uri.user,
                                      port=rdata.tp_info.transport.local_name.port,
-                                     parameters=({"transport":transport} if transport != "udp" else {}))
+                                     parameters=({"transport":transport} if self.transport != "udp" else {}))
             contact_uri_str = PJSTR(contact_uri._as_str(1))
             status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri_str.pj_str, &self.c_dlg)
             if status != 0:
@@ -307,11 +309,10 @@ cdef class Invitation:
         caller_uri = PJSTR(self.c_caller_uri._as_str(0))
         callee_uri = PJSTR(self.c_callee_uri._as_str(0))
         callee_target_uri = self.c_callee_uri.copy()
-        if callee_target_uri.parameters.get("transport", "udp").lower() != self.c_route.transport:
-            callee_target_uri.parameters["transport"] = self.c_route.transport
+        if callee_target_uri.parameters.get("transport", "udp").lower() != self.transport:
+            callee_target_uri.parameters["transport"] = self.transport
         callee_target = PJSTR(callee_target_uri._as_str(1))
-        transport = self.c_route.transport
-        contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
+        contact_uri = ua.c_create_contact_uri(self.c_credentials.token, self.transport)
         try:
             status = pjsip_dlg_create_uac(pjsip_ua_instance(), &caller_uri.pj_str, &contact_uri.pj_str, &callee_uri.pj_str, &callee_target.pj_str, &self.c_dlg)
             if status != 0:
