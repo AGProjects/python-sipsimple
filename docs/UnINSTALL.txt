@@ -5,10 +5,9 @@ Uninstalling SIP SIMPLE client
 To clean up the python-sipsimple folder used for building the software:
 
 cd python-sipsimple
-rm -rf build dist MANIFEST
+sudo rm -rf build dist MANIFEST
+sudo python setup.py clean --all
 
-For Debian:
-sudo debuild clean
 
 To uninstall the software and all its dependencies that you have previously
 installed using 'sudo python setup.py install' locate your site-packages
