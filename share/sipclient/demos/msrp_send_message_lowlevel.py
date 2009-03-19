@@ -12,7 +12,7 @@ from msrplib.session import GreenMSRPSession
 from msrplib.protocol import parse_uri
 
 from sipsimple import Credentials, SDPSession, SDPConnection, SDPAttribute, SDPMedia
-from sipsimple.green.engine import GreenEngine, GreenInvitation
+from sipsimple.green.core import GreenEngine, GreenInvitation
 from sipsimple.clients.config import parse_options, update_options
 from sipsimple import logstate
 from sipsimple.clients.cpim import MessageCPIM

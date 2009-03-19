@@ -8,7 +8,7 @@ from sipsimple import Credentials
 from sipsimple.green.engine import GreenEngine
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.config import parse_options, update_options
-from sipsimple.green.session2 import GreenSession
+from sipsimple.green.session import GreenSession
 from sipsimple.session import SessionManager
 from sipsimple import logstate
 
