@@ -362,6 +362,8 @@ class AccountManager(object):
 
     def _set_default_account(self, account):
         # TODO make old default account unsubscribe and new account subscribe
+        if not account.enabled:
+            raise ValueError("account %s is not enabled" % account.id)
         settings = SIPSimpleSettings()
         if account is None:
             settings.default_account = None
