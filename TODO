@@ -58,6 +58,7 @@ Audio
 Instant messaging
 -----------------
 
+- Use MSRPServer to share the listening port. otherwise when local_port is provided different session may conflict [DB]
 - Document MSRP library API [DB]
 - Port eventlet/greenlet to ARM [DB]
 - Is-composing payload [DB]
