@@ -888,12 +888,12 @@ class SessionManager(NotificationHandler):
 
     def _NH_SCInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
-            remote_media = [media.media for media in inv.get_offered_remote_sdp().media if media.port != 0]
             account = AccountManager().find_account(data.request_uri)
             if account is None or "To" not in data.headers.iterkeys() or account.id.username != data.headers["To"].user or account.id.domain != data.headers["To"].host:
                 inv.disconnect(404)
                 return
-            if not any(supported_media in remote_media for supported_media in ["audio", "message"]):
+            proposed_media = list(set(media.media for media in inv.get_offered_remote_sdp().media if media.media in ["audio", "message"] and media.port != 0))
+            if len(proposed_media) == 0:
                 inv.disconnect(415)
                 return
             inv.respond_to_invite_provisionally(180)
@@ -906,7 +906,7 @@ class SessionManager(NotificationHandler):
                 session._ringtone = WaveFile(ringtone)
             session.direction = "incoming"
             session._change_state("INCOMING")
-            self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(has_audio="audio" in remote_media, has_chat="message" in remote_media))
+            self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(streams=proposed_media))
         else:
             session = self.inv_mapping.get(inv, None)
             if session is None:
