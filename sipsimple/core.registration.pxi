@@ -14,7 +14,7 @@ cdef class Registration:
     cdef PJSTR c_contact_uri
     cdef dict c_extra_headers
 
-    def __cinit__(self, Credentials credentials, route, expires=300, extra_headers=None):
+    def __cinit__(self, Credentials credentials, route, expires=300, SIPURI contact_uri=None, extra_headers=None):
         cdef int status
         cdef object transport
         cdef PJSTR request_uri, fromto_uri
@@ -30,7 +30,10 @@ cdef class Registration:
         self.c_route = route.copy()
         transport = self.c_route.transport
         self.c_want_register = 0
-        self.c_contact_uri = ua.c_create_contact_uri(credentials.token, transport)
+        if contact_uri is None:
+            self.c_contact_uri = ua.c_create_contact_uri(credentials.token, transport)
+        else:
+            self.c_contact_uri = PJSTR(contact_uri._as_str(1))
         request_uri = PJSTR(str(SIPURI(credentials.uri.host)))
         fromto_uri = PJSTR(credentials.uri._as_str(0))
         status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)

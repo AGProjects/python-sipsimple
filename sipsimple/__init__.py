@@ -1,6 +1,6 @@
 __version__ = "0.4.1"
 
-_revision_required = 39
+_revision_required = 40
 from core import CORE_REVISION
 if CORE_REVISION != _revision_required:
     raise ImportError("Wrong SIP core revision %d (expected %d)" % (CORE_REVISION, _revision_required))
