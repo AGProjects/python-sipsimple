@@ -169,7 +169,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 port = getattr(e, "local_%s_port" % route.transport)
                 credentials = Credentials(SIPURI(host=e.local_ip, user="bonjour", port=port, parameters={"transport": route.transport}))
             sess = Session()
-            sess.new(target_uri, credentials, route, audio=True)
+            sess.connect(target_uri, credentials, route, audio=True)
             print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, route.transport, route.address, route.port)
             print_control_keys()
         while True:

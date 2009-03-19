@@ -297,7 +297,7 @@ class ChatManager(NotificationHandler):
         try:
             session = ChatSession(remote_party=format_uri(target_uri))
             self.add_session(session)
-            session.new(target_uri, self.credentials, route, chat=use_chat, audio=use_audio)
+            session.connect(target_uri, self.credentials, route, chat=use_chat, audio=use_audio)
         except SessionError:
             pass # was already logged by InvitationLogger
 

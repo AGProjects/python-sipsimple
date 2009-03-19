@@ -202,7 +202,7 @@ class Session(NotificationHandler):
         return self.chat_transport is not None
 
     # user interface
-    def new(self, callee_uri, credentials, route, audio=False, chat=False):
+    def connect(self, callee_uri, credentials, route, audio=False, chat=False):
         """Creates a new SIP session to the callee with the requested stream(s).
            Moves the object from the NULL into the CALLING state."""
         with self._lock:

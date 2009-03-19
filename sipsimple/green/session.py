@@ -22,12 +22,12 @@ class CannotDeliverError(Exception):
 class GreenSession(GreenBase):
     klass = Session
 
-    def new(self, callee_uri, credentials, route, audio=False, chat=False):
+    def connect(self, callee_uri, credentials, route, audio=False, chat=False):
         event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
         with self.linked_notifications(event_names) as q:
-            self._obj.new(callee_uri, credentials, route, audio=audio, chat=chat)
+            self._obj.connect(callee_uri, credentials, route, audio=audio, chat=chat)
             while True:
                 notification = q.wait()
                 if notification.name == 'SCSessionDidStart':
