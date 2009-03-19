@@ -190,6 +190,18 @@ class AccountConfigurator(object):
         account.save()
         print 'Account updated'
 
+    def default(self, sip_address):
+        if not self.account_manager.has_account(sip_address):
+            print 'Account %s does not exist' % sip_address
+            return
+        account = self.account_manager.get_account(sip_address)
+        try:
+            self.account_manager.default_account = account
+        except ValueError, e:
+            print str(e)
+            return
+        print 'Account %s is now default account' % account.id
+
 
 class SIPSimpleConfigurator(object):
     def __init__(self):
@@ -242,7 +254,8 @@ if __name__ == '__main__':
        %prog --account add user@domain password
        %prog --account delete user@domain
        %prog --account show user@domain
-       %prog --account set user@domain key1=value1 [key2=value2 ...]"""
+       %prog --account set user@domain key1=value1 [key2=value2 ...]
+       %prog --account default user@domain"""
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-a", "--account", action="store_true", dest="account", help="Manage SIP accounts' settings")
     parser.add_option("-g", "--general", action="store_true", dest="general", help="Manage general SIP SIMPLE middleware settings")
