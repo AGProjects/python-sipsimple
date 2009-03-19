@@ -292,7 +292,7 @@ class AccountManager(object):
         notification_center.add_observer(self, name='AMAccountDidDeactivate')
         # initialize bonjour account
         bonjour_account = BonjourAccount()
-        self.accounts['bonjour'] = bonjour_account
+        self.accounts[bonjour_account.id] = bonjour_account
         notification_center.post_notification('AMAccountWasAdded', sender=self, data=NotificationData(account=bonjour_account))
         # and the other accounts
         try:
@@ -300,7 +300,7 @@ class AccountManager(object):
         except UnknownSectionError:
             pass
         else:
-            [Account(id) for id in names if id != 'bonjour']
+            [Account(id) for id in names if id != bonjour_account.id]
 
     def has_account(self, id):
         return id in self.accounts

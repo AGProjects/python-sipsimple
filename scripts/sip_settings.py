@@ -116,9 +116,10 @@ class AccountConfigurator(object):
 
     def list(self):
         print 'Accounts:'
-        accounts = [account for account in self.account_manager.get_accounts() if account.id != 'bonjour']
+        bonjour_account = BonjourAccount()
+        accounts = [account for account in self.account_manager.get_accounts() if account.id != bonjour_account.id]
         accounts.sort(cmp=lambda a, b: cmp(a.id, b.id))
-        accounts.append(BonjourAccount())
+        accounts.append(bonjour_account)
         for account in accounts:
             print '  %s (%s)%s' % (account.id, 'enabled' if account.enabled else 'disabled', ' - default_account' if account is self.account_manager.default_account else '')
 
@@ -139,7 +140,7 @@ class AccountConfigurator(object):
         if not self.account_manager.has_account(sip_address):
             print 'Account %s does not exist' % sip_address
             return
-        if sip_address == 'bonjour':
+        if sip_address == BonjourAccount.__id__:
             print 'Cannot delete bonjour account'
             return
         account = self.account_manager.get_account(sip_address)
