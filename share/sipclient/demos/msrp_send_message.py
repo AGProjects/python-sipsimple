@@ -26,14 +26,14 @@ def main():
             trace_sip=options.trace_sip,
             local_ip=options.local_ip,
             local_udp_port=options.local_port)
-    update_options(options, e)
-    logstate.start_loggers(trace_sip=options.trace_sip,
-                           trace_pjsip=options.trace_pjsip,
-                           trace_engine=options.trace_engine)
-    sm = SessionManager()
-    sm.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
-    sm.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
     try:
+        update_options(options, e)
+        logstate.start_loggers(trace_sip=options.trace_sip,
+                               trace_pjsip=options.trace_pjsip,
+                               trace_engine=options.trace_engine)
+        sm = SessionManager()
+        sm.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
+        sm.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
         credentials = Credentials(options.uri, options.password)
         session = GreenSession()
         session.new(options.target_uri, credentials, options.route, chat=True)
