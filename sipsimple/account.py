@@ -13,7 +13,7 @@ from zope.interface import implements
 
 from sipsimple import Credentials, Engine, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, Port, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
+from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 
