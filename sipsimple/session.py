@@ -12,7 +12,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 
 from sipsimple.engine import Engine
-from sipsimple.core import Invitation, SIPURI, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
+from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
 from sipsimple.util import NotificationHandler
@@ -359,11 +359,12 @@ class Session(NotificationHandler):
     def reject(self):
         """Rejects an incoming SIP session. Moves the object from the INCOMING to
            the TERMINATING state."""
-        if self.state == "TERMINATED":
-            return
-        if self.state != "INCOMING":
-            raise SessionStateError("This method can only be called while in the INCOMING state")
-        self.terminate()
+        with self._lock:
+            if self.state == "TERMINATED":
+                return
+            if self.state != "INCOMING":
+                raise SessionStateError("This method can only be called while in the INCOMING state")
+            self._do_terminate()
 
     def add_audio(self):
         """Add an audio RTP stream to an already established SIP session."""
@@ -519,14 +520,17 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
                 return
-            self._change_state("TERMINATING")
-            self.notification_center.post_notification("SCSessionWillEnd", self, TimestampedNotificationData())
-            if self._inv.state != "DISCONNECTING":
-                try:
-                    self._inv.disconnect()
-                except SIPCoreError:
-                    self._change_state("TERMINATED")
-                    self.notification_center.post_notification("SCSessionDidEnd", self, TimestampedNotificationData(originator="local"))
+            self._do_terminate()
+
+    def _do_terminate(self):
+        self._change_state("TERMINATING")
+        self.notification_center.post_notification("SCSessionWillEnd", self, TimestampedNotificationData())
+        if self._inv.state != "DISCONNECTING":
+            try:
+                self._inv.disconnect()
+            except SIPCoreError:
+                self._change_state("TERMINATED")
+                self.notification_center.post_notification("SCSessionDidEnd", self, TimestampedNotificationData(originator="local"))
 
     def start_recording_audio(self, file_name=None):
         with self._lock:
