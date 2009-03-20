@@ -169,7 +169,7 @@ class GreenRegistration(GreenBase):
                     self._obj.unregister()
                 n = q.wait()
                 if n.data.state != 'unregistered':
-                    raise RuntimeError('Unexpected notification: %r' % (n, ))
+                    log.error('Unexpected notification: %s' % (n, ))
                 return n
 
 
