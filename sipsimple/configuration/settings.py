@@ -75,11 +75,11 @@ class SIPSettings(SettingsGroup):
 
 
 class TLSSettings(SettingsGroup):
-    ca_list_file = Setting(type=DataPath, default=DataPath('tls/ca.crt'))
+    ca_list_file = Setting(type=DataPath, default=None, nillable=True)
     certificate_file = Setting(type=DataPath, default=None, nillable=True)
     private_key_file = Setting(type=DataPath, default=None, nillable=True)
     protocol = Setting(type=TLSProtocol, default='TLSv1')
-    verify_server = Setting(type=bool, default=True)
+    verify_server = Setting(type=bool, default=False)
     timeout = Setting(type=NonNegativeInteger, default=1000)
 
 
