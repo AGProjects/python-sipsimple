@@ -1,4 +1,4 @@
-__version__ = "0.4.1"
+__version__ = "0.9.0"
 
 _revision_required = 40
 from core import CORE_REVISION
