@@ -17,7 +17,8 @@ from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.core import GreenEngine, GreenRegistration
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
-from sipsimple.session import SessionManager, NotificationHandler, MSRPConfiguration
+from sipsimple.util import NotificationHandler
+from sipsimple.session import SessionManager, MSRPConfiguration
 from sipsimple.clients.config import parse_options, update_options, get_history_file
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import enrollment, format_cmdline_uri

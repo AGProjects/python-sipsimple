@@ -15,6 +15,7 @@ from sipsimple.engine import Engine
 from sipsimple.core import Invitation, Credentials, SIPURI, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
+from sipsimple.util import NotificationHandler
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 class SessionStateError(Exception):
@@ -26,15 +27,6 @@ class TimestampedNotificationData(NotificationData):
     def __init__(self, **kwargs):
         self.timestamp = datetime.now()
         NotificationData.__init__(self, **kwargs)
-
-
-class NotificationHandler(object):
-    implements(IObserver)
-
-    def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification.sender, notification.data)
 
 
 class AccountRTPTransport(RTPTransport):
