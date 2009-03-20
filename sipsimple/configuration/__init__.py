@@ -298,8 +298,9 @@ class SettingsState(object):
     def __setstate__(self, state):
         state.pop('__dummy__', None)
         for name, value in state.iteritems():
-            setattr(self, name, value)
             attribute = getattr(self.__class__, name, None)
+            if isinstance(attribute, (SettingsGroupMeta, Setting)):
+                setattr(self, name, value)
             if isinstance(attribute, Setting):
                 attribute.clear_dirty(self)
 
