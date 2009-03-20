@@ -410,7 +410,7 @@ class Session(NotificationHandler):
             if len(self._queue) == 1:
                 self._process_queue()
 
-    def accept_proposal(self):
+    def accept_proposal(self, audio=False, chat=False):
         """Accept a proposal of stream(s) being added. Moves the object from
            the PROPOSED state to the ESTABLISHED state."""
         with self._lock:
@@ -420,10 +420,12 @@ class Session(NotificationHandler):
             audio_rtp = None
             msrp_chat = None
             for media in remote_sdp.media:
-                if self.audio_transport is None and media.media == "audio" and media.port != 0 and audio_rtp is None:
+                if audio and self.audio_transport is None and media.media == "audio" and media.port != 0 and audio_rtp is None:
                     audio_rtp = AccountRTPTransport(self.account, self._inv.transport)
-                elif self.chat_transport is None and media.media == "message" and media.port != 0 and msrp_chat is None:
+                elif chat and self.chat_transport is None and media.media == "message" and media.port != 0 and msrp_chat is None:
                     msrp_chat = MSRPChat(self.account, self._inv.remote_uri, False)
+                if not any([audio_rtp, msrp_chat]):
+                    raise ValueError("None of the streams proposed by the remote party is accepted")
             media_initializer = MediaTransportInitializer(self._accept_proposal_continue, self._accept_proposal_fail, audio_rtp, msrp_chat)
             self.chat_transport = msrp_chat
 
