@@ -225,7 +225,7 @@ class Session(NotificationHandler):
                 msrp_chat = MSRPChat(self.account, callee_uri, True)
             else:
                 msrp_chat = None
-            ringtone = self.settings.ringtone.audio_outbound
+            ringtone = self.settings.ringtone.outbound
             if ringtone is not None:
                 ringtone = WaveFile(ringtone)
             media_initializer = MediaTransportInitializer(self._connect_continue, self._connect_fail, audio_rtp, msrp_chat)
@@ -895,7 +895,7 @@ class SessionManager(NotificationHandler):
             session._inv = inv
             session.remote_user_agent = data.headers.get("User-Agent", None)
             self.inv_mapping[inv] = session
-            ringtone = account.ringtone.audio_inbound or SIPSimpleSettings().ringtone.audio_inbound
+            ringtone = account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
             if ringtone is not None:
                 session._ringtone = WaveFile(ringtone)
             session.direction = "incoming"
