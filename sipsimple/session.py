@@ -33,7 +33,7 @@ class AccountRTPTransport(RTPTransport):
 
     def __init__(self, account, transport):
         settings = SIPSimpleSettings()
-        kwargs = dict(local_ip=settings.local_ip)
+        kwargs = dict(local_ip=settings.local_ip.value)
         kwargs["use_srtp"] = (transport == "tls" or not account.audio.use_srtp_without_tls) and account.audio.srtp_encryption != "disabled"
         kwargs["srtp_forced"] = kwargs["use_srtp"] and account.audio.srtp_encryption == "mandatory"
         kwargs["use_ice"] = account.ice.enabled
@@ -267,7 +267,7 @@ class Session(NotificationHandler):
             if self.state != "CALLING":
                 return
             sdp_index = 0
-            local_ip = self.settings.local_ip
+            local_ip = self.settings.local_ip.value
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip))
             if audio_rtp:
                 self._audio_sdp_index = sdp_index
@@ -333,7 +333,7 @@ class Session(NotificationHandler):
             if self.state != "ACCEPTING":
                 return
             remote_sdp = self._inv.get_offered_remote_sdp()
-            local_ip = self.settings.local_ip
+            local_ip = self.settings.local_ip.value
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time)
             sdp_media_todo = range(len(remote_sdp.media))
             if audio_rtp:
