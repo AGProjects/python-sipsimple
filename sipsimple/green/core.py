@@ -114,6 +114,11 @@ class GreenEngine(GreenBase, NotificationHandler):
 
 
 def play_wav_file(filepath, *args, **kwargs):
+    """Play wav file identified by filepath. Wait until playing is completed.
+
+    Temporary WaveFile instance is created to play the file. The rest of the
+    arguments (`args' and `kwargs') are passed to WaveFile.start method.
+    """
     w = WaveFile(filepath)
     with notification.linked_notification(name='SCWaveFileDidEnd', sender=w) as q:
         w.start(*args, **kwargs)
