@@ -9,6 +9,7 @@ waits for 'registered' or 'unregistered' event. If the event received is
 """
 from __future__ import with_statement
 from contextlib import contextmanager
+from application import log
 from application.notification import NotificationCenter
 
 from eventlet.api import sleep
@@ -16,6 +17,7 @@ from eventlet import api, proc, coros
 
 from sipsimple import Engine, Registration, Invitation, WaveFile
 from sipsimple.green import notification, GreenBase
+from sipsimple.util import NotificationHandler
 
 __all__ = ['Error',
            'SIPError',
@@ -59,17 +61,20 @@ class InviteError(SIPError):
 class SDPNegotiationError(Error):
     pass
 
+class EngineError(Error):
+    pass
 
-class GreenEngine(GreenBase):
+class GreenEngine(GreenBase, NotificationHandler):
     klass = Engine
 
     def __init__(self):
         """Create a new instance.
-        Link SCEngineGotException to the current greenlet, that is, raise RuntimeError in the current
-        greenlet if SCEngineGotException notification is posted.
+        Subscribe to SCEngineGotException and print the errors to the log.
+        Subscribe to SCEngineDidFail and convert them into an exception in the current greenlet.
         """
         GreenBase.__init__(self)
-        self.link_exception()
+        self._subscribe_SCEngineGotException()
+        self.link_error()
 
     def stop(self):
         if self._thread_started:
@@ -77,12 +82,20 @@ class GreenEngine(GreenBase):
                 self._obj._thread_stopping = True
                 q.wait()
 
-    def link_exception(self, greenlet=None):
-        """Raise an exception in `greenlet' (the current one by default) when the engine signals failure."""
+    def link_error(self, greenlet=None):
+        """Asynchonously raise an exception in `greenlet' (the current one by default) when the engine
+        signals failure through SCEngineDidFail notification.
+        """
         if greenlet is None:
             greenlet = api.getcurrent()
-        error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(RuntimeError(str(n))))
-        self.notification_center.add_observer(error_observer, 'SCEngineGotException')
+        error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(EngineError(str(n))))
+        self.notification_center.add_observer(error_observer, 'SCEngineDidFail')
+
+    def _NH_SCEngineGotException(self, notification):
+        log.error('An error in the PJSIP thread on %s:\n%s' % (notification.timestamp, notification.traceback))
+
+    def _subscribe_SCEngineGotException(self):
+        self.notification_center.add_observer(observer=notification.NotifyFromThreadObserver(self), name='SCEngineGotException')
 
     @contextmanager
     def linked_incoming(self, queue=None):
