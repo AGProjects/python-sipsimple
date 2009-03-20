@@ -195,7 +195,7 @@ class GreenInvitation(GreenBase):
     def connected(self):
         return self.state == 'CONFIRMED'
 
-    def invite(self, *args, **kwargs):
+    def send_invite(self, *args, **kwargs):
         assert self.state not in ['CONFIRMED', 'CONNECTING', 'EARLY'], self.state
         ringer = kwargs.pop('ringer', None)
         ringing = False
@@ -220,7 +220,8 @@ class GreenInvitation(GreenBase):
                 if ringer is not None and ringing:
                     ringer.stop()
 
-    def end(self, *args, **kwargs):
+    def disconnect(self, *args, **kwargs):
+        """Call disconnect() on a proxied object. Wait until Invitation is disconnected"""
         if self.state == 'NULL':
             return
         if self.state != 'DISCONNECTED':
@@ -229,7 +230,7 @@ class GreenInvitation(GreenBase):
                     self._obj.disconnect(*args, **kwargs)
                 return q.wait()
 
-    def accept(self, *args, **kwargs):
+    def accept_invite(self, *args, **kwargs):
         with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='CONFIRMED') as q:
             self._obj.accept_invite(*args, **kwargs)
             return q.wait()

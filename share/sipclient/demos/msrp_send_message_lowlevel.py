@@ -42,7 +42,7 @@ def main():
             msg = MessageCPIM(message, 'text/plain')
             msrp.deliver_message(str(msg), 'message/cpim')
         finally:
-            inv.end()
+            inv.disconnect()
     finally:
         e.stop()
 
@@ -65,7 +65,7 @@ def invite(inv, msrp_connector, local_uri=None):
         local_ip = gethostbyname(msrp_connector.getHost().host)
         local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=[make_SDPMedia(full_local_path)])
         inv.set_offered_local_sdp(local_sdp)
-        invite_response = inv.invite()
+        invite_response = inv.send_invite()
         remote_sdp = inv.get_active_remote_sdp()
         full_remote_path = None
         for attr in remote_sdp.media[0].attributes:

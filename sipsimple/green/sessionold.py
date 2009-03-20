@@ -36,7 +36,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
         local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
                                media=[SDPMedia_factory(full_local_path)])
         inv.set_offered_local_sdp(local_sdp)
-        invite_response = inv.invite(ringer=ringer)
+        invite_response = inv.send_invite(ringer=ringer)
         remote_sdp = inv.get_active_remote_sdp()
         full_remote_path = None
         for attr in remote_sdp.media[0].attributes:
@@ -49,7 +49,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
         msrp = session.GreenMSRPSession(msrp_connector.complete(full_remote_path))
         return invite_response, msrp
     except:
-        proc.spawn_greenlet(inv.end)
+        proc.spawn_greenlet(inv.disconnect)
         raise
     finally:
         msrp_connector.cleanup()
@@ -92,14 +92,14 @@ class MSRPSession(object):
             self.source.send(None)
         if self.sip:
             self._disconnect_link.cancel()
-            self.sip.end()
+            self.sip.disconnect()
         self._shutdown_msrp()
 
     def _end_sip(self):
         """Close SIP session but keep everything else intact. For testing only."""
         if self.sip.state=='CONFIRMED':
             self._disconnect_link.cancel()
-            self.sip.end()
+            self.sip.disconnect()
 
     def _on_sip_disconnect_cb(self, params):
         proc.spawn_greenlet(self._on_sip_disconnect)
@@ -189,7 +189,7 @@ class IncomingMSRPHandler(object):
                 local_ip = gethostbyname(acceptor.getHost().host)
                 local_sdp = self.make_local_SDPSession(inv, full_local_path, local_ip)
                 inv.set_offered_local_sdp(local_sdp)
-                inv.accept()
+                inv.accept_invite()
                 msrp = session.GreenMSRPSession(acceptor.complete(full_remote_path))
                 ERROR = None
                 return msrp
@@ -197,5 +197,5 @@ class IncomingMSRPHandler(object):
                 acceptor.cleanup()
         finally:
             if ERROR is not None:
-                proc.spawn_greenlet(inv.end, ERROR)
+                proc.spawn_greenlet(inv.disconnect, ERROR)
 
