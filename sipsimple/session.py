@@ -347,7 +347,7 @@ class Session(NotificationHandler):
                 local_sdp.media[self._chat_sdp_index] = msrp_chat.local_media
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
-                local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
+                local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.accept_invite()
         except SIPCoreError, e:
@@ -467,7 +467,7 @@ class Session(NotificationHandler):
                     local_sdp.media.append(msrp_chat.local_media)
                 elif local_sdp[sdp_index] is None:
                     remote_media = remote_sdp.media[sdp_index]
-                    local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats, attributes=remote_media.attributes)
+                    local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.respond_to_reinvite(200)
             if audio_rtp is not None:
