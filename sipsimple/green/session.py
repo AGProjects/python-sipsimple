@@ -22,12 +22,12 @@ class CannotDeliverError(Exception):
 class GreenSession(GreenBase):
     klass = Session
 
-    def connect(self, callee_uri, credentials, route, audio=False, chat=False):
+    def connect(self, *args, **kwargs):
         event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
         with self.linked_notifications(event_names) as q:
-            self._obj.connect(callee_uri, credentials, route, audio=audio, chat=chat)
+            self._obj.connect(*args, **kwargs)
             while True:
                 notification = q.wait()
                 if notification.name == 'SCSessionDidStart':
@@ -56,12 +56,12 @@ class GreenSession(GreenBase):
                         notification = q.wait()
                         self._raise_if_error(notification)
 
-    def accept(self, audio=False, chat=False, password=None):
+    def accept(self, *args, **kwargs):
         event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
         with self.linked_notifications(event_names) as q:
-            self._obj.accept(audio=audio, chat=chat, password=password)
+            self._obj.accept(*args, **kwargs)
             while True:
                 notification = q.wait()
                 if notification.name == 'SCSessionDidStart':
@@ -83,13 +83,13 @@ class GreenSession(GreenBase):
                     elif notification.name == 'SCSessionDidEnd':
                         return notification
 
-    def deliver_message(self, content, content_type='text/plain', to_uri=None):
+    def deliver_message(self, *args, **kwargs):
         events = ['MSRPChatDidDeliverMessage', 'MSRPChatDidNotDeliverMessage']
         with self.linked_notifications(events, sender=self.chat_transport) as q:
-            message_id = self.send_message(content, content_type, to_uri)
+            message = self.send_message(*args, **kwargs)
             while True:
                 n = q.wait()
-                if n.data.message_id == message_id:
+                if n.data.message_id == message.message_id:
                     if n.name == 'MSRPChatDidDeliverMessage':
                         return n.data
                     else:
