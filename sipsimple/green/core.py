@@ -247,14 +247,13 @@ class GreenInvitation(GreenBase):
                     ringer.stop()
 
     def disconnect(self, *args, **kwargs):
-        """Call disconnect() on a proxied object. Wait until Invitation is disconnected"""
-        if self.state == 'NULL':
-            return
-        if self.state != 'DISCONNECTED':
-            with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='DISCONNECTED') as q:
-                if self.state != 'DISCONNECTING':
-                    self._obj.disconnect(*args, **kwargs)
-                return q.wait()
+        """Call disconnect() on the proxied object. Wait until SIP session is disconnected"""
+        with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='DISCONNECTED') as q:
+            if self.state in ['NULL', 'DISCONNECTED']:
+                return
+            if self.state != 'DISCONNECTING':
+                self._obj.disconnect(*args, **kwargs)
+            return q.wait()
 
     def accept_invite(self, *args, **kwargs):
         """Call accept_invite() on the proxied object. Wait until SIP session is confirmed.
