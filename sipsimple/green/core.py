@@ -22,7 +22,7 @@ from sipsimple.util import NotificationHandler
 __all__ = ['Error',
            'SIPError',
            'RegistrationError',
-           'InviteError',
+           'InvitationError',
            'SDPNegotiationError',
            'GreenEngine',
            'IncomingSessionHandler',
@@ -55,7 +55,7 @@ class SIPError(Error):
 class RegistrationError(SIPError):
     msg = 'Registration failed: '
 
-class InviteError(SIPError):
+class InvitationError(SIPError):
     msg = 'Invite failed: '
 
 class SDPNegotiationError(Error):
@@ -230,7 +230,7 @@ class GreenInvitation(GreenBase):
                         elif notification.data.state=='CONFIRMED':
                             return notification.data
                         elif notification.data.state=='DISCONNECTED':
-                            raise InviteError(notification.data.__dict__)
+                            raise InvitationError(notification.data.__dict__)
                     elif notification.name == self.event_names[1]:
                         if not notification.data.succeeded:
                             raise SDPNegotiationError('SDP negotiation failed: %s' % notification.data.error)
@@ -249,9 +249,20 @@ class GreenInvitation(GreenBase):
                 return q.wait()
 
     def accept_invite(self, *args, **kwargs):
-        with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='CONFIRMED') as q:
-            self._obj.accept_invite(*args, **kwargs)
-            return q.wait()
+        """Call accept_invite() on the proxied object. Wait until SIP session is confirmed.
+        Raise InvitationError if session was disconnected.
+        """
+        with self.linked_notification(self.event_names[0]) as q:
+            if self.state == 'CONFIRMED':
+                return
+            else:
+                self._obj.accept_invite(*args, **kwargs)
+            while True:
+                notification = q.wait()
+                if notification.data.state == 'CONFIRMED':
+                    return notification
+                elif notification.data.state == 'DISCONNECTED':
+                    raise InvitationError(notification.data.__dict__)
 
     def call_on_disconnect(self, func):
         # legacy function still used by the old script; use a notification in new scripts
