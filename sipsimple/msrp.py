@@ -38,13 +38,14 @@ from collections import deque
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
 from application.notification import NotificationCenter, NotificationData
-from msrplib.connect import get_acceptor, get_connector
+from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.trafficlog import Logger
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
 from sipsimple.green import callFromAnyThread, spawn_from_thread
+from sipsimple.configuration.settings import SIPSimpleSettings
 
 
 #
@@ -63,7 +64,7 @@ NULL, INITIALIZING, INITIALIZED, STARTING, STARTED, ENDING, ENDED, ERROR = range
 
 class MSRPChat(object):
 
-    def __init__(self, from_uri, to_uri, outgoing, relay=None, accept_types=['message/cpim', 'text/*'], accept_wrapped_types=['*']):
+    def __init__(self, account, to_uri, outgoing):
         """Initialize MSRPChat instance.
 
         - outgoing (bool) - whether you are an active endpoint or not;
@@ -75,21 +76,34 @@ class MSRPChat(object):
         - accept_wrapped_types (list of strings) - to put in SDP media;
           is not enforced by the transport.
         """
+        self.state = NULL
         self.notification_center = NotificationCenter()
-        self.from_uri = from_uri
         self.to_uri = to_uri
-        self.accept_types = accept_types
-        self.accept_wrapped_types = accept_wrapped_types
-        self.message_received_sound = None
-        self.message_sent_sound = None
-        self.sound_level = 20
-        self.msrp = None ## Placeholder for the MSRPSession that will be added when started
+
+        settings = SIPSimpleSettings()
+        self.accept_types = list(settings.chat.accept_types)
+        self.accept_wrapped_types = list(settings.chat.accept_wrapped_types)
+
+        if (outgoing and account.msrp.use_relay_for_outbound) or (not outgoing and account.msrp.use_relay_for_inbound):
+            relay = MSRPRelaySettings(domain=account.credentials.uri.host,
+                                      user=account.credentials.uri.user,
+                                      password=account.credentials.password,
+                                      host=account.msrp.host,
+                                      port=account.msrp.port,
+                                      use_tls=account.msrp.transport=='tls')
+        else:
+            relay = None
+
+        # XXX logging
+
         self.msrp_connector = get_connector(relay) if outgoing else get_acceptor(relay)
         self.local_media = None
+        self.msrp = None ## Placeholder for the MSRPSession that will be added when started
         self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
-        self.state = NULL
         self.message_queue = deque() # messages stored here until the connection established
+        # TODO: sounds
+        # TODO: history
 
     @property
     def is_active(self):
@@ -99,15 +113,17 @@ class MSRPChat(object):
     def is_started(self):
         return self.state == STARTED
 
-    def initialize(self, ip=None, port=None, use_tls=True):
+    def initialize(self):
         """Initialize the MSRP connection; connect to the relay if necessary.
         When done, fire MSRPChatDidInitialize (with 'sdpmedia' attribute,
         containing the appropriate 'SDPMedia' instance)
         """
         assert self.state == NULL, self.state
-        spawn_from_thread(self._do_initialize, URI(host=ip, port=port, use_tls=use_tls))
+        spawn_from_thread(self._do_initialize)
 
-    def _do_initialize(self, local_uri):
+    def _do_initialize(self):
+        settings = SIPSimpleSettings()
+        local_uri = URI(host=settings.local_ip, port=settings.msrp.local_port, use_tls=settings.msrp.transport=='tls')
         self.state = INITIALIZING
         try:
             full_local_path = self.msrp_connector.prepare(local_uri)
