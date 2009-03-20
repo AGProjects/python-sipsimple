@@ -214,7 +214,15 @@ class GreenInvitation(GreenBase):
         return self.state == 'CONFIRMED'
 
     def send_invite(self, *args, **kwargs):
-        assert self.state not in ['CONFIRMED', 'CONNECTING', 'EARLY'], self.state
+        """Call send_invite on the proxied object. Wait until session is established or terminated.
+
+        If `ringer' keyword argument is provided, call its start() method when SIP session enters
+        EARLY state and stop() method before exiting. This argument is not passed to Invitation.send_invite.
+
+        Raise SessionError if session was not established.
+        Raise SDPNegotiationError is SDP negotiation failed.
+        """
+        assert self.state not in ['CONFIRMED', 'CONNECTING', 'EARLY', 'CALLING'], self.state
         ringer = kwargs.pop('ringer', None)
         ringing = False
         with self.linked_notifications() as q:
