@@ -162,11 +162,9 @@ class MSRPTransport(str):
 
 
 class MSRPRelayAddress(object):
-    def __init__(self, host, port=2855, transport='tls'):
+    def __init__(self, host, port=0, transport='tls'):
         self.host = Hostname(host)
         self.port = Port(port)
-        if self.port == 0:
-            raise ValueError("illegal port value: 0")
         self.transport = MSRPTransport(transport)
 
     def __repr__(self):
