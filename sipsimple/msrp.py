@@ -193,6 +193,8 @@ class MSRPChat(object):
         spawn_from_thread(self._do_end)
 
     def _do_end(self):
+        if self.state in [ENDING, ENDED]:
+            return
         self.state = ENDING
         self.notification_center.post_notification('MSRPChatWillEnd', self)
         try:
