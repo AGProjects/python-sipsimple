@@ -263,7 +263,12 @@ class STUNServerAddress(EndpointAddress):
 
 class STUNServerAddresses(tuple):
     def __new__(cls, values):
-        return tuple(STUNServerAddress(value) for value in values)
+        servers = []
+        for value in values:
+            if not isinstance(value, STUNServerAddress):
+                value = STUNServerAddress(*value)
+            servers.append(value)
+        return tuple(servers)
 
 
 class TLSProtocol(str):
