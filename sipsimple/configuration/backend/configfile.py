@@ -30,9 +30,18 @@ class ConfigFileBackend(object):
             self.file = open(filename, 'r+')
             self.parser.readfp(self.file)
         except IOError, e:
-            if e.errno == 2: # No such file
+            if e.errno != 2: # Errors other than 'No such file'
+                raise ConfigurationBackendError(str(e))
+
+            directory = os.path.dirname(filename)
+            try:
+                os.makedirs(directory)
+            except (IOError, OSError), e:
+                raise ConfigurationBackendError(str(e))
+                
+            try:
                 self.file = open(filename, 'w+')
-            else:
+            except IOError, e:
                 raise ConfigurationBackendError(str(e))
     
     def add_section(self, section):
