@@ -11,7 +11,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 from zope.interface import implements
 
-from sipsimple import Engine
+from sipsimple import Credentials, Engine, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
 from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, Port, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -117,6 +117,7 @@ class Account(SettingsObject):
     def __init__(self, id):
         self.id = id
         self.contact = None
+        self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display_name=self.display_name), password=self.password)
 
         manager = AccountManager()
         manager._internal_add_account(self)
@@ -155,6 +156,10 @@ class Account(SettingsObject):
                 self._activate()
             else:
                 self._deactivate()
+
+        # update credentials attribute if needed
+        if 'password' in notification.data.modified or 'display_name' in notification.data.modified:
+            self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display_name=self.display_name), password=self.password)
 
     def _activate(self):
         settings = SIPSimpleSettings()
