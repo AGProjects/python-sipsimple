@@ -117,7 +117,7 @@ class Account(SettingsObject):
     def __init__(self, id):
         self.id = id
         self.contact = None
-        self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display_name=self.display_name), password=self.password)
+        self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
 
         manager = AccountManager()
         manager._internal_add_account(self)
@@ -159,7 +159,7 @@ class Account(SettingsObject):
 
         # update credentials attribute if needed
         if 'password' in notification.data.modified or 'display_name' in notification.data.modified:
-            self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display_name=self.display_name), password=self.password)
+            self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
 
     def _activate(self):
         settings = SIPSimpleSettings()
