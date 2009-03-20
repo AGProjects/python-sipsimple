@@ -59,14 +59,8 @@ class MSRPSettings(SettingsGroup):
 
 
 class RingtoneSettings(SettingsGroup):
-    audio_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    audio_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    chat_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    chat_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    file_transfer_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    file_transfer_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    desktop_sharing_inbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    desktop_sharing_outbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    outbound = Setting(type=AbsolutePath, default=None, nillable=True)
 
 
 class RTPSettings(SettingsGroup):
