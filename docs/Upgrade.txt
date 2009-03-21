@@ -1,10 +1,9 @@
 
-From 0.4.0 to 0.5.0 or newer
-----------------------------
+From 0.4.0 to >=0.5.0
+----------------------
 
-Migrate the configuration previously stored in config.ini file for library
-versions older than 5.0 to the new settings API by using
-sip_migrate_sesttings script:
+Migrate the configuration stored in config.ini file for library versions
+<5.0 to the new settings API by using sip_migrate_sesttings script:
 
 adigeo@ag-imac3:~$sip_migrate_settings 
 Migrating general settings and settings of the following accounts: 

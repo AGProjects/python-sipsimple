@@ -50,8 +50,7 @@ presence information such as availability, moods, activities and
 geo-location, management for presence rules, resource lists, RLS services
 documents using XCAP protocol.
 
- * Rich presence data model RFC3856, RFC3863 , RFC4479, RFC4481, RFC4482,
- * RFC5196
+ * Rich presence data model RFC3856, RFC3863 , RFC4479, RFC4481, RFC4482, RFC5196
  * Presence watcher-info event package RFC3857, RFC3858
  * XCAP protocol RFC4825
  * XCAP presence rules RFC5025

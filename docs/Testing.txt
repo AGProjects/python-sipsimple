@@ -9,136 +9,19 @@ and subscribe to presence or other type of events.
 You need a SIP account from a service provider or to setup your own SIP
 infrastructure using the following elements:
 
- * OpenSIPS from [http://opensips.org http://opensips.org] 
- * OpenXCAP from [http://openxcap.org http://openxcap.org]
+ * OpenSIPS  from [http://opensips.org http://opensips.org] 
+ * OpenXCAP  from [http://openxcap.org http://openxcap.org]
  * MSRPRelay from [http://msrprelay.org http://msrprelay.org]
-
-For multi-party IM conferencing you can use:
-
- * SIP chatserver from http://chatserver.ag-projects.com
 
 A test SIP account with all SIP SIMPLE client features can be obtained for
 free from http://sip2sip.info.
 
 
-Configuration
--------------
-
-The command line tools require the presence of a configuration file
-~/.sipclient/config.ini that contains at least one SIP account. Each SIP
-account definition contains the credentials and other settings. 
-
-For all available settings of the configuration file see config.ini.sample.
-
-Minimum configuration example:
-
-[Account]
-sip_address=alice@example.com
-password=1234
-
-Configuration when using a Presence Agent:
-
-[Account]
-sip_address=alice@example.com
-password=1234
-xcap_root=https://xcap.example.com/xcap-root/
-use_presence_agent=true
-
-Outbound proxy setting:
-
-If outbound_proxy option is set the SIP messages will always go through it.
-Otherwise the outbound proxy is the SIP registrar for the account's own
-domain. The outbound proxy syntax can be one of the following :
-
- * domain name (for which DNS SRV and A record lookups will be performed)
- * hostname:port combination (for which DNS A record lookup will be
-   performed)
- * hostname (for which DNS A record lookup will be performed)
- * IP
- * IP:port
-
-Example:
-
-[Account]
-sip_address=alice@example.com
-password=1234
-outbound_proxy=sip.example.com:5070
-
-MSRP relay setting:
-
-If the msrp_relay option is set the MSRP connections will always be
-established through the relay determined from this setting. Otherwise by
-default an ougoing MSRP connection will use no relay and an incomming MSRP
-connection will use the relay configured in the DNS for the called SIP
-account.
-
-The MSRP relay syntax can be one of the following :
-
- * domain name, for which DNS SRV and A record lookups will be performed
- * hostname:port combination, for which DNS A record lookup will be
-   performed
- * hostname, for which DNS A record lookup will be performed, port 2855 is
-used by default
- * IP, port 2855 is used by default
- * IP:port
- * none, no relay will be used
- * auto, calling party will use no relay, called party will lookup the relay
- in the DNS
-
-Multiple SIP accounts:
-
-You may also create a configuration file with multiple SIP accounts and
-select one during runtime as follows: 
-
-[Account]
-sip_address=alice@example.com
-password=1234
-xcap_root=https://xcap.example.com/xcap-root/
-use_presence_agent=true
-
-[Account_blue]
-username=bob@blue.example.com
-password=1234
-xcap_root=https://xcap.blue.example.com/xcap-root/
-use_presence_agent=true
-
-[Account_green]
-sip_address=alan@green.example.com
-password=1234
-
-; XCAP settings
-xcap_root=https://xcap.green.example.com/xcap-root/
-
-; Presence settings 
-use_presence_agent=true
-subscribe_rls_services=true
-
-; MSRP settings
-msrp_relay=msrprelay.example.com
-
-At runtime you can select one of the configured accounts with -a NAME
-parameter where NAME is the suffix of each defined accounts in the
-configuration file.
-
-Other useful settings
-
-[General]
-; User Agent name
-; software version will be automatically appended
-user_agent=ag-projects.com/sipclient
-
-; ip and port for SIP signalling
-; 0.0.0.0 or any or ip:port or ip
-listen_udp=any
-
-
 Command line tools
 ------------------
 
-Included with the library, a set of command line tools are available for
-setting up audio, Instant Messaging and file transfer sessions, publish and
-subscribe to presence or other type of events.
-
+ * sip_settings - Manage settings used by the command line tools
+ * sip_migrate_settings - Migrate settings from a version older than 5.0
  * sip_register - REGISTER a SIP end-point with a SIP Registrar
  * sip_audio_session - Setup a voice audio session (Voice over IP)
  * sip_im_session - Setup IM session and File transfer using MSRP protocol
@@ -151,4 +34,8 @@ subscribe to presence or other type of events.
  * xcapclient - Manipulate XML documents on an XCAP server
  * xcap_pres_rules - Manage the content of a pres-rules XCAP document
  * xcap_rls_services - Manage the content of a rls-services XCAP document
+
+
+For detailed information about how to setup and use the command line tools
+go to http://sipsimpleclient.com/wiki/SipTesting
 
