@@ -29,7 +29,6 @@ class AudioSettings(SettingsGroup):
 class DialogEventSettings(SettingsGroup):
     publish_enabled = Setting(type=bool, default=True)
     publish_interval = Setting(type=NonNegativeInteger, default=600)
-    subscribe_enabled = Setting(type=bool, default=True)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
 
 
