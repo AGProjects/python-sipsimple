@@ -2,6 +2,7 @@
 SIP core
 --------
 
+- Properly split __cinit__() and __init__() methods on Cython objects [RK]
 - Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
 - Registration requestion URI should be settable by application [RK]
 - Use STUN to determine the public contact address used for REGISTER [RK]
