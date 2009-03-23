@@ -545,7 +545,7 @@ def start(options, console):
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
         ###console.enable()
         if options.register:
-            registration = GreenRegistration(credentials, route=options.route, expires=10)
+            registration = GreenRegistration(credentials, route=options.route)
             proc.spawn_greenlet(registration.register)
         console.set_ps(str(options.uri).replace('sip:', '') + '> ')
         sound = ThrottlingSoundPlayer()
