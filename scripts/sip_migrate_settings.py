@@ -184,29 +184,30 @@ def migrate_accounts(config_file, accounts):
 
     for account_name in accounts:
         sys.stdout.write('Migrating %s account... ' % account_name)
-
+        
+        configuration = type('Account', (object, ConfigSection), AccountConfig.__dict__)
         if account_name == 'default':
-            config_file.read_settings("Account", AccountConfig)
+            config_file.read_settings("Account", configuration)
         else:
-            config_file.read_settings("Account_%s" % account_name, AccountConfig)
+            config_file.read_settings("Account_%s" % account_name, configuration)
 
-        if not AccountConfig.sip_address:
+        if not configuration.sip_address:
             sys.stdout.write('skipping as sip_address is not defined\n')
             continue
 
-        if not account_manager.has_account(AccountConfig.sip_address) and not AccountConfig.password:
+        if not account_manager.has_account(configuration.sip_address) and not configuration.password:
             sys.stdout.write('skipping as password is not defined\n')
             continue
 
-        account = Account(AccountConfig.sip_address)
+        account = Account(configuration.sip_address)
         account.enabled = True
         if account_name == 'default':
             account_manager.default_account = account
 
-        for option, attrname in AccountConfig._mapping.iteritems():
+        for option, attrname in configuration._mapping.iteritems():
             if attrname is None:
                 continue
-            value = getattr(AccountConfig, option)
+            value = getattr(configuration, option)
             if value is not None and not (isinstance(value, basestring) and not value):
                 set_setting(account, attrname, value)
 
@@ -220,7 +221,7 @@ if __name__ == '__main__':
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.add_option("-i", "--input", type="string", dest="input_file", default=os.path.expanduser('~/.sipclient/config.ini'), help="Old configuration file to read settings from (default ~/.sipclient/config.ini).", metavar="FILE")
-    parser.add_option("-o", "--output", type="string", dest="output_file", default=os.path.expanduser('~/.sipclient/sipclient.ini'), help="New configuration file to write settings to (default ~/.sipclient/sipclient.ini).", metavar="FILE")
+    parser.add_option("-o", "--output", type="string", dest="output_file", default=os.path.expanduser('~/.sipclient/config'), help="New configuration file to write settings to (default ~/.sipclient/config).", metavar="FILE")
     parser.add_option("-g", "--general", action="store_true", dest="general", default=False, help="Migrate general SIP SIMPLE middleware settings.")
     parser.add_option("-a", "--account", action="append", dest="accounts", default=[], help="Migrate the specified account (can be used multiple times).", metavar="ACCOUNT")
     options, args = parser.parse_args()

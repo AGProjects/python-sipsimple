@@ -21,7 +21,7 @@ class ConfigFileBackend(object):
 
     def __init__(self, filename=None):
         if filename is None:
-            filename = os.path.expanduser("~/.sipclient/sipclient.ini")
+            filename = os.path.expanduser("~/.sipclient/config")
         
         self.file = None
         self.parser = ConfigParser.SafeConfigParser()
