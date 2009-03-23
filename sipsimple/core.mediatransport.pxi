@@ -249,7 +249,7 @@ cdef class RTPTransport:
                     pjmedia_transport_close(self.c_wrapped_transport)
                     self.c_wrapped_transport = NULL
                     raise PJSIPError("Could not create SRTP media transport", status)
-            if self.ice_stun_address is None:
+            if not self.use_ice or self.ice_stun_address is None:
                 self.state = "INIT"
                 c_add_event("SCRTPTransportDidInitialize", dict(obj=self))
             else:
