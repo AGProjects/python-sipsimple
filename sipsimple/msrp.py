@@ -85,14 +85,22 @@ class MSRPChat(object):
         self.accept_wrapped_types = list(settings.chat.accept_wrapped_types)
 
         if (outgoing and account.msrp.use_relay_for_outbound) or (not outgoing and account.msrp.use_relay_for_inbound):
-            relay = MSRPRelaySettings(domain=account.credentials.uri.host,
-                                      user=account.credentials.uri.user,
-                                      password=account.credentials.password,
-                                      host=account.msrp.host,
-                                      port=account.msrp.port,
-                                      use_tls=account.msrp.transport=='tls')
+            if account.msrp.relay is None:
+                relay = MSRPRelaySettings(domain=account.credentials.uri.host,
+                                          user=account.credentials.uri.user,
+                                          password=account.credentials.password)
+                self.transport = 'tls'
+            else:
+                relay = MSRPRelaySettings(domain=account.credentials.uri.host,
+                                          user=account.credentials.uri.user,
+                                          password=account.credentials.password,
+                                          host=account.msrp.relay.host,
+                                          port=account.msrp.relay.port,
+                                          use_tls=account.msrp.relay.transport=='tls')
+                self.transport = account.msrp.relay.transport
         else:
             relay = None
+            self.transport = settings.msrp.local_transport
 
         # XXX logging
 
@@ -123,7 +131,7 @@ class MSRPChat(object):
 
     def _do_initialize(self):
         settings = SIPSimpleSettings()
-        local_uri = URI(host=settings.local_ip, port=settings.msrp.local_port, use_tls=settings.msrp.transport=='tls')
+        local_uri = URI(host=settings.local_ip.value, port=settings.msrp.local_port, use_tls=self.transport=='tls')
         self.state = INITIALIZING
         try:
             full_local_path = self.msrp_connector.prepare(local_uri)
