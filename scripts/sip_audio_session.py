@@ -282,6 +282,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip_file
             print "Account not found: %s" % account_id
             print "Available accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts()))
             return
+    if account is None:
+        raise RuntimeError("No account configured")
     print "Using account %s" % account.id
 
     # set up logger
