@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import sys
 import datetime
 import time
+from optparse import OptionParser
 from twisted.internet.error import ConnectionClosed
 from application.notification import NotificationCenter, IObserver
 from zope.interface import implements
@@ -12,20 +13,21 @@ from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from msrplib import trafficlog
 
-from sipsimple import Credentials, SIPURI, SIPCoreError, Route
+from sipsimple import SIPURI, SIPCoreError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.core import GreenEngine, GreenRegistration
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
 from sipsimple.util import NotificationHandler
-from sipsimple.session import SessionManager, MSRPConfiguration
-from sipsimple.clients.config import parse_options, update_options, get_history_file
+from sipsimple.session import SessionManager
 from sipsimple.clients.clientconfig import get_path
-from sipsimple.clients import enrollment, format_cmdline_uri
+from sipsimple.clients import format_cmdline_uri
 from sipsimple import logstate
 from sipsimple.green.notification import NotifyFromThreadObserver
-
-enrollment.verify_account_config()
+from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.account import AccountManager
+from sipsimple.configuration import ConfigurationManager
+from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 
@@ -109,6 +111,9 @@ class MessageRenderer(object):
                 session.history_file.write(msg + '\n')
                 session.history_file.flush()
 
+def get_history_file(inv): # XXX fix
+    return file('/tmp/sip_session_history', 'a+')
+
 class ChatSession(GreenSession, NotificationHandler):
 
     def __init__(self, *args, **kwargs):
@@ -170,15 +175,11 @@ class JobGroup(object):
 
 class ChatManager(NotificationHandler):
 
-    def __init__(self, engine, credentials, console, logger, auto_accept_files=False, route=None, relay=None, msrp_tls=True):
+    def __init__(self, engine, account, console, auto_accept_files=False):
         self.engine = engine
-        self.credentials = credentials
+        self.account = account
         self.console = console
-        self.logger = logger
         self.auto_accept_files = auto_accept_files
-        self.route = route
-        self.relay = relay
-        self.msrp_tls = msrp_tls
         self.sessions = []
         self.current_session = None
         self.jobgroup = JobGroup()
@@ -237,7 +238,7 @@ class ChatManager(NotificationHandler):
                 prefix = '%s/%s ' % (1+self.sessions.index(self.current_session), len(self.sessions))
             ps = prefix + self.current_session.format_ps()
         else:
-            ps = format_nosessions_ps(self.credentials.uri)
+            ps = format_nosessions_ps(self.account.credentials.uri)
         self.console.set_ps(ps)
 
     def add_session(self, session, activate=True):
@@ -286,19 +287,16 @@ class ChatManager(NotificationHandler):
                 use_chat=False
         if not isinstance(target_uri, SIPURI):
             try:
-                target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.credentials.uri.host))
+                target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
             except ValueError, ex:
                 raise UserCommandError(str(ex))
         self.jobgroup.spawn(self._call, target_uri, use_audio, use_chat)
 
     def _call(self, target_uri, use_audio, use_chat):
-        route = self.route
-        if route is None:
-            route = Route(gethostbyname(target_uri.host or self.credentials.uri.host), target_uri.port or 5060)
         try:
-            session = ChatSession(remote_party=format_uri(target_uri))
+            session = ChatSession(self.account, remote_party=format_uri(target_uri))
             self.add_session(session)
-            session.connect(target_uri, self.credentials, route, chat=use_chat, audio=use_audio)
+            session.connect(target_uri, get_routes(target_uri, self.engine, self.account), chat=use_chat, audio=use_audio)
         except SessionError:
             # don't print anything as the error was already logged by InvitationLogger
             self.remove_session(session)
@@ -323,38 +321,26 @@ class ChatManager(NotificationHandler):
             proc.spawn(self.remove_session, session)
             raise UserCommandError(str(ex))
 
+def register(account, engine):
+    route = get_routes(account.credentials.uri, engine, account)[0]
+    registration = GreenRegistration(account.credentials, route)
+    registration.register()
+
 def start(options, console):
+    settings = SIPSimpleSettings()
     engine = GreenEngine()
-    engine.start(not options.disable_sound,
-                 trace_sip=options.trace_sip,
-                 ec_tail_length=0,
-                 local_ip=options.local_ip,
-                 local_udp_port=options.local_port)
+    engine.start(trace_sip=settings.logging.trace_sip)
     registration = None
     try:
-        update_options(options, engine)
-        logstate.start_loggers(trace_sip=options.trace_sip,
-                               trace_pjsip=options.trace_pjsip,
+        logstate.start_loggers(trace_pjsip=settings.logging.trace_pjsip,
                                trace_engine=options.trace_engine)
-        credentials = Credentials(options.uri, options.password)
-        logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
         if options.register:
-            registration = GreenRegistration(credentials, route=options.route, expires=10)
-            proc.spawn_greenlet(registration.register)
+            proc.spawn_greenlet(register, options.account, engine)
         MessageRenderer().start()
         session_manager = SessionManager()
-        session_manager.msrp_config = MSRPConfiguration(use_relay_outgoing=False,
-                                                        use_relay_incoming=options.relay is not None,
-                                                        relay_host=getattr(options.relay, 'host', None),
-                                                        relay_port=getattr(options.relay, 'port', None),
-                                                        relay_use_tls=getattr(options.relay, 'use_tls', True))
-        session_manager.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
-        session_manager.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
-        manager = ChatManager(engine, credentials, console, logger,
-                              options.auto_accept_files,
-                              route=options.route,
-                              relay=options.relay,
-                              msrp_tls=options.msrp_tls)
+        #session_manager.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
+        #session_manager.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
+        manager = ChatManager(engine, options.account, console)
         manager.update_ps()
         try:
             print "Press Ctrl-d to quit or Control-n to switch between active sessions"
@@ -454,7 +440,84 @@ def console_next_line(console):
 description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."
 usage = "%prog [options] [target-user@target-domain.com]"
 
+def get_account(key):
+    accounts = AccountManager().accounts
+    if not accounts:
+        sys.exit('No accounts defined')
+    if key is None:
+        if len(accounts)==1:
+            return accounts.items()[0]
+        else:
+            sys.exit('Please specify account to use with "-a username@domain" option')
+    try:
+        return accounts[key]
+    except KeyError:
+        matched = []
+        for x in accounts:
+            if x.find(key) != -1:
+                matched.append(x)
+        if not matched:
+            sys.exit('None of the accounts matches %r' % key)
+        elif len(matched)>1:
+            sys.exit('The following accounts match %r:\n%s\nPlease provide longer substring' % (key, '\n'.join(matched)))
+        return accounts[matched[0]]
+
+def get_routes(target_uri, engine, account):
+    settings = SIPSimpleSettings()
+    if not isinstance(target_uri, SIPURI):
+        target_uri = engine.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
+    if account.id == "bonjour@local":
+        routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
+    elif account.outbound_proxy is None:
+        routes = lookup_routes_for_sip_uri(SIPURI(host=target_uri.host), settings.sip.transports)
+    else:
+        proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port,
+                           parameters={"transport": account.outbound_proxy.transport})
+        routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
+    return routes
+
+def parse_options(usage, description):
+    parser = OptionParser(usage=usage, description=description)
+    parser.add_option("-a", "--account-id", type="string")
+    parser.add_option('--no-register', action='store_false', dest='register', default=True, help='Bypass registration')
+    parser.add_option("-m", "--trace-msrp", action="store_true",
+                      help="Dump the raw contents of incoming and outgoing MSRP messages.")
+    parser.add_option("-s", "--trace-sip", action="store_true",
+                      help="Dump the raw contents of incoming and outgoing SIP messages.")
+    parser.add_option("-j", "--trace-pjsip", action="store_true",
+                      help="Print PJSIP logging output.")
+    parser.add_option("--trace-engine", action="store_true",
+                      help="Print core's events.")
+    options, args = parser.parse_args()
+    options.args = args
+    account = get_account(options.account_id)
+    options.account = account
+    print 'Using account %s' % account.id
+    settings = SIPSimpleSettings()
+    for setting in ['logging.trace_msrp',
+                    'logging.trace_sip',
+                    'logging.trace_pjsip']:
+        name = setting.rsplit('.', 1)[1]
+        value = getattr(options, name)
+        if value is not None:
+            obj = settings
+            for member in setting.split('.')[:-1]:
+                obj = getattr(obj, member)
+            try:
+                setattr(obj, name, value)
+            except:
+                print 'Error setting %r.%s=%r' % (obj, name, value)
+                raise
+    if account.id != "bonjour@local":
+        if account.stun_servers:
+            account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
+        else:
+            account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
+    return options
+
 def main():
+    ConfigurationManager().start()
+    AccountManager().start()
     try:
         options = parse_options(usage, description)
         with setup_console() as console:
@@ -468,4 +531,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
