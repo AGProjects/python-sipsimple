@@ -4,54 +4,27 @@ import sys
 import traceback
 import os
 import signal
-import random
 from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
 
 from zope.interface import implements
 
-from application.configuration import *
-from application.process import process
 from application.notification import IObserver
 
-from sipsimple import *
-from sipsimple.clients import enrollment
-from sipsimple.clients.dns_lookup import *
-from sipsimple.clients import *
+from sipsimple.engine import Engine
+from sipsimple.core import SIPURI, SIPCoreError, send_message
+from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri
+from sipsimple.clients import format_cmdline_uri
+from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.backend.configfile import ConfigFileBackend
+from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.account import AccountManager
 from sipsimple.clients.log import Logger
 
-class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": datatypes.Boolean, "trace_sip": LoggingOption}
-    local_ip = None
-    sip_local_udp_port = 0
-    sip_local_tcp_port = 0
-    sip_local_tls_port = 0
-    sip_transports = ["tls", "tcp", "udp"]
-    trace_pjsip = False
-    trace_sip = LoggingOption('none')
-    log_directory = '~/.sipclient/log'
-
-
-class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy}
-    sip_address = None
-    password = None
-    display_name = None
-    outbound_proxy = None
-
-
-process._system_config_directory = os.path.expanduser("~/.sipclient")
-enrollment.verify_account_config()
-configuration = ConfigFile("config.ini")
-configuration.read_settings("General", GeneralConfig)
-
 queue = Queue()
-packet_count = 0
-start_time = None
 user_quit = True
 lock = allocate_lock()
-logger = None
 
 class EventHandler(object):
     implements(IObserver)
@@ -60,27 +33,18 @@ class EventHandler(object):
         engine.notification_center.add_observer(self)
 
     def handle_notification(self, notification):
-        global start_time, packet_count, queue, do_trace_pjsip, logger
-        if notification.name == "SCEngineSIPTrace":
-            logger.log(notification.name, **notification.data.__dict__)
-        elif notification.name == "SCEngineLog" and do_trace_pjsip:
-            queue.put(("print", "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__))
-        else:
-            queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
+        queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
 
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, message):
+def read_queue(e, settings, am, account, logger, target_uri, message, routes):
     global user_quit, lock, queue
     lock.acquire()
-    printed = False
     sent = False
     msg_buf = []
+    route = routes[0]
     try:
-        credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
         if target_uri is None:
-            reg = Registration(credentials, route=route)
-            print 'Registering "%s" at %s:%s:%d' % (credentials.uri, route.transport, route.address, route.port)
-            reg.register()
+            print "Press Ctrl+D to stop the program."
         else:
             if message is None:
                 print "Press Ctrl+D on an empty line to end input and send the MESSAGE request."
@@ -93,23 +57,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, m
                 print data
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "SCRegistrationChangedState":
-                    if args["state"] == "registered":
-                        if not printed:
-                            print "REGISTER was successful"
-                            print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
-                            if len(args["contact_uri_list"]) > 1:
-                                print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
-                            print "Press Ctrl+D to stop the program."
-                            printed = True
-                    elif args["state"] == "unregistered":
-                        if "code" in args and args["code"] / 100 != 2:
-                            print "Unregistered: %(code)d %(reason)s" % args
-                        user_quit = False
-                        command = "quit"
-                elif event_name == "SCInvitationChangedState":
-                    if args["state"] == "INCOMING":
-                        obj.disconnect()
+                if event_name == "SCSessionNewIncoming":
+                    obj.reject()
                 elif event_name == "SCEngineGotMessage":
                     print 'Received MESSAGE from "%(from_uri)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
                     print args["body"]
@@ -130,12 +79,14 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, m
                 if not sent:
                     msg_buf.append(data)
             if command == "eof":
-                if target_uri is None:
-                    reg.unregister()
-                elif not sent:
+                if target_uri is None or sent:
+                    user_quit = False
+                    command = "quit"
+                else:
                     sent = True
-                    print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (credentials.uri, target_uri, route.transport, route.address, route.port)
-                    send_message(credentials, target_uri, "text", "plain", "\n".join(msg_buf), route)
+                    print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (account.credentials.uri, target_uri, route.transport, route.address, route.port)
+                    send_message(account.credentials, target_uri, "text", "plain", "\n".join(msg_buf), route)
+                    print "Press Ctrl+D to stop the program."
             if command == "quit":
                 break
     except:
@@ -152,29 +103,87 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, m
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
-def do_message(**kwargs):
-    global user_quit, lock, queue, do_trace_pjsip, logger
-    do_trace_pjsip = kwargs.pop("do_trace_pjsip")
-    outbound_proxy = kwargs.pop("outbound_proxy")
-    ctrl_d_pressed = False
-    if outbound_proxy is None:
-        routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
+def do_message(account_id, config_file, target_uri, message, trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout):
+    global user_quit, lock, queue
+
+    cm = ConfigurationManager()
+    cm.start(ConfigFileBackend(config_file))
+    am = AccountManager()
+    am.start()
+    settings = SIPSimpleSettings()
+    if account_id is None:
+        account = am.default_account
     else:
-        routes = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))
-    # Only try the first Route for now
-    try:
-        kwargs["route"] = routes[0]
-    except IndexError:
-        raise RuntimeError("No route found to SIP proxy")
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'))
-    if logger.trace_sip.to_file:
+        try:
+            account = am.get_account(account_id)
+        except KeyError:
+            print "Account not found: %s" % account_id
+            print "Available accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts()))
+            return
+    if account is None:
+        raise RuntimeError("No account configured")
+    print "Using account %s" % account.id
+
+    # set up logger
+    if trace_sip is None:
+        trace_sip = settings.logging.trace_sip
+        trace_sip_stdout = False
+    if trace_pjsip is None:
+        trace_pjsip = settings.logging.trace_pjsip
+        trace_pjsip_stdout = False
+    logger = Logger(trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout)
+    logger.start()
+    if logger.sip_to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    if logger.pjsip_to_file:
+        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
+
+    # figure out Engine options and start the Engine
     e = Engine()
-    event_handler = EventHandler(e)
-    e.start(auto_sound=False, trace_sip=True, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
-    if kwargs["target_uri"] is not None:
-        kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
-    start_new_thread(read_queue, (e,), kwargs)
+    handler = EventHandler(e)
+    e.start(auto_sound=False,
+            local_ip=settings.local_ip.value,
+            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
+            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
+            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
+            tls_protocol=settings.tls.protocol,
+            tls_verify_server=settings.tls.verify_server,
+            tls_ca_file=settings.tls.ca_list_file.value if settings.tls.ca_list_file is not None else None,
+            tls_cert_file=settings.tls.certificate_file.value if settings.tls.certificate_file is not None else None,
+            tls_privkey_file=settings.tls.private_key_file.value if settings.tls.private_key_file is not None else None,
+            tls_timeout=settings.tls.timeout,
+            ec_tail_length=settings.audio.echo_delay,
+            user_agent=settings.user_agent,
+            log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
+            trace_sip=trace_sip or trace_sip_stdout,
+            sample_rate=settings.audio.sample_rate,
+            playback_dtmf=settings.audio.playback_dtmf,
+            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end))
+
+    # setup routes
+
+    if account.id == "bonjour@local":
+        if target_uri is None:
+            routes = None
+        else:
+            target_uri = e.parse_sip_uri(target_uri)
+            routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
+            if len(routes) == 0:
+                raise RuntimeError("No route found to foreign domain SIP proxy")
+    else:
+        if target_uri is not None:
+            target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
+        if account.outbound_proxy is None:
+            routes = lookup_routes_for_sip_uri(SIPURI(host=account.id.domain), settings.sip.transports)
+        else:
+            proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
+            routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
+    if routes is not None and len(routes) == 0:
+        raise RuntimeError("No route found SIP proxy")
+
+    # start thread and process user input
+    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, message, routes))
+    ctrl_d_pressed = False
     try:
         while True:
             try:
@@ -189,30 +198,17 @@ def do_message(**kwargs):
             print "Ctrl+C pressed, exiting instantly!"
             queue.put(("quit", True))
         lock.acquire()
-        return
 
-def parse_outbound_proxy(option, opt_str, value, parser):
-    try:
-        parser.values.outbound_proxy = OutboundProxy(value)
-    except ValueError, e:
-        raise OptionValueError(e.message)
-
-def parse_trace_sip(option, opt_str, value, parser):
-    try:
-        value = parser.rargs[0]
-    except IndexError:
-        value = LoggingOption('file')
-    else:
-        if value == '' or value[0] == '-':
-            value = LoggingOption('file')
-        else:
-            try:
-                value = LoggingOption(value)
-            except ValueError:
-                value = LoggingOption('file')
-            else:
-                del parser.rargs[0]
-    parser.values.trace_sip = value
+def parse_trace_option(option, opt_str, value, parser, name):
+    trace_file = False
+    trace_stdout = False
+    if value.lower() not in ["none", "file", "stdout", "all"]:
+        raise OptionValueError("Invalid trace option: %s" % value)
+    value = value.lower()
+    trace_file = value not in ["none", "stdout"]
+    trace_stdout = value in ["stdout", "all"]
+    setattr(parser.values, "trace_%s" % name, trace_file)
+    setattr(parser.values, "trace_%s_stdout" % name, trace_stdout)
 
 def parse_options():
     retval = {}
@@ -220,50 +216,19 @@ def parse_options():
     usage = "%prog [options] [target-user@target-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
-    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP login account")
-    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
-    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_sip, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.add_option("-a", "--account", type="string", dest="account_id", help="The account name to use for any outgoing traffic. If not supplied, the default account will be used.", metavar="NAME")
+    parser.add_option("-c", "--config_file", type="string", dest="config_file", help="The path to a configuration file to use. This overrides the default location of the configuration file.", metavar="[FILE]")
+    parser.set_default("trace_sip_stdout", None)
+    parser.add_option("-s", "--trace-sip", type="string", action="callback", callback=parse_trace_option, callback_args=('sip',), help="Dump the raw contents of incoming and outgoing SIP messages. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.set_default("trace_pjsip_stdout", None)
+    parser.add_option("-j", "--trace-pjsip", type="string", action="callback", callback=parse_trace_option, callback_args=('pjsip',), help="Print PJSIP logging output. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.add_option("-m", "--message", type="string", dest="message", help="Contents of the message to send. This disables reading the message from standard input.")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="do_trace_pjsip", help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
-
-    if options.account_name is None:
-        account_section = "Account"
-    else:
-        account_section = "Account_%s" % options.account_name
-    if account_section not in configuration.parser.sections():
-        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
-    configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, message=None, do_trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
-
-    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-
-    for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
-        setattr(options, "local_%s_port" % transport, None)
-    if not all([options.sip_address, options.password]):
-        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    for attr in default_options:
-        retval[attr] = getattr(options, attr)
-    try:
-        retval["username"], retval["domain"] = options.sip_address.split("@")
-    except ValueError:
-        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
-    else:
-        del retval["sip_address"]
+    retval = options.__dict__.copy()
     if args:
-        retval["target_uri"] = format_cmdline_uri(args[0], retval["domain"])
+        retval["target_uri"] = args[0]
     else:
         retval["target_uri"] = None
-    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
-    accounts.sort()
-    print "Accounts available: %s" % ', '.join(accounts)
-    if options.account_name is None:
-        print "Using default account: %s" % options.sip_address
-    else:
-        print "Using account '%s': %s" % (options.account_name, options.sip_address)
     return retval
 
 def main():
