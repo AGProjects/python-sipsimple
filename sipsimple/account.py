@@ -33,6 +33,7 @@ class DialogEventSettings(SettingsGroup):
 
 
 class ENUMSettings(SettingsGroup):
+    enabled = Setting(type=bool, default=True)
     tld_list = Setting(type=DomainList, default=('e164.arpa',))
 
 
