@@ -23,6 +23,11 @@ class GreenSession(GreenBase):
     klass = Session
 
     def connect(self, *args, **kwargs):
+        """Call connect() on the proxied object. Wait for the session to start or to fail.
+        In addition to SCSessionDidStart, wait for MSRPChatDidFail notification.
+
+        In case of an error raise SessionError.
+        """
         event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
@@ -47,16 +52,23 @@ class GreenSession(GreenBase):
                raise SessionError("Session ended by local party")
             else:
                 raise SessionError("Session ended by remote party")
+        if notification.name == 'MSRPChatDidFail':
+            raise SessionError('Failed to establish MSRP connection')
 
     def _wait_for_chat_to_start(self):
         if self.chat_transport is not None:
-            with self.linked_notification('MSRPChatDidStart', sender=self.chat_transport) as q:
+            with self.linked_notifications(['MSRPChatDidStart', 'MSRPChatDidFail'], sender=self.chat_transport) as q:
                 with self.linked_notifications(['SCSessionDidFail', 'SCSessionDidEnd'], queue=q):
                     if not self.chat_transport.is_started:
                         notification = q.wait()
                         self._raise_if_error(notification)
 
     def accept(self, *args, **kwargs):
+        """Call accept() on the proxied object. Wait for the session to start or to fail.
+        In addition to SCSessionDidStart, wait for MSRPChatDidFail notification.
+
+        In case of an error raise SessionError.
+        """
         event_names = ['SCSessionDidStart',
                        'SCSessionDidFail',
                        'SCSessionDidEnd']
@@ -88,7 +100,11 @@ class GreenSession(GreenBase):
                         return notification
 
     def deliver_message(self, *args, **kwargs):
-        events = ['MSRPChatDidDeliverMessage', 'MSRPChatDidNotDeliverMessage']
+        """Call send_message() on the proxied object then wait for
+        MSRPChatDidDeliverMessage/MSRPChatDidNotDeliverMessage notification.
+        Raise CannotDeliverError if it's the latter.
+        """
+        events = ['MSRPChatDidDeliverMessage', 'MSRPChatDidNotDeliverMessage', 'MSRPChatDidFail']
         with self.linked_notifications(events, sender=self.chat_transport) as q:
             message = self.send_message(*args, **kwargs)
             while True:
@@ -96,8 +112,10 @@ class GreenSession(GreenBase):
                 if n.data.message_id == message.message_id:
                     if n.name == 'MSRPChatDidDeliverMessage':
                         return n.data
-                    else:
+                    elif n.name == 'MSRPChatDidNotDeliverMessage':
                         raise CannotDeliverError(code=n.data.code, reason=n.data.reason, message_id=n.data.message_id)
+                    else:
+                        raise CannotDeliverError('MSRP connection was closed')
 
 
 @contextmanager
