@@ -539,8 +539,7 @@ def start(options, console):
     registration = None
     try:
         update_options(options, engine)
-        logstate.start_loggers(trace_sip=options.trace_sip,
-                               trace_pjsip=options.trace_pjsip,
+        logstate.start_loggers(trace_pjsip=options.trace_pjsip,
                                trace_engine=options.trace_engine)
         credentials = Credentials(options.uri, options.password)
         logger = trafficlog.Logger(fileobj=console, is_enabled_func=lambda: options.trace_msrp)
