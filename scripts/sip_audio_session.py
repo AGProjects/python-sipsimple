@@ -412,7 +412,7 @@ def parse_options():
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account", type="string", dest="account_id", help="The account name to use for any outgoing traffic. If not supplied, the default account will be used.", metavar="NAME")
-    parser.add_option("-c", "--config_file", type="string", dest="config_file", help="The path to a configuration file to use. By default, ~/.sipclient/sipclient.ini will be used.", metavar="[FILE]")
+    parser.add_option("-c", "--config_file", type="string", dest="config_file", help="The path to a configuration file to use. This overrides the default location of the configuration file.", metavar="[FILE]")
     parser.set_default("trace_sip_stdout", None)
     parser.add_option("-s", "--trace-sip", type="string", action="callback", callback=parse_trace_option, callback_args=('sip',), help="Dump the raw contents of incoming and outgoing SIP messages. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
     parser.set_default("trace_pjsip_stdout", None)
