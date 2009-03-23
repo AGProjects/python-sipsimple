@@ -213,7 +213,7 @@ class ChatManager(NotificationHandler):
         q = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
         result = self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
         if result:
-            session.accept(chat=data.has_chat, audio=data.has_audio, password=self.credentials.password)
+            session.accept(chat=data.has_chat, audio=data.has_audio)
             self.add_session(session._green)
         else:
             session.terminate()
