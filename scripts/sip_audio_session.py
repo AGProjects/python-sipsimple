@@ -2,94 +2,37 @@
 
 import sys
 import traceback
-import string
-import socket
 import os
 import atexit
 import select
 import termios
 import signal
-import datetime
-import random
 from thread import start_new_thread, allocate_lock
-from threading import Thread, Timer
+from threading import Timer
 from Queue import Queue
-from optparse import OptionParser, OptionValueError
-from time import sleep, time
+from optparse import OptionParser
+from socket import gethostbyname
 
 from zope.interface import implements
 
-from application.process import process
-from application.configuration import *
 from application.notification import IObserver
 
-from sipsimple import *
-from sipsimple.session import *
-from sipsimple.clients import enrollment
+from sipsimple.engine import Engine
+from sipsimple.core import SIPURI, SIPCoreError
+from sipsimple.session import Session
 from sipsimple.clients.log import Logger
-
-from sipsimple.clients.dns_lookup import *
-from sipsimple.clients.clientconfig import get_path
-from sipsimple.clients import *
-
-class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": LoggingOption, "trace_sip": LoggingOption}
-    local_ip = None
-    sip_local_udp_port = 0
-    sip_local_tcp_port = 0
-    sip_local_tls_port = 0
-    sip_transports = ["tls", "tcp", "udp"]
-    trace_pjsip = LoggingOption('none')
-    trace_sip = LoggingOption('none')
-    history_directory = '~/.sipclient/history'
-    log_directory = '~/.sipclient/log'
-
-
-class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "use_ice": datatypes.Boolean, "use_stun_for_ice": datatypes.Boolean, "stun_servers": datatypes.StringList, "sip_register_interval": int}
-    sip_address = None
-    password = None
-    display_name = None
-    outbound_proxy = None
-    use_ice = False
-    use_stun_for_ice = False
-    stun_servers = []
-    sip_register_interval = 600 
-
-
-class SRTPOptions(dict):
-    def __new__(typ, value):
-        value_lower = value.lower()
-        if value_lower == "disabled":
-            return dict(use_srtp=False, srtp_forced=False)
-        elif value_lower == "optional":
-            return dict(use_srtp=True, srtp_forced=False)
-        elif value_lower == "mandatory":
-            return dict(use_srtp=True, srtp_forced=True)
-        else:
-            raise ValueError('Unknown SRTP option: "%s"' % value)
-
-
-class AudioConfig(ConfigSection):
-    _datatypes = {"sample_rate": int, "echo_cancellation_tail_length": int,"codec_list": datatypes.StringList, "disable_sound": datatypes.Boolean, "encryption": SRTPOptions}
-    sample_rate = 32
-    echo_cancellation_tail_length = 50
-    codec_list = ["speex", "g711", "ilbc", "gsm", "g722"]
-    disable_sound = False
-    encryption = dict(use_srtp=True, srtp_forced=False)
-
-
-process._system_config_directory = os.path.expanduser("~/.sipclient")
-enrollment.verify_account_config()
-configuration = ConfigFile("config.ini")
-configuration.read_settings("Audio", AudioConfig)
-configuration.read_settings("General", GeneralConfig)
+from sipsimple.clients.dns_lookup import lookup_service_for_sip_uri, lookup_routes_for_sip_uri
+from sipsimple.clients import format_cmdline_uri
+from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.backend.configfile import ConfigFileBackend
+from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.account import AccountManager
+from sipsimple.clients.clientconfig import get_path as get_default_ringtone_path
 
 queue = Queue()
 old = None
 user_quit = True
 lock = allocate_lock()
-logger = None
 return_code = 1
 
 def termios_restore():
@@ -135,72 +78,34 @@ def print_control_keys():
     print "  Ctrl-d: quit the program"
     print "  ?: display this help message"
 
-def read_queue(e, username, domain, password, display_name, route, target_uri, ec_tail_length, sample_rate, codecs, use_bonjour, stun_servers, auto_hangup, auto_answer):
-    global user_quit, lock, queue, return_code, logger
+def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer, auto_hangup):
+    global user_quit, lock, queue, return_code
     lock.acquire()
     sess = None
-    ringer = None
-    printed = False
     want_quit = target_uri is not None
     auto_answer_timer = None
     try:
-        if not use_bonjour:
-            sip_uri = SIPURI(user=username, host=domain, display=display_name)
-            credentials = Credentials(sip_uri, password)
-            if len(stun_servers) > 0:
-                e.detect_nat_type(*stun_servers[0])
-        if target_uri is None:
-            if use_bonjour:
-                print "Using bonjour"
-                if e.local_udp_port is not None:
-                    print 'Listening on UDP: "%s"' % SIPURI(host=e.local_ip, user="bonjour", port=e.local_udp_port, parameters={"transport": "udp"})
-                if e.local_tcp_port is not None:
-                    print 'Listening on TCP: "%s"' % SIPURI(host=e.local_ip, user="bonjour", port=e.local_tcp_port, parameters={"transport": "tcp"})
-                if e.local_tls_port is not None:
-                    print 'Listening on TLS: "%s"' % SIPURI(host=e.local_ip, user="bonjour", port=e.local_tls_port, parameters={"transport": "tls"})
-                print_control_keys()
-                print 'Waiting for incoming SIP session requests...'
-            else:
-                reg = Registration(credentials, route=route, expires=AccountConfig.sip_register_interval)
-                print 'Registering "%s" at %s:%d' % (credentials.uri, route.address, route.port)
-                reg.register()
-        else:
-            if use_bonjour:
-                port = getattr(e, "local_%s_port" % route.transport)
-                credentials = Credentials(SIPURI(host=e.local_ip, user="bonjour", port=port, parameters={"transport": route.transport}))
-            sess = Session()
-            sess.connect(target_uri, credentials, route, audio=True)
-            print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, route.transport, route.address, route.port)
-            print_control_keys()
+        if account.id != "bonjour@local" and len(account.stun_servers) > 0:
+            e.detect_nat_type(*account.stun_servers[0])
+        if target_uri is not None:
+            sess = Session(account)
+            sess.connect(target_uri, routes, audio=True)
+            print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, routes[0].transport, routes[0].address, routes[0].port)
+        print_control_keys()
         while True:
             command, data = queue.get()
             if command == "print":
                 print data
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "SCRegistrationChangedState":
-                    if args["state"] == "registered":
-                        if not printed:
-                            print "REGISTER was successful"
-                            print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
-                            print_control_keys()
-                            print "Waiting for incoming session..."
-                            printed = True
-                    elif args["state"] == "unregistered":
-                        if "code" in args and args["code"] / 100 != 2:
-                            print "Unregistered: %(code)d %(reason)s" % args
-                        elif sess is None:
-                            return_code = 0
-                        user_quit = False
-                        command = "quit"
-                elif event_name == "SCSessionGotRingIndication":
+                if event_name == "SCSessionGotRingIndication":
                     print "Ringing..."
                 elif event_name == "SCSessionNewIncoming":
                     from_whom = SIPURI(obj.caller_uri.host, user=obj.caller_uri.user, display=obj.caller_uri.display, secure=obj.caller_uri.secure)
-                    print 'Incoming session from "%s"' % from_whom
+                    print 'Incoming session from "%s" to "%s"' % (from_whom, obj.account.id)
                     if sess is None:
                         sess = obj
-                        print 'Incoming audio session from "%s", do you want to accept? (y/n)' % from_whom
+                        print 'Incoming audio session from "%s" to "%s", do you want to accept? (y/n)' % (from_whom, sess.account.id)
                         if auto_answer is not None:
                             def auto_answer_call():
                                 print 'Auto-answering call.'
@@ -286,7 +191,7 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                             sess.send_dtmf(data)
                         elif data.lower() == "r" :
                             if sess.audio_recording_file_name is None:
-                                sess.start_recording_audio(os.path.join(os.path.expanduser(GeneralConfig.history_directory), '%s@%s' % (username, domain)))
+                                sess.start_recording_audio()
                                 print "Audio recording requested"
                             else:
                                 sess.stop_recording_audio()
@@ -309,21 +214,27 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                                 auto_answer_timer = None
                             sess.accept(audio=True)
                 if data in ",<":
-                    if ec_tail_length > 0:
-                        ec_tail_length = max(0, ec_tail_length - 10)
-                        e.set_sound_devices(tail_length=ec_tail_length)
-                    print "Set echo cancellation tail length to %d ms" % ec_tail_length
+                    if e.ec_tail_length > 0:
+                        e.set_sound_devices(tail_length=max(0, e.ec_tail_length - 10))
+                    print "Set echo cancellation tail length to %d ms" % e.ec_tail_length
                 elif data in ".>":
-                    if ec_tail_length < 500:
-                        ec_tail_length = min(500, ec_tail_length + 10)
-                        e.set_sound_devices(tail_length=ec_tail_length)
-                    print "Set echo cancellation tail length to %d ms" % ec_tail_length
+                    if e.ec_tail_length < 500:
+                        e.set_sound_devices(tail_length=min(500, e.ec_tail_length + 10))
+                    print "Set echo cancellation tail length to %d ms" % e.ec_tail_length
                 elif data == 't':
-                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
-                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
+                    logger.sip_to_stdout = not logger.sip_to_stdout
+                    if logger.sip_to_stdout:
+                        e.trace_sip = True
+                    else:
+                        e.trace_sip = logger.sip_to_file
+                    print "SIP tracing to console is now %s" % ("activated" if logger.sip_to_stdout else "deactivated")
                 elif data == 'j':
-                    logger.trace_pjsip.to_stdout = not logger.trace_pjsip.to_stdout
-                    print "PJSIP tracing to console is now %s" % ("activated" if logger.trace_pjsip.to_stdout else "deactivated")
+                    logger.pjsip_to_stdout = not logger.pjsip_to_stdout
+                    if logger.pjsip_to_stdout:
+                        e.log_level = settings.logging.pjsip_level
+                    else:
+                        e.log_level = settings.logging.pjsip_level if logger.pjsip_to_file else 0
+                    print "PJSIP tracing to console is now %s" % ("activated" if logger.pjsip_to_stdout else "deactivated")
                 elif data == '?':
                     print_control_keys()
             if command == "eof":
@@ -335,11 +246,8 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
                 except:
                     command = "unregister"
             if command == "unregister":
-                if target_uri is None and not use_bonjour:
-                    reg.unregister()
-                else:
-                    user_quit = False
-                    command = "quit"
+                user_quit = False
+                command = "quit"
             if command == "quit":
                 break
             data, args = None, None
@@ -357,64 +265,101 @@ def read_queue(e, username, domain, password, display_name, route, target_uri, e
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
-def do_invite(**kwargs):
-    global user_quit, lock, queue, logger
-    ctrl_d_pressed = False
-    outbound_proxy = kwargs.pop("outbound_proxy")
-    kwargs["stun_servers"] = lookup_service_for_sip_uri(SIPURI(host=kwargs["domain"]), "stun")
-    if kwargs["use_bonjour"]:
-        if kwargs["target_uri"] is None:
-            kwargs["route"] = None
-            del kwargs["sip_transports"]
+def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip_file, trace_sip_stdout, trace_pjsip_file, trace_pjsip_stdout, auto_answer, auto_hangup):
+    global user_quit, lock, queue
+
+    cm = ConfigurationManager()
+    cm.start(ConfigFileBackend(config_file))
+    am = AccountManager()
+    am.start()
+    settings = SIPSimpleSettings()
+    if account_id is None:
+        account = am.default_account
     else:
-        if outbound_proxy is None:
-            routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
-        else:
-            routes = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))
-        # Only try the first Route for now
         try:
-            kwargs["route"] = routes[0]
-        except IndexError:
-            raise RuntimeError("No route found to SIP proxy")
-    
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'), trace_pjsip=kwargs.pop('trace_pjsip'))
+            account = am.get_account(account_id)
+        except KeyError:
+            print "Account not found: %s" % account_id
+            print "Available accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts()))
+            return
+    print "Using account %s" % account.id
+
+    # set up logger
+    if trace_sip_file is None:
+        trace_sip_file = settings.logging.trace_sip
+        trace_sip_stdout = False
+    if trace_pjsip_file is None:
+        trace_pjsip_file = settings.logging.trace_pjsip
+        trace_pjsip_stdout = False
+    logger = Logger(trace_sip_file, trace_sip_stdout, trace_pjsip_file, trace_pjsip_stdout)
     logger.start()
-    if logger.trace_sip.to_file:
+    if logger.sip_to_file:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if logger.trace_pjsip.to_file:
+    if logger.pjsip_to_file:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
+    # set up default ringtones
+    if settings.ringtone.inbound is None:
+        settings.ringtone.inbound = get_default_ringtone_path("ring_inbound.wav")
+    if settings.ringtone.outbound is None:
+        settings.ringtone.outbound = get_default_ringtone_path("ring_outbound.wav")
+
+    # figure out Engine options and start the Engine
     e = Engine()
-    event_handler = EventHandler(e)
-    e.start(auto_sound=not kwargs.pop("disable_sound"), trace_sip=True, codecs=kwargs["codecs"], ec_tail_length=kwargs["ec_tail_length"], sample_rate=kwargs["sample_rate"], local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
-    if kwargs["target_uri"] is not None:
-        kwargs["target_uri"] = e.parse_sip_uri(kwargs["target_uri"])
-        if kwargs["use_bonjour"]:
-            try:
-                kwargs["route"] = lookup_routes_for_sip_uri(kwargs["target_uri"], kwargs.pop("sip_transports"))[0]
-            except IndexError:
-                raise RuntimeError("No route found to SIP proxy")
-    transport_kwargs = AudioConfig.encryption.copy()
-    transport_kwargs["use_ice"] = AccountConfig.use_ice
-    if AccountConfig.use_stun_for_ice:
-        if len(AccountConfig.stun_servers) > 0:
-            try:
-                random_stun = random.choice(AccountConfig.stun_servers)
-                transport_kwargs["ice_stun_address"], ice_stun_port = random_stun.split(":")
-            except:
-                transport_kwargs["ice_stun_address"] = random_stun
-                transport_kwargs["ice_stun_port"] = 3478
-            else:
-                transport_kwargs["ice_stun_port"] = int(ice_stun_port)
+    handler = EventHandler(e)
+    e.start(auto_sound=False,
+            local_ip=settings.local_ip.value,
+            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
+            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
+            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
+            tls_protocol=settings.tls.protocol,
+            tls_verify_server=settings.tls.verify_server,
+            tls_ca_file=settings.tls.ca_list_file.value if settings.tls.ca_list_file is not None else None,
+            tls_cert_file=settings.tls.certificate_file.value if settings.tls.certificate_file is not None else None,
+            tls_privkey_file=settings.tls.private_key_file.value if settings.tls.private_key_file is not None else None,
+            tls_timeout=settings.tls.timeout,
+            ec_tail_length=settings.audio.echo_delay,
+            user_agent=settings.user_agent,
+            log_level=settings.logging.pjsip_level if trace_pjsip_file or trace_pjsip_stdout else 0,
+            trace_sip=trace_sip_file or trace_sip_stdout,
+            sample_rate=settings.audio.sample_rate,
+            playback_dtmf=settings.audio.playback_dtmf,
+            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end))
+    if not disable_sound:
+        e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
+
+    # lookup STUN servers, as we don't support doing this asynchronously yet
+    if account.id != "bonjour@local":
+        if account.stun_servers:
+            account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
         else:
-            if len(kwargs["stun_servers"]) > 0:
-                transport_kwargs["ice_stun_address"], transport_kwargs["ice_stun_port"] = random.choice(kwargs["stun_servers"])
-    sm = SessionManager()
-    sm.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
-    sm.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
-    sm.rtp_config.__dict__.update(transport_kwargs)
-    start_new_thread(read_queue, (e,), kwargs)
+            account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
+
+    # setup routes
+
+    if account.id == "bonjour@local":
+        if target_uri is None:
+            routes = None
+        else:
+            target_uri = e.parse_sip_uri(target_uri)
+            routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
+            if len(routes) == 0:
+                raise RuntimeError("No route found to foreign domain SIP proxy")
+    else:
+        if target_uri is not None:
+            target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
+        if account.outbound_proxy is None:
+            routes = lookup_routes_for_sip_uri(SIPURI(host=account.id.domain), settings.sip.transports)
+        else:
+            proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
+            routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
+    if routes is not None and len(routes) == 0:
+        raise RuntimeError("No route found SIP proxy")
+
+    # start thread and process user input
+    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, routes, auto_answer, auto_hangup))
     atexit.register(termios_restore)
+    ctrl_d_pressed = False
     try:
         while True:
             char = getchar()
@@ -429,13 +374,6 @@ def do_invite(**kwargs):
             print "Ctrl+C pressed, exiting instantly!"
             queue.put(("quit", True))
         lock.acquire()
-        return
-
-def parse_outbound_proxy(option, opt_str, value, parser):
-    try:
-        parser.values.outbound_proxy = OutboundProxy(value)
-    except ValueError, e:
-        raise OptionValueError(e.message)
 
 def parse_handle_call_option(option, opt_str, value, parser, name):
     try:
@@ -454,25 +392,19 @@ def parse_handle_call_option(option, opt_str, value, parser, name):
                 del parser.rargs[0]
     setattr(parser.values, name, value)
 
-def split_codec_list(option, opt_str, value, parser):
-    parser.values.codecs = value.split(",")
-
 def parse_trace_option(option, opt_str, value, parser, name):
+    trace_file = False
+    trace_stdout = False
     try:
         value = parser.rargs[0]
     except IndexError:
-        value = LoggingOption('file')
+        trace_file = True
     else:
-        if value == '' or value[0] == '-':
-            value = LoggingOption('file')
-        else:
-            try:
-                value = LoggingOption(value)
-            except ValueError:
-                value = LoggingOption('file')
-            else:
-                del parser.rargs[0]
-    setattr(parser.values, name, value)
+        value = value.lower()
+        trace_file = value not in ["none", "stdout"]
+        trace_stdout = value in ["stdout", "all"]
+    setattr(parser.values, "trace_%s_file" % name, trace_file)
+    setattr(parser.values, "trace_%s_stdout" % name, trace_stdout)
 
 def parse_options():
     retval = {}
@@ -480,61 +412,26 @@ def parse_options():
     usage = "%prog [options] [target-user@target-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file. If not supplied, the section Account will be read.", metavar="NAME")
-    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP address of the user in the form user@domain")
-    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
-    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_option, callback_args=('trace_sip',), help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("-t", "--ec-tail-length", type="int", dest="ec_tail_length", help='Echo cancellation tail length in ms, setting this to 0 will disable echo cancellation. Default is 50 ms.')
-    parser.add_option("-r", "--sample-rate", type="int", dest="sample_rate", help='Sample rate in kHz, should be one of 8, 16 or 32kHz. Default is 32kHz.')
-    parser.add_option("-c", "--codecs", type="string", action="callback", callback=split_codec_list, help='Comma separated list of codecs to be used. Default is "speex,g711,ilbc,gsm,g722".')
-    parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Do not initialize the soundcard (by default the soundcard is enabled).")
-    parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('trace_pjsip',), help="Print PJSIP logging output (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("--auto-hangup", action="callback", callback=parse_handle_call_option, callback_args=('auto_hangup',), help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
+    parser.add_option("-a", "--account", type="string", dest="account_id", help="The account name to use for any outgoing traffic. If not supplied, the default account will be used.", metavar="NAME")
+    parser.add_option("-c", "--config_file", type="string", dest="config_file", help="The path to a configuration file to use. By default, ~/.sipclient/sipclient.ini will be used.", metavar="NAME")
+    parser.set_default("trace_sip_file", None)
+    parser.set_default("trace_sip_stdout", None)
+    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_option, callback_args=('sip',), help="Dump the raw contents of incoming and outgoing SIP messages. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.set_default("trace_pjsip_file", None)
+    parser.set_default("trace_pjsip_stdout", None)
+    parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('pjsip',), help="Print PJSIP logging output. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.set_default("disable_sound", False)
+    parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Disables initializing the sound card.")
+    parser.set_default("auto_answer", None)
     parser.add_option("--auto-answer", action="callback", callback=parse_handle_call_option, callback_args=('auto_answer',), help="Interval after which to answer an incoming call (disabled by default). If the option is specified but the interval is not, it defaults to 0 (answer the call as soon as it starts ringing).", metavar="[INTERVAL]")
+    parser.set_default("auto_hangup", None)
+    parser.add_option("--auto-hangup", action="callback", callback=parse_handle_call_option, callback_args=('auto_hangup',), help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
     options, args = parser.parse_args()
-
-    retval["use_bonjour"] = options.account_name == "bonjour"
-    if not retval["use_bonjour"]:
-        if options.account_name is None:
-            account_section = "Account"
-        else:
-            account_section = "Account_%s" % options.account_name
-        if account_section not in configuration.parser.sections():
-            raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
-        configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, ec_tail_length=AudioConfig.echo_cancellation_tail_length, sample_rate=AudioConfig.sample_rate, codecs=AudioConfig.codec_list, disable_sound=AudioConfig.disable_sound, trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, auto_hangup=None, auto_answer=None)
-    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-
-    for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
-        setattr(options, "local_%s_port" % transport, None)
-    if not retval["use_bonjour"]:
-        if not all([options.sip_address, options.password]):
-            raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    for attr in default_options:
-        retval[attr] = getattr(options, attr)
-    try:
-        if retval["use_bonjour"]:
-            retval["username"], retval["domain"] = None, None
-        else:
-            retval["username"], retval["domain"] = options.sip_address.split("@")
-    except ValueError:
-        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
-    else:
-        del retval["sip_address"]
+    retval = options.__dict__.copy()
     if args:
-        retval["target_uri"] = format_cmdline_uri(args[0], retval["domain"])
+        retval["target_uri"] = args[0]
     else:
         retval["target_uri"] = None
-    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
-    accounts.sort()
-    print "Accounts available: %s" % ', '.join(accounts)
-    if options.account_name is None:
-        print "Using default account: %s" % options.sip_address
-    else:
-        if not retval["use_bonjour"]:
-            print "Using account '%s': %s" % (options.account_name, options.sip_address)
     return retval
 
 def main():
