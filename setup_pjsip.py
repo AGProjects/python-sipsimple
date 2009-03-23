@@ -56,7 +56,6 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_UNESCAPE_IN_PLACE 1"]
     patch_files = ["patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2425-sdp_media_line.patch",
-                   "patches/pjsip-2451-osx_unified_binary_endianness_fix.patch",
                    "patches/pjsip-2458-crc32_big_endian_fix.patch"]
 
     user_options = build_ext.user_options
