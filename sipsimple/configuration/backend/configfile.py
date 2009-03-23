@@ -36,7 +36,10 @@ class ConfigFileBackend(object):
             directory = os.path.dirname(filename)
             try:
                 os.makedirs(directory)
-            except (IOError, OSError), e:
+            except OSError, e:
+                if e.errno != 17:
+                    raise ConfigurationBackendError(str(e))
+            except IOError, e:
                 raise ConfigurationBackendError(str(e))
                 
             try:
