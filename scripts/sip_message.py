@@ -13,7 +13,7 @@ from zope.interface import implements
 from application.notification import IObserver
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPURI, SIPCoreError, send_message
+from sipsimple.core import SIPURI, SIPCoreError, send_message, Credentials
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri
 from sipsimple.clients import format_cmdline_uri
 from sipsimple.configuration import ConfigurationManager
@@ -41,7 +41,6 @@ def read_queue(e, settings, am, account, logger, target_uri, message, routes):
     lock.acquire()
     sent = False
     msg_buf = []
-    route = routes[0]
     try:
         if target_uri is None:
             print "Press Ctrl+D to stop the program."
@@ -84,8 +83,12 @@ def read_queue(e, settings, am, account, logger, target_uri, message, routes):
                     command = "quit"
                 else:
                     sent = True
-                    print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (account.credentials.uri, target_uri, route.transport, route.address, route.port)
-                    send_message(account.credentials, target_uri, "text", "plain", "\n".join(msg_buf), route)
+                    print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (account.id, target_uri, routes[0].transport, routes[0].address, routes[0].port)
+                    if account.id == "bonjour@local":
+                        credentials = Credentials(SIPURI(user="bonjour", host="local"))
+                    else:
+                        credentials = account.credentials
+                    send_message(credentials, target_uri, "text", "plain", "\n".join(msg_buf), routes[0])
                     print "Press Ctrl+D to stop the program."
             if command == "quit":
                 break
@@ -166,6 +169,8 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_si
         if target_uri is None:
             routes = None
         else:
+            if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
+                target_uri = "sip:%s" % target_uri
             target_uri = e.parse_sip_uri(target_uri)
             routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
             if len(routes) == 0:

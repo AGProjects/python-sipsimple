@@ -343,6 +343,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
         if target_uri is None:
             routes = None
         else:
+            if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
+                target_uri = "sip:%s" % target_uri
             target_uri = e.parse_sip_uri(target_uri)
             routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
             if len(routes) == 0:
