@@ -300,7 +300,12 @@ class ChatManager(NotificationHandler):
             self.add_session(session)
             session.connect(target_uri, self.credentials, route, chat=use_chat, audio=use_audio)
         except SessionError:
-            pass # was already logged by InvitationLogger
+            # don't print anything as the error was already logged by InvitationLogger
+            self.remove_session(session)
+        except:
+            # connect may raise an error without firing an appropriate notification
+            self.remove_session(session)
+            raise
 
     @staticmethod
     def make_SDPMedia(uri_path):
