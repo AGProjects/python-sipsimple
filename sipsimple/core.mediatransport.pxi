@@ -15,24 +15,29 @@ cdef class RTPTransport:
     cdef readonly object ice_stun_address
     cdef readonly object ice_stun_port
 
-    def __cinit__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
+    def __cinit__(self, *args, **kwargs):
         cdef object pool_name = "RTPTransport_%d" % id(self)
         cdef PJSIPUA ua = c_get_ua()
         self.c_af = pj_AF_INET()
+        self.state = "NULL"
+        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        if self.c_pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+
+    def __init__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False, ice_stun_address=None, ice_stun_port=PJ_STUN_PORT, *args, **kwargs):
+        cdef PJSIPUA ua = c_get_ua()
+        if self.state != "NULL":
+            raise SIPCoreError("RTPTransport.__init__() was already called")
         if local_rtp_address is not None and not c_is_valid_ip(self.c_af, local_rtp_address):
             raise ValueError("Not a valid IPv4 address: %s" % local_rtp_address)
         if ice_stun_address is not None and not c_is_valid_ip(self.c_af, ice_stun_address):
             raise ValueError("Not a valid IPv4 address: %s" % ice_stun_address)
-        self.state = "NULL"
         self.c_local_rtp_address = local_rtp_address
         self.use_srtp = use_srtp
         self.srtp_forced = srtp_forced
         self.use_ice = use_ice
         self.ice_stun_address = ice_stun_address
         self.ice_stun_port = ice_stun_port
-        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
-        if self.c_pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
 
     def __dealloc__(self):
         cdef PJSIPUA ua
