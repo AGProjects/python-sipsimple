@@ -23,11 +23,7 @@ SIP core
 Middleware
 ----------
 
-- Session manager high level class [RK]
-- Session high level class [RK]
-- Integrate audio into session high-level class [RK]
-- Integrate MSRP into high level class [RK] [DB]
-- Desktop sharing high level class [DB]
+- Desktop sharing high level session class [DB]
 - Improve DNS lookups and fallback on 408 timeout after 5 seconds [RK]
 - Conference audio sessions [RK] [DB]
 - Buddylist high-level class [RK] [LS]
