@@ -206,15 +206,15 @@ class ChatManager(NotificationHandler):
         session._green = ChatSession(__obj=session)
         inv = session._inv
         txt = []
-        if data.has_chat:
+        if 'message' in data.streams:
             txt.append('Chat')
-        if data.has_audio:
+        if 'audio' in data.streams:
             txt.append('Audio')
         txt = '/'.join(txt)
         q = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
         result = self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
         if result:
-            session.accept(chat=data.has_chat, audio=data.has_audio)
+            session.accept(chat='message' in data.streams, audio='audio' in data.streams)
             self.add_session(session._green)
         else:
             session.terminate()
