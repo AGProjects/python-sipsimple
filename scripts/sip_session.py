@@ -392,7 +392,9 @@ def start(options, console):
                 import traceback
                 traceback.print_exc()
         finally:
-            console_next_line(console)
+            console.copy_input_line()
+            console.set_prompt('', True)
+            console.clear_input_line()
             if registration is not None:
                 registration = proc.spawn(registration.unregister)
             with calming_message(1, "Disconnecting the session(s)..."):
@@ -400,6 +402,7 @@ def start(options, console):
             if registration is not None:
                 with calming_message(1, "Unregistering..."):
                     registration.wait()
+            console.set_prompt('', True) # manager could have updated the prompt
     finally:
         with calming_message(1, "Disconnecting the session(s)..."):
             proc.waitall([proc.spawn(session.terminate) for session in SessionManager().sessions])
@@ -454,11 +457,6 @@ def readloop(console, manager, commands, shortcuts):
                 print ex
             # will get there without echoing if user pressed enter on an empty line; let's echo it
             echo()
-
-def console_next_line(console):
-    console.copy_input_line()
-    console.clear_input_line()
-    console.set_ps('', True) # QQQ otherwise prompt gets printed once somehow
 
 
 description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."

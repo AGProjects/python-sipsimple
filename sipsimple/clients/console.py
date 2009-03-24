@@ -31,6 +31,7 @@ CTRL_L = '\x0c'
 
 SETTERM_INITIALIZE = '\x1b[!p\x1b[?3;4l\x1b[4l\x1b>'
 
+
 class EOF(BaseException):
     """user pressed CTRL-D"""
 
@@ -154,7 +155,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
 
                 self._deliverBuffer(oldBuffer)
 
-    def _set_ps(self, ps, draw=False):
+    def set_transient_prompt(self, ps, draw=False):
         if draw:
             self.cursorToBOL()
         self.ps[0] = ps
@@ -162,9 +163,10 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
             self.terminal.eraseLine()
             self.drawInputLine()
 
-    def set_ps(self, ps, draw=False):
+    def set_prompt(self, ps, draw=True):
         self.ps_init[0] = ps
-        self._set_ps(ps, draw)
+        if not self.channel.lock.locked():
+            self.set_transient_prompt(ps, draw)
 
     def keystrokeReceived(self, keyID, modifier):
         self.last_keypress_time = time.time()
@@ -190,16 +192,16 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
         self.channel.send(('line', line))
 
     @contextmanager
-    def new_prompt(self, new_ps):
+    def temporary_prompt(self, new_ps):
         self.terminal.eraseLine()
         self.cursorToBOL()
         lineBuffer = self.lineBuffer[:]
         lineBufferIndex = self.lineBufferIndex
-        ps = self.ps[0]
+        self.ps_init[0] = self.ps[0]
         self.lineBuffer = []
         self.lineBufferIndex = 0
         try:
-            self._set_ps(new_ps)
+            self.set_transient_prompt(new_ps)
             self.drawInputLine()
             yield
         finally:
@@ -207,7 +209,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
                 self.terminal.nextLine()
             self.lineBuffer = lineBuffer
             self.lineBufferIndex = lineBufferIndex
-            self._set_ps(ps)
+            self.set_transient_prompt(self.ps_init[0])
             self.drawInputLine()
 
     def barrier(self, seconds=1):
@@ -259,21 +261,16 @@ class GreenConsole(object):
 
     def recv(self):
         if self.terminalProtocol.receiving>=0:
-            self.set_ps(self.terminalProtocol.ps_init[0], True)
-        try:
-            return self._receive()
-        finally:
-            self.terminal.eraseLine()
-            self.terminalProtocol.cursorToBOL()
-            self.terminalProtocol._set_ps('', True)
+            self.set_prompt(self.terminalProtocol.ps_init[0], True)
+        return self._receive()
 
     @contextmanager
-    def new_prompt(self, prompt):
+    def temporary_prompt(self, prompt):
         if self.terminalProtocol is None:
             raise ConnectionDone
         if self.terminalProtocol.lineBuffer:
             self.terminalProtocol.terminal.nextLine()
-        with self.terminalProtocol.new_prompt(prompt):
+        with self.terminalProtocol.temporary_prompt(prompt):
             yield
 
     def recv_char(self, allowed=[], barrier=1):
@@ -301,7 +298,7 @@ class GreenConsole(object):
 
     def ask_question(self, question, allowed, help=None, help_keys='hH?', barrier=1):
         with self.channel.locked_output():
-            with self.new_prompt(question):
+            with self.temporary_prompt(question):
                 if help is not None and '?' not in allowed:
                     allowed += help_keys
                 while True:
@@ -310,7 +307,7 @@ class GreenConsole(object):
                         if type=='key':
                             value = value[0]
                             if help is not None and value in help_keys:
-                                self.write(help)
+                                self.write('\n' + help)
                             else:
                                 return value
                         else:
@@ -332,11 +329,13 @@ class GreenConsole(object):
         "not a real tell, but useful for some purposes (trafficlog module)"
         return self.writecount
 
-    def set_ps(self, ps, draw=None):
+    def set_prompt(self, ps, draw=True):
         if self.terminalProtocol:
-            if draw is None:
-                draw = self.terminalProtocol.receiving>0
-            self.terminalProtocol.set_ps(ps, draw)
+            #if draw is None:
+            #    draw = self.terminalProtocol.receiving>0
+            self.terminalProtocol.set_prompt(ps, draw)
+
+    set_ps = set_prompt
 
     def __iter__(self):
         return self
@@ -489,14 +488,13 @@ def main():
         print 'Type a command to execute or an expression to evaluate.'
         print 'Prepend your input with number of seconds to execute the command asynchronously'
         print 'Example commands:'
-        print '1 1/0        # async exception'
-        print 'sleep        # sync sleep'
-        print '3 sleep      # async sleep'
-        print 'incoming     # ask a question'
-        print '3 incoming   # ask a question async after 3 seconds'
-        print 'set_ps @>    # set prompt to @>'
-        print 'disable      # disable the console for 5 seconds'
-        print 'sys.exit()   # exit synchronously'
+        print '1 1/0          # async exception'
+        print 'sleep          # sync sleep'
+        print 'incoming       # ask a question'
+        print '3 incoming     # ask a question async after 3 seconds'
+        print 'set_prompt @>  # set prompt to @>'
+        print 'disable        # disable the console for 5 seconds'
+        print 'sys.exit()     # exit synchronously'
 
     def write(*args):
         return sys.stdout.write(*args)
@@ -504,7 +502,7 @@ def main():
     try:
         with setup_console() as console:
             console.terminalProtocol.send_keys.append('\x13') # ctrl-s
-            console.set_ps('>>> ')
+            console.set_prompt('>>> ')
             for type, value in console:
                 if type == 'line':
                     print '%s> %s' % (datetime.now().strftime('%X'), value)
@@ -549,4 +547,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+# The whole thing is a mess. Should be redesigned from scratch.
 
