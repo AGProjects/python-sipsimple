@@ -887,8 +887,12 @@ class SessionManager(NotificationHandler):
 
     def _NH_SCInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
-            account = AccountManager().find_account(data.request_uri)
-            if account is None or "To" not in data.headers.iterkeys() or account.id.username != data.headers["To"].user or account.id.domain != data.headers["To"].host:
+            if "To" not in data.headers.iterkeys():
+                inv.disconnect(404)
+                return
+            to_uri = data.headers['To'][0]
+            account = AccountManager().find_account(to_uri)
+            if account is None or account.id.username != to_uri.user or account.id.domain != to_uri.host:
                 inv.disconnect(404)
                 return
             proposed_media = list(set(media.media for media in inv.get_offered_remote_sdp().media if media.media in ["audio", "message"] and media.port != 0))
