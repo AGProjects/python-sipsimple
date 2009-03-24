@@ -173,7 +173,7 @@ class Session(NotificationHandler):
 
     def __getattr__(self, attr):
         if self._inv is not None:
-            if attr in ["caller_uri", "callee_uri", "local_uri", "remote_uri", "credentials", "route"]:
+            if attr in ["caller_uri", "callee_uri", "local_uri", "remote_uri", "route"]:
                 return getattr(self._inv, attr)
         if self.audio_transport is not None:
             if attr.startswith("audio_"):
