@@ -88,12 +88,12 @@ class MSRPChat(object):
         if (outgoing and account.msrp.use_relay_for_outbound) or (not outgoing and account.msrp.use_relay_for_inbound):
             if account.msrp.relay is None:
                 relay = MSRPRelaySettings(domain=account.credentials.uri.host,
-                                          user=account.credentials.uri.user,
+                                          username=account.credentials.uri.user,
                                           password=account.credentials.password)
                 self.transport = 'tls'
             else:
                 relay = MSRPRelaySettings(domain=account.credentials.uri.host,
-                                          user=account.credentials.uri.user,
+                                          username=account.credentials.uri.user,
                                           password=account.credentials.password,
                                           host=account.msrp.relay.host,
                                           port=account.msrp.relay.port,
