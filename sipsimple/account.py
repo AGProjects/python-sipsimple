@@ -215,6 +215,7 @@ class BonjourAccount(SettingsObject):
 
     def __init__(self):
         self.contact = None
+        self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password='')
 
         # initialize msrp settings
         self.msrp = MSRPSettings()
