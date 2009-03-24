@@ -19,7 +19,7 @@ from application.notification import IObserver
 
 from sipsimple.engine import Engine
 from sipsimple.core import SIPURI, SIPCoreError
-from sipsimple.session import Session
+from sipsimple.session import Session, SessionManager
 from sipsimple.clients.log import Logger
 from sipsimple.clients.dns_lookup import lookup_service_for_sip_uri, lookup_routes_for_sip_uri
 from sipsimple.clients import format_cmdline_uri
@@ -317,6 +317,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end))
     if not disable_sound:
         e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
+    sm = SessionManager()
 
     # select account
 
