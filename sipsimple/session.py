@@ -34,7 +34,7 @@ class AccountRTPTransport(RTPTransport):
     def __init__(self, account, transport):
         settings = SIPSimpleSettings()
         kwargs = dict(local_rtp_address=settings.local_ip.value)
-        kwargs["use_srtp"] = (transport == "tls" or not account.audio.use_srtp_without_tls) and account.audio.srtp_encryption != "disabled"
+        kwargs["use_srtp"] = (transport == "tls" or account.audio.use_srtp_without_tls) and account.audio.srtp_encryption != "disabled"
         kwargs["srtp_forced"] = kwargs["use_srtp"] and account.audio.srtp_encryption == "mandatory"
         kwargs["use_ice"] = hasattr(account, "ice") and account.ice.enabled
         # TODO: look this up, also if not specified
