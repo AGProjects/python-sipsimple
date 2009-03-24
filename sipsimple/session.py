@@ -36,9 +36,9 @@ class AccountRTPTransport(RTPTransport):
         kwargs = dict(local_rtp_address=settings.local_ip.value)
         kwargs["use_srtp"] = (transport == "tls" or not account.audio.use_srtp_without_tls) and account.audio.srtp_encryption != "disabled"
         kwargs["srtp_forced"] = kwargs["use_srtp"] and account.audio.srtp_encryption == "mandatory"
-        kwargs["use_ice"] = account.ice.enabled
+        kwargs["use_ice"] = hasattr(account, "ice") and account.ice.enabled
         # TODO: look this up, also if not specified
-        if account.ice.use_stun and len(account.stun_servers) > 0:
+        if kwargs["use_ice"] and account.ice.use_stun and len(account.stun_servers) > 0:
             kwargs["ice_stun_address"], kwargs["ice_stun_port"] = account.stun_servers[0]
         RTPTransport.__init__(self, **kwargs)
 
