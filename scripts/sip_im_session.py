@@ -220,7 +220,7 @@ def consult_user(inv, ask_func):
     finally:
         link.cancel()
         if ERROR is not None:
-            proc.spawn_greenlet(inv.end, ERROR)
+            proc.spawn_greenlet(inv.disconnect, ERROR)
 
 
 class IncomingMSRPHandler_Interactive(IncomingMSRPHandler):
