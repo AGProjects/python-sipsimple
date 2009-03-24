@@ -76,12 +76,6 @@ def format_incoming_message(text, uri, cpim_from, dt):
     else:
         return '%s %s: %s' % (format_datetime(dt), format_uri(uri, cpim_from), text)
 
-def format_nosessions_ps(myuri):
-    if myuri.port in [None, 0, 5060]:
-        return '%s@%s> ' % (myuri.user, myuri.host)
-    else:
-        return '%s@%s:%s> ' % (myuri.user, myuri.host, myuri.port)
-
 def format_outgoing_message(uri, message, dt):
     return '%s %s: %s' % (format_datetime(dt), format_uri(uri), message)
 
@@ -243,8 +237,16 @@ class ChatManager(NotificationHandler):
                 prefix = '%s/%s ' % (1+self.sessions.index(self.current_session), len(self.sessions))
             ps = prefix + self.current_session.format_ps()
         else:
-            ps = format_nosessions_ps(self.account.credentials.uri)
-        self.console.set_ps(ps)
+            if hasattr(self.account, 'credentials'):
+                credentials = self.account.credentials
+                username, domain, port = credentials.uri.user, credentials.uri.host, credentials.uri.port
+                if port in [None, 0, 5060]:
+                    ps = '%s@%s' % (username, domain)
+                else:
+                    ps = '%s@%s:%s' % (username, domain, port)
+            else:
+                ps = str(getattr(self.account, 'contact', None))
+        self.console.set_ps(ps + '> ')
 
     def add_session(self, session, activate=True):
         assert session is not None
@@ -344,7 +346,8 @@ def start(options, console):
         logstate.start_loggers(trace_pjsip=settings.logging.trace_pjsip,
                                trace_engine=options.trace_engine)
         if options.register:
-            proc.spawn_greenlet(register, options.account, engine)
+            if hasattr(options.account, 'credentials'):
+                proc.spawn_greenlet(register, options.account, engine)
         MessageRenderer().start()
         session_manager = SessionManager()
         #session_manager.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
