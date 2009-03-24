@@ -312,7 +312,7 @@ class ChatManager(NotificationHandler):
     def _call(self, target_uri, use_audio, use_chat):
         try:
             session = ChatSession(self.account, remote_party=format_uri(target_uri))
-            session.update_info(use_audio, use_chat)
+            session.update_info(chat=use_chat, audio=use_audio)
             self.add_session(session)
             session.connect(target_uri, get_routes(target_uri, self.engine, self.account), chat=use_chat, audio=use_audio)
         except SessionError:
