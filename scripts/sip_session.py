@@ -138,6 +138,8 @@ class ChatSession(GreenSession, NotificationHandler):
             self.history_file = None
 
     def send_message(self, msg):
+        if self._obj.chat_transport is None:
+            raise UserCommandError("This SIP session does not have an active MSRP stream to send chat message over")
         dt = datetime.datetime.utcnow()
         chunk = self._obj.send_message(msg, dt=dt)
         printed_msg = format_outgoing_message(self._inv.local_uri, msg, dt=dt)
