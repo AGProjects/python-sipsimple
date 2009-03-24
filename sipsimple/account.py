@@ -20,6 +20,14 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
 
+class ContactURI(SIPAddress):
+    def __getitem__(self, transport):
+        if transport in ('tls', 'tcp', 'udp'):
+            parameters = {} if transport=='udp' else {'transport': transport}
+            return SIPURI(user=self.username, host=self.domain, port=getattr(Engine(), 'local_%s_port' % transport), parameters=parameters)
+        return SIPAddress.__getitem__(self, transport)
+
+
 class AudioSettings(SettingsGroup):
     codec_list = Setting(type=AudioCodecs, default=('speex', 'g722', 'g711', 'ilbc', 'gsm'))
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
@@ -116,7 +124,10 @@ class Account(SettingsObject):
 
     def __init__(self, id):
         self.id = id
-        self.contact = None
+        
+        username = ''.join(random.sample(string.lowercase, 8))
+        settings = SIPSimpleSettings()
+        self.contact = ContactURI('%s@%s' % (username, settings.local_ip.value))
         self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
 
         manager = AccountManager()
@@ -162,16 +173,10 @@ class Account(SettingsObject):
             self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
 
     def _activate(self):
-        settings = SIPSimpleSettings()
-        username = ''.join(random.sample(string.lowercase, 8))
-        self.contact = SIPAddress('%s@%s' % (username, settings.local_ip.value))
-        
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidActivate', sender=self)
 
     def _deactivate(self):
-        self.contact = None
-
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidDeactivate', sender=self)
 
@@ -214,8 +219,10 @@ class BonjourAccount(SettingsObject):
     ringtone = RingtoneSettings
 
     def __init__(self):
-        self.contact = None
-        self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password='')
+        settings = SIPSimpleSettings()
+        username = ''.join(random.sample(string.lowercase, 8))
+        self.contact = ContactURI('%s@%s' % (username, settings.local_ip.value))
+        self.credentials = Credentials(SIPURI(user=self.contact.username, host=self.contact.domain, display=self.display_name), password='')
 
         # initialize msrp settings
         self.msrp = MSRPSettings()
@@ -243,16 +250,10 @@ class BonjourAccount(SettingsObject):
                 self._deactivate()
 
     def _activate(self):
-        settings = SIPSimpleSettings()
-        username = ''.join(random.sample(string.lowercase, 8))
-        self.contact = SIPAddress('%s@%s' % (username, settings.local_ip.value))
-        
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidActivate', sender=self)
 
     def _deactivate(self):
-        self.contact = None
-
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidDeactivate', sender=self)
 
