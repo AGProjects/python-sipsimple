@@ -236,7 +236,7 @@ class Session(NotificationHandler):
                 self._ringtone = ringtone
             self.direction = "outgoing"
             self._change_state("CALLING")
-            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio=audio))
+            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(audio=audio, chat=chat))
 
     def _do_fail(self, reason):
         try:
