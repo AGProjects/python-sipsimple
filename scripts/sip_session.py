@@ -540,6 +540,13 @@ def parse_options(usage, description):
 def main():
     ConfigurationManager().start()
     AccountManager().start()
+
+    settings = SIPSimpleSettings()
+    if settings.ringtone.inbound is None:
+        settings.ringtone.inbound = get_path("ring_inbound.wav")
+    if settings.ringtone.outbound is None:
+        settings.ringtone.outbound = get_path("ring_outbound.wav")
+
     try:
         options = parse_options(usage, description)
         with setup_console() as console:
