@@ -339,6 +339,7 @@ def register(account, engine):
     registration.register()
 
 def start(options, console):
+    account = options.account
     settings = SIPSimpleSettings()
     engine = GreenEngine()
     engine.start(trace_sip=settings.logging.trace_sip)
@@ -347,20 +348,18 @@ def start(options, console):
         logstate.start_loggers(trace_pjsip=settings.logging.trace_pjsip,
                                trace_engine=options.trace_engine)
         if options.register:
-            if hasattr(options.account, 'credentials'):
-                proc.spawn_greenlet(register, options.account, engine)
-        if isinstance(options.account, BonjourAccount):
+            if hasattr(account, 'credentials'):
+                proc.spawn_greenlet(register, account, engine)
+        if isinstance(account, BonjourAccount):
             if engine.local_udp_port:
-                print 'Local contact: %s:%s;transport=udp' % (options.account.contact, engine.local_udp_port)
+                print 'Local contact: %s:%s;transport=udp' % (account.contact, engine.local_udp_port)
             if engine.local_tcp_port:
-                print 'Local contact: %s:%s;transport=tcp' % (options.account.contact, engine.local_tcp_port)
+                print 'Local contact: %s:%s;transport=tcp' % (account.contact, engine.local_tcp_port)
             if engine.local_tls_port:
-                print 'Local contact: %s:%s;transport=tls' % (options.account.contact, engine.local_tls_port)
+                print 'Local contact: %s:%s;transport=tls' % (account.contact, engine.local_tls_port)
         MessageRenderer().start()
         session_manager = SessionManager()
-        #session_manager.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
-        #session_manager.ringtone_config.outbound_ringtone = get_path("ring_outbound.wav")
-        manager = ChatManager(engine, options.account, console)
+        manager = ChatManager(engine, account, console)
         manager.update_ps()
         try:
             print "Press Ctrl-d to quit or Control-n to switch between active sessions"
