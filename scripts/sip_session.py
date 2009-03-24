@@ -25,7 +25,7 @@ from sipsimple.clients import format_cmdline_uri
 from sipsimple import logstate
 from sipsimple.green.notification import NotifyFromThreadObserver
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.account import AccountManager
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
 
@@ -348,6 +348,13 @@ def start(options, console):
         if options.register:
             if hasattr(options.account, 'credentials'):
                 proc.spawn_greenlet(register, options.account, engine)
+        if isinstance(options.account, BonjourAccount):
+            if engine.local_udp_port:
+                print 'Local contact: %s:%s;transport=udp' % (options.account.contact, engine.local_udp_port)
+            if engine.local_tcp_port:
+                print 'Local contact: %s:%s;transport=tcp' % (options.account.contact, engine.local_tcp_port)
+            if engine.local_tls_port:
+                print 'Local contact: %s:%s;transport=tls' % (options.account.contact, engine.local_tls_port)
         MessageRenderer().start()
         session_manager = SessionManager()
         #session_manager.ringtone_config.default_inbound_ringtone = get_path("ring_inbound.wav")
