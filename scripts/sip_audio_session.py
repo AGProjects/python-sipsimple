@@ -340,6 +340,10 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     # pre-lookups
 
     if isinstance(account, BonjourAccount):
+        # print listening addresses
+        for transport in settings.sip.transports:
+            local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
+            print 'Listening on "%s"' % local_uri
         if target_uri is None:
             routes = None
         else:
