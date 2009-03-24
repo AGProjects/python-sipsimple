@@ -441,11 +441,14 @@ description = "This script will either sit idle waiting for an incoming MSRP ses
 usage = "%prog [options] [target-user@target-domain.com]"
 
 def get_account(key):
-    accounts = AccountManager().accounts
+    account_manager = AccountManager()
+    accounts = account_manager.accounts
     if not accounts:
         sys.exit('No accounts defined')
     if key is None:
-        if len(accounts)==1:
+        if account_manager.default_account is not None:
+            return account_manager.default_account
+        elif len(accounts)==1:
             return accounts.items()[0]
         else:
             sys.exit('Please specify account to use with "-a username@domain" option')
