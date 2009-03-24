@@ -403,7 +403,7 @@ def start(options, console):
     finally:
         with calming_message(1, "Disconnecting the session(s)..."):
             proc.waitall([proc.spawn(session.terminate) for session in SessionManager().sessions])
-        with calming_message(1, "Stopping the engine..."):
+        with calming_message(2, "Stopping the engine..."):
             engine.stop()
         api.sleep(0.1)
 
