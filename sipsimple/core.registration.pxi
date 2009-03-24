@@ -31,7 +31,7 @@ cdef class Registration:
         transport = self.c_route.transport
         self.c_want_register = 0
         if contact_uri is None:
-            self.c_contact_uri = ua.c_create_contact_uri(credentials.token, transport)
+            self.c_contact_uri = PJSTR(ua.c_create_contact_uri(route)._as_str(1))
         else:
             self.c_contact_uri = PJSTR(contact_uri._as_str(1))
         request_uri = PJSTR(str(SIPURI(credentials.uri.host)))

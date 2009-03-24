@@ -10,8 +10,9 @@ cdef class Subscription:
     cdef PJSTR c_event
     cdef readonly object state
     cdef dict c_extra_headers
+    cdef PJSTR c_contact_uri
 
-    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route, expires=300, extra_headers=None):
+    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route, expires=300, SIPURI contact_uri=None, extra_headers=None):
         cdef int status
         cdef EventPackage pkg
         cdef PJSIPUA ua = c_get_ua()
@@ -29,6 +30,10 @@ cdef class Subscription:
         self.c_event = PJSTR(event)
         if event not in ua.events:
             raise SIPCoreError('Event "%s" is unknown' % event)
+        if contact_uri is None:
+            self.c_contact_uri = PJSTR(ua.c_create_contact_uri(route)._as_str(1))
+        else:
+            self.c_contact_uri = PJSTR(contact_uri._as_str(1))
         self.state = "TERMINATED"
         if extra_headers is None:
             self.c_extra_headers = {}
@@ -109,7 +114,7 @@ cdef class Subscription:
         cdef pjsip_tx_data *c_tdata
         cdef int status
         cdef object transport
-        cdef PJSTR c_from, c_to, c_to_req, c_contact_uri
+        cdef PJSTR c_from, c_to, c_to_req
         cdef PJSIPUA ua = c_get_ua()
         try:
             if first_subscribe:
@@ -117,8 +122,7 @@ cdef class Subscription:
                 c_to = PJSTR(self.c_to_uri._as_str(0))
                 c_to_req = PJSTR(self.c_to_uri._as_str(1))
                 transport = self.c_route.transport
-                c_contact_uri = ua.c_create_contact_uri(self.c_credentials.token, transport)
-                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_from.pj_str, &c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_from.pj_str, &self.c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
                 if status != 0:
                     raise PJSIPError("Could not create SUBSCRIBE dialog", status)
                 status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)

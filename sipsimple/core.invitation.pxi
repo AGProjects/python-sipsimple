@@ -12,8 +12,9 @@ cdef class Invitation:
     cdef int c_sdp_neg_status
     cdef int c_has_active_sdp
     cdef readonly object transport
+    cdef SIPURI c_local_contact_uri
 
-    def __cinit__(self, Credentials credentials=None, SIPURI callee_uri=None, Route route=None):
+    def __cinit__(self, Credentials credentials=None, SIPURI callee_uri=None, Route route=None, SIPURI contact_uri=None):
         cdef PJSIPUA ua = c_get_ua()
         self.c_sdp_neg_status = -1
         self.c_has_active_sdp = 0
@@ -29,6 +30,10 @@ cdef class Invitation:
             self.c_caller_uri = self.c_credentials.uri
             self.c_route = route.copy()
             self.transport = route.transport
+            if contact_uri is None:
+                self.c_local_contact_uri = ua.c_create_contact_uri(route)
+            else:
+                self.c_local_contact_uri = contact_uri.copy()
         elif any([credentials, callee_uri, route]):
             raise ValueError("All arguments need to be supplied when creating an outbound Invitation")
         else:
@@ -36,23 +41,21 @@ cdef class Invitation:
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
-        cdef SIPURI contact_uri
-        cdef SIPURI request_uri
-        cdef PJSTR contact_uri_str
+        cdef PJSTR contact_uri
         cdef object transport
         cdef int status
         try:
             request_uri = c_make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
             if c_is_valid_ip(pj_AF_INET(), request_uri.host):
-                contact_uri = request_uri
+                self.c_local_contact_uri = request_uri
             else:
                 self.transport = rdata.tp_info.transport.type_name.lower()
-                contact_uri = SIPURI(host=pj_str_to_str(rdata.tp_info.transport.local_name.host),
-                                     user=request_uri.user,
-                                     port=rdata.tp_info.transport.local_name.port,
-                                     parameters=({"transport":transport} if self.transport != "udp" else {}))
-            contact_uri_str = PJSTR(contact_uri._as_str(1))
-            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri_str.pj_str, &self.c_dlg)
+                self.c_local_contact_uri = SIPURI(host=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                                  user=request_uri.user,
+                                                  port=rdata.tp_info.transport.local_name.port,
+                                                  parameters=({"transport":transport} if self.transport != "udp" else {}))
+            contact_uri = PJSTR(self.c_local_contact_uri._as_str(1))
+            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri.pj_str, &self.c_dlg)
             if status != 0:
                 raise PJSIPError("Could not create dialog for new INTIVE session", status)
             status = pjsip_inv_create_uas(self.c_dlg, rdata, NULL, inv_options, &self.c_obj)
@@ -179,6 +182,14 @@ cdef class Invitation:
                 return None
             else:
                 return pj_str_to_str(self.c_dlg.call_id.id)
+
+    property local_contact_uri:
+
+        def __get__(self):
+            if self.c_contact_uri is None:
+                return None
+            else:
+                return self.c_contact_uri.copy()
 
     def get_active_local_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
@@ -312,7 +323,7 @@ cdef class Invitation:
         if callee_target_uri.parameters.get("transport", "udp").lower() != self.transport:
             callee_target_uri.parameters["transport"] = self.transport
         callee_target = PJSTR(callee_target_uri._as_str(1))
-        contact_uri = ua.c_create_contact_uri(self.c_credentials.token, self.transport)
+        contact_uri = PJSTR(self.c_local_contact_uri._as_str(1))
         try:
             status = pjsip_dlg_create_uac(pjsip_ua_instance(), &caller_uri.pj_str, &contact_uri.pj_str, &callee_uri.pj_str, &callee_target.pj_str, &self.c_dlg)
             if status != 0:

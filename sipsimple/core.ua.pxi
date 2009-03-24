@@ -509,10 +509,12 @@ cdef class PJSIPUA:
             self.c_threads.append(PJSIPThread())
         return 0
 
-    cdef PJSTR c_create_contact_uri(self, object username, object transport):
-        if transport is None:
-            transport = "udp"
-        return PJSTR(str(SIPURI(host=self.local_ip, user=username, port=getattr(self, "local_%s_port" % transport), parameters={"transport": transport})))
+    cdef SIPURI c_create_contact_uri(self, Route route):
+        cdef object local_port
+        local_port = getattr(self, "local_%s_port" % route.transport)
+        if local_port is None:
+            raise SIPCoreError("Transport %s is not enabled" % route.transport)
+        return SIPURI(host=self.local_ip, port=local_port, parameters={"transport": route.transport})
 
     cdef int _rx_request(self, pjsip_rx_data *rdata) except 0:
         cdef int status
