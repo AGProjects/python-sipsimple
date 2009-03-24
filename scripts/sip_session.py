@@ -116,6 +116,8 @@ def get_history_file(inv): # XXX fix
 
 class ChatSession(GreenSession, NotificationHandler):
 
+    info = 'Session'
+
     def __init__(self, *args, **kwargs):
         self.remote_party = kwargs.pop('remote_party', None)
         GreenSession.__init__(self, *args, **kwargs)
@@ -150,7 +152,7 @@ class ChatSession(GreenSession, NotificationHandler):
         return chunk
 
     def format_ps(self):
-        result = 'Chat to %s' % self.remote_party
+        result = '%s to %s' % (self.info, self.remote_party)
         if self.state != 'ESTABLISHED':
             result += ' [%s]' % self.state
         return result + ': '
@@ -215,6 +217,7 @@ class ChatManager(NotificationHandler):
         txt = '/'.join(txt)
         q = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
         result = self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
+        session._green.info = txt
         if result:
             session.accept(chat='message' in data.streams, audio='audio' in data.streams)
             self.add_session(session._green)
@@ -280,23 +283,27 @@ class ChatManager(NotificationHandler):
         if not args:
             raise UserCommandError('Please provide uri')
         target_uri = args[0]
-        use_audio=True
-        use_chat=True
+        info = 'Chat/Audio'
+        use_audio = True
+        use_chat = True
         if args[1:]:
             if args[1]=='chat':
-                use_audio=False
+                use_audio = False
+                info = 'Chat'
             elif args[1]=='audio':
-                use_chat=False
+                use_chat = False
+                info = 'Audio'
         if not isinstance(target_uri, SIPURI):
             try:
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
             except ValueError, ex:
                 raise UserCommandError(str(ex))
-        self.jobgroup.spawn(self._call, target_uri, use_audio, use_chat)
+        self.jobgroup.spawn(self._call, target_uri, use_audio, use_chat, info)
 
-    def _call(self, target_uri, use_audio, use_chat):
+    def _call(self, target_uri, use_audio, use_chat, info):
         try:
             session = ChatSession(self.account, remote_party=format_uri(target_uri))
+            session.info = info
             self.add_session(session)
             session.connect(target_uri, get_routes(target_uri, self.engine, self.account), chat=use_chat, audio=use_audio)
         except SessionError:
