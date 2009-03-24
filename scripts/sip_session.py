@@ -405,8 +405,7 @@ def start(options, console):
             proc.waitall([proc.spawn(session.terminate) for session in SessionManager().sessions])
         with calming_message(1, "Stopping the engine..."):
             engine.stop()
-        from eventlet.api import sleep
-        sleep(0.1)
+        api.sleep(0.1)
 
 @contextmanager
 def calming_message(seconds, message):
