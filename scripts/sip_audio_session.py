@@ -268,23 +268,11 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
 def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout, auto_answer, auto_hangup):
     global user_quit, lock, queue
 
+    # acquire settings
+
     cm = ConfigurationManager()
     cm.start(ConfigFileBackend(config_file))
-    am = AccountManager()
-    am.start()
     settings = SIPSimpleSettings()
-    if account_id is None:
-        account = am.default_account
-    else:
-        try:
-            account = am.get_account(account_id)
-        except KeyError:
-            print "Account not found: %s" % account_id
-            print "Available accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts()))
-            return
-    if account is None:
-        raise RuntimeError("No account configured")
-    print "Using account %s" % account.id
 
     # set up logger
     if trace_sip is None:
@@ -329,6 +317,23 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end))
     if not disable_sound:
         e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
+
+    # select account
+
+    am = AccountManager()
+    am.start()
+    if account_id is None:
+        account = am.default_account
+    else:
+        try:
+            account = am.get_account(account_id)
+        except KeyError:
+            print "Account not found: %s" % account_id
+            print "Available accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts()))
+            return
+    if account is None:
+        raise RuntimeError("No account configured")
+    print "Using account %s" % account.id
 
     # lookup STUN servers, as we don't support doing this asynchronously yet
     if account.id != "bonjour@local":
