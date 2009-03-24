@@ -362,8 +362,7 @@ def start(options, console):
         logstate.start_loggers(trace_pjsip=settings.logging.trace_pjsip,
                                trace_engine=options.trace_engine)
         if options.register:
-            if hasattr(account, 'credentials'):
-                proc.spawn_greenlet(register, account, engine)
+            proc.spawn_greenlet(register, account, engine)
         if isinstance(account, BonjourAccount):
             if engine.local_udp_port:
                 print 'Local contact: %s:%s;transport=udp' % (account.contact, engine.local_udp_port)
@@ -541,7 +540,9 @@ def parse_options(usage, description):
             except:
                 print 'Error setting %r.%s=%r' % (obj, name, value)
                 raise
-    if account.id != "bonjour@local":
+    if account.id == "bonjour@local":
+        options.register = False
+    else:
         if account.stun_servers:
             account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
         else:
