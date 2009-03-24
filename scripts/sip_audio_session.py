@@ -26,7 +26,7 @@ from sipsimple.clients import format_cmdline_uri
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.account import AccountManager
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.clientconfig import get_path as get_default_ringtone_path
 
 queue = Queue()
@@ -85,7 +85,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
     want_quit = target_uri is not None
     auto_answer_timer = None
     try:
-        if account.id != "bonjour@local" and len(account.stun_servers) > 0:
+        if hasattr(account, "stun_servers") and len(account.stun_servers) > 0:
             e.detect_nat_type(*account.stun_servers[0])
         if target_uri is not None:
             sess = Session(account)
@@ -337,19 +337,13 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
         raise RuntimeError("No account configured")
     print "Using account %s" % account.id
 
-    # lookup STUN servers, as we don't support doing this asynchronously yet
-    if account.id != "bonjour@local":
-        if account.stun_servers:
-            account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
-        else:
-            account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
+    # pre-lookups
 
-    # setup routes
-
-    if account.id == "bonjour@local":
+    if isinstance(account, BonjourAccount):
         if target_uri is None:
             routes = None
         else:
+            # setup routes
             if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
                 target_uri = "sip:%s" % target_uri
             target_uri = e.parse_sip_uri(target_uri)
@@ -357,6 +351,12 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             if len(routes) == 0:
                 raise RuntimeError("No route found to foreign domain SIP proxy")
     else:
+        # lookup STUN servers, as we don't support doing this asynchronously yet
+        if account.stun_servers:
+            account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
+        else:
+            account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
+        # setup routes
         if target_uri is not None:
             target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
         if account.outbound_proxy is None:
@@ -364,6 +364,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
         else:
             proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
             routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
+
     if routes is not None and len(routes) == 0:
         raise RuntimeError("No route found SIP proxy")
 
