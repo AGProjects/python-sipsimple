@@ -348,8 +348,6 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
                 target_uri = "sip:%s" % target_uri
             target_uri = e.parse_sip_uri(target_uri)
             routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
-            if len(routes) == 0:
-                raise RuntimeError("No route found to foreign domain SIP proxy")
     else:
         # lookup STUN servers, as we don't support doing this asynchronously yet
         if account.stun_servers:
@@ -366,7 +364,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
 
     if routes is not None and len(routes) == 0:
-        raise RuntimeError("No route found SIP proxy")
+        raise RuntimeError('No route found to SIP proxy for "%s"' % target_uri)
 
     # start thread and process user input
     start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, routes, auto_answer, auto_hangup))
