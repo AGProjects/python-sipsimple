@@ -246,7 +246,8 @@ class ChatManager(NotificationHandler):
                     ps = '%s@%s:%s' % (username, domain, port)
             else:
                 ps = str(getattr(self.account, 'contact', None))
-        self.console.set_ps(ps + '> ')
+            ps += '> '
+        self.console.set_ps(ps)
 
     def add_session(self, session, activate=True):
         assert session is not None
