@@ -12,7 +12,11 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 
 from sipsimple.engine import Engine
-from sipsimple.core import Invitation, SDPSession, SDPMedia, SDPAttribute, SDPConnection, RTPTransport, AudioTransport, WaveFile, RecordingWaveFile, SIPCoreError
+from sipsimple.core import SIPURI, Invitation
+from sipsimple.core import SDPSession, SDPMedia, SDPAttribute, SDPConnection
+from sipsimple.core import RTPTransport, AudioTransport
+from sipsimple.core import WaveFile, RecordingWaveFile
+from sipsimple.core import SIPCoreError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
 from sipsimple.util import NotificationHandler
@@ -216,7 +220,8 @@ class Session(NotificationHandler):
             if not any([audio, chat]):
                 raise ValueError("No media stream requested")
             route = iter(routes).next()
-            inv = Invitation(self.account.credentials, callee_uri, route)
+            contact_uri = SIPURI(user=self.account.contact.username, host=self.account.contact.domain, port=getattr(Engine(), "local_%s_port" % route.transport), parameters={"transport": route.transport} if route.transport != "udp" else None)
+            inv = Invitation(self.account.credentials, callee_uri, route, contact_uri)
             if audio:
                 audio_rtp = AccountRTPTransport(self.account, inv.transport)
             else:
