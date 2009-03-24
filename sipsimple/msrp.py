@@ -79,6 +79,7 @@ class MSRPChat(object):
         self.state = NULL
         self.notification_center = NotificationCenter()
         self.to_uri = to_uri
+        self.from_uri = account.credentials.uri
 
         settings = SIPSimpleSettings()
         self.accept_types = list(settings.chat.accept_types)
