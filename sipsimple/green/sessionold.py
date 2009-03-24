@@ -26,7 +26,7 @@ def make_SDPMedia(uri_path, accept_types=['text/plain'], accept_wrapped_types=No
         transport = "TCP/TLS/MSRP"
     else:
         transport = "TCP/MSRP"
-    return SDPMedia("message", uri_path[-1].port, transport, formats=["*"], attributes=attributes)
+    return SDPMedia("message", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
 
 def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
