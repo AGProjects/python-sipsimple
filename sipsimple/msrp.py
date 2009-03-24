@@ -31,13 +31,14 @@ problems with the connection. Therefore, the following settings should be used:
   * Failure-Report: partial
   * Success-Report: no (default)
 """
-
+import os
 import random
 from datetime import datetime
 from collections import deque
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
 from application.notification import NotificationCenter, NotificationData
+from application.python.util import Singleton
 from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
@@ -59,6 +60,19 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 
 class MSRPChatError(Exception):
     pass
+
+class LoggerSingleton(object):
+
+    __metaclass__ = Singleton
+
+    def __init__(self):
+        self.logger = None
+        if SIPSimpleSettings().logging.trace_msrp:
+            SIPSimpleSettings().logging.directory.create()
+            log_directory = SIPSimpleSettings().logging.directory.value
+            msrptrace_filename = os.path.join(log_directory, 'msrp_trace.txt')
+            self.logger = Logger(fileobj=file(msrptrace_filename, 'a+'))
+
 
 NULL, INITIALIZING, INITIALIZED, STARTING, STARTED, ENDING, ENDED, ERROR = range(8)
 
@@ -103,9 +117,9 @@ class MSRPChat(object):
             relay = None
             self.transport = settings.msrp.local_transport
 
-        # XXX logging
+        logger = LoggerSingleton().logger
 
-        self.msrp_connector = get_connector(relay) if outgoing else get_acceptor(relay)
+        self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
         self.local_media = None
         self.msrp = None ## Placeholder for the MSRPSession that will be added when started
         self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
