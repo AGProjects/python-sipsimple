@@ -18,6 +18,7 @@ from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.core import GreenEngine, GreenRegistration
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
+from sipsimple.green.notification import linked_notification
 from sipsimple.util import NotificationHandler
 from sipsimple.session import SessionManager
 from sipsimple.clients.clientconfig import get_path
@@ -218,8 +219,15 @@ class ChatManager(NotificationHandler):
         if 'audio' in data.streams:
             txt.append('Audio')
         txt = '/'.join(txt)
-        q = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
-        result = self.console.ask_question(q, list('yYnN') + [CTRL_D]) in 'yY'
+        question = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
+        with linked_notification(name='SCSessionChangedState', sender=session) as q:
+            p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
+            # spawn a greenlet that will wait for a change in session state and kill p1 if there is
+            p2 = proc.spawn(lambda : q.wait() and p1.kill())
+            try:
+                result = p1.wait() in ['y', 'Y']
+            finally:
+                p2.kill()
         session._green.info = txt
         if result:
             session.accept(chat='message' in data.streams, audio='audio' in data.streams)
