@@ -126,6 +126,7 @@ class ChatSession(GreenSession, NotificationHandler):
 
     def _NH_SCSessionDidStart(self, session, _data):
         self.history_file = get_history_file(session._inv)
+        self.update_info(chat=self.has_chat, audio=self.has_audio)
 
     def terminate(self):
         GreenSession.terminate(self)
@@ -150,6 +151,14 @@ class ChatSession(GreenSession, NotificationHandler):
         if self.state != 'ESTABLISHED':
             result += ' [%s]' % self.state
         return result + ': '
+
+    def update_info(self, chat, audio):
+        txt = []
+        if chat:
+            txt.append('Chat')
+        if audio:
+            txt.append('Audio')
+        self.info = '/'.join(txt)
 
 
 class JobGroup(object):
@@ -286,27 +295,24 @@ class ChatManager(NotificationHandler):
         if not args:
             raise UserCommandError('Please provide uri')
         target_uri = args[0]
-        info = 'Chat/Audio'
         use_audio = True
         use_chat = True
         if args[1:]:
             if args[1]=='chat':
                 use_audio = False
-                info = 'Chat'
             elif args[1]=='audio':
                 use_chat = False
-                info = 'Audio'
         if not isinstance(target_uri, SIPURI):
             try:
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
             except ValueError, ex:
                 raise UserCommandError(str(ex))
-        self.jobgroup.spawn(self._call, target_uri, use_audio, use_chat, info)
+        self.jobgroup.spawn(self._call, target_uri, use_audio, use_chat)
 
-    def _call(self, target_uri, use_audio, use_chat, info):
+    def _call(self, target_uri, use_audio, use_chat):
         try:
             session = ChatSession(self.account, remote_party=format_uri(target_uri))
-            session.info = info
+            session.update_info(use_audio, use_chat)
             self.add_session(session)
             session.connect(target_uri, get_routes(target_uri, self.engine, self.account), chat=use_chat, audio=use_audio)
         except SessionError:
