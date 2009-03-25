@@ -132,8 +132,8 @@ class ChatSession(GreenSession, NotificationHandler):
         self.history_file = get_history_file(session._inv)
         self.update_info(chat=self.has_chat, audio=self.has_audio)
 
-    def terminate(self):
-        GreenSession.terminate(self)
+    def end(self):
+        GreenSession.end(self)
         if self.history_file:
             self.history_file.close()
             self.history_file = None
@@ -236,18 +236,18 @@ class ChatManager(NotificationHandler):
             session.accept(chat='message' in data.streams, audio='audio' in data.streams)
             self.add_session(session._green)
         else:
-            session.terminate()
+            session.end()
 
     def close(self):
         for session in self.sessions[:]:
-            self.jobgroup.spawn(session.terminate)
+            self.jobgroup.spawn(session.end)
         self.sessions = []
         self.update_ps()
         self.jobgroup.waitall()
 
     def close_current_session(self):
         if self.current_session is not None:
-            self.jobgroup.spawn(self.current_session.terminate)
+            self.jobgroup.spawn(self.current_session.end)
             self.remove_session(self.current_session)
 
     def update_ps(self):
@@ -422,7 +422,7 @@ def start(options, console):
             console.set_prompt('', True) # manager could have updated the prompt
     finally:
         with calming_message(1, "Disconnecting the session(s)..."):
-            proc.waitall([proc.spawn(session.terminate) for session in SessionManager().sessions])
+            proc.waitall([proc.spawn(session.end) for session in SessionManager().sessions])
         with calming_message(2, "Stopping the engine..."):
             engine.stop()
         api.sleep(0.1)

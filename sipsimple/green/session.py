@@ -82,8 +82,8 @@ class GreenSession(GreenBase):
                     self._raise_if_error(notification)
         self._wait_for_chat_to_start()
 
-    def terminate(self, *args, **kwargs):
-        """Call terminate() on the proxied object. Wait for the session to end.
+    def end(self, *args, **kwargs):
+        """Call end() on the proxied object. Wait for the session to end.
 
         In case of an error raise SessionError.
         """
@@ -91,7 +91,7 @@ class GreenSession(GreenBase):
             return
         with self.linked_notifications(['SCSessionDidFail', 'SCSessionDidEnd']) as q:
             if self.state != 'TERMINATING':
-                self._obj.terminate(*args, **kwargs)
+                self._obj.end(*args, **kwargs)
                 while True:
                     notification = q.wait()
                     if notification.name == 'SCSessionDidFail':

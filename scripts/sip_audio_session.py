@@ -242,7 +242,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                 want_quit = True
             if command == "end":
                 try:
-                    sess.terminate()
+                    sess.end()
                 except:
                     command = "unregister"
             if command == "unregister":
