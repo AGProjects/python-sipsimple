@@ -69,7 +69,7 @@ class LoggerSingleton(object):
         self.logger = None
         if SIPSimpleSettings().logging.trace_msrp:
             SIPSimpleSettings().logging.directory.create()
-            log_directory = SIPSimpleSettings().logging.directory.value
+            log_directory = SIPSimpleSettings().logging.directory.normalized
             msrptrace_filename = os.path.join(log_directory, 'msrp_trace.txt')
             self.logger = Logger(fileobj=file(msrptrace_filename, 'a+'))
 
@@ -139,7 +139,7 @@ class MSRPChat(object):
 
     def _do_initialize(self):
         settings = SIPSimpleSettings()
-        local_uri = URI(host=settings.local_ip.value, port=settings.msrp.local_port, use_tls=self.transport=='tls')
+        local_uri = URI(host=settings.local_ip.normalized, port=settings.msrp.local_port, use_tls=self.transport=='tls')
         self.state = INITIALIZING
         try:
             full_local_path = self.msrp_connector.prepare(local_uri)

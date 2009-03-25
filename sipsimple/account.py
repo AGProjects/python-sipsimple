@@ -128,7 +128,7 @@ class Account(SettingsObject):
         
         username = ''.join(random.sample(string.lowercase, 8))
         settings = SIPSimpleSettings()
-        self.contact = ContactURI('%s@%s' % (username, settings.local_ip.value))
+        self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
         self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
 
         manager = AccountManager()
@@ -222,7 +222,7 @@ class BonjourAccount(SettingsObject):
     def __init__(self):
         settings = SIPSimpleSettings()
         username = ''.join(random.sample(string.lowercase, 8))
-        self.contact = ContactURI('%s@%s' % (username, settings.local_ip.value))
+        self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
         self.credentials = Credentials(SIPURI(user=self.contact.username, host=self.contact.domain, display=self.display_name), password='')
 
         # initialize msrp settings

@@ -11,7 +11,7 @@ class Logger(object):
     
     def __init__(self, sip_to_file=False, sip_to_stdout=False, pjsip_to_file=False, pjsip_to_stdout=False):
         SIPSimpleSettings().logging.directory.create()
-        self.log_directory = SIPSimpleSettings().logging.directory.value
+        self.log_directory = SIPSimpleSettings().logging.directory.normalized
 
         # sip trace
         self.sip_to_file = sip_to_file

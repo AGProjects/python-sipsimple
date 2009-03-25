@@ -37,7 +37,7 @@ class AccountRTPTransport(RTPTransport):
 
     def __init__(self, account, transport):
         settings = SIPSimpleSettings()
-        kwargs = dict(local_rtp_address=settings.local_ip.value)
+        kwargs = dict(local_rtp_address=settings.local_ip.normalized)
         kwargs["use_srtp"] = (transport == "tls" or account.audio.use_srtp_without_tls) and account.audio.srtp_encryption != "disabled"
         kwargs["srtp_forced"] = kwargs["use_srtp"] and account.audio.srtp_encryption == "mandatory"
         kwargs["use_ice"] = hasattr(account, "ice") and account.ice.enabled
@@ -272,7 +272,7 @@ class Session(NotificationHandler):
             if self.state != "CALLING":
                 return
             sdp_index = 0
-            local_ip = self.settings.local_ip.value
+            local_ip = self.settings.local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip))
             if audio_rtp:
                 self._audio_sdp_index = sdp_index
@@ -338,7 +338,7 @@ class Session(NotificationHandler):
             if self.state != "ACCEPTING":
                 return
             remote_sdp = self._inv.get_offered_remote_sdp()
-            local_ip = self.settings.local_ip.value
+            local_ip = self.settings.local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time)
             sdp_media_todo = range(len(remote_sdp.media))
             if audio_rtp:
@@ -548,7 +548,7 @@ class Session(NotificationHandler):
                 remote = '%s@%s' % (self._inv.remote_uri.user, self._inv.remote_uri.host)
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
             self.settings.audio.recordings_directory.create()
-            self._audio_rec = RecordingWaveFile(os.path.join(self.settings.audio.recordings_directory.value, file_name))
+            self._audio_rec = RecordingWaveFile(os.path.join(self.settings.audio.recordings_directory.normalized, file_name))
             if not self.on_hold:
                 self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
                 try:
