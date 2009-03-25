@@ -359,7 +359,7 @@ def start(options, console):
     account = options.account
     settings = SIPSimpleSettings()
     engine = GreenEngine()
-    engine.start(trace_sip=settings.logging.trace_sip)
+    engine.start_cfg()
     registration = None
     try:
         logstate.start_loggers(trace_pjsip=settings.logging.trace_pjsip,
