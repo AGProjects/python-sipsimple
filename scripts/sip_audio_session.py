@@ -17,7 +17,7 @@ from zope.interface import implements
 
 from application.notification import IObserver
 
-from sipsimple.enginecfg import ConfiguredEngine
+from sipsimple.engine import Engine
 from sipsimple.core import SIPURI, SIPCoreError
 from sipsimple.session import Session, SessionManager
 from sipsimple.clients.log import Logger
@@ -294,10 +294,10 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     if settings.ringtone.outbound is None:
         settings.ringtone.outbound = get_default_ringtone_path("ring_outbound.wav")
 
-    e = ConfiguredEngine()
+    e = Engine()
     handler = EventHandler(e)
-    e.start(log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
-            trace_sip=trace_sip or trace_sip_stdout)
+    e.start_cfg(log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
+                trace_sip=trace_sip or trace_sip_stdout)
 
     sm = SessionManager()
 
