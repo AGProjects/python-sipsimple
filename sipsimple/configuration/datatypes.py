@@ -12,7 +12,7 @@ import urlparse
 __all__ = ['ContentType', 'ContentTypeList', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate', 'DomainList', 'Hostname',
            'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange', 'SIPAddress', 'SIPProxy',
            'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol', 'Transports', 'XCAPRoot',
-           'ImageDepth', 'Resolution', 'AbsolutePath', 'DataDirectory', 'DataFile']
+           'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -381,27 +381,5 @@ class DataPath(object):
 
     def __hash__(self):
         return hash(self.path)
-
-
-class DataDirectory(DataPath):
-    def create(self):
-        directory = self.value
-        try:
-            os.makedirs(directory)
-        except OSError, e:
-            if e.errno == 17 and stat.S_ISDIR(os.stat(directory).st_mode): # directory exists
-                return
-            raise
-
-
-class DataFile(DataPath):
-    def create_parent(self):
-        directory = os.path.dirname(self.value)
-        try:
-            os.makedirs(directory)
-        except OSError, e:
-            if e.errno == 17 and stat.S_ISDIR(os.stat(directory).st_mode): # directory exists
-                return
-            raise
 
 
