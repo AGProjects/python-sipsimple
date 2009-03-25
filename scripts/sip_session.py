@@ -7,6 +7,7 @@ import time
 from optparse import OptionParser
 from twisted.internet.error import ConnectionClosed
 from application.notification import NotificationCenter, IObserver
+from application import log
 from zope.interface import implements
 
 from eventlet import api, proc
@@ -33,6 +34,8 @@ from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_servi
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 
 trafficlog.hook_std_output()
+
+log.level.current = log.level.WARNING
 
 class UserCommandError(Exception):
     pass
