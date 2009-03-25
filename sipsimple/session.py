@@ -19,7 +19,7 @@ from sipsimple.core import WaveFile, RecordingWaveFile
 from sipsimple.core import SIPCoreError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
-from sipsimple.util import NotificationHandler
+from sipsimple.util import makedirs, NotificationHandler
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 class SessionStateError(Exception):
@@ -547,7 +547,7 @@ class Session(NotificationHandler):
                 direction = "outgoing" if self._inv.is_outgoing else "incoming"
                 remote = '%s@%s' % (self._inv.remote_uri.user, self._inv.remote_uri.host)
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
-            self.settings.audio.recordings_directory.create()
+            makedirs(self.settings.audio.recordings_directory.normalized)
             self._audio_rec = RecordingWaveFile(os.path.join(self.settings.audio.recordings_directory.normalized, file_name))
             if not self.on_hold:
                 self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))

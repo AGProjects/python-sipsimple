@@ -47,6 +47,7 @@ from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
 from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.util import makedirs
 
 
 #
@@ -68,7 +69,7 @@ class LoggerSingleton(object):
     def __init__(self):
         self.logger = None
         if SIPSimpleSettings().logging.trace_msrp:
-            SIPSimpleSettings().logging.directory.create()
+            makedirs(SIPSimpleSettings().logging.directory.normalized)
             log_directory = SIPSimpleSettings().logging.directory.normalized
             msrptrace_filename = os.path.join(log_directory, 'msrp_trace.txt')
             self.logger = Logger(fileobj=file(msrptrace_filename, 'a+'))
