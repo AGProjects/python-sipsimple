@@ -19,13 +19,6 @@ from sipsimple.clients.cpim import SIPAddress
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 config_ini = os.path.join(process._system_config_directory, 'config.ini')
 
-# disable twisted debug messages (enabled by python-application)
-from twisted.python import log
-if log.defaultObserver is not None:
-    log.defaultObserver.stop()
-    log.defaultObserver = log.DefaultObserver()
-    log.defaultObserver.start()
-
 class GeneralConfig(ConfigSection):
     _datatypes = {"listen_udp": datatypes.NetworkAddress,
                   "trace_pjsip": datatypes.Boolean,
