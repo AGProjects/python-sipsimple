@@ -13,6 +13,7 @@ cdef class Registration:
     cdef pj_timer_entry c_timer
     cdef PJSTR c_contact_uri
     cdef dict c_extra_headers
+    cdef bint c_did_succeed
 
     def __cinit__(self, Credentials credentials, route, expires=300, SIPURI contact_uri=None, extra_headers=None):
         cdef int status
@@ -52,6 +53,7 @@ cdef class Registration:
             self.c_extra_headers = {}
         else:
             self.c_extra_headers = extra_headers.copy()
+        self.c_did_succeed = 0
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -114,6 +116,7 @@ cdef class Registration:
         cdef list contact_uri_list = []
         cdef char contact_uri_buf[1024]
         cdef PJSIPUA ua = c_get_ua()
+        cdef object old_state = self.state
         if self.state == "registering":
             if param.code / 100 == 2:
                 self.state = "registered"
@@ -142,8 +145,15 @@ cdef class Registration:
                 length = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, param.contact[i].uri, contact_uri_buf, 1024)
                 contact_uri_list.append((PyString_FromStringAndSize(contact_uri_buf, length), param.contact[i].expires))
             c_add_event("SCRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
+            if old_state == "registering" and not self.c_did_succeed:
+                self.c_did_succeed = 1
+                c_add_event("SCRegistrationDidSucceed", dict(obj=self, code=param.code, reason=pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
         else:
             c_add_event("SCRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
+            if old_state == "registering":
+                c_add_event("SCRegistrationDidFail", dict(obj=self, code=param.code, reason=pj_str_to_str(param.reason)))
+            else:
+                c_add_event("SCRegistrationDidEnd", dict(obj=self, code=param.code, reason=pj_str_to_str(param.reason)))
         if c_success:
             if (self.state == "unregistered" and self.c_want_register) or (self.state =="registered" and not self.c_want_register):
                 self._send_reg(self.c_want_register)
@@ -160,13 +170,15 @@ cdef class Registration:
             try:
                 self._create_reg(1)
                 self._send_reg(1)
-            except:
+            except Exception, e:
                 self.state = "unregistered"
                 c_add_event("SCRegistrationChangedState", dict(obj=self, state=self.state))
+                c_add_event("SCRegistrationDidFail", dict(obj=self, reason=str(e)))
                 raise
         else:
             self.state = "unregistered"
             c_add_event("SCRegistrationChangedState", dict(obj=self, state=self.state))
+            c_add_event("SCRegistrationDidEnd", dict(obj=self))
 
     def register(self):
         if self.state == "unregistered" or self.state == "unregistering":
