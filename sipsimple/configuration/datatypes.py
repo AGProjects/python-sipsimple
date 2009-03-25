@@ -121,7 +121,7 @@ class LocalIPAddress(object):
         self.address = address
     
     @property
-    def value(self):
+    def normalized(self):
         if self.address is self.DefaultHostIP:
             import socket
             try:
@@ -360,7 +360,7 @@ class DataPath(object):
         self.path = path
     
     @property
-    def value(self):
+    def normalized(self):
         if os.path.isabs(self.path):
             return self.path
         from sipsimple.configuration.settings import SIPSimpleSettings
