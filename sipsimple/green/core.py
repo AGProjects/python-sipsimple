@@ -11,6 +11,7 @@ from __future__ import with_statement
 from contextlib import contextmanager
 from application import log
 from application.notification import NotificationCenter
+from application.python.util import Singleton
 
 from eventlet.api import sleep
 from eventlet import api, proc, coros
@@ -65,6 +66,7 @@ class EngineError(Error):
     pass
 
 class GreenEngine(GreenBase, NotificationHandler):
+    __metaclass__ = Singleton
     klass = Engine
 
     def __init__(self):
