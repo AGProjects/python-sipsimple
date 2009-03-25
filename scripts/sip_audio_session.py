@@ -17,7 +17,7 @@ from zope.interface import implements
 
 from application.notification import IObserver
 
-from sipsimple.engine import Engine
+from sipsimple.enginecfg import ConfiguredEngine
 from sipsimple.core import SIPURI, SIPCoreError
 from sipsimple.session import Session, SessionManager
 from sipsimple.clients.log import Logger
@@ -294,29 +294,11 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     if settings.ringtone.outbound is None:
         settings.ringtone.outbound = get_default_ringtone_path("ring_outbound.wav")
 
-    # figure out Engine options and start the Engine
-    e = Engine()
+    e = ConfiguredEngine()
     handler = EventHandler(e)
-    e.start(auto_sound=False,
-            local_ip=settings.local_ip.value,
-            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
-            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
-            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
-            tls_protocol=settings.tls.protocol,
-            tls_verify_server=settings.tls.verify_server,
-            tls_ca_file=settings.tls.ca_list_file.value if settings.tls.ca_list_file is not None else None,
-            tls_cert_file=settings.tls.certificate_file.value if settings.tls.certificate_file is not None else None,
-            tls_privkey_file=settings.tls.private_key_file.value if settings.tls.private_key_file is not None else None,
-            tls_timeout=settings.tls.timeout,
-            ec_tail_length=settings.audio.echo_delay,
-            user_agent=settings.user_agent,
-            log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
-            trace_sip=trace_sip or trace_sip_stdout,
-            sample_rate=settings.audio.sample_rate,
-            playback_dtmf=settings.audio.playback_dtmf,
-            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end))
-    if not disable_sound:
-        e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
+    e.start(log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
+            trace_sip=trace_sip or trace_sip_stdout)
+
     sm = SessionManager()
 
     # select account
