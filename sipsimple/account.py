@@ -307,6 +307,12 @@ class AccountManager(object):
         else:
             [Account(id) for id in names if id != bonjour_account.id]
 
+    def stop(self):
+        self.stopping = True
+        for account in self.accounts.itervalues():
+            if account.enabled:
+                account._deactivate()
+
     def has_account(self, id):
         return id in self.accounts
 
@@ -339,6 +345,8 @@ class AccountManager(object):
             self.default_account = notification.sender
 
     def _NH_AMAccountDidDeactivate(self, notification):
+        if self.stopping:
+            return
         if self.default_account is notification.sender:
             try:
                 self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
