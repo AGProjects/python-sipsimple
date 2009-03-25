@@ -4,8 +4,11 @@ Features:
  * blocks keyboard input unless explicitly requested
  * history with arrow keys
  * shortcuts (keys that applications can intercept)
- * "ask question" functionality (hide input prompt, and request
-   a key, e.g. accept incoming? [y/n])
+ * "ask question" functionality:
+   - hide input prompt, and request a question, e.g. accept incoming? [y/n]
+   - protected by lock, so when called for a second time, the first question will have precedence
+   - after a question is presented, user should be idle on keyboard for at least one second
+     this is to prevent accidentally answering when typing a message
  * asynchronously raises EOF exception when Ctrl-D is pressed
    (like Python does for Ctrl-C)
 """
