@@ -308,11 +308,15 @@ class ChatManager(NotificationHandler):
         target_uri = args[0]
         use_audio = True
         use_chat = True
+        if args[2:]:
+            raise UserCommandError('Too many arguments, the valid usage is: URI [chat|audio]')
         if args[1:]:
             if args[1]=='chat':
                 use_audio = False
             elif args[1]=='audio':
                 use_chat = False
+            else:
+                raise UserCommandError("Please use 'chat' or 'audio' cannot understand %r" % args[1])
         if not isinstance(target_uri, SIPURI):
             try:
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
@@ -386,11 +390,10 @@ def start(options, console):
             if not options.args:
                 print 'Waiting for incoming SIP session requests...'
             else:
-                for x in options.args:
-                    try:
-                        manager.call(x)
-                    except UserCommandError, ex:
-                        print str(ex)
+                try:
+                    manager.call(*options.args)
+                except UserCommandError, ex:
+                    print str(ex)
             while True:
                 try:
                     readloop(console, manager, get_commands(manager), get_shortcuts(manager))
