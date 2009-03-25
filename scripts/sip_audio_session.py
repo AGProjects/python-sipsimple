@@ -318,6 +318,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             return
     if account is None:
         raise RuntimeError("No account configured")
+    e.codecs = list(account.audio.codec_list)
     print "Using account %s" % account.id
 
     # pre-lookups
