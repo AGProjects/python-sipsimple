@@ -78,21 +78,14 @@ NULL, INITIALIZING, INITIALIZED, STARTING, STARTED, ENDING, ENDED, ERROR = range
 
 class MSRPChat(object):
 
-    def __init__(self, account, to_uri, outgoing):
+    def __init__(self, account, remote_uri, outgoing):
         """Initialize MSRPChat instance.
 
-        - outgoing (bool) - whether you are an active endpoint or not;
-        - relay (msrplib.connect.MSRPRelaySettings) - if None, no relay is used;
-        - from_uri (SIPURI) - what to put in 'From' CPIM header;
-        - to_uri (SIPURI) - what to put in 'To' CPIM header;
-        - accept_types (list of strings) - to put in SDP media;
-          MSRP transport will reject incoming chunks with an invalid media type;
-        - accept_wrapped_types (list of strings) - to put in SDP media;
-          is not enforced by the transport.
+        - remote_uri (SIPURI) - what to put in 'To' CPIM header;
         """
         self.state = NULL
         self.notification_center = NotificationCenter()
-        self.to_uri = to_uri
+        self.remote_uri = remote_uri
         self.from_uri = account.credentials.uri
 
         settings = SIPSimpleSettings()
@@ -307,15 +300,15 @@ class MSRPChat(object):
         """
         if self.cpim_enabled:
             if to_uri is None:
-                to_uri = self.to_uri
-            elif not self.private_messages_allowed and to_uri != self.to_uri:
+                to_uri = self.remote_uri
+            elif not self.private_messages_allowed and to_uri != self.remote_uri:
                 raise MSRPChatError('The remote end does not support private messages')
             if dt is None:
                 dt = datetime.utcnow()
             msg = MessageCPIM(content, content_type, from_=self.from_uri, to=to_uri, datetime=dt)
             return self._send_raw_message(str(msg), 'message/cpim', failure_report='partial', success_report='yes')
         else:
-            if to_uri is not None and to_uri != self.to_uri:
+            if to_uri is not None and to_uri != self.remote_uri:
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
 
