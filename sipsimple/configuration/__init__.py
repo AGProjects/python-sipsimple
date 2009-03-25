@@ -388,6 +388,13 @@ class SettingsObject(SettingsState):
             instance = configuration.get(cls.__section__, id)
         except (UnknownSectionError, UnknownNameError):
             instance = SettingsState.__new__(cls)
+        except AttributeError:
+            instance = SettingsState.__new__(cls)
+            try:
+                configuration.set(self.__section__, id, instance)
+                configuration.save()
+            except Exception, e:
+                notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=instance, exception=e))
         else:
             if not isinstance(instance, cls):
                 # TODO: Should send a notification that this object could not be retrieved
