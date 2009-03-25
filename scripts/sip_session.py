@@ -325,7 +325,11 @@ class ChatManager(NotificationHandler):
             session = ChatSession(self.account, remote_party=format_uri(target_uri))
             session.update_info(chat=use_chat, audio=use_audio)
             self.add_session(session)
-            session.connect(target_uri, get_routes(target_uri, self.engine, self.account), chat=use_chat, audio=use_audio)
+            routes = get_routes(target_uri, self.engine, self.account)
+            if not routes:
+                print 'ERROR: No route found to SIP proxy for "%s"' % target_uri
+                raise SessionError
+            session.connect(target_uri, routes, chat=use_chat, audio=use_audio)
         except SessionError:
             # don't print anything as the error was already logged by InvitationLogger
             self.remove_session(session)
