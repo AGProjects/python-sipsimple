@@ -158,6 +158,8 @@ class Session(NotificationHandler):
         self.direction = None
         self.audio_transport = None
         self.chat_transport = None
+        self.has_audio = False
+        self.has_chat = False
         # TODO: make the following two attributes reflect the current proposal in all states, not just PROPOSING
         self.proposed_audio = False
         self.proposed_chat = False
@@ -201,14 +203,6 @@ class Session(NotificationHandler):
             return None
         else:
             return self._audio_rec.file_name
-
-    @property
-    def has_audio(self):
-        return self.audio_transport is not None
-
-    @property
-    def has_chat(self):
-        return self.chat_transport is not None
 
     # user interface
     def connect(self, callee_uri, routes, audio=False, chat=False):
@@ -774,6 +768,8 @@ class Session(NotificationHandler):
             Engine().connect_audio_transport(self.audio_transport)
             self._no_audio_timer = Timer(5, self._check_audio)
             self._no_audio_timer.start()
+            self.has_audio = True
+            self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
         was_on_hold = self.on_hold_by_remote
         new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
         self.on_hold_by_remote = "send" not in new_direction
@@ -813,6 +809,10 @@ class Session(NotificationHandler):
                 self._stop_recording_audio()
         del self.session_manager.audio_transport_mapping[self.audio_transport]
         self.audio_transport = None
+        had_audio = self.has_audio
+        self.has_audio = False
+        if had_audio:
+            self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
 
     def _stop_chat(self):
         self.chat_transport.end()
@@ -884,6 +884,8 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "MSRPChatGotMessage")
         self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
         self.notification_center.add_observer(self, "MSRPChatDidNotDeliverMessage")
+        self.notification_center.add_observer(self, "MSRPChatDidStart")
+        self.notification_center.add_observer(self, "MSRPChatDidFail")
         self.notification_center.add_observer(self, "MSRPChatDidEnd")
 
     @property
@@ -1081,12 +1083,32 @@ class SessionManager(NotificationHandler):
         if session is not None:
             self.notification_center.post_notification("SCSessionDidNotDeliverMessage", session, data)
 
+    def _NH_MSRPChatDidStart(self, msrp_chat, data):
+        session = self.msrp_chat_mapping.get(msrp_chat, None)
+        if session is not None:
+            with session._lock:
+                session.has_chat = True
+                self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+
+    def _NH_MSRPChatDidFail(self, msrp_chat, data):
+        session = self.msrp_chat_mapping.get(msrp_chat, None)
+        if session is not None:
+            with session._lock:
+                session.chat_transport = None
+                del self.msrp_chat_mapping[msrp_chat]
+                had_chat = session.has_chat
+                session.has_chat = False
+                if had_chat:
+                    self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+
     def _NH_MSRPChatDidEnd(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             with session._lock:
                 session.chat_transport = None
                 del self.msrp_chat_mapping[msrp_chat]
+                session.has_chat = False
+                self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
 
 
 __all__ = ["SessionManager", "Session"]
