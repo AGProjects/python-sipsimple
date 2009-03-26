@@ -118,7 +118,8 @@ class ChatSession(GreenSession, NotificationHandler):
 
     info = 'Session'
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, manager, *args, **kwargs):
+        self.manager = manager
         self.remote_party = kwargs.pop('remote_party', None)
         GreenSession.__init__(self, *args, **kwargs)
         self._obj._green = self
@@ -129,10 +130,14 @@ class ChatSession(GreenSession, NotificationHandler):
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
                 self.remote_party = format_uri(self._inv.remote_uri)
+        NotificationCenter().add_observer(self, 'SCSessionGotStreamUpdate', sender=self._obj)
 
     def _NH_SCSessionDidStart(self, session, _data):
         self.history_file = get_history_file(session._inv)
-        self.update_info(chat=self.has_chat, audio=self.has_audio)
+
+    def _NH_SCSessionGotStreamUpdate(self, session, data):
+        self.update_info(chat='chat' in data.streams, audio='audio' in data.streams)
+        self.manager.update_ps()
 
     def end(self):
         GreenSession.end(self)
@@ -216,7 +221,7 @@ class ChatManager(NotificationHandler):
         self.update_ps()
 
     def _handle_incoming(self, session, data):
-        session._green = ChatSession(__obj=session)
+        session._green = ChatSession(self, __obj=session)
         inv = session._inv
         txt = []
         if 'message' in data.streams:
@@ -328,7 +333,7 @@ class ChatManager(NotificationHandler):
 
     def _call(self, target_uri, use_audio, use_chat):
         try:
-            session = ChatSession(self.account, remote_party=format_uri(target_uri))
+            session = ChatSession(self, self.account, remote_party=format_uri(target_uri))
             session.update_info(chat=use_chat, audio=use_audio)
             self.add_session(session)
             routes = get_routes(target_uri, self.engine, self.account)
