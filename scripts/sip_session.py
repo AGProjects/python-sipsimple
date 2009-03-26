@@ -137,7 +137,6 @@ class ChatSession(GreenSession, NotificationHandler):
 
     def _NH_SCSessionGotStreamUpdate(self, session, data):
         self.update_info(chat='chat' in data.streams, audio='audio' in data.streams)
-        self.manager.update_ps()
 
     def end(self):
         GreenSession.end(self)
@@ -172,6 +171,7 @@ class ChatSession(GreenSession, NotificationHandler):
         self.info = '/'.join(txt)
         if not self.info:
             self.info = 'Session with no streams'
+        self.manager.update_ps()
 
 
 class JobGroup(object):
