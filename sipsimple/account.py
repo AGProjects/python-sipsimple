@@ -5,16 +5,19 @@ Account management system.
 import random
 import string
 
+from collections import deque
 from itertools import chain
+from time import time
 
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Singleton
 from zope.interface import implements
 
-from sipsimple import Credentials, Engine, SIPURI
+from sipsimple import Credentials, Engine, Registration, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
 from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.lookup import DNSLookup
 
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
@@ -130,6 +133,12 @@ class Account(SettingsObject):
         settings = SIPSimpleSettings()
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
         self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
+        
+        self.active = False
+        self._registrar = None
+        self._register_wait = 0.5
+        self._register_routes = None
+        self._register_timeout = 0.0
 
         manager = AccountManager()
         manager._internal_add_account(self)
@@ -140,7 +149,7 @@ class Account(SettingsObject):
         engine = Engine()
         notification_center.add_observer(self, name='SCEngineDidStart', sender=engine)
         notification_center.add_observer(self, name='SCEngineWillEnd', sender=engine)
-
+        
         if self.enabled and engine.is_running:
             self._activate()
 
@@ -164,21 +173,133 @@ class Account(SettingsObject):
     def _NH_CFGSettingsDidChange(self, notification):
         enabled_value = notification.data.modified.get('enabled', None)
         if enabled_value is not None:
-            if self.enabled:
-                self._activate()
-            else:
+            engine = Engine()
+            if not self.enabled:
                 self._deactivate()
+            elif engine.is_running:
+                self._activate()
+        else:
+            if 'registration.enabled' in notification.data.modified:
+                if not self.registration.enabled:
+                    if self._registrar is not None:
+                        self._registrar.unregister()
+                elif engine.is_running:
+                    self._register()
 
         # update credentials attribute if needed
         if 'password' in notification.data.modified or 'display_name' in notification.data.modified:
             self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
 
+        # reregister if passward changed
+        if 'password' in notification.data.modified:
+            self._registrar.unregister()
+            self._registrar = None
+            self._register()
+
+    def _NH_SCEngineDidStart(self, notification):
+        if self.enabled:
+            self._activate()
+
+    def _NH_SCEngineWillEnd(self, notification):
+        if self.enabled:
+            self._deactivate()
+
+    def _NH_SCRegistrationDidSucceed(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('AMAccountRegistrationDidSucceed', sender=self, data=notification.data)
+        self._register_routes = None
+        self._register_wait = 0.5
+
+    def _NH_SCRegistrationDidEnd(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('AMAccountRegistrationDidEnd', sender=self, data=notification.data)
+
+    def _NH_SCRegistrationDidFail(self, notification):
+        settings = SIPSimpleSettings()
+        notification_center = NotificationCenter()
+        notification_center.post_notification('AMAccountRegistrationDidFail', sender=self, data=notification.data)
+        notification_center.remove_observer(self, sender=self._registrar)
+        
+        account_manager = AccountManager()
+        if not (hasattr(notification.data, 'code') and notification.data.code==401) and not account_manager.stopping:
+            if not self._register_routes or time() >= self._register_timeout:
+                self._register_wait = min(self._register_wait*2, 30)
+                from twisted.internet import reactor
+                timeout = random.uniform(self._register_wait, 2*self._register_wait)
+                reactor.callFromThread(reactor.callLater, timeout, self._register)
+            else:
+                self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
+                route = self._register_routes.popleft()
+                contact_uri = self.contact[route.transport]
+                self._registrar = Registration(self.credentials, route=route, expires=self.registration.interval, contact_uri=contact_uri)
+                notification_center.add_observer(self, sender=self._registrar)
+                self._registrar.register()
+        
+    def _NH_DNSLookupDidSucceed(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=notification.sender)
+
+        if not self.active:
+            return
+        
+        engine = Engine()
+        settings = SIPSimpleSettings()
+        
+        self._register_routes = deque(notification.data.result)
+        route = self._register_routes.popleft()
+        contact_uri = self.contact[route.transport]
+        self._registrar = Registration(self.credentials, route=route, expires=self.registration.interval, contact_uri=contact_uri)
+        notification_center.add_observer(self, sender=self._registrar)
+        self._registrar.register()
+    
+    def _NH_DNSLookupDidFail(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=notification.sender)
+        notification_center.post_notification('AMAccountRegistrationDidFail', sender=self, data=NotificationData(reason='DNS lookup failed'))
+        
+        timeout = random.uniform(1.0, 2.0)
+        reactor.callLater(timeout, self._register)
+
+    def _register(self):
+        if not self.active:
+            return
+
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+
+        self._register_timeout = time()+30
+
+        lookup = DNSLookup()
+        notification_center.add_observer(self, sender=lookup)
+        if self.outbound_proxy is not None:
+            uri = SIPURI(host=self.outbound_proxy.host, port=self.outbound_proxy.port, parameters={'transport': self.outbound_proxy.transport})
+        else:
+            uri = SIPURI(host=self.id.domain)
+        lookup.lookup_sip_proxy(uri, settings.sip.transports)
+
     def _activate(self):
+        if self.active:
+            return
+        self.active = True
+
+        if self.registration.enabled:
+            self._register()
+        
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidActivate', sender=self)
 
     def _deactivate(self):
+        if not self.active:
+            return
+        self.active = False
+
         notification_center = NotificationCenter()
+        
+        if self.registration.enabled and self._registrar is not None:
+            self._registrar.unregister()
+            notification_center.remove_observer(self, sender=self._registrar)
+            self._registrar = None
+
         notification_center.post_notification('AMAccountDidDeactivate', sender=self)
 
     def __repr__(self):
@@ -225,6 +346,8 @@ class BonjourAccount(SettingsObject):
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
         self.credentials = Credentials(SIPURI(user=self.contact.username, host=self.contact.domain, display=self.display_name), password='')
 
+        self.active = False
+
         # initialize msrp settings
         self.msrp = MSRPSettings()
         self.msrp.relay = None
@@ -234,7 +357,11 @@ class BonjourAccount(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsDidChange', sender=self)
         
-        if self.enabled:
+        engine = Engine()
+        notification_center.add_observer(self, name='SCEngineDidStart', sender=engine)
+        notification_center.add_observer(self, name='SCEngineWillEnd', sender=engine)
+        
+        if self.enabled and engine.is_running:
             self._activate()
 
     def handle_notification(self, notification):
@@ -242,19 +369,36 @@ class BonjourAccount(SettingsObject):
         if handler is not None:
             handler(notification)
         
+    def _NH_SCEngineDidStart(self, notification):
+        if self.enabled:
+            self._activate()
+
+    def _NH_SCEngineWillEnd(self, notification):
+        if self.enabled:
+            self._deactivate()
+
     def _NH_CFGSettingsDidChange(self, notification):
         enabled_value = notification.data.modified.get('enabled', None)
-        if enabled_value is not None and enabled_value.old != enabled_value.new:
-            if self.enabled:
-                self._activate()
-            else:
+        if enabled_value is not None:
+            engine = Engine()
+            if not self.enabled:
                 self._deactivate()
+            elif engine.is_running:
+                self._activate()
 
     def _activate(self):
+        if self.active:
+            return
+        self.active = True
+
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidActivate', sender=self)
 
     def _deactivate(self):
+        if not self.active:
+            return
+        self.active = False
+        
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidDeactivate', sender=self)
 
@@ -285,6 +429,7 @@ class AccountManager(object):
 
     def __init__(self):
         self.accounts = {}
+        self.stopping = False
 
     def start(self):
         """
