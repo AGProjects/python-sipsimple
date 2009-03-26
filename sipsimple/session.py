@@ -1088,7 +1088,7 @@ class SessionManager(NotificationHandler):
         if session is not None:
             with session._lock:
                 session.has_chat = True
-                self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+                self.notification_center.post_notification("SCSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
 
     def _NH_MSRPChatDidFail(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
@@ -1099,7 +1099,7 @@ class SessionManager(NotificationHandler):
                 had_chat = session.has_chat
                 session.has_chat = False
                 if had_chat:
-                    self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+                    self.notification_center.post_notification("SCSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
 
     def _NH_MSRPChatDidEnd(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
@@ -1108,7 +1108,7 @@ class SessionManager(NotificationHandler):
                 session.chat_transport = None
                 del self.msrp_chat_mapping[msrp_chat]
                 session.has_chat = False
-                self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+                self.notification_center.post_notification("SCSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
 
 
 __all__ = ["SessionManager", "Session"]
