@@ -394,6 +394,7 @@ class SettingsObject(SettingsState):
                 configuration.set(self.__section__, id, instance)
                 configuration.save()
             except Exception, e:
+                notification_center = NotificationCenter()
                 notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=instance, exception=e))
         else:
             if not isinstance(instance, cls):
