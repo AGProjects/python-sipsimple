@@ -45,11 +45,11 @@ cdef class Invitation:
         cdef object transport
         cdef int status
         try:
+            self.transport = rdata.tp_info.transport.type_name.lower()
             request_uri = c_make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
             if c_is_valid_ip(pj_AF_INET(), request_uri.host):
                 self.c_local_contact_uri = request_uri
             else:
-                self.transport = rdata.tp_info.transport.type_name.lower()
                 self.c_local_contact_uri = SIPURI(host=pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                   user=request_uri.user,
                                                   port=rdata.tp_info.transport.local_name.port,
