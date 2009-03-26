@@ -39,6 +39,8 @@ from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
 from application.notification import NotificationCenter, NotificationData
 from application.python.util import Singleton
+from gnutls.interfaces.twisted import X509Credentials
+from gnutls.crypto import X509Certificate,  X509PrivateKey
 from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
@@ -140,7 +142,10 @@ class MSRPChat(object):
 
     def _do_initialize(self):
         settings = SIPSimpleSettings()
-        local_uri = URI(host=settings.local_ip.normalized, port=settings.msrp.local_port, use_tls=self.transport=='tls')
+        local_uri = URI(host=settings.local_ip.normalized,
+                        port=settings.msrp.local_port,
+                        use_tls=self.transport=='tls',
+                        credentials=get_X509Credentials())
         self.state = INITIALIZING
         try:
             full_local_path = self.msrp_connector.prepare(local_uri)
@@ -313,3 +318,16 @@ class MSRPChat(object):
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
 
+def get_X509Credentials():
+    settings = SIPSimpleSettings()
+    if settings.tls.certificate_file is not None:
+        cert = X509Certificate(file(settings.tls.certificate_file.normalized).read())
+    else:
+        cert = None
+    if settings.tls.private_key_file is not None:
+        key = X509PrivateKey(file(settings.tls.private_key_file.normalized).read())
+    else:
+        key = None
+    cred = X509Credentials(cert, key)
+    cred.verify_peer = settings.tls.verify_server
+    return cred
