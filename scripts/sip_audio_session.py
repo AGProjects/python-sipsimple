@@ -291,6 +291,9 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             return
     if account is None:
         raise RuntimeError("No account configured")
+    for other_account in am.iter_accounts():
+        if other_account != account:
+            other_account.enabled = False
     print "Using account %s" % account.id
 
     # set up logger
