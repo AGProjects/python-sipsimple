@@ -274,6 +274,25 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     cm.start(ConfigFileBackend(config_file))
     settings = SIPSimpleSettings()
 
+    # select account
+
+    am = AccountManager()
+    am.start()
+    if account_id is None:
+        account = am.default_account
+    else:
+        try:
+            account = am.get_account(account_id)
+            if not account.enabled:
+                raise KeyError()
+        except KeyError:
+            print "Account not found: %s" % account_id
+            print "Available and enabled accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts() if account.enabled))
+            return
+    if account is None:
+        raise RuntimeError("No account configured")
+    print "Using account %s" % account.id
+
     # set up logger
     if trace_sip is None:
         trace_sip = settings.logging.trace_sip
@@ -294,32 +313,17 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     if settings.ringtone.outbound is None:
         settings.ringtone.outbound = get_default_ringtone_path("ring_outbound.wav")
 
+    # start engine
+
     e = Engine()
     handler = EventHandler(e)
     e.start_cfg(log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
                 trace_sip=trace_sip or trace_sip_stdout)
+    e.codecs = list(account.audio.codec_list)
+
+    # start the session manager (for incoming calls)
 
     sm = SessionManager()
-
-    # select account
-
-    am = AccountManager()
-    am.start()
-    if account_id is None:
-        account = am.default_account
-    else:
-        try:
-            account = am.get_account(account_id)
-            if not account.enabled:
-                raise KeyError()
-        except KeyError:
-            print "Account not found: %s" % account_id
-            print "Available and enabled accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts() if account.enabled))
-            return
-    if account is None:
-        raise RuntimeError("No account configured")
-    e.codecs = list(account.audio.codec_list)
-    print "Using account %s" % account.id
 
     # pre-lookups
 
