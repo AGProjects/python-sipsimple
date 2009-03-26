@@ -589,6 +589,8 @@ def parse_options(usage, description):
     parser.add_option("--trace-engine", action="store_true", help="Print core's events.")
     parser.add_option("-m", "--trace-msrp", action="store_true",
                       help="Log the raw contents of incoming and outgoing MSRP messages.")
+    parser.add_option("--no-relay", action='store_true', help="Don't use the MSRP relay.")
+    parser.add_option("--msrp-tcp", action='store_true', help="Use TCP for MSRP connections.")
     options, args = parser.parse_args()
     options.args = args
     return options
@@ -608,6 +610,11 @@ def update_settings(options):
             account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
         else:
             account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
+    if options.no_relay:
+        account.msrp.use_relay_for_inbound = False
+        account.msrp.use_relay_for_outbound = False
+    if options.msrp_tcp:
+        settings.msrp.local_transport = 'tcp'
 
 def main():
     options = parse_options(usage, description)
