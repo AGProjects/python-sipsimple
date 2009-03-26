@@ -541,6 +541,7 @@ cdef extern from "pjsip.h":
     void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
     void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start)
+    void *pjsip_msg_find_hdr_by_name(pjsip_msg *msg, pj_str_t *name, void *start)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)

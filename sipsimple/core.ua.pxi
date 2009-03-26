@@ -664,15 +664,18 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
 cdef int cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil:
     cdef PJSIPUA ua
     cdef pjsip_hdr *hdr
+    cdef void *found_hdr
     try:
         ua = c_get_ua()
     except:
         return 0
     try:
-        hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &_user_agent_hdr_name.pj_str, &ua.c_user_agent.pj_str)
-        if hdr == NULL:
-            raise SIPCoreError('Could not add "User-Agent" header to outgoing request')
-        pjsip_msg_add_hdr(tdata.msg, hdr)
+        found_hdr = pjsip_msg_find_hdr_by_name(tdata.msg, &_user_agent_hdr_name.pj_str, NULL)
+        if found_hdr == NULL:
+            hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &_user_agent_hdr_name.pj_str, &ua.c_user_agent.pj_str)
+            if hdr == NULL:
+                raise SIPCoreError('Could not add "User-Agent" header to outgoing request')
+            pjsip_msg_add_hdr(tdata.msg, hdr)
     except:
         ua.c_handle_exception(1)
     return 0
@@ -680,15 +683,18 @@ cdef int cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil:
 cdef int cb_add_server_hdr(pjsip_tx_data *tdata) with gil:
     cdef PJSIPUA ua
     cdef pjsip_hdr *hdr
+    cdef void *found_hdr
     try:
         ua = c_get_ua()
     except:
         return 0
     try:
-        hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &_server_hdr_name.pj_str, &ua.c_user_agent.pj_str)
-        if hdr == NULL:
-            raise SIPCoreError('Could not add "Server" header to outgoing response')
-        pjsip_msg_add_hdr(tdata.msg, hdr)
+        found_hdr = pjsip_msg_find_hdr_by_name(tdata.msg, &_server_hdr_name.pj_str, NULL)
+        if found_hdr == NULL:
+            hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &_server_hdr_name.pj_str, &ua.c_user_agent.pj_str)
+            if hdr == NULL:
+                raise SIPCoreError('Could not add "Server" header to outgoing response')
+            pjsip_msg_add_hdr(tdata.msg, hdr)
     except:
         ua.c_handle_exception(1)
     return 0
