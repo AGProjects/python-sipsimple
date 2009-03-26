@@ -255,6 +255,9 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                     command = "unregister"
             if command == "unregister":
                 am.stop()
+                if isinstance(account, BonjourAccount):
+                    user_quit = False
+                    command = "quit"
             if command == "quit":
                 break
             data, args = None, None
