@@ -99,7 +99,7 @@ class SettingsParser(object):
 
     @classmethod
     def parse(cls, type, value):
-        if value == 'NONE':
+        if value == 'None':
             return None
         if value == 'DEFAULT':
             return DefaultValue
