@@ -311,6 +311,13 @@ class ChatManager(NotificationHandler):
             self.current_session = self.sessions[index % len(self.sessions)]
             self.update_ps()
 
+    def _validate_stream(self, s):
+        s = s.lower()
+        if s in ['chat', 'audio']:
+            return s
+        else:
+            raise UserCommandError("Please use 'chat' or 'audio' cannot understand %r" % s)
+
     def call(self, *args):
         if not args:
             raise UserCommandError('Please provide uri')
@@ -320,12 +327,11 @@ class ChatManager(NotificationHandler):
         if args[2:]:
             raise UserCommandError('Too many arguments, the valid usage:\n:call URI [chat|audio]')
         if args[1:]:
-            if args[1]=='chat':
+            s = self._validate_stream(args[1])
+            if s == 'chat':
                 use_audio = False
-            elif args[1]=='audio':
+            elif s == 'audio':
                 use_chat = False
-            else:
-                raise UserCommandError("Please use 'chat' or 'audio' cannot understand %r" % args[1])
         if not isinstance(target_uri, SIPURI):
             try:
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
@@ -366,6 +372,43 @@ class ChatManager(NotificationHandler):
         except ConnectionClosed, ex:
             proc.spawn(self.remove_session, session)
             raise UserCommandError(str(ex))
+
+    def hold(self):
+        session = self.current_session
+        if not session:
+            raise UserCommandError('No active session')
+        session.hold()
+
+    def unhold(self):
+        session = self.current_session
+        if not session:
+            raise UserCommandError('No active session')
+        session.unhold()
+
+    def add_stream(self, *args):
+        session = self.current_session
+        if not session:
+            raise UserCommandError('No active session')
+        if len(args) != 1:
+            raise UserCommandError('Too many arguments, the valid usage:\n:add [chat|audio]')
+        s = self._validate_stream(args[0])
+        if s == 'chat':
+            session.add_chat()
+        elif s == 'audio':
+            session.add_audio()
+
+    def remove_stream(self, *args):
+        session = self.current_session
+        if not session:
+            raise UserCommandError('No active session')
+        if len(args) != 1:
+            raise UserCommandError('Too many arguments, the valid usage:\n:remove [chat|audio]')
+        s = self._validate_stream(args[0])
+        if s == 'chat':
+            session.remove_chat()
+        elif s == 'audio':
+            session.remove_audio()
+
 
 def register(account, engine):
     route = get_routes(account.credentials.uri, engine, account)[0]
@@ -447,7 +490,11 @@ def calming_message(seconds, message):
 
 def get_commands(manager):
     return {'switch': manager.switch,
-            'call': manager.call}
+            'call': manager.call,
+            'hold': manager.hold,
+            'unhold': manager.unhold,
+            'add': manager.add_stream,
+            'remove': manager.remove_stream}
 
 def get_shortcuts(manager):
     return {KEY_NEXT_SESSION: manager.switch}
