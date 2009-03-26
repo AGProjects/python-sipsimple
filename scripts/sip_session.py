@@ -596,6 +596,9 @@ def parse_options(usage, description):
 def update_settings(options):
     settings = SIPSimpleSettings()
     account = get_account(options.account_id)
+    for other_account in AccountManager().iter_accounts():
+        if other_account != account:
+            other_account.enabled = False
     options.account = account
     print 'Using account %s' % account.id
     if options.trace_msrp is not None:
