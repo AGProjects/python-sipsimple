@@ -219,6 +219,7 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountRegistrationDidFail', sender=self, data=notification.data)
         notification_center.remove_observer(self, sender=self._registrar)
+        self._registrar = None
         
         account_manager = AccountManager()
         if not (hasattr(notification.data, 'code') and notification.data.code==401) and not account_manager.stopping:
