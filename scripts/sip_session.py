@@ -207,6 +207,7 @@ class ChatManager(NotificationHandler):
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionNewIncoming')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionChangedState')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionGotStreamProposal')
 
     def _NH_SCSessionDidEnd(self, session, data):
         try:
@@ -221,6 +222,28 @@ class ChatManager(NotificationHandler):
 
     def _NH_SCSessionChangedState(self, session, data):
         self.update_ps()
+
+    # this notification is handled here and not on the session because we have access to the console here
+    def _NH_SCSessionGotStreamProposal(self, session, data):
+        if data.proposer == 'remote':
+            self.jobgroup.spawn(self._handle_proposal, session, data)
+
+    def _handle_proposal(self, session, data):
+        inv = session._inv
+        txt = '/'.join(x.capitalize() for x in data.streams)
+        question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(inv.caller_uri), txt)
+        with linked_notification(name='SCSessionChangedState', sender=session) as q:
+            p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
+            # spawn a greenlet that will wait for a change in session state and kill p1 if there is
+            p2 = proc.spawn(lambda : q.wait() and p1.kill())
+            try:
+                result = p1.wait() in ['y', 'Y']
+            finally:
+                p2.kill()
+        if result:
+            session.accept_proposal(chat='chat' in data.streams, audio='audio' in data.streams)
+        else:
+            session.reject_proposal()
 
     def _handle_incoming(self, session, data):
         session._green = ChatSession(self, __obj=session)
