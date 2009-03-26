@@ -3,12 +3,11 @@ SIP core
 --------
 
 - Properly split __cinit__() and __init__() methods on Cython objects [RK]
-- Cleanup Registration, Publication and Subscription to behave more like Invitation [RK]
-- Registration requestion URI should be settable by application [RK]
+- Cleanup Publication and Subscription to behave more like Invitation [RK]
 - Use STUN to determine the public contact address used for REGISTER [RK]
-- Add isfocus attribute for both session parties, present in Contact header [RK] [DB]
-- Handle incoming SUBSCRIBE requests [RK] [DB]
-- Handle incoming REGISTER requests [RK] [DB]
+- Add isfocus attribute for both session parties, present in Contact header [RK]
+- Handle incoming SUBSCRIBE requests [RK]
+- Handle incoming REGISTER requests [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
 - Handle incoming OPTIONS requests [RK]
 - Handle incoming REFER requests [RK]
@@ -24,7 +23,6 @@ Middleware
 ----------
 
 - Desktop sharing high level session class [DB]
-- Improve DNS lookups and fallback on 408 timeout after 5 seconds [RK]
 - Conference audio sessions [RK] [DB]
 - Buddylist high-level class [RK] [LS]
 - Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
@@ -40,7 +38,7 @@ Audio
 
 - Switch back to trunk and use new PJSIP sound device API [RK]
 - Add dummy sounds device [RK]
-- Revise conference bridge API to support mute and multiple rooms [RK] [DB]
+- Revise conference bridge API to support mute and multiple rooms [RK]
 - Add method to core for playing arbitrary tones on the conference bridge [RK]
 - Added general volume control for the conference bridge [RK]
 - Play a non-disruptive tone when a session is received while in another [RK]
@@ -58,8 +56,7 @@ Instant messaging
 - Use MSRPServer to share the listening port. otherwise when local_port is provided different session may conflict [DB]
 - Document MSRP library API [DB]
 - Port eventlet/greenlet to ARM [DB]
-- Is-composing payload [DB]
-- Rich text format, see jabber standards [DB]
+- Is-composing payload [LS]
 - Fix sip_im_session to accept unicode characters [DB]
 - File transfer support based on draft-ietf-mmusic-file-transfer-mech-11 [DB]
 
@@ -67,7 +64,7 @@ Instant messaging
 Security and privacy
 --------------------
 
-- Off-the-Record Messaging for IM [DB]
+- Off-the-Record Messaging for IM [RK]
 - zRTP for audio [RK]
 - Anonymous URI multi-party chat support [DB]
 
@@ -85,7 +82,7 @@ Presence
 Other applications
 ------------------
 
-- Message-summary payload [DB]
+- Message-summary payload [LS]
 - ENUM lookups [RK]
 - Bonjour [LS]
 
@@ -95,11 +92,9 @@ Command line tools
 
 - Add --auto-echo parameter to sip_im_session for automated tests [DB]
 - Add --auto-answer parameter to sip_im_session [DB]
-- Combine sip_im_session and sip_audio_session into 'sip_session' [DB]
 - xcap_pidf_manipulation script [LS]
 - sip_subscribe_conference script [LS]
 - sip_subscribe_xcap_diff script [LS]
-- Append MSRP messages to .sipclient/log/user@domain/msrp_trace.txt [DB]
 - Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt [LS]
 - Add timestamp and packet counters as for SIP trace for all other protocols [LS]
  
