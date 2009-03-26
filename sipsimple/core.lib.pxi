@@ -91,9 +91,9 @@ cdef class PJSIPEndpoint:
         if tls_ca_file is not None:
             self.c_tls_ca_file = PJSTR(tls_ca_file)
         if tls_cert_file is not None:
-            self.c_tls_ca_file = PJSTR(tls_cert_file)
+            self.c_tls_cert_file = PJSTR(tls_cert_file)
         if tls_privkey_file is not None:
-            self.c_tls_ca_file = PJSTR(tls_privkey_file)
+            self.c_tls_privkey_file = PJSTR(tls_privkey_file)
         if tls_timeout < 0:
             raise ValueError("Invalid TLS timeout value: %d" % tls_timeout)
         self.c_tls_timeout = tls_timeout
