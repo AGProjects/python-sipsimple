@@ -269,8 +269,9 @@ class InvitationLoggerManager(LoggerManager):
     logger_class = InvitationLogger
     events = InvitationLogger.events
 
-def start_loggers(trace_pjsip=False, trace_engine=False, log_reg=True, log_inv=True):
-    SIPTracer().start()
+def start_loggers(trace_pjsip=False, trace_engine=False, trace_sip=False, log_reg=True, log_inv=True):
+    if trace_sip:
+        SIPTracer().start()
     if trace_pjsip:
         PJSIPTracer().start()
     if trace_engine:
