@@ -898,10 +898,10 @@ class SessionManager(NotificationHandler):
                 inv.disconnect(404)
                 return
             to_uri = data.headers['To'][0]
-            account = AccountManager().find_account(to_uri)
-            #if account is None or account.id.username != to_uri.user or account.id.domain != to_uri.host:
-            #    inv.disconnect(404)
-            #    return
+            account = AccountManager().find_account(data.request_uri)
+            if account is None or not ((data.request_uri.user == to_uri.user and data.request_uri.host == to_uri.host) or (account.id.username == to_uri.user and account.id.domain == to_uri.host)):
+                inv.disconnect(404)
+                return
             proposed_media = list(set(("chat" if media.media == "message" else media.media) for media in inv.get_offered_remote_sdp().media if media.media in ["audio", "message"] and media.port != 0))
             if len(proposed_media) == 0:
                 inv.disconnect(415)
