@@ -14,12 +14,13 @@ from application.notification import IObserver
 
 from sipsimple.engine import Engine
 from sipsimple.core import SIPURI, SIPCoreError, send_message, Credentials
+from sipsimple.session import SessionManager
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri
 from sipsimple.clients import format_cmdline_uri
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.account import AccountManager
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 
 queue = Queue()
@@ -109,19 +110,26 @@ def read_queue(e, settings, am, account, logger, target_uri, message, routes):
 def do_message(account_id, config_file, target_uri, message, trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout):
     global user_quit, lock, queue
 
+    # acquire settings
+
     cm = ConfigurationManager()
     cm.start(ConfigFileBackend(config_file))
+    settings = SIPSimpleSettings()
+
+    # select account
+
     am = AccountManager()
     am.start()
-    settings = SIPSimpleSettings()
     if account_id is None:
         account = am.default_account
     else:
         try:
             account = am.get_account(account_id)
+            if not account.enabled:
+                raise KeyError()
         except KeyError:
             print "Account not found: %s" % account_id
-            print "Available accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts()))
+            print "Available and enabled accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts() if account.enabled))
             return
     if account is None:
         raise RuntimeError("No account configured")
@@ -141,41 +149,35 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_si
     if logger.pjsip_to_file:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
-    # figure out Engine options and start the Engine
+    # start engine
+
     e = Engine()
     handler = EventHandler(e)
-    e.start(auto_sound=False,
-            local_ip=settings.local_ip.value,
-            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
-            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
-            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
-            tls_protocol=settings.tls.protocol,
-            tls_verify_server=settings.tls.verify_server,
-            tls_ca_file=settings.tls.ca_list_file.value if settings.tls.ca_list_file is not None else None,
-            tls_cert_file=settings.tls.certificate_file.value if settings.tls.certificate_file is not None else None,
-            tls_privkey_file=settings.tls.private_key_file.value if settings.tls.private_key_file is not None else None,
-            tls_timeout=settings.tls.timeout,
-            ec_tail_length=settings.audio.echo_delay,
-            user_agent=settings.user_agent,
-            log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
-            trace_sip=trace_sip or trace_sip_stdout,
-            sample_rate=settings.audio.sample_rate,
-            playback_dtmf=settings.audio.playback_dtmf,
-            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end))
+    e.start_cfg(log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
+                trace_sip=trace_sip or trace_sip_stdout)
+    e.codecs = list(account.audio.codec_list)
 
-    # setup routes
+    # start the session manager (for incoming calls)
 
-    if account.id == "bonjour@local":
+    sm = SessionManager()
+
+    # pre-lookups
+
+    if isinstance(account, BonjourAccount):
+        # print listening addresses
+        for transport in settings.sip.transports:
+            local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
+            print 'Listening on "%s"' % local_uri
         if target_uri is None:
             routes = None
         else:
+            # setup routes
             if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
                 target_uri = "sip:%s" % target_uri
             target_uri = e.parse_sip_uri(target_uri)
             routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
-            if len(routes) == 0:
-                raise RuntimeError("No route found to foreign domain SIP proxy")
     else:
+        # setup routes
         if target_uri is not None:
             target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
         if account.outbound_proxy is None:
@@ -183,8 +185,9 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_si
         else:
             proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
             routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
+
     if routes is not None and len(routes) == 0:
-        raise RuntimeError("No route found SIP proxy")
+        raise RuntimeError('No route found to SIP proxy for "%s"' % target_uri)
 
     # start thread and process user input
     start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, message, routes))
