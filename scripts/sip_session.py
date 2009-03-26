@@ -318,7 +318,7 @@ class ChatManager(NotificationHandler):
         use_audio = True
         use_chat = True
         if args[2:]:
-            raise UserCommandError('Too many arguments, the valid usage is: URI [chat|audio]')
+            raise UserCommandError('Too many arguments, the valid usage:\n:call URI [chat|audio]')
         if args[1:]:
             if args[1]=='chat':
                 use_audio = False
