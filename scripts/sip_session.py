@@ -170,6 +170,8 @@ class ChatSession(GreenSession, NotificationHandler):
         if audio:
             txt.append('Audio')
         self.info = '/'.join(txt)
+        if not self.info:
+            self.info = 'Session with no streams'
 
 
 class JobGroup(object):
