@@ -213,6 +213,8 @@ class Account(SettingsObject):
     def _NH_SCRegistrationDidEnd(self, notification):
         notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountRegistrationDidEnd', sender=self, data=notification.data)
+        notification_center.remove_observer(self, sender=self._registrar)
+        self._registrar = None
 
     def _NH_SCRegistrationDidFail(self, notification):
         settings = SIPSimpleSettings()
@@ -295,13 +297,10 @@ class Account(SettingsObject):
             return
         self.active = False
 
-        notification_center = NotificationCenter()
-        
         if self.registration.enabled and self._registrar is not None:
             self._registrar.unregister()
-            notification_center.remove_observer(self, sender=self._registrar)
-            self._registrar = None
 
+        notification_center = NotificationCenter()
         notification_center.post_notification('AMAccountDidDeactivate', sender=self)
 
     def __repr__(self):
