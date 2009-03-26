@@ -16,6 +16,7 @@ from msrplib import trafficlog
 
 from sipsimple import SIPURI, SIPCoreError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
+from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine, GreenRegistration
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
@@ -29,6 +30,7 @@ from sipsimple.green.notification import NotifyFromThreadObserver
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
@@ -367,11 +369,11 @@ def start(options, console):
     account = options.account
     settings = SIPSimpleSettings()
     engine = GreenEngine()
-    engine.start_cfg()
+    engine.start_cfg(log_level=settings.logging.pjsip_level if options.trace_pjsip or options.trace_pjsip_stdout else 0,
+        trace_sip=options.trace_sip or options.trace_sip_stdout)
     registration = None
     try:
-        logstate.start_loggers(trace_pjsip=settings.logging.trace_pjsip,
-                               trace_engine=options.trace_engine)
+        logstate.start_loggers(trace_engine=options.trace_engine)
         if options.register:
             proc.spawn_greenlet(register, account, engine)
         if isinstance(account, BonjourAccount):
@@ -518,38 +520,50 @@ def get_routes(target_uri, engine, account):
         routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
     return routes
 
+
+def parse_trace_option(option, opt_str, value, parser, name):
+    trace_file = False
+    trace_stdout = False
+    if value.lower() not in ["none", "file", "stdout", "all"]:
+        raise OptionValueError("Invalid trace option: %s" % value)
+    value = value.lower()
+    trace_file = value not in ["none", "stdout"]
+    trace_stdout = value in ["stdout", "all"]
+    setattr(parser.values, "trace_%s" % name, trace_file)
+    setattr(parser.values, "trace_%s_stdout" % name, trace_stdout)
+
 def parse_options(usage, description):
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-a", "--account-id", type="string")
+    parser.add_option("-c", "--config_file", type="string", dest="config_file",
+                      help="The path to a configuration file to use. "
+                           "This overrides the default location of the configuration file.", metavar="[FILE]")
     parser.add_option('--no-register', action='store_false', dest='register', default=True, help='Bypass registration')
+    parser.set_default("trace_sip_stdout", None)
+    parser.add_option("-s", "--trace-sip", type="string", action="callback",
+                      callback=parse_trace_option, callback_args=('sip',),
+                      help="Dump the raw contents of incoming and outgoing SIP messages. "
+                           "The argument specifies where the messages are to be dumped.",
+                      metavar="[stdout|file|all|none]")
+    parser.set_default("trace_pjsip_stdout", None)
+    parser.add_option("-j", "--trace-pjsip", type="string", action="callback",
+                      callback=parse_trace_option, callback_args=('pjsip',),
+                      help="Print PJSIP logging output. The argument specifies where the messages are to be dumped.",
+                      metavar="[stdout|file|all|none]")
+    parser.add_option("--trace-engine", action="store_true", help="Print core's events.")
     parser.add_option("-m", "--trace-msrp", action="store_true",
-                      help="Dump the raw contents of incoming and outgoing MSRP messages.")
-    parser.add_option("-s", "--trace-sip", action="store_true",
-                      help="Dump the raw contents of incoming and outgoing SIP messages.")
-    parser.add_option("-j", "--trace-pjsip", action="store_true",
-                      help="Print PJSIP logging output.")
-    parser.add_option("--trace-engine", action="store_true",
-                      help="Print core's events.")
+                      help="Log the raw contents of incoming and outgoing MSRP messages.")
     options, args = parser.parse_args()
     options.args = args
+    return options
+
+def update_settings(options):
+    settings = SIPSimpleSettings()
     account = get_account(options.account_id)
     options.account = account
     print 'Using account %s' % account.id
-    settings = SIPSimpleSettings()
-    for setting in ['logging.trace_msrp',
-                    'logging.trace_sip',
-                    'logging.trace_pjsip']:
-        name = setting.rsplit('.', 1)[1]
-        value = getattr(options, name)
-        if value is not None:
-            obj = settings
-            for member in setting.split('.')[:-1]:
-                obj = getattr(obj, member)
-            try:
-                setattr(obj, name, value)
-            except:
-                print 'Error setting %r.%s=%r' % (obj, name, value)
-                raise
+    if options.trace_msrp is not None:
+        settings.logging.trace_msrp = options.trace_msrp
     if account.id == "bonjour@local":
         options.register = False
     else:
@@ -557,20 +571,36 @@ def parse_options(usage, description):
             account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
         else:
             account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
-    return options
 
 def main():
-    ConfigurationManager().start()
-    AccountManager().start()
+    options = parse_options(usage, description)
 
+    ConfigurationManager().start(ConfigFileBackend(options.config_file))
+    AccountManager().start()
     settings = SIPSimpleSettings()
+
+    update_settings(options)
+
     if settings.ringtone.inbound is None:
         settings.ringtone.inbound = get_path("ring_inbound.wav")
     if settings.ringtone.outbound is None:
         settings.ringtone.outbound = get_path("ring_outbound.wav")
 
+    # set up logger
+    if options.trace_sip is None:
+        options.trace_sip = settings.logging.trace_sip
+        options.trace_sip_stdout = False
+    if options.trace_pjsip is None:
+        options.trace_pjsip = settings.logging.trace_pjsip
+        options.trace_pjsip_stdout = False
+    logger = Logger(options.trace_sip, options.trace_sip_stdout, options.trace_pjsip, options.trace_pjsip_stdout)
+    logger.start()
+    if logger.sip_to_file:
+        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+    if logger.pjsip_to_file:
+        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
+
     try:
-        options = parse_options(usage, description)
         with setup_console() as console:
             start(options, console)
     except EOF:
