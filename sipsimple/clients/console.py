@@ -393,7 +393,12 @@ class _WriteProxy(object):
         return getattr(self.original, item)
 
     def write(self, data):
-        callFromAnyThread(self.console.write, data)
+        if data=='\n' and self.state=='after write':
+            self.state = 'skipped'
+            return
+        else:
+            self.state = 'after write'
+            callFromAnyThread(self.console.write, data)
 
 def hook_std_output(console):
     sys.stderr = _WriteProxy(__original_sys_stderr__, console)
