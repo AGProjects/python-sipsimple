@@ -98,7 +98,16 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                 print data
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "SCSessionGotRingIndication":
+                if event_name == "AMAccountRegistrationDidSucceed":
+                    print 'Succesfully registered using contact "%(contact_uri)s"' % args
+                elif event_name == "AMAccountRegistrationDidFail":
+                    print "Registration failed: %(code)d %(reason)s" % args
+                    command = "quit"
+                    user_quit = False
+                elif event_name == "AMAccountRegistrationDidEnd":
+                    command = "quit"
+                    user_quit = False
+                elif event_name == "SCSessionGotRingIndication":
                     print "Ringing..."
                 elif event_name == "SCSessionNewIncoming":
                     if sess is None:
@@ -245,8 +254,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                 except:
                     command = "unregister"
             if command == "unregister":
-                user_quit = False
-                command = "quit"
+                am.stop()
             if command == "quit":
                 break
             data, args = None, None
