@@ -225,13 +225,8 @@ class ChatManager(NotificationHandler):
     def _handle_incoming(self, session, data):
         session._green = ChatSession(self, __obj=session)
         inv = session._inv
-        txt = []
-        if 'message' in data.streams:
-            txt.append('Chat')
-        if 'audio' in data.streams:
-            txt.append('Audio')
-        txt = '/'.join(txt)
-        question = 'Incoming %s request from %s, do you accept? (y/n) ' % (txt, inv.caller_uri, )
+        session._green.info = '/'.join(x.capitalize() for x in data.streams)
+        question = 'Incoming %s request from %s, do you accept? (y/n) ' % (session._green.info, inv.caller_uri, )
         with linked_notification(name='SCSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
@@ -240,9 +235,8 @@ class ChatManager(NotificationHandler):
                 result = p1.wait() in ['y', 'Y']
             finally:
                 p2.kill()
-        session._green.info = txt
         if result:
-            session.accept(chat='message' in data.streams, audio='audio' in data.streams)
+            session.accept(chat='chat' in data.streams, audio='audio' in data.streams)
             self.add_session(session._green)
         else:
             session.end()
