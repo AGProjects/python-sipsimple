@@ -101,10 +101,9 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                 if event_name == "SCSessionGotRingIndication":
                     print "Ringing..."
                 elif event_name == "SCSessionNewIncoming":
-                    from_whom = SIPURI(obj.caller_uri.host, user=obj.caller_uri.user, display=obj.caller_uri.display, secure=obj.caller_uri.secure)
-                    print 'Incoming session from "%s" to "%s"' % (from_whom, obj.account.id)
                     if sess is None:
                         sess = obj
+                        from_whom = SIPURI(obj.caller_uri.host, user=obj.caller_uri.user, display=obj.caller_uri.display, secure=obj.caller_uri.secure)
                         print 'Incoming audio session from "%s" to "%s", do you want to accept? (y/n)' % (from_whom, sess.account.id)
                         if auto_answer is not None:
                             def auto_answer_call():
