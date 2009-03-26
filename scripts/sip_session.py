@@ -17,7 +17,7 @@ from msrplib import trafficlog
 from sipsimple import SIPURI, SIPCoreError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
-from sipsimple.green.core import GreenEngine, GreenRegistration
+from sipsimple.green.core import GreenEngine
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
 from sipsimple.green.notification import linked_notification
@@ -404,11 +404,6 @@ class ChatManager(NotificationHandler):
             session.remove_audio()
 
 
-def register(account, engine):
-    route = get_routes(account.credentials.uri, engine, account)[0]
-    registration = GreenRegistration(account.credentials, route)
-    registration.register()
-
 def start(options, console):
     account = options.account
     settings = SIPSimpleSettings()
@@ -418,8 +413,6 @@ def start(options, console):
     registration = None
     try:
         logstate.start_loggers(trace_engine=options.trace_engine)
-        if options.register:
-            proc.spawn_greenlet(register, account, engine)
         if isinstance(account, BonjourAccount):
             if engine.local_udp_port:
                 print 'Local contact: %s:%s;transport=udp' % (account.contact, engine.local_udp_port)
@@ -458,13 +451,8 @@ def start(options, console):
             console.copy_input_line()
             console.set_prompt('', True)
             console.clear_input_line()
-            if registration is not None:
-                registration = proc.spawn(registration.unregister)
             with calming_message(1, "Disconnecting the session(s)..."):
                 manager.close()
-            if registration is not None:
-                with calming_message(1, "Unregistering..."):
-                    registration.wait()
             console.set_prompt('', True) # manager could have updated the prompt
     finally:
         with calming_message(1, "Disconnecting the session(s)..."):
@@ -481,6 +469,7 @@ def calming_message(seconds, message):
         yield t
     finally:
         t.cancel()
+
 
 def get_commands(manager):
     return {'switch': manager.switch,
@@ -586,7 +575,6 @@ def parse_options(usage, description):
     parser.add_option("-c", "--config_file", type="string", dest="config_file",
                       help="The path to a configuration file to use. "
                            "This overrides the default location of the configuration file.", metavar="[FILE]")
-    parser.add_option('--no-register', action='store_false', dest='register', default=True, help='Bypass registration')
     parser.set_default("trace_sip_stdout", None)
     parser.add_option("-s", "--trace-sip", type="string", action="callback",
                       callback=parse_trace_option, callback_args=('sip',),
@@ -612,9 +600,7 @@ def update_settings(options):
     print 'Using account %s' % account.id
     if options.trace_msrp is not None:
         settings.logging.trace_msrp = options.trace_msrp
-    if account.id == "bonjour@local":
-        options.register = False
-    else:
+    if account.id != "bonjour@local":
         if account.stun_servers:
             account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
         else:
