@@ -191,7 +191,7 @@ class Account(SettingsObject):
             self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
 
         # reregister if passward changed
-        if 'password' in notification.data.modified:
+        if 'password' in notification.data.modified and self._registrar is not None:
             self._registrar.unregister()
             self._registrar = None
             self._register()
