@@ -4,7 +4,7 @@ from contextlib import contextmanager
 import sys
 import datetime
 import time
-from optparse import OptionParser
+from optparse import OptionParser, OptionValueError
 from twisted.internet.error import ConnectionClosed
 from application.notification import NotificationCenter, IObserver
 from application import log
