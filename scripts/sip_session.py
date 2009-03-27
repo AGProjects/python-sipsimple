@@ -450,6 +450,14 @@ class ChatManager(NotificationHandler):
         elif s == 'audio':
             session.remove_audio()
 
+class InfoPrinter(NotificationHandler):
+
+    def start(self):
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCEngineDetectedNATType')
+
+    def _NH_SCEngineDetectedNATType(self, sender, data):
+        if data.succeeded:
+            print "Detected NAT type: %s" % data.nat_type
 
 def start(options, console):
     account = options.account
@@ -460,6 +468,8 @@ def start(options, console):
         trace_sip=settings.logging.trace_sip or options.trace_sip)
     registration = None
     try:
+        if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
+            engine.detect_nat_type(*options.account.stun_servers[0])
         logstate.start_loggers(trace_engine=options.trace_engine)
         if isinstance(account, BonjourAccount):
             if engine.local_udp_port:
@@ -675,6 +685,8 @@ def main():
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     if settings.logging.trace_pjsip:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
+
+    InfoPrinter().start()
 
     try:
         with setup_console() as console:
