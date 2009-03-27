@@ -655,6 +655,10 @@ def main():
         settings.ringtone.inbound = get_path("ring_inbound.wav")
     if settings.ringtone.outbound is None:
         settings.ringtone.outbound = get_path("ring_outbound.wav")
+    if settings.chat.message_received_sound is None:
+        settings.chat.message_received_sound = get_path("message_received.wav")
+    if settings.chat.message_sent_sound is None:
+        settings.chat.message_sent_sound = get_path("message_sent.wav")
 
     # set up logger
     if options.trace_sip is None:
