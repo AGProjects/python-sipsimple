@@ -206,20 +206,31 @@ class Account(SettingsObject):
 
     def _NH_SCRegistrationDidSucceed(self, notification):
         notification_center = NotificationCenter()
-        notification_center.post_notification('AMAccountRegistrationDidSucceed', sender=self, data=notification.data)
+        notification_center.post_notification('AMAccountRegistrationDidSucceed', sender=self, data=NotificationData(code=notification.data.code,
+                                                                                                                    reason=notification.data.reason,
+                                                                                                                    contact_uri=notification.data.contact_uri,
+                                                                                                                    contact_uri_list=notification.data.contact_uri_list,
+                                                                                                                    expires=notification.data.expires,
+                                                                                                                    registration=notification.sender))
         self._register_routes = None
         self._register_wait = 0.5
 
     def _NH_SCRegistrationDidEnd(self, notification):
         notification_center = NotificationCenter()
-        notification_center.post_notification('AMAccountRegistrationDidEnd', sender=self, data=notification.data)
+        
+        data = NotificationData(registration=notification.sender)
+        if hasattr(notification.data, 'code'):
+            data.code = notification.data.code
+            data.reason = notification.data.reason
+        notification_center.post_notification('AMAccountRegistrationDidEnd', sender=self, data=data)
+        
         notification_center.remove_observer(self, sender=self._registrar)
         self._registrar = None
 
     def _NH_SCRegistrationDidFail(self, notification):
         settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
-        notification_center.post_notification('AMAccountRegistrationDidFail', sender=self, data=notification.data)
+        
         notification_center.remove_observer(self, sender=self._registrar)
         self._registrar = None
         
@@ -227,12 +238,24 @@ class Account(SettingsObject):
         if not (hasattr(notification.data, 'code') and notification.data.code==401) and not account_manager.stopping:
             if not self._register_routes or time() >= self._register_timeout:
                 self._register_wait = min(self._register_wait*2, 30)
-                from twisted.internet import reactor
                 timeout = random.uniform(self._register_wait, 2*self._register_wait)
+                
+                data = NotificationData(reason=notification.data.reason, registration=notification.sender, next_route=None, delay=timeout)
+                if hasattr(notification.data, 'code'):
+                    data.code = notification.data.code
+                notification_center.post_notification('AMAccountRegistrationDidFail', sender=self, data=data)
+        
+                from twisted.internet import reactor
                 reactor.callFromThread(reactor.callLater, timeout, self._register)
             else:
-                self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
                 route = self._register_routes.popleft()
+                
+                data = NotificationData(reason=notification.data.reason, registration=notification.sender, next_route=route, delay=0)
+                if hasattr(notification.data, 'code'):
+                    data.code = notification.data.code
+                notification_center.post_notification('AMAccountRegistrationDidFail', sender=self, data=data)
+                
+                self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
                 contact_uri = self.contact[route.transport]
                 self._registrar = Registration(self.credentials, route=route, expires=self.registration.interval, contact_uri=contact_uri)
                 notification_center.add_observer(self, sender=self._registrar)
