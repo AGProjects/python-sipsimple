@@ -125,8 +125,8 @@ class RegistrationApplication(object):
             sample_rate=settings.audio.sample_rate,
             playback_dtmf=settings.audio.playback_dtmf,
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
-            trace_sip=True,
-            log_level=settings.logging.pjsip_level
+            trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
+            log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
         )
 
         # start getting input
@@ -236,12 +236,16 @@ class RegistrationApplication(object):
             reactor.callFromThread(reactor.stop)
 
     def _NH_SAInputWasReceived(self, notification):
+        engine = Engine()
+        settings = SIPSimpleSettings()
         key = notification.data.input
         if key == 't':
             self.logger.sip_to_stdout = not self.logger.sip_to_stdout
+            engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
             self.output.put('SIP tracing to console is now %s.' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
         elif key == 'j':
             self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
+            engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
             self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
         elif key == '?':
             self.print_help()
