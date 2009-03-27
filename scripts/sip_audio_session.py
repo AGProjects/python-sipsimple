@@ -330,7 +330,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
 
     e = Engine()
     handler = EventHandler(e)
-    e.start_cfg(log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
+    e.start_cfg(enable_sound=not disable_sound,
+                log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
                 trace_sip=trace_sip or trace_sip_stdout)
     e.codecs = list(account.audio.codec_list)
 
