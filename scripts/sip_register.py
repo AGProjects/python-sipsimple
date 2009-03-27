@@ -263,7 +263,7 @@ if __name__ == "__main__":
         usage = "%prog [options]"
         parser = OptionParser(usage=usage, description=description)
         parser.print_usage = parser.print_help
-        parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
+        parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
         parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
         parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
         parser.add_option("-r", "--max-registers", type="int", dest="max_registers", default=1, help="Max number of REGISTERs sent (default 1, set to 0 for infinite).")
