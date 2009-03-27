@@ -456,8 +456,8 @@ def start(options, console):
     settings = SIPSimpleSettings()
     engine = GreenEngine()
     engine.start_cfg(enable_sound=not options.disable_sound,
-        log_level=settings.logging.pjsip_level if options.trace_pjsip or options.trace_pjsip_stdout else 0,
-        trace_sip=options.trace_sip or options.trace_sip_stdout)
+        log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or options.trace_pjsip) else 0,
+        trace_sip=settings.logging.trace_sip or options.trace_sip)
     registration = None
     try:
         logstate.start_loggers(trace_engine=options.trace_engine)
@@ -606,17 +606,6 @@ def get_routes(target_uri, engine, account):
     return routes
 
 
-def parse_trace_option(option, opt_str, value, parser, name):
-    trace_file = False
-    trace_stdout = False
-    if value.lower() not in ["none", "file", "stdout", "all"]:
-        raise OptionValueError("Invalid trace option: %s" % value)
-    value = value.lower()
-    trace_file = value not in ["none", "stdout"]
-    trace_stdout = value in ["stdout", "all"]
-    setattr(parser.values, "trace_%s" % name, trace_file)
-    setattr(parser.values, "trace_%s_stdout" % name, trace_stdout)
-
 def parse_options(usage, description):
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-a", "--account-id", type="string")
@@ -625,17 +614,12 @@ def parse_options(usage, description):
                            "This overrides the default location of the configuration file.", metavar="[FILE]")
     parser.add_option("-S", "--disable-sound", default=False,
                       action="store_true", help="Disables initializing the sound card.")
-    parser.set_default("trace_sip_stdout", None)
-    parser.add_option("-s", "--trace-sip", type="string", action="callback",
-                      callback=parse_trace_option, callback_args=('sip',),
-                      help="Dump the raw contents of incoming and outgoing SIP messages. "
-                           "The argument specifies where the messages are to be dumped.",
-                      metavar="[stdout|file|all|none]")
-    parser.set_default("trace_pjsip_stdout", None)
-    parser.add_option("-j", "--trace-pjsip", type="string", action="callback",
-                      callback=parse_trace_option, callback_args=('pjsip',),
-                      help="Print PJSIP logging output. The argument specifies where the messages are to be dumped.",
-                      metavar="[stdout|file|all|none]")
+    parser.add_option("-s", "--trace-sip", action="store_true",
+                      dest="trace_sip", default=False,
+                      help="Dump the raw contents of incoming and outgoing SIP messages. ")
+    parser.add_option("-j", "--trace-pjsip", action="store_true",
+                      dest="trace_pjsip", default=False,
+                      help="Print PJSIP logging output.")
     parser.add_option("--trace-engine", action="store_true", help="Print core's events.")
     parser.add_option("-m", "--trace-msrp", action="store_true",
                       help="Log the raw contents of incoming and outgoing MSRP messages.")
@@ -685,17 +669,11 @@ def main():
         settings.chat.message_sent_sound = get_path("message_sent.wav")
 
     # set up logger
-    if options.trace_sip is None:
-        options.trace_sip = settings.logging.trace_sip
-        options.trace_sip_stdout = False
-    if options.trace_pjsip is None:
-        options.trace_pjsip = settings.logging.trace_pjsip
-        options.trace_pjsip_stdout = False
-    logger = Logger(options.trace_sip, options.trace_sip_stdout, options.trace_pjsip, options.trace_pjsip_stdout)
+    logger = Logger(options.trace_sip, options.trace_pjsip)
     logger.start()
-    if logger.sip_to_file:
+    if settings.logging.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if logger.pjsip_to_file:
+    if settings.logging.trace_pjsip:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
     try:
