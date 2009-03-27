@@ -124,16 +124,26 @@ class ChatSession(GreenSession, NotificationHandler):
         GreenSession.__init__(self, *args, **kwargs)
         self._obj._green = self
         self.history_file = None
-        if self._inv is None:
-            NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
-        else:
+        if self._inv is not None:
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
                 self.remote_party = format_uri(self._inv.remote_uri)
+        NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
         NotificationCenter().add_observer(self, 'SCSessionGotStreamUpdate', sender=self._obj)
 
     def _NH_SCSessionDidStart(self, session, _data):
-        self.history_file = get_history_file(session._inv)
+        if self.history_file is None:
+            self.history_file = get_history_file(session._inv)
+        try:
+            print 'Session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
+            print "Audio RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
+                                                           session.audio_remote_rtp_address_sdp, session.audio_remote_rtp_port_sdp)
+            if session.audio_srtp_active:
+                print "RTP audio stream is encrypted"
+        except AttributeError:
+            pass
+        if session.remote_user_agent is not None:
+            print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
 
     def _NH_SCSessionGotStreamUpdate(self, session, data):
         self.update_info(chat='chat' in data.streams, audio='audio' in data.streams)
