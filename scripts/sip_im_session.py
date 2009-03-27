@@ -404,7 +404,7 @@ class ChatManager:
             ps = prefix + self.current_session.format_ps()
         else:
             ps = format_nosessions_ps(self.credentials.uri)
-        self.console.set_ps(ps)
+        self.console.set_prompt(ps)
 
     def add_session(self, session, activate=True):
         assert session is not None
@@ -547,7 +547,7 @@ def start(options, console):
         if options.register:
             registration = GreenRegistration(credentials, route=options.route)
             proc.spawn_greenlet(registration.register)
-        console.set_ps(str(options.uri).replace('sip:', '') + '> ')
+        console.set_prompt(str(options.uri).replace('sip:', '') + '> ')
         sound = ThrottlingSoundPlayer()
         manager = ChatManager(engine, sound, credentials, console, logger,
                               options.auto_accept_files,
@@ -571,7 +571,7 @@ def start(options, console):
                     else:
                         raise
         finally:
-            console_next_line(console)
+            console.copy_input_line()
             manager.stop_accept_incoming()
             if registration is not None:
                 registration = proc.spawn(registration.unregister)
@@ -621,11 +621,6 @@ def readloop(console, manager, commands, shortcuts):
                 print ex
             # will get there without echoing if user pressed enter on an empty line; let's echo it
             echo()
-
-def console_next_line(console):
-    console.copy_input_line()
-    console.clear_input_line()
-    console.set_ps('', True) # QQQ otherwise prompt gets printed once somehow
 
 
 class ThrottlingSoundPlayer:

@@ -120,11 +120,11 @@ def main():
 
                 def no_console_session(console):
                     console.active_session = None
-                    console.set_ps('No active session> ')
+                    console.set_prompt('No active session> ')
 
                 def activate_console_session(console, session):
                     console.active_session = session
-                    console.set_ps(
+                    console.set_prompt(
                         '%s> ' % session.sip.caller_uri
                     )
 

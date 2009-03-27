@@ -317,7 +317,7 @@ class ChatManager(NotificationHandler):
             else:
                 ps = str(getattr(self.account, 'contact', None))
             ps += '> '
-        self.console.set_ps(ps)
+        self.console.set_prompt(ps)
 
     def add_session(self, session, activate=True):
         assert session is not None
@@ -507,11 +507,8 @@ def start(options, console):
                 traceback.print_exc()
         finally:
             console.copy_input_line()
-            console.set_prompt('', True)
-            console.clear_input_line()
             with calming_message(1, "Disconnecting the session(s)..."):
                 manager.close()
-            console.set_prompt('', True) # manager could have updated the prompt
     finally:
         with calming_message(1, "Disconnecting the session(s)..."):
             proc.waitall([proc.spawn(session.end) for session in SessionManager().sessions])

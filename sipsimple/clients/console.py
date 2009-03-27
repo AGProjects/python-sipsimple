@@ -349,8 +349,6 @@ class GreenConsole(object):
         if self.terminalProtocol:
             self.terminalProtocol.set_prompt(ps, index=index)
 
-    set_ps = set_prompt
-
     def __iter__(self):
         return self
 
