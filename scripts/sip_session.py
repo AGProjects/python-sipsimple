@@ -431,7 +431,8 @@ def start(options, console):
     account = options.account
     settings = SIPSimpleSettings()
     engine = GreenEngine()
-    engine.start_cfg(log_level=settings.logging.pjsip_level if options.trace_pjsip or options.trace_pjsip_stdout else 0,
+    engine.start_cfg(enable_sound=not options.disable_sound,
+        log_level=settings.logging.pjsip_level if options.trace_pjsip or options.trace_pjsip_stdout else 0,
         trace_sip=options.trace_sip or options.trace_sip_stdout)
     registration = None
     try:
@@ -598,6 +599,8 @@ def parse_options(usage, description):
     parser.add_option("-c", "--config_file", type="string", dest="config_file",
                       help="The path to a configuration file to use. "
                            "This overrides the default location of the configuration file.", metavar="[FILE]")
+    parser.add_option("-S", "--disable-sound", default=False,
+                      action="store_true", help="Disables initializing the sound card.")
     parser.set_default("trace_sip_stdout", None)
     parser.add_option("-s", "--trace-sip", type="string", action="callback",
                       callback=parse_trace_option, callback_args=('sip',),
