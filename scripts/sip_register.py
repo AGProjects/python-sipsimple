@@ -1,296 +1,282 @@
 #!/usr/bin/env python
 
-import sys
-import traceback
 import os
-import signal
-import termios
 import select
-from thread import start_new_thread, allocate_lock
-from Queue import Queue
-from optparse import OptionParser, OptionValueError
+import sys
+import termios
 
+from application import log
+from application.notification import IObserver, NotificationCenter, NotificationData
+from application.python.queue import EventQueue
+from optparse import OptionParser
+from threading import Thread
+from twisted.python import threadable
 from zope.interface import implements
 
-from application.configuration import *
-from application.process import process
-from application.notification import IObserver
+from twisted.internet import reactor
+from eventlet.twistedutil import join_reactor
 
-from sipsimple import *
-from sipsimple.clients import enrollment
+from sipsimple import Engine, SIPCoreError
+from sipsimple.account import AccountManager
 from sipsimple.clients.log import Logger
-
-from sipsimple.clients.dns_lookup import *
-from sipsimple.clients import *
-
-class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": LoggingOption, "trace_sip": LoggingOption}
-    local_ip = None
-    sip_local_udp_port = 0
-    sip_local_tcp_port = 0
-    sip_local_tls_port = 0
-    sip_transports = ["tls", "tcp", "udp"]
-    trace_pjsip = LoggingOption('none')
-    trace_sip = LoggingOption('none')
-    log_directory = '~/.sipclient/log'
+from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.settings import SIPSimpleSettings
 
 
-class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "sip_register_interval": int}
-    sip_address = None
-    password = None
-    display_name = None
-    outbound_proxy = None
-    sip_register_interval = 600
+class InputThread(Thread):
+    def __init__(self, application):
+        Thread.__init__(self)
+        self.application = application
+        self.daemon = True
+        self._old_terminal_settings = None
+
+    def run(self):
+        notification_center = NotificationCenter()
+        while True:
+            for char in self._getchars():
+                if char == "\x04":
+                    self.application.stop()
+                    return
+                else:
+                    notification_center.post_notification('SAInputWasReceived', sender=self, data=NotificationData(input=char))
+
+    def stop(self):
+        self._termios_restore()
+
+    def _termios_restore(self):
+        if self._old_terminal_settings is not None:
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._old_terminal_settings)
+
+    def _getchars(self):
+        fd = sys.stdin.fileno()
+        if os.isatty(fd):
+            self._old_terminal_settings = termios.tcgetattr(fd)
+            new = termios.tcgetattr(fd)
+            new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
+            new[6][termios.VMIN] = '\000'
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, new)
+                if select.select([fd], [], [], None)[0]:
+                    return sys.stdin.read(4192)
+            finally:
+                self._termios_restore()
+        else:
+            return os.read(fd, 4192)
 
 
-process._system_config_directory = os.path.expanduser("~/.sipclient")
-enrollment.verify_account_config()
-configuration = ConfigFile("config.ini")
-configuration.read_settings("General", GeneralConfig)
-
-queue = Queue()
-old = None
-user_quit = True
-lock = allocate_lock()
-logger = None
-return_code = 1
-
-def termios_restore():
-    global old
-    if old is not None:
-        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
-
-def getchar():
-    global old
-    fd = sys.stdin.fileno()
-    if os.isatty(fd):
-        old = termios.tcgetattr(fd)
-        new = termios.tcgetattr(fd)
-        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
-        new[6][termios.VMIN] = '\000'
-        try:
-            termios.tcsetattr(fd, termios.TCSADRAIN, new)
-            if select.select([fd], [], [], None)[0]:
-                return sys.stdin.read(10)
-        finally:
-            termios_restore()
-    else:
-        return os.read(fd, 10)
-
-class EventHandler(object):
+class RegistrationApplication(object):
     implements(IObserver)
 
-    def __init__(self, engine):
-        engine.notification_center.add_observer(self)
+    def __init__(self, account_name, trace_sip, trace_pjsip, max_registers):
+        self.account_name = account_name
+        self.input = InputThread(self)
+        self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
+        self.logger = Logger(trace_sip, trace_pjsip)
+        self.max_registers = max_registers if max_registers > 0 else None
+        self.success = False
+        self.account = None
+        self.old_state = 'unregistered'
 
+        account_manager = AccountManager()
+        engine = Engine()
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=account_manager)
+        notification_center.add_observer(self, sender=engine)
+        notification_center.add_observer(self, sender=self.input)
+
+        log.level.current = log.level.WARNING
+
+    def run(self):
+        account_manager = AccountManager()
+        configuration = ConfigurationManager()
+        engine = Engine()
+        
+        # start output thread
+        self.output.start()
+    
+        # startup configuration
+        configuration.start()
+        account_manager.start()
+        if self.account is None:
+            raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
+        elif not self.account.enabled:
+            raise RuntimeError("account %s is not enabled" % self.account.id)
+        self.output.put('Using account %s' % self.account.id)
+
+        # start logging
+        self.logger.start()
+
+        # start the engine
+        settings = SIPSimpleSettings()
+        engine.start(
+            auto_sound=False,
+            local_ip=settings.local_ip.normalized,
+            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
+            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
+            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
+            tls_protocol=settings.tls.protocol,
+            tls_verify_server=settings.tls.verify_server,
+            tls_ca_file=settings.tls.ca_list_file.normalized if settings.tls.ca_list_file is not None else None,
+            tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
+            tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
+            tls_timeout=settings.tls.timeout,
+            ec_tail_length=settings.audio.echo_delay,
+            user_agent=settings.user_agent,
+            sample_rate=settings.audio.sample_rate,
+            playback_dtmf=settings.audio.playback_dtmf,
+            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
+            trace_sip=True,
+            log_level=settings.logging.pjsip_level
+        )
+
+        # start getting input
+        self.input.start()
+        
+        if self.max_registers != 1:
+            self.print_help()
+
+        # start twisted
+        try:
+            reactor.run()
+        finally:
+            self.input.stop()
+        
+        # stop the output
+        self.output.stop()
+        self.output.join()
+        
+        self.logger.stop()
+
+        return 0 if self.success else 1
+
+    def stop(self):
+        account_manager = AccountManager()
+
+        account_manager.stop()
+
+    def print_help(self):
+        message  = 'Available control keys:\n'
+        message += '  t: toggle SIP trace on the console\n'
+        message += '  j: toggle PJSIP trace on the console\n'
+        message += '  Ctrl-d: quit the program\n'
+        message += '  ?: display this help message\n'
+        self.output.put('\n'+message)
+        
     def handle_notification(self, notification):
-        global queue
-        queue.put(("core_event", (notification.name, notification.sender, notification.data.__dict__)))
+        handler = getattr(self, '_NH_%s' % notification.name, None)
+        if handler is not None:
+            handler(notification)
 
-
-def print_control_keys():
-    print "Available control keys:"
-    print "  t: toggle SIP trace on the console"
-    print "  j: toggle PJSIP trace on the console"
-    print "  Ctrl-d: quit the program"
-    print "  ?: display this help message"
-
-def read_queue(e, username, domain, password, display_name, route, expires, max_registers):
-    global user_quit, lock, queue, logger, return_code
-    lock.acquire()
-    printed = False
-    max_registers = max_registers or None
-    try:
-        credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
-        reg = Registration(credentials, route=route, expires=expires)
-        print 'Registering "%s" at %s:%s:%d' % (credentials.uri, route.transport, route.address, route.port)
-        reg.register()
-        while True:
-            command, data = queue.get()
-            if command == "print":
-                print data
-            if command == "core_event":
-                event_name, obj, args = data
-                if event_name == "SCRegistrationChangedState":
-                    if args["state"] == "registered":
-                        return_code = 0
-                        if not printed:
-                            print "REGISTER was successful"
-                            print "Contact: %s (expires in %d seconds)" % (args["contact_uri"], args["expires"])
-                            if len(args["contact_uri_list"]) > 1:
-                                print "Other registered contacts:\n%s" % "\n".join(["%s (expires in %d seconds)" % contact_tup for contact_tup in args["contact_uri_list"] if contact_tup[0] != args["contact_uri"]])
-                            print_control_keys()
-                            printed = True
-                        if max_registers is not None:
-                            max_registers -= 1
-                            if max_registers <= 0:
-                                command = "eof"
-                    elif args["state"] == "unregistered":
-                        if "code" in args and args["code"] / 100 != 2:
-                            print "Unregistered: %(code)d %(reason)s" % args
-                        user_quit = False
-                        command = "quit"
-                elif event_name == "SCInvitationChangedState":
-                    if args["state"] == "INCOMING":
-                        obj.disconnect()
-                elif event_name == "SCEngineGotException":
-                    print "An exception occured within the SIP core:"
-                    print args["traceback"]
-                elif event_name == "SCEngineDidFail":
-                    user_quit = False
-                    command = "quit"
-            if command == "user_input":
-                key = data
-                if key == 't':
-                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
-                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
-                elif data == 'j':
-                    logger.trace_pjsip.to_stdout = not logger.trace_pjsip.to_stdout
-                    print "PJSIP tracing to console is now %s" % ("activated" if logger.trace_pjsip.to_stdout else "deactivated")
-                elif key == '?':
-                    print_control_keys()
-            if command == "eof":
-                reg.unregister()
-            if command == "quit":
-                break
-    except:
-        user_quit = False
-        traceback.print_exc()
-    finally:
-        e.stop()
-        while not queue.empty():
-            command, data = queue.get()
-            if command == "print":
-                print data
-        logger.stop()
-        if not user_quit:
-            os.kill(os.getpid(), signal.SIGINT)
-        lock.release()
-
-def do_register(**kwargs):
-    global user_quit, lock, queue, logger
-    ctrl_d_pressed = False
-    outbound_proxy = kwargs.pop("outbound_proxy")
-    if outbound_proxy is None:
-        routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
-    else:
-        routes = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))
-    # Only try the first Route for now
-    try:
-        kwargs["route"] = routes[0]
-    except IndexError:
-        raise RuntimeError("No route found to SIP proxy")
-
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'), trace_pjsip=kwargs.pop('trace_pjsip'))
-    logger.start()
-    if logger.trace_sip.to_file:
-        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if logger.trace_pjsip.to_file:
-        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
-
-    e = Engine()
-    event_handler = EventHandler(e)
-    e.start(auto_sound=False, trace_sip=True, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
-    start_new_thread(read_queue, (e,), kwargs)
-    try:
-        while True:
-            char = getchar()
-            if char == "\x04":
-                if not ctrl_d_pressed:
-                    queue.put(("eof", None))
-                    ctrl_d_pressed = True
-            else:
-                queue.put(("user_input", char))
-    except KeyboardInterrupt:
-        if user_quit:
-            print "Ctrl+C pressed, exiting instantly!"
-            queue.put(("quit", True))
-        lock.acquire()
-        return
-
-def parse_outbound_proxy(option, opt_str, value, parser):
-    try:
-        parser.values.outbound_proxy = OutboundProxy(value)
-    except ValueError, e:
-        raise OptionValueError(e.message)
-
-def parse_trace_option(option, opt_str, value, parser, name):
-    try:
-        value = parser.rargs[0]
-    except IndexError:
-        value = LoggingOption('file')
-    else:
-        if value == '' or value[0] == '-':
-            value = LoggingOption('file')
+    def _NH_AMAccountWasAdded(self, notification):
+        account = notification.data.account
+        account_manager = AccountManager()
+        if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
+            self.account = account
+            account.registration.enabled = True
+            
+            notification_center = NotificationCenter()
+            notification_center.add_observer(self, sender=account)
         else:
-            try:
-                value = LoggingOption(value)
-            except ValueError:
-                value = LoggingOption('file')
-            else:
-                del parser.rargs[0]
-    setattr(parser.values, name, value)
+            account.enabled = False
 
-def parse_options():
-    retval = {}
-    description = "This script will register a SIP account to a SIP registrar and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
-    usage = "%prog [options]"
-    parser = OptionParser(usage=usage, description=description)
-    parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
-    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP login account")
-    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
-    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
-    parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in REGISTER. Default is 300 seconds.')
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_option, callback_args=('trace_sip',), help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('trace_pjsip',), help="Print PJSIP logging output (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("-r", "--max-registers", type="int", dest="max_registers", help="Max number of REGISTERs sent (default 1, set to 0 for infinite).")
-    options, args = parser.parse_args()
+    def _NH_AMAccountRegistrationDidSucceed(self, notification):
+        if not self.success:
+            route = notification.data.registration.route
+            message = 'Registration succeeded at %s:%d;transport=%s.\n' % (route.address, route.port, route.transport)
+            message += 'Contact: %s (expires in %d seconds).' % (notification.data.contact_uri, notification.data.expires)
+            contact_uri_list = notification.data.contact_uri_list
+            if len(contact_uri_list) > 1:
+                message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %d seconds)" % (other_contact[1:-1], expires) for other_contact, expires in contact_uri_list if other_contact[1:-1] != notification.data.contact_uri])
+            self.output.put(message)
+            
+            self.success = True
+        
+        if self.max_registers is not None:
+            self.max_registers -= 1
+            if self.max_registers == 0:
+                self.stop()
 
-    if options.account_name is None:
-        account_section = "Account"
-    else:
-        account_section = "Account_%s" % options.account_name
-    if account_section not in configuration.parser.sections():
-        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
-    configuration.read_settings(account_section, AccountConfig)
-    default_options = dict(expires=AccountConfig.sip_register_interval, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, max_registers=1)
-    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
+    def _NH_AMAccountRegistrationDidFail(self, notification):
+        route = notification.data.registration.route
+        if notification.data.next_route:
+            next_route = notification.data.next_route
+            next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+        else:
+            next_route = 'No more routes to try; waiting for %.2f seconds.' % (notification.data.delay)
+        if hasattr(notification.data, 'code'):
+            status = '%d %s' % (notification.data.code, notification.data.reason)
+        else:
+            status = notification.data.reason
+        self.output.put('Registration failed at %s:%d;transport=%s (%s). %s' % (route.address, route.port, route.transport, status, next_route))
+        
+        self.success = False
+        
+        if self.max_registers is not None:
+            self.max_registers -= 1
+            if self.max_registers == 0:
+                self.stop()
+                engine = Engine()
+                engine.stop()
+                if threadable.isInIOThread():
+                    reactor.stop()
+                else:
+                    reactor.callFromThread(reactor.stop)
 
-    for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
-        setattr(options, "local_%s_port" % transport, None)
-    if not all([options.sip_address, options.password]):
-        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    for attr in default_options:
-        retval[attr] = getattr(options, attr)
-    try:
-        retval["username"], retval["domain"] = options.sip_address.split("@")
-    except ValueError:
-        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
-    else:
-        del retval["sip_address"]
-    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
-    accounts.sort()
-    print "Accounts available: %s" % ', '.join(accounts)
-    if options.account_name is None:
-        print "Using default account: %s" % options.sip_address
-    else:
-        print "Using account '%s': %s" % (options.account_name, options.sip_address)
-    return retval
+    def _NH_AMAccountRegistrationDidEnd(self, notification):
+        if hasattr(notification.data, 'code'):
+            self.output.put('Registration ended: %d %s.' % (notification.data.code, notification.data.reason))
+        else:
+            self.output.put('Registration ended.')
+        
+        engine = Engine()
+        engine.stop()
+        if threadable.isInIOThread():
+            reactor.stop()
+        else:
+            reactor.callFromThread(reactor.stop)
 
-def main():
-    do_register(**parse_options())
+    def _NH_SAInputWasReceived(self, notification):
+        key = notification.data.input
+        if key == 't':
+            self.logger.sip_to_stdout = not self.logger.sip_to_stdout
+            self.output.put('SIP tracing to console is now %s.' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
+        elif key == 'j':
+            self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
+            self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
+        elif key == '?':
+            self.print_help()
+
+    def _NH_SCEngineDidFail(self, notification):
+        self.output.put('Engine failed.')
+        if threadable.isInIOThread():
+            reactor.stop()
+        else:
+            reactor.callFromThread(reactor.stop)
+
+    def _NH_SCEngineGotException(self, notification):
+        self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
+
 
 if __name__ == "__main__":
     try:
-        main()
+        description = "This script will register a SIP account to a SIP registrar and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
+        usage = "%prog [options]"
+        parser = OptionParser(usage=usage, description=description)
+        parser.print_usage = parser.print_help
+        parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file.")
+        parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+        parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
+        parser.add_option("-r", "--max-registers", type="int", dest="max_registers", default=1, help="Max number of REGISTERs sent (default 1, set to 0 for infinite).")
+        options, args = parser.parse_args()
+
+        application = RegistrationApplication(options.account_name, options.trace_sip, options.trace_pjsip, options.max_registers)
+        return_code = application.run()
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
     except SIPCoreError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
-    sys.exit(return_code)
+    else:
+        sys.exit(return_code)
 
