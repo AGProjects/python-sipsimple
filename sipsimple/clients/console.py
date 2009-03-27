@@ -113,13 +113,15 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
     receiving = 0
     current = api.getcurrent() #### XXX not good, add link_eof function
 
-    ps = ['']
-    ps_init = ['']
+    ps = ['', '']
+    pn = 1
 
-    def drawInputLine(self, line=None):
+    def drawInputLine(self, line=None, pn=None):
+        if pn is None:
+            pn = self.pn
         if line is None:
             line= ''.join(self.lineBuffer)
-        self.terminal.write(self.ps[self.pn] + line)
+        self.terminal.write(self.ps[pn] + line)
 
     def initializeScreen(self):
         self.terminal.write(self.ps[self.pn])
@@ -159,18 +161,14 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
 
                 self._deliverBuffer(oldBuffer)
 
-    def set_transient_prompt(self, ps, draw=False):
-        if draw:
+    def set_prompt(self, ps, index=0):
+        draw = self.receiving>0
+        if self.pn==index and draw:
             self.cursorToBOL()
-        self.ps[0] = ps
-        if draw:
+        self.ps[index] = ps
+        if self.pn==index and draw:
             self.terminal.eraseLine()
             self.drawInputLine()
-
-    def set_prompt(self, ps, draw=True):
-        self.ps_init[0] = ps
-        if not self.channel.lock.locked():
-            self.set_transient_prompt(ps, draw)
 
     def keystrokeReceived(self, keyID, modifier):
         self.last_keypress_time = time.time()
@@ -197,23 +195,27 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
 
     @contextmanager
     def temporary_prompt(self, new_ps):
-        self.terminal.eraseLine()
         self.cursorToBOL()
+        self.terminal.eraseLine()
         lineBuffer = self.lineBuffer[:]
         lineBufferIndex = self.lineBufferIndex
-        self.ps_init[0] = self.ps[0]
         self.lineBuffer = []
         self.lineBufferIndex = 0
+        old_pn = self.pn
+        old_ps = self.ps[self.pn]
+        if self.pn == 0:
+            self.pn = 1
         try:
-            self.set_transient_prompt(new_ps)
-            self.drawInputLine()
+            self.set_prompt(new_ps, index=1)
             yield
         finally:
             if self._needsNewline():
                 self.terminal.nextLine()
+            self.cursorToBOL()
+            self.pn = old_pn
+            self.ps[self.pn] = old_ps
             self.lineBuffer = lineBuffer
             self.lineBufferIndex = lineBufferIndex
-            self.set_transient_prompt(self.ps_init[0])
             self.drawInputLine()
 
     def barrier(self, seconds=1):
@@ -264,9 +266,16 @@ class GreenConsole(object):
             self.terminalProtocol.receiving -= 1
 
     def recv(self):
-        if self.terminalProtocol.receiving>=0:
-            self.set_prompt(self.terminalProtocol.ps_init[0], True)
-        return self._receive()
+        old_pn = self.terminalProtocol.pn
+        if self.terminalProtocol.pn == 1:
+            self.terminalProtocol.cursorToBOL()
+            self.terminalProtocol.pn = 0
+        try:
+            self.terminalProtocol.drawInputLine()
+            return self._receive()
+        finally:
+            self.terminalProtocol.cursorToBOL()
+            self.terminalProtocol.pn = old_pn
 
     @contextmanager
     def temporary_prompt(self, prompt):
@@ -280,25 +289,28 @@ class GreenConsole(object):
     def recv_char(self, allowed=[], barrier=1):
         if self.terminalProtocol is None:
             raise ConnectionDone
-        self.terminalProtocol.clearInputLine()
-        self.terminalProtocol.recv_char = True
-        # because it's like a modal dialog box that steals focus, wait for at least 1 second
-        # since the last keypress to avoid accidental input
-        self.terminalProtocol.barrier(barrier)
         try:
-            while True:
-                type, value = self._receive()
-                if type == 'key':
-                    key = value[0]
-                    if allowed is None or key in allowed:
-                        self.terminalProtocol.lineBuffer.append(str(key))
-                        self.terminalProtocol.terminal.write(str(key))
+            self.terminalProtocol.clearInputLine()
+            self.terminalProtocol.recv_char = True
+            # because it's like a modal dialog box that steals focus, wait for at least 1 second
+            # since the last keypress to avoid accidental input
+            self.terminalProtocol.barrier(barrier)
+            try:
+                while True:
+                    type, value = self._receive()
+                    if type == 'key':
+                        key = value[0]
+                        if allowed is None or key in allowed:
+                            self.terminalProtocol.lineBuffer.append(str(key))
+                            self.terminalProtocol.terminal.write(str(key))
+                            return type, value
+                    else:
                         return type, value
-                else:
-                    return type, value
+            finally:
+                if self.terminalProtocol is not None:
+                    self.terminalProtocol.recv_char = False
         finally:
-            if self.terminalProtocol is not None:
-                self.terminalProtocol.recv_char = False
+            pass
 
     def ask_question(self, question, allowed, help=None, help_keys='hH?', barrier=1):
         with self.channel.locked_output():
@@ -333,11 +345,9 @@ class GreenConsole(object):
         "not a real tell, but useful for some purposes (trafficlog module)"
         return self.writecount
 
-    def set_prompt(self, ps, draw=True):
+    def set_prompt(self, ps, index=0):
         if self.terminalProtocol:
-            #if draw is None:
-            #    draw = self.terminalProtocol.receiving>0
-            self.terminalProtocol.set_prompt(ps, draw)
+            self.terminalProtocol.set_prompt(ps, index=index)
 
     set_ps = set_prompt
 
@@ -351,10 +361,9 @@ class GreenConsole(object):
             raise StopIteration
 
     def copy_input_line(self, line=None):
-        self.terminalProtocol.ps[0] = self.terminalProtocol.ps_init[0]
         self.terminalProtocol.cursorToBOL()
         self.terminal.eraseLine()
-        self.terminalProtocol.drawInputLine(line)
+        self.terminalProtocol.drawInputLine(line, pn=0)
         self.terminal.nextLine()
 
     def clear_input_line(self):
@@ -367,7 +376,6 @@ class GreenConsole(object):
         self.terminalProtocol.receiving += 1
         self.terminalProtocol.cursorToBOL()
         self.terminal.eraseLine()
-        self.terminalProtocol.ps[0] = self.terminalProtocol.ps_init[0]
         self.terminalProtocol.drawInputLine()
 
 
