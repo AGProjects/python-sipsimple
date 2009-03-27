@@ -45,6 +45,7 @@ from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.trafficlog import Logger
+from sipsimple.core import WaveFile
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
 from sipsimple.green import callFromAnyThread, spawn_from_thread
@@ -121,8 +122,16 @@ class MSRPChat(object):
         self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
         self.message_queue = deque() # messages stored here until the connection established
-        # TODO: sounds
+
         # TODO: history
+        if settings.chat.message_received_sound:
+            self.message_received_sound = WaveFile(settings.chat.message_received_sound)
+        else:
+            self.message_received_sound = None
+        if settings.chat.message_sent_sound:
+            self.message_sent_sound = WaveFile(settings.chat.message_sent_sound)
+        else:
+            self.message_sent_sound = None
 
     @property
     def is_active(self):
@@ -257,6 +266,8 @@ class MSRPChat(object):
             # TODO: check wrapped content-type and issue a report if it's invalid
             ndata = NotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
+            if self.message_received_sound is not None and not self.message_received_sound.is_active:
+                self.message_received_sound.start(loop_count=1)
 
     def _on_transaction_response(self, message_id, response):
         if response.code!=200:
@@ -280,6 +291,8 @@ class MSRPChat(object):
             chunk.add_header(FailureReportHeader(failure_report))
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
+        if self.message_sent_sound is not None and not self.message_sent_sound.is_active:
+            self.message_sent_sound.start(loop_count=1)
         callFromAnyThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return chunk
 
