@@ -10,29 +10,33 @@ from sipsimple.util import makedirs
 class Logger(object):
     implements(IObserver)
     
-    def __init__(self, sip_to_file=False, sip_to_stdout=False, pjsip_to_file=False, pjsip_to_stdout=False):
-        makedirs(SIPSimpleSettings().logging.directory.normalized)
-        self.log_directory = SIPSimpleSettings().logging.directory.normalized
-
-        # sip trace
-        self.sip_to_file = sip_to_file
+    def __init__(self, sip_to_stdout=False, pjsip_to_stdout=False):
         self.sip_to_stdout = sip_to_stdout
-        self._siptrace_filename = os.path.join(self.log_directory, 'sip_trace.txt')
+        self.pjsip_to_stdout = pjsip_to_stdout
+
+        self._siptrace_filename = None
         self._siptrace_file = None
         self._siptrace_start_time = None
         self._siptrace_packet_count = 0
-
-        # pjsip trace
-        self.pjsip_to_file = pjsip_to_file
-        self.pjsip_to_stdout = pjsip_to_stdout
-        self._pjsiptrace_filename = os.path.join(self.log_directory, 'pjsip_trace.txt')
+        
+        self._pjsiptrace_filename = None
         self._pjsiptrace_file = None
-
+        
     def start(self):
         # register to receive log notifications
         notification_center = Engine().notification_center
         notification_center.add_observer(self, name='SCEngineSIPTrace')
         notification_center.add_observer(self, name='SCEngineLog')
+
+        settings = SIPSimpleSettings()
+        log_directory = settings.logging.directory.normalized
+        makedirs(log_directory)
+
+        # sip trace
+        self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
+
+        # pjsip trace
+        self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
 
     def stop(self):
         # sip trace
@@ -57,7 +61,8 @@ class Logger(object):
 
     # log handlers
     def _LH_SCEngineSIPTrace(self, event_name, event_data):
-        if not self.sip_to_stdout and not self.sip_to_file:
+        settings = SIPSimpleSettings()
+        if not self.sip_to_stdout and not settings.logging.trace_sip:
             return
         if self._siptrace_start_time is None:
             self._siptrace_start_time = event_data.timestamp
@@ -73,7 +78,7 @@ class Logger(object):
         message = "\n".join(buf)
         if self.sip_to_stdout:
             print message
-        if self.sip_to_file:
+        if settings.logging.trace_sip:
             if self._siptrace_file is None:
                 try:
                     self._siptrace_file = open(self._siptrace_filename, 'a')
@@ -84,12 +89,13 @@ class Logger(object):
             self._siptrace_file.flush()
     
     def _LH_SCEngineLog(self, event_name, event_data):
-        if not self.pjsip_to_stdout and not self.pjsip_to_file:
+        settings = SIPSimpleSettings()
+        if not self.pjsip_to_stdout and not settings.logging.trace_pjsip:
             return
         message = "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % event_data.__dict__
         if self.pjsip_to_stdout:
             print message
-        if self.pjsip_to_file:
+        if settings.logging.trace_pjsip:
             if self._pjsiptrace_file is None:
                 try:
                     self._pjsiptrace_file = open(self._pjsiptrace_filename, 'a')
