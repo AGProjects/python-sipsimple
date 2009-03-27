@@ -130,6 +130,8 @@ class ChatSession(GreenSession, NotificationHandler):
                 self.remote_party = format_uri(self._inv.remote_uri)
         NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
         NotificationCenter().add_observer(self, 'SCSessionGotStreamUpdate', sender=self._obj)
+        NotificationCenter().add_observer(self, 'SCSessionGotHoldRequest', sender=self._obj)
+        NotificationCenter().add_observer(self, 'SCSessionGotUnholdRequest', sender=self._obj)
 
     def _NH_SCSessionDidStart(self, session, _data):
         if self.history_file is None:
@@ -147,6 +149,18 @@ class ChatSession(GreenSession, NotificationHandler):
 
     def _NH_SCSessionGotStreamUpdate(self, session, data):
         self.update_info(chat='chat' in data.streams, audio='audio' in data.streams)
+
+    def _NH_SCSessionGotHoldRequest(self, session, data):
+        if data.originator == 'local':
+            print "Call is put on hold"
+        else:
+            print "Remote party has put the call on hold"
+
+    def _NH_SCSessionGotUnholdRequest(self, session, data):
+        if data.originator == "local":
+            print "Call is taken out of hold"
+        else:
+            print "Remote party has taken the call out of hold"
 
     def end(self):
         GreenSession.end(self)
