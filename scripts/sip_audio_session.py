@@ -231,17 +231,13 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                     print "Set echo cancellation tail length to %d ms" % e.ec_tail_length
                 elif data == 't':
                     logger.sip_to_stdout = not logger.sip_to_stdout
-                    if logger.sip_to_stdout:
-                        e.trace_sip = True
-                    else:
-                        e.trace_sip = logger.sip_to_file
+                    settings = SIPSimpleSettings()
+                    e.trace_sip = logger.sip_to_stdout or settings.logging.trace_sip
                     print "SIP tracing to console is now %s" % ("activated" if logger.sip_to_stdout else "deactivated")
                 elif data == 'j':
                     logger.pjsip_to_stdout = not logger.pjsip_to_stdout
-                    if logger.pjsip_to_stdout:
-                        e.log_level = settings.logging.pjsip_level
-                    else:
-                        e.log_level = settings.logging.pjsip_level if logger.pjsip_to_file else 0
+                    settings = SIPSimpleSettings()
+                    e.log_level = settings.logging.pjsip_level if (logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
                     print "PJSIP tracing to console is now %s" % ("activated" if logger.pjsip_to_stdout else "deactivated")
                 elif data == '?':
                     print_control_keys()
@@ -275,7 +271,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
-def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout, auto_answer, auto_hangup):
+def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, auto_answer, auto_hangup):
     global user_quit, lock, queue
 
     # acquire settings
@@ -307,17 +303,11 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     print "Using account %s" % account.id
 
     # set up logger
-    if trace_sip is None:
-        trace_sip = settings.logging.trace_sip
-        trace_sip_stdout = False
-    if trace_pjsip is None:
-        trace_pjsip = settings.logging.trace_pjsip
-        trace_pjsip_stdout = False
-    logger = Logger(trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout)
+    logger = Logger(trace_sip, trace_pjsip)
     logger.start()
-    if logger.sip_to_file:
+    if settings.logging.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if logger.pjsip_to_file:
+    if settings.logging.trace_pjsip:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
     # set up default ringtones
@@ -331,8 +321,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     e = Engine()
     handler = EventHandler(e)
     e.start_cfg(enable_sound=not disable_sound,
-                log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
-                trace_sip=trace_sip or trace_sip_stdout)
+                log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or trace_pjsip) else 0,
+                trace_sip=settings.logging.trace_sip or trace_sip)
     e.codecs = list(account.audio.codec_list)
 
     # start the session manager (for incoming calls)
@@ -408,17 +398,6 @@ def parse_handle_call_option(option, opt_str, value, parser, name):
                 del parser.rargs[0]
     setattr(parser.values, name, value)
 
-def parse_trace_option(option, opt_str, value, parser, name):
-    trace_file = False
-    trace_stdout = False
-    if value.lower() not in ["none", "file", "stdout", "all"]:
-        raise OptionValueError("Invalid trace option: %s" % value)
-    value = value.lower()
-    trace_file = value not in ["none", "stdout"]
-    trace_stdout = value in ["stdout", "all"]
-    setattr(parser.values, "trace_%s" % name, trace_file)
-    setattr(parser.values, "trace_%s_stdout" % name, trace_stdout)
-
 def parse_options():
     retval = {}
     description = "This script can sit idle waiting for an incoming audio call, or perform an outgoing audio call to the target SIP account. The program will close the session and quit when Ctrl+D is pressed."
@@ -427,10 +406,8 @@ def parse_options():
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account", type="string", dest="account_id", help="The account name to use for any outgoing traffic. If not supplied, the default account will be used.", metavar="NAME")
     parser.add_option("-c", "--config_file", type="string", dest="config_file", help="The path to a configuration file to use. This overrides the default location of the configuration file.", metavar="[FILE]")
-    parser.set_default("trace_sip_stdout", None)
-    parser.add_option("-s", "--trace-sip", type="string", action="callback", callback=parse_trace_option, callback_args=('sip',), help="Dump the raw contents of incoming and outgoing SIP messages. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.set_default("trace_pjsip_stdout", None)
-    parser.add_option("-j", "--trace-pjsip", type="string", action="callback", callback=parse_trace_option, callback_args=('pjsip',), help="Print PJSIP logging output. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages.")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output.")
     parser.set_default("disable_sound", False)
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Disables initializing the sound card.")
     parser.set_default("auto_answer", None)
