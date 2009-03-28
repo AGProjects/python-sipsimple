@@ -72,7 +72,7 @@ class DNSLookup(object):
     
     @run_in_twisted
     def lookup_sip_proxy(self, uri, supported_transports):
-        """This function preforms RFC 3263 compliant lookup of transport/ip/port
+        """This function performs RFC 3263 compliant lookup of transport/ip/port
         combinations for a particular SIP URI. As arguments it takes a SIPURI object
         and a list of supported transports, in order of preference of the application.
         It returns a list of Route objects that can be used in order of preference."""

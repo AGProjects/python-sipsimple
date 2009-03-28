@@ -563,7 +563,7 @@ def readloop(console, manager, commands, shortcuts):
             echo()
 
 
-description = "This script will either sit idle waiting for an incoming MSRP session, or start a MSRP session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed."
+description = "This script will either sit idle waiting for an incoming session, or start a new session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed. This scripts supports RTP audio and MSRP chat sessions."
 usage = "%prog [options] [target-user@target-domain.com]"
 
 def get_account(key):
