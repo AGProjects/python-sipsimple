@@ -391,7 +391,7 @@ class SettingsObject(SettingsState):
         except AttributeError:
             instance = SettingsState.__new__(cls)
             try:
-                configuration.set(self.__section__, id, instance)
+                configuration.set(instance.__section__, id, instance)
                 configuration.save()
             except Exception, e:
                 notification_center = NotificationCenter()
