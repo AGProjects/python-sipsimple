@@ -1,5 +1,4 @@
 import re
-import sys
 
 # replace standard select and socket modules with versions from eventlet
 from eventlet.green import select
