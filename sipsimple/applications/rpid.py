@@ -152,7 +152,7 @@ class Activities(XMLListElement, PersonExtension):
         if value in self.values:
             self._insert_element(etree.Element('{%s}%s' % (self._xml_namespace, value)))
         else:
-            element = tree.Element('{%s}other' % (self._xml_namespace,))
+            element = etree.Element('{%s}other' % (self._xml_namespace,))
             element.text = value
             self._insert_element(element)
         return value
@@ -241,7 +241,7 @@ class Mood(XMLListElement, PersonExtension):
         if value in self.values:
             self._insert_element(etree.Element('{%s}%s' % (self._xml_namespace, value)))
         else:
-            element = tree.Element('{%s}other' % (self._xml_namespace,))
+            element = etree.Element('{%s}other' % (self._xml_namespace,))
             element.text = value
             self._insert_element(element)
         return value
