@@ -4,7 +4,6 @@ Definitions of datatypes for use in configuration settings.
 
 import os
 import re
-import stat
 import sys
 import urlparse
 
