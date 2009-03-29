@@ -1,5 +1,4 @@
 from sipsimple.applications.test import XMLApplicationTest
-from sipsimple.applications.watcherinfo import NeedFullUpdateError, Watcher, WatcherList, WatcherInfo
 
 
 class WatcherInfoTest(XMLApplicationTest):
