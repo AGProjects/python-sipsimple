@@ -44,7 +44,7 @@ Example usage:
 
 """
 
-from sipsimple.applications import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLRootElement, XMLAttribute, XMLElementChild
+from sipsimple.applications import XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementChild
 from sipsimple.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyApplication, ActionElement, TransformationElement, RuleSet
 
 __all__ = ['_cp_namespace_',
