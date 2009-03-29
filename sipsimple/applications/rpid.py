@@ -4,8 +4,6 @@ This module provides an extension to PIDF (module sipsimple.applications.pidf) t
 support rich presence.
 """
 
-import datetime
-
 from lxml import etree
 
 from sipsimple.applications import util
