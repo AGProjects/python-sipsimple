@@ -177,7 +177,7 @@ class RegistrationLogger(StateLoggerBase):
         pass
 
     def log_state_unregistered(self, notification_data):
-        if notification_data.code!=200:
+        if not hasattr(notification_data, 'code') or notification_data.code!=200:
             self.registered_count = 0
             return self.log_state_default(notification_data)
 
