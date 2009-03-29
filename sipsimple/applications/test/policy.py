@@ -1,5 +1,4 @@
 from sipsimple.applications.test import XMLApplicationTest
-from sipsimple.applications.policy import *
 
 
 class CommonPolicyTest(XMLApplicationTest):
