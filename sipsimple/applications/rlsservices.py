@@ -52,7 +52,7 @@ presence
 
 """
 
-from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
+from sipsimple.applications import ValidationError, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
 from sipsimple.applications.resourcelists import _namespace_ as _rl_namespace_, List, ResourceListsApplication
 
 __all__ = ['_rl_namespace_',
