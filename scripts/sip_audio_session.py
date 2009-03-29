@@ -90,7 +90,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
         if target_uri is not None:
             sess = Session(account)
             sess.connect(target_uri, routes, audio=True)
-            print "Call from %s to %s through proxy %s:%s:%d" % (sess.caller_uri, sess.callee_uri, routes[0].transport, routes[0].address, routes[0].port)
+            print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.caller_uri, sess.callee_uri, routes[0].transport, routes[0].address, routes[0].port)
         print_control_keys()
         while True:
             command, data = queue.get()

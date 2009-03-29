@@ -203,9 +203,9 @@ class InvitationLogger(StateLoggerBase):
         return 'to %s' % self.obj.remote_uri
 
     def _format_fromtoproxy(self):
-        result = 'from %s to %s' % (self.obj.local_uri, self.obj.remote_uri)
+        result = 'from %s to %s' % (self.obj.caller_uri, self.obj.remote_uri)
         if self.obj.route:
-            result += " through proxy %s:%d" % (self.obj.route.address, self.obj.route.port)
+            result += " via %s:%s:%d" % (self.obj.route.transport, self.obj.route.address, self.obj.route.port)
         return result
 
     def _get_verb(self, state, prev_state):
@@ -233,7 +233,7 @@ class InvitationLogger(StateLoggerBase):
             self.__last_calling_message
         except AttributeError:
             self.__last_calling_message = None
-        msg = 'Initiating %s %s...' % (self.session_name, self._format_fromtoproxy())
+        msg = 'Initiating %s %s ...' % (self.session_name, self._format_fromtoproxy())
         if msg != self.__last_calling_message: # filter out successive Calling messages
             self.write(msg)
             self.__last_calling_message = msg
