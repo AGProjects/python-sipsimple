@@ -1,500 +1,440 @@
 #!/usr/bin/env python
 
-import sys
-import traceback
-import string
-import random
-import socket
-import os
-import atexit
-import select
-import termios
-import signal
-import re
-import subprocess
 import datetime
-from thread import start_new_thread, allocate_lock
-from threading import Thread, Event
-from Queue import Queue
-from optparse import OptionParser, OptionValueError
-from time import sleep
+import os
+import random
+import re
+import select
+import subprocess
+import sys
+import termios
+import traceback
+
+from application import log
+from application.notification import IObserver, NotificationCenter, NotificationData
+from application.python.queue import EventQueue
 from collections import deque
+from optparse import OptionParser
+from threading import Thread
+from time import time
+from twisted.python import threadable
 from zope.interface import implements
-from application.process import process
-from application.configuration import *
-from application.notification import IObserver
-from sipsimple import *
-from sipsimple.clients import enrollment
+
+from twisted.internet import reactor
+from eventlet.twistedutil import join_reactor
+
+from sipsimple import Engine, Publication, SIPCoreError, SIPURI
+from sipsimple.account import AccountManager
 from sipsimple.clients.log import Logger
+from sipsimple.lookup import DNSLookup
+from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.settings import SIPSimpleSettings
 
 from sipsimple.applications import BuilderError
-from sipsimple.applications.presdm import *
-from sipsimple.applications.rpid import *
-
-from sipsimple.clients.clientconfig import get_path
-from sipsimple.clients.dns_lookup import *
-from sipsimple.clients import *
-
-class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": LoggingOption, "trace_sip": LoggingOption}
-    local_ip = None
-    sip_local_udp_port = 0
-    sip_local_tcp_port = 0
-    sip_local_tls_port = 0
-    sip_transports = ["tls", "tcp", "udp"]
-    trace_pjsip = LoggingOption('none')
-    trace_sip = LoggingOption('none')
-    log_directory = '~/.sipclient/log'
+from sipsimple.applications.presdm import Contact, Device, DeviceNote, DeviceTimestamp, Person, PersonNote, PersonTimestamp, PIDF, Service, ServiceTimestamp, Status
+from sipsimple.applications.rpid import Activities, Mood, PlaceIs, Privacy, StatusIcon, TimeOffset, UserInput
 
 
-class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "use_presence_agent": datatypes.Boolean, "sip_publish_interval": int}
-    sip_address = None
-    password = None
-    display_name = None
-    outbound_proxy = None
-    use_presence_agent = True
-    sip_publish_interval = 600
+class InputThread(Thread):
+    def __init__(self, application):
+        Thread.__init__(self)
+        self.application = application
+        self.daemon = True
+        self._old_terminal_settings = None
+
+    def run(self):
+        notification_center = NotificationCenter()
+        while True:
+            for char in self._getchars():
+                if char == "\x04":
+                    self.application.stop()
+                    return
+                else:
+                    notification_center.post_notification('SAInputWasReceived', sender=self, data=NotificationData(input=char))
+
+    def stop(self):
+        self._termios_restore()
+
+    def _termios_restore(self):
+        if self._old_terminal_settings is not None:
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._old_terminal_settings)
+
+    def _getchars(self):
+        fd = sys.stdin.fileno()
+        if os.isatty(fd):
+            self._old_terminal_settings = termios.tcgetattr(fd)
+            new = termios.tcgetattr(fd)
+            new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
+            new[6][termios.VMIN] = '\000'
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, new)
+                if select.select([fd], [], [], None)[0]:
+                    return sys.stdin.read(4192)
+            finally:
+                self._termios_restore()
+        else:
+            return os.read(fd, 4192)
 
 
-process._system_config_directory = os.path.expanduser("~/.sipclient")
-enrollment.verify_account_config()
-configuration = ConfigFile("config.ini")
-configuration.read_settings("General", GeneralConfig)
+class AutoPublicationApplication(object):
+    implements(IObserver)
 
+    def __init__(self, account_name, interval, trace_sip, trace_pjsip):
+        self.account_name = account_name
+        self.interval = interval
+        self.input = InputThread(self)
+        self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
+        self.logger = Logger(trace_sip, trace_pjsip)
+        self.success = False
+        self.account = None
+        self.publication = None
+        self.pidf = None
+        self.main_service = None
+        self.email_service = None
+        self.person = None
+        self.device = None
+        self.stopping = False
 
-queue = Queue()
-getstr_event = Event()
-old = None
-user_quit = True
-want_quit = False
-lock = allocate_lock()
-pub = None
-sip_uri = None
-string = None
-logger = None
-return_code = 1
+        self._publication_routes = None
+        self._publication_timeout = 0.0
+        self._publication_wait = 0.5
+        self._republish = False
 
-pidf = None
-user_agent = None
+        account_manager = AccountManager()
+        engine = Engine()
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=account_manager)
+        notification_center.add_observer(self, sender=engine)
+        notification_center.add_observer(self, sender=self.input)
 
-def publish_pidf():
-    try:
-        pub.publish("application", "pidf+xml", pidf.toxml())
-    except BuilderError, e:
-        print "PIDF as currently defined is invalid: %s" % str(e)
-    except:
-        traceback.print_exc()
+        log.level.current = log.level.WARNING
 
-def random_note():
-    try:
-        fortune = subprocess.Popen('fortune', stdout=subprocess.PIPE)
-        fortune.wait()
-        return ' '.join(s for s in re.split(r'\n|\t', fortune.stdout.read()) if s != '')
-    except:
-        return 'Fortune is not installed'
-
-def auto_publish(interval):
-    # initialize top level elements
-    tuple = Service(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic='open'))
-    tuple.contact = Contact("sip:%s@%s" % (sip_uri.user, sip_uri.host))
-    tuple.contact.priority = 0
-    tuple.relationship = 'self'
-    tuple.timestamp = ServiceTimestamp()
-    pidf.append(tuple)
-
-    # add email service
-    email_tuple = Service(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic='open'))
-    email_tuple.contact = Contact("mailto:%s@%s" % (sip_uri.user, sip_uri.host))
-    email_tuple.contact.priority = 0.5
-    email_tuple.relationship = 'self'
-    email_tuple.timestamp = ServiceTimestamp()
-    pidf.append(email_tuple)
-
-    person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
-    person.privacy = Privacy()
-    person.time_offset = TimeOffset()
-    person.timestamp = PersonTimestamp()
-    pidf.append(person)
-
-    device = Device(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
-    device.notes.add(DeviceNote('Powered by %s' % user_agent, lang='en'))
-    device.timestamp = DeviceTimestamp()
-    device.user_input = UserInput()
-    pidf.append(device)
+    def run(self):
+        account_manager = AccountManager()
+        configuration = ConfigurationManager()
+        engine = Engine()
+        notification_center = NotificationCenter()
         
-    while True:
+        # start output thread
+        self.output.start()
+    
+        # startup configuration
+        configuration.start()
+        account_manager.start()
+        if self.account is None:
+            raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
+        elif not self.account.enabled:
+            raise RuntimeError("account %s is not enabled" % self.account.id)
+        self.output.put('Using account %s' % self.account.id)
+        settings = SIPSimpleSettings()
+
+        # start logging
+        self.logger.start()
+
+        # start the engine
+        engine.start(
+            auto_sound=False,
+            local_ip=settings.local_ip.normalized,
+            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
+            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
+            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
+            tls_protocol=settings.tls.protocol,
+            tls_verify_server=settings.tls.verify_server,
+            tls_ca_file=settings.tls.ca_list_file.normalized if settings.tls.ca_list_file is not None else None,
+            tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
+            tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
+            tls_timeout=settings.tls.timeout,
+            ec_tail_length=settings.audio.echo_delay,
+            user_agent=settings.user_agent,
+            sample_rate=settings.audio.sample_rate,
+            playback_dtmf=settings.audio.playback_dtmf,
+            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
+            trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
+            log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
+        )
+        
+        # initialize pidf
+        self.pidf = PIDF(entity=self.account.id) # entity will be determined when account is selected
+
+        # initialize top level elements
+        self.main_service = Service(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic='open'))
+        self.main_service.contact = Contact("sip:%s" % self.account.id)
+        self.main_service.contact.priority = 0
+        self.main_service.relationship = 'self'
+        self.main_service.timestamp = ServiceTimestamp()
+        self.pidf.append(self.main_service)
+
+        # add email service
+        self.email_service = Service(''.join(chr(random.randint(97, 122)) for i in xrange(8)), status=Status(basic='open'))
+        self.email_service.contact = Contact("mailto:%s" % self.account.id)
+        self.email_service.contact.priority = 0.5
+        self.email_service.relationship = 'self'
+        self.email_service.timestamp = ServiceTimestamp()
+        self.pidf.append(self.email_service)
+
+        self.person = Person(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
+        self.person.privacy = Privacy()
+        self.person.time_offset = TimeOffset()
+        self.person.timestamp = PersonTimestamp()
+        self.pidf.append(self.person)
+
+        self.device = Device(''.join(chr(random.randint(97, 122)) for i in xrange(8)))
+        self.device.notes.add(DeviceNote('Powered by %s' % engine.user_agent, lang='en'))
+        self.device.timestamp = DeviceTimestamp()
+        self.device.user_input = UserInput()
+        self.pidf.append(self.device)
+
+        # start getting input
+        self.input.start()
+
+        reactor.callLater(0, self._publish)
+
+        # start twisted
+        try:
+            reactor.run()
+        finally:
+            self.input.stop()
+        
+        # stop the output
+        self.output.stop()
+        self.output.join()
+        
+        self.logger.stop()
+
+        return 0 if self.success else 1
+
+    def stop(self):
+        self.stopping = True
+        account_manager = AccountManager()
+        account_manager.stop()
+        if self.publication.state in ('published', 'publishing'):
+            self.publication.unpublish()
+        else:
+            if threadable.isInIOThread():
+                reactor.stop()
+            else:
+                reactor.callFromThread(reactor.stop)
+
+    def print_help(self):
+        message  = 'Available control keys:\n'
+        message += '  t: toggle SIP trace on the console\n'
+        message += '  j: toggle PJSIP trace on the console\n'
+        message += '  Ctrl-d: quit the program\n'
+        message += '  ?: display this help message\n'
+        self.output.put('\n'+message)
+        
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, None)
+        if handler is not None:
+            handler(notification)
+
+    def _NH_AMAccountWasAdded(self, notification):
+        account = notification.data.account
+        account_manager = AccountManager()
+        if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
+            self.account = account
+            account.registration.enabled = False
+        else:
+            account.enabled = False
+
+    def _NH_SCPublicationChangedState(self, notification):
+        route = notification.sender.route
+        if notification.data.state == 'published':
+            self._publication_routes = None
+            self._publication_wait = 0.5
+            self.success = True
+            self.output.put('PUBLISH was successful at %s:%d;transport=%s' % (route.address, route.port, route.transport))
+            if self._republish:
+                self._republish = False
+                reactor.callFromThread(reactor.callLater, self.interval, reactor.callInThread, self._auto_publish)
+        elif notification.data.state == 'unpublished':
+            self.publication = None
+            self.success = False
+            self.output.put('Unpublished from %s:%d;transport=%s: %d %s' % (route.address, route.port, route.transport, notification.data.code, notification.data.reason))
+            if self.stopping or notification.data.code in (401, 403, 407):
+                if notification.data.code / 100 == 2:
+                    self.success = True
+                self.stop()
+            else:
+                if not self._publication_routes or time() > self._publication_timeout:
+                    self._publication_wait = min(self._publication_wait*2, 30)
+                    timeout = random.uniform(self._publication_wait, 2*self._publication_wait)
+                    reactor.callFromThread(reactor.callLater, timeout, self._publish)
+                else:
+                    self.publication = Publication(self.account.credentials, "presence", route=self._publication_routes.popleft(), expires=self.account.presence.publish_interval)
+                    notification_center = NotificationCenter()
+                    notification_center.add_observer(self, sender=self.publication)
+                    reactor.callInThread(self._auto_publish)
+
+    def _NH_DNSLookupDidSucceed(self, notification):
+        # create publication and register to get notifications from it
+        self._publication_routes = deque(notification.data.result)
+        self.publication = Publication(self.account.credentials, "presence", route=self._publication_routes.popleft(), expires=self.account.presence.publish_interval)
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=self.publication)
+        reactor.callInThread(self._auto_publish)
+
+    def _NH_DNSLookupDidFail(self, notification):
+        self.output.put('DNS lookup failed: %s' % notification.data.error)
+        timeout = random.uniform(1.0, 2.0)
+        reactor.callLater(timeout, self._publish)
+
+    def _NH_SAInputWasReceived(self, notification):
+        engine = Engine()
+        settings = SIPSimpleSettings()
+        key = notification.data.input
+        if key == 't':
+            self.logger.sip_to_stdout = not self.logger.sip_to_stdout
+            engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+            self.output.put('SIP tracing to console is now %s.' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
+        elif key == 'j':
+            self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
+            engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+            self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
+        elif key == '?':
+            self.print_help()
+
+    def _NH_SCEngineDidFail(self, notification):
+        self.output.put('Engine failed.')
+        if threadable.isInIOThread():
+            reactor.stop()
+        else:
+            reactor.callFromThread(reactor.stop)
+
+    def _NH_SCEngineGotException(self, notification):
+        self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
+    
+    def _publish(self):
+        settings = SIPSimpleSettings()
+        
+        self._publication_timeout = time()+30
+
+        lookup = DNSLookup()
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=lookup)
+        if self.account.outbound_proxy is not None:
+            uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
+        else:
+            uri = SIPURI(host=self.account.id.domain)
+        lookup.lookup_sip_proxy(uri, settings.sip.transports)
+
+    def _random_note(self):
+        try:
+            fortune = subprocess.Popen('fortune', stdout=subprocess.PIPE)
+            fortune.wait()
+            return ' '.join(s for s in re.split(r'\n|\t', fortune.stdout.read()) if s != '')
+        except:
+            return 'Fortune is not installed'
+
+    def _auto_publish(self):
         # 50% chance that basic status will change
         if random.randint(0, 1) == 1:
-            if tuple.status.basic == 'open':
-                tuple.status.basic = 'closed'
+            if self.main_service.status.basic == 'open':
+                self.main_service.status.basic = 'closed'
             else:
-                tuple.status.basic = 'open'
-            tuple.timestamp = ServiceTimestamp()
+                self.main_service.status.basic = 'open'
+            self.main_service.timestamp = ServiceTimestamp()
         
         # set sphere (9-18 at work (except on weekends), else at home)
         now = datetime.datetime.now()
         if (now.hour >= 9 and now.hour < 18) and now.isoweekday() not in (6, 7):
-            person.sphere = 'work'
-            person.sphere.since = datetime.datetime(now.year, now.month, now.day, 9, 0)
-            person.sphere.until = datetime.datetime(now.year, now.month, now.day, 18, 0)
+            self.person.sphere = 'work'
+            self.person.sphere.since = datetime.datetime(now.year, now.month, now.day, 9, 0)
+            self.person.sphere.until = datetime.datetime(now.year, now.month, now.day, 18, 0)
         else:
-            person.sphere = 'home'
+            self.person.sphere = 'home'
 
         # set privacy
-        person.privacy.audio = random.choice((True, False))
-        person.privacy.text = random.choice((True, False))
-        person.privacy.video = random.choice((True, False))
+        self.person.privacy.audio = random.choice((True, False))
+        self.person.privacy.text = random.choice((True, False))
+        self.person.privacy.video = random.choice((True, False))
 
         # set status icon
-        person.status_icon = StatusIcon("http://sipsimpleclient.com/chrome/site/StatusIcons/%s.png" % random.choice(('available', 'busy')))
+        self.person.status_icon = StatusIcon("http://sipsimpleclient.com/chrome/site/StatusIcons/%s.png" % random.choice(('available', 'busy')))
 
         # change person note
-        if len(person.notes) > 0:
-            del person.notes['en']
-        person.notes.add(PersonNote(random_note(), lang='en'))
+        if len(self.person.notes) > 0:
+            del self.person.notes['en']
+        self.person.notes.add(PersonNote(self._random_note(), lang='en'))
         
         # change person activity
-        if person.activities is None:
-            person.activities = Activities()
+        if self.person.activities is None:
+            self.person.activities = Activities()
         else:
-            person.activities.clear()
+            self.person.activities.clear()
         values = list(value for value in Activities.values if value != 'unknown')
         for i in xrange(random.randrange(1, 3)):
             value = random.choice(values)
             values.remove(value)
-            person.activities.append(value)
+            self.person.activities.append(value)
 
         # change person mood
-        if person.mood is None:
-            person.mood = Mood()
+        if self.person.mood is None:
+            self.person.mood = Mood()
         else:
-            person.mood.clear()
+            self.person.mood.clear()
         values = list(value for value in Mood.values if value != 'unknown')
         for i in xrange(random.randrange(1, 3)):
             value = random.choice(values)
             values.remove(value)
-            person.mood.append(value)
+            self.person.mood.append(value)
 
         # change place is
-        if person.place_is is None:
-            person.place_is = PlaceIs()
+        if self.person.place_is is None:
+            self.person.place_is = PlaceIs()
         # 50% chance that place is will change
         if random.randint(0, 1) == 1:
-            person.place_is.audio = random.choice(('noisy', 'ok', 'quiet', 'unknown'))
+            self.person.place_is.audio = random.choice(('noisy', 'ok', 'quiet', 'unknown'))
         if random.randint(0, 1) == 1:
-            person.place_is.video = random.choice(('toobright', 'ok', 'dark', 'unknown'))
+            self.person.place_is.video = random.choice(('toobright', 'ok', 'dark', 'unknown'))
         if random.randint(0, 1) == 1:
-            person.place_is.text = random.choice(('uncomfortable', 'inappropriate', 'ok', 'unknown'))
+            self.person.place_is.text = random.choice(('uncomfortable', 'inappropriate', 'ok', 'unknown'))
 
-        person.timestamp = PersonTimestamp()
+        self.person.timestamp = PersonTimestamp()
         
         # set user-input
-        if device.user_input.value == 'idle':
+        if self.device.user_input.value == 'idle':
             # 50 % chance to change to active:
             if random.randint(0, 1) == 1:
-                device.user_input.value = 'active'
-                device.user_input.last_input = None
+                self.device.user_input.value = 'active'
+                self.device.user_input.last_input = None
         else:
             # 50 % chance to change to idle:
             if random.randint(0, 1) == 1:
-                device.user_input.value = 'idle'
-                device.user_input.last_input = now - datetime.timedelta(seconds=30)
+                self.device.user_input.value = 'idle'
+                self.device.user_input.last_input = now - datetime.timedelta(seconds=30)
         
         # publish new pidf
-        publish_pidf()
-        sleep(interval)
-
-
-def termios_restore():
-    global old
-    if old is not None:
-        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
-
-atexit.register(termios_restore)
-
-def getstr(prompt='selection'):
-    global string, getstr_event
-    string = ''
-    sys.stdout.write("%s> " % prompt)
-    sys.stdout.flush()
-    getstr_event.wait()
-    getstr_event.clear()
-    sys.stdout.write("\n")
-    ret = string
-    string = None
-    return ret
-
-def getchar():
-    global old
-    fd = sys.stdin.fileno()
-    if os.isatty(fd):
-        old = termios.tcgetattr(fd)
-        new = termios.tcgetattr(fd)
-        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
-        new[6][termios.VMIN] = '\000'
+        self._republish = True
         try:
-            termios.tcsetattr(fd, termios.TCSADRAIN, new)
-            if select.select([fd], [], [], None)[0]:
-                return sys.stdin.read(4192)
-        except select.error, e:
-            if e[0] != 4:
-                raise
-            return ''
-        finally:
-            termios_restore()
-    else:
-        return os.read(fd, 4192)
-
-class EventHandler(object):
-    implements(IObserver)
-
-    def __init__(self, engine):
-        engine.notification_center.add_observer(self)
-    
-    def handle_notification(self, notification):
-        global queue, want_quit, pub, return_code
-        if notification.name == "SCPublicationChangedState":
-            if notification.data.state == "unpublished":
-                queue.put(("print", "Unpublished: %(code)d %(reason)s" % notification.data.__dict__))
-                if want_quit or notification.data.code in (401, 403, 407):
-                    if notification.data.code / 100 == 2:
-                        return_code = 0
-                    queue.put(("quit", None))
-                else:
-                    pub = Publication(pub.credentials, pub.event, route=pub.route, expires=pub.expires)
-                    publish_pidf()
-            elif notification.data.state == "published":
-                queue.put(("print", "PUBLISH was successful"))
-        else:
-            queue.put(("core_event", (notification.name, notification.sender, notification.data)))
+            self.publication.publish("application", "pidf+xml", self.pidf.toxml())
+        except BuilderError, e:
+            print "PIDF as currently defined is invalid: %s" % str(e)
+        except:
+            traceback.print_exc()
 
 
-def print_control_keys():
-    print "Available control keys:"
-    print "  t: toggle SIP trace on the console"
-    print "  j: toggle PJSIP trace on the console"
-    print "  Ctrl-d: quit the program"
-    print "  ?: display this help message"
-
-def read_queue(e, username, domain, password, display_name, route, expires, interval):
-    global user_quit, lock, queue, pub, sip_uri, pidf, user_agent, logger
-    lock.acquire()
-    try:
-        sip_uri = SIPURI(user=username, host=domain, display=display_name)
-        pub = Publication(Credentials(sip_uri, password), "presence", route=route, expires=expires)
-
-        # initialize PIDF
-        pidf = PIDF(entity='%s@%s' % (username, domain))
-
-        user_agent = e.user_agent
-
-        print_control_keys()
-
-        #initialize auto publisher
-        start_new_thread(auto_publish, (interval,))
-
-        while True:
-            command, data = queue.get()
-            if command == "print":
-                print data
-            if command == "core_event":
-                event_name, obj, args = data
-                if event_name == "SCEngineGotException":
-                    print "An exception occured within the SIP core:"
-                    print args.traceback
-                elif event_name == "SCEngineDidFail":
-                    user_quit = False
-                    command = "quit"
-            if command == "user_input":
-                key = data
-                if key == 't':
-                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
-                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
-                elif data == 'j':
-                    logger.trace_pjsip.to_stdout = not logger.trace_pjsip.to_stdout
-                    print "PJSIP tracing to console is now %s" % ("activated" if logger.trace_pjsip.to_stdout else "deactivated")
-                elif key == '?':
-                    print_control_keys()
-            if command == "eof":
-                command = "end"
-                user_quit = True
-            if command == "end":
-                try:
-                    pub.unpublish()
-                except:
-                    pass
-            if command == "quit":
-                user_quit = False
-                break
-    except:
-        user_quit = False
-        traceback.print_exc()
-    finally:
-        e.stop()
-        while not queue.empty():
-            command, data = queue.get()
-            if command == "print":
-                print data
-        logger.stop()
-        if not user_quit:
-            os.kill(os.getpid(), signal.SIGINT)
-        lock.release()
-
-def sig_handler(signum, frame):
-    global queue, want_quit
-    want_quit = True
-    queue.put(("end", None))
-
-def do_publish(**kwargs):
-    global user_quit, want_quit, lock, queue, string, getstr_event, old, logger
-    ctrl_d_pressed = False
-
-    outbound_proxy = kwargs.pop("outbound_proxy")
-    if outbound_proxy is None:
-        routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
-    else:
-        routes = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))
-    # Only try the first Route for now
-    try:
-        kwargs["route"] = routes[0]
-    except IndexError:
-        raise RuntimeError("No route found to SIP proxy")
-
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'), trace_pjsip=kwargs.pop('trace_pjsip'))
-    logger.start()
-    if logger.trace_sip.to_file:
-        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if logger.trace_pjsip.to_file:
-        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
-    
-    e = Engine()
-    EventHandler(e)
-    e.start(auto_sound=False, trace_sip=True, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"))
-    start_new_thread(read_queue, (e,), kwargs)
-    atexit.register(termios_restore)
-    
-    # unsubscribe on 
-    signal.signal(signal.SIGUSR1, sig_handler)
-
-    try:
-        while True:
-            for char in getchar():
-                if char == "\x04":
-                    if not ctrl_d_pressed:
-                        queue.put(("eof", None))
-                        ctrl_d_pressed = True
-                        want_quit = True
-                        break
-                else:
-                    if string is not None:
-                        if char == "\x7f":
-                            if len(string) > 0:
-                                char = "\x08"
-                                sys.stdout.write("\x08 \x08")
-                                sys.stdout.flush()
-                                string = string[:-1]
-                        else:
-                            if old is not None:
-                                sys.stdout.write(char)
-                                sys.stdout.flush()
-                            if char == "\x0A":
-                                getstr_event.set()
-                                break
-                            else:
-                                string += char
-                    else:
-                        queue.put(("user_input", char))
-    except KeyboardInterrupt:
-        if user_quit:
-            print "Ctrl+C pressed, exiting instantly!"
-            want_quit = True
-            queue.put(("quit", True))
-        return
-
-def parse_outbound_proxy(option, opt_str, value, parser):
-    try:
-        parser.values.outbound_proxy = OutboundProxy(value)
-    except ValueError, e:
-        raise OptionValueError(e.message)
-
-def parse_trace_option(option, opt_str, value, parser, name):
-    try:
-        value = parser.rargs[0]
-    except IndexError:
-        value = LoggingOption('file')
-    else:
-        if value == '' or value[0] == '-':
-            value = LoggingOption('file')
-        else:
-            try:
-                value = LoggingOption(value)
-            except ValueError:
-                value = LoggingOption('file')
-            else:
-                del parser.rargs[0]
-    setattr(parser.values, name, value)
-
-def parse_options():
-    retval = {}
-    description = "This script will publish rich presence state of the specified SIP account to a SIP Presence Agent, the presence information can be changed using a menu-driven interface."
+if __name__ == "__main__":
+    description = "This script will publish randomly generated rich presence state for the specified SIP account to a SIP Presence Agent."
     usage = "%prog [options]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file. If not supplied, the section Account will be read.", metavar="NAME")
-    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP address of the user in the form user@domain")
-    parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in PUBLISH. Default is 300 seconds.')
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-i", "--interval", type="int", dest="interval", help='Time between state changes. Default is 60 seconds.')
-    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_option, callback_args=('trace_sip',), help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('trace_pjsip',), help="Print PJSIP logging output (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
+    parser.add_option("-i", "--interval", type="int", dest="interval", default=60, help="Time between state changes. Default is 60 seconds.")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
 
-    if options.account_name is None:
-        account_section = "Account"
-    else:
-        account_section = "Account_%s" % options.account_name
-    if account_section not in configuration.parser.sections():
-        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
-    configuration.read_settings(account_section, AccountConfig)
-    if not AccountConfig.use_presence_agent:
-        raise RuntimeError("Presence is not enabled for this account. Please set use_presence_agent=True in the config file")
-    default_options = dict(expires=AccountConfig.sip_publish_interval, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, trace_sip=GeneralConfig.trace_sip, trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports, interval=60)
-    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-
-    for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
-        setattr(options, "local_%s_port" % transport, None)
-    if not all([options.sip_address, options.password]):
-        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    for attr in default_options:
-        retval[attr] = getattr(options, attr)
     try:
-        retval["username"], retval["domain"] = options.sip_address.split("@")
-    except ValueError:
-        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
-    else:
-        del retval["sip_address"]
-
-    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
-    accounts.sort()
-    print "Accounts available: %s" % ', '.join(accounts)
-    if options.account_name is None:
-        print "Using default account: %s" % options.sip_address
-    else:
-        print "Using account '%s': %s" % (options.account_name, options.sip_address)
-
-    return retval
-
-def main():
-    do_publish(**parse_options())
-
-if __name__ == "__main__":
-    try:
-        main()
+        application = AutoPublicationApplication(options.account_name, options.interval, options.trace_sip, options.trace_pjsip)
+        return_code = application.run()
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
     except SIPCoreError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
-    sys.exit(return_code)
+    else:
+        sys.exit(return_code)
+
+
