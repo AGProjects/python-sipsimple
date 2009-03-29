@@ -93,8 +93,8 @@ class GreenEngine(GreenBase, NotificationHandler):
         error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(EngineError(str(n))))
         self.notification_center.add_observer(error_observer, 'SCEngineDidFail')
 
-    def _NH_SCEngineGotException(self, notification):
-        log.error('An error in the PJSIP thread on %s:\n%s' % (notification.timestamp, notification.traceback))
+    def _NH_SCEngineGotException(self, engine, notification_data):
+        log.error('An error in the PJSIP thread on %s:\n%s' % (notification_data.timestamp, notification_data.traceback))
 
     def _subscribe_SCEngineGotException(self):
         self.notification_center.add_observer(observer=notification.NotifyFromThreadObserver(self), name='SCEngineGotException')
