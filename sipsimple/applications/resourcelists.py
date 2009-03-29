@@ -49,7 +49,6 @@ Bill Doe
 Marketing
 """
 
-import sys
 from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild
 from sipsimple.applications.util import SIPURI
 
