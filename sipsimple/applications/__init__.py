@@ -1,7 +1,5 @@
 import os
 import sys
-import urlparse
-import traceback
 
 from lxml import etree
 
