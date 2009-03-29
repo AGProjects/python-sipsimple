@@ -161,9 +161,9 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                 elif event_name == "SIPSessionDidEnd":
                     if obj is sess:
                         if args["originator"] == "local":
-                            print "Session ended by local party."
+                            print "Session ended by local party"
                         else:
-                            print "Session ended by remote party."
+                            print "Session ended by remote party"
                         if sess.stop_time is not None:
                             duration = sess.stop_time - sess.start_time
                             print "Session duration was %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
