@@ -34,6 +34,7 @@ from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
+KEY_AUDIO_CONTROL = '\x00' # Ctrl-SPACE
 
 trafficlog.hook_std_output()
 
@@ -472,6 +473,35 @@ class ChatManager(NotificationHandler):
         for x in data:
             session.send_dtmf(x)
 
+    def dtmf_numpad(self, *args):
+        session = self.current_session
+        if not session:
+            raise UserCommandError('No active session')
+        print """\
+1 2 3 A
+4 5 6 B
+7 8 9 C
+* 0 # D"""
+        if not session.has_audio:
+            raise UserCommandError('Session does not have audio stream to send DTMF over')
+        console = self.console
+        digits = '1234567890*#abcdABCD'
+        old_send_keys = console.terminalProtocol.send_keys[:]
+        try:
+            console.terminalProtocol.send_keys.extend(digits)
+            prompt = '> '
+            with console.temporary_prompt('> '):
+                while True:
+                    type, (keyID, modifier) = console.recv_char()
+                    if keyID in [KEY_AUDIO_CONTROL, '\x1b', CTRL_D, '\n']:
+                        return
+                    prompt += str(keyID)
+                    console.set_prompt(prompt, 1)
+                    session.send_dtmf(str(keyID))
+        finally:
+            console.terminalProtocol.send_keys = old_send_keys
+
+
 class InfoPrinter(NotificationHandler):
 
     def start(self):
@@ -557,7 +587,8 @@ def get_commands(manager):
             'dtmf': manager.send_dtmf}
 
 def get_shortcuts(manager):
-    return {KEY_NEXT_SESSION: manager.switch}
+    return {KEY_NEXT_SESSION: manager.switch,
+            KEY_AUDIO_CONTROL: manager.dtmf_numpad}
 
 def readloop(console, manager, commands, shortcuts):
     console.terminalProtocol.send_keys.extend(shortcuts.keys())
