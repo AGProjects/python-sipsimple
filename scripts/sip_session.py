@@ -463,7 +463,7 @@ class ChatManager(NotificationHandler):
         try:
             if session.send_message(message):
                 #print 'sent %s %s' % (session, message)
-                return True # indicate that the message was sent
+                return True # indicate that the message was send and echoed
         except ConnectionClosed, ex:
             proc.spawn(self.remove_session, session)
             raise UserCommandError(str(ex))
