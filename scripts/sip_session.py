@@ -8,6 +8,7 @@ from optparse import OptionParser
 from twisted.internet.error import ConnectionClosed
 from application.notification import NotificationCenter, IObserver
 from application import log
+from application.python.util import Singleton
 from zope.interface import implements
 
 from eventlet import api, proc
@@ -20,7 +21,7 @@ from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
-from sipsimple.green.notification import linked_notification
+from sipsimple.green.notification import linked_notification, linked_notifications
 from sipsimple.util import NotificationHandler
 from sipsimple.session import SessionManager, SessionStateError
 from sipsimple.clients.clientconfig import get_path
@@ -625,6 +626,7 @@ def start(options, console):
     finally:
         with calming_message(1, "Disconnecting the session(s)..."):
             proc.waitall([proc.spawn(session.end) for session in SessionManager().sessions])
+        RegistrationManager().unregister()
         with calming_message(2, "Stopping the engine..."):
             engine.stop()
         api.sleep(0.1)
@@ -716,11 +718,40 @@ def get_routes(target_uri, engine, account):
         routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
     return routes
 
+class RegistrationManager(NotificationHandler):
+    __metaclass__ = Singleton
+
+    def __init__(self):
+        self.accounts = set()
+
+    def start(self):
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='AMAccountRegistrationDidSucceed')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='AMAccountRegistrationDidEnd')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='AMAccountRegistrationDidFail')
+
+    def _NH_AMAccountRegistrationDidSucceed(self, account, data):
+        self.accounts.add(account)
+
+    def _NH_AMAccountRegistrationDidEnd(self, account, data):
+        self.accounts.discard(account)
+
+    def _NH_AMAccountRegistrationDidFail(self, account, data):
+        self.accounts.discard(account)
+
+    def unregister(self):
+        with linked_notifications(names=['AMAccountRegistrationDidFail', 'AMAccountRegistrationDidEnd']) as q:
+            AccountManager().stop()
+            with api.timeout(1, None):
+                while self.accounts:
+                    notification = q.wait()
+                    self.accounts.discard(notification.sender)
 
 def parse_options(usage, description):
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-a", "--account-name", type="string", metavar='ACCOUNT_NAME',
                       help='The name of the account to use.')
+    parser.add_option("--no-register", dest='register', default=True, action='store_false',
+                      help='Bypass registration.')
     parser.add_option("-c", "--config_file", type="string", dest="config_file",
                       help="The path to a configuration file to use. "
                            "This overrides the default location of the configuration file.", metavar="FILE")
@@ -745,8 +776,11 @@ def update_settings(options):
     settings = SIPSimpleSettings()
     account = get_account(options.account_name)
     for other_account in AccountManager().iter_accounts():
-        if other_account != account:
-            other_account.enabled = False
+        if other_account is not account:
+            if hasattr(other_account, 'registration'):
+                other_account.registration.enabled = False
+    if not options.register:
+        account.registration.enabled = False
     options.account = account
     print 'Using account %s' % account.id
     if options.trace_msrp is not None:
@@ -765,6 +799,7 @@ def update_settings(options):
 def main():
     options = parse_options(usage, description)
 
+    RegistrationManager().start()
     ConfigurationManager().start(ConfigFileBackend(options.config_file))
     AccountManager().start()
     settings = SIPSimpleSettings()
