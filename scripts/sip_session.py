@@ -491,6 +491,8 @@ class ChatManager(NotificationHandler):
 
     def dtmf_numpad(self, *args):
         session = self.get_current_session()
+        if not session.has_audio:
+            raise UserCommandError('Session does not have audio stream to send DTMF over')
         print """\
 +------+-----+------+
 |  1   |  2  |  3   |
@@ -505,8 +507,6 @@ class ChatManager(NotificationHandler):
 |  *   |  0  |  #   |
 +-------------------+
 """
-        if not session.has_audio:
-            raise UserCommandError('Session does not have audio stream to send DTMF over')
         console = self.console
         digits = '1234567890*#' + ''.join(self.char_to_digit.keys()) +''.join(self.char_to_digit.keys()).lower()
         old_send_keys = console.terminalProtocol.send_keys[:]
