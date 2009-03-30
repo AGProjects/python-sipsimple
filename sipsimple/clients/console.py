@@ -212,6 +212,7 @@ class ConsoleProtocol(recvline.HistoricRecvLine):
             if self._needsNewline():
                 self.terminal.nextLine()
             self.cursorToBOL()
+            self.set_prompt('', index=1)
             self.pn = old_pn
             self.ps[self.pn] = old_ps
             self.lineBuffer = lineBuffer
