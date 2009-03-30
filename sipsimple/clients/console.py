@@ -286,31 +286,29 @@ class GreenConsole(object):
         with self.terminalProtocol.temporary_prompt(prompt):
             yield
 
-    def recv_char(self, allowed=[], barrier=1):
+    def recv_char(self, allowed=None, barrier=None):
         if self.terminalProtocol is None:
             raise ConnectionDone
-        try:
-            self.terminalProtocol.clearInputLine()
-            self.terminalProtocol.recv_char = True
-            # because it's like a modal dialog box that steals focus, wait for at least 1 second
-            # since the last keypress to avoid accidental input
+        self.terminalProtocol.clearInputLine()
+        self.terminalProtocol.recv_char = True
+        # because it's like a modal dialog box that steals focus, wait for at least 1 second
+        # since the last keypress to avoid accidental input
+        if barrier is not None:
             self.terminalProtocol.barrier(barrier)
-            try:
-                while True:
-                    type, value = self._receive()
-                    if type == 'key':
-                        key = value[0]
-                        if allowed is None or key in allowed:
-                            self.terminalProtocol.lineBuffer.append(str(key))
-                            self.terminalProtocol.terminal.write(str(key))
-                            return type, value
-                    else:
+        try:
+            while True:
+                type, value = self._receive()
+                if type == 'key':
+                    key = value[0]
+                    if allowed is None or key in allowed:
+                        self.terminalProtocol.lineBuffer.append(str(key))
+                        self.terminalProtocol.terminal.write(str(key))
                         return type, value
-            finally:
-                if self.terminalProtocol is not None:
-                    self.terminalProtocol.recv_char = False
+                else:
+                    return type, value
         finally:
-            pass
+            if self.terminalProtocol is not None:
+                self.terminalProtocol.recv_char = False
 
     def ask_question(self, question, allowed, help=None, help_keys='hH?', barrier=1):
         with self.channel.locked_output():
