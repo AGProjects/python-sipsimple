@@ -216,7 +216,7 @@ class ChatSession(GreenSession, NotificationHandler):
             self.hold()
 
 
-class JobGroup(object):
+class ProcSet(object):
 
     def __init__(self):
         self.jobs = set()
@@ -244,7 +244,7 @@ class ChatManager(NotificationHandler):
         self.auto_accept_files = auto_accept_files
         self.sessions = []
         self.current_session = None
-        self.jobgroup = JobGroup()
+        self.procs = ProcSet()
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidFail')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionNewIncoming')
@@ -260,7 +260,7 @@ class ChatManager(NotificationHandler):
     _NH_SCSessionDidFail = _NH_SCSessionDidEnd
 
     def _NH_SCSessionNewIncoming(self, session, data):
-        self.jobgroup.spawn(self._handle_incoming, session, data)
+        self.procs.spawn(self._handle_incoming, session, data)
 
     def _NH_SCSessionChangedState(self, session, data):
         self.update_prompt()
@@ -268,7 +268,7 @@ class ChatManager(NotificationHandler):
     # this notification is handled here and not on the session because we have access to the console here
     def _NH_SCSessionGotStreamProposal(self, session, data):
         if data.proposer == 'remote':
-            self.jobgroup.spawn(self._handle_proposal, session, data)
+            self.procs.spawn(self._handle_proposal, session, data)
 
     def _handle_proposal(self, session, data):
         inv = session._inv
@@ -308,14 +308,14 @@ class ChatManager(NotificationHandler):
 
     def close(self):
         for session in self.sessions[:]:
-            self.jobgroup.spawn(session.end)
+            self.procs.spawn(session.end)
         self.sessions = []
         self.update_prompt()
-        self.jobgroup.waitall()
+        self.procs.waitall()
 
     def close_current_session(self):
         if self.current_session is not None:
-            self.jobgroup.spawn(self.current_session.end)
+            self.procs.spawn(self.current_session.end)
             self.remove_session(self.current_session)
 
     def update_prompt(self):
@@ -413,7 +413,7 @@ class ChatManager(NotificationHandler):
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
             except ValueError, ex:
                 raise UserCommandError(str(ex))
-        self.jobgroup.spawn(self._call, target_uri, use_audio, use_chat)
+        self.procs.spawn(self._call, target_uri, use_audio, use_chat)
 
     def _call(self, target_uri, use_audio, use_chat):
         try:
