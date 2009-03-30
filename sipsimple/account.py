@@ -445,7 +445,7 @@ class AccountManager(object):
     The following notifications are sent:
      * SIPAccountManagerDidRemoveAccount
      * SIPAccountManagerDidAddAccount
-     * AMDefaultAccountDidChange
+     * SIPAccountManagerDidChangeDefaultAccount
     """
 
     __metaclass__ = Singleton
@@ -558,7 +558,7 @@ class AccountManager(object):
             settings.default_account = account.id
         settings.save()
         notification_center = NotificationCenter()
-        notification_center.post_notification('AMDefaultAccountDidChange', sender=self, data=NotificationData(account=account))
+        notification_center.post_notification('SIPAccountManagerDidChangeDefaultAccount', sender=self, data=NotificationData(account=account))
 
     default_account = property(_get_default_account, _set_default_account)
     del _get_default_account, _set_default_account

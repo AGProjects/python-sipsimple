@@ -251,7 +251,7 @@ cdef class RTPTransport:
                     raise PJSIPError("Could not create SRTP media transport", status)
             if not self.use_ice or self.ice_stun_address is None:
                 self.state = "INIT"
-                c_add_event("SCRTPTransportDidInitialize", dict(obj=self))
+                c_add_event("RTPTransportDidInitialize", dict(obj=self))
             else:
                 self.state = "WAIT_STUN"
                 _RTPTransport_stun_list.append(self)
@@ -496,9 +496,9 @@ cdef void cb_RTPTransport_ice_complete(pjmedia_transport *tp, pj_ice_strans_op o
                 else:
                     rtp_transport.state = "INVALID"
                 if status == 0:
-                    c_add_event("SCRTPTransportDidInitialize", dict(obj=rtp_transport))
+                    c_add_event("RTPTransportDidInitialize", dict(obj=rtp_transport))
                 else:
-                    c_add_event("SCRTPTransportDidFail", dict(obj=rtp_transport, reason=pj_status_to_str(status)))
+                    c_add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=pj_status_to_str(status)))
                 _RTPTransport_stun_list.remove(rtp_transport)
                 return
     except:
@@ -512,7 +512,7 @@ cdef void cb_AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int
     except:
         return
     try:
-        c_add_event("SCAudioTransportGotDTMF", dict(obj=audio_stream, digit=chr(digit)))
+        c_add_event("RTPAudioStreamGotDTMF", dict(obj=audio_stream, digit=chr(digit)))
         try:
             ua.c_conf_bridge._playback_dtmf(digit)
         except:

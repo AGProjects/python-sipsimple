@@ -62,8 +62,8 @@ class MediaTransportInitializer(NotificationHandler):
             for rtp in [audio_rtp]:
                 if rtp is not None:
                     self.waiting_for.append(rtp)
-                    self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", rtp)
-                    self.notification_center.add_observer(self, "SCRTPTransportDidFail", rtp)
+                    self.notification_center.add_observer(self, "RTPTransportDidInitialize", rtp)
+                    self.notification_center.add_observer(self, "RTPTransportDidFail", rtp)
                     rtp.set_INIT()
             if msrp_chat is not None:
                 self.waiting_for.append(msrp_chat)
@@ -78,8 +78,8 @@ class MediaTransportInitializer(NotificationHandler):
             self.notification_center.remove_observer(self, "MSRPChatDidInitialize", obj)
             self.notification_center.remove_observer(self, "MSRPChatDidFail", obj)
         else:
-            self.notification_center.remove_observer(self, "SCRTPTransportDidInitialize", obj)
-            self.notification_center.remove_observer(self, "SCRTPTransportDidFail", obj)
+            self.notification_center.remove_observer(self, "RTPTransportDidInitialize", obj)
+            self.notification_center.remove_observer(self, "RTPTransportDidFail", obj)
 
     def _check_done(self):
         if len(self.waiting_for) == 0:
@@ -94,14 +94,14 @@ class MediaTransportInitializer(NotificationHandler):
             reason = "Failed to initialize MSRP chat transport: %s" % reason
         self.failure_func(reason)
 
-    def _NH_SCRTPTransportDidInitialize(self, rtp, data):
+    def _NH_RTPTransportDidInitialize(self, rtp, data):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
             self._remove_observer(rtp)
             self._check_done()
 
-    def _NH_SCRTPTransportDidFail(self, rtp, data):
+    def _NH_RTPTransportDidFail(self, rtp, data):
         with self._lock:
             if len(self.waiting_for) == 0:
                 return
@@ -113,8 +113,8 @@ class MediaTransportInitializer(NotificationHandler):
             if rtp is self.audio_rtp:
                 self.audio_rtp = new_rtp
             self.waiting_for.append(new_rtp)
-            self.notification_center.add_observer(self, "SCRTPTransportDidInitialize", new_rtp)
-            self.notification_center.add_observer(self, "SCRTPTransportDidFail", new_rtp)
+            self.notification_center.add_observer(self, "RTPTransportDidInitialize", new_rtp)
+            self.notification_center.add_observer(self, "RTPTransportDidFail", new_rtp)
             try:
                 new_rtp.set_INIT()
             except SIPCoreError, e:
@@ -894,7 +894,7 @@ class SessionManager(NotificationHandler):
         self.notification_center = NotificationCenter()
         self.notification_center.add_observer(self, "SIPInvitationChangedState")
         self.notification_center.add_observer(self, "SIPInvitationGotSDPUpdate")
-        self.notification_center.add_observer(self, "SCAudioTransportGotDTMF")
+        self.notification_center.add_observer(self, "RTPAudioStreamGotDTMF")
         self.notification_center.add_observer(self, "MSRPChatGotMessage")
         self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
         self.notification_center.add_observer(self, "MSRPChatDidNotDeliverMessage")
@@ -1072,7 +1072,7 @@ class SessionManager(NotificationHandler):
                 session._cancel_media()
                 session._sdpneg_failure_reason = data.error
 
-    def _NH_SCAudioTransportGotDTMF(self, audio_transport, data):
+    def _NH_RTPAudioStreamGotDTMF(self, audio_transport, data):
         session = self.audio_transport_mapping.get(audio_transport, None)
         if session is not None:
             self.notification_center.post_notification("SIPSessionGotDTMF", session, data)
