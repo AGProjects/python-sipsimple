@@ -518,7 +518,6 @@ class ChatManager(NotificationHandler):
 | PQRS | TUV | WXYZ |
 +------+-----+------+
 |  *   |  0  |  #   |
-|      |  +  |      |
 +-------------------+
 """
         console = self.console
