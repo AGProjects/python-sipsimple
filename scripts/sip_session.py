@@ -575,7 +575,7 @@ def start(options, console):
                 print 'Waiting for incoming SIP session requests...'
             else:
                 try:
-                    manager.call(*options.args)
+                    manager.cmd_call(*options.args)
                 except (UserCommandError, SessionStateError), ex:
                     print str(ex)
             while True:
