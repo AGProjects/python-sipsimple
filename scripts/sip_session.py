@@ -132,39 +132,15 @@ class ChatSession(GreenSession, NotificationHandler):
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
                 self.remote_party = format_uri(self._inv.remote_uri)
-        NotificationCenter().add_observer(self, 'SCSessionDidStart', sender=self._obj)
-        NotificationCenter().add_observer(self, 'SCSessionGotStreamUpdate', sender=self._obj)
-        NotificationCenter().add_observer(self, 'SCSessionGotHoldRequest', sender=self._obj)
-        NotificationCenter().add_observer(self, 'SCSessionGotUnholdRequest', sender=self._obj)
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SCSessionDidStart', sender=self._obj)
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SCSessionGotStreamUpdate', sender=self._obj)
 
     def _NH_SCSessionDidStart(self, session, _data):
         if self.history_file is None:
             self.history_file = get_history_file(session._inv)
-        try:
-            print 'Session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
-            print "Audio RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
-                                                           session.audio_remote_rtp_address_sdp, session.audio_remote_rtp_port_sdp)
-            if session.audio_srtp_active:
-                print "RTP audio stream is encrypted"
-        except AttributeError:
-            pass
-        if session.remote_user_agent is not None:
-            print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
 
     def _NH_SCSessionGotStreamUpdate(self, session, data):
         self.update_info(chat='chat' in data.streams, audio='audio' in data.streams)
-
-    def _NH_SCSessionGotHoldRequest(self, session, data):
-        if data.originator == 'local':
-            print "Call is put on hold"
-        else:
-            print "Remote party has put the call on hold"
-
-    def _NH_SCSessionGotUnholdRequest(self, session, data):
-        if data.originator == "local":
-            print "Call is taken out of hold"
-        else:
-            print "Remote party has taken the call out of hold"
 
     def end(self):
         GreenSession.end(self)
@@ -558,15 +534,27 @@ class InfoPrinter(NotificationHandler):
 
     def start(self):
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCEngineDetectedNATType')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionRejectedStreamProposal')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidStart')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionRejectedStreamProposal')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionGotHoldRequest')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionGotUnholdRequest')
 
     def _NH_SCEngineDetectedNATType(self, sender, data):
         if data.succeeded:
             print "Detected NAT type: %s" % data.nat_type
 
-    def _NH_SCSessionRejectedStreamProposal(self, session, data):
-        print data.reason
+    def _NH_SCSessionDidStart(self, session, _data):
+        try:
+            print 'Session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
+            print "Audio RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
+                                                           session.audio_remote_rtp_address_sdp, session.audio_remote_rtp_port_sdp)
+            if session.audio_srtp_active:
+                print "RTP audio stream is encrypted"
+        except AttributeError:
+            pass
+        if session.remote_user_agent is not None:
+            print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
 
     def _NH_SCSessionDidEnd(self, session, data):
         if data.originator == 'local':
@@ -576,6 +564,21 @@ class InfoPrinter(NotificationHandler):
         if session.stop_time is not None:
             duration = session.stop_time - session.start_time
             print "Session duration was %s%s%d seconds." % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
+
+    def _NH_SCSessionRejectedStreamProposal(self, session, data):
+        print data.reason
+
+    def _NH_SCSessionGotHoldRequest(self, session, data):
+        if data.originator == 'local':
+            print "Call is put on hold"
+        else:
+            print "Remote party has put the call on hold"
+
+    def _NH_SCSessionGotUnholdRequest(self, session, data):
+        if data.originator == "local":
+            print "Call is taken out of hold"
+        else:
+            print "Remote party has taken the call out of hold"
 
 
 def start(options, console):
