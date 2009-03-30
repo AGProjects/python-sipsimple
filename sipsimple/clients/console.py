@@ -304,7 +304,7 @@ class GreenConsole(object):
                     key = value[0]
                     if allowed is None or key in allowed:
                         if echo:
-                            self.terminalProtocol.lineBuffer.append(str(key))
+                            #self.terminalProtocol.lineBuffer.append(str(key))
                             self.terminalProtocol.terminal.write(str(key))
                         return type, value
                 else:
@@ -320,7 +320,7 @@ class GreenConsole(object):
                     allowed += help_keys
                 while True:
                     try:
-                        type, value = self.recv_char(allowed, barrier=barrier)
+                        type, value = self.recv_char(allowed, barrier=barrier, echo=True)
                         if type=='key':
                             value = value[0]
                             if help is not None and value in help_keys:
