@@ -356,7 +356,23 @@ class ChatManager(NotificationHandler):
                 self.current_session = None
         self.update_prompt()
 
-    def switch(self):
+    def get_shortcuts(self):
+        return {KEY_NEXT_SESSION: self.cmd_switch,
+                KEY_AUDIO_CONTROL: self.dtmf_numpad}
+
+    def get_cmd(self, cmd):
+        return getattr(self, 'cmd_%s' % cmd, None)
+
+    def cmd_help(self):
+        """:help                       Print this help message"""
+        for k in dir(self):
+            if k.startswith('cmd_'):
+                doc = getattr(self, k).__doc__
+                if doc:
+                    print doc
+
+    def cmd_switch(self):
+        """:switch  (or CTRL-N)        Switch between active sessions"""
         if len(self.sessions)<2:
             print "There's no other session to switch to."
         else:
@@ -371,7 +387,8 @@ class ChatManager(NotificationHandler):
         else:
             raise UserCommandError("Please use 'chat' or 'audio' cannot understand %r" % s)
 
-    def call(self, *args):
+    def cmd_call(self, *args):
+        """:call URI [audio|chat]      Make an outgoing call. By default, use audio+chat"""
         if not args:
             raise UserCommandError('Please provide uri')
         target_uri = args[0]
@@ -426,19 +443,22 @@ class ChatManager(NotificationHandler):
             proc.spawn(self.remove_session, session)
             raise UserCommandError(str(ex))
 
-    def hold(self):
+    def cmd_hold(self):
+        """:hold                       Put the current session on hold"""
         session = self.current_session
         if not session:
             raise UserCommandError('No active session')
         session.hold()
 
-    def unhold(self):
+    def cmd_unhold(self):
+        """:unhold                     Un-hold the current session"""
         session = self.current_session
         if not session:
             raise UserCommandError('No active session')
         session.unhold()
 
-    def add_stream(self, *args):
+    def cmd_add(self, *args):
+        """:add audio|chat             Add a new stream to the current session."""
         session = self.current_session
         if not session:
             raise UserCommandError('No active session')
@@ -450,19 +470,21 @@ class ChatManager(NotificationHandler):
         elif s == 'audio':
             session.add_audio()
 
-    def remove_stream(self, *args):
+    def cmd_remove(self, *args):
+        """:remove audio|chat          Remove the stream from the current session"""
         session = self.current_session
         if not session:
             raise UserCommandError('No active session')
         if len(args) != 1:
-            raise UserCommandError('Too many arguments, the valid usage:\n:remove [chat|audio]')
+            raise UserCommandError('Too many arguments, the valid usage:\n:remove chat|audio')
         s = self._validate_stream(args[0])
         if s == 'chat':
             session.remove_chat()
         elif s == 'audio':
             session.remove_audio()
 
-    def send_dtmf(self, *args):
+    def cmd_dtmf(self, *args):
+        """:dtmf DIGITS                Send DTMF digits. Also try CTRL-SPACE for virtual numpad"""
         session = self.current_session
         if not session:
             raise UserCommandError('No active session')
@@ -534,7 +556,7 @@ def start(options, console):
         manager = ChatManager(engine, account, console)
         manager.update_prompt()
         try:
-            print "Press Ctrl-d to quit or Control-n to switch between active sessions"
+            print "Type :help to get information about commands and shortcuts"
             if not options.args:
                 print 'Waiting for incoming SIP session requests...'
             else:
@@ -544,7 +566,7 @@ def start(options, console):
                     print str(ex)
             while True:
                 try:
-                    readloop(console, manager, get_commands(manager), get_shortcuts(manager))
+                    readloop(console, manager, manager.get_shortcuts())
                 except EOF:
                     if manager.current_session:
                         manager.close_current_session()
@@ -576,21 +598,7 @@ def calming_message(seconds, message):
     finally:
         t.cancel()
 
-
-def get_commands(manager):
-    return {'switch': manager.switch,
-            'call': manager.call,
-            'hold': manager.hold,
-            'unhold': manager.unhold,
-            'add': manager.add_stream,
-            'remove': manager.remove_stream,
-            'dtmf': manager.send_dtmf}
-
-def get_shortcuts(manager):
-    return {KEY_NEXT_SESSION: manager.switch,
-            KEY_AUDIO_CONTROL: manager.dtmf_numpad}
-
-def readloop(console, manager, commands, shortcuts):
+def readloop(console, manager, shortcuts):
     console.terminalProtocol.send_keys.extend(shortcuts.keys())
     for type, value in console:
         if type == 'key':
@@ -610,10 +618,10 @@ def readloop(console, manager, commands, shortcuts):
                     console.copy_input_line(value)
                     echoed.append(1)
             try:
-                if value.startswith(':') and value[1:].split()[0] in commands:
+                command = value[1:] and manager.get_cmd(value[1:].split()[0])
+                if command:
                     echo()
                     args = value[1:].split()
-                    command = commands[args[0]]
                     command(*args[1:])
                 else:
                     if value:
@@ -626,7 +634,7 @@ def readloop(console, manager, commands, shortcuts):
             echo()
 
 
-description = "This script will either sit idle waiting for an incoming session, or start a new session with the specified target SIP address. The program will close the session and quit when CTRL+D is pressed. This scripts supports RTP audio and MSRP chat sessions."
+description = "This script will either sit idle waiting for an incoming session, or start a new session with the specified target SIP address. The program will close the session and quit when CTRL-D is pressed. This scripts supports RTP audio and MSRP chat sessions."
 usage = "%prog [options] [target-user@target-domain.com]"
 
 def get_account(key):
