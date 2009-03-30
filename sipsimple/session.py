@@ -991,7 +991,7 @@ class SessionManager(NotificationHandler):
                                     return
                                 if media.port == 0:
                                     remove_audio = True
-                            elif sdp_index == session._chat_sdp_index and session.audio_transport is not None:
+                            elif sdp_index == session._chat_sdp_index and session.chat_transport is not None:
                                 if media.media != "message":
                                     inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, 'Media at index %d changed from "%s" to "%s"' % (sdp_index, "message", media.media))})
                                     return
