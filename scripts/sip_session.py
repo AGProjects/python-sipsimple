@@ -466,7 +466,6 @@ def start(options, console):
     engine.start_cfg(enable_sound=not options.disable_sound,
         log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or options.trace_pjsip) else 0,
         trace_sip=settings.logging.trace_sip or options.trace_sip)
-    registration = None
     try:
         if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
             engine.detect_nat_type(*options.account.stun_servers[0])
