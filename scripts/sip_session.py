@@ -458,18 +458,18 @@ class ChatManager(NotificationHandler):
             raise UserCommandError(str(ex))
 
     def cmd_hold(self):
-        """:hold                       Put the current session on hold"""
+        """:hold  (or CTRL-H)          Put the current session on hold"""
         self.get_current_session().hold()
 
     def cmd_unhold(self):
-        """:unhold                     Un-hold the current session"""
+        """:unhold  (or CTRL-H)        Un-hold the current session"""
         self.get_current_session().unhold()
 
     def toggle_hold(self):
         self.get_current_session().toggle_hold()
 
     def cmd_add(self, *args):
-        """:add audio|chat             Add a new stream to the current session."""
+        """:add audio|chat             Add a new stream to the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Too many arguments, the valid usage:\n:add [chat|audio]')
