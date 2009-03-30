@@ -401,7 +401,7 @@ class ChatManager(NotificationHandler):
         if s in ['chat', 'audio']:
             return s
         else:
-            raise UserCommandError("Please use 'chat' or 'audio' cannot understand %r" % s)
+            raise UserCommandError("Please use 'chat' or 'audio'. Cannot understand %r" % s)
 
     def cmd_call(self, *args):
         """:call URI [audio|chat]      Make an outgoing call. By default, use audio+chat"""
