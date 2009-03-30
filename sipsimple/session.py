@@ -815,7 +815,14 @@ class Session(NotificationHandler):
             self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
 
     def _stop_chat(self):
-        self.chat_transport.end()
+        msrp_chat = self.chat_transport
+        had_chat = self.has_chat
+        self.chat_transport = None
+        self.session_manager.msrp_chat_mapping.pop(msrp_chat, None)
+        self.has_chat = False
+        if had_chat:
+            self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
+        msrp_chat.end()
 
     def _check_audio(self):
         with self._lock:
