@@ -665,7 +665,7 @@ def readloop(console, manager, shortcuts):
                     console.copy_input_line(value)
                     echoed.append(1)
             try:
-                command = value[1:] and manager.get_cmd(value[1:].split()[0])
+                command = value[1:] and value[1:].split() and manager.get_cmd(value[1:].split()[0])
                 if command:
                     echo()
                     args = value[1:].split()
