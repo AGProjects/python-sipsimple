@@ -7,6 +7,7 @@ import atexit
 import select
 import termios
 import signal
+from datetime import datetime
 from thread import start_new_thread, allocate_lock
 from threading import Timer
 from Queue import Queue
@@ -99,9 +100,9 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
             if command == "core_event":
                 event_name, obj, args = data
                 if event_name == "AMAccountRegistrationDidSucceed":
-                    print 'Succesfully registered using contact "%(contact_uri)s"' % args
+                    print '%s Registered contact "%s" for SIP address %s (expires in %d seconds)' % (datetime.now(), args['contact_uri'], account.id, args['registration'].expires)
                 elif event_name == "AMAccountRegistrationDidFail":
-                    print "Registration failed: %(code)d %(reason)s" % args
+                    print "%s Failed to register contact for SIP address %s: %d %s" % (datetime.now(), account.id, args['code'], args['reason'])
                     command = "quit"
                     user_quit = False
                 elif event_name == "AMAccountRegistrationDidEnd":
