@@ -117,7 +117,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                         print 'Incoming audio session from "%s", do you want to accept? (y/n)' % from_whom
                         if auto_answer is not None:
                             def auto_answer_call():
-                                print 'Auto-answering call.'
+                                print 'Auto-answering session'
                                 sess.accept(audio=True)
                                 auto_answer_timer = None
                             auto_answer_timer = Timer(auto_answer, auto_answer_call)
@@ -139,12 +139,12 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                     if args["originator"] == "local":
                         print "Call is put on hold"
                     else:
-                        print "Remote party has put the call on hold"
+                        print "Remote party has put the audio session on hold"
                 elif event_name == "SCSessionGotUnholdRequest":
                     if args["originator"] == "local":
                         print "Call is taken out of hold"
                     else:
-                        print "Remote party has taken the call out of hold"
+                        print "Remote party has taken the audio session out of hold"
                 elif event_name == "SCSessionDidFail":
                     if obj is sess:
                         if args["code"]:
@@ -401,8 +401,8 @@ def parse_handle_call_option(option, opt_str, value, parser, name):
 
 def parse_options():
     retval = {}
-    description = "This script can sit idle waiting for an incoming audio call, or perform an outgoing audio call to the target SIP account. The program will close the session and quit when Ctrl+D is pressed."
-    usage = "%prog [options] [target-user@target-domain.com]"
+    description = "This script can sit idle waiting for an incoming audio session, or initiate an outgoing audio session to a SIP address. The program will close the session and quit when Ctrl+D is pressed."
+    usage = "%prog [options] [user@domain]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account", type="string", dest="account_id", help="The account name to use for any outgoing traffic. If not supplied, the default account will be used.", metavar="NAME")
@@ -412,9 +412,9 @@ def parse_options():
     parser.set_default("disable_sound", False)
     parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Disables initializing the sound card.")
     parser.set_default("auto_answer", None)
-    parser.add_option("--auto-answer", action="callback", callback=parse_handle_call_option, callback_args=('auto_answer',), help="Interval after which to answer an incoming call (disabled by default). If the option is specified but the interval is not, it defaults to 0 (answer the call as soon as it starts ringing).", metavar="[INTERVAL]")
+    parser.add_option("--auto-answer", action="callback", callback=parse_handle_call_option, callback_args=('auto_answer',), help="Interval after which to answer an incoming session (disabled by default). If the option is specified but the interval is not, it defaults to 0 (accept the session as soon as it starts ringing).", metavar="[INTERVAL]")
     parser.set_default("auto_hangup", None)
-    parser.add_option("--auto-hangup", action="callback", callback=parse_handle_call_option, callback_args=('auto_hangup',), help="Interval after which to hangup an on-going call (applies only to outgoing calls, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the call as soon as it connects).", metavar="[INTERVAL]")
+    parser.add_option("--auto-hangup", action="callback", callback=parse_handle_call_option, callback_args=('auto_hangup',), help="Interval after which to hang up an established session (applies only to outgoing sessions, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the session as soon as it connects).", metavar="[INTERVAL]")
     options, args = parser.parse_args()
     retval = options.__dict__.copy()
     if args:

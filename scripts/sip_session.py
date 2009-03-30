@@ -383,14 +383,14 @@ class ChatManager(NotificationHandler):
             raise UserCommandError("Please use 'chat' or 'audio'. Cannot understand %r" % s)
 
     def cmd_call(self, *args):
-        """:call URI [audio|chat]      Make an outgoing call. By default, use audio+chat"""
+        """:call user@domain [audio|chat]      Initiate an outgoing session. By default, use audio+chat"""
         if not args:
             raise UserCommandError('Please provide uri')
         target_uri = args[0]
         use_audio = True
         use_chat = True
         if args[2:]:
-            raise UserCommandError('Too many arguments, the valid usage:\n:call URI [chat|audio]')
+            raise UserCommandError('Too many arguments, the valid usage:\n:call user@domain [chat|audio]')
         if args[1:]:
             s = self._validate_stream(args[1])
             if s == 'chat':
@@ -586,13 +586,13 @@ class InfoPrinter(NotificationHandler):
         if data.originator == 'local':
             print "Call is put on hold"
         else:
-            print "Remote party has put the call on hold"
+            print "Remote party has put the audio session on hold"
 
     def _NH_SCSessionGotUnholdRequest(self, session, data):
         if data.originator == "local":
             print "Call is taken out of hold"
         else:
-            print "Remote party has taken the call out of hold"
+            print "Remote party has taken the audio session out of hold"
 
 
 def start(options, console):
