@@ -512,12 +512,13 @@ def main():
     try:
         with setup_console() as console:
             console.terminalProtocol.send_keys.append('\x13') # ctrl-s
+            console.terminalProtocol.send_keys.append('\x0e') # ctrl-n
             console.set_prompt('>>> ')
             for type, value in console:
                 if type == 'line':
                     print '%s> %s' % (datetime.now().strftime('%X'), value)
                 if type == 'key':
-                    print 'handled %s %s' % (type, value)
+                    print 'handled %r %r' % (type, value)
                 if type=='line' and value.strip():
                     args = value.split(' ')
                     seconds = None
