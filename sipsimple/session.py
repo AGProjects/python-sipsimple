@@ -465,7 +465,7 @@ class Session(NotificationHandler):
                     chat_sdp_index = sdp_index
                     self.session_manager.msrp_chat_mapping[msrp_chat] = self
                     local_sdp.media.append(msrp_chat.local_media)
-                elif local_sdp[sdp_index] is None:
+                elif local_sdp.media[sdp_index] is None:
                     remote_media = remote_sdp.media[sdp_index]
                     local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
             self._inv.set_offered_local_sdp(local_sdp)
