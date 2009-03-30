@@ -500,10 +500,10 @@ class ChatManager(NotificationHandler):
         if not session:
             raise UserCommandError('No active session')
         print """\
-1 2 3 A
-4 5 6 B
-7 8 9 C
-* 0 # D"""
+1 2 3
+4 5 6
+7 8 9
+* 0 #"""
         if not session.has_audio:
             raise UserCommandError('Session does not have audio stream to send DTMF over')
         console = self.console
