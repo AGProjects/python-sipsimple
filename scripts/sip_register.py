@@ -197,17 +197,20 @@ class RegistrationApplication(object):
                 self.stop()
 
     def _NH_SIPAccountRegistrationDidFail(self, notification):
-        route = notification.data.registration.route
-        if notification.data.next_route:
-            next_route = notification.data.next_route
-            next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+        if notification.data.registration is not None:
+            route = notification.data.registration.route
+            if notification.data.next_route:
+                next_route = notification.data.next_route
+                next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+            else:
+                next_route = 'No more routes to try; waiting for %.2f seconds.' % (notification.data.delay)
+            if hasattr(notification.data, 'code'):
+                status = '%d %s' % (notification.data.code, notification.data.reason)
+            else:
+                status = notification.data.reason
+            self.output.put('Registration failed at %s:%d;transport=%s (%s). %s' % (route.address, route.port, route.transport, status, next_route))
         else:
-            next_route = 'No more routes to try; waiting for %.2f seconds.' % (notification.data.delay)
-        if hasattr(notification.data, 'code'):
-            status = '%d %s' % (notification.data.code, notification.data.reason)
-        else:
-            status = notification.data.reason
-        self.output.put('Registration failed at %s:%d;transport=%s (%s). %s' % (route.address, route.port, route.transport, status, next_route))
+            self.output.put('Registration failed: %s' % notification.data.reason)
         
         self.success = False
         
