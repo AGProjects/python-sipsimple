@@ -283,13 +283,13 @@ class ChatManager(NotificationHandler):
                 result = p1.wait()
             finally:
                 p2.kill()
-        if result in 'aA':
+        if result in list('aA'):
             has_audio = True
             has_chat = False
-        elif result in 'cC':
+        elif result in list('cC'):
             has_audio = False
             has_chat = True
-        if result in 'yYaAcC':
+        if result in list('yYaAcC'):
             session.accept(chat=has_chat, audio=has_audio)
             self.add_session(session._green)
         else:
