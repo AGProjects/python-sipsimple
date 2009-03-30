@@ -945,7 +945,7 @@ class SessionManager(NotificationHandler):
                     session._change_state("ESTABLISHED")
                     if data.prev_state == "CONNECTING":
                         self.notification_center.post_notification("SCSessionDidStart", session, TimestampedNotificationData())
-                    elif session.state == "PROPOSING":
+                    elif prev_session_state == "PROPOSING":
                         failure_reason = None
                         if data.code / 100 == 2:
                             if session.proposed_audio:
@@ -956,8 +956,8 @@ class SessionManager(NotificationHandler):
                                     failure_reason = "MSRP chat SDP negotation failed"
                             if failure_reason is not None and session._sdpneg_failure_reason is not None:
                                 failure_reason += ": %s" % session._sdpneg_failure_reason
-                            else:
-                                failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
+                        else:
+                            failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
                         if failure_reason is None:
                             self.notification_center.post_notification("SCSessionAcceptedStreamProposal", session, TimestampedNotificationData(proposer="local"))
                         else:
