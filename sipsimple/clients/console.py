@@ -26,7 +26,7 @@ from twisted.conch.insults import insults
 from eventlet.coros import queue
 from eventlet import api
 from eventlet.green.thread import allocate_lock
-from sipsimple.green import callFromAnyThread
+from sipsimple.green import spawn_from_thread
 
 CTRL_C = '\x03'
 CTRL_D = '\x04'
@@ -404,7 +404,7 @@ class _WriteProxy(object):
             return
         else:
             self.state = 'after write'
-            callFromAnyThread(self.console.write, data)
+            spawn_from_thread(self.console.write, data)
 
 def hook_std_output(console):
     sys.stderr = _WriteProxy(__original_sys_stderr__, console)
