@@ -522,7 +522,7 @@ cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
             rdata = e.body.tsx_state.src.rdata
         if rdata != NULL and inv.mod_data[ua.c_module.id] != NULL:
             invitation = <object> inv.mod_data[ua.c_module.id]
-            if tsx.state == PJSIP_TSX_STATE_TERMINATED and invitation.state == "REINVITING":
+            if (tsx.state == PJSIP_TSX_STATE_TERMINATED or tsx.state == PJSIP_TSX_STATE_COMPLETED) and invitation.state == "REINVITING":
                 try:
                     invitation._cb_state(ua, "CONFIRMED", rdata)
                 except:
