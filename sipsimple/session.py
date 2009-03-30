@@ -424,8 +424,8 @@ class Session(NotificationHandler):
                     audio_rtp = AccountRTPTransport(self.account, self._inv.transport)
                 elif chat and self.chat_transport is None and media.media == "message" and media.port != 0 and msrp_chat is None:
                     msrp_chat = MSRPChat(self.account, self._inv.remote_uri, False)
-                if not any([audio_rtp, msrp_chat]):
-                    raise ValueError("None of the streams proposed by the remote party is accepted")
+            if not any([audio_rtp, msrp_chat]):
+                raise ValueError("None of the streams proposed by the remote party is accepted")
             media_initializer = MediaTransportInitializer(self._accept_proposal_continue, self._accept_proposal_fail, audio_rtp, msrp_chat)
             self.chat_transport = msrp_chat
 
