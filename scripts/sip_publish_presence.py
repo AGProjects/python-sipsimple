@@ -567,7 +567,7 @@ class PublicationApplication(object):
         try:
             self.publication.publish("application", "pidf+xml", self.pidf.toxml())
         except BuilderError, e:
-            print "PIDF as currently defined is invalid: %s" % str(e)
+            self.output.put("PIDF as currently defined is invalid: %s" % str(e))
         except:
             traceback.print_exc()
         
