@@ -462,6 +462,7 @@ class AccountManager(object):
         """
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=Engine())
         notification_center.add_observer(self, name='AMAccountDidActivate')
         notification_center.add_observer(self, name='AMAccountDidDeactivate')
         # initialize bonjour account
@@ -507,6 +508,9 @@ class AccountManager(object):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification)
+    
+    def _NH_SCEngineWillEnd(self, notification):
+        self.stopping = True
 
     def _NH_AMAccountDidActivate(self, notification):
         settings = SIPSimpleSettings()
