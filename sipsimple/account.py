@@ -281,9 +281,10 @@ class Account(SettingsObject):
     def _NH_DNSLookupDidFail(self, notification):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=notification.sender)
-        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=NotificationData(reason='DNS lookup failed'))
         
         timeout = random.uniform(1.0, 2.0)
+        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=NotificationData(reason='DNS lookup failed', registration=None, next_route=None, delay=timeout))
+        
         from twisted.internet import reactor
         reactor.callLater(timeout, self._register)
 
