@@ -565,7 +565,10 @@ def readloop(console, manager, commands, shortcuts):
         if type == 'key':
             key = value[0]
             if key in shortcuts:
-                shortcuts[key]()
+                try:
+                    shortcuts[key]()
+                except UserCommandError, ex:
+                    print ex
         elif type == 'line':
             echoed = []
             def echo():
