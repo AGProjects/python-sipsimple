@@ -180,7 +180,7 @@ class ChatSession(GreenSession, NotificationHandler):
             self.history_file.flush()
         return chunk
 
-    def format_ps(self):
+    def format_prompt(self):
         result = '%s to %s' % (self.info, self.remote_party)
         if self.state != 'ESTABLISHED':
             result += ' [%s]' % self.state
@@ -195,7 +195,7 @@ class ChatSession(GreenSession, NotificationHandler):
         self.info = '/'.join(txt)
         if not self.info:
             self.info = 'Session with no streams'
-        self.manager.update_ps()
+        self.manager.update_prompt()
 
 
 class JobGroup(object):
@@ -256,7 +256,7 @@ class ChatManager(NotificationHandler):
         self.jobgroup.spawn(self._handle_incoming, session, data)
 
     def _NH_SCSessionChangedState(self, session, data):
-        self.update_ps()
+        self.update_prompt()
 
     # this notification is handled here and not on the session because we have access to the console here
     def _NH_SCSessionGotStreamProposal(self, session, data):
@@ -303,7 +303,7 @@ class ChatManager(NotificationHandler):
         for session in self.sessions[:]:
             self.jobgroup.spawn(session.end)
         self.sessions = []
-        self.update_ps()
+        self.update_prompt()
         self.jobgroup.waitall()
 
     def close_current_session(self):
@@ -311,12 +311,12 @@ class ChatManager(NotificationHandler):
             self.jobgroup.spawn(self.current_session.end)
             self.remove_session(self.current_session)
 
-    def update_ps(self):
+    def update_prompt(self):
         if self.current_session:
             prefix = ''
             if len(self.sessions)>1:
                 prefix = '%s/%s ' % (1+self.sessions.index(self.current_session), len(self.sessions))
-            ps = prefix + self.current_session.format_ps()
+            ps = prefix + self.current_session.format_prompt()
         else:
             if hasattr(self.account, 'credentials'):
                 credentials = self.account.credentials
@@ -336,7 +336,7 @@ class ChatManager(NotificationHandler):
         if activate:
             self.current_session = session
             # XXX could be asking user a question about another incoming, at this moment
-            self.update_ps()
+            self.update_prompt()
 
     def remove_session(self, session):
         assert isinstance(session, ChatSession), repr(session)
@@ -353,7 +353,7 @@ class ChatManager(NotificationHandler):
                     self.current_session = self.sessions[index % len(self.sessions)]
             else:
                 self.current_session = None
-        self.update_ps()
+        self.update_prompt()
 
     def switch(self):
         if len(self.sessions)<2:
@@ -361,7 +361,7 @@ class ChatManager(NotificationHandler):
         else:
             index = 1+self.sessions.index(self.current_session)
             self.current_session = self.sessions[index % len(self.sessions)]
-            self.update_ps()
+            self.update_prompt()
 
     def _validate_stream(self, s):
         s = s.lower()
@@ -491,7 +491,7 @@ def start(options, console):
         MessageRenderer().start()
         session_manager = SessionManager()
         manager = ChatManager(engine, account, console)
-        manager.update_ps()
+        manager.update_prompt()
         try:
             print "Press Ctrl-d to quit or Control-n to switch between active sessions"
             if not options.args:
