@@ -238,8 +238,19 @@ class ChatManager(NotificationHandler):
             self.remove_session(session._green)
         except ValueError:
             pass
+        if data.originator == 'local':
+            print "Session ended by local party."
+        else:
+            print "Session ended by remote party."
+        if session.stop_time is not None:
+            duration = session.stop_time - session.start_time
+            print "Session duration was %s%s%d seconds." % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
 
-    _NH_SCSessionDidFail = _NH_SCSessionDidEnd
+    def _NH_SCSessionDidFail(self, session, data):
+        try:
+            self.remove_session(session._green)
+        except ValueError:
+            pass
 
     def _NH_SCSessionNewIncoming(self, session, data):
         self.jobgroup.spawn(self._handle_incoming, session, data)
