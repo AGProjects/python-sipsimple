@@ -679,10 +679,11 @@ def get_routes(target_uri, engine, account):
 
 def parse_options(usage, description):
     parser = OptionParser(usage=usage, description=description)
-    parser.add_option("-a", "--account-id", type="string")
+    parser.add_option("-a", "--account-name", type="string", metavar='ACCOUNT_NAME',
+                      help='The name of the account to use.')
     parser.add_option("-c", "--config_file", type="string", dest="config_file",
                       help="The path to a configuration file to use. "
-                           "This overrides the default location of the configuration file.", metavar="[FILE]")
+                           "This overrides the default location of the configuration file.", metavar="FILE")
     parser.add_option("-S", "--disable-sound", default=False,
                       action="store_true", help="Disables initializing the sound card.")
     parser.add_option("-s", "--trace-sip", action="store_true",
