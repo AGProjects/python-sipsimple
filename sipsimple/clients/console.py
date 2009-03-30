@@ -287,7 +287,7 @@ class GreenConsole(object):
         with self.terminalProtocol.temporary_prompt(prompt):
             yield
 
-    def recv_char(self, allowed=None, barrier=None):
+    def recv_char(self, allowed=None, barrier=None, echo=True):
         if self.terminalProtocol is None:
             raise ConnectionDone
         self.terminalProtocol.clearInputLine()
@@ -302,8 +302,9 @@ class GreenConsole(object):
                 if type == 'key':
                     key = value[0]
                     if allowed is None or key in allowed:
-                        self.terminalProtocol.lineBuffer.append(str(key))
-                        self.terminalProtocol.terminal.write(str(key))
+                        if echo:
+                            self.terminalProtocol.lineBuffer.append(str(key))
+                            self.terminalProtocol.terminal.write(str(key))
                         return type, value
                 else:
                     return type, value
