@@ -970,8 +970,7 @@ class SessionManager(NotificationHandler):
                     proposed_remote_sdp = inv.get_offered_remote_sdp()
                     if proposed_remote_sdp.version == current_remote_sdp.version:
                         if current_remote_sdp != proposed_remote_sdp:
-                            # same version, but not identical SDP
-                            inv.respond_to_reinvite(488)
+                            inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Same version, but not identical SDP")})
                         else:
                             # same version, same SDP, respond with the already present local SDP
                             inv.set_offered_local_sdp(inv.get_active_local_sdp())
@@ -979,24 +978,22 @@ class SessionManager(NotificationHandler):
                     elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
                         for attr in ["user", "id", "net_type", "address_type", "address"]:
                             if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
-                                # difference in contents of o= line
-                                inv.respond_to_reinvite(488)
+                                inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Difference in contents of o= line")})
                                 return
                         if len(proposed_remote_sdp.media) < len(current_remote_sdp.media):
-                            # reduction in number of media streams, don't accept
-                            inv.respond_to_reinvite(488)
+                            inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Reduction in number of media streams")})
                             return
                         add_audio, remove_audio, add_chat, remove_chat = False, False, False, False
                         for sdp_index, media in enumerate(proposed_remote_sdp.media):
                             if sdp_index == session._audio_sdp_index and session.audio_transport is not None:
                                 if media.media != "audio":
-                                    inv.respond_to_reinvite(488)
+                                    inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, 'Media at index %d changed from "%s" to "%s"' % (sdp_index, "audio", media.media))})
                                     return
                                 if media.port == 0:
                                     remove_audio = True
                             elif sdp_index == session._chat_sdp_index and session.audio_transport is not None:
                                 if media.media != "message":
-                                    inv.respond_to_reinvite(488)
+                                    inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, 'Media at index %d changed from "%s" to "%s"' % (sdp_index, "message", media.media))})
                                     return
                                 if media.port == 0:
                                     remove_chat = True
@@ -1006,8 +1003,7 @@ class SessionManager(NotificationHandler):
                                 add_chat = True
                         if any([add_audio, add_chat]):
                             if any([remove_audio, remove_chat]):
-                                # We don't support adding AND removing a stream in the same proposal
-                                inv.respond_to_reinvite(488)
+                                inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Both removing AND adding a media stream is currently not supported")})
                                 return
                             inv.respond_to_reinvite(180)
                             session._change_state("PROPOSED")
@@ -1016,8 +1012,7 @@ class SessionManager(NotificationHandler):
                             inv.set_offered_local_sdp(session._make_next_sdp(False))
                             inv.respond_to_reinvite(200)
                     else:
-                        # version increase is not exactly one more
-                        inv.respond_to_reinvite(488)
+                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
                 elif data.state == "DISCONNECTED":
                     if session.start_time is not None:
                         session.stop_time = datetime.now()
