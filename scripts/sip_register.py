@@ -220,10 +220,11 @@ class RegistrationApplication(object):
                 self.stop()
                 engine = Engine()
                 engine.stop()
-                if threadable.isInIOThread():
-                    reactor.stop()
-                else:
-                    reactor.callFromThread(reactor.stop)
+                if reactor.running:
+                    if threadable.isInIOThread():
+                        reactor.stop()
+                    else:
+                        reactor.callFromThread(reactor.stop)
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
         if hasattr(notification.data, 'code'):
