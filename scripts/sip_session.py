@@ -352,7 +352,6 @@ class ChatManager(NotificationHandler):
         self.sessions.append(session)
         if activate:
             self.current_session = session
-            # XXX could be asking user a question about another incoming, at this moment
             self.update_prompt()
 
     def remove_session(self, session):
