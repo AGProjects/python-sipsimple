@@ -371,7 +371,7 @@ class Session(NotificationHandler):
             if self.state != "ESTABLISHED":
                 raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.audio_transport is not None:
-                raise RuntimeError("An audio RTP stream is already active within this SIP session")
+                raise SessionStateError("An audio RTP stream is already active within this SIP session")
             self._queue.append("add_audio")
             if len(self._queue) == 1:
                 self._process_queue()
@@ -381,9 +381,9 @@ class Session(NotificationHandler):
             if self.state != "ESTABLISHED":
                 raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.audio_transport is None:
-                raise RuntimeError("No audio RTP stream is active within this SIP session")
+                raise SessionStateError("No audio RTP stream is active within this SIP session")
             if not any([self.chat_transport]):
-                raise RuntimeError("Removing audio would leave the SIP session without active media")
+                raise SessionStateError("Removing audio would leave the SIP session without active media")
             self._queue.append("remove_audio")
             if len(self._queue) == 1:
                 self._process_queue()
@@ -393,7 +393,7 @@ class Session(NotificationHandler):
             if self.state != "ESTABLISHED":
                 raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.chat_transport is not None:
-                raise RuntimeError("An MSRP chat stream is already active within this SIP session")
+                raise SessionStateError("An MSRP chat stream is already active within this SIP session")
             self._queue.append("add_chat")
             if len(self._queue) == 1:
                 self._process_queue()
@@ -403,9 +403,9 @@ class Session(NotificationHandler):
             if self.state != "ESTABLISHED":
                 raise SessionStateError("This method can only be called while in the ESTABLISHED state")
             if self.chat_transport is None:
-                raise RuntimeError("No MSRP chat stream is active within this SIP session")
+                raise SessionStateError("No MSRP chat stream is active within this SIP session")
             if not any([self.audio_transport]):
-                raise RuntimeError("Removing MSRP chat would leave the SIP session without active media")
+                raise SessionStateError("Removing MSRP chat would leave the SIP session without active media")
             self._queue.append("remove_chat")
             if len(self._queue) == 1:
                 self._process_queue()
@@ -534,9 +534,9 @@ class Session(NotificationHandler):
     def start_recording_audio(self, file_name=None):
         with self._lock:
             if self.audio_transport is None or not self.audio_transport.is_active:
-                raise RuntimeError("No audio RTP stream is active on this SIP session")
+                raise SessionStateError("No audio RTP stream is active on this SIP session")
             if self._audio_rec is not None:
-                raise RuntimeError("Already recording audio to a file")
+                raise SessionStateError("Already recording audio to a file")
             if file_name is None:
                 direction = "outgoing" if self._inv.is_outgoing else "incoming"
                 remote = '%s@%s' % (self._inv.remote_uri.user, self._inv.remote_uri.host)
@@ -557,7 +557,7 @@ class Session(NotificationHandler):
     def stop_recording_audio(self):
         with self._lock:
             if self._audio_rec is None:
-                raise RuntimeError("Not recording any audio")
+                raise SessionStateError("Not recording any audio")
             self._stop_recording_audio()
 
     def _stop_recording_audio(self):
@@ -832,7 +832,7 @@ class Session(NotificationHandler):
 
     def send_dtmf(self, digit):
         if self.audio_transport is None or not self.audio_transport.is_active:
-            raise RuntimeError("This SIP session does not have an active audio RTP stream to transmit DMTF over")
+            raise SessionStateError("This SIP session does not have an active audio RTP stream to transmit DMTF over")
         self.audio_transport.send_dtmf(digit)
 
     def _make_next_sdp(self, is_offer, on_hold=False):
@@ -857,7 +857,7 @@ class Session(NotificationHandler):
 
     def send_message(self, content, content_type="text/plain", to_uri=None, dt=None):
         if self.chat_transport is None:
-            raise RuntimeError("This SIP session does not have an active MSRP stream to send chat message over")
+            raise SessionStateError("This SIP session does not have an active MSRP stream to send chat message over")
         return self.chat_transport.send_message(content, content_type, to_uri, dt=dt)
 
 
