@@ -416,6 +416,8 @@ cdef class Invitation:
         if self.state != "REINVITED":
             raise SIPCoreError("Can only send a response to a re-INVITE in the REINVITED state")
         self._send_response(ua, response_code, extra_headers)
+        if response_code / 100 != 2:
+            self._cb_state(ua, "CONFIRMED", NULL)
 
     def send_reinvite(self, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
