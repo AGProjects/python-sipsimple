@@ -427,7 +427,8 @@ class Session(NotificationHandler):
             if not any([audio_rtp, msrp_chat]):
                 raise ValueError("None of the streams proposed by the remote party is accepted")
             media_initializer = MediaTransportInitializer(self._accept_proposal_continue, self._accept_proposal_fail, audio_rtp, msrp_chat)
-            self.chat_transport = msrp_chat
+            if chat:
+                self.chat_transport = msrp_chat
 
     def _do_reject_proposal(self, code=488, reason=None):
         self._change_state("ESTABLISHED")
@@ -464,7 +465,7 @@ class Session(NotificationHandler):
                 elif msrp_chat is not None and media.media == "message" and media.port != 0 and chat_sdp_index == -1:
                     chat_sdp_index = sdp_index
                     self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                    local_sdp.media.append(msrp_chat.local_media)
+                    local_sdp.media[sdp_index] = msrp_chat.local_media
                 elif local_sdp.media[sdp_index] is None:
                     remote_media = remote_sdp.media[sdp_index]
                     local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
