@@ -416,7 +416,7 @@ class ChatManager(NotificationHandler):
     def send_message(self, message):
         session = self.current_session
         if not session:
-            raise UserCommandError('No active session')
+            raise UserCommandError('Cannot send message %r: no active session' % message)
         try:
             if session.send_message(message):
                 #print 'sent %s %s' % (session, message)
