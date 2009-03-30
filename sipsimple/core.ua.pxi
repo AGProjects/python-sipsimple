@@ -496,7 +496,7 @@ cdef class PJSIPUA:
         if is_fatal:
             self.c_fatal_error = is_fatal
         exc_type, exc_val, exc_tb = sys.exc_info()
-        c_add_event("SCEngineGotException", dict(type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
+        c_add_event("SIPEngineGotException", dict(type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
 
     cdef int c_check_self(self) except -1:
         global _ua
@@ -564,7 +564,7 @@ cdef class PJSIPUA:
             message_params["content_type"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
             message_params["content_subtype"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data, rdata.msg_info.msg.body.len)
-            c_add_event("SCEngineGotMessage", message_params)
+            c_add_event("SIPEngineGotMessage", message_params)
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
@@ -608,7 +608,7 @@ cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_cons
             event_dict["nat_type"] = res.nat_type_name
         else:
             event_dict["error"] = res.status_text
-        c_add_event("SCEngineDetectedNATType", event_dict)
+        c_add_event("SIPEngineDetectedNATType", event_dict)
     except:
         c_ua.c_handle_exception(1)
 
@@ -631,7 +631,7 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
         return 0
     try:
         if ua.c_trace_sip:
-            c_add_event("SCEngineSIPTrace", dict(received=True,
+            c_add_event("SIPEngineSIPTrace", dict(received=True,
                                                  source_ip=rdata.pkt_info.src_name,
                                                  source_port=rdata.pkt_info.src_port,
                                                  destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
@@ -650,7 +650,7 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
         return 0
     try:
         if ua.c_trace_sip:
-            c_add_event("SCEngineSIPTrace", dict(received=False,
+            c_add_event("SIPEngineSIPTrace", dict(received=False,
                                                  source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
                                                  source_port=tdata.tp_info.transport.local_name.port,
                                                  destination_ip=tdata.tp_info.dst_name,

@@ -99,18 +99,18 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                 print data
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "AMAccountRegistrationDidSucceed":
+                if event_name == "SIPAccountRegistrationDidSucceed":
                     print '%s Registered contact "%s" for SIP address %s (expires in %d seconds)' % (datetime.now(), args['contact_uri'], account.id, args['registration'].expires)
-                elif event_name == "AMAccountRegistrationDidFail":
+                elif event_name == "SIPAccountRegistrationDidFail":
                     print "%s Failed to register contact for SIP address %s: %d %s" % (datetime.now(), account.id, args['code'], args['reason'])
                     command = "quit"
                     user_quit = False
-                elif event_name == "AMAccountRegistrationDidEnd":
+                elif event_name == "SIPAccountRegistrationDidEnd":
                     command = "quit"
                     user_quit = False
-                elif event_name == "SCSessionGotRingIndication":
+                elif event_name == "SIPSessionGotRingIndication":
                     print "Ringing..."
-                elif event_name == "SCSessionNewIncoming":
+                elif event_name == "SIPSessionNewIncoming":
                     if sess is None:
                         sess = obj
                         from_whom = SIPURI(obj.caller_uri.host, user=obj.caller_uri.user, display=obj.caller_uri.display, secure=obj.caller_uri.secure)
@@ -125,7 +125,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                     else:
                         print "Rejecting."
                         obj.reject()
-                elif event_name == "SCSessionDidStart":
+                elif event_name == "SIPSessionDidStart":
                     print 'Session established, using "%s" codec at %dHz' % (sess.audio_codec, sess.audio_sample_rate)
                     print "Audio RTP endpoints %s:%d <-> %s:%d" % (sess.audio_local_rtp_address, sess.audio_local_rtp_port, sess.audio_remote_rtp_address_sdp, sess.audio_remote_rtp_port_sdp)
                     if sess.audio_srtp_active:
@@ -135,17 +135,17 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                     return_code = 0
                     if auto_hangup is not None:
                         Timer(auto_hangup, lambda: queue.put(("eof", None))).start()
-                elif event_name == "SCSessionGotHoldRequest":
+                elif event_name == "SIPSessionGotHoldRequest":
                     if args["originator"] == "local":
                         print "Call is put on hold"
                     else:
                         print "Remote party has put the audio session on hold"
-                elif event_name == "SCSessionGotUnholdRequest":
+                elif event_name == "SIPSessionGotUnholdRequest":
                     if args["originator"] == "local":
                         print "Call is taken out of hold"
                     else:
                         print "Remote party has taken the audio session out of hold"
-                elif event_name == "SCSessionDidFail":
+                elif event_name == "SIPSessionDidFail":
                     if obj is sess:
                         if args["code"]:
                             print "Session failed: %d %s" % (args["code"], args["reason"])
@@ -153,10 +153,10 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                             print "Session failed: %s" % args["reason"]
                         if args["originator"] == "remote" and sess.remote_user_agent is not None:
                             print 'Remote SIP User Agent is "%s"' % sess.remote_user_agent
-                elif event_name == "SCSessionWillEnd":
+                elif event_name == "SIPSessionWillEnd":
                     if obj is sess:
                         print "Ending session..."
-                elif event_name == "SCSessionDidEnd":
+                elif event_name == "SIPSessionDidEnd":
                     if obj is sess:
                         if args["originator"] == "local":
                             print "Session ended by local party."
@@ -171,22 +171,22 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                         if auto_answer_timer is not None:
                             auto_answer_timer.cancel()
                             auto_answer_timer = None
-                elif event_name == "SCSessionGotNoAudio":
+                elif event_name == "SIPSessionGotNoAudio":
                     print "No media received, ending session"
                     return_code = 1
                     command = "end"
                     want_quit = target_uri is not None
-                elif event_name == "SCSessionDidStartRecordingAudio":
+                elif event_name == "SIPSessionDidStartRecordingAudio":
                     print 'Recording audio to "%s"' % args["file_name"]
-                elif event_name == "SCSessionDidStopRecordingAudio":
+                elif event_name == "SIPSessionDidStopRecordingAudio":
                     print 'Stopped recording audio to "%s"' % args["file_name"]
-                elif event_name == "SCEngineDetectedNATType":
+                elif event_name == "SIPEngineDetectedNATType":
                     if args["succeeded"]:
                         print "Detected NAT type: %s" % args["nat_type"]
-                elif event_name == "SCEngineGotException":
+                elif event_name == "SIPEngineGotException":
                     print "An exception occured within the SIP core:"
                     print args["traceback"]
-                elif event_name == "SCEngineDidFail":
+                elif event_name == "SIPEngineDidFail":
                     user_quit = False
                     command = "quit"
             if command == "user_input":

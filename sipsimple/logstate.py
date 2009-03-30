@@ -26,7 +26,7 @@ class SIPTracer(FileLoggerBase):
 
     implements(IObserver)
 
-    event_name = 'SCEngineSIPTrace'
+    event_name = 'SIPEngineSIPTrace'
     enabled = True
 
     def __init__(self, fileobj=None):
@@ -56,7 +56,7 @@ class PJSIPTracer(FileLoggerBase):
 
     implements(IObserver)
 
-    event_name = "SCEngineLog"
+    event_name = "SIPEngineLog"
     enabled = True
 
     def handle_notification(self, notification):
@@ -70,7 +70,7 @@ class EngineTracer(FileLoggerBase):
     implements(IObserver)
 
     event_name = Any
-    excluded_notifications  = ["SCEngineLog", 'SCEngineSIPTrace']
+    excluded_notifications  = ["SIPEngineLog", 'SIPEngineSIPTrace']
 
     def handle_notification(self, notification):
         if notification.name in self.excluded_notifications:
@@ -161,7 +161,7 @@ class RegistrationLogger(StateLoggerBase):
     After a successful registration, only log registration failures.
     """
     registered_count = 0
-    event_name = 'SCRegistrationChangedState'
+    event_name = 'SIPRegistrationChangedState'
 
     def log_state_default(self, notification_data):
         state = notification_data.state
@@ -191,8 +191,8 @@ class RegistrationLogger(StateLoggerBase):
 
 class InvitationLogger(StateLoggerBase):
 
-    event_name = 'SCInvitationChangedState'
-    events = [event_name, 'SCInvitationGotSDPUpdate']
+    event_name = 'SIPInvitationChangedState'
+    events = [event_name, 'SIPInvitationGotSDPUpdate']
     confirmed = False
 
     def __init__(self, *args, **kwargs):
@@ -263,7 +263,7 @@ class InvitationLogger(StateLoggerBase):
                 self.ringing_filter.add(msg)
                 self.write(msg)
 
-    def log_SCInvitationGotSDPUpdate(self, notification_data):
+    def log_SIPInvitationGotSDPUpdate(self, notification_data):
         if not notification_data.succeeded:
             self.write('SDP negotiation failed: %s' % notification_data.error)
 

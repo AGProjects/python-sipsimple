@@ -92,7 +92,7 @@ class MessageRenderer(object):
 
     implements(IObserver)
 
-    event_name = 'SCSessionGotMessage'
+    event_name = 'SIPSessionGotMessage'
 
     def start(self):
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name=self.event_name)
@@ -132,14 +132,14 @@ class ChatSession(GreenSession, NotificationHandler):
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
                 self.remote_party = format_uri(self._inv.remote_uri)
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SCSessionDidStart', sender=self._obj)
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SCSessionGotStreamUpdate', sender=self._obj)
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SIPSessionDidStart', sender=self._obj)
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SIPSessionGotStreamUpdate', sender=self._obj)
 
-    def _NH_SCSessionDidStart(self, session, _data):
+    def _NH_SIPSessionDidStart(self, session, _data):
         if self.history_file is None:
             self.history_file = get_history_file(session._inv)
 
-    def _NH_SCSessionGotStreamUpdate(self, session, data):
+    def _NH_SIPSessionGotStreamUpdate(self, session, data):
         self.update_info(chat='chat' in data.streams, audio='audio' in data.streams)
 
     def end(self):
@@ -221,28 +221,28 @@ class ChatManager(NotificationHandler):
         self.sessions = []
         self.current_session = None
         self.procs = ProcSet()
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidFail')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionNewIncoming')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionChangedState')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionGotStreamProposal')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidFail')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidEnd')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionNewIncoming')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionChangedState')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotStreamProposal')
 
-    def _NH_SCSessionDidEnd(self, session, data):
+    def _NH_SIPSessionDidEnd(self, session, data):
         try:
             self.remove_session(session._green)
         except ValueError:
             pass
 
-    _NH_SCSessionDidFail = _NH_SCSessionDidEnd
+    _NH_SIPSessionDidFail = _NH_SIPSessionDidEnd
 
-    def _NH_SCSessionNewIncoming(self, session, data):
+    def _NH_SIPSessionNewIncoming(self, session, data):
         self.procs.spawn(self._handle_incoming, session, data)
 
-    def _NH_SCSessionChangedState(self, session, data):
+    def _NH_SIPSessionChangedState(self, session, data):
         self.update_prompt()
 
     # this notification is handled here and not on the session because we have access to the console here
-    def _NH_SCSessionGotStreamProposal(self, session, data):
+    def _NH_SIPSessionGotStreamProposal(self, session, data):
         if data.proposer == 'remote':
             self.procs.spawn(self._handle_proposal, session, data)
 
@@ -250,7 +250,7 @@ class ChatManager(NotificationHandler):
         inv = session._inv
         txt = '/'.join(x.capitalize() for x in data.streams)
         question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(inv.caller_uri), txt)
-        with linked_notification(name='SCSessionChangedState', sender=session) as q:
+        with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
             p2 = proc.spawn(lambda : q.wait() and p1.kill())
@@ -275,7 +275,7 @@ class ChatManager(NotificationHandler):
             replies += list('aAcC')
             replies_txt += '/a/c'
         question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, inv.caller_uri, replies_txt)
-        with linked_notification(name='SCSessionChangedState', sender=session) as q:
+        with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
             p2 = proc.spawn(lambda : q.wait() and p1.kill())
@@ -546,18 +546,18 @@ class ChatManager(NotificationHandler):
 class InfoPrinter(NotificationHandler):
 
     def start(self):
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCEngineDetectedNATType')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidStart')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionRejectedStreamProposal')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionGotHoldRequest')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionGotUnholdRequest')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPEngineDetectedNATType')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidStart')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidEnd')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionRejectedStreamProposal')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotHoldRequest')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotUnholdRequest')
 
-    def _NH_SCEngineDetectedNATType(self, sender, data):
+    def _NH_SIPEngineDetectedNATType(self, sender, data):
         if data.succeeded:
             print "Detected NAT type: %s" % data.nat_type
 
-    def _NH_SCSessionDidStart(self, session, _data):
+    def _NH_SIPSessionDidStart(self, session, _data):
         try:
             print 'Session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
             print "Audio RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
@@ -569,7 +569,7 @@ class InfoPrinter(NotificationHandler):
         if session.remote_user_agent is not None:
             print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
 
-    def _NH_SCSessionDidEnd(self, session, data):
+    def _NH_SIPSessionDidEnd(self, session, data):
         if data.originator == 'local':
             print "Session ended by local party."
         else:
@@ -578,16 +578,16 @@ class InfoPrinter(NotificationHandler):
             duration = session.stop_time - session.start_time
             print "Session duration was %s%s%d seconds." % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
 
-    def _NH_SCSessionRejectedStreamProposal(self, session, data):
+    def _NH_SIPSessionRejectedStreamProposal(self, session, data):
         print data.reason
 
-    def _NH_SCSessionGotHoldRequest(self, session, data):
+    def _NH_SIPSessionGotHoldRequest(self, session, data):
         if data.originator == 'local':
             print "Call is put on hold"
         else:
             print "Remote party has put the audio session on hold"
 
-    def _NH_SCSessionGotUnholdRequest(self, session, data):
+    def _NH_SIPSessionGotUnholdRequest(self, session, data):
         if data.originator == "local":
             print "Call is taken out of hold"
         else:
@@ -745,21 +745,21 @@ class RegistrationManager(NotificationHandler):
         self.accounts = set()
 
     def start(self):
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='AMAccountRegistrationDidSucceed')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='AMAccountRegistrationDidEnd')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='AMAccountRegistrationDidFail')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPAccountRegistrationDidSucceed')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPAccountRegistrationDidEnd')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPAccountRegistrationDidFail')
 
-    def _NH_AMAccountRegistrationDidSucceed(self, account, data):
+    def _NH_SIPAccountRegistrationDidSucceed(self, account, data):
         self.accounts.add(account)
 
-    def _NH_AMAccountRegistrationDidEnd(self, account, data):
+    def _NH_SIPAccountRegistrationDidEnd(self, account, data):
         self.accounts.discard(account)
 
-    def _NH_AMAccountRegistrationDidFail(self, account, data):
+    def _NH_SIPAccountRegistrationDidFail(self, account, data):
         self.accounts.discard(account)
 
     def unregister(self):
-        with linked_notifications(names=['AMAccountRegistrationDidFail', 'AMAccountRegistrationDidEnd']) as q:
+        with linked_notifications(names=['SIPAccountRegistrationDidFail', 'SIPAccountRegistrationDidEnd']) as q:
             AccountManager().stop()
             with api.timeout(1, None):
                 while self.accounts:

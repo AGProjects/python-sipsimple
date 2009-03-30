@@ -24,30 +24,30 @@ class GreenSession(GreenBase):
 
     def connect(self, *args, **kwargs):
         """Call connect() on the proxied object. Wait for the session to start or to fail.
-        In addition to SCSessionDidStart, wait for MSRPChatDidFail notification.
+        In addition to SIPSessionDidStart, wait for MSRPChatDidFail notification.
 
         In case of an error raise SessionError.
         """
-        event_names = ['SCSessionDidStart',
-                       'SCSessionDidFail',
-                       'SCSessionDidEnd']
+        event_names = ['SIPSessionDidStart',
+                       'SIPSessionDidFail',
+                       'SIPSessionDidEnd']
         with self.linked_notifications(event_names) as q:
             self._obj.connect(*args, **kwargs)
             while True:
                 notification = q.wait()
-                if notification.name == 'SCSessionDidStart':
+                if notification.name == 'SIPSessionDidStart':
                     break
                 else:
                     self._raise_if_error(notification)
-        # XXX I would expect Session instance not to fire SCSessionDidStart until all the transports started
+        # XXX I would expect Session instance not to fire SIPSessionDidStart until all the transports started
         # XXX otherwise I have to go into session and manually wait for different types of events
-        # XXX the same goes for terminating - wait for MSRPChatDidEnd before firing SCSessionDidEnd
+        # XXX the same goes for terminating - wait for MSRPChatDidEnd before firing SIPSessionDidEnd
         self._wait_for_chat_to_start()
 
     def _raise_if_error(self, notification):
-        if notification.name == 'SCSessionDidFail':
+        if notification.name == 'SIPSessionDidFail':
             raise SessionError(notification.data.reason)
-        if notification.name == 'SCSessionDidEnd':
+        if notification.name == 'SIPSessionDidEnd':
             if notification.data.originator == "local":
                raise SessionError("Session ended by local party")
             else:
@@ -58,25 +58,25 @@ class GreenSession(GreenBase):
     def _wait_for_chat_to_start(self):
         if self.chat_transport is not None:
             with self.linked_notifications(['MSRPChatDidStart', 'MSRPChatDidFail'], sender=self.chat_transport) as q:
-                with self.linked_notifications(['SCSessionDidFail', 'SCSessionDidEnd'], queue=q):
+                with self.linked_notifications(['SIPSessionDidFail', 'SIPSessionDidEnd'], queue=q):
                     if not self.chat_transport.is_started:
                         notification = q.wait()
                         self._raise_if_error(notification)
 
     def accept(self, *args, **kwargs):
         """Call accept() on the proxied object. Wait for the session to start or to fail.
-        In addition to SCSessionDidStart, wait for MSRPChatDidFail notification.
+        In addition to SIPSessionDidStart, wait for MSRPChatDidFail notification.
 
         In case of an error raise SessionError.
         """
-        event_names = ['SCSessionDidStart',
-                       'SCSessionDidFail',
-                       'SCSessionDidEnd']
+        event_names = ['SIPSessionDidStart',
+                       'SIPSessionDidFail',
+                       'SIPSessionDidEnd']
         with self.linked_notifications(event_names) as q:
             self._obj.accept(*args, **kwargs)
             while True:
                 notification = q.wait()
-                if notification.name == 'SCSessionDidStart':
+                if notification.name == 'SIPSessionDidStart':
                     break
                 else:
                     self._raise_if_error(notification)
@@ -89,14 +89,14 @@ class GreenSession(GreenBase):
         """
         if self.state in ["NULL", "TERMINATED"]:
             return
-        with self.linked_notifications(['SCSessionDidFail', 'SCSessionDidEnd']) as q:
+        with self.linked_notifications(['SIPSessionDidFail', 'SIPSessionDidEnd']) as q:
             if self.state != 'TERMINATING':
                 self._obj.end(*args, **kwargs)
                 while True:
                     notification = q.wait()
-                    if notification.name == 'SCSessionDidFail':
+                    if notification.name == 'SIPSessionDidFail':
                         raise SessionError(notification.data.reason)
-                    elif notification.name == 'SCSessionDidEnd':
+                    elif notification.name == 'SIPSessionDidEnd':
                         return notification
 
     def deliver_message(self, *args, **kwargs):
@@ -123,10 +123,10 @@ def linked_incoming(queue=None):
     if queue is None:
         queue = coros.queue()
     observer = CallFromThreadObserver(queue.send)
-    NotificationCenter().add_observer(observer, 'SCSessionNewIncoming')
+    NotificationCenter().add_observer(observer, 'SIPSessionNewIncoming')
     try:
         yield queue
     finally:
-        NotificationCenter.remove_observer(observer, 'SCSessionNewIncoming')
+        NotificationCenter.remove_observer(observer, 'SIPSessionNewIncoming')
 
 

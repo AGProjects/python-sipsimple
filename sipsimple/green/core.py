@@ -71,33 +71,33 @@ class GreenEngine(GreenBase, NotificationHandler):
 
     def __init__(self):
         """Create a new instance.
-        Subscribe to SCEngineGotException and print the errors to the log.
-        Subscribe to SCEngineDidFail and convert them into an exception in the current greenlet.
+        Subscribe to SIPEngineGotException and print the errors to the log.
+        Subscribe to SIPEngineDidFail and convert them into an exception in the current greenlet.
         """
         GreenBase.__init__(self)
-        self._subscribe_SCEngineGotException()
+        self._subscribe_SIPEngineGotException()
         self.link_error()
 
     def stop(self):
         if self._thread_started:
-            with self.linked_notifications(['SCEngineDidEnd', 'SCEngineDidFail', 'SCEngineGotException']) as q:
+            with self.linked_notifications(['SIPEngineDidEnd', 'SIPEngineDidFail', 'SIPEngineGotException']) as q:
                 self._obj._thread_stopping = True
                 q.wait()
 
     def link_error(self, greenlet=None):
         """Asynchonously raise an exception in `greenlet' (the current one by default) when the engine
-        signals failure through SCEngineDidFail notification.
+        signals failure through SIPEngineDidFail notification.
         """
         if greenlet is None:
             greenlet = api.getcurrent()
         error_observer = notification.CallFromThreadObserver(lambda n: greenlet.throw(EngineError(str(n))))
-        self.notification_center.add_observer(error_observer, 'SCEngineDidFail')
+        self.notification_center.add_observer(error_observer, 'SIPEngineDidFail')
 
-    def _NH_SCEngineGotException(self, engine, notification_data):
+    def _NH_SIPEngineGotException(self, engine, notification_data):
         log.error('An error in the PJSIP thread on %s:\n%s' % (notification_data.timestamp, notification_data.traceback))
 
-    def _subscribe_SCEngineGotException(self):
-        self.notification_center.add_observer(observer=notification.NotifyFromThreadObserver(self), name='SCEngineGotException')
+    def _subscribe_SIPEngineGotException(self):
+        self.notification_center.add_observer(observer=notification.NotifyFromThreadObserver(self), name='SIPEngineGotException')
 
     @contextmanager
     def linked_incoming(self, queue=None):
@@ -108,11 +108,11 @@ class GreenEngine(GreenBase, NotificationHandler):
             obj = GreenInvitation(__obj=n.sender)
             queue.send(obj)
         observer = notification.CallFromThreadObserver(wrap_and_send_to_queue, lambda n: n.data.state=='INCOMING')
-        self.notification_center.add_observer(observer, 'SCInvitationChangedState')
+        self.notification_center.add_observer(observer, 'SIPInvitationChangedState')
         try:
             yield queue
         finally:
-            self.notification_center.remove_observer(observer, 'SCInvitationChangedState')
+            self.notification_center.remove_observer(observer, 'SIPInvitationChangedState')
 
 
 def play_wav_file(filepath, *args, **kwargs):
@@ -152,7 +152,7 @@ class IncomingSessionHandler(object):
 
 
 class GreenRegistration(GreenBase):
-    event_name = 'SCRegistrationChangedState'
+    event_name = 'SIPRegistrationChangedState'
     klass = Registration
 
     def register(self):
@@ -208,7 +208,7 @@ class Ringer(object):
 
 class GreenInvitation(GreenBase):
 
-    event_names = ['SCInvitationChangedState', 'SCInvitationGotSDPUpdate']
+    event_names = ['SIPInvitationChangedState', 'SIPInvitationGotSDPUpdate']
     klass = Invitation
 
     @property

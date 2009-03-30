@@ -25,8 +25,8 @@ class Logger(object):
     def start(self):
         # register to receive log notifications
         notification_center = Engine().notification_center
-        notification_center.add_observer(self, name='SCEngineSIPTrace')
-        notification_center.add_observer(self, name='SCEngineLog')
+        notification_center.add_observer(self, name='SIPEngineSIPTrace')
+        notification_center.add_observer(self, name='SIPEngineLog')
 
         settings = SIPSimpleSettings()
         log_directory = settings.logging.directory.normalized
@@ -51,8 +51,8 @@ class Logger(object):
 
         # unregister from receiving notifications
         notification_center = Engine().notification_center
-        notification_center.remove_observer(self, name='SCEngineSIPTrace')
-        notification_center.remove_observer(self, name='SCEngineLog')
+        notification_center.remove_observer(self, name='SIPEngineSIPTrace')
+        notification_center.remove_observer(self, name='SIPEngineLog')
 
     def handle_notification(self, notification):
         handler = getattr(self, '_LH_%s' % notification.name, None)
@@ -60,7 +60,7 @@ class Logger(object):
             handler(notification.name, notification.data)
 
     # log handlers
-    def _LH_SCEngineSIPTrace(self, event_name, event_data):
+    def _LH_SIPEngineSIPTrace(self, event_name, event_data):
         settings = SIPSimpleSettings()
         if not self.sip_to_stdout and not settings.logging.trace_sip:
             return
@@ -88,7 +88,7 @@ class Logger(object):
             self._siptrace_file.write(message)
             self._siptrace_file.flush()
     
-    def _LH_SCEngineLog(self, event_name, event_data):
+    def _LH_SIPEngineLog(self, event_name, event_data):
         settings = SIPSimpleSettings()
         if not self.pjsip_to_stdout and not settings.logging.trace_pjsip:
             return

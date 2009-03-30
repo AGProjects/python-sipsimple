@@ -204,7 +204,7 @@ class SubscriptionApplication(object):
         if handler is not None:
             handler(notification)
 
-    def _NH_AMAccountWasAdded(self, notification):
+    def _NH_SIPAccountManagerDidAddAccount(self, notification):
         account = notification.data.account
         account_manager = AccountManager()
         if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
@@ -213,7 +213,7 @@ class SubscriptionApplication(object):
         else:
             account.enabled = False
 
-    def _NH_SCSubscriptionChangedState(self, notification):
+    def _NH_SIPSubscriptionChangedState(self, notification):
         route = notification.sender.route
         if notification.data.state.lower() in ('active', 'accepted'):
             self._subscription_routes = None
@@ -248,7 +248,7 @@ class SubscriptionApplication(object):
                     notification_center.add_observer(self, sender=self.subscription)
                     self.subscription.subscribe()
 
-    def _NH_SCSubscriptionGotNotify(self, notification):
+    def _NH_SIPSubscriptionGotNotify(self, notification):
         if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) == PIDF.content_type:
             self.output.put('Received NOTIFY:')
             try:
@@ -287,14 +287,14 @@ class SubscriptionApplication(object):
         elif key == '?':
             self.print_help()
 
-    def _NH_SCEngineDidFail(self, notification):
+    def _NH_SIPEngineDidFail(self, notification):
         self.output.put('Engine failed.')
         if threadable.isInIOThread():
             reactor.stop()
         else:
             reactor.callFromThread(reactor.stop)
 
-    def _NH_SCEngineGotException(self, notification):
+    def _NH_SIPEngineGotException(self, notification):
         self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
     
     def _subscribe(self):

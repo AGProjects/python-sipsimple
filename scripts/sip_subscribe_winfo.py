@@ -270,7 +270,7 @@ class EventHandler(object):
 
     def handle_notification(self, notification):
         global queue, winfo, return_code
-        if notification.name == "SCSubscriptionChangedState":
+        if notification.name == "SIPSubscriptionChangedState":
             if notification.data.state == "ACTIVE":
                 #queue.put(("print", "SUBSCRIBE was successful"))
                 return_code = 0
@@ -284,7 +284,7 @@ class EventHandler(object):
                 queue.put(("quit", None))
             elif notification.data.state == "PENDING":
                 queue.put(("print", "Subscription is pending"))
-        elif notification.name == "SCSubscriptionGotNotify":
+        elif notification.name == "SIPSubscriptionGotNotify":
             return_code = 0
             if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) == WatcherInfo.content_type:
                 try:
@@ -344,10 +344,10 @@ def read_queue(e, username, domain, password, display_name, route, xcap_root, ex
                     print "%s watcher %s wants to subscribe to your presence information. Press (a) for allow, (d) for deny or (p) for polite blocking:" % (pending[0].status.capitalize(), pending[0])
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "SCEngineGotException":
+                if event_name == "SIPEngineGotException":
                     print "An exception occured within the SIP core:"
                     print args.traceback
-                elif event_name == "SCEngineDidFail":
+                elif event_name == "SIPEngineDidFail":
                     user_quit = False
                     command = "quit"
             if command == "user_input":

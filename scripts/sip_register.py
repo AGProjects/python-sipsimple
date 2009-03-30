@@ -167,7 +167,7 @@ class RegistrationApplication(object):
         if handler is not None:
             handler(notification)
 
-    def _NH_AMAccountWasAdded(self, notification):
+    def _NH_SIPAccountManagerDidAddAccount(self, notification):
         account = notification.data.account
         account_manager = AccountManager()
         if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
@@ -179,7 +179,7 @@ class RegistrationApplication(object):
         else:
             account.enabled = False
 
-    def _NH_AMAccountRegistrationDidSucceed(self, notification):
+    def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if not self.success:
             route = notification.data.registration.route
             message = 'Registration succeeded at %s:%d;transport=%s.\n' % (route.address, route.port, route.transport)
@@ -196,7 +196,7 @@ class RegistrationApplication(object):
             if self.max_registers == 0:
                 self.stop()
 
-    def _NH_AMAccountRegistrationDidFail(self, notification):
+    def _NH_SIPAccountRegistrationDidFail(self, notification):
         route = notification.data.registration.route
         if notification.data.next_route:
             next_route = notification.data.next_route
@@ -222,7 +222,7 @@ class RegistrationApplication(object):
                 else:
                     reactor.callFromThread(reactor.stop)
 
-    def _NH_AMAccountRegistrationDidEnd(self, notification):
+    def _NH_SIPAccountRegistrationDidEnd(self, notification):
         if hasattr(notification.data, 'code'):
             self.output.put('Registration ended: %d %s.' % (notification.data.code, notification.data.reason))
         else:
@@ -250,14 +250,14 @@ class RegistrationApplication(object):
         elif key == '?':
             self.print_help()
 
-    def _NH_SCEngineDidFail(self, notification):
+    def _NH_SIPEngineDidFail(self, notification):
         self.output.put('Engine failed.')
         if threadable.isInIOThread():
             reactor.stop()
         else:
             reactor.callFromThread(reactor.stop)
 
-    def _NH_SCEngineGotException(self, notification):
+    def _NH_SIPEngineGotException(self, notification):
         self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
 
 

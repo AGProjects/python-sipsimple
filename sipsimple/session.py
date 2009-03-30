@@ -235,7 +235,7 @@ class Session(NotificationHandler):
                 self._ringtone = ringtone
             self.direction = "outgoing"
             self._change_state("CALLING")
-            self.notification_center.post_notification("SCSessionNewOutgoing", self, TimestampedNotificationData(streams=[stream for is_added, stream in zip([audio, chat], ["audio", "chat"]) if is_added]))
+            self.notification_center.post_notification("SIPSessionNewOutgoing", self, TimestampedNotificationData(streams=[stream for is_added, stream in zip([audio, chat], ["audio", "chat"]) if is_added]))
 
     def _do_fail(self, reason):
         try:
@@ -251,8 +251,8 @@ class Session(NotificationHandler):
                 traceback.print_exc()
         self._inv = None
         self._change_state("TERMINATED")
-        self.notification_center.post_notification("SCSessionDidFail", self, TimestampedNotificationData(originator=originator, code=0, reason=reason))
-        self.notification_center.post_notification("SCSessionDidEnd", self, TimestampedNotificationData(originator=originator))
+        self.notification_center.post_notification("SIPSessionDidFail", self, TimestampedNotificationData(originator=originator, code=0, reason=reason))
+        self.notification_center.post_notification("SIPSessionDidEnd", self, TimestampedNotificationData(originator=originator))
 
     def _connect_fail(self, reason):
         with self._lock:
@@ -432,7 +432,7 @@ class Session(NotificationHandler):
 
     def _do_reject_proposal(self, code=488, reason=None):
         self._change_state("ESTABLISHED")
-        self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="remote", reason=reason))
+        self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="remote", reason=reason))
         self._inv.respond_to_reinvite(code)
 
     def _accept_proposal_fail(self, reason):
@@ -476,7 +476,7 @@ class Session(NotificationHandler):
             if msrp_chat is not None:
                 self._chat_sdp_index = chat_sdp_index
             self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionAcceptedStreamProposal", self, TimestampedNotificationData(proposer="remote"))
+            self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self, TimestampedNotificationData(proposer="remote"))
         except SIPCoreError, e:
             self._cancel_media()
             try:
@@ -524,13 +524,13 @@ class Session(NotificationHandler):
 
     def _do_end(self):
         self._change_state("TERMINATING")
-        self.notification_center.post_notification("SCSessionWillEnd", self, TimestampedNotificationData())
+        self.notification_center.post_notification("SIPSessionWillEnd", self, TimestampedNotificationData())
         if self._inv.state != "DISCONNECTING":
             try:
                 self._inv.disconnect()
             except SIPCoreError:
                 self._change_state("TERMINATED")
-                self.notification_center.post_notification("SCSessionDidEnd", self, TimestampedNotificationData(originator="local"))
+                self.notification_center.post_notification("SIPSessionDidEnd", self, TimestampedNotificationData(originator="local"))
 
     def start_recording_audio(self, file_name=None):
         with self._lock:
@@ -545,15 +545,15 @@ class Session(NotificationHandler):
             makedirs(self.settings.audio.recordings_directory.normalized)
             self._audio_rec = RecordingWaveFile(os.path.join(self.settings.audio.recordings_directory.normalized, file_name))
             if not self.on_hold:
-                self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
+                self.notification_center.post_notification("SIPSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
                 try:
                     self._audio_rec.start()
                 except SIPCoreError:
-                    self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
+                    self.notification_center.post_notification("SIPSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
                     self._audio_rec = None
                     raise
                 else:
-                    self.notification_center.post_notification("SCSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
+                    self.notification_center.post_notification("SIPSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
 
     def stop_recording_audio(self):
         with self._lock:
@@ -562,11 +562,11 @@ class Session(NotificationHandler):
             self._stop_recording_audio()
 
     def _stop_recording_audio(self):
-        self.notification_center.post_notification("SCSessionWillStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
+        self.notification_center.post_notification("SIPSessionWillStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
         try:
             self._audio_rec.stop()
         finally:
-            self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
+            self.notification_center.post_notification("SIPSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
             self._audio_rec = None
 
     def _check_recording_hold(self):
@@ -581,14 +581,14 @@ class Session(NotificationHandler):
                     self._audio_rec.resume()
             else:
                 file_name = self.audio_recording_file_name
-                self.notification_center.post_notification("SCSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+                self.notification_center.post_notification("SIPSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
                 try:
                     self._audio_rec.start()
                 except SIPCoreError:
                     self._audio_rec = None
-                    self.notification_center.post_notification("SCSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+                    self.notification_center.post_notification("SIPSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
                 else:
-                    self.notification_center.post_notification("SCSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
+                    self.notification_center.post_notification("SIPSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
 
     def _start_ringtone(self):
         try:
@@ -606,7 +606,7 @@ class Session(NotificationHandler):
             if prev_state == "INCOMING" or prev_state == "CALLING":
                 if self._ringtone is not None:
                     self._ringtone = None
-            self.notification_center.post_notification("SCSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
+            self.notification_center.post_notification("SIPSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
     def _process_queue(self):
         try:
@@ -648,7 +648,7 @@ class Session(NotificationHandler):
                     media_initializer = MediaTransportInitializer(self._add_audio_continue, self._add_audio_fail, AccountRTPTransport(self.account, self._inv.transport), None)
                     self.proposed_audio = True
                     self._change_state("PROPOSING")
-                    self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(streams=["audio"], proposer="local"))
+                    self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=["audio"], proposer="local"))
                     break
                 elif command == "add_chat":
                     if self.chat_transport is not None:
@@ -657,17 +657,17 @@ class Session(NotificationHandler):
                     media_initializer = MediaTransportInitializer(self._add_chat_continue, self._add_chat_fail, None, self.chat_transport)
                     self.proposed_chat = True
                     self._change_state("PROPOSING")
-                    self.notification_center.post_notification("SCSessionGotStreamProposal", self, TimestampedNotificationData(streams=["chat"], proposer="local"))
+                    self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=["chat"], proposer="local"))
                     break
             if local_sdp is not None:
                 self._inv.set_offered_local_sdp(local_sdp)
                 self._inv.send_reinvite()
                 if not was_on_hold and self.on_hold_by_local:
                     self._check_recording_hold()
-                    self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
+                    self.notification_center.post_notification("SIPSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
                 elif was_on_hold and not self.on_hold_by_local:
                     self._check_recording_hold()
-                    self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
+                    self.notification_center.post_notification("SIPSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
         except SIPCoreError, e:
             self._do_fail(e.args[0])
 
@@ -677,7 +677,7 @@ class Session(NotificationHandler):
                 return
             self.proposed_audio = False
             self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
+            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
 
     def _add_audio_continue(self, audio_rtp, msrp_chat):
         self._lock.acquire()
@@ -702,7 +702,7 @@ class Session(NotificationHandler):
             self.proposed_audio = False
             self._cancel_media()
             self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
+            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
         finally:
             self._lock.release()
 
@@ -713,7 +713,7 @@ class Session(NotificationHandler):
             self.proposed_chat = False
             self._stop_chat()
             self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
+            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
 
     def _add_chat_continue(self, audio_rtp, msrp_chat):
         self._lock.acquire()
@@ -735,7 +735,7 @@ class Session(NotificationHandler):
             self.proposed_chat = False
             self._cancel_media()
             self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SCSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
+            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
         finally:
             self._lock.release()
 
@@ -776,17 +776,17 @@ class Session(NotificationHandler):
             self._no_audio_timer = Timer(5, self._check_audio)
             self._no_audio_timer.start()
             self.has_audio = True
-            self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
+            self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
         was_on_hold = self.on_hold_by_remote
         new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
         self.on_hold_by_remote = "send" not in new_direction
         self.audio_transport.update_direction(new_direction)
         if not was_on_hold and self.on_hold_by_remote:
             self._check_recording_hold()
-            self.notification_center.post_notification("SCSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
+            self.notification_center.post_notification("SIPSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
         elif was_on_hold and not self.on_hold_by_remote:
             self._check_recording_hold()
-            self.notification_center.post_notification("SCSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
+            self.notification_center.post_notification("SIPSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
 
     def _update_chat(self, remote_sdp):
         if self.chat_transport.is_active:
@@ -819,7 +819,7 @@ class Session(NotificationHandler):
         had_audio = self.has_audio
         self.has_audio = False
         if had_audio:
-            self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
+            self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
 
     def _stop_chat(self):
         msrp_chat = self.chat_transport
@@ -828,14 +828,14 @@ class Session(NotificationHandler):
         self.session_manager.msrp_chat_mapping.pop(msrp_chat, None)
         self.has_chat = False
         if had_chat:
-            self.notification_center.post_notification("SCSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
+            self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
         msrp_chat.end()
 
     def _check_audio(self):
         with self._lock:
             self._no_audio_timer = None
             if not self.audio_was_received:
-                self.notification_center.post_notification("SCSessionGotNoAudio", self, TimestampedNotificationData())
+                self.notification_center.post_notification("SIPSessionGotNoAudio", self, TimestampedNotificationData())
 
     def _cancel_media(self):
         # This should, in principle, never throw exceptions
@@ -892,8 +892,8 @@ class SessionManager(NotificationHandler):
         self.audio_transport_mapping = {}
         self.msrp_chat_mapping = {}
         self.notification_center = NotificationCenter()
-        self.notification_center.add_observer(self, "SCInvitationChangedState")
-        self.notification_center.add_observer(self, "SCInvitationGotSDPUpdate")
+        self.notification_center.add_observer(self, "SIPInvitationChangedState")
+        self.notification_center.add_observer(self, "SIPInvitationGotSDPUpdate")
         self.notification_center.add_observer(self, "SCAudioTransportGotDTMF")
         self.notification_center.add_observer(self, "MSRPChatGotMessage")
         self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
@@ -906,7 +906,7 @@ class SessionManager(NotificationHandler):
     def sessions(self):
         return self.inv_mapping.values()
 
-    def _NH_SCInvitationChangedState(self, inv, data):
+    def _NH_SIPInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
             if "To" not in data.headers.iterkeys():
                 inv.disconnect(404)
@@ -930,7 +930,7 @@ class SessionManager(NotificationHandler):
                 session._ringtone = WaveFile(ringtone)
             session.direction = "incoming"
             session._change_state("INCOMING")
-            self.notification_center.post_notification("SCSessionNewIncoming", session, TimestampedNotificationData(streams=proposed_media))
+            self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(streams=proposed_media))
         else:
             session = self.inv_mapping.get(inv, None)
             if session is None:
@@ -940,10 +940,10 @@ class SessionManager(NotificationHandler):
                 if data.state == "EARLY" and inv.is_outgoing and hasattr(data, "code") and data.code == 180:
                     if session._ringtone is not None and not session._ringtone.is_active:
                         session._start_ringtone()
-                    self.notification_center.post_notification("SCSessionGotRingIndication", session, TimestampedNotificationData())
+                    self.notification_center.post_notification("SIPSessionGotRingIndication", session, TimestampedNotificationData())
                 elif data.state == "CONNECTING":
                     session.start_time = datetime.now()
-                    self.notification_center.post_notification("SCSessionWillStart", session, TimestampedNotificationData())
+                    self.notification_center.post_notification("SIPSessionWillStart", session, TimestampedNotificationData())
                     if inv.is_outgoing:
                         session.remote_user_agent = data.headers.get("Server", None)
                         if session.remote_user_agent is None:
@@ -951,7 +951,7 @@ class SessionManager(NotificationHandler):
                 elif data.state == "CONFIRMED":
                     session._change_state("ESTABLISHED")
                     if data.prev_state == "CONNECTING":
-                        self.notification_center.post_notification("SCSessionDidStart", session, TimestampedNotificationData())
+                        self.notification_center.post_notification("SIPSessionDidStart", session, TimestampedNotificationData())
                     elif prev_session_state == "PROPOSING":
                         failure_reason = None
                         if data.code / 100 == 2:
@@ -966,10 +966,10 @@ class SessionManager(NotificationHandler):
                         else:
                             failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
                         if failure_reason is None:
-                            self.notification_center.post_notification("SCSessionAcceptedStreamProposal", session, TimestampedNotificationData(proposer="local"))
+                            self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", session, TimestampedNotificationData(proposer="local"))
                         else:
                             session._cancel_media()
-                            self.notification_center.post_notification("SCSessionRejectedStreamProposal", session, TimestampedNotificationData(proposer="local", reason=failure_reason))
+                            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", session, TimestampedNotificationData(proposer="local", reason=failure_reason))
                     if session._queue:
                         session._process_queue()
                 elif data.state == "REINVITED":
@@ -1014,7 +1014,7 @@ class SessionManager(NotificationHandler):
                                 return
                             inv.respond_to_reinvite(180)
                             session._change_state("PROPOSED")
-                            self.notification_center.post_notification("SCSessionGotStreamProposal", session, TimestampedNotificationData(streams=[stream for is_added, stream in zip([add_audio, add_chat], ["audio", "chat"]) if is_added], proposer="remote"))
+                            self.notification_center.post_notification("SIPSessionGotStreamProposal", session, TimestampedNotificationData(streams=[stream for is_added, stream in zip([add_audio, add_chat], ["audio", "chat"]) if is_added], proposer="remote"))
                         else:
                             inv.set_offered_local_sdp(session._make_next_sdp(False))
                             inv.respond_to_reinvite(200)
@@ -1053,10 +1053,10 @@ class SessionManager(NotificationHandler):
                                 failure_data.reason = "Request cancelled"
                         else:
                             failure_data.reason = session._sdpneg_failure_reason
-                        self.notification_center.post_notification("SCSessionDidFail", session, failure_data)
-                    self.notification_center.post_notification("SCSessionDidEnd", session, TimestampedNotificationData(originator=originator))
+                        self.notification_center.post_notification("SIPSessionDidFail", session, failure_data)
+                    self.notification_center.post_notification("SIPSessionDidEnd", session, TimestampedNotificationData(originator=originator))
 
-    def _NH_SCInvitationGotSDPUpdate(self, inv, data):
+    def _NH_SIPInvitationGotSDPUpdate(self, inv, data):
         session = self.inv_mapping.get(inv, None)
         if session is None:
             return
@@ -1075,29 +1075,29 @@ class SessionManager(NotificationHandler):
     def _NH_SCAudioTransportGotDTMF(self, audio_transport, data):
         session = self.audio_transport_mapping.get(audio_transport, None)
         if session is not None:
-            self.notification_center.post_notification("SCSessionGotDTMF", session, data)
+            self.notification_center.post_notification("SIPSessionGotDTMF", session, data)
 
     def _NH_MSRPChatGotMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
-            self.notification_center.post_notification("SCSessionGotMessage", session, data)
+            self.notification_center.post_notification("SIPSessionGotMessage", session, data)
 
     def _NH_MSRPChatDidDeliverMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
-            self.notification_center.post_notification("SCSessionDidDeliverMessage", session, data)
+            self.notification_center.post_notification("SIPSessionDidDeliverMessage", session, data)
 
     def _NH_MSRPChatDidNotDeliverMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
-            self.notification_center.post_notification("SCSessionDidNotDeliverMessage", session, data)
+            self.notification_center.post_notification("SIPSessionDidNotDeliverMessage", session, data)
 
     def _NH_MSRPChatDidStart(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
         if session is not None:
             with session._lock:
                 session.has_chat = True
-                self.notification_center.post_notification("SCSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+                self.notification_center.post_notification("SIPSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
 
     def _NH_MSRPChatDidFail(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
@@ -1108,7 +1108,7 @@ class SessionManager(NotificationHandler):
                 had_chat = session.has_chat
                 session.has_chat = False
                 if had_chat:
-                    self.notification_center.post_notification("SCSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
 
     def _NH_MSRPChatDidEnd(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
@@ -1117,7 +1117,7 @@ class SessionManager(NotificationHandler):
                 session.chat_transport = None
                 del self.msrp_chat_mapping[msrp_chat]
                 session.has_chat = False
-                self.notification_center.post_notification("SCSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+                self.notification_center.post_notification("SIPSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
 
 
 __all__ = ["SessionManager", "Session"]

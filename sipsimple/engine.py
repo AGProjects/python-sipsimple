@@ -66,7 +66,7 @@ class Engine(object):
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
         init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
-        self._post_notification("SCEngineWillStart")
+        self._post_notification("SIPEngineWillStart")
         try:
             self._ua = PJSIPUA(self._handle_event, **init_options)
             if auto_sound:
@@ -87,10 +87,10 @@ class Engine(object):
             if hasattr(self, "_ua"):
                 self._ua.dealloc()
                 del self._ua
-            self._post_notification("SCEngineDidFail")
+            self._post_notification("SIPEngineDidFail")
             raise
         else:
-            self._post_notification("SCEngineDidStart")
+            self._post_notification("SIPEngineDidStart")
 
     def start_cfg(self, enable_sound=True, local_ip=None, **kwargs):
         # Take the default values for the arguments from SIPSimpleSettings
@@ -135,18 +135,18 @@ class Engine(object):
                     failed = self._ua.poll()
                 except:
                     exc_type, exc_val, exc_tb = sys.exc_info()
-                    self._post_notification("SCEngineGotException", type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
+                    self._post_notification("SIPEngineGotException", type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
                     failed = True
                 if failed:
-                    self._post_notification("SCEngineDidFail")
+                    self._post_notification("SIPEngineDidFail")
                     break
             if not failed:
-                self._post_notification("SCEngineWillEnd")
+                self._post_notification("SIPEngineWillEnd")
             self._ua.dealloc()
             del self._ua
         finally:
             self._lock.release()
-            self._post_notification("SCEngineDidEnd")
+            self._post_notification("SIPEngineDidEnd")
 
     def _handle_event(self, event_name, **kwargs):
         sender = kwargs.pop("obj", None)

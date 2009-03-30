@@ -574,7 +574,7 @@ class PublicationApplication(object):
         if handler is not None:
             handler(notification)
 
-    def _NH_AMAccountWasAdded(self, notification):
+    def _NH_SIPAccountManagerDidAddAccount(self, notification):
         account = notification.data.account
         account_manager = AccountManager()
         if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
@@ -583,7 +583,7 @@ class PublicationApplication(object):
         else:
             account.enabled = False
 
-    def _NH_SCPublicationChangedState(self, notification):
+    def _NH_SIPPublicationChangedState(self, notification):
         if notification.data.state == 'published':
             self._publication_routes = None
             self._publication_wait = 0.5
@@ -635,14 +635,14 @@ class PublicationApplication(object):
         elif key == '?':
             self.print_help()
 
-    def _NH_SCEngineDidFail(self, notification):
+    def _NH_SIPEngineDidFail(self, notification):
         self.output.put('Engine failed.')
         if threadable.isInIOThread():
             reactor.stop()
         else:
             reactor.callFromThread(reactor.stop)
 
-    def _NH_SCEngineGotException(self, notification):
+    def _NH_SIPEngineGotException(self, notification):
         self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
     
     def _publish(self):

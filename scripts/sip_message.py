@@ -57,22 +57,22 @@ def read_queue(e, settings, am, account, logger, target_uri, message, routes):
                 print data
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "SCSessionNewIncoming":
+                if event_name == "SIPSessionNewIncoming":
                     obj.reject()
-                elif event_name == "SCEngineGotMessage":
+                elif event_name == "SIPEngineGotMessage":
                     print 'Received MESSAGE from "%(from_uri)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
                     print args["body"]
-                elif event_name == "SCEngineGotMessageResponse":
+                elif event_name == "SIPEngineGotMessageResponse":
                     if args["code"] / 100 != 2:
                         print "Could not deliver MESSAGE: %(code)d %(reason)s" % args
                     else:
                         print "MESSAGE was accepted by remote party."
                     user_quit = False
                     command = "quit"
-                elif event_name == "SCEngineGotException":
+                elif event_name == "SIPEngineGotException":
                     print "An exception occured within the SIP core:"
                     print args["traceback"]
-                elif event_name == "SCEngineDidFail":
+                elif event_name == "SIPEngineDidFail":
                     user_quit = False
                     command = "quit"
             if command == "user_input":
