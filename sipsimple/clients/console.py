@@ -275,8 +275,9 @@ class GreenConsole(object):
             self.terminalProtocol.drawInputLine()
             return self._receive()
         finally:
-            self.terminalProtocol.cursorToBOL()
-            self.terminalProtocol.pn = old_pn
+            if self.terminalProtocol:
+                self.terminalProtocol.cursorToBOL()
+                self.terminalProtocol.pn = old_pn
 
     @contextmanager
     def temporary_prompt(self, prompt):
@@ -359,10 +360,11 @@ class GreenConsole(object):
             raise StopIteration
 
     def copy_input_line(self, line=None):
-        self.terminalProtocol.cursorToBOL()
-        self.terminal.eraseLine()
-        self.terminalProtocol.drawInputLine(line, pn=0)
-        self.terminal.nextLine()
+        if self.terminalProtocol:
+            self.terminalProtocol.cursorToBOL()
+            self.terminal.eraseLine()
+            self.terminalProtocol.drawInputLine(line, pn=0)
+            self.terminal.nextLine()
 
     def clear_input_line(self):
         self.terminalProtocol.clearInputLine()
