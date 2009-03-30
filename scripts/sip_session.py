@@ -256,19 +256,8 @@ class ChatManager(NotificationHandler):
             self.remove_session(session._green)
         except ValueError:
             pass
-        if data.originator == 'local':
-            print "Session ended by local party."
-        else:
-            print "Session ended by remote party."
-        if session.stop_time is not None:
-            duration = session.stop_time - session.start_time
-            print "Session duration was %s%s%d seconds." % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
 
-    def _NH_SCSessionDidFail(self, session, data):
-        try:
-            self.remove_session(session._green)
-        except ValueError:
-            pass
+    _NH_SCSessionDidFail = _NH_SCSessionDidEnd
 
     def _NH_SCSessionNewIncoming(self, session, data):
         self.jobgroup.spawn(self._handle_incoming, session, data)
@@ -570,6 +559,7 @@ class InfoPrinter(NotificationHandler):
     def start(self):
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCEngineDetectedNATType')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionRejectedStreamProposal')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionDidEnd')
 
     def _NH_SCEngineDetectedNATType(self, sender, data):
         if data.succeeded:
@@ -577,6 +567,15 @@ class InfoPrinter(NotificationHandler):
 
     def _NH_SCSessionRejectedStreamProposal(self, session, data):
         print data.reason
+
+    def _NH_SCSessionDidEnd(self, session, data):
+        if data.originator == 'local':
+            print "Session ended by local party."
+        else:
+            print "Session ended by remote party."
+        if session.stop_time is not None:
+            duration = session.stop_time - session.start_time
+            print "Session duration was %s%s%d seconds." % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
 
 
 def start(options, console):
