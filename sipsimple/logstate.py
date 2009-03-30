@@ -195,6 +195,10 @@ class InvitationLogger(StateLoggerBase):
     events = [event_name, 'SCInvitationGotSDPUpdate']
     confirmed = False
 
+    def __init__(self, *args, **kwargs):
+        self.ringing_filter = set()
+        StateLoggerBase.__init__(self, *args, **kwargs)
+
     @property
     def session_name(self):
         return 'SIP session'
@@ -254,7 +258,10 @@ class InvitationLogger(StateLoggerBase):
             contact = str(headers.get('Contact', [['']])[0][0])
             if agent:
                 contact += ' (%s)' % agent
-            self.write('Ringing from %s' % contact)
+            msg = 'Ringing from %s' % contact
+            if msg not in self.ringing_filter:
+                self.ringing_filter.add(msg)
+                self.write(msg)
 
     def log_SCInvitationGotSDPUpdate(self, notification_data):
         if not notification_data.succeeded:
