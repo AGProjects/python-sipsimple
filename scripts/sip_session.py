@@ -703,7 +703,7 @@ def parse_options(usage, description):
 
 def update_settings(options):
     settings = SIPSimpleSettings()
-    account = get_account(options.account_id)
+    account = get_account(options.account_name)
     for other_account in AccountManager().iter_accounts():
         if other_account != account:
             other_account.enabled = False
