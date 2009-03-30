@@ -461,6 +461,17 @@ class ChatManager(NotificationHandler):
         elif s == 'audio':
             session.remove_audio()
 
+    def send_dtmf(self, *args):
+        session = self.current_session
+        if not session:
+            raise UserCommandError('No active session')
+        data = ''.join(args).upper()
+        for x in data:
+            if x not in "0123456789*#ABCD":
+                raise UserCommandError('Invalid DTMF digit: %r' % x)
+        for x in data:
+            session.send_dtmf(x)
+
 class InfoPrinter(NotificationHandler):
 
     def start(self):
@@ -542,7 +553,8 @@ def get_commands(manager):
             'hold': manager.hold,
             'unhold': manager.unhold,
             'add': manager.add_stream,
-            'remove': manager.remove_stream}
+            'remove': manager.remove_stream,
+            'dtmf': manager.send_dtmf}
 
 def get_shortcuts(manager):
     return {KEY_NEXT_SESSION: manager.switch}
