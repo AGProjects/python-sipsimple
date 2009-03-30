@@ -22,7 +22,7 @@ from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
 from sipsimple.green.notification import linked_notification
 from sipsimple.util import NotificationHandler
-from sipsimple.session import SessionManager
+from sipsimple.session import SessionManager, SessionStateError
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import format_cmdline_uri
 from sipsimple import logstate
@@ -562,7 +562,7 @@ def start(options, console):
             else:
                 try:
                     manager.call(*options.args)
-                except UserCommandError, ex:
+                except (UserCommandError, SessionStateError), ex:
                     print str(ex)
             while True:
                 try:
@@ -606,7 +606,7 @@ def readloop(console, manager, shortcuts):
             if key in shortcuts:
                 try:
                     shortcuts[key]()
-                except UserCommandError, ex:
+                except (UserCommandError, SessionStateError), ex:
                     print ex
         elif type == 'line':
             echoed = []
@@ -627,7 +627,7 @@ def readloop(console, manager, shortcuts):
                     if value:
                         if manager.send_message(value):
                             echoed.append(1)
-            except UserCommandError, ex:
+            except (UserCommandError, SessionStateError), ex:
                 echo()
                 print ex
             # will get there without echoing if user pressed enter on an empty line; let's echo it
