@@ -267,17 +267,30 @@ class ChatManager(NotificationHandler):
         session._green = ChatSession(self, __obj=session)
         inv = session._inv
         session._green.info = '/'.join(x.capitalize() for x in data.streams)
-        question = 'Incoming %s request from %s, do you accept? (y/n) ' % (session._green.info, inv.caller_uri, )
+        has_chat = 'chat' in data.streams
+        has_audio = 'audio' in data.streams
+        replies = list('yYnN') + [CTRL_D]
+        replies_txt = 'y/n'
+        if has_chat and has_audio:
+            replies += list('aAcC')
+            replies_txt += '/a/c'
+        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, inv.caller_uri, replies_txt)
         with linked_notification(name='SCSessionChangedState', sender=session) as q:
-            p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
+            p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
             p2 = proc.spawn(lambda : q.wait() and p1.kill())
             try:
-                result = p1.wait() in ['y', 'Y']
+                result = p1.wait()
             finally:
                 p2.kill()
-        if result:
-            session.accept(chat='chat' in data.streams, audio='audio' in data.streams)
+        if result in 'aA':
+            has_audio = True
+            has_chat = False
+        elif result in 'cC':
+            has_audio = False
+            has_chat = True
+        if result in 'yYaAcC':
+            session.accept(chat=has_chat, audio=has_audio)
             self.add_session(session._green)
         else:
             session.end()
