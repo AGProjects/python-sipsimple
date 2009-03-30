@@ -635,7 +635,7 @@ def readloop(console, manager, shortcuts):
 
 
 description = "This script will either sit idle waiting for an incoming session, or start a new session with the specified target SIP address. The program will close the session and quit when CTRL-D is pressed. This scripts supports RTP audio and MSRP chat sessions."
-usage = "%prog [options] [target-user@target-domain.com]"
+usage = "%prog [options] [target-user@target-domain.com] [audio|chat]"
 
 def get_account(key):
     account_manager = AccountManager()
