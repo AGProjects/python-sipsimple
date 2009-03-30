@@ -1,548 +1,327 @@
 #!/usr/bin/env python
 
-import sys
-import traceback
-import string
-import socket
+import datetime
 import os
-import atexit
+import random
 import select
+import sys
 import termios
-import signal
-from thread import start_new_thread, allocate_lock
+
+from application import log
+from application.notification import IObserver, NotificationCenter, NotificationData
+from application.python.queue import EventQueue
+from collections import deque
+from optparse import OptionParser
 from threading import Thread
-from Queue import Queue
-from optparse import OptionParser, OptionValueError
-from time import sleep
+from time import time
+from twisted.python import threadable
 from zope.interface import implements
-from application.process import process
-from application.configuration import *
-from application.notification import IObserver
-from sipsimple import *
-from sipsimple.clients import enrollment
+
+from twisted.internet import reactor
+from eventlet.twistedutil import join_reactor
+
+from sipsimple import Engine, SIPCoreError, SIPURI, Subscription
+from sipsimple.account import AccountManager
 from sipsimple.clients.log import Logger
-
-from sipsimple.applications import ParserError
-from sipsimple.applications.presdm import *
-from sipsimple.applications.rpid import *
-
-from sipsimple.clients.clientconfig import get_path
-from sipsimple.clients.dns_lookup import *
-from sipsimple.clients import *
-
-class GeneralConfig(ConfigSection):
-    _datatypes = {"local_ip": datatypes.IPAddress, "sip_transports": datatypes.StringList, "trace_pjsip": LoggingOption, "trace_sip": LoggingOption}
-    local_ip = None
-    sip_local_udp_port = 0
-    sip_local_tcp_port = 0
-    sip_local_tls_port = 0
-    sip_transports = ["tls", "tcp", "udp"]
-    trace_pjsip = LoggingOption('none')
-    trace_sip = LoggingOption('none')
-    log_directory = '~/.sipclient/log'
+from sipsimple.lookup import DNSLookup
+from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.settings import SIPSimpleSettings
 
 
-class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": OutboundProxy, "use_presence_agent": datatypes.Boolean, "sip_subscribe_interval": int}
-    sip_address = None
-    password = None
-    display_name = None
-    outbound_proxy = None
-    use_presence_agent = True
-    sip_subscribe_interval = 600
+class InputThread(Thread):
+    def __init__(self, application):
+        Thread.__init__(self)
+        self.application = application
+        self.daemon = True
+        self._old_terminal_settings = None
 
+    def run(self):
+        notification_center = NotificationCenter()
+        while True:
+            for char in self._getchars():
+                if char == "\x04":
+                    self.application.stop()
+                    return
+                else:
+                    notification_center.post_notification('SAInputWasReceived', sender=self, data=NotificationData(input=char))
 
-process._system_config_directory = os.path.expanduser("~/.sipclient")
-enrollment.verify_account_config()
-configuration = ConfigFile("config.ini")
-configuration.read_settings("General", GeneralConfig)
+    def stop(self):
+        self._termios_restore()
 
+    def _termios_restore(self):
+        if self._old_terminal_settings is not None:
+            termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._old_terminal_settings)
 
-queue = Queue()
-old = None
-user_quit = True
-lock = allocate_lock()
-logger = None
-return_code = 1
-
-def format_note(note):
-    text = "Note"
-    if note.lang is not None:
-        text += "(%s)" % note.lang
-    if note.since is not None or note.until is not None:
-        text += " valid"
-        if note.since is not None:
-            text += " from %s" % note.since
-        if note.until is not None:
-            text += " until %s" % note.until
-    text += ": %s" % note
-    return text
-
-def display_person(person, pidf, buf):
-    # display class
-    if person.rpid_class is not None:
-        buf.append("    Class: %s" % person.rpid_class)
-    # display timestamp
-    if person.timestamp is not None:
-        buf.append("    Timestamp: %s" % person.timestamp)
-    # display notes
-    if len(person.notes) > 0:
-        for note in person.notes:
-            buf.append("    %s" % format_note(note))
-    elif len(pidf.notes) > 0:
-        for note in pidf.notes:
-            buf.append("    %s" % format_note(note))
-    # display activities
-    if person.activities is not None:
-        activities = list(person.activities)
-        if len(activities) > 0:
-            text = "    Activities"
-            if person.activities.since is not None or person.activities.until is not None:
-                text += " valid"
-                if person.activities.since is not None:
-                    text += " from %s" % person.activities.since
-                if person.activities.until is not None:
-                    text += " until %s" % person.activities.until
-            text += ": %s" % ', '.join(str(activity) for activity in activities)
-            buf.append(text)
-            if len(person.activities.notes) > 0:
-                for note in person.activities.notes:
-                    buf.append("      %s" % format_note(note))
-        elif len(person.activities.notes) > 0:
-            buf.append("    Activities")
-            for note in person.activities.notes:
-                buf.append("      %s" % format_note(note))
-    # display mood
-    if person.mood is not None:
-        moods = list(person.mood)
-        if len(moods) > 0:
-            text = "    Mood"
-            if person.mood.since is not None or person.mood.until is not None:
-                text += " valid"
-                if person.mood.since is not None:
-                    text += " from %s" % person.mood.since
-                if person.mood.until is not None:
-                    text += " until %s" % person.mood.until
-            text += ": %s" % ', '.join(str(mood) for mood in moods)
-            buf.append(text)
-            if len(person.mood.notes) > 0:
-                for note in person.mood.notes:
-                    buf.append("      %s" % format_note(note))
-    # display place is
-    if person.place_is is not None:
-        place_info = ', '.join('%s %s' % (key.capitalize(), getattr(person.place_is, key).value) for key in ('audio', 'video', 'text') if getattr(person.place_is, key) and getattr(person.place_is, key).value)
-        if place_info != '':
-            buf.append("    Place information: " + place_info)
-    # display privacy
-    if person.privacy is not None:
-        text = "    Private conversation possible with: "
-        private = []
-        if person.privacy.audio:
-            private.append("Audio")
-        if person.privacy.video:
-            private.append("Video")
-        if person.privacy.text:
-            private.append("Text")
-        if len(private) > 0:
-            text += ", ".join(private)
+    def _getchars(self):
+        fd = sys.stdin.fileno()
+        if os.isatty(fd):
+            self._old_terminal_settings = termios.tcgetattr(fd)
+            new = termios.tcgetattr(fd)
+            new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
+            new[6][termios.VMIN] = '\000'
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, new)
+                if select.select([fd], [], [], None)[0]:
+                    return sys.stdin.read(4192)
+            finally:
+                self._termios_restore()
         else:
-            text += "None"
-        buf.append(text)
-    # display sphere
-    if person.sphere is not None:
-        timeinfo = []
-        if person.sphere.since is not None:
-            timeinfo.append('from %s' % str(person.sphere.since))
-        if person.sphere.until is not None:
-            timeinfo.append('until %s' % str(person.sphere.until))
-        if len(timeinfo) != 0:
-            timeinfo = ' (' + ', '.join(timeinfo) + ')'
-        else:
-            timeinfo = ''
-        buf.append("    Current sphere%s: %s" % (timeinfo, person.sphere.value))
-    # display status icon
-    if person.status_icon is not None:
-        buf.append("    Status icon: %s" % person.status_icon)
-    # display time offset
-    if person.time_offset is not None:
-        ctime = datetime.datetime.utcnow() + datetime.timedelta(minutes=int(person.time_offset))
-        time_offset = int(person.time_offset)/60.0
-        if time_offset == int(time_offset):
-            offset_info = '(UTC+%d%s)' % (time_offset, (person.time_offset.description is not None and (' (%s)' % person.time_offset.description) or ''))
-        else:
-            offset_info = '(UTC+%.1f%s)' % (time_offset, (person.time_offset.description is not None and (' (%s)' % person.time_offset.description) or ''))
-        buf.append("    Current user time: %s %s" % (ctime.strftime("%H:%M"), offset_info))
-    # display user input
-    if person.user_input is not None:
-        buf.append("    User is %s" % person.user_input)
-        if person.user_input.last_input:
-            buf.append("      Last input at: %s" % person.user_input.last_input)
-        if person.user_input.idle_threshold:
-            buf.append("      Idle threshold: %s seconds" % person.user_input.idle_threshold)
-
-def display_service(service, pidf, buf):
-    # display class
-    if service.rpid_class is not None:
-        buf.append("    Class: %s" % person.rpid_class)
-    # display timestamp
-    if service.timestamp is not None:
-        buf.append("    Timestamp: %s" % service.timestamp)
-    # display notes
-    for note in service.notes:
-        buf.append("    %s" % format_note(note))
-    # display status
-    if service.status is not None and service.status.basic is not None:
-        buf.append("    Status: %s" % service.status.basic)
-    # display contact
-    if service.contact is not None:
-        buf.append("    Contact%s: %s" % ((service.contact.priority is not None) and (' priority %s' % service.contact.priority) or '', service.contact))
-    # display device ID
-    if service.device_id is not None:
-        buf.append("    Service offered by device id: %s" % service.device_id)
-    # display relationship
-    if service.relationship is not None:
-        buf.append("    Relationship: %s" % service.relationship.values[0])
-    # display service-class
-    if service.service_class is not None:
-        buf.append("    Service class: %s" % service.service_class.values[0])
-    # display status icon
-    if service.status_icon is not None:
-        buf.append("    Status icon: %s" % service.status_icon)
-    # display user input
-    if service.user_input is not None:
-        buf.append("    Service is %s" % service.user_input)
-        if service.user_input.last_input:
-            buf.append("      Last input at: %s" % service.user_input.last_input)
-        if service.user_input.idle_threshold:
-            buf.append("      Idle threshold: %s seconds" % service.user_input.idle_threshold)
-
-def display_device(device, pidf, buf):
-    # display device ID
-    if device.device_id is not None:
-        buf.append("    Device id: %s" % device.device_id)
-    # display class
-    if device.rpid_class is not None:
-        buf.append("    Class: %s" % person.rpid_class)
-    # display timestamp
-    if device.timestamp is not None:
-        buf.append("    Timestamp: %s" % device.timestamp)
-    # display notes
-    for note in device.notes:
-        buf.append("    %s" % format_note(note))
-    # display user input
-    if device.user_input is not None:
-        buf.append("    Service is %s" % device.user_input)
-        if device.user_input.last_input:
-            buf.append("      Last input at: %s" % device.user_input.last_input)
-        if device.user_input.idle_threshold:
-            buf.append("      Idle threshold: %s seconds" % device.user_input.idle_threshold)
-
-def handle_pidf(pidf):
-    buf = ["-"*16]
-    buf.append("Presence for %s:" % pidf.entity)
-    persons = {}
-    devices = {}
-    services = {}
-    printed_sep = True
-    for child in pidf:
-        if isinstance(child, Person):
-            persons[child.id] = child
-        elif isinstance(child, Device):
-            devices[child.id] = child
-        elif isinstance(child, Tuple):
-            services[child.id] = child
-
-    # handle person information
-    if len(persons) == 0:
-        if len(pidf.notes) > 0:
-            buf.append("  Person information:")
-            for note in pidf.notes:
-                buf.append("    %s" % format_note(note))
-            printed_sep = False
-    else:
-        for person in persons.values():
-            buf.append("  Person id %s" % person.id)
-            display_person(person, pidf, buf)
-        printed_sep = False
+            return os.read(fd, 4192)
 
 
-    # handle services informaation
-    if len(services) > 0:
-        if not printed_sep:
-            buf.append("  " + "-"*3)
-        for service in services.values():
-            buf.append("  Service id %s" % service.id)
-            display_service(service, pidf, buf)
-
-    # handle devices informaation
-    if len(devices) > 0:
-        if not printed_sep:
-            buf.append("  " + "-"*3)
-        for device in devices.values():
-            buf.append("  Device id %s" % device.id)
-            display_device(device, pidf, buf)
-
-    buf.append("-"*16)
-
-    # push the data
-    text = '\n'.join(buf)
-    queue.put(("print", text))
-
-
-def termios_restore():
-    global old
-    if old is not None:
-        termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, old)
-
-def getchar():
-    global old
-    fd = sys.stdin.fileno()
-    if os.isatty(fd):
-        old = termios.tcgetattr(fd)
-        new = termios.tcgetattr(fd)
-        new[3] = new[3] & ~termios.ICANON & ~termios.ECHO
-        new[6][termios.VMIN] = '\000'
-        try:
-            termios.tcsetattr(fd, termios.TCSADRAIN, new)
-            if select.select([fd], [], [], None)[0]:
-                return sys.stdin.read(10)
-        finally:
-            termios_restore()
-    else:
-        return os.read(fd, 10)
-
-class EventHandler(object):
+class SubscriptionApplication(object):
     implements(IObserver)
 
-    def __init__(self, engine):
-        engine.notification_center.add_observer(self)
+    def __init__(self, account_name, target, trace_sip, trace_pjsip):
+        self.account_name = account_name
+        self.target = target
+        self.input = InputThread(self)
+        self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
+        self.logger = Logger(trace_sip, trace_pjsip)
+        self.success = False
+        self.account = None
+        self.subscription = None
+        self.stopping = False
 
-    def handle_notification(self, notification):
-        global queue, return_code
-        if notification.name == "SCSubscriptionChangedState":
-            if notification.data.state == "ACTIVE":
-                #queue.put(("print", "SUBSCRIBE was successful"))
-                return_code = 0
-            elif notification.data.state == "TERMINATED":
-                if hasattr(notification.data, "code"):
-                    if notification.data.code / 100 == 2:
-                        return_code = 0
-                    queue.put(("print", "Unsubscribed: %(code)d %(reason)s" % notification.data.__dict__))
-                else:
-                    queue.put(("print", "Unsubscribed"))
-                queue.put(("quit", None))
-            elif notification.data.state == "PENDING":
-                queue.put(("print", "Subscription is pending"))
-        elif notification.name == "SCSubscriptionGotNotify":
-            return_code = 0
-            if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) in ('multipart/related',):
-                queue.put(("print", "Received NOTIFY: %s" % notification.data.body))
-                print_control_keys()
+        self._subscription_routes = None
+        self._subscription_timeout = 0.0
+        self._subscription_wait = 0.5
+
+        account_manager = AccountManager()
+        engine = Engine()
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=account_manager)
+        notification_center.add_observer(self, sender=engine)
+        notification_center.add_observer(self, sender=self.input)
+
+        log.level.current = log.level.WARNING
+
+    def run(self):
+        account_manager = AccountManager()
+        configuration = ConfigurationManager()
+        engine = Engine()
+        notification_center = NotificationCenter()
+        
+        # start output thread
+        self.output.start()
+    
+        # startup configuration
+        configuration.start()
+        account_manager.start()
+        if self.account is None:
+            raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
+        elif not self.account.enabled:
+            raise RuntimeError("account %s is not enabled" % self.account.id)
+        self.output.put('Using account %s' % self.account.id)
+        settings = SIPSimpleSettings()
+
+        # start logging
+        self.logger.start()
+
+        # start the engine
+        engine.start(
+            auto_sound=False,
+            events={'presence': ['multipart/related', 'application/rlmi+xml', 'application/pidf+xml']},
+            local_ip=settings.local_ip.normalized,
+            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
+            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
+            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
+            tls_protocol=settings.tls.protocol,
+            tls_verify_server=settings.tls.verify_server,
+            tls_ca_file=settings.tls.ca_list_file.normalized if settings.tls.ca_list_file is not None else None,
+            tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
+            tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
+            tls_timeout=settings.tls.timeout,
+            ec_tail_length=settings.audio.echo_delay,
+            user_agent=settings.user_agent,
+            sample_rate=settings.audio.sample_rate,
+            playback_dtmf=settings.audio.playback_dtmf,
+            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
+            trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
+            log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
+        )
+
+        if self.target is None:
+            self.target = SIPURI(user='%s-buddies' % self.account.id.username, host=self.account.id.domain)
         else:
-            queue.put(("core_event", (notification.name, notification.sender, notification.data)))
-
-
-def print_control_keys():
-    queue.put(("print", "Available control keys:"))
-    queue.put(("print", "  t: toggle SIP trace on the console"))
-    queue.put(("print", "  j: toggle PJSIP trace on the console"))
-    queue.put(("print", "  Ctrl-d: quit the program"))
-    queue.put(("print", "  ?: display this help message"))
-
-def read_queue(e, username, domain, password, display_name, presentity_uri, route, expires, content_type):
-    global user_quit, lock, queue, logger
-    lock.acquire()
-    try:
-        credentials = Credentials(SIPURI(user=username, host=domain, display=display_name), password)
-        sub = Subscription(credentials, presentity_uri, 'presence', route=route, expires=expires, extra_headers={'Supported': 'eventlist'})
-        print 'Subscribing to "%s" for the presence event, at %s:%s:%d' % (presentity_uri, route.transport, route.address, route.port)
-        sub.subscribe()
-
-        while True:
-            command, data = queue.get()
-            if command == "print":
-                print data
-            if command == "core_event":
-                event_name, obj,args = data
-                if event_name == "SCEngineGotException":
-                    print "An exception occured within the SIP core:"
-                    print args.traceback
-                elif event_name == "SCEngineDidFail":
-                    user_quit = False
-                    command = "quit"
-            if command == "user_input":
-                key = data
-                if key == 't':
-                    logger.trace_sip.to_stdout = not logger.trace_sip.to_stdout
-                    print "SIP tracing to console is now %s" % ("activated" if logger.trace_sip.to_stdout else "deactivated")
-                elif data == 'j':
-                    logger.trace_pjsip.to_stdout = not logger.trace_pjsip.to_stdout
-                    print "PJSIP tracing to console is now %s" % ("activated" if logger.trace_pjsip.to_stdout else "deactivated")
-                elif key == '?':
-                    print_control_keys()
-            if command == "eof":
-                command = "end"
-                want_quit = True
-            if command == "end":
-                try:
-                    sub.unsubscribe()
-                except:
-                    pass
-            if command == "quit":
-                user_quit = False
-                break
-    except:
-        user_quit = False
-        traceback.print_exc()
-    finally:
-        e.stop()
-        while not queue.empty():
-            command, data = queue.get()
-            if command == "print":
-                print data
-        logger.stop()
-        if not user_quit:
-            os.kill(os.getpid(), signal.SIGINT)
-        lock.release()
-
-def do_subscribe(**kwargs):
-    global user_quit, lock, queue, logger
-    ctrl_d_pressed = False
-    outbound_proxy = kwargs.pop("outbound_proxy")
-    if outbound_proxy is None:
-        routes = lookup_routes_for_sip_uri(SIPURI(host=kwargs["domain"]), kwargs.pop("sip_transports"))
-    else:
-        routes = lookup_routes_for_sip_uri(outbound_proxy, kwargs.pop("sip_transports"))
-    # Only try the first Route for now
-    try:
-        kwargs["route"] = routes[0]
-    except IndexError:
-        raise RuntimeError("No route found to SIP proxy")
-    events = Engine.default_start_options["events"]
-    if kwargs['content_type'] is not None:
-        events['presence'] = [kwargs['content_type']]
-    else:
-        events['presence'] = ['multipart/related', 'application/rlmi+xml', 'application/pidf+xml']
-
-    logger = Logger(AccountConfig, GeneralConfig.log_directory, trace_sip=kwargs.pop('trace_sip'), trace_pjsip=kwargs.pop('trace_pjsip'))
-    logger.start()
-    if logger.trace_sip.to_file:
-        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if logger.trace_pjsip.to_file:
-        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
-
-    e = Engine()
-    EventHandler(e)
-    e.start(auto_sound=False, trace_sip=True, local_ip=kwargs.pop("local_ip"), local_udp_port=kwargs.pop("local_udp_port"), local_tcp_port=kwargs.pop("local_tcp_port"), local_tls_port=kwargs.pop("local_tls_port"), events=events)
-    kwargs["presentity_uri"] = e.parse_sip_uri(kwargs["presentity_uri"])
-    start_new_thread(read_queue, (e,), kwargs)
-    atexit.register(termios_restore)
-
-    try:
-        while True:
-            char = getchar()
-            if char == "\x04":
-                if not ctrl_d_pressed:
-                    queue.put(("eof", None))
-                    ctrl_d_pressed = True
-            else:
-                queue.put(("user_input", char))
-    except KeyboardInterrupt:
-        if user_quit:
-            print "Ctrl+C pressed, exiting instantly!"
-            queue.put(("quit", True))
-        lock.acquire()
-        return
-
-def parse_outbound_proxy(option, opt_str, value, parser):
-    try:
-        parser.values.outbound_proxy = OutboundProxy(value)
-    except ValueError, e:
-        raise OptionValueError(e.message)
-
-def parse_trace_option(option, opt_str, value, parser, name):
-    try:
-        value = parser.rargs[0]
-    except IndexError:
-        value = LoggingOption('file')
-    else:
-        if value == '' or value[0] == '-':
-            value = LoggingOption('file')
-        else:
+            if '@' not in self.target:
+                self.target = '%s@%s' % (self.target, self.account.id.domain)
+            if not self.target.startswith('sip:') and not self.target.startswith('sips:'):
+                self.target = 'sip:' + self.target
             try:
-                value = LoggingOption(value)
-            except ValueError:
-                value = LoggingOption('file')
-            else:
-                del parser.rargs[0]
-    setattr(parser.values, name, value)
+                self.target = engine.parse_sip_uri(self.target)
+            except SIPCoreError:
+                self.output.put('Illegal SIP URI: %s' % self.target)
+                engine.stop()
+                return 1
+        self.output.put('Subscribing to %s for the presence event' % self.target)
 
-def parse_options():
-    retval = {}
-    description = "This script will SUBSCRIBE to the presence event published by the specified SIP target assuming it is a resource list handled by a RLS server. The RLS server will then SUBSCRIBE in behalf of the account, collect NOTIFYs with the presence information of the recipients and provide periodically aggregated NOTIFYs back to the subscriber. If a target address is not specified, it will subscribe to the account's own address. It will then interprete PIDF bodies contained in NOTIFYs and display their meaning. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
+        # start the input thread
+        self.input.start()
+
+        reactor.callLater(0, self._subscribe)
+
+        # start twisted
+        try:
+            reactor.run()
+        finally:
+            self.input.stop()
+        
+        # stop the output
+        self.output.stop()
+        self.output.join()
+        
+        self.logger.stop()
+
+        return 0 if self.success else 1
+
+    def stop(self):
+        self.stopping = True
+        account_manager = AccountManager()
+        account_manager.stop()
+        if self.subscription is not None and self.subscription.state.lower() in ('accepted', 'pending', 'active'):
+            self.subscription.unsubscribe()
+        else:
+            if threadable.isInIOThread():
+                reactor.stop()
+            else:
+                reactor.callFromThread(reactor.stop)
+
+    def print_help(self):
+        message  = 'Available control keys:\n'
+        message += '  t: toggle SIP trace on the console\n'
+        message += '  j: toggle PJSIP trace on the console\n'
+        message += '  Ctrl-d: quit the program\n'
+        message += '  ?: display this help message\n'
+        self.output.put('\n'+message)
+        
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, None)
+        if handler is not None:
+            handler(notification)
+
+    def _NH_AMAccountWasAdded(self, notification):
+        account = notification.data.account
+        account_manager = AccountManager()
+        if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
+            self.account = account
+            account.registration.enabled = False
+        else:
+            account.enabled = False
+
+    def _NH_SCSubscriptionChangedState(self, notification):
+        route = notification.sender.route
+        if notification.data.state.lower() in ('active', 'accepted'):
+            self._subscription_routes = None
+            self._subscription_wait = 0.5
+            if not self.success:
+                self.output.put('Subscription succeeded at %s:%d;transport=%s' % (route.address, route.port, route.transport))
+                self.success = True
+        elif notification.data.state.lower() == 'pending':
+            self._subscription_routes = None
+            self._subscription_wait = 0.5
+            self.output.put('Subscription is pending at %s:%d;transport=%s' % (route.address, route.port, route.transport))
+        elif notification.data.state.lower() == 'terminated':
+            self.subscription = None
+            if hasattr(notification.data, 'code'):
+                status = ': %d %s' % (notification.data.code, notification.data.reason)
+            else:
+                status = ''
+            self.output.put('Unsubscribed from %s:%d;transport=%s%s' % (route.address, route.port, route.transport, status))
+            if self.stopping or notification.data.code in (401, 403, 407):
+                if hasattr(notification.data, 'code') and notification.data.code / 100 == 2:
+                    self.success = True
+                self.stop()
+            else:
+                self.success = False
+                if not self._subscription_routes or time() > self._subscription_timeout:
+                    self._subscription_wait = min(self._subscription_wait*2, 30)
+                    timeout = random.uniform(self._subscription_wait, 2*self._subscription_wait)
+                    reactor.callFromThread(reactor.callLater, timeout, self._publish)
+                else:
+                    self.subscription = Subscription(self.account.credentials, self.target, "presence", route=self._subscription_routes.popleft(), expires=self.account.presence.subscribe_interval, extra_headers={'Supported': 'eventlist'})
+                    notification_center = NotificationCenter()
+                    notification_center.add_observer(self, sender=self.subscription)
+                    self.subscription.subscribe()
+
+    def _NH_SCSubscriptionGotNotify(self, notification):
+        if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) in ('multipart/related', 'application/rlmi+xml', 'application/pidf+xml'):
+            self.output.put('Received NOTIFY:\n'+notification.data.body)
+            self.print_help()
+
+    def _NH_DNSLookupDidSucceed(self, notification):
+        # create subscription and register to get notifications from it
+        self._subscription_routes = deque(notification.data.result)
+        self.subscription = Subscription(self.account.credentials, self.target, "presence", route=self._subscription_routes.popleft(), expires=self.account.presence.subscribe_interval, extra_headers={'Supported': 'eventlist'})
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=self.subscription)
+        self.subscription.subscribe()
+
+    def _NH_DNSLookupDidFail(self, notification):
+        self.output.put('DNS lookup failed: %s' % notification.data.error)
+        timeout = random.uniform(1.0, 2.0)
+        reactor.callLater(timeout, self._subscribe)
+
+    def _NH_SAInputWasReceived(self, notification):
+        engine = Engine()
+        settings = SIPSimpleSettings()
+        key = notification.data.input
+        if key == 't':
+            self.logger.sip_to_stdout = not self.logger.sip_to_stdout
+            engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+            self.output.put('SIP tracing to console is now %s.' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
+        elif key == 'j':
+            self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
+            engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+            self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
+        elif key == '?':
+            self.print_help()
+
+    def _NH_SCEngineDidFail(self, notification):
+        self.output.put('Engine failed.')
+        if threadable.isInIOThread():
+            reactor.stop()
+        else:
+            reactor.callFromThread(reactor.stop)
+
+    def _NH_SCEngineGotException(self, notification):
+        self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
+    
+    def _subscribe(self):
+        settings = SIPSimpleSettings()
+        
+        self._subscription_timeout = time()+30
+
+        lookup = DNSLookup()
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=lookup)
+        if self.account.outbound_proxy is not None:
+            uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
+        else:
+            uri = self.target
+        lookup.lookup_sip_proxy(uri, settings.sip.transports)
+
+
+if __name__ == "__main__":
+    description = "This script will SUBSCRIBE to the presence event published by the specified SIP target assuming it is a resource list handled by a RLS server. The RLS server will then SUBSCRIBE in behalf of the account, collect NOTIFYs with the presence information of the recipients and provide periodically aggregated NOTIFYs back to the subscriber. If a target address is not specified, it will subscribe to the address 'username-buddies@domain.com', where username and domain are taken from the account's SIP address. It will then interprete PIDF bodies contained in NOTIFYs and display their meaning. The program will un-SUBSCRIBE and quit when CTRL+D is pressed."
     usage = "%prog [options] [target-user@target-domain.com]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file. If not supplied, the section Account will be read.", metavar="NAME")
-    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP address of the user in the form user@domain")
-    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
-    parser.add_option("-n", "--display-name", type="string", dest="display_name", help="Display name to use for the local account. This overrides the setting from the config file.")
-    parser.add_option("-e", "--expires", type="int", dest="expires", help='"Expires" value to set in SUBSCRIBE. Default is 300 seconds.')
-    parser.add_option("-o", "--outbound-proxy", type="string", action="callback", callback=parse_outbound_proxy, help="Outbound SIP proxy to use. By default a lookup of the domain is performed based on SRV and A records. This overrides the setting from the config file.", metavar="IP[:PORT]")
-    parser.add_option("-c", "--content-type", type="string", dest="content_type", help = '"Content-Type" the UA expects to receving in a NOTIFY for this subscription. For the known events this does not need to be specified, but may be overridden".')
-    parser.add_option("-s", "--trace-sip", action="callback", callback=parse_trace_option, callback_args=('trace_sip',), help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.add_option("-j", "--trace-pjsip", action="callback", callback=parse_trace_option, callback_args=('trace_pjsip',), help="Print PJSIP logging output (disabled by default). The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
     options, args = parser.parse_args()
 
-    if options.account_name is None:
-        account_section = "Account"
-    else:
-        account_section = "Account_%s" % options.account_name
-    if account_section not in configuration.parser.sections():
-        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
-    configuration.read_settings(account_section, AccountConfig)
-    if not AccountConfig.use_presence_agent:
-        raise RuntimeError("Presence is not enabled for this account. Please set use_presence_agent=True in the config file")
-    default_options = dict(expires=AccountConfig.sip_subscribe_interval, outbound_proxy=AccountConfig.outbound_proxy, sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, content_type=None, trace_sip=GeneralConfig.trace_sip, trace_pjsip=GeneralConfig.trace_pjsip, local_ip=GeneralConfig.local_ip, local_udp_port=GeneralConfig.sip_local_udp_port, local_tcp_port=GeneralConfig.sip_local_tcp_port, local_tls_port=GeneralConfig.sip_local_tls_port, sip_transports=GeneralConfig.sip_transports)
-    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-
-    for transport in set(["tls", "tcp", "udp"]) - set(options.sip_transports):
-        setattr(options, "local_%s_port" % transport, None)
-    if not all([options.sip_address, options.password]):
-        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    for attr in default_options:
-        retval[attr] = getattr(options, attr)
     try:
-        retval["username"], retval["domain"] = options.sip_address.split("@")
-    except ValueError:
-        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
-    else:
-        del retval["sip_address"]
-    if args:
-        retval["presentity_uri"] = format_cmdline_uri(args[0], retval["domain"])
-    else:
-        retval["presentity_uri"] = format_cmdline_uri('%s-buddies' % retval["username"], retval["domain"])
-
-    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
-    accounts.sort()
-    print "Accounts available: %s" % ', '.join(accounts)
-    if options.account_name is None:
-        print "Using default account: %s" % options.sip_address
-    else:
-        print "Using account '%s': %s" % (options.account_name, options.sip_address)
-
-    return retval
-
-def main():
-    do_subscribe(**parse_options())
-
-if __name__ == "__main__":
-    try:
-        main()
+        application = SubscriptionApplication(options.account_name, args[0] if args else None, options.trace_sip, options.trace_pjsip)
+        return_code = application.run()
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
     except SIPCoreError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
-    sys.exit(return_code)
+    else:
+        sys.exit(return_code)
+
+
