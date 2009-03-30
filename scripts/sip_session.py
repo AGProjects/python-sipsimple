@@ -569,10 +569,15 @@ class InfoPrinter(NotificationHandler):
 
     def start(self):
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCEngineDetectedNATType')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SCSessionRejectedStreamProposal')
 
     def _NH_SCEngineDetectedNATType(self, sender, data):
         if data.succeeded:
             print "Detected NAT type: %s" % data.nat_type
+
+    def _NH_SCSessionRejectedStreamProposal(self, session, data):
+        print data.reason
+
 
 def start(options, console):
     account = options.account
