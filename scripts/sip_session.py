@@ -527,7 +527,7 @@ class ChatManager(NotificationHandler):
             prompt = '> '
             with console.temporary_prompt(prompt):
                 while True:
-                    type, (keyID, modifier) = console.recv_char()
+                    type, (keyID, modifier) = console.recv_char(echo=False)
                     if keyID in [KEY_AUDIO_CONTROL, '\x1b', CTRL_D, '\n']:
                         return
                     prompt += str(keyID)
