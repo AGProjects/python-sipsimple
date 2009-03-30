@@ -35,6 +35,7 @@ from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_servi
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 KEY_AUDIO_CONTROL = '\x00' # Ctrl-SPACE
+KEY_TOGGLE_HOLD = '\x08' # Ctrl-H
 
 trafficlog.hook_std_output()
 
@@ -125,6 +126,7 @@ class ChatSession(GreenSession, NotificationHandler):
         GreenSession.__init__(self, *args, **kwargs)
         self._obj._green = self
         self.history_file = None
+        self.put_on_hold = False
         if self._inv is not None:
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
@@ -197,6 +199,20 @@ class ChatSession(GreenSession, NotificationHandler):
         if not self.info:
             self.info = 'Session with no streams'
         self.manager.update_prompt()
+
+    def hold(self):
+        self._obj.hold()
+        self.put_on_hold = True
+
+    def unhold(self):
+        self._obj.unhold()
+        self.put_on_hold = False
+
+    def toggle_hold(self):
+        if self.put_on_hold:
+            self.unhold()
+        else:
+            self.hold()
 
 
 class JobGroup(object):
@@ -358,7 +374,8 @@ class ChatManager(NotificationHandler):
 
     def get_shortcuts(self):
         return {KEY_NEXT_SESSION: self.cmd_switch,
-                KEY_AUDIO_CONTROL: self.dtmf_numpad}
+                KEY_AUDIO_CONTROL: self.dtmf_numpad,
+                KEY_TOGGLE_HOLD: self.toggle_hold}
 
     def get_cmd(self, cmd):
         return getattr(self, 'cmd_%s' % cmd, None)
@@ -431,10 +448,18 @@ class ChatManager(NotificationHandler):
     def make_SDPMedia(uri_path):
         return make_SDPMedia(uri_path, ['message/cpim'], ['text/plain'])
 
-    def send_message(self, message):
+    def get_current_session(self, error_prefix=None):
         session = self.current_session
         if not session:
-            raise UserCommandError('Cannot send message %r: no active session' % message)
+            if not error_prefix:
+                msg = 'No active session'
+            else:
+                msg = error_prefix + ': no active session'
+            raise UserCommandError(msg)
+        return session
+
+    def send_message(self, message):
+        session = self.get_current_session('Cannot send message %r' % message)
         try:
             if session.send_message(message):
                 #print 'sent %s %s' % (session, message)
@@ -445,23 +470,18 @@ class ChatManager(NotificationHandler):
 
     def cmd_hold(self):
         """:hold                       Put the current session on hold"""
-        session = self.current_session
-        if not session:
-            raise UserCommandError('No active session')
-        session.hold()
+        self.get_current_session().hold()
 
     def cmd_unhold(self):
         """:unhold                     Un-hold the current session"""
-        session = self.current_session
-        if not session:
-            raise UserCommandError('No active session')
-        session.unhold()
+        self.get_current_session().unhold()
+
+    def toggle_hold(self):
+        self.get_current_session().toggle_hold()
 
     def cmd_add(self, *args):
         """:add audio|chat             Add a new stream to the current session."""
-        session = self.current_session
-        if not session:
-            raise UserCommandError('No active session')
+        session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Too many arguments, the valid usage:\n:add [chat|audio]')
         s = self._validate_stream(args[0])
@@ -472,9 +492,7 @@ class ChatManager(NotificationHandler):
 
     def cmd_remove(self, *args):
         """:remove audio|chat          Remove the stream from the current session"""
-        session = self.current_session
-        if not session:
-            raise UserCommandError('No active session')
+        session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Too many arguments, the valid usage:\n:remove chat|audio')
         s = self._validate_stream(args[0])
@@ -485,9 +503,7 @@ class ChatManager(NotificationHandler):
 
     def cmd_dtmf(self, *args):
         """:dtmf DIGITS                Send DTMF digits. Also try CTRL-SPACE for virtual numpad"""
-        session = self.current_session
-        if not session:
-            raise UserCommandError('No active session')
+        session = self.get_current_session()
         data = ''.join(args).upper()
         for x in data:
             if x not in "0123456789*#ABCD":
@@ -496,9 +512,7 @@ class ChatManager(NotificationHandler):
             session.send_dtmf(x)
 
     def dtmf_numpad(self, *args):
-        session = self.current_session
-        if not session:
-            raise UserCommandError('No active session')
+        session = self.get_current_session()
         print """\
 1 2 3
 4 5 6
