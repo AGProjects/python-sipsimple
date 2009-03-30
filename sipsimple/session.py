@@ -687,13 +687,16 @@ class Session(NotificationHandler):
             audio_sdp_index = self._audio_sdp_index
             if audio_sdp_index == -1:
                 audio_sdp_index = len(local_sdp.media)
-            local_sdp.media.append(self._init_audio(audio_rtp))
+                local_sdp.media.append(self._init_audio(audio_rtp))
+            else:
+                local_sdp.media[audio_sdp_index] = self._init_audio(audio_rtp)
             if self.on_hold_by_local:
                 local_sdp.media[audio_sdp_index].attributes.append(SDPAttribute("sendonly", ""))
             if audio_rtp.use_ice:
                 local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.send_reinvite()
+            self._audio_sdp_index = audio_sdp_index
         except SIPCoreError, e:
             self.proposed_audio = False
             self._cancel_media()
@@ -720,10 +723,13 @@ class Session(NotificationHandler):
             chat_sdp_index = self._chat_sdp_index
             if chat_sdp_index == -1:
                 chat_sdp_index = len(local_sdp.media)
+                local_sdp.media.append(msrp_chat.local_media)
+            else:
+                local_sdp.media[chat_sdp_index] = msrp_chat.local_media
             self.session_manager.msrp_chat_mapping[msrp_chat] = self
-            local_sdp.media.append(msrp_chat.local_media)
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.send_reinvite()
+            self._chat_sdp_index = chat_sdp_index
         except SIPCoreError, e:
             self.proposed_chat = False
             self._cancel_media()
