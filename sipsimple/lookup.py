@@ -121,7 +121,7 @@ class DNSLookup(object):
                     naptr_answers.sort(key=lambda x: x.preference)
                     naptr_answers.sort(key=lambda x: x.order)
                     if len(naptr_answers) == 0:
-                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="Could find a suitable transport in NAPTR record of domain"))
+                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="Could not find a suitable transport in NAPTR record of domain"))
                         return
                     srv_candidates = [(self._naptr_service_transport_map[answer.service.lower()], answer.replacement) for answer in naptr_answers]
             else:
@@ -152,7 +152,7 @@ class DNSLookup(object):
                     transport = "tls"
                 else:
                     if "udp" not in supported_transports:
-                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="UDP transport is not suported"))
+                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="UDP transport is not supported, but NAPTR and SRV lookups for %s failed" % uri.host))
                         return
                     transport = "udp"
             if port is None:
@@ -181,6 +181,6 @@ class DNSLookup(object):
         if routes:
             notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=routes))
         else:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No routes found"))
+            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No routes found for SIP URI %s" % uri))
 
 
