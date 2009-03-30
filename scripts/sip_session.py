@@ -510,17 +510,39 @@ class ChatManager(NotificationHandler):
         for x in data:
             session.send_dtmf(x)
 
+    char_to_digit = {}
+    def _extend(dict, keys, value):
+        for key in keys:
+            dict[key] = value
+    _extend(char_to_digit, 'ABC',  '2')
+    _extend(char_to_digit, 'DEF',  '3')
+    _extend(char_to_digit, 'GHI',  '4')
+    _extend(char_to_digit, 'JKL',  '5')
+    _extend(char_to_digit, 'MNO',  '6')
+    _extend(char_to_digit, 'PQRS', '7')
+    _extend(char_to_digit, 'TUV',  '8')
+    _extend(char_to_digit, 'WXYZ', '9')
+
     def dtmf_numpad(self, *args):
         session = self.get_current_session()
         print """\
-1 2 3
-4 5 6
-7 8 9
-* 0 #"""
++------+-----+------+
+|  1   |  2  |  3   |
+|      | ABC | DEF  |
++------+-----+------+
+|  4   |  5  |  6   |
+| GHI  | JKL | MNO  |
++------+-----+------+
+|  7   |  8  |  9   |
+| PQRS | TUV | WXYZ |
++------+-----+------+
+|  *   |  0  |  #   |
++-------------------+
+"""
         if not session.has_audio:
             raise UserCommandError('Session does not have audio stream to send DTMF over')
         console = self.console
-        digits = '1234567890*#abcdABCD'
+        digits = '1234567890*#' + ''.join(self.char_to_digit.keys()) +''.join(self.char_to_digit.keys()).lower()
         old_send_keys = console.terminalProtocol.send_keys[:]
         try:
             console.terminalProtocol.send_keys.extend(digits)
@@ -530,9 +552,14 @@ class ChatManager(NotificationHandler):
                     type, (keyID, modifier) = console.recv_char(echo=False)
                     if keyID in [KEY_AUDIO_CONTROL, '\x1b', CTRL_D, '\n']:
                         return
-                    prompt += str(keyID)
-                    console.set_prompt(prompt, 1)
-                    session.send_dtmf(str(keyID))
+                    digit = str(keyID).upper()
+                    digit = self.char_to_digit.get(digit, digit)
+                    if digit not in '0123456789*#':
+                        print 'Invalid digit: %r' % digit
+                    else:
+                        prompt += str(digit)
+                        console.set_prompt(prompt, 1)
+                        session.send_dtmf(digit)
         finally:
             console.terminalProtocol.send_keys = old_send_keys
 
