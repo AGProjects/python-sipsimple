@@ -562,6 +562,8 @@ class PublicationApplication(object):
         self.output.put('\n'+message)
 
     def republish(self):
+        if self.publication is None:
+            self.output.put("There is no PUBLISH dialog active.")
         try:
             self.publication.publish("application", "pidf+xml", self.pidf.toxml())
         except BuilderError, e:
