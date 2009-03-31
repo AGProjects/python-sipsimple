@@ -21,7 +21,7 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple import Engine, SIPCoreError, SIPURI, Subscription
-from sipsimple.account import AccountManager
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration import ConfigurationManager
@@ -112,6 +112,10 @@ class SubscriptionApplication(object):
             raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
         elif not self.account.enabled:
             raise RuntimeError("account %s is not enabled" % self.account.id)
+        elif self.account == BonjourAccount():
+            raise RuntimeError("cannot use bonjour account for presence subscription")
+        elif not self.account.presence.enabled:
+            raise RuntimeError("presence is not enabled for account %s" % self.account.id)
         self.output.put('Using account %s' % self.account.id)
         settings = SIPSimpleSettings()
 
