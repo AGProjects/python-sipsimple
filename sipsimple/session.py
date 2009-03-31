@@ -333,7 +333,7 @@ class Session(NotificationHandler):
             sdp_media_todo = range(len(remote_sdp.media))
             if audio_rtp:
                 sdp_media_todo.remove(self._audio_sdp_index)
-                local_sdp.media[self._audio_sdp_index] = self._init_audio(audio_rtp, remote_sdp)
+                local_sdp.media[self._audio_sdp_index] = self._init_audio(audio_rtp, remote_sdp, self._audio_sdp_index)
                 if audio_rtp.use_ice:
                     local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
             if msrp_chat:
@@ -455,7 +455,7 @@ class Session(NotificationHandler):
             for sdp_index, media in enumerate(remote_sdp.media):
                 if audio_rtp is not None and media.media == "audio" and media.port != 0 and audio_sdp_index == -1:
                     audio_sdp_index = sdp_index
-                    local_sdp.media[sdp_index] = self._init_audio(audio_rtp, remote_sdp)
+                    local_sdp.media[sdp_index] = self._init_audio(audio_rtp, remote_sdp, audio_sdp_index)
                     if audio_rtp.use_ice:
                         local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
                 elif msrp_chat is not None and media.media == "message" and media.port != 0 and chat_sdp_index == -1:
@@ -735,13 +735,13 @@ class Session(NotificationHandler):
         finally:
             self._lock.release()
 
-    def _init_audio(self, rtp_transport, remote_sdp=None):
+    def _init_audio(self, rtp_transport, remote_sdp=None, sdp_index=-1):
         """Initialize everything needed for an audio RTP stream and return a
            SDPMedia object describing it. Called internally."""
         if remote_sdp is None:
             self.audio_transport = AudioTransport(rtp_transport)
         else:
-            self.audio_transport = AudioTransport(rtp_transport, remote_sdp, self._audio_sdp_index)
+            self.audio_transport = AudioTransport(rtp_transport, remote_sdp, sdp_index)
         self.session_manager.audio_transport_mapping[self.audio_transport] = self
         return self.audio_transport.get_local_media(remote_sdp is None)
 
