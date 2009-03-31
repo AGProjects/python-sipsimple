@@ -236,7 +236,7 @@ class SubscriptionApplication(object):
             else:
                 status = ''
             self.output.put('Unsubscribed from %s:%d;transport=%s%s' % (route.address, route.port, route.transport, status))
-            if self.stopping or notification.data.code in (401, 403, 407):
+            if self.stopping or getattr(notification.data, 'code', None) in (None, 401, 403, 407):
                 if hasattr(notification.data, 'code') and notification.data.code / 100 == 2:
                     self.success = True
                 self.stop()
