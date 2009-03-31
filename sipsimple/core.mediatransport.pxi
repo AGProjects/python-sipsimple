@@ -145,8 +145,12 @@ cdef class RTPTransport:
                     return bool(srtp_info.active)
             return False
 
-    cdef int _update_local_sdp(self, SDPSession local_sdp, unsigned int sdp_index, pjmedia_sdp_session *c_remote_sdp) except -1:
+    cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *c_remote_sdp) except -1:
         cdef int status
+        if sdp_index < 0:
+            raise ValueError("sdp_index argument cannot be negative")
+        if sdp_index >= local_sdp.c_obj.media_count:
+            raise ValueError("sdp_index argument out of range")
         status = pjmedia_transport_media_create(self.c_obj, self.c_pool, 0, c_remote_sdp, sdp_index)
         if status != 0:
             raise PJSIPError("Could not create media transport", status)
@@ -156,7 +160,7 @@ cdef class RTPTransport:
         # TODO: work the changes back into the local_sdp object, but we don't need to do that yet.
         return 0
 
-    def set_LOCAL(self, SDPSession local_sdp, unsigned int sdp_index):
+    def set_LOCAL(self, SDPSession local_sdp, int sdp_index):
         self._check_ua()
         if local_sdp is None:
             raise SIPCoreError("local_sdp argument cannot be None")
@@ -168,7 +172,7 @@ cdef class RTPTransport:
         self._update_local_sdp(local_sdp, sdp_index, NULL)
         self.state = "LOCAL"
 
-    def set_ESTABLISHED(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
+    def set_ESTABLISHED(self, SDPSession local_sdp, SDPSession remote_sdp, int sdp_index):
         cdef int status
         self._check_ua()
         if None in [local_sdp, remote_sdp]:
@@ -270,7 +274,7 @@ cdef class AudioTransport:
     cdef int c_offer
     cdef unsigned int c_vad
 
-    def __cinit__(self, RTPTransport transport, SDPSession remote_sdp=None, unsigned int sdp_index=0, enable_silence_detection=True):
+    def __cinit__(self, RTPTransport transport, SDPSession remote_sdp=None, int sdp_index=0, enable_silence_detection=True):
         cdef object pool_name = "AudioTransport_%d" % id(self)
         cdef pjmedia_transport_info info
         cdef pjmedia_sdp_session *c_local_sdp
@@ -278,7 +282,9 @@ cdef class AudioTransport:
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
         if transport is None:
-            raise SIPCoreError("transport argument cannot be None")
+            raise ValueError("transport argument cannot be None")
+        if sdp_index < 0:
+            raise ValueError("sdp_index argument cannot be negative")
         if transport.state != "INIT":
             raise SIPCoreError('RTPTransport object provided is not in the "INIT" state')
         self.c_vad = int(bool(enable_silence_detection))
@@ -375,7 +381,7 @@ cdef class AudioTransport:
         local_media.attributes.append(SDPAttribute(direction_attr, ""))
         return local_media
 
-    def start(self, SDPSession local_sdp, SDPSession remote_sdp, unsigned int sdp_index):
+    def start(self, SDPSession local_sdp, SDPSession remote_sdp, int sdp_index):
         cdef pjmedia_port *media_port
         cdef int status
         cdef PJSIPUA ua = c_get_ua()
@@ -384,7 +390,9 @@ cdef class AudioTransport:
         if self.c_offer and self.transport.state != "LOCAL" or not self.c_offer and self.transport.state != "ESTABLISHED":
             raise SIPCoreError("RTPTransport object provided is in wrong state")
         if None in [local_sdp, remote_sdp]:
-            raise SIPCoreError("SDP arguments cannot be None")
+            raise ValueError("SDP arguments cannot be None")
+        if sdp_index < 0:
+            raise ValueError("sdp_index argument cannot be negative")
         if local_sdp.media[sdp_index].port == 0 or remote_sdp.media[sdp_index].port == 0:
             raise SIPCoreError("Cannot start a rejected audio stream")
         if self.transport.state == "LOCAL":
