@@ -292,22 +292,20 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state != "INCOMING":
                 raise SessionStateError("This method can only be called while in the INCOMING state")
-            audio_sdp_index = -1
-            chat_sdp_index = -1
             remote_sdp = self._inv.get_offered_remote_sdp()
             for sdp_index, sdp_media in enumerate(remote_sdp.media):
-                if sdp_media.media == "audio" and audio:
-                    audio_sdp_index = sdp_index
-                elif sdp_media.media == "message" and chat:
-                    chat_sdp_index = sdp_index
+                if sdp_media.media == "audio":
+                    self._audio_sdp_index = sdp_index
+                elif sdp_media.media == "message":
+                    self._chat_sdp_index = sdp_index
             if audio:
-                if audio_sdp_index == -1:
+                if self._audio_sdp_index == -1:
                     raise ValueError("Use of audio requested, but audio was not proposed by remote party")
                 audio_rtp = AccountRTPTransport(self.account, self._inv.transport)
             else:
                 audio_rtp = None
             if chat:
-                if chat_sdp_index == -1:
+                if self._chat_sdp_index == -1:
                     raise ValueError("Use of MSRP chat requested, but MSRP chat was not proposed by remote party")
                 msrp_chat = MSRPChat(self.account, self._inv.remote_uri, False)
             else:
@@ -315,8 +313,6 @@ class Session(NotificationHandler):
             if not any([audio_rtp, msrp_chat]):
                 raise ValueError("None of the streams proposed by the remote party is accepted")
             media_initializer = MediaTransportInitializer(self._accept_continue, self._accept_fail, audio_rtp, msrp_chat)
-            self._audio_sdp_index = audio_sdp_index
-            self._chat_sdp_index = chat_sdp_index
             self.chat_transport = msrp_chat
             self._change_state("ACCEPTING")
 
