@@ -253,11 +253,11 @@ def getchar():
         try:
             termios.tcsetattr(fd, termios.TCSADRAIN, new)
             if select.select([fd], [], [], None)[0]:
-                return sys.stdin.read(10)
+                return sys.stdin.read(4192)
         finally:
             termios_restore()
     else:
-        return os.read(fd, 10)
+        return os.read(fd, 4192)
 
 def getstr(prompt='selection'):
     global string, getstr_event
