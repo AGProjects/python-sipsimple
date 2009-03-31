@@ -961,6 +961,11 @@ class SessionManager(NotificationHandler):
                                 failure_reason += ": %s" % session._sdpneg_failure_reason
                         else:
                             failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
+                            local_media = [media.media for media in inv.get_active_local_sdp().media]
+                            if "audio" not in local_media:
+                                session._audio_sdp_index = -1
+                            if "message" not in local_media:
+                                session._chat_sdp_index = -1
                         if failure_reason is None:
                             self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", session, TimestampedNotificationData(proposer="local"))
                         else:
