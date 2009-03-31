@@ -98,7 +98,7 @@ class Account(SettingsObject):
     the account will activate/deactivate.
 
     Notifications sent by instances of Account:
-     * CFGSettingsDidChange
+     * CFGSettingsObjectDidChange
      * SIPAccountDidActivate
      * SIPAccountDidDeactivate
     """
@@ -144,7 +144,7 @@ class Account(SettingsObject):
         manager._internal_add_account(self)
 
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='CFGSettingsDidChange', sender=self)
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         
         engine = Engine()
         notification_center.add_observer(self, name='SIPEngineDidStart', sender=engine)
@@ -160,7 +160,7 @@ class Account(SettingsObject):
             self._deactivate()
         
         notification_center = NotificationCenter()
-        notification_center.remove_observer(self, name='CFGSettingsDidChange', sender=self)
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
         manager = AccountManager()
         manager._internal_remove_account(self)
@@ -170,7 +170,7 @@ class Account(SettingsObject):
         if handler is not None:
             handler(notification)
         
-    def _NH_CFGSettingsDidChange(self, notification):
+    def _NH_CFGSettingsObjectDidChange(self, notification):
         enabled_value = notification.data.modified.get('enabled', None)
         if enabled_value is not None:
             engine = Engine()
@@ -347,7 +347,7 @@ class BonjourAccount(SettingsObject):
     the account will activate/deactivate.
 
     Notifications sent by instances of Account:
-     * CFGSettingsDidChange
+     * CFGSettingsObjectDidChange
      * SIPAccountDidActivate
      * SIPAccountDidDeactivate
     """
@@ -380,7 +380,7 @@ class BonjourAccount(SettingsObject):
         self.msrp.use_relay_for_outbound = False
 
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='CFGSettingsDidChange', sender=self)
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         
         engine = Engine()
         notification_center.add_observer(self, name='SIPEngineDidStart', sender=engine)
@@ -402,7 +402,7 @@ class BonjourAccount(SettingsObject):
         if self.enabled:
             self._deactivate()
 
-    def _NH_CFGSettingsDidChange(self, notification):
+    def _NH_CFGSettingsObjectDidChange(self, notification):
         enabled_value = notification.data.modified.get('enabled', None)
         if enabled_value is not None:
             engine = Engine()

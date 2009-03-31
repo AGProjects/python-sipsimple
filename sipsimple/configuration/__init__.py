@@ -409,7 +409,7 @@ class SettingsObject(SettingsState):
         None, the save method will use the ConfigurationManager to store the
         object under its id in the specified section.
 
-        This method will also post a CFGSettingsDidChange notification,
+        This method will also post a CFGSettingsObjectDidChange notification,
         regardless of whether the settings have been saved to persistent storage
         or not. If the save does fail, a CFGManagerSaveFailed notification is
         posted as well.
@@ -428,7 +428,7 @@ class SettingsObject(SettingsState):
         except Exception, e:
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, modified=modified_settings, exception=e))
         finally:
-            notification_center.post_notification('CFGSettingsDidChange', sender=self, data=NotificationData(modified=modified_settings))
+            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=NotificationData(modified=modified_settings))
             self.clear_dirty()
 
     def delete(self):
