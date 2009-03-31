@@ -959,7 +959,7 @@ class SessionManager(NotificationHandler):
                                 if session.audio_transport is None or not session.audio_transport.is_active:
                                     failure_reason = "Audio SDP negotation failed"
                             elif session.proposed_chat:
-                                if session.chat_transport is None or not session.chat_transport.is_active:
+                                if session.chat_transport is None:
                                     failure_reason = "MSRP chat SDP negotation failed"
                             if failure_reason is not None and session._sdpneg_failure_reason is not None:
                                 failure_reason += ": %s" % session._sdpneg_failure_reason
