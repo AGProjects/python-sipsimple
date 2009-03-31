@@ -2,57 +2,26 @@
 
 import sys
 import traceback
-import string
-import socket
 import os
 import atexit
 import select
 import termios
 import signal
-from collections import deque
 from thread import start_new_thread, allocate_lock
-from threading import Thread, Event
+from threading import Event
 from Queue import Queue
-from optparse import OptionParser, OptionValueError
+from optparse import OptionParser
 from time import sleep
-from application.process import process
-from application.configuration import *
 from urllib2 import URLError
 
-from sipsimple import *
-from sipsimple.clients import enrollment
-
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.applications import ParserError
-from sipsimple.applications.resourcelists import *
-from sipsimple.applications.rlsservices import *
-
-from sipsimple.clients.clientconfig import get_path
-from sipsimple.clients.dns_lookup import *
-from sipsimple.clients import *
+from sipsimple.applications.resourcelists import Entry
+from sipsimple.applications.rlsservices import RLSList, RLSServices, Service
+from sipsimple.configuration import ConfigurationManager
 
 from xcaplib.client import XCAPClient
 from xcaplib.error import HTTPError
-
-class Boolean(int):
-    def __new__(typ, value):
-        if value.lower() == 'true':
-            return True
-        else:
-            return False
-
-
-class AccountConfig(ConfigSection):
-    _datatypes = {"sip_address": str, "password": str, "display_name": str, "xcap_root": str, "use_presence_agent": Boolean}
-    sip_address = None
-    password = None
-    display_name = None
-    xcap_root = None
-    use_presence_agent = True
-
-
-process._system_config_directory = os.path.expanduser("~/.sipclient")
-enrollment.verify_account_config()
-configuration = ConfigFile("config.ini")
 
 
 queue = Queue()
@@ -65,10 +34,10 @@ string = None
 getstr_event = Event()
 show_xml = False
 
-sip_uri = None
 xcap_client = None
 service_uri = None
 rls_services = None
+rls_services_etag = None
 buddy_service = None
 
 def get_rls_services():
@@ -227,15 +196,12 @@ def getstr(prompt='selection'):
     string = None
     return ret
 
-def read_queue(username, domain, password, display_name, xcap_root):
-    global user_quit, lock, queue, sip_uri, xcap_client, service_uri
+def read_queue(account):
+    global user_quit, lock, queue, xcap_client, service_uri
     lock.acquire()
     try:
-        sip_uri = SIPURI(user=username, host=domain, display=display_name)
-        
-        if xcap_root is not None:
-            xcap_client = XCAPClient(xcap_root, '%s@%s' % (sip_uri.user, sip_uri.host), password=password, auth=None)
-        print 'Retrieving current RLS services from %s' % xcap_root
+        xcap_client = XCAPClient(account.xcap_root, account.id, password=account.password, auth=None)
+        print 'Retrieving current RLS services from %s' % account.xcap_root
         get_rls_services()
         if show_xml and rls_services is not None:
             print "RLS services document:"
@@ -255,7 +221,7 @@ def read_queue(username, domain, password, display_name, xcap_root):
                     buddy = getstr('new buddy')
                     if buddy != '':
                         if '@' not in buddy:
-                            buddy = 'sip:%s@%s' % (buddy, domain)
+                            buddy = 'sip:%s@%s' % (buddy, account.id.domain)
                         else:
                             buddy = 'sip:%s' % buddy
                         add_buddy(buddy)
@@ -263,7 +229,7 @@ def read_queue(username, domain, password, display_name, xcap_root):
                     buddy = getstr('buddy to delete')
                     if buddy != '':
                         if '@' not in buddy:
-                            buddy = 'sip:%s@%s' % (buddy, domain)
+                            buddy = 'sip:%s@%s' % (buddy, account.id.domain)
                         else:
                             buddy = 'sip:%s' % buddy
                         remove_buddy(buddy)
@@ -290,13 +256,42 @@ def read_queue(username, domain, password, display_name, xcap_root):
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
-def do_xcap_rls_services(**kwargs):
-    global user_quit, lock, queue, string, getstr_event, old, show_xml
+def do_xcap_rls_services(account_name, service):
+    global user_quit, lock, queue, string, getstr_event, old, service_uri
     ctrl_d_pressed = False
+    
+    ConfigurationManager().start()
+    account_manager = AccountManager()
+    account_manager.start()
 
-    show_xml = kwargs.pop('show_xml')
+    for account in account_manager.iter_accounts():
+        if account.id == account_name:
+            break
+    else:
+        if account_name == None:
+            account = account_manager.default_account
+        else:
+            raise RuntimeError("unknown account %s. Available accounts: %s" % (account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
 
-    start_new_thread(read_queue,(), kwargs)
+    if not account.enabled:
+        raise RuntimeError("account %s is not enabled" % account.id)
+    elif account == BonjourAccount():
+        raise RuntimeError("cannot use bonjour account for XCAP RLS services management")
+    elif not account.presence.enabled:
+        raise RuntimeError("presence is not enabled for account %s" % account.id)
+    elif account.xcap_root is None:
+        raise RuntimeError("XCAP root is not defined for account %s" % account.id)
+    
+    if service is None:
+        service_uri = 'sip:%s-buddies@%s' % (account.id.username, account.id.domain)
+    elif '@' not in service:
+        service_uri = '%s@%s' % (service, account.id.domain)
+    else:
+        service_uri = service
+    if not service_uri.startswith('sip:') or service_uri.startswith('sips:'):
+        service_uri = 'sip:' + service_uri
+
+    start_new_thread(read_queue,(account,))
     atexit.register(termios_restore)
     
     try:
@@ -333,67 +328,20 @@ def do_xcap_rls_services(**kwargs):
         lock.acquire()
         return
 
-def parse_options():
-    global service_uri
-    retval = {}
+
+if __name__ == "__main__":
     description = "This example script will use the specified SIP account to manage rls services via XCAP. The program will quit when CTRL+D is pressed. You can specify the service URI as an argument (if domain name is not specified, the user's domain name will be used). If it is not specified, it defaults to username-buddies@domain."
     usage = "%prog [options] [service URI]"
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The account name from which to read account settings. Corresponds to section Account_NAME in the configuration file. If not supplied, the section Account will be read.", metavar="NAME")
-    parser.add_option("--sip-address", type="string", dest="sip_address", help="SIP address of the user in the form user@domain")
-    parser.add_option("-p", "--password", type="string", dest="password", help="Password to use to authenticate the local account. This overrides the setting from the config file.")
-    parser.add_option("-x", "--xcap-root", type="string", dest="xcap_root", help = 'The XCAP root to use to access the rls-services document to manage.')
-    parser.add_option("-s", "--show-xml", action="store_true", dest="show_xml", help = 'Show the RLS services XML whenever it is changed and at start-up.')
+    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
+    parser.add_option("-s", "--show-xml", action="store_true", dest="show_xml", default=False, help = 'Show the presence rules XML whenever it is changed and at start-up.')
     options, args = parser.parse_args()
-    
-    if options.account_name is None:
-        account_section = "Account"
-    else:
-        account_section = "Account_%s" % options.account_name
-    if account_section not in configuration.parser.sections():
-        raise RuntimeError("There is no account section named '%s' in the configuration file" % account_section)
-    configuration.read_settings(account_section, AccountConfig)
-    if not AccountConfig.use_presence_agent:
-        raise RuntimeError("Presence is not enabled for this account. Please set use_presence_agent=True in the config file")
-    default_options = dict(sip_address=AccountConfig.sip_address, password=AccountConfig.password, display_name=AccountConfig.display_name, xcap_root=AccountConfig.xcap_root, show_xml=False)
-    options._update_loose(dict((name, value) for name, value in default_options.items() if getattr(options, name, None) is None))
-    
-    if not all([options.sip_address, options.password]):
-        raise RuntimeError("No complete set of SIP credentials specified in config file and on commandline.")
-    for attr in default_options:
-        retval[attr] = getattr(options, attr)
+
+    show_xml = options.show_xml
+
     try:
-        retval["username"], retval["domain"] = options.sip_address.split("@")
-    except ValueError:
-        raise RuntimeError("Invalid value for sip_address: %s" % options.sip_address)
-    else:
-        del retval["sip_address"]
-    
-    accounts = [(acc == 'Account') and 'default' or "'%s'" % acc[8:] for acc in configuration.parser.sections() if acc.startswith('Account')]
-    accounts.sort()
-    print "Accounts available: %s" % ', '.join(accounts)
-    if options.account_name is None:
-        print "Using default account: %s" % options.sip_address
-    else:
-        print "Using account '%s': %s" % (options.account_name, options.sip_address)
-    
-    if len(args) > 0:
-        if '@' not in args[0]:
-            service_uri = 'sip:%s@%s' % (args[0], retval["domain"])
-        else:
-            service_uri = 'sip:%s' % args[0]
-    else:
-        service_uri = 'sip:%s-buddies@%s' % (retval["username"], retval["domain"])
-
-    return retval
-
-def main():
-    do_xcap_rls_services(**parse_options())
-
-if __name__ == "__main__":
-    try:
-        main()
+        do_xcap_rls_services(options.account_name, args[0] if args else None)
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
