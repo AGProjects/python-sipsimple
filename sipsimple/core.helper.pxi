@@ -1,4 +1,3 @@
-import random
 import string
 
 # classes
@@ -77,17 +76,12 @@ cdef class Credentials:
     cdef pjsip_cred_info c_obj
     cdef public SIPURI uri
     cdef public object password
-    cdef readonly object token
 
-    def __cinit__(self, SIPURI uri, password=None, token=None):
+    def __cinit__(self, SIPURI uri, password=None):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
         cdef SIPURI req_uri
         self.uri = uri
         self.password = password
-        if token is None:
-            self.token = "".join([random.choice(string.letters + string.digits) for i in xrange(10)])
-        else:
-            self.token = token
         self.c_obj.realm = _Credentials_realm_wildcard.pj_str
         self.c_obj.scheme = _Credentials_scheme_digest.pj_str
         self.c_obj.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
@@ -107,7 +101,7 @@ cdef class Credentials:
     def copy(self):
         if self.uri is None:
             raise SIPCoreError("Credentials URI is set to None")
-        return Credentials(self.uri.copy(), self.password, self.token)
+        return Credentials(self.uri.copy(), self.password)
 
 cdef class SIPURI:
     cdef public object user
