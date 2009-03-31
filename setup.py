@@ -45,11 +45,9 @@ setup(name         = "sipclient",
           #"Development Status :: 5 - Production/Stable",
           #"Development Status :: 6 - Mature",
           "Intended Audience :: Service Providers",
-          "License :: Commercial",
           "License :: GNU General Public License (GPL)",
           "Operating System :: OS Independent",
-          "Programming Language :: Python",
-          "Programming Language :: C"
+          "Programming Language :: Python"
       ],
       packages     = ["sipsimple", "sipsimple.green", "sipsimple.clients", "sipsimple.applications", "sipsimple.configuration", "sipsimple.configuration.backend"],
       package_data = {
