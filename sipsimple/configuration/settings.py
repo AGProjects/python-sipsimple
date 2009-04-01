@@ -57,7 +57,7 @@ class LoggingSettings(SettingsGroup):
 
 
 class MSRPSettings(SettingsGroup):
-    local_transport = Setting(type=MSRPTransport, default='tls')
+    transport = Setting(type=MSRPTransport, default='tls')
     local_port = Setting(type=Port, default=0)
 
 

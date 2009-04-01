@@ -105,7 +105,7 @@ class MSRPChat(object):
                 self.transport = account.msrp.relay.transport
         else:
             relay = None
-            self.transport = settings.msrp.local_transport
+            self.transport = settings.msrp.transport
 
         logger = LoggerSingleton().logger
 

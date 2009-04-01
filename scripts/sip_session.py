@@ -817,7 +817,7 @@ def update_settings(options):
         account.msrp.use_relay_for_inbound = False
         account.msrp.use_relay_for_outbound = False
     if options.msrp_tcp:
-        settings.msrp.local_transport = 'tcp'
+        settings.msrp.transport = 'tcp'
 
 def main():
     options = parse_options(usage, description)
