@@ -621,6 +621,13 @@ cdef extern from "pjsip.h":
         int method
         int verify_server
         pj_time_val timeout
+    enum pjsip_tpselector_type:
+        PJSIP_TPSELECTOR_TRANSPORT
+    union pjsip_tpselector_u:
+        pjsip_transport *transport
+    struct pjsip_tpselector:
+        pjsip_tpselector_type type
+        pjsip_tpselector_u u
     int pjsip_transport_shutdown(pjsip_transport *tp)
     int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned int async_cnt, pjsip_transport **p_transport)
     int pjsip_tcp_transport_start2(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned int async_cnt, pjsip_tpfactory **p_tpfactory)
@@ -703,6 +710,7 @@ cdef extern from "pjsip.h":
     int pjsip_dlg_set_route_set(pjsip_dialog *dlg, pjsip_route_hdr *route_set)
     int pjsip_dlg_create_uas(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg)
     int pjsip_dlg_terminate(pjsip_dialog *dlg)
+    int pjsip_dlg_set_transport(pjsip_dialog *dlg, pjsip_tpselector *sel)
 
 cdef extern from "pjsip_simple.h":
 

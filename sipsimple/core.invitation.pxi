@@ -46,6 +46,7 @@ cdef class Invitation:
         cdef pjsip_tx_data *tdata
         cdef PJSTR contact_uri
         cdef object transport
+        cdef pjsip_tpselector tp_sel
         cdef int status
         try:
             self.transport = rdata.tp_info.transport.type_name.lower()
@@ -64,6 +65,11 @@ cdef class Invitation:
             status = pjsip_inv_create_uas(self.c_dlg, rdata, NULL, inv_options, &self.c_obj)
             if status != 0:
                 raise PJSIPError("Could not create new INTIVE session", status)
+            tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT
+            tp_sel.u.transport = rdata.tp_info.transport
+            status = pjsip_dlg_set_transport(self.c_dlg, &tp_sel)
+            if status != 0:
+                raise PJSIPError("Could not set transport for INTIVE session", status)
             status = pjsip_inv_initial_answer(self.c_obj, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create initial (unused) response to INTIVE", status)
