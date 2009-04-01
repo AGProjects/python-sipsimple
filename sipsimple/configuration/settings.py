@@ -91,7 +91,7 @@ class SIPSimpleSettings(SettingsObject):
     __id__ = 'SIPSimple'
     
     data_directory = Setting(type=AbsolutePath, default=os.path.expanduser('~/.sipclient'))
-    default_account = Setting(type=str, default='bonjour', nillable=True)
+    default_account = Setting(type=str, default='bonjour@local', nillable=True)
     local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)
 
