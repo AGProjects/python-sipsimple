@@ -198,6 +198,12 @@ class PortRange(object):
     def __init__(self, start, end):
         self.start = Port(start)
         self.end = Port(end)
+        if self.start == 0:
+            raise ValueError("illegal port value: 0")
+        if self.end == 0:
+            raise ValueError("illegal port value: 0")
+        if self.start > self.end:
+            raise ValueError("illegal port range: start port (%d) cannot be larger than end port (%d)" % (self.start, self.end))
 
     def __repr__(self):
         return '%s(start=%r, end=%r)' % (self.__class__.__name__, self.start, self.end)
