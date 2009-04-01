@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """
 Configuration backend for storing settings in INI files.
 """

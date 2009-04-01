@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """Console control for eventlet apps based on twisted.conch.
 
 Features:

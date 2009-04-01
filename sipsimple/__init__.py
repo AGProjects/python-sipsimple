@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 __version__ = "0.9.0"
 
 _revision_required = 41

@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """Integration of sipsimple with eventlet and twisted."""
 from twisted.python import threadable
 from eventlet import proc

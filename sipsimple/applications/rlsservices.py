@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """
 Parses and builds application/rls-services+xml documents according to
 RFC4826.

@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """Configuration and config parsing for sip_im_session.py and derived scripts"""
 import sys
 import os

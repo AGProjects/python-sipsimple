@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """Utilities for using notifications with twisted and for converting
 asynchronous notifications into synchronous function calls"""
 

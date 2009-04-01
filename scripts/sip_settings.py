@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
 
 import fcntl
 import re

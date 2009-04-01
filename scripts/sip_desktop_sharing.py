@@ -1,4 +1,7 @@
 #!/usr/bin/python
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 from __future__ import with_statement
 
 from eventlet.coros import queue

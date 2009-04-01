@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 from __future__ import with_statement
 from contextlib import contextmanager
 from application.notification import NotificationCenter

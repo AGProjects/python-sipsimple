@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """Synchronous versions of Engine and related classes (Invitation, Registration)
 
 GreenXXX typically has the same methods as XXX with the exception that the methods

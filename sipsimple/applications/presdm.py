@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """PIDF handling according to RFC3863 and RFC3379
 
 This module provides classes to parse and generate PIDF documents.

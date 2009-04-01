@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """Simple parser and constructor of Message/CPIM content"""
 import re
 from cStringIO import StringIO

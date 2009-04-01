@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 from sipsimple.applications.test import XMLApplicationTest
 from sipsimple.applications.rlsservices import Package, Packages, RLSList, Service, RLSServices
 from sipsimple.applications.resourcelists import Entry, List

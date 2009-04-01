@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 """
 Parses application/watcherinfo+xml documents according to RFC3857 and RFC3858.
 

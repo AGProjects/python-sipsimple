@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 from zope.interface import Interface
 
 from sipsimple.configuration import ConfigurationError
