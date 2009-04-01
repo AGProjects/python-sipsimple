@@ -1,36 +1,36 @@
-"""
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+# on reports
+# ----------
+#
+# If you set Success-Report header in an outgoing chunk to 'yes', then the
+# remote party is required by MSRP protocol to generate a Success report, acknowledging
+# your message. Upon receiving such a report, MSRPChat will post MSRPChatDidDeliverMessage
+# notification.
+#
+# If you set Failure-Report to 'partial' or 'yes' or leave it out completely,
+# you may get either error transaction response or a failure report. Any of this will
+# be converted to MSRPChatDidNotDeliverMessage.
+#
+# To customize the values of these headers use success_report and failure_report arguments
+# of _send_raw_message.
+#
+# The default setting of _send_raw_message is to leave out these headers completely,
+# thus enabling MSRP's default:
+#   * Success-Report: no
+#   * Failure-Report: yes
+#
+# The default setting of send_message is to enable end-to-end success reports but
+# disable hop-to-hop successful confirmations:
+#   * Success-Report: yes
+#   * Failure-Report: partial
+#
+# For is-composing notification, you don't need a success report (what would you
+# do with it?), however, you should receive failure notifications as their indicate
+# problems with the connection. Therefore, the following settings should be used:
+#   * Failure-Report: partial
+#   * Success-Report: no (default)
 
-on reports
-----------
-
-If you set Success-Report header in an outgoing chunk to 'yes', then the
-remote party is required by MSRP protocol to generate a Success report, acknowledging
-your message. Upon receiving such a report, MSRPChat will post MSRPChatDidDeliverMessage
-notification.
-
-If you set Failure-Report to 'partial' or 'yes' or leave it out completely,
-you may get either error transaction response or a failure report. Any of this will
-be converted to MSRPChatDidNotDeliverMessage.
-
-To customize the values of these headers use success_report and failure_report arguments
-of the send_message or send_raw_message.
-
-The default setting of send_raw_message is to leave out these headers completely,
-thus enabling MSRP's default:
-  * Success-Report: no
-  * Failure-Report: yes
-
-The default setting of send_message is to enable end-to-end success reports but
-disable hop-to-hop successful confirmations:
-  * Success-Report: yes
-  * Failure-Report: partial
-
-For is-composing notification, you don't need a success report (what would you
-do with it?), however, you should receive failure notifications as their indicate
-problems with the connection. Therefore, the following settings should be used:
-  * Failure-Report: partial
-  * Success-Report: no (default)
-"""
 import os
 import random
 from datetime import datetime
@@ -52,15 +52,6 @@ from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.util import makedirs
 
-
-#
-# TODO
-#
-# 1. Capture exception more precisely in the _do_xxx methods.
-# 2. Review Notifications and the NotificationData. Publish consistent
-#    notification data attributes and only relevant information.
-# 3. Update docstrings
-#
 
 class MSRPChatError(Exception):
     pass
@@ -85,7 +76,9 @@ class MSRPChat(object):
     def __init__(self, account, remote_uri, outgoing):
         """Initialize MSRPChat instance.
 
+        - account (Account)
         - remote_uri (SIPURI) - what to put in 'To' CPIM header;
+        - outgoing (bool) - True for outgoing connection, False otherwise.
         """
         self.state = NULL
         self.notification_center = NotificationCenter()
@@ -216,8 +209,8 @@ class MSRPChat(object):
         """Close the MSRP connection or cleanup after initialize(), whatever is necessary.
 
         Before doing anything post MSRPChatWillEnd.
-        After end is complete, post MSRPChatDidEnd. If there was an error during closure
-        procedure, post MSRPChatDidRaiseException first (MSRPChatDidEnd will be posted anyway).
+        When done, post MSRPChatDidEnd. If there was an error, post MSRPChatDidFail.
+        MSRPChatDidEnd will be posted anyway.
         """
         if self.state in [ENDING, ENDED]:
             return
@@ -276,6 +269,8 @@ class MSRPChat(object):
 
     def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
         """Send raw MSRP message. For IM prefer send_message.
+        If called before the connection was established, the messages will be
+        queued until MSRPChatDidStart notification.
 
         Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
         """
@@ -299,7 +294,7 @@ class MSRPChat(object):
     def send_message(self, content, content_type='text/plain', to_uri=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
-        queued until MSRPChatDidStart notification. (TODO)
+        queued until MSRPChatDidStart notification.
 
         - content (str) - content of the message;
         - to_uri (SIPURI) - "To" header of CPIM wrapper;
