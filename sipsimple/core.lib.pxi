@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 cdef class PJLIB:
     cdef int c_init_done
 

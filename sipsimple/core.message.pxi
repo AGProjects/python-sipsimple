@@ -1,3 +1,6 @@
+# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+#
+
 # main function
 
 def send_message(Credentials credentials, SIPURI to_uri, content_type, content_subtype, body, Route route):
