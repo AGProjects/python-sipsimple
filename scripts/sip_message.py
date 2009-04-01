@@ -109,7 +109,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, routes):
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
-def do_message(account_id, config_file, target_uri, message, trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout):
+def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pjsip):
     global user_quit, lock, queue
 
     # acquire settings
@@ -141,25 +141,19 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_si
     print "Using account %s" % account.id
 
     # set up logger
-    if trace_sip is None:
-        trace_sip = settings.logging.trace_sip
-        trace_sip_stdout = False
-    if trace_pjsip is None:
-        trace_pjsip = settings.logging.trace_pjsip
-        trace_pjsip_stdout = False
-    logger = Logger(trace_sip, trace_sip_stdout, trace_pjsip, trace_pjsip_stdout)
+    logger = Logger(trace_sip, trace_pjsip)
     logger.start()
-    if logger.sip_to_file:
+    if settings.logging.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if logger.pjsip_to_file:
+    if settings.logging.trace_pjsip:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
     # start engine
 
     e = Engine()
     handler = EventHandler(e)
-    e.start_cfg(log_level=settings.logging.pjsip_level if trace_pjsip or trace_pjsip_stdout else 0,
-                trace_sip=trace_sip or trace_sip_stdout)
+    e.start_cfg(log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or trace_pjsip) else 0,
+                trace_sip=settings.logging.trace_sip or trace_sip)
     e.codecs = list(account.audio.codec_list)
 
     # start the session manager (for incoming calls)
@@ -212,17 +206,6 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_si
             queue.put(("quit", True))
         lock.acquire()
 
-def parse_trace_option(option, opt_str, value, parser, name):
-    trace_file = False
-    trace_stdout = False
-    if value.lower() not in ["none", "file", "stdout", "all"]:
-        raise OptionValueError("Invalid trace option: %s" % value)
-    value = value.lower()
-    trace_file = value not in ["none", "stdout"]
-    trace_stdout = value in ["stdout", "all"]
-    setattr(parser.values, "trace_%s" % name, trace_file)
-    setattr(parser.values, "trace_%s_stdout" % name, trace_stdout)
-
 def parse_options():
     retval = {}
     description = "This will either sit idle waiting for an incoming MESSAGE request, or send a MESSAGE request to the specified SIP target. In outgoing mode the program will read the contents of the messages to be sent from standard input, Ctrl+D signalling EOF as usual. In listen mode the program will quit when Ctrl+D is pressed."
@@ -231,10 +214,8 @@ def parse_options():
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account", type="string", dest="account_id", help="The account name to use for any outgoing traffic. If not supplied, the default account will be used.", metavar="NAME")
     parser.add_option("-c", "--config_file", type="string", dest="config_file", help="The path to a configuration file to use. This overrides the default location of the configuration file.", metavar="[FILE]")
-    parser.set_default("trace_sip_stdout", None)
-    parser.add_option("-s", "--trace-sip", type="string", action="callback", callback=parse_trace_option, callback_args=('sip',), help="Dump the raw contents of incoming and outgoing SIP messages. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
-    parser.set_default("trace_pjsip_stdout", None)
-    parser.add_option("-j", "--trace-pjsip", type="string", action="callback", callback=parse_trace_option, callback_args=('pjsip',), help="Print PJSIP logging output. The argument specifies where the messages are to be dumped.", metavar="[stdout|file|all|none]")
+    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages.")
+    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output.")
     parser.add_option("-m", "--message", type="string", dest="message", help="Contents of the message to send. This disables reading the message from standard input.")
     options, args = parser.parse_args()
     retval = options.__dict__.copy()
