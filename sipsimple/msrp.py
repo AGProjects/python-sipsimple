@@ -143,13 +143,13 @@ class MSRPChat(object):
         spawn_from_thread(self._do_initialize)
 
     def _do_initialize(self):
-        settings = SIPSimpleSettings()
-        local_uri = URI(host=settings.local_ip.normalized,
-                        port=settings.msrp.local_port,
-                        use_tls=self.transport=='tls',
-                        credentials=get_X509Credentials())
         self.state = INITIALIZING
         try:
+            settings = SIPSimpleSettings()
+            local_uri = URI(host=settings.local_ip.normalized,
+                            port=settings.msrp.local_port,
+                            use_tls=self.transport=='tls',
+                            credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
         except Exception, ex:
@@ -176,26 +176,24 @@ class MSRPChat(object):
 
     def _do_start(self, remote_media):
         self.state = STARTING
-        media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
-        # TODO: update accept_types and accept_wrapped_types from remote_media
-        # TODO: chatroom, recvonly/sendonly?
-        self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
-        self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
-        remote_uri_path = media_attributes.get('path')
-        if remote_uri_path is None:
-            self.state = ERROR
-            text = "remote SDP media does not have `path' attribute"
-            failure = Failure(AttributeError(text))
-            ndata = NotificationData(context='sdp_negotiation', failure=failure, reason=text)
-            self.notification_center.post_notification('MSRPChatDidFail', self, ndata)
-            return
-        full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
         try:
+            context = 'sdp_negotiation'
+            media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
+            remote_accept_types = media_attributes.get('accept-types')
+            # TODO: update accept_types and accept_wrapped_types from remote_media
+            # TODO: chatroom, recvonly/sendonly?
+            self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
+            self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
+            remote_uri_path = media_attributes.get('path')
+            if remote_uri_path is None:
+                raise AttributeError("remote SDP media does not have 'path' attribute")
+            full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
+            context = 'start'
             msrp_transport = self.msrp_connector.complete(full_remote_path)
             self.msrp = MSRPSession(msrp_transport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
         except Exception, ex:
             self.state = ERROR
-            ndata = NotificationData(context='start', failure=Failure(), reason=str(ex) or type(ex).__name__)
+            ndata = NotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
             self.notification_center.post_notification('MSRPChatDidFail', self, ndata)
             raise
         else:
@@ -326,6 +324,7 @@ class MSRPChat(object):
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
 
+
 def get_X509Credentials():
     settings = SIPSimpleSettings()
     if settings.tls.certificate_file is not None:
@@ -339,3 +338,4 @@ def get_X509Credentials():
     cred = X509Credentials(cert, key)
     cred.verify_peer = settings.tls.verify_server
     return cred
+
