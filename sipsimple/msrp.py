@@ -200,8 +200,9 @@ class MSRPChat(object):
             self.state = STARTED
             self.notification_center.post_notification('MSRPChatDidStart', self)
             for send_args in self.message_queue:
-                self._send_raw_message(*send_args)
+                spawn_from_thread(self._send_raw_message, *send_args)
             self.message_queue.clear()
+        # what if starting has failed? should I generate MSRPChatDidNotDeliver per each message?
 
     def end(self):
         """Close the MSRP connection or cleanup after initialize(), whatever is necessary.
