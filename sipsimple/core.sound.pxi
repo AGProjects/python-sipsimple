@@ -341,9 +341,15 @@ cdef class WaveFile:
     cdef readonly object file_name
     cdef int level
 
-    def __cinit__(self, file_name):
-        self.file_name = file_name
+    def __cinit__(self, *args, **kwargs):
         self.timer_is_active = 0
+
+    def __init__(self, file_name):
+        if self.file_name is not None:
+            raise SIPCoreError("WaveFile.__init__() was already called")
+        if file_name is None:
+            raise ValueError("file_name argument may not be None")
+        self.file_name = file_name
 
     cdef PJSIPUA _check_ua(self):
         cdef PJSIPUA ua
