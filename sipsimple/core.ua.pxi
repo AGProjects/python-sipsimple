@@ -77,7 +77,7 @@ cdef class PJSIPUA:
         self.c_module.id = -1
         self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
         self.c_module.on_rx_request = cb_PJSIPUA_rx_request
-        self.c_module.on_tsx_state = cb_Request_cb_tsx_state
+        self.c_module.on_tsx_state = _Request_cb_tsx_state
         status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
         if status != 0:
             raise PJSIPError("Could not load application module", status)

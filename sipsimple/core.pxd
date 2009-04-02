@@ -879,8 +879,8 @@ cdef int c_handle_post_queue(PJSIPUA ua) except -1
 # core.request
 
 cdef class Request
-cdef void cb_Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
-cdef void _cb_Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
+cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
+cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
 # core.message
 
