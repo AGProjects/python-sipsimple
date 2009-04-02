@@ -112,6 +112,7 @@ class Engine(object):
             tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
             tls_timeout=settings.tls.timeout,
             ec_tail_length=settings.audio.echo_delay,
+            user_agent=settings.user_agent,
             log_level=settings.logging.pjsip_level if settings.logging.trace_pjsip else 0,
             sip_trace=settings.logging.trace_sip,
             sample_rate=settings.audio.sample_rate,
