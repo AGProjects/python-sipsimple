@@ -195,25 +195,6 @@ class ChatSession(GreenSession, NotificationHandler):
             self.hold()
 
 
-class ProcSet(object):
-
-    def __init__(self):
-        self.jobs = set()
-
-    def add(self, p):
-        self.jobs.add(p)
-        p.link(lambda *_: self.jobs.discard(p))
-
-    def spawn(self, func, *args, **kwargs):
-        p = proc.spawn(func, *args, **kwargs)
-        self.add(p)
-        return p
-
-    def waitall(self, trap_errors=True):
-        while self.jobs:
-            proc.waitall(self.jobs, trap_errors=trap_errors)
-
-
 class ChatManager(NotificationHandler):
 
     def __init__(self, engine, account, console, auto_accept_files=False):
@@ -223,7 +204,7 @@ class ChatManager(NotificationHandler):
         self.auto_accept_files = auto_accept_files
         self.sessions = []
         self.current_session = None
-        self.procs = ProcSet()
+        self.procs = proc.RunningProcSet()
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidFail')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidEnd')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionNewIncoming')

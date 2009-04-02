@@ -189,10 +189,7 @@ def main():
                             str(sip.remote_uri),
                             depth = options.vncviewer_depth
                         )
-                    vnc_proc.link(
-                        lambda result: \
-                        remove_console_session(console, session)
-                    )
+                    vnc_proc.link(lambda p: remove_console_session(console, session))
 
                 def handle_incoming_requests():
                     print 'Waiting for incoming desktop '\

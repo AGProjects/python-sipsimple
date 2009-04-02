@@ -124,7 +124,7 @@ class ChatSession(object):
         self.source = proc.Source()
         self.history_file = None
         if self.invite_job is not None:
-            self.invite_job.link_value(lambda result: proc.spawn(self._on_invite, result))
+            self.invite_job.link_value(lambda p: proc.spawn(self._on_invite, p.value))
             self.invite_job.link_exception(self.source)
         else:
             self.start_rendering_messages()
