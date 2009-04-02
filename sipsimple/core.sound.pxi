@@ -230,10 +230,16 @@ cdef class RecordingWaveFile:
     cdef int was_started
     cdef int c_is_paused
 
-    def __cinit__(self, file_name):
-        self.file_name = file_name
+    def __cinit__(self, *args, **kwargs):
         self.was_started = 0
         self.c_is_paused = 0
+
+    def __init__(self, file_name):
+        if self.file_name is not None:
+            raise SIPCoreError("RecordingWaveFile.__init__() was already called")
+        if file_name is None:
+            raise ValueError("file_name argument may not be None")
+        self.file_name = file_name
 
     cdef PJSIPUA _check_ua(self):
         cdef PJSIPUA ua
