@@ -38,6 +38,7 @@ Middleware
 Audio
 -----
 
+- Added silent settings to the engine to mute all wav sounds RK]
 - Add dummy sounds device, simulate sending RTP without audio card [RK]
 - Add volume setting for all audio notifications [LS] [RK]
 - Switch back to trunk and use new PJSIP sound device API [RK]
