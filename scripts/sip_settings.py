@@ -135,6 +135,7 @@ class AccountConfigurator(object):
             print 'Cannot add SIP account: %s' % str(e)
             return
         account.password = password
+        account.enabled = True
         account.save()
         print 'Account added'
 
