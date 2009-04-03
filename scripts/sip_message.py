@@ -162,14 +162,13 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pj
 
     # pre-lookups
 
+    routes = None
     if isinstance(account, BonjourAccount):
         # print listening addresses
         for transport in settings.sip.transports:
             local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
             print 'Listening on "%s"' % local_uri
-        if target_uri is None:
-            routes = None
-        else:
+        if target_uri is not None:
             # setup routes
             if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
                 target_uri = "sip:%s" % target_uri
@@ -179,11 +178,11 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pj
         # setup routes
         if target_uri is not None:
             target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
-        if account.outbound_proxy is None:
-            routes = lookup_routes_for_sip_uri(SIPURI(host=account.id.domain), settings.sip.transports)
-        else:
-            proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
-            routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
+            if account.outbound_proxy is None:
+                routes = lookup_routes_for_sip_uri(SIPURI(host=account.id.domain), settings.sip.transports)
+            else:
+                proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
+                routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
 
     if routes is not None and len(routes) == 0:
         raise RuntimeError('No route found to SIP proxy for "%s"' % target_uri)
