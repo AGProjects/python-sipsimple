@@ -79,15 +79,15 @@ class SettingsParser(object):
 
     @classmethod
     def parse_MSRPRelayAddress(cls, type, value):
-        components = value.split(':')
-        if len(components) == 1:
-            return type(value)
-        elif len(components) == 2:
-            return type(components[0], port=components[1])
-        elif len(components) == 3:
-            return type(components[1], port=components[2], transport=components[0])
-        else:
+        match = re.match(r'^(?P<host>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*))(:(?P<port>\d+))?(;transport=(?P<transport>[a-z]+))?$', value)
+        if match is None:
             raise ValueError("illegal value for address: %s" % value)
+        match_dict = match.groupdict()
+        if match_dict['port'] is None:
+            del match_dict['port']
+        if match_dict['transport'] is None:
+            del match_dict['transport']
+        return type(**match_dict)
 
     parse_SIPProxy = parse_MSRPRelayAddress
 

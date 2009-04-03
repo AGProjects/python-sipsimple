@@ -174,7 +174,7 @@ class MSRPRelayAddress(object):
         return '%s(%r, port=%r, transport=%r)' % (self.__class__.__name__, self.host, self.port, self.transport)
 
     def __str__(self):
-        return '%s:%s:%d' % (self.transport, self.host, self.port)
+        return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
     def __eq__(self, other):
         try:
@@ -246,7 +246,7 @@ class SIPProxy(object):
         return '%s(%r, port=%r, transport=%r)' % (self.__class__.__name__, self.host, self.port, self.transport)
 
     def __str__(self):
-        return '%s:%s:%d' % (self.transport, self.host, self.port)
+        return '%s:%d;transport=%s' % (self.host, self.port, self.transport)
 
     def __eq__(self, other):
         try:
