@@ -216,7 +216,7 @@ class RegistrationApplication(object):
         
         self.success = False
         
-        if self.max_registers is not None:
+        if self.max_registers is not None and notification.data.next_route is None:
             self.max_registers -= 1
             if self.max_registers == 0:
                 self.stop()
