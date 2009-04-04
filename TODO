@@ -23,6 +23,7 @@ SIP core
 Middleware
 ----------
 
+- Separate lookup mechanism from core [LS]
 - FileTransfer high level class [RK] [DB]
 - Desktop sharing high level class [RK] [DB]
 - Conference audio sessions [RK]
