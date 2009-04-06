@@ -226,11 +226,6 @@ class RegistrationApplication(object):
                 self.stop()
                 engine = Engine()
                 engine.stop()
-                if reactor.running:
-                    if threadable.isInIOThread():
-                        reactor.stop()
-                    else:
-                        reactor.callFromThread(reactor.stop)
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
         if hasattr(notification.data, 'code'):
@@ -240,10 +235,6 @@ class RegistrationApplication(object):
         
         engine = Engine()
         engine.stop()
-        if threadable.isInIOThread():
-            reactor.stop()
-        else:
-            reactor.callFromThread(reactor.stop)
 
     def _NH_SAInputWasReceived(self, notification):
         engine = Engine()
@@ -262,6 +253,12 @@ class RegistrationApplication(object):
             self.output.put('Notification tracing to console is now %s.' % ('activated' if self.logger.notifications_to_stdout else 'deactivated'))
         elif key == '?':
             self.print_help()
+
+    def _NH_SIPEngineDidEnd(self, notification):
+        if threadable.isInIOThread():
+            reactor.stop()
+        else:
+            reactor.callFromThread(reactor.stop)
 
     def _NH_SIPEngineDidFail(self, notification):
         self.output.put('Engine failed.')
