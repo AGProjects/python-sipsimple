@@ -19,34 +19,38 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 def format_child(obj, attrname, maxchars):
     linebuf = attrname
     if isinstance(getattr(type(obj), attrname, None), Setting):
-        maxchars -= len(attrname)+4
         string = str(getattr(obj, attrname))
-        if len(string) > maxchars:
-            string = '(..)'+string[-(maxchars-4):]
+        if maxchars is not None:
+            maxchars -= len(attrname)+4
+            if len(string) > maxchars:
+                string = '(..)'+string[-(maxchars-4):]
         linebuf += ' = ' + string
     return linebuf
 
 def display_object(obj, name):
     # get terminal width
-    width = struct.unpack('HHHH', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))[1]
+    if sys.stdout.isatty():
+        width = struct.unpack('HHHH', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))[1]
+    else:
+        width = None
 
     children = deque([child for child in dir(type(obj)) if isinstance(getattr(type(obj), child, None), Setting)] + \
                      [child for child in dir(type(obj)) if isinstance(getattr(type(obj), child, None), SettingsGroupMeta)])
     # display first line
     linebuf = ' '*(len(name)+3) + '+'
     if children:
-        linebuf += '-- ' + format_child(obj, children.popleft(), width-(len(name)+7))
+        linebuf += '-- ' + format_child(obj, children.popleft(), width-(len(name)+7) if width is not None else None)
     print linebuf
     # display second line
     linebuf = name + ' --|'
     if children:
-        linebuf += '-- ' + format_child(obj, children.popleft(), width-(len(name)+7))
+        linebuf += '-- ' + format_child(obj, children.popleft(), width-(len(name)+7) if width is not None else None)
     print linebuf
     # display the rest of the lines
     if children:
         while children:
             child = children.popleft()
-            linebuf = ' '*(len(name)+3) + ('|' if children else '+') + '-- ' + format_child(obj, child, width-(len(name)+7))
+            linebuf = ' '*(len(name)+3) + ('|' if children else '+') + '-- ' + format_child(obj, child, width-(len(name)+7) if width is not None else None)
             print linebuf
     else:
         linebuf = ' '*(len(name)+3) + '+'
