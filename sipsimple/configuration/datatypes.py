@@ -370,11 +370,12 @@ class DataPath(object):
     
     @property
     def normalized(self):
-        if os.path.isabs(self.path):
-            return self.path
+        path = os.path.expanduser(self.path)
+        if os.path.isabs(path):
+            return path
         from sipsimple.configuration.settings import SIPSimpleSettings
         settings = SIPSimpleSettings()
-        return os.path.join(settings.data_directory, self.path)
+        return os.path.join(settings.data_directory, path)
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.path)
