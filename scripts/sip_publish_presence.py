@@ -600,7 +600,10 @@ class PublicationApplication(object):
         elif notification.data.state == 'unpublished':
             self.publication = None
             self.success = False
-            self.output.put('Unpublished: %d %s' % (notification.data.code, notification.data.reason))
+            if hasattr(notification.data, 'code'):
+                self.output.put('Unpublished: %d %s' % (notification.data.code, notification.data.reason))
+            else:
+                self.output.put('Unpublished')
             if self.stopping or notification.data.code in (401, 403, 407):
                 if notification.data.code / 100 == 2:
                     self.success = True
