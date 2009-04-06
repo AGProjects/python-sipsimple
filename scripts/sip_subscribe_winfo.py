@@ -234,7 +234,8 @@ class WinfoApplication(object):
         account_manager = AccountManager()
         if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
             self.account = account
-            account.registration.enabled = False
+            if account != BonjourAccount():
+                account.registration.enabled = False
         else:
             account.enabled = False
 

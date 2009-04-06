@@ -103,6 +103,8 @@ class RegistrationApplication(object):
             raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
         elif not self.account.enabled:
             raise RuntimeError("account %s is not enabled" % self.account.id)
+        elif self.account == BonjourAccount():
+            raise RuntimeError("cannot use bonjour account for registration")
         self.output.put('Using account %s' % self.account.id)
 
         # start logging
@@ -174,7 +176,8 @@ class RegistrationApplication(object):
         account_manager = AccountManager()
         if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
             self.account = account
-            account.registration.enabled = True
+            if account != BonjourAccount():
+                account.registration.enabled = True
             
             notification_center = NotificationCenter()
             notification_center.add_observer(self, sender=account)
