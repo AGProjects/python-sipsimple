@@ -162,6 +162,7 @@ class RegistrationApplication(object):
         message  = 'Available control keys:\n'
         message += '  t: toggle SIP trace on the console\n'
         message += '  j: toggle PJSIP trace on the console\n'
+        message += '  n: toggle notifications trace on the console\n'
         message += '  Ctrl-d: quit the program\n'
         message += '  ?: display this help message\n'
         self.output.put('\n'+message)
@@ -256,6 +257,9 @@ class RegistrationApplication(object):
             self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
             engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
             self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
+        elif key == 'n':
+            self.logger.notifications_to_stdout = not self.logger.notifications_to_stdout
+            self.output.put('Notification tracing to console is now %s.' % ('activated' if self.logger.notifications_to_stdout else 'deactivated'))
         elif key == '?':
             self.print_help()
 
