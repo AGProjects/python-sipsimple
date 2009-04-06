@@ -6,6 +6,7 @@ import sys
 import traceback
 import os
 import signal
+from datetime import datetime
 from thread import start_new_thread, allocate_lock
 from Queue import Queue
 from optparse import OptionParser, OptionValueError
@@ -71,6 +72,29 @@ def read_queue(e, settings, am, account, logger, target_uri, message, routes):
                         print "MESSAGE was accepted by remote party."
                     user_quit = False
                     command = "quit"
+                elif event_name == "SIPAccountRegistrationDidSucceed":
+                    route = args['registration'].route
+                    print '%s Registered contact "%s" for SIP address %s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
+                elif event_name == "SIPAccountRegistrationDidFail":
+                    if args['registration'] is not None:
+                        route = args['registration'].route
+                        if args['next_route']:
+                            next_route = args['next_route']
+                            next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+                        else:
+                            next_route = 'No more routes to try; retrying in %.2f seconds.' % (args['delay'])
+                        if 'code' in args:
+                            status = '%d %s' % (args['code'], args['reason'])
+                        else:
+                            status = args['reason']
+                        print '%s Failed to register contact for SIP address %s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), account.id, route.address, route.port, route.transport, status, next_route)
+                    else:
+                        print '%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), account.id, notification.data.reason)
+                elif event_name == "SIPAccountRegistrationDidEnd":
+                    if 'code' in args:
+                        print '%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), args['code'], args['reason'])
+                    else:
+                        print '%s Registration ended.' % (datetime.now().replace(microsecond=0),)
                 elif event_name == "SIPEngineGotException":
                     print "An exception occured within the SIP core:"
                     print args["traceback"]
