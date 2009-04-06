@@ -102,15 +102,30 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
             if command == "core_event":
                 event_name, obj, args = data
                 if event_name == "SIPAccountRegistrationDidSucceed":
-                    print '%s Registered contact "%s" for SIP address %s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, args['registration'].expires)
+                    route = args['registration'].route
+                    print '%s Registered contact "%s" for SIP address %s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
                 elif event_name == "SIPAccountRegistrationDidFail":
-                    if "code" in args:
-                        print "%s Failed to register contact for SIP address %s: %d %s. Retrying in %.2f seconds." % (datetime.now().replace(microsecond=0), account.id, args['code'], args['reason'], args['delay'])
+                    if args['registration'] is not None:
+                        route = args['registration'].route
+                        if args['next_route']:
+                            next_route = args['next_route']
+                            next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+                        else:
+                            next_route = 'No more routes to try; retrying in %.2f seconds.' % (args['delay'])
+                        if 'code' in args:
+                            status = '%d %s' % (args['code'], args['reason'])
+                        else:
+                            status = args['reason']
+                        print '%s Failed to register contact for SIP address %s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), account.id, route.address, route.port, route.transport, status, next_route)
                     else:
-                        print "%s Failed to register contact for SIP address %s: %s. Retrying in %.2f seconds." % (datetime.now().replace(microsecond=0), account.id, args['reason'], args['delay'])
-                    command = "quit"
-                    user_quit = False
+                        print '%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), account.id, notification.data.reason)
+                        command = "quit"
+                        user_quit = False
                 elif event_name == "SIPAccountRegistrationDidEnd":
+                    if 'code' in args:
+                        print '%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), args['code'], args['reason'])
+                    else:
+                        print '%s Registration ended.' % (datetime.now().replace(microsecond=0),)
                     command = "quit"
                     user_quit = False
                 elif event_name == "SIPSessionGotRingIndication":
