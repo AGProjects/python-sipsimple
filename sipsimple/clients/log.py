@@ -1,10 +1,12 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+import datetime
 import os
 
-from zope.interface import implements
 from application.notification import IObserver
+from pprint import pformat
+from zope.interface import implements
 
 from sipsimple import Engine
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -13,9 +15,10 @@ from sipsimple.util import makedirs
 class Logger(object):
     implements(IObserver)
     
-    def __init__(self, sip_to_stdout=False, pjsip_to_stdout=False):
+    def __init__(self, sip_to_stdout=False, pjsip_to_stdout=False, notifications_to_stdout=False):
         self.sip_to_stdout = sip_to_stdout
         self.pjsip_to_stdout = pjsip_to_stdout
+        self.notifications_to_stdout = notifications_to_stdout
 
         self._siptrace_filename = None
         self._siptrace_file = None
@@ -28,8 +31,7 @@ class Logger(object):
     def start(self):
         # register to receive log notifications
         notification_center = Engine().notification_center
-        notification_center.add_observer(self, name='SIPEngineSIPTrace')
-        notification_center.add_observer(self, name='SIPEngineLog')
+        notification_center.add_observer(self)
 
         settings = SIPSimpleSettings()
         log_directory = settings.logging.directory.normalized
@@ -54,13 +56,14 @@ class Logger(object):
 
         # unregister from receiving notifications
         notification_center = Engine().notification_center
-        notification_center.remove_observer(self, name='SIPEngineSIPTrace')
-        notification_center.remove_observer(self, name='SIPEngineLog')
+        notification_center.remove_observer(self)
 
     def handle_notification(self, notification):
         handler = getattr(self, '_LH_%s' % notification.name, None)
         if handler is not None:
             handler(notification.name, notification.data)
+        elif self.notifications_to_stdout:
+            print '%s Notification name=%s sender=%s\n%s' % (datetime.datetime.now(), notification.name, notification.sender, pformat(notification.data.__dict__))
 
     # log handlers
     def _LH_SIPEngineSIPTrace(self, event_name, event_data):
