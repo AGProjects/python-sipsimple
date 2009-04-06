@@ -10,6 +10,7 @@ import termios
 from application import log
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.queue import EventQueue
+from datetime import datetime
 from optparse import OptionParser
 from threading import Thread
 from twisted.python import threadable
@@ -188,8 +189,7 @@ class RegistrationApplication(object):
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if not self.success:
             route = notification.data.registration.route
-            message = 'Registration succeeded at %s:%d;transport=%s.\n' % (route.address, route.port, route.transport)
-            message += 'Contact: %s (expires in %d seconds).' % (notification.data.contact_uri, notification.data.expires)
+            message = '%s Registered contact "%s" for SIP address %s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.registration.expires)
             contact_uri_list = notification.data.contact_uri_list
             if len(contact_uri_list) > 1:
                 message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %d seconds)" % (other_contact[1:-1], expires) for other_contact, expires in contact_uri_list if other_contact[1:-1] != notification.data.contact_uri])
@@ -209,14 +209,14 @@ class RegistrationApplication(object):
                 next_route = notification.data.next_route
                 next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
             else:
-                next_route = 'No more routes to try; waiting for %.2f seconds.' % (notification.data.delay)
+                next_route = 'No more routes to try; retrying in %.2f seconds.' % (notification.data.delay)
             if hasattr(notification.data, 'code'):
                 status = '%d %s' % (notification.data.code, notification.data.reason)
             else:
                 status = notification.data.reason
-            self.output.put('Registration failed at %s:%d;transport=%s (%s). %s' % (route.address, route.port, route.transport, status, next_route))
+            self.output.put('%s Failed to register contact for SIP address %s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status, next_route))
         else:
-            self.output.put('Registration failed: %s' % notification.data.reason)
+            self.output.put('%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
         
         self.success = False
         
@@ -229,9 +229,9 @@ class RegistrationApplication(object):
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
         if hasattr(notification.data, 'code'):
-            self.output.put('Registration ended: %d %s.' % (notification.data.code, notification.data.reason))
+            self.output.put('%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), notification.data.code, notification.data.reason))
         else:
-            self.output.put('Registration ended.')
+            self.output.put('%s Registration ended.' % (datetime.now().replace(microsecond=0),))
         
         engine = Engine()
         engine.stop()
@@ -261,14 +261,14 @@ class RegistrationApplication(object):
             reactor.callFromThread(reactor.stop)
 
     def _NH_SIPEngineDidFail(self, notification):
-        self.output.put('Engine failed.')
+        self.output.put('%s Engine failed.'% (datetime.now().replace(microsecond=0),))
         if threadable.isInIOThread():
             reactor.stop()
         else:
             reactor.callFromThread(reactor.stop)
 
     def _NH_SIPEngineGotException(self, notification):
-        self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
+        self.output.put('%s An exception occured within the SIP core:\n%s' % (datetime.now().replace(microsecond=0), notification.data.traceback))
 
 
 if __name__ == "__main__":
