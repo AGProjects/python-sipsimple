@@ -82,11 +82,11 @@ class InputThread(Thread):
 class WinfoApplication(object):
     implements(IObserver)
 
-    def __init__(self, account_name, trace_sip, trace_pjsip):
+    def __init__(self, account_name, trace_sip, trace_pjsip, trace_notifications):
         self.account_name = account_name
         self.input = InputThread(self)
         self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
-        self.logger = Logger(trace_sip, trace_pjsip)
+        self.logger = Logger(trace_sip, trace_pjsip, trace_notifications)
         self.success = False
         self.account = None
         self.winfo = WatcherInfo()
@@ -211,10 +211,8 @@ class WinfoApplication(object):
         if self.subscription is not None and self.subscription.state.lower() in ('accepted', 'pending', 'active'):
             self.subscription.unsubscribe()
         else:
-            if threadable.isInIOThread():
-                reactor.stop()
-            else:
-                reactor.callFromThread(reactor.stop)
+            engine = Engine()
+            engine.stop()
 
     def print_help(self):
         message  = 'Available control keys:\n'
@@ -303,6 +301,9 @@ class WinfoApplication(object):
             self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
             engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
             self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
+        elif key == 'n':
+            self.logger.notifications_to_stdout = not self.logger.notifications_to_stdout
+            self.output.put('Notification tracing to console is now %s.' % ('activated' if self.logger.notifications_to_stdout else 'deactivated'))
         elif key == '?':
             self.print_help()
         elif len(self.pending) > 0:
@@ -317,6 +318,12 @@ class WinfoApplication(object):
                 self._polite_block_watcher(watcher)
             if len(self.pending) > 0:
                 self.output.put("%s watcher %s wants to subscribe to your presence information. Press (a) for allow, (d) for deny or (p) for polite blocking:" % (self.pending[0].status.capitalize(), self.pending[0]))
+
+    def _NH_SIPEngineDidEnd(self, notification):
+        if threadable.isInIOThread():
+            reactor.stop()
+        else:
+            reactor.callFromThread(reactor.stop)
 
     def _NH_SIPEngineDidFail(self, notification):
         self.output.put('Engine failed.')
@@ -509,10 +516,11 @@ if __name__ == "__main__":
     parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-n", "--trace-notifications", action="store_true", dest="trace_notifications", default=False, help="Print all notifications (disabled by default).")
     options, args = parser.parse_args()
 
     try:
-        application = WinfoApplication(options.account_name, options.trace_sip, options.trace_pjsip)
+        application = WinfoApplication(options.account_name, options.trace_sip, options.trace_pjsip, options.trace_notifications)
         return_code = application.run()
     except RuntimeError, e:
         print "Error: %s" % str(e)
