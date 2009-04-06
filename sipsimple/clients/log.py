@@ -1,11 +1,14 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+from __future__ import with_statement
+
 import datetime
 import os
 
 from application.notification import IObserver
 from pprint import pformat
+from threading import RLock
 from zope.interface import implements
 
 from sipsimple import Engine
@@ -27,43 +30,48 @@ class Logger(object):
         
         self._pjsiptrace_filename = None
         self._pjsiptrace_file = None
+
+        self._lock = RLock()
         
     def start(self):
-        # register to receive log notifications
-        notification_center = Engine().notification_center
-        notification_center.add_observer(self)
+        with self._lock:
+            # register to receive log notifications
+            notification_center = Engine().notification_center
+            notification_center.add_observer(self)
 
-        settings = SIPSimpleSettings()
-        log_directory = settings.logging.directory.normalized
-        makedirs(log_directory)
+            settings = SIPSimpleSettings()
+            log_directory = settings.logging.directory.normalized
+            makedirs(log_directory)
 
-        # sip trace
-        self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
+            # sip trace
+            self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
 
-        # pjsip trace
-        self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
+            # pjsip trace
+            self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
 
     def stop(self):
-        # sip trace
-        if self._siptrace_file is not None:
-            self._siptrace_file.close()
-            self._siptrace_file = None
-        
-        # pjsip trace
-        if self._pjsiptrace_file is not None:
-            self._pjsiptrace_file.close()
-            self._pjsiptrace_file = None
+        with self._lock:
+            # sip trace
+            if self._siptrace_file is not None:
+                self._siptrace_file.close()
+                self._siptrace_file = None
+            
+            # pjsip trace
+            if self._pjsiptrace_file is not None:
+                self._pjsiptrace_file.close()
+                self._pjsiptrace_file = None
 
-        # unregister from receiving notifications
-        notification_center = Engine().notification_center
-        notification_center.remove_observer(self)
+            # unregister from receiving notifications
+            notification_center = Engine().notification_center
+            notification_center.remove_observer(self)
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_LH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification.name, notification.data)
-        elif self.notifications_to_stdout:
-            print '%s Notification name=%s sender=%s\n%s' % (datetime.datetime.now(), notification.name, notification.sender, pformat(notification.data.__dict__))
+        with self._lock:
+            handler = getattr(self, '_LH_%s' % notification.name, None)
+            if handler is not None:
+                handler(notification.name, notification.data)
+            elif self.notifications_to_stdout:
+                print '%s Notification name=%s sender=%s\n%s' % (datetime.datetime.now(), notification.name, notification.sender, pformat(notification.data.__dict__))
 
     # log handlers
     def _LH_SIPEngineSIPTrace(self, event_name, event_data):
