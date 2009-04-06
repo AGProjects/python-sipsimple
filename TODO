@@ -2,6 +2,7 @@
 SIP core
 --------
 
+- Fix PJSIP problems with sending a negative reply to a re-INVITE [RK]
 - Properly split __cinit__() and __init__() methods on Cython objects [RK]
 - Make variable names consistent accross all files [RK]
 - Cleanup Publication and Subscription to behave more like Invitation [RK]
