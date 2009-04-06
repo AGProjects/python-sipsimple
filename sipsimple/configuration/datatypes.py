@@ -64,6 +64,7 @@ class AudioCodecs(tuple):
 class SampleRate(int):
     available_rates = (8, 16, 32)
     def __new__(cls, value):
+        value = int(value)
         if value not in cls.available_rates:
             raise ValueError("illegal sample rate value: %d" % value)
         return value
