@@ -69,11 +69,11 @@ class InputThread(Thread):
 class RegistrationApplication(object):
     implements(IObserver)
 
-    def __init__(self, account_name, trace_sip, trace_pjsip, max_registers):
+    def __init__(self, account_name, trace_sip, trace_pjsip, trace_notifications, max_registers):
         self.account_name = account_name
         self.input = InputThread(self)
         self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
-        self.logger = Logger(trace_sip, trace_pjsip)
+        self.logger = Logger(trace_sip, trace_pjsip, trace_notifications)
         self.max_registers = max_registers if max_registers > 0 else None
         self.success = False
         self.account = None
@@ -278,11 +278,12 @@ if __name__ == "__main__":
     parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
+    parser.add_option("-n", "--trace-notifications", action="store_true", dest="trace_notifications", default=False, help="Print all notifications (disabled by default).")
     parser.add_option("-r", "--max-registers", type="int", dest="max_registers", default=1, help="Max number of REGISTERs sent (default 1, set to 0 for infinite).")
     options, args = parser.parse_args()
 
     try:
-        application = RegistrationApplication(options.account_name, options.trace_sip, options.trace_pjsip, options.max_registers)
+        application = RegistrationApplication(options.account_name, options.trace_sip, options.trace_pjsip, options.trace_notifications, options.max_registers)
         return_code = application.run()
     except RuntimeError, e:
         print "Error: %s" % str(e)
