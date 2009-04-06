@@ -19,7 +19,7 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple import Engine, SIPCoreError
-from sipsimple.account import AccountManager
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
