@@ -6,6 +6,7 @@ from datetime import datetime
 from pprint import pformat
 from zope.interface import implements
 from application.notification import IObserver, NotificationCenter, Any
+from application.python.util import Singleton
 
 
 class FileLoggerBase(object):
@@ -23,6 +24,15 @@ class FileLoggerBase(object):
 
     def stop(self):
         NotificationCenter().remove_observer(self, self.event_name)
+
+    def started(self):
+        return self in NotificationCenter().observers.get((self.event_name, Any))
+
+    def toggle(self):
+        if self.started():
+            self.stop()
+        else:
+            self.start()
 
 
 class SIPTracer(FileLoggerBase):
@@ -69,6 +79,7 @@ class PJSIPTracer(FileLoggerBase):
 
 
 class EngineTracer(FileLoggerBase):
+    __metaclass__ = Singleton
 
     implements(IObserver)
 
