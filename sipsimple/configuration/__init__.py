@@ -391,7 +391,7 @@ class SettingsObject(SettingsState):
             instance = configuration.get(cls.__section__, id)
         except (UnknownSectionError, UnknownNameError):
             instance = SettingsState.__new__(cls)
-        except AttributeError:
+        except (AttributeError, TypeError):
             instance = SettingsState.__new__(cls)
             try:
                 configuration.set(instance.__section__, id, instance)
