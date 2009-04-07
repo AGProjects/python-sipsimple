@@ -190,7 +190,7 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pj
     if account is None:
         raise RuntimeError("No account configured")
     for other_account in am.iter_accounts():
-        if other_account != account:
+        if target_uri is not None or other_account != account:
             other_account.enabled = False
     print "Using account %s" % account.id
 
