@@ -286,7 +286,7 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, sender=notification.sender)
         
         timeout = random.uniform(1.0, 2.0)
-        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=NotificationData(reason='DNS lookup failed', registration=None, next_route=None, delay=timeout))
+        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=NotificationData(reason='DNS lookup failed: %s' % notification.data.error, registration=None, next_route=None, delay=timeout))
         
         from twisted.internet import reactor
         reactor.callLater(timeout, self._register)
