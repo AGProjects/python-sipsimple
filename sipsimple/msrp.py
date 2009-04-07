@@ -45,12 +45,11 @@ from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.trafficlog import Logger
-from sipsimple.core import WaveFile
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
 from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.util import makedirs
+from sipsimple.util import makedirs, SilenceableWaveFile
 
 
 class MSRPChatError(Exception):
@@ -119,11 +118,11 @@ class MSRPChat(object):
 
         # TODO: history
         if settings.chat.message_received_sound:
-            self.message_received_sound = WaveFile(settings.chat.message_received_sound)
+            self.message_received_sound = SilenceableWaveFile(settings.chat.message_received_sound.path, settings.chat.message_received_sound.volume)
         else:
             self.message_received_sound = None
         if settings.chat.message_sent_sound:
-            self.message_sent_sound = WaveFile(settings.chat.message_sent_sound)
+            self.message_sent_sound = SilenceableWaveFile(settings.chat.message_sent_sound.path, settings.chat.message_sent_sound.volume)
         else:
             self.message_sent_sound = None
 

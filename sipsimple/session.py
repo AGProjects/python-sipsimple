@@ -18,11 +18,11 @@ from sipsimple.engine import Engine
 from sipsimple.core import SIPURI, Invitation
 from sipsimple.core import SDPSession, SDPMedia, SDPAttribute, SDPConnection
 from sipsimple.core import RTPTransport, AudioTransport
-from sipsimple.core import WaveFile, RecordingWaveFile
+from sipsimple.core import RecordingWaveFile
 from sipsimple.core import SIPCoreError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
-from sipsimple.util import makedirs, NotificationHandler
+from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 class SessionStateError(Exception):
@@ -229,7 +229,7 @@ class Session(NotificationHandler):
                 msrp_chat = None
             ringtone = self.settings.ringtone.outbound
             if ringtone is not None:
-                ringtone = WaveFile(ringtone)
+                ringtone = SilenceableWaveFile(ringtone.path, ringtone.volume, force_playback=True)
             media_initializer = MediaTransportInitializer(self._connect_continue, self._connect_fail, audio_rtp, msrp_chat)
             self._inv = inv
             self.chat_transport = msrp_chat
@@ -926,7 +926,7 @@ class SessionManager(NotificationHandler):
             self.inv_mapping[inv] = session
             ringtone = account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
             if ringtone is not None:
-                session._ringtone = WaveFile(ringtone)
+                session._ringtone = SilenceableWaveFile(ringtone.path, ringtone.volume)
             session.direction = "incoming"
             session._change_state("INCOMING")
             self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(streams=proposed_media))
