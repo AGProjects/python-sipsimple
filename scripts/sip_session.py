@@ -198,11 +198,11 @@ class ChatSession(GreenSession, NotificationHandler):
 
 class ChatManager(NotificationHandler):
 
-    def __init__(self, engine, account, console, auto_accept_files=False):
+    def __init__(self, engine, account, console, logger):
         self.engine = engine
         self.account = account
         self.console = console
-        self.auto_accept_files = auto_accept_files
+        self.logger = logger
         self.sessions = []
         self.current_session = None
         self.procs = proc.RunningProcSet()
@@ -366,8 +366,8 @@ class ChatManager(NotificationHandler):
             self.update_prompt()
 
     def _validate_stream(self, s):
-        s = s.lower()
-        if s in ['chat', 'audio']:
+        s = complete_word(s.lower(), ['chat', 'audio'])
+        if s:
             return s
         else:
             raise UserCommandError("Please use 'chat' or 'audio'. Cannot understand %r" % s)
@@ -532,6 +532,54 @@ class ChatManager(NotificationHandler):
         finally:
             console.terminalProtocol.send_keys = old_send_keys
 
+    def cmd_trace(self, *args):
+        """:trace sip|pjsip|notifications \t Remove the stream from the current session"""
+        if not args:
+            raise UserCommandError('Please provide an argument\n%s' % self.cmd_trace.__doc__)
+        args = [complete_word(x, ['sip', 'pjsip', 'msrp', 'notifications']) for x in args]
+        for arg in args:
+            if arg == 'sip':
+                self.logger.sip_to_stdout = not self.logger.sip_to_stdout
+                settings = SIPSimpleSettings()
+                self.engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+                print "SIP tracing to console is now %s" % ("activated" if self.logger.sip_to_stdout else "deactivated")
+            elif arg == 'pjsip':
+                self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
+                settings = SIPSimpleSettings()
+                self.engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+                print "PJSIP tracing to console is now %s" % ("activated, log level=%s" % self.engine.log_level if self.logger.pjsip_to_stdout else "deactivated")
+            elif arg == 'notifications':
+                logstate.EngineTracer().toggle()
+                print "Notifications tracing to console is now %s" % ("activated" if logstate.EngineTracer().started() else "deactivated")
+
+
+def complete_word(input, wordlist):
+    """
+    >>> complete_word('audio', ['chat', 'audio'])
+    'audio'
+    >>> complete_word('audiox', ['chat', 'audio'])
+    Traceback (most recent call last):
+     ...
+    UserCommandError: Please provide chat|audio. Cannot understand 'audiox'
+    >>> complete_word('c', ['chat', 'audio'])
+    'chat'
+    >>> complete_word('au', ['chat', 'audio', 'audi'])
+    Traceback (most recent call last):
+     ...
+    UserCommandError: Please provide chat|audio|audi. Cannot understand 'au'
+    """
+    if input in wordlist:
+        return input
+    else:
+        results = []
+        for word in wordlist:
+            if word.startswith(input):
+                results.append(word)
+        if len(results)==1:
+            return results[0]
+        else:
+            raise UserCommandError('Please provide %s. Cannot understand %r' % ('|'.join(wordlist), input))
+
 
 class InfoPrinter(NotificationHandler):
 
@@ -602,7 +650,8 @@ def start(options, console):
     try:
         if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
             engine.detect_nat_type(*options.account.stun_servers[0])
-        logstate.start_loggers(trace_engine=options.trace_notifications)
+        if options.trace_notifications:
+            logstate.EngineTracer().start()
         if isinstance(account, BonjourAccount):
             if engine.local_udp_port:
                 print 'Local contact: %s:%s;transport=udp' % (account.contact, engine.local_udp_port)
@@ -612,7 +661,7 @@ def start(options, console):
                 print 'Local contact: %s:%s;transport=tls' % (account.contact, engine.local_tls_port)
         MessageRenderer().start()
         session_manager = SessionManager()
-        manager = ChatManager(engine, account, console)
+        manager = ChatManager(engine, account, console, options.logger)
         manager.update_prompt()
         try:
             print "Type :help to get information about commands and shortcuts"
@@ -834,12 +883,12 @@ def main():
         settings.chat.message_sent_sound = get_path("message_sent.wav")
 
     # set up logger
-    logger = Logger(options.trace_sip, options.trace_pjsip)
-    logger.start()
+    options.logger = Logger(options.trace_sip, options.trace_pjsip)
+    options.logger.start()
     if settings.logging.trace_sip:
-        print "Logging SIP trace to file '%s'" % logger._siptrace_filename
+        print "Logging SIP trace to file '%s'" % options.logger._siptrace_filename
     if settings.logging.trace_pjsip:
-        print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
+        print "Logging PJSIP trace to file '%s'" % options.logger._pjsiptrace_filename
     if LoggerSingleton().msrptrace_filename:
         print "Logging MSRP trace to file '%s'" % LoggerSingleton().msrptrace_filename
 
