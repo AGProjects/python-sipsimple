@@ -189,7 +189,7 @@ class RegistrationApplication(object):
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if not self.success:
             route = notification.data.registration.route
-            message = '%s Registered contact "%s" for SIP address %s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.registration.expires)
+            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.registration.expires)
             contact_uri_list = notification.data.contact_uri_list
             if len(contact_uri_list) > 1:
                 message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %d seconds)" % (other_contact[1:-1], expires) for other_contact, expires in contact_uri_list if other_contact[1:-1] != notification.data.contact_uri])
@@ -214,9 +214,9 @@ class RegistrationApplication(object):
                 status = '%d %s' % (notification.data.code, notification.data.reason)
             else:
                 status = notification.data.reason
-            self.output.put('%s Failed to register contact for SIP address %s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status, next_route))
+            self.output.put('%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status, next_route))
         else:
-            self.output.put('%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
+            self.output.put('%s Failed to register contact for sip:%s: %s' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
         
         self.success = False
         
