@@ -344,15 +344,20 @@ class ChatManager(NotificationHandler):
         return getattr(self, 'cmd_%s' % cmd, None)
 
     def cmd_help(self):
-        """:help                       Print this help message"""
+        """:help \t Print this help message"""
+        lines = []
         for k in dir(self):
             if k.startswith('cmd_'):
                 doc = getattr(self, k).__doc__
                 if doc:
-                    print doc
+                    usage, desc = doc.split(' \t ')
+                    lines.append((usage, desc))
+        usage_width = max(len(x[0]) for x in lines) + 3
+        for usage, desc in lines:
+            print usage + ' ' * (usage_width-len(usage)) + desc
 
     def cmd_switch(self):
-        """:switch  (or CTRL-N)        Switch between active sessions"""
+        """:switch  (or CTRL-N) \t Switch between active sessions"""
         if len(self.sessions)<2:
             print "There's no other session to switch to."
         else:
@@ -368,7 +373,7 @@ class ChatManager(NotificationHandler):
             raise UserCommandError("Please use 'chat' or 'audio'. Cannot understand %r" % s)
 
     def cmd_call(self, *args):
-        """:call user@domain [audio|chat]      Initiate an outgoing session. By default, use audio+chat"""
+        """:call user@domain [audio|chat] \t Initiate an outgoing session. By default, use audio+chat"""
         if not args:
             raise UserCommandError('Please provide uri')
         target_uri = args[0]
@@ -432,18 +437,18 @@ class ChatManager(NotificationHandler):
             raise UserCommandError(str(ex))
 
     def cmd_hold(self):
-        """:hold  (or CTRL-H)          Put the current session on hold"""
+        """:hold  (or CTRL-H) \t Put the current session on hold"""
         self.get_current_session().hold()
 
     def cmd_unhold(self):
-        """:unhold  (or CTRL-H)        Un-hold the current session"""
+        """:unhold  (or CTRL-H) \t Un-hold the current session"""
         self.get_current_session().unhold()
 
     def toggle_hold(self):
         self.get_current_session().toggle_hold()
 
     def cmd_add(self, *args):
-        """:add audio|chat             Add a new stream to the current session"""
+        """:add audio|chat \t Add a new stream to the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Too many arguments, the valid usage:\n:add [chat|audio]')
@@ -454,7 +459,7 @@ class ChatManager(NotificationHandler):
             session.add_audio()
 
     def cmd_remove(self, *args):
-        """:remove audio|chat          Remove the stream from the current session"""
+        """:remove audio|chat \t Remove the stream from the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Too many arguments, the valid usage:\n:remove chat|audio')
@@ -465,7 +470,7 @@ class ChatManager(NotificationHandler):
             session.remove_audio()
 
     def cmd_dtmf(self, *args):
-        """:dtmf DIGITS                Send DTMF digits. Also try CTRL-SPACE for virtual numpad"""
+        """:dtmf DIGITS \t Send DTMF digits. Also try CTRL-SPACE for virtual numpad"""
         session = self.get_current_session()
         data = ''.join(args).upper()
         for x in data:
