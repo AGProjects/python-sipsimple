@@ -293,7 +293,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     command = "unregister"
             if command == "unregister":
                 am.stop()
-                if isinstance(account, BonjourAccount):
+                if isinstance(account, BonjourAccount) or target_uri is not None:
                     user_quit = False
                     command = "quit"
             if command == "quit":
@@ -349,7 +349,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     if account is None:
         raise RuntimeError("No account configured")
     for other_account in am.iter_accounts():
-        if other_account != account:
+        if target_uri is not None or other_account != account:
             other_account.enabled = False
     print "Using account %s" % account.id
 
