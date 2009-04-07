@@ -23,6 +23,7 @@ class AudioSettings(SettingsGroup):
     echo_delay = Setting(type=NonNegativeInteger, default=200)
     recordings_directory = Setting(type=DataPath, default=DataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32)
+    silent = Setting(type=bool, default=False)
     playback_dtmf = Setting(type=bool, default=True)
 
 
