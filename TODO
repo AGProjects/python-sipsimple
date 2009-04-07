@@ -2,37 +2,39 @@
 SIP core
 --------
 
+- Cleanup Publication and Subscription to behave more like Invitation [RK]
+- Add isfocus attribute for both session parties, present in Contact header [RK]
+- Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 - Fix PJSIP problems with sending a negative reply to a re-INVITE [RK]
 - Properly split __cinit__() and __init__() methods on Cython objects [RK]
 - Make variable names consistent accross all files [RK]
-- Cleanup Publication and Subscription to behave more like Invitation [RK]
-- Add isfocus attribute for both session parties, present in Contact header [RK]
 - Handle incoming SUBSCRIBE requests [RK]
 - Handle incoming REGISTER requests [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
 - Handle incoming OPTIONS requests [RK]
-- Handle incoming REFER requests [RK]
 - Add feature to send OPTIONS method and parse the replies [RK]
 - Handle sending and receiving of multipart bodies for Invitation [RK]
 - Set list of codecs in order of preference on each AudioTransport instance,
   not at the global level [RK]
-- Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 - Use STUN to determine the public contact address used for REGISTER [RK]
 - Handle UPDATE for re-INVITE [RK]
+- Handle incoming REFER requests [RK]
 
 
 Middleware
 ----------
 
-- Separate lookup mechanism from core [LS]
-- FileTransfer high level class [RK] [DB]
-- Desktop sharing high level class [RK] [DB]
+- FileTransfer high level class [DB]
+- Desktop sharing high level class [DB]
+- MediaStream high level class [RK]
 - Conference audio sessions [RK]
 - Buddylist high-level class [LS]
+- Log XCAP messages [LS]
 - Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
 - Auto PUBLISH event=presence with device status when start/end audio session [RK] [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
-- Handle 301/302 redirect within the Session class [RK]
+- Auto ENUM lookup during session if number looks like E.164 [LS]
+- Handle 301/302 redirect [RK]
 - Detect IP address changes (OS specific) and signal Engine [RK]
 - Enrollment [LS]
 
@@ -40,9 +42,7 @@ Middleware
 Audio
 -----
 
-- Added silent settings to the engine to mute all wav sounds RK]
 - Add dummy sounds device, simulate sending RTP without audio card [RK]
-- Add volume setting for all audio notifications [LS] [RK]
 - Switch back to trunk and use new PJSIP sound device API [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK]
 - Add method to core for playing arbitrary tones on the conference bridge [RK]
@@ -59,11 +59,10 @@ Audio
 Instant messaging
 -----------------
 
+- File transfer support based on draft-ietf-mmusic-file-transfer-mech-11 [DB]
 - Use MSRPServer class to share the listening port [DB]
-- Port eventlet/greenlet to ARM [DB]
 - Is-composing payload [LS]
 - Fix sip_im_session to accept unicode characters [DB]
-- File transfer support based on draft-ietf-mmusic-file-transfer-mech-11 [DB]
 
 
 Security and privacy
@@ -71,7 +70,7 @@ Security and privacy
 
 - Off-the-Record Messaging for IM [LS]
 - zRTP for audio [RK]
-- Anonymous URI multi-party chat support [DB]
+- Anonymous URI multi-party chat support [RK]
 
 
 Presence
@@ -95,25 +94,29 @@ Other applications
 Command line tools
 ------------------
 
-- Add timestamp for all logged messages [LS]
-- Add --auto-echo parameter to sip_im_session for automated tests [DB]
-- Add --auto-answer parameter to sip_im_session [DB]
+- Add --auto-answer and --auto-hangup parameter to sip_im_session [DB]
 - xcap_pidf_manipulation script [LS]
 - sip_subscribe_conference script [LS]
 - sip_subscribe_xcap_diff script [LS]
-- Append XCAP messages to .sipclient/log/user@domain/xcap_trace.txt [LS]
  
 
 Sessions
 --------
 
-- Video session using H.264 [RK]
+- Video sessions [RK]
+- H.264 codec [RK]
 - Real Time Text (RTT) []
+
+
+Packaging
+---------
+
+- Separate Debian packages [LS]
+
 
 Porting
 -------
 
-- Separate Debian packages [LS]
 - Windows []
 - iPhone []
 - Symbian []
