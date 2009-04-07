@@ -533,6 +533,7 @@ class InfoPrinter(NotificationHandler):
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPEngineDetectedNATType')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidStart')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidEnd')
+        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidFail')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionRejectedStreamProposal')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotHoldRequest')
         NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotUnholdRequest')
@@ -552,6 +553,12 @@ class InfoPrinter(NotificationHandler):
             pass
         if session.remote_user_agent is not None:
             print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
+
+    def _NH_SIPSessionDidFail(self, session, data):
+        if data.code:
+            print "Session failed: %d %s" % (data.code, data.reason)
+        else:
+            print "Session failed: %s" % data.reason
 
     def _NH_SIPSessionDidEnd(self, session, data):
         after = ''
