@@ -393,20 +393,17 @@ class DataPath(object):
         return hash(self.path)
 
 
-class SoundFile(str):
-    def __new__(cls, path, volume=100):
-        path = AbsolutePath(path)
-        volume = int(volume)
-        if volume < 0 or volume > 100:
-            raise ValueError("illegal volume level: %d" % volume)
-        instance = str.__new__(cls, path)
-        instance.volume = volume
-        return instance
+class SoundFile(object):
+    def __init__(self, path, volume=100):
+        self.path = AbsolutePath(path)
+        self.volume = int(volume)
+        if self.volume < 0 or self.volume > 100:
+            raise ValueError("illegal volume level: %d" % self.volume)
 
     def __repr__(self):
-        return '%s(%r, %r)' % (self.__class__.__name__, str.__repr__(self), self.volume)
+        return '%s(%r, %r)' % (self.__class__.__name__, self.path, self.volume)
     
     def __str__(self):
-        return '%s,%d' % (str.__str__(self), self.volume)
+        return '%s,%d' % (self.path, self.volume)
 
 
