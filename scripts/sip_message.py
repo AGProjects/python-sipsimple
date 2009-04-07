@@ -105,8 +105,8 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                         print '%s Failed to register contact for SIP address %s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), account.id, route.address, route.port, route.transport, status, next_route)
                     else:
                         print '%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), account.id, args["reason"])
-                    user_quit = False
-                    command = "quit"
+                        user_quit = False
+                        command = "quit"
                 elif event_name == "SIPAccountRegistrationDidEnd":
                     if 'code' in args:
                         print '%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), args['code'], args['reason'])
