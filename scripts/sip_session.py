@@ -36,6 +36,7 @@ from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
+from sipsimple.msrp import LoggerSingleton
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 KEY_AUDIO_CONTROL = '\x00' # Ctrl-SPACE
@@ -834,6 +835,8 @@ def main():
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
     if settings.logging.trace_pjsip:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
+    if LoggerSingleton().msrptrace_filename:
+        print "Logging MSRP trace to file '%s'" % LoggerSingleton().msrptrace_filename
 
     InfoPrinter().start()
 
