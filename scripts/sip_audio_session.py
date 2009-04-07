@@ -112,8 +112,9 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     else:
                         command = "check_call"
                 elif event_name == "DNSLookupDidSucceed" and obj is stun_dns:
-                    e.detect_nat_type(*args["result"][0])
                     account.stun_servers = args["result"]
+                    if len(account.stun_servers) > 0:
+                        e.detect_nat_type(*account.stun_servers[0])
                     got_stun = True
                     command = "check_call"
                 elif event_name == "SIPAccountRegistrationDidSucceed":
