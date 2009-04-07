@@ -13,7 +13,7 @@ from datetime import datetime
 from thread import start_new_thread, allocate_lock
 from threading import Timer
 from Queue import Queue
-from optparse import OptionParser, OptionValueError
+from optparse import OptionParser
 from socket import gethostbyname
 
 from zope.interface import implements
@@ -24,7 +24,7 @@ from sipsimple.engine import Engine
 from sipsimple.core import SIPURI, SIPCoreError
 from sipsimple.session import Session, SessionManager
 from sipsimple.clients.log import Logger
-from sipsimple.clients.dns_lookup import lookup_service_for_sip_uri, lookup_routes_for_sip_uri
+from sipsimple.lookup import DNSLookup
 from sipsimple.clients import format_cmdline_uri
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
@@ -81,19 +81,17 @@ def print_control_keys():
     print "  Ctrl-d: quit the program"
     print "  ?: display this help message"
 
-def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer, auto_hangup):
+def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns):
     global user_quit, lock, queue, return_code
     lock.acquire()
     sess = None
     want_quit = target_uri is not None
     auto_answer_timer = None
+    routes = None
+    got_stun = not hasattr(account, "stun_servers") or account.stun_servers
     try:
-        if hasattr(account, "stun_servers") and len(account.stun_servers) > 0:
+        if hasattr(account, "stun_servers") and account.stun_servers:
             e.detect_nat_type(*account.stun_servers[0])
-        if target_uri is not None:
-            sess = Session(account)
-            sess.connect(target_uri, routes, audio=True)
-            print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.caller_uri, sess.callee_uri, routes[0].transport, routes[0].address, routes[0].port)
         print_control_keys()
         while True:
             command, data = queue.get()
@@ -101,7 +99,24 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                 print data
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "SIPAccountRegistrationDidSucceed":
+                if event_name == "DNSLookupDidFail" and (obj is routes_dns or obj is stun_dns):
+                    print "DNS lookup failed: %(error)s" % args
+                    user_quit = False
+                    command = "quit"
+                elif event_name == "DNSLookupDidSucceed" and obj is routes_dns:
+                    routes = args["result"]
+                    if len(routes) == 0:
+                        print "No route found to SIP proxy"
+                        user_quit = False
+                        command = "quit"
+                    else:
+                        command = "check_call"
+                elif event_name == "DNSLookupDidSucceed" and obj is stun_dns:
+                    e.detect_nat_type(*args["result"][0])
+                    account.stun_servers = args["result"]
+                    got_stun = True
+                    command = "check_call"
+                elif event_name == "SIPAccountRegistrationDidSucceed":
                     route = args['registration'].route
                     print '%s Registered contact "%s" for SIP address %s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
                 elif event_name == "SIPAccountRegistrationDidFail":
@@ -118,7 +133,7 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                             status = args['reason']
                         print '%s Failed to register contact for SIP address %s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), account.id, route.address, route.port, route.transport, status, next_route)
                     else:
-                        print '%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), account.id, notification.data.reason)
+                        print '%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), account.id, args["reason"])
                         command = "quit"
                         user_quit = False
                 elif event_name == "SIPAccountRegistrationDidEnd":
@@ -262,6 +277,11 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
                     print "PJSIP tracing to console is now %s" % ("activated" if logger.pjsip_to_stdout else "deactivated")
                 elif data == '?':
                     print_control_keys()
+            if command == "check_call":
+                if target_uri is not None and sess is None and routes is not None and got_stun:
+                    sess = Session(account)
+                    sess.connect(target_uri, routes, audio=True)
+                    print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.caller_uri, sess.callee_uri, routes[0].transport, routes[0].address, routes[0].port)
             if command == "eof":
                 command = "end"
                 want_quit = True
@@ -292,8 +312,17 @@ def read_queue(e, settings, am, account, logger, target_uri, routes, auto_answer
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
+def twisted_reactor_thread():
+    from twisted.internet import reactor
+    from eventlet.twistedutil import join_reactor
+    reactor.run(installSignalHandlers=False)
+
 def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, auto_answer, auto_hangup):
     global user_quit, lock, queue
+
+    # start twisted thread
+
+    start_new_thread(twisted_reactor_thread, ())
 
     # acquire settings
 
@@ -352,7 +381,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
 
     # pre-lookups
 
-    routes = None
+    routes_dns = DNSLookup()
+    stun_dns = DNSLookup()
     if isinstance(account, BonjourAccount):
         # print listening addresses
         for transport in settings.sip.transports:
@@ -363,27 +393,24 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
                 target_uri = "sip:%s" % target_uri
             target_uri = e.parse_sip_uri(target_uri)
-            routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
+            routes_dns.lookup_sip_proxy(target_uri, settings.sip.transports)
     else:
         # lookup STUN servers, as we don't support doing this asynchronously yet
         if account.stun_servers:
             account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
         else:
-            account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
+            stun_dns.lookup_service(SIPURI(host=account.id.domain), "stun")
         # setup routes
         if target_uri is not None:
             target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
             if account.outbound_proxy is None:
-                routes = lookup_routes_for_sip_uri(SIPURI(host=account.id.domain), settings.sip.transports)
+                routes_dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
             else:
                 proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
-                routes = lookup_routes_for_sip_uri(proxy_uri, settings.sip.transports)
-
-    if routes is not None and len(routes) == 0:
-        raise RuntimeError('No route found to SIP proxy for "%s"' % target_uri)
+                routes_dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
 
     # start thread and process user input
-    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, routes, auto_answer, auto_hangup))
+    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns))
     atexit.register(termios_restore)
     ctrl_d_pressed = False
     try:
