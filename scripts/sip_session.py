@@ -375,12 +375,12 @@ class ChatManager(NotificationHandler):
     def cmd_call(self, *args):
         """:call user@domain [audio|chat] \t Initiate an outgoing session. By default, use audio+chat"""
         if not args:
-            raise UserCommandError('Please provide uri')
+            raise UserCommandError('Please provide uri\n%s' % self.cmd_call.__doc__)
         target_uri = args[0]
         use_audio = True
         use_chat = True
         if args[2:]:
-            raise UserCommandError('Too many arguments, the valid usage:\n:call user@domain [chat|audio]')
+            raise UserCommandError('Too many arguments\n%s' % self.cmd_call.__doc__)
         if args[1:]:
             s = self._validate_stream(args[1])
             if s == 'chat':
@@ -451,7 +451,7 @@ class ChatManager(NotificationHandler):
         """:add audio|chat \t Add a new stream to the current session"""
         session = self.get_current_session()
         if len(args) != 1:
-            raise UserCommandError('Too many arguments, the valid usage:\n:add [chat|audio]')
+            raise UserCommandError('Too many arguments\n:%s' % self.cmd_add.__doc__)
         s = self._validate_stream(args[0])
         if s == 'chat':
             session.add_chat()
@@ -462,7 +462,7 @@ class ChatManager(NotificationHandler):
         """:remove audio|chat \t Remove the stream from the current session"""
         session = self.get_current_session()
         if len(args) != 1:
-            raise UserCommandError('Too many arguments, the valid usage:\n:remove chat|audio')
+            raise UserCommandError('Too many arguments\n:%s' % self.cmd_remove.__doc__)
         s = self._validate_stream(args[0])
         if s == 'chat':
             session.remove_chat()
