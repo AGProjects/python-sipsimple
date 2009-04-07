@@ -588,7 +588,7 @@ def start(options, console):
     try:
         if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
             engine.detect_nat_type(*options.account.stun_servers[0])
-        logstate.start_loggers(trace_engine=options.trace_engine)
+        logstate.start_loggers(trace_engine=options.trace_notifications)
         if isinstance(account, BonjourAccount):
             if engine.local_udp_port:
                 print 'Local contact: %s:%s;transport=udp' % (account.contact, engine.local_udp_port)
@@ -767,7 +767,7 @@ def parse_options(usage, description):
     parser.add_option("-j", "--trace-pjsip", action="store_true",
                       dest="trace_pjsip", default=False,
                       help="Print PJSIP logging output.")
-    parser.add_option("--trace-engine", action="store_true", help="Print core's events.")
+    parser.add_option("--trace-notifications", action="store_true", help="Print core's events.")
     parser.add_option("-m", "--trace-msrp", action="store_true",
                       help="Log the raw contents of incoming and outgoing MSRP messages.")
     parser.add_option("--no-relay", action='store_true', help="Don't use the MSRP relay.")
