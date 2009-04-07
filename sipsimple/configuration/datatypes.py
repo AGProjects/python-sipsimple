@@ -14,7 +14,7 @@ import urlparse
 __all__ = ['ContentType', 'ContentTypeList', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate', 'DomainList', 'Hostname',
            'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange', 'SIPAddress', 'SIPProxy',
            'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol', 'Transports', 'XCAPRoot',
-           'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath']
+           'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath', 'SoundFile']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -391,5 +391,22 @@ class DataPath(object):
 
     def __hash__(self):
         return hash(self.path)
+
+
+class SoundFile(str):
+    def __new__(cls, path, volume=100):
+        path = AbsolutePath(path)
+        volume = int(volume)
+        if volume < 0 or volume > 100:
+            raise ValueError("illegal volume level: %d" % volume)
+        instance = str.__new__(cls, path)
+        instance.volume = volume
+        return instance
+
+    def __repr__(self):
+        return '%s(%r, %r)' % (self.__class__.__name__, str.__repr__(self), self.volume)
+    
+    def __str__(self):
+        return '%s,%d' % (str.__str__(self), self.volume)
 
 

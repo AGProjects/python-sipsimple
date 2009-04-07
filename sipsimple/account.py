@@ -18,7 +18,7 @@ from zope.interface import implements
 
 from sipsimple import Credentials, Engine, Registration, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AbsolutePath, AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
+from sipsimple.configuration.datatypes import AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 
@@ -83,7 +83,7 @@ class RegistrationSettings(SettingsGroup):
 
 
 class RingtoneSettings(SettingsGroup):
-    inbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    inbound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class Account(SettingsObject):

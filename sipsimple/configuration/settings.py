@@ -11,7 +11,7 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, TLSProtocol, Transports
+from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports
 
 
 __all__ = ['SIPSimpleSettings']
@@ -27,8 +27,8 @@ class AudioSettings(SettingsGroup):
 
 
 class ChatSettings(SettingsGroup):
-    message_received_sound = Setting(type=AbsolutePath, default=None, nillable=True)
-    message_sent_sound = Setting(type=AbsolutePath, default=None, nillable=True)
+    message_received_sound = Setting(type=SoundFile, default=None, nillable=True)
+    message_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
     history_directory = Setting(type=DataPath, default=DataPath('history'))
     accept_types = Setting(type=ContentTypeList, default=('message/cpim', 'text/*'))
     accept_wrapped_types = Setting(type=ContentTypeList, default=('*',))
@@ -43,8 +43,8 @@ class DesktopSharingSettings(SettingsGroup):
 
 class FileTransferSettings(SettingsGroup):
     directory = Setting(type=DataPath, default=DataPath('file_transfers'))
-    file_received_sound = Setting(type=AbsolutePath, default=None, nillable=True)
-    file_sent_sound = Setting(type=AbsolutePath, default=None, nillable=True)
+    file_received_sound = Setting(type=SoundFile, default=None, nillable=True)
+    file_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class LoggingSettings(SettingsGroup):
@@ -62,8 +62,8 @@ class MSRPSettings(SettingsGroup):
 
 
 class RingtoneSettings(SettingsGroup):
-    inbound = Setting(type=AbsolutePath, default=None, nillable=True)
-    outbound = Setting(type=AbsolutePath, default=None, nillable=True)
+    inbound = Setting(type=SoundFile, default=None, nillable=True)
+    outbound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class RTPSettings(SettingsGroup):
