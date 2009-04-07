@@ -99,6 +99,7 @@ class DNSLookup(object):
         srv_candidates = []
         a_candidates = []
         routes = []
+        error_type = None
         # Check if the transport was already set as a parameter on the SIP URI.
         if uri.parameters and "transport" in uri.parameters:
             transport = uri.parameters["transport"]
@@ -114,7 +115,8 @@ class DNSLookup(object):
             if transport is None:
                 try:
                     naptr_answers = dns.resolver.query(uri.host, "NAPTR")
-                except:
+                except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
+                    error_type = e.__class__
                     # If NAPTR lookup fails for some reason, try SRV lookup for all supported transports.
                     # Only the transports of those lookups that succeed are supported by the server.
                     srv_candidates = [(transport, "%s.%s" % (self._transport_srv_service_map[transport], uri.host)) for transport in supported_transports]
@@ -133,7 +135,8 @@ class DNSLookup(object):
             for srv_transport, srv_qname in srv_candidates:
                 try:
                     srv_answers = dns.resolver.query(srv_qname, "SRV")
-                except:
+                except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
+                    error_type = e.__class__
                     # If SRV lookup fails, try A record directly for a transport that was requested,
                     # otherwise UDP for a SIP URI, TLS for a SIPS URI.
                     if transport is None:
@@ -175,15 +178,15 @@ class DNSLookup(object):
                 else:
                     a_answers = dns.resolver.query(a_qname, "A")
                     a_cache[a_qname] = a_answers
-            except:
+            except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
                 # If lookup fails then don't return this value
-                pass
+                error_type = e.__class__
             else:
                 for answer in a_answers:
                     routes.append(Route(answer.address, port=a_port, transport=a_transport))
         if routes:
             notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=routes))
         else:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No routes found for SIP URI %s" % uri))
+            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No routes found for SIP URI %s (%s)" % (uri, error_type.__name__)))
 
 
