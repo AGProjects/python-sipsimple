@@ -554,13 +554,14 @@ class InfoPrinter(NotificationHandler):
             print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
 
     def _NH_SIPSessionDidEnd(self, session, data):
-        if data.originator == 'local':
-            print "Session ended by local party."
-        else:
-            print "Session ended by remote party."
+        after = ''
         if session.stop_time is not None:
             duration = session.stop_time - session.start_time
-            print "Session duration was %s%s%d seconds." % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
+            after = " after %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
+        if data.originator == 'local':
+            print "Session ended by local party%s." % after
+        else:
+            print "Session ended by remote party%s." % after
 
     def _NH_SIPSessionRejectedStreamProposal(self, session, data):
         print data.reason
