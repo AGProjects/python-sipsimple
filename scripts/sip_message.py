@@ -105,11 +105,15 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                         print '%s Failed to register contact for SIP address %s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), account.id, route.address, route.port, route.transport, status, next_route)
                     else:
                         print '%s Failed to register contact for SIP address %s: %s' % (datetime.now().replace(microsecond=0), account.id, args["reason"])
+                    user_quit = False
+                    command = "quit"
                 elif event_name == "SIPAccountRegistrationDidEnd":
                     if 'code' in args:
                         print '%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), args['code'], args['reason'])
                     else:
                         print '%s Registration ended.' % (datetime.now().replace(microsecond=0),)
+                    user_quit = False
+                    command = "quit"
                 elif event_name == "SIPEngineGotException":
                     print "An exception occured within the SIP core:"
                     print args["traceback"]
@@ -120,7 +124,12 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                 if not sent:
                     msg_buf.append(data)
             if command == "eof":
-                if target_uri is None or sent:
+                if target_uri is None:
+                    am.stop()
+                    if isinstance(account, BonjourAccount):
+                        user_quit = False
+                        command = "quit"
+                elif sent:
                     user_quit = False
                     command = "quit"
                 else:
