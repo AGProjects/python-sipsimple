@@ -635,6 +635,34 @@ class InfoPrinter(AutoNotificationHandler):
         else:
             print "Remote party has taken the audio session out of hold"
 
+    def _NH_SIPAccountRegistrationDidSucceed(self, account, data):
+        route = data.registration.route
+        print 'Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % \
+            (data.contact_uri, account.id, route.address, route.port,
+             route.transport, data.registration.expires)
+
+    def _NH_SIPAccountRegistrationDidFail(self, account, data):
+        if data.registration is not None:
+            route = data.registration.route
+            if data.next_route:
+                next_route = data.next_route
+                next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+            else:
+                next_route = 'No more routes to try; retrying in %.2f seconds.' % (data.delay)
+            if 'code' in data.__dict__:
+                status = '%d %s' % (data.code, data.reason)
+            else:
+                status = data.reason
+            print 'Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s' % (account.id, route.address, route.port, route.transport, status, next_route)
+        else:
+            print 'Failed to register contact for sip:%s: %s' % (account.id, data.reason)
+
+    def _NH_SIPAccountRegistrationDidEnd(self, account, data):
+        if 'code' in data.__dict__:
+            print 'Registration ended: %d %s.' % (data.code, data.reason)
+        else:
+            print 'Registration ended.'
+
 
 def start(options, console):
     account = options.account
