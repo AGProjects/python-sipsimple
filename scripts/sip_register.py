@@ -196,6 +196,9 @@ class RegistrationApplication(object):
             self.output.put(message)
             
             self.success = True
+        else:
+            route = notification.data.registration.route
+            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.registration.expires))
         
         if self.max_registers is not None:
             self.max_registers -= 1
