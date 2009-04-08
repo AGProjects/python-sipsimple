@@ -710,6 +710,11 @@ class InfoPrinter(AutoNotificationHandler):
         else:
             print 'Registration ended.'
 
+    def _NH_SIPSessionDidStartRecordingAudio(self, session, data):
+        print 'Recording audio to "%s"' % data.file_name
+
+    def _NH_SIPSessionDidStopRecordingAudio(self, session, data):
+        print 'Stopped recording audio to "%s"' % data.file_name
 
 def start(options, console):
     account = options.account
