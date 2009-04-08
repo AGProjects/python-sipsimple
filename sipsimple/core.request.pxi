@@ -254,7 +254,7 @@ cdef class Request:
         cdef pjsip_transaction *tsx_auth
         cdef pjsip_cseq_hdr *cseq
         cdef dict event_dict
-        cdef int expires = 0
+        cdef int expires = -1
         cdef SIPURI contact_uri
         cdef dict contact_params
         cdef pj_time_val expire_warning
@@ -309,14 +309,14 @@ cdef class Request:
                             for contact_uri, contact_params in event_dict["headers"].get("Contact", []):
                                 if contact_uri == self._contact_uri and "expires" in contact_params.iterkeys():
                                     expires = contact_params["expires"]
-                        if expires == 0 and "Expires" in self._extra_headers.iterkeys():
+                        if expires == -1 and "Expires" in self._extra_headers.iterkeys():
                             try:
                                 expires = int(self._extra_headers["Expires"])
                             except ValueError:
                                 pass
                 else:
                     c_add_event("SIPRequestDidFail", event_dict)
-                if expires == 0:
+                if expires <= 0:
                     self.state = "TERMINATED"
                     c_add_event("SIPRequestDidEnd", dict(obj=self))
                 else:
