@@ -9,7 +9,7 @@ import datetime
 import time
 from optparse import OptionParser
 from twisted.internet.error import ConnectionClosed
-from application.notification import NotificationCenter, IObserver
+from application.notification import NotificationCenter, IObserver, Any
 from application import log
 from application.python.util import Singleton
 from zope.interface import implements
@@ -120,7 +120,18 @@ class MessageRenderer(object):
 def get_history_file(inv): # XXX fix
     return file('/tmp/sip_session_history', 'a+')
 
-class ChatSession(GreenSession, NotificationHandler):
+
+class AutoNotificationHandler(NotificationHandler):
+
+    def add_self_as_observer(self, sender=Any):
+        nc = NotificationCenter()
+        observer = NotifyFromThreadObserver(self)
+        for name in dir(self):
+            if name.startswith('_NH_'):
+                nc.add_observer(observer, name.replace('_NH_', ''), sender=sender)
+
+
+class ChatSession(GreenSession, AutoNotificationHandler):
 
     info = 'Session'
 
@@ -135,8 +146,7 @@ class ChatSession(GreenSession, NotificationHandler):
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
                 self.remote_party = format_uri(self._inv.remote_uri)
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SIPSessionDidStart', sender=self._obj)
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), 'SIPSessionGotStreamUpdate', sender=self._obj)
+        self.add_self_as_observer(sender=self._obj)
 
     def _NH_SIPSessionDidStart(self, session, _data):
         if self.history_file is None:
@@ -195,7 +205,7 @@ class ChatSession(GreenSession, NotificationHandler):
             self.hold()
 
 
-class ChatManager(NotificationHandler):
+class ChatManager(AutoNotificationHandler):
 
     def __init__(self, engine, account, console, logger):
         self.engine = engine
@@ -205,11 +215,7 @@ class ChatManager(NotificationHandler):
         self.sessions = []
         self.current_session = None
         self.procs = proc.RunningProcSet()
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidFail')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidEnd')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionNewIncoming')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionChangedState')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotStreamProposal')
+        self.add_self_as_observer()
 
     def _NH_SIPSessionDidEnd(self, session, data):
         try:
@@ -580,16 +586,7 @@ def complete_word(input, wordlist):
             raise UserCommandError('Please provide %s. Cannot understand %r' % ('|'.join(wordlist), input))
 
 
-class InfoPrinter(NotificationHandler):
-
-    def start(self):
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPEngineDetectedNATType')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidStart')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidEnd')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionDidFail')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionRejectedStreamProposal')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotHoldRequest')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPSessionGotUnholdRequest')
+class InfoPrinter(AutoNotificationHandler):
 
     def _NH_SIPEngineDetectedNATType(self, sender, data):
         if data.succeeded:
@@ -882,7 +879,7 @@ def main():
     if LoggerSingleton().msrptrace_filename:
         print "Logging MSRP trace to file '%s'" % LoggerSingleton().msrptrace_filename
 
-    InfoPrinter().start()
+    InfoPrinter().add_self_as_observer()
 
     try:
         with setup_console() as console:
