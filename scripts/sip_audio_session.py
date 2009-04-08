@@ -76,6 +76,7 @@ def print_control_keys():
     print "  r: toggle audio recording"
     print "  t: toggle SIP trace on the console"
     print "  j: toggle PJSIP trace on the console"
+    print "  n: toggle notifications trace on the console"
     print "  <> : adjust echo cancellation"
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
@@ -276,6 +277,9 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     settings = SIPSimpleSettings()
                     e.log_level = settings.logging.pjsip_level if (logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
                     print "PJSIP tracing to console is now %s" % ("activated" if logger.pjsip_to_stdout else "deactivated")
+                elif data == "n":
+                    logger.notifications_to_stdout = not logger.notifications_to_stdout
+                    print "Notification tracing to console is now %s." % ('activated' if logger.notifications_to_stdout else 'deactivated')
                 elif data == '?':
                     print_control_keys()
             if command == "check_call":
