@@ -265,7 +265,7 @@ class WinfoApplication(object):
                 if not self._subscription_routes or time() > self._subscription_timeout:
                     self._subscription_wait = min(self._subscription_wait*2, 30)
                     timeout = random.uniform(self._subscription_wait, 2*self._subscription_wait)
-                    reactor.callFromThread(reactor.callLater, timeout, self._publish)
+                    reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
                 else:
                     self.subscription = Subscription(self.account.credentials, SIPURI(user=self.account.id.username, host=self.account.id.domain), "presence.winfo", route=self._subscription_routes.popleft(), expires=self.account.presence.subscribe_interval)
                     notification_center = NotificationCenter()
