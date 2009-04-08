@@ -13,6 +13,7 @@ from application.python.queue import EventQueue
 from datetime import datetime
 from optparse import OptionParser
 from threading import Thread
+from twisted.internet.error import ReactorNotRunning
 from twisted.python import threadable
 from zope.interface import implements
 
@@ -259,19 +260,25 @@ class RegistrationApplication(object):
 
     def _NH_SIPEngineDidEnd(self, notification):
         if threadable.isInIOThread():
-            reactor.stop()
+            self._stop_reactor()
         else:
-            reactor.callFromThread(reactor.stop)
+            reactor.callFromThread(self._stop_reactor)
 
     def _NH_SIPEngineDidFail(self, notification):
         self.output.put('%s Engine failed.'% (datetime.now().replace(microsecond=0),))
         if threadable.isInIOThread():
-            reactor.stop()
+            self._stop_reactor()
         else:
-            reactor.callFromThread(reactor.stop)
+            reactor.callFromThread(self._stop_reactor)
 
     def _NH_SIPEngineGotException(self, notification):
         self.output.put('%s An exception occured within the SIP core:\n%s' % (datetime.now().replace(microsecond=0), notification.data.traceback))
+
+    def _stop_reactor(self):
+        try:
+            reactor.stop()
+        except ReactorNotRunning:
+            pass
 
 
 if __name__ == "__main__":
