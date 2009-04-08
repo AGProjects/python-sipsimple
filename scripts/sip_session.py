@@ -5,6 +5,7 @@
 from __future__ import with_statement
 from contextlib import contextmanager
 import sys
+import os
 import datetime
 import time
 from optparse import OptionParser
@@ -117,8 +118,23 @@ class MessageRenderer(object):
                 session.history_file.write(msg + '\n')
                 session.history_file.flush()
 
-def get_history_file(inv): # XXX fix
-    return file('/tmp/sip_session_history', 'a+')
+def get_history_file(invitation):
+    return _get_history_file('%s@%s' % (invitation.local_uri.user, invitation.local_uri.host),
+                             '%s@%s' % (invitation.remote_uri.user, invitation.remote_uri.host),
+                             invitation.is_outgoing)
+
+def _get_history_file(local_uri, remote_uri, is_outgoing):
+    settings = SIPSimpleSettings()
+    dir = os.path.join(settings.chat.history_directory.normalized, local_uri)
+    if is_outgoing:
+        direction = 'outgoing'
+    else:
+        direction = 'incoming'
+    time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+    filename = os.path.join(dir, '%s-%s-%s.txt' % (time, remote_uri, direction))
+    return file(filename, 'a')
 
 
 class AutoNotificationHandler(NotificationHandler):
