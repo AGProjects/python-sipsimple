@@ -15,6 +15,7 @@ from collections import deque
 from optparse import OptionParser
 from threading import Thread
 from time import sleep, time
+from twisted.internet.error import ReactorNotRunning
 from twisted.python import threadable
 from urllib2 import URLError
 from zope.interface import implements
@@ -321,19 +322,25 @@ class WinfoApplication(object):
 
     def _NH_SIPEngineDidEnd(self, notification):
         if threadable.isInIOThread():
-            reactor.stop()
+            self._stop_reactor()
         else:
-            reactor.callFromThread(reactor.stop)
+            reactor.callFromThread(self._stop_reactor)
 
     def _NH_SIPEngineDidFail(self, notification):
         self.output.put('Engine failed.')
         if threadable.isInIOThread():
-            reactor.stop()
+            self._stop_reactor()
         else:
-            reactor.callFromThread(reactor.stop)
+            reactor.callFromThread(self._stop_reactor)
 
     def _NH_SIPEngineGotException(self, notification):
         self.output.put('An exception occured within the SIP core:\n'+notification.data.traceback)
+
+    def _stop_reactor(self):
+        try:
+            reactor.stop()
+        except ReactorNotRunning:
+            pass
     
     def _subscribe(self):
         settings = SIPSimpleSettings()
