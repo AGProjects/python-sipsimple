@@ -28,6 +28,7 @@ from sipsimple.green.session import GreenSession, SessionError
 from sipsimple.green.notification import linked_notification, linked_notifications
 from sipsimple import util
 from sipsimple.session import SessionManager, SessionStateError
+from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import format_cmdline_uri
 from sipsimple import logstate
 from sipsimple.green.notification import NotifyFromThreadObserver
@@ -952,6 +953,15 @@ def main():
     settings = SIPSimpleSettings()
 
     update_settings(options)
+
+    if settings.ringtone.inbound is None:
+        settings.ringtone.inbound = get_path("ring_inbound.wav")
+    if settings.ringtone.outbound is None:
+        settings.ringtone.outbound = get_path("ring_outbound.wav")
+    if settings.chat.message_received_sound is None:
+        settings.chat.message_received_sound = get_path("message_received.wav")
+    if settings.chat.message_sent_sound is None:
+        settings.chat.message_sent_sound = get_path("message_sent.wav")
 
     # set up logger
     options.logger = Logger(options.trace_sip, options.trace_pjsip)
