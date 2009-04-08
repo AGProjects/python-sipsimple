@@ -557,6 +557,29 @@ class ChatManager(AutoNotificationHandler):
                 logstate.EngineTracer().toggle()
                 print "Notifications tracing to console is now %s" % ("activated" if logstate.EngineTracer().started() else "deactivated")
 
+    def cmd_echo(self, *args):
+        """:echo +|-|MILISECONDS \t Adjust echo cancellation"""
+        if not args:
+            print 'Current echo cancellation: %s' % self.engine.ec_tail_length
+            return
+        if len(args)>1:
+            raise UserCommandError("This command has one argument only\n%s" % self.cmd_echo.__doc__)
+        param = args[0]
+        try:
+            number = float(param)
+        except ValueError:
+            if param == '+':
+                number = 10
+            elif param == '-':
+                number = -10
+            else:
+                raise UserCommandError("Cannot understand %r\n%s" % (param, self.cmd_echo.__doc__))
+        if param[0] in '+-':
+            number = self.engine.ec_tail_length + number
+        number = min(500, max(0, number))
+        self.engine.set_sound_devices(tail_length=number)
+        print "Set echo cancellation tail length to %s ms" % self.engine.ec_tail_length
+
 
 def complete_word(input, wordlist):
     """
