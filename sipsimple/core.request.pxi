@@ -301,7 +301,6 @@ cdef class Request:
                     # This shouldn't happen, but safety fist!
                     c_rdata_info_to_dict(rdata, event_dict)
                 if self._tsx.status_code / 100 == 2:
-                    c_add_event("SIPRequestDidSucceed", event_dict)
                     if rdata != NULL:
                         if "Expires" in event_dict["headers"].iterkeys():
                             expires = event_dict["headers"]["Expires"]
@@ -313,10 +312,12 @@ cdef class Request:
                             try:
                                 expires = int(self._extra_headers["Expires"])
                             except ValueError:
-                                pass
+                                expires = 0
+                    event_dict["expires"] = expires
+                    c_add_event("SIPRequestDidSucceed", event_dict)
                 else:
                     c_add_event("SIPRequestDidFail", event_dict)
-                if expires <= 0:
+                if expires == 0:
                     self.state = "TERMINATED"
                     c_add_event("SIPRequestDidEnd", dict(obj=self))
                 else:
