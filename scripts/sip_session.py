@@ -538,7 +538,7 @@ class ChatManager(AutoNotificationHandler):
             console.terminalProtocol.send_keys = old_send_keys
 
     def cmd_trace(self, *args):
-        """:trace sip|pjsip|notifications \t Remove the stream from the current session"""
+        """:trace sip|pjsip|notifications \t Toggle the debug messages of given category"""
         if not args:
             raise UserCommandError('Please provide an argument\n%s' % self.cmd_trace.__doc__)
         args = [complete_word(x, ['sip', 'pjsip', 'msrp', 'notifications']) for x in args]
