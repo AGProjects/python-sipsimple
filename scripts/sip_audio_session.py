@@ -318,7 +318,7 @@ def twisted_reactor_thread():
     from eventlet.twistedutil import join_reactor
     reactor.run(installSignalHandlers=False)
 
-def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, auto_answer, auto_hangup):
+def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, trace_notifications, auto_answer, auto_hangup):
     global user_quit, lock, queue
 
     # start twisted thread
@@ -354,7 +354,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     print "Using account %s" % account.id
 
     # set up logger
-    logger = Logger(trace_sip, trace_pjsip)
+    logger = Logger(trace_sip, trace_pjsip, trace_notifications)
     logger.start()
     if settings.logging.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
@@ -456,8 +456,8 @@ def parse_options():
     parser.add_option("-c", "--config-file", type="string", dest="config_file", help="The path to a configuration file to use. This overrides the default location of the configuration file.", metavar="[FILE]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages.")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output.")
-    parser.set_default("disable_sound", False)
-    parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", help="Disables initializing the sound card.")
+    parser.add_option("-n", "--trace-notifications", action="store_true", dest="trace_notifications", default=False, help="Print all notifications (disabled by default).")
+    parser.add_option("-S", "--disable-sound", action="store_true", dest="disable_sound", default=False, help="Disables initializing the sound card.")
     parser.set_default("auto_answer", None)
     parser.add_option("--auto-answer", action="callback", callback=parse_handle_call_option, callback_args=('auto_answer',), help="Interval after which to answer an incoming session (disabled by default). If the option is specified but the interval is not, it defaults to 0 (accept the session as soon as it starts ringing).", metavar="[INTERVAL]")
     parser.set_default("auto_hangup", None)
