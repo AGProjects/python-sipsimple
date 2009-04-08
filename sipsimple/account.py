@@ -18,7 +18,7 @@ from zope.interface import implements
 
 from sipsimple import Credentials, Engine, Registration, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AudioCodecs, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
+from sipsimple.configuration.datatypes import AudioCodecs, CountryCode, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 
@@ -48,6 +48,7 @@ class DialogEventSettings(SettingsGroup):
 
 class ENUMSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
+    country_code = Setting(type=CountryCode, default=None, nillable=True)
     tld_list = Setting(type=DomainList, default=('e164.arpa',))
 
 

@@ -11,10 +11,10 @@ import sys
 import urlparse
 
 
-__all__ = ['ContentType', 'ContentTypeList', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate', 'DomainList', 'Hostname',
-           'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange', 'SIPAddress', 'SIPProxy',
-           'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol', 'Transports', 'XCAPRoot',
-           'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath', 'SoundFile']
+__all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate',
+           'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange',
+           'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol',
+           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath', 'SoundFile']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -40,6 +40,14 @@ class ContentType(str):
 class ContentTypeList(tuple):
     def __new__(cls, values):
         return tuple(ContentType(value) for value in values)
+
+
+class CountryCode(str):
+    code_pattern = re.compile(r'[1-9][0-9]*')
+    def __new__(cls, value):
+        if cls.code_pattern.match(value) is None:
+            raise ValueError("illegal country code: %s" % value)
+        return value
 
 
 class NonNegativeInteger(int):
