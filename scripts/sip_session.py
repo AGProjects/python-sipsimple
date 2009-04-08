@@ -596,6 +596,14 @@ class ChatManager(AutoNotificationHandler):
         self.engine.set_sound_devices(tail_length=number)
         print "Set echo cancellation tail length to %s ms" % self.engine.ec_tail_length
 
+    def cmd_record(self, *args):
+        """:record \t Toggle audio recording"""
+        session = self.get_current_session()
+        if session.audio_recording_file_name is None:
+            session.start_recording_audio()
+        else:
+            session.stop_recording_audio()
+
 
 def complete_word(input, wordlist):
     """
