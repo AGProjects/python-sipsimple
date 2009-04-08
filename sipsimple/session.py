@@ -541,8 +541,9 @@ class Session(NotificationHandler):
                 direction = "outgoing" if self._inv.is_outgoing else "incoming"
                 remote = '%s@%s' % (self._inv.remote_uri.user, self._inv.remote_uri.host)
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
-            makedirs(self.settings.audio.recordings_directory.normalized)
-            self._audio_rec = RecordingWaveFile(os.path.join(self.settings.audio.recordings_directory.normalized, file_name))
+            recording_path = os.path.join(self.settings.audio.recordings_directory.normalized, self.account.id)
+            makedirs(recording_path)
+            self._audio_rec = RecordingWaveFile(os.path.join(recording_path, file_name))
             if not self.on_hold:
                 self.notification_center.post_notification("SIPSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
                 try:
