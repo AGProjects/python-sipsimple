@@ -16,7 +16,8 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 from zope.interface import implements
 
-from sipsimple import Credentials, Engine, Registration, SIPURI
+from sipsimple.engine import Engine
+from sipsimple.core import Credentials, Registration, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
 from sipsimple.configuration.datatypes import AudioCodecs, CountryCode, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings

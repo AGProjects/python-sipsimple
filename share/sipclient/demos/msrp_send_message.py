@@ -4,7 +4,7 @@
 import sys
 from msrplib.trafficlog import Logger, hook_std_output; hook_std_output()
 
-from sipsimple import Credentials
+from sipsimple.core import Credentials
 from sipsimple.green.engine import GreenEngine
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.config import parse_options, update_options

@@ -11,7 +11,7 @@ from pprint import pformat
 from threading import RLock
 from zope.interface import implements
 
-from sipsimple import Engine
+from sipsimple.engine import Engine
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.util import makedirs
 

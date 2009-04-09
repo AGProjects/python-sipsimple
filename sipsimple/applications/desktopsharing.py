@@ -9,7 +9,7 @@ from twisted.internet.error import ConnectionDone
 from select import error as select_error
 from gnutls.errors import GNUTLSError
 
-from sipsimple import SDPSession, SDPConnection, SDPAttribute, SDPMedia
+from sipsimple.core import SDPSession, SDPConnection, SDPAttribute, SDPMedia
 from sipsimple.green.sessionold import IncomingMSRPHandler
 from sipsimple.clients.cpim import MessageCPIMParser
 

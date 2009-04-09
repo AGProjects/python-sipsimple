@@ -11,7 +11,7 @@ from msrplib import protocol as msrp_protocol
 from msrplib import session
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
-from sipsimple import SDPAttribute, SDPMedia, SDPConnection, SDPSession
+from sipsimple.core import SDPAttribute, SDPMedia, SDPConnection, SDPSession
 from sipsimple.green.core import Error
 from sipsimple.clients.cpim import MessageCPIM
 

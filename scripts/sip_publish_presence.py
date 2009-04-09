@@ -23,7 +23,8 @@ from zope.interface import implements
 from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
-from sipsimple import Engine, Publication, SIPCoreError, SIPURI
+from sipsimple.engine import Engine
+from sipsimple.core import Publication, SIPCoreError, SIPURI
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup

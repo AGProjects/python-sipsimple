@@ -14,7 +14,7 @@ from application.configuration import ConfigSection, ConfigFile, datatypes
 from application.process import process
 from application.system import default_host_ip
 from msrplib.connect import MSRPRelaySettings
-from sipsimple import SIPURI, Route
+from sipsimple.core import SIPURI, Route
 from sipsimple.clients.dns_lookup import lookup_srv
 from sipsimple.clients import IPAddressOrHostname, format_cmdline_uri
 from sipsimple.clients.cpim import SIPAddress

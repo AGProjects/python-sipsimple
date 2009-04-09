@@ -3,7 +3,7 @@
 
 import re
 
-from sipsimple import SIPURI
+from sipsimple.core import SIPURI
 
 _pstn_num_sub_char = "[-() ]"
 _re_pstn_num_sub = re.compile(_pstn_num_sub_char)

@@ -19,7 +19,8 @@ from application.python.util import Singleton
 from eventlet.api import sleep
 from eventlet import api, proc, coros
 
-from sipsimple import Engine, Registration, Invitation, WaveFile
+from sipsimple.engine import Engine
+from sipsimple.core import Registration, Invitation, WaveFile
 from sipsimple.green import notification, GreenBase
 from sipsimple.util import NotificationHandler
 

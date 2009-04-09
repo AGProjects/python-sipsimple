@@ -17,7 +17,7 @@ from msrplib.session import ConnectionClosedErrors
 from msrplib import trafficlog
 from msrplib.protocol import URI
 
-from sipsimple import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile, PJSIPError, Route
+from sipsimple.core import Credentials, SDPSession, SDPConnection, SIPURI, SIPCoreError, WaveFile, PJSIPError, Route
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.green.core import GreenEngine, IncomingSessionHandler, Ringer, GreenInvitation, GreenRegistration
 from sipsimple.green.sessionold import MSRPSession, MSRPSessionErrors, IncomingMSRPHandler, make_SDPMedia

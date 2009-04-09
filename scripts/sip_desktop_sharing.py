@@ -11,7 +11,7 @@ from msrplib import connect
 from msrplib.trafficlog import Logger, hook_std_output
 from msrplib.protocol import URI
 
-from sipsimple import Credentials
+from sipsimple.core import Credentials
 from sipsimple.green.core import GreenEngine, Ringer, IncomingSessionHandler, GreenRegistration, GreenInvitation, play_wav_file
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.console import setup_console, EOF

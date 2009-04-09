@@ -19,7 +19,7 @@ from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from msrplib import trafficlog
 
-from sipsimple import SIPURI, SIPCoreError
+from sipsimple.core import SIPURI, SIPCoreError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine
