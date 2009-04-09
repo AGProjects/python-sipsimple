@@ -22,6 +22,22 @@ include "core.sdp.pxi"
 include "core.mediatransport.pxi"
 
 # constants
+
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
 CORE_REVISION = 41
+
+# exports
+
+__all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
+           "SIPCoreError", "PJSIPError",
+           "RecordingWaveFile", "WaveFile",
+           "Route", "Credentials", "SIPURI",
+           "send_message",
+           "Request",
+           "Registration",
+           "Publication",
+           "Subscription",
+           "Invitation",
+           "SDPSession", "SDPMedia", "SDPConnection", "SDPAttribute",
+           "RTPTransport", "AudioTransport"]
