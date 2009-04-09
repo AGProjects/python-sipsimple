@@ -1,7 +1,22 @@
 sipclient (0.9.0) unstable; urgency=low
 
-  * Next release being prepared ...
-
+  * Reverted to PJSIP 1.0.x SVN branch
+  * Added session module and adapted sip_audio_session to make use of it
+  * Adapted session module to make use of configuration framework
+  * Adapted sip_audio_session and sip_message to make use of configuration
+    framework
+  * Updated commandline arguments of sip_audio_session and sip_message to be
+    more consistent with other scripts
+  * Made Route argument mandatory in core object creation and disabled all
+    DNS lookups inside PJSIP
+  * Restricted core internals to IPv4 and added checks for it
+  * Allow settable Contact URI for objects in core
+  * Added is_running attribute to Engine
+  * Added a number of TLS configuration options to Engine
+  * Replaced writable TLS attributes on Engine with one TLS settings method
+  * Added transport attribute to Invitation
+  * Numerous small bug fixes in sipsimple.core
+  * Some small bug fixes to sipsimple.engine
 
  -- Adrian Georgescu <ag@ag-projects.com>  Wed, 01 Apr 2009 09:59:17 +0200
 
