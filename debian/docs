@@ -1,5 +1,8 @@
-config.ini.sample
 README
 AUTHORS
 docs/INSTALL.linux
 docs/INSTALL.osx
+docs/DeveloperGuide.txt
+docs/Testing.txt
+docs/Upgrade.txt
+docs/UnINSTALL.txt
