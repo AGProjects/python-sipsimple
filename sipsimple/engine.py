@@ -178,3 +178,5 @@ class EngineStopper(object):
 
 
 _helper = EngineStopper()
+
+__all__ = ["Engine"]
