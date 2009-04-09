@@ -1,6 +1,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+from datetime import datetime, timedelta
+
 # main class
 
 cdef class Request:
@@ -28,6 +30,7 @@ cdef class Request:
     cdef pj_timer_entry _timer
     cdef int _timer_active
     cdef int _expire_rest
+    cdef object _expire_time
 
     # properties
 
@@ -91,6 +94,17 @@ cdef class Request:
                 return None
             else:
                 return self._body.str
+
+    property expires_in:
+
+        def __get__(self):
+            cdef object dt
+            self._get_ua()
+            if self.state != "EXPIRING" or self._expire_time is None:
+                return 0
+            else:
+                dt = self._expire_time - datetime.now()
+                return max(0, dt.seconds)
 
     # public methods
 
@@ -314,6 +328,7 @@ cdef class Request:
                             except ValueError:
                                 expires = 0
                     event_dict["expires"] = expires
+                    self._expire_time = datetime.now() + timedelta(seconds=expires)
                     c_add_event("SIPRequestDidSucceed", event_dict)
                 else:
                     c_add_event("SIPRequestDidFail", event_dict)
