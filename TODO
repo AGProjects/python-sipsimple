@@ -42,6 +42,7 @@ Middleware
 Audio
 -----
 
+- Add audio device settings for two profiles: headset and speakerphone [RK]
 - Add dummy sounds device, simulate sending RTP without audio card [RK]
 - Switch back to trunk and use new PJSIP sound device API [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK]
