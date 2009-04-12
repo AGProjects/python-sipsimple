@@ -19,6 +19,7 @@ SIP core
 - Use STUN to determine the public contact address used for REGISTER [RK]
 - Handle UPDATE for re-INVITE [RK]
 - Handle incoming REFER requests [RK]
+- Add TOS setting for signaling and media [RK]
 
 
 Middleware
