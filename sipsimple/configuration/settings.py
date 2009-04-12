@@ -20,6 +20,11 @@ __all__ = ['SIPSimpleSettings']
 class AudioSettings(SettingsGroup):
     input_device = Setting(type=str, default=None, nillable=True)
     output_device = Setting(type=str, default=None, nillable=True)
+    speaker_input_device = Setting(type=str, default=None, nillable=True)
+    speaker_output_device = Setting(type=str, default=None, nillable=True)
+    headset_input_device = Setting(type=str, default=None, nillable=True)
+    headset_output_device = Setting(type=str, default=None, nillable=True)
+    ringing_output_device = Setting(type=str, default=None, nillable=True)
     echo_delay = Setting(type=NonNegativeInteger, default=200)
     recordings_directory = Setting(type=DataPath, default=DataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32)
