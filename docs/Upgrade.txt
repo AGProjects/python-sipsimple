@@ -1,32 +1,3 @@
 
-From 0.4.0 to >=0.5.0
-----------------------
-
-Migrate the configuration stored in config.ini file for library versions
-<5.0 to the new settings API by using sip_migrate_sesttings script:
-
-adigeo@ag-imac3:~$sip_migrate_settings 
-Migrating general settings and settings of the following accounts: 
-alice, bob, default.
-Do you want to proceed? [y/N] y
-Migrating general settings... done
-Migrating alice account... done
-Migrating bob account... done
-Migrating default account... done
-To list the migrated accounts:
-
-adigeo@ag-imac3:~$sip_settings -a list
-Accounts:
-  alice@example.com (enabled)
-  bob@example.com (enabled)
-  bonjour (enabled)
-
-
-Follow UnINSTALL.txt and start from scratch.
-
-
-From 0.3.0 to 0.4.0
--------------------
-
-Follow UnINSTALL.txt and start from scratch.
+See http://sipsimpleclient.com/wiki/SipUpgrade
 

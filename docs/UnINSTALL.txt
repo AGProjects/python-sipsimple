@@ -1,31 +1,3 @@
 
-Uninstalling SIP SIMPLE client
-------------------------------
-
-To clean up the python-sipsimple folder used for building the software:
-
-cd python-sipsimple
-sudo rm -rf build dist MANIFEST
-sudo python setup.py clean --all
-
-
-To uninstall the software and all its dependencies that you have previously
-installed using 'sudo python setup.py install' locate your site-packages
-directory and remove the following files and folders:
-
-sudo rm -r python_application*
-sudo rm -r application*
-sudo rm -r python_msrplib*
-sudo rm -r msrplib*
-sudo rm -r python_xcaplib*
-sudo rm -r xcaplib*
-sudo rm -r sipclient*
-sudo rm -r sipsimple*
-sudo rm -r pypjua*
-sudo rm -r eventlet*
-sudo rm -r /usr/share/pypjua
-sudo rm -r /usr/share/sipclient
-sudo rm -r /usr/local/share/sipclient
-sudo rm -r /usr/local/bin/sip_*
-sudo rm -r /usr/local/bin/xcap_*
+See http://sipsimpleclient.com/wiki/SipUninstall
 
