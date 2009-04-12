@@ -148,7 +148,7 @@ Step 1. Install Debian development tools
 sudo apt-get install build-essential dpkg-dev fakeroot devscripts \
 python-setuptools darcs mercurial subversion libssl-dev
 
-Step 2. Install the building dependencies of each package
+Step 2. Install the building dependencies and sources of each package
 
 Add these lines in etc/apt/sources.list:                              
 
@@ -158,101 +158,19 @@ deb-src http://ag-projects.com/debian unstable main
 
 sudo apt-get update
 sudo apt-get build-dep sipclient python-eventlet python-msrplib python-xcaplib
+sudo apt-get source sipclient python-eventlet python-msrplib python-xcaplib
 
 You need Cython version 0.10 or higher. If your Debian distribution has an
-older version, upgrade to the lastest cython version from its home
-repository using easy_install:
+older version you must create a debian package for latest cython and install
+it on your system before continuing further.
 
-sudo easy_install cython
-
-Step 3. Download SIP SIMPLE client dependencies available in AG Projects
-repositories:
-
-cd ~/work
-# python-eventlet
-if [ -d python-eventlet ]; then
-	cd python-eventlet
-	hg pull
-	hg update
-        if [ -d _darcs ]; then
-	        darcs pull -a 
-        else 
-        	cd ..
- 		darcs get http://devel.ag-projects.com/repositories/python-eventlet-debian
-		cp -ar python-eventlet-debian/* python-eventlet/
-                cd python-eventlet
-        fi        
-else 
-	hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted python-eventlet
-        if [ -d python-eventlet-debian ]; then
-		cd python-eventlet-debian
-	        darcs pull -a 
-		cd ..
-		cp -ar python-eventlet-debian/* python-eventlet/
-                cd python-eventlet
-	else 
-		darcs get http://devel.ag-projects.com/repositories/python-eventlet python-eventlet-debian
-		cp -ar python-eventlet-debian/* python-eventlet/
-		cd python-eventlet        
-        fi
-fi
-cd ..
-
-# python-xcaplib
-if [ -d python-xcaplib ]; then
-        cd python-xcaplib
-        darcs pull -a 
-else
-        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
-        cd python-xcaplib
-fi
-cd ..
-
-# python-msrplib
-if [ -d python-msrplib ]; then
-        cd python-msrplib
-        darcs pull -a
-else
-        darcs get http://devel.ag-projects.com/repositories/python-msrplib
-        cd python-msrplib
-fi
-cd ..
-
-
-Step 4. Build debian packages for SIP SIMPLE client dependencies
+Step 3. Build debian packages
  
-Go to each of the directories created at Step 3 above and build the
+Go to each of the directories created at Step 2 above and build the
 corespondent debian package:
 
-for i in python-eventlet python-msrplib python-xcaplib ; do
-	cd $i
-	rm -rf dist
-	python setup.py sdist
-	cd dist
-	tar zxvf *
-	cd * 
-	if [ ! -d debian ] ; then  cp -r ../../debian . ; fi
-	debuild --no-tgz-check
-	cd ../../../
-done
-for i in python-eventlet python-msrplib python-xcaplib ; do
-	ls -l $i/dist/*.deb
-done
-
-You will now have a debian package under the dist folder of each directory
-that you can install using dpkg -i command.
-
-
-Step 5. Build SIP SIMPLE client debian package
-
-cd python-sipsimple
-rm -r dist
-python setup.py sdist
-cd dist
-tar zxvf *
-cd * 
 debuild
 
-You will now have a debian package in the upper level directory that you can
+You will now have debian packages in the upper level directory that you can
 install using dpkg -i command.
 
