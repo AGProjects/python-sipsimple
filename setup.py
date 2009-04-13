@@ -45,7 +45,7 @@ setup(name         = "sipclient",
           #"Development Status :: 5 - Production/Stable",
           #"Development Status :: 6 - Mature",
           "Intended Audience :: Service Providers",
-          "License :: GNU General Public License (GPL)",
+          "License :: GNU Lesser General Public License (LGPL)",
           "Operating System :: OS Independent",
           "Programming Language :: Python"
       ],
