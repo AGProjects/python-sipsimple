@@ -1,22 +1,38 @@
 python-sipsimple (0.9.0) unstable; urgency=low
 
-  * Reverted to PJSIP 1.0.x SVN branch
-  * Added session module and adapted sip_audio_session to make use of it
-  * Adapted session module to make use of configuration framework
-  * Adapted sip_audio_session and sip_message to make use of configuration
-    framework
-  * Updated commandline arguments of sip_audio_session and sip_message to be
-    more consistent with other scripts
-  * Made Route argument mandatory in core object creation and disabled all
-    DNS lookups inside PJSIP
-  * Restricted core internals to IPv4 and added checks for it
-  * Allow settable Contact URI for objects in core
-  * Added is_running attribute to Engine
-  * Added a number of TLS configuration options to Engine
-  * Replaced writable TLS attributes on Engine with one TLS settings method
-  * Added transport attribute to Invitation
-  * Numerous small bug fixes in sipsimple.core
-  * Some small bug fixes to sipsimple.engine
+  * Added developer guide:
+    http://sipsimpleclient.com/wiki/SipDeveloperGuide
+  * Added upgrade guide:
+    http://sipsimpleclient.com/wiki/SipUpgrade
+  * Added notifications API from python-application
+  * Added event-driven middleware API based on notifications:
+    http://sipsimpleclient.com/wiki/SipMiddlewareApi
+  * Added high-level configuration API:
+    http://sipsimpleclient.com/wiki/SipConfigurationAPI
+    Added sip_settings to manage the configuration framework
+    Added sip_migrate_settings to migrate settings from config.ini
+  * Added Synchronous API for non-blocking operations
+    http://sipsimpleclient.com/wiki/SipSynchronousAPI
+  * Adapted all command line tools to the new APIs
+  * Added re-INVITE (hold/un-hold, adding and removing other media types)
+  * Added sip_session script that combines MSRP chat and RTP audio in one
+    SIP session, media can be added/substracted from active sessions
+  * Unify command line arguments for all command line tools
+  * Added --auto-answer and --auto-hangup to auido session script
+  * Added asynchronous DNS lookup module and remove DNS lookups from core
+  * Added failover for SIP next hop for INVITE and REGISTER
+  * Made Route argument mandatory in SIP core object creation
+  * Allow settable Contact URI for objects in SIP core
+  * Added support for TLS in P2P/bojour mode for SIP and MSRP
+  * Better support for server-less scenarios
+  * Integrate various patches into PJSIP project
+  * Integrate various patches into Eventlet project
+  * Port eventlet to ARM CPUs (MSRP works now on Nokia 810)
+  * Improve ICE/STUN support and related DNS lookups
+  * Improved logging to file and console for SIP, MSRP, PJSIP an core
+    notifications, added runtime control for traces in scripts
+  * Added support for draft-ietf-mmusic-file-transfer-mech-11 in msrplib
+  * Numerous bug fixes
 
  -- Dan Pascu <dan@ag-projects.com>  Mon, 13 Apr 2009 16:56:50 +0300
 
