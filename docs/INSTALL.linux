@@ -2,55 +2,80 @@
 Installation procedure for SIP SIMPLE client on Linux
 -----------------------------------------------------
 
-The installation procedure consists of the steps described below:
+Copyright (c) 2008-2009 AG Projects
+http://ag-projects.com
+
+Home page: http://sipsimpleclient.com
+
+This document described the installation procedure on Linux operating
+systems in general and Debian/Ubuntu systems in particular.
+
+Fore more information see the installation guide available at:
+
+http://sipsimpleclient.com/wiki/SipInstallation
+
+
+I. Manual installation
+II. Debian package installation
+III. Debian package building
+
+
+I. Manual installation
+----------------------
 
 Step 1. Prerequisites
-Step 2. Install dependencies
-Step 3. Install SIP SIMPLE client
+	
+Both i386 or amd64 architectures are supported. Install the C compiling
+environment, python 2.5 and the development version for the following
+packages: 
 
+ * openssl
+ * gnutls >=2.4.1
+ * libxml2 >=2.6.32
+ * libxslt >=1.1.24
+ * python-setuptools =>0.6c9.
 
-Step 1. Prerequisites
----------------------
-
-Linux OS, both i386 or amd64 architectures are supported. Install the C
-compiling environment, python 2.5 and the development version for the
-following packages: openssl, gnutls >=2.4.1, libxml2 >=2.6.32, libxslt
->=1.1.24, python-setuptools =>0.6c9.
-
-Install subversion and darcs version control tools. Darcs is
-available from http://darcs.net or as a package for some Linux
-distributions.
-
+Install subversion, mercurial and darcs version control tools.
 
 Step 2. Install dependencies
-----------------------------
 
 Use the appropriate package manager for your Linux distribution to install
 the following packages, notice the minimum version numbers:
 
-python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.6
-python-lxml         http://codespeak.net/lxml                         >=2.1.2
-cython              http://www.cython.org                             >=0.10
-python-application  http://pypi.python.org/simple/python-application  >=1.1.0
-dnspython           http://www.dnspython.org                          >=1.6.0
-twisted             http://twistedmatrix.com/trac                     >=8.1.0
-pylib               http://codespeak.net/py                           >=0.9.2
-zope-interface      http://www.zope.org                               >=3.3.1
-x11vnc              http://www.karlrunge.com/x11vnc                   >=0.9.6
-python-pygame       http://www.pygame.org                             >=1.7.1
+ * python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.6
+ * python-lxml         http://codespeak.net/lxml                         >=2.1.2
+ * cython              http://www.cython.org                             >=0.10
+ * python-application  http://pypi.python.org/simple/python-application  >=1.1.0
+ * dnspython           http://www.dnspython.org                          >=1.6.0
+ * twisted             http://twistedmatrix.com/trac                     >=8.1.0
+ * pylib               http://codespeak.net/py                           >=0.9.2
+ * zope-interface      http://www.zope.org                               >=3.3.1
+
+The following are needed only if you wish to use the desktop sharing application:
+
+ * x11vnc              http://www.karlrunge.com/x11vnc                   >=0.9.6
+ * python-pygame       http://www.pygame.org                             >=1.7.1
 
 Alternatively, you can use the easy_install script provided by the
 python-setuptools package to install the packages:
 
 sudo easy_install -U python-gnutls lxml cython python-application dnspython twisted py
 
-Download and install dependencies available in AG Projects repositories:
+Download and install SIP SIMPLE client dependencies available in AG Projects
+repositories:
 
-# eventlet for twisted
-wget http://download.ag-projects.com/EventletTwisted/eventlet-0.9pre.tar.gz
-tar -xf eventlet-0.9pre.tar.gz
-cd eventlet-0.8.9
-sudo python setup.py install
+cd ~/work
+# python-eventlet
+if [ -d python-eventlet ]; then
+	cd python-eventlet
+	hg pull
+	hg update
+        sudo python setup.py install
+else 
+	hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted python-eventlet
+	cd python-eventlet
+	sudo python setup.py install
+fi
 cd ..
 
 # python-xcaplib
@@ -77,65 +102,157 @@ else
 fi
 cd ..
 
-
 Step 3. Install SIP SIMPLE client
----------------------------------
 
-Download SIP SIMPLE client sources. Run the next step once:
+Download SIP SIMPLE client sources:
 
-darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+if [ -d python-sipsimple ]; then
+	cd python-sipsimple
+	darcs pull -a
+else 
+	darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+fi
+cd..
 
-The software is downloaded under python-sipsimple directory. To update it at
-a later time:
-
-cd python-sipsimple
-darcs pull -a
-
-Build and install the software library:
+Build and install the library system wide:
 
 cd python-sipsimple
 sudo python setup.py install
 
 
-Building a Debian package
----------------------------
+II. Debian package installation
+-------------------------------
 
-You can build debian packages that can be installed on Debian or Ubuntu.
+For people running Debian 5.0 or Ubuntu 8.10 a debian package with the last
+stable version is available in the public repository provided by AG
+Projects. Add these lines in /etc/apt/sources.list:
 
-Install the basic development tools
+# AG Projects software
+deb     http://ag-projects.com/debian unstable main
+deb-src http://ag-projects.com/debian unstable main
 
-apt-get install build-essential dpkg-dev fakeroot devscripts python-setuptools
+The install the debian package:
 
-Install the building dependencies
+sudo apt-get update
+sudo apt-get install sipclient
 
-sudo apt-get build-dep sipclient python-eventlet python-msrplib \
-python-xcaplib libssl-dev
+
+III. Debian package building
+----------------------------
+
+You can build debian packages that can be installed on Debian or Ubuntu
+systems.
+
+Step 1. Install Debian development tools
+
+sudo apt-get install build-essential dpkg-dev fakeroot devscripts \
+python-setuptools darcs mercurial subversion libssl-dev
+
+Step 2. Install the building dependencies of each package
+
+Add these lines in etc/apt/sources.list:                              
+
+# AG Projects software
+deb     http://ag-projects.com/debian unstable main
+deb-src http://ag-projects.com/debian unstable main
+
+sudo apt-get update
+sudo apt-get build-dep sipclient python-eventlet python-msrplib python-xcaplib
 
 You need Cython version 0.10 or higher. If your Debian distribution has an
-older version, install the lastest version using:
+older version, upgrade to the lastest cython version from its home
+repository using easy_install:
 
 sudo easy_install cython
 
-Download the source code
+Step 3. Download SIP SIMPLE client dependencies available in AG Projects
+repositories:
 
-apt-get source python-eventlet
-apt-get source python-msrplib
-apt-get source python-xcaplib
-apt-get source sipclient
+cd ~/work
+# python-eventlet
+if [ -d python-eventlet ]; then
+	cd python-eventlet
+	hg pull
+	hg update
+        if [ -d _darcs ]; then
+	        darcs pull -a 
+        else 
+        	cd ..
+ 		darcs get http://devel.ag-projects.com/repositories/python-eventlet-debian
+		cp -ar python-eventlet-debian/* python-eventlet/
+                cd python-eventlet
+        fi        
+else 
+	hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted python-eventlet
+        if [ -d python-eventlet-debian ]; then
+		cd python-eventlet-debian
+	        darcs pull -a 
+		cd ..
+		cp -ar python-eventlet-debian/* python-eventlet/
+                cd python-eventlet
+	else 
+		darcs get http://devel.ag-projects.com/repositories/python-eventlet python-eventlet-debian
+		cp -ar python-eventlet-debian/* python-eventlet/
+		cd python-eventlet        
+        fi
+fi
+cd ..
 
-Go to each of the directories created by the above commands and type:
+# python-xcaplib
+if [ -d python-xcaplib ]; then
+        cd python-xcaplib
+        darcs pull -a 
+else
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+fi
+cd ..
 
-debuild  
+# python-msrplib
+if [ -d python-msrplib ]; then
+        cd python-msrplib
+        darcs pull -a
+else
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+fi
+cd ..
 
-to build binary and source packages or
 
-debuild -B 
+Step 4. Build debian packages for SIP SIMPLE client dependencies
+ 
+Go to each of the directories created at Step 3 above and build the
+corespondent debian package:
 
-To build a binary only package. If you maintain a debian repository, you
-must use -B for every new architecture the packages is compiled for
-otherwise dput will fail to upload an already uploaded source package.
+for i in python-eventlet python-msrplib python-xcaplib ; do
+	cd $i
+	rm -rf dist
+	python setup.py sdist
+	cd dist
+	tar zxvf *
+	cd * 
+	if [ ! -d debian ] ; then  cp -r ../../debian . ; fi
+	debuild --no-tgz-check
+	cd ../../../
+done
+for i in python-eventlet python-msrplib python-xcaplib ; do
+	ls -l $i/dist/*.deb
+done
 
-You will now have a debian package in the upper level of each directory that
-you can install using dpkg -i command. The dependencies of each package must
-be installed manually using apt-get install command.
+You will now have a debian package under the dist folder of each directory
+that you can install using dpkg -i command.
+
+
+Step 5. Build SIP SIMPLE client debian package
+
+cd python-sipsimple
+rm -r dist
+python setup.py sdist
+cd dist
+tar zxvf *
+cd * 
+debuild
+
+You will now have a debian package in the upper level directory that you can
+install using dpkg -i command.
 
