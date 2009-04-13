@@ -32,7 +32,7 @@ else:
     my_build_scripts = build_scripts
 
 
-setup(name         = "sipclient",
+setup(name         = "python-sipsimple",
       version      = version,
       author       = "AG Projects",
       author_email = "support@ag-projects.com",
