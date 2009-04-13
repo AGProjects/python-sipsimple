@@ -18,7 +18,7 @@ class IMediaStream(Interface):
      def start(self, local_sdp, remote_sdp, stream_index):
          pass
 
-     def validate_udpate(self, remote_sdp, stream_index):
+     def validate_update(self, remote_sdp, stream_index):
          pass
 
      def update(self, local_sdp, remote_sdp, stream_index):
