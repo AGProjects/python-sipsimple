@@ -72,6 +72,7 @@ class PJSIP_build_ext(build_ext):
         self.pjsip_clean_compile = 0
         self.pjsip_svn_repo = os.environ.get("PJSIP_SVN_REPO", "http://svn.pjsip.org/repos/pjproject/branches/1.0")
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
+        self.pjsip_build_dir = os.environ.get("PJSIP_BUILD_DIR", None)
 
     def check_cython_version(self):
         from Cython.Compiler.Version import version as cython_version
@@ -79,7 +80,7 @@ class PJSIP_build_ext(build_ext):
             raise DistutilsError("Cython version %s or higher needed" % ".".join(str(i) for i in self.cython_version_required))
 
     def fetch_pjsip_from_svn(self):
-        self.svn_dir = os.path.join(self.build_temp, "pjsip")
+        self.svn_dir = os.path.join(self.pjsip_build_dir or self.build_temp, "pjsip")
         try:
             old_svn_rev = get_svn_revision(self.svn_dir)
         except:
