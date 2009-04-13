@@ -1,3 +1,36 @@
 
+For an up to date guide visit:
+
 See http://sipsimpleclient.com/wiki/SipUpgrade
+
+
+From 0.4.0 to 0.9.0
+-------------------
+
+Migrate the configuration stored in config.ini file for library versions
+<0.9.0 to the new settings API by using sip_migrate_settings script:
+
+$sip_migrate_settings
+Migrating general settings and settings of the following accounts:
+alice, bob, default.
+Do you want to proceed? [y/N] y
+Migrating general settings... done
+Migrating alice account... done
+Migrating bob account... done
+Migrating default account... done
+To list the migrated accounts:
+
+$sip_settings -a list
+Accounts:
+  alice@example.com (enabled)
+  bob@example.com (enabled)
+  bonjour (enabled)
+
+Follow Uninstall.txt and start from scratch.
+
+
+From 0.3.0 to 0.4.0
+-------------------
+
+Follow Uninstall.txt and start from scratch.
 
