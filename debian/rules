@@ -3,11 +3,11 @@
 DEB_PYTHON_SYSTEM=pysupport
 DEB_COMPRESS_EXCLUDE := .py
 
+export PJSIP_SVN_REVISION=2553
+#export PJSIP_BUILD_DIR=/tmp/debuild-sipsimple
+
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
-configure/sipclient::
-	-ln -fs ../../pjsip ./pjsip
-
 clean::
-	-rm -rf build dist MANIFEST pjsip
+	-rm -rf build dist MANIFEST
