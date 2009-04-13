@@ -2,19 +2,32 @@
 Installation procedure for SIP SIMPLE client on MacOSX
 ------------------------------------------------------
 
+
+Copyright (c) 2008-2009 AG Projects
+http://ag-projects.com
+
+Home page: http://sipsimpleclient.com
+
+This document described the installation procedure on Linux operating
+systems in general and Debian/Ubuntu systems in particular.
+
+Fore more information see the installation guide available at:
+
+http://sipsimpleclient.com/wiki/SipInstallation
+
 The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
 Step 2. Install dependencies
-Step 4. Install SIP SIMPLE client
+Step 3. Install SIP SIMPLE client
 
 
 Step 1. Prerequisites
 ---------------------
 
-a. MacOSx 10.5 Leopard on Intel CPU
-b. Install Apple Developer tools
-c. Install darcs version control tool from http://www.darcs.net
+a. MacOSx 10.5 Leopard
+b. Apple Developer tools
+c. darcs version control tool from http://www.darcs.net
 
 
 Step 2. Install dependencies
@@ -96,11 +109,19 @@ else
 fi
 cd ..
 
-# eventlet for twisted
-curl -O http://download.ag-projects.com/EventletTwisted/eventlet-0.9pre.tar.gz
-tar -xf eventlet-0.9pre.tar.gz
-cd eventlet-0.9pre
-sudo python setup.py install
+cd ~/work
+# python-eventlet
+export LC_CTYPE=
+if [ -d python-eventlet ]; then
+        cd python-eventlet
+        hg pull
+        hg update
+        sudo python setup.py install
+else
+        hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted python-eventlet
+        cd python-eventlet
+        sudo python setup.py install
+fi
 cd ..
 
 # python-xcaplib
@@ -131,17 +152,17 @@ cd ..
 Step 3. Install SIP SIMPLE client
 ---------------------------------
 
-Download SIP SIMPLE client sources. Run the next step once:
+Download SIP SIMPLE client sources:
 
-darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+if [ -d python-sipsimple ]; then
+        cd python-sipsimple
+        darcs pull -a
+else
+        darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+fi
+cd..
 
-The software is downloaded under python-sipsimple directory. To update it at
-a later time:
-
-cd python-sipsimple
-darcs pull -a
-
-Build and install the software library:
+Build and install the library system wide:
 
 cd python-sipsimple
 sudo python setup.py install --prefix /usr/local/
