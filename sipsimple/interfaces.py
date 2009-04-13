@@ -1,7 +1,9 @@
 from zope.interface import Interface, Attribute
 
 class IMediaStream(Interface):
-     on_hold = Attribute()
+     on_hold_by_local = Attribute("True if the stream is on hold by the local party")
+     on_hold_by_remote = Attribute("True if the stream is on hold by the remeot")
+     on_hold = Attribute("True if either on_hold_by_local or on_hold_by_remote is true") 
 
      def __init__(self, account):
          pass
@@ -16,6 +18,9 @@ class IMediaStream(Interface):
          pass
 
      def start(self, local_sdp, remote_sdp, stream_index):
+         pass
+
+     def end(self):
          pass
 
      def validate_update(self, remote_sdp, stream_index):
