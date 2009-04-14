@@ -26,7 +26,7 @@ from sipsimple.green.core import GreenEngine
 from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
 from sipsimple.green.notification import linked_notification, linked_notifications
-from sipsimple.util import NotificationHandler
+from sipsimple import util
 from sipsimple.session import SessionManager, SessionStateError
 from sipsimple.clients import format_cmdline_uri
 from sipsimple import logstate
@@ -137,17 +137,13 @@ def _get_history_file(local_uri, remote_uri, is_outgoing):
     return file(filename, 'a')
 
 
-class AutoNotificationHandler(NotificationHandler):
+class NotificationHandler(util.NotificationHandler):
 
-    def add_self_as_observer(self, sender=Any):
-        nc = NotificationCenter()
-        observer = NotifyFromThreadObserver(self)
-        for name in dir(self):
-            if name.startswith('_NH_'):
-                nc.add_observer(observer, name.replace('_NH_', ''), sender=sender)
+    def subscribe_to_all(self, sender=Any):
+        return util.NotificationHandler.subscribe_to_all(self, sender=sender, observer=NotifyFromThreadObserver(self))
 
 
-class ChatSession(GreenSession, AutoNotificationHandler):
+class ChatSession(GreenSession, NotificationHandler):
 
     info = 'Session'
 
@@ -162,7 +158,7 @@ class ChatSession(GreenSession, AutoNotificationHandler):
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
                 self.remote_party = format_uri(self._inv.remote_uri)
-        self.add_self_as_observer(sender=self._obj)
+        self.subscribe_to_all(sender=self._obj)
 
     def _NH_SIPSessionDidStart(self, session, _data):
         if self.history_file is None:
@@ -221,7 +217,7 @@ class ChatSession(GreenSession, AutoNotificationHandler):
             self.hold()
 
 
-class ChatManager(AutoNotificationHandler):
+class ChatManager(NotificationHandler):
 
     def __init__(self, engine, account, console, logger):
         self.engine = engine
@@ -231,7 +227,7 @@ class ChatManager(AutoNotificationHandler):
         self.sessions = []
         self.current_session = None
         self.procs = proc.RunningProcSet()
-        self.add_self_as_observer()
+        self.subscribe_to_all()
 
     def _NH_SIPSessionDidEnd(self, session, data):
         try:
@@ -632,7 +628,7 @@ def complete_word(input, wordlist, raise_on_error=True):
             raise UserCommandError('Please provide %s. Cannot understand %r' % ('|'.join(wordlist), input))
 
 
-class InfoPrinter(AutoNotificationHandler):
+class InfoPrinter(NotificationHandler):
 
     def _NH_SIPEngineDetectedNATType(self, sender, data):
         if data.succeeded:
@@ -958,7 +954,7 @@ def main():
     if LoggerSingleton().msrptrace_filename:
         print "Logging MSRP trace to file '%s'" % LoggerSingleton().msrptrace_filename
 
-    InfoPrinter().add_self_as_observer()
+    InfoPrinter().subscribe_to_all()
 
     try:
         with setup_console() as console:

@@ -5,10 +5,11 @@ import errno
 import os
 
 from zope.interface import implements
-from application.notification import IObserver
+from application.notification import IObserver, Any, NotificationCenter
 
 from sipsimple.core import WaveFile
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.green.notification import NotifyFromThreadObserver
 
 class SilenceableWaveFile(WaveFile):
 
@@ -31,6 +32,15 @@ class NotificationHandler(object):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification.sender, notification.data)
+
+    def subscribe_to_all(self, sender=Any, observer=None):
+        """Subscribe to all the notifications this class is interested in (based on what handler methods it has)"""
+        nc = NotificationCenter()
+        if observer is None:
+            observer = self
+        for name in dir(self):
+            if name.startswith('_NH_'):
+                nc.add_observer(observer, name.replace('_NH_', ''), sender=sender)
 
 
 def makedirs(path):
