@@ -15,6 +15,19 @@ Fore more information see the installation guide available at:
 
 http://sipsimpleclient.com/wiki/SipInstallation
 
+
+I. MAC ports installation
+II. Manual installation
+
+
+I. MAC ports installation
+-------------------------
+
+
+
+II. Manual installation
+-----------------------
+
 The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
@@ -23,7 +36,6 @@ Step 3. Install SIP SIMPLE client
 
 
 Step 1. Prerequisites
----------------------
 
  * MacOSx 10.5 Leopard (i386 or ppc architectures)
  * Apple Developer tools
@@ -31,7 +43,6 @@ Step 1. Prerequisites
 
 
 Step 2. Install dependencies
-----------------------------
 
 SIP SIMPLE client depends on the following packages:
 
@@ -169,7 +180,6 @@ cd ..
 
 
 Step 3. Install SIP SIMPLE client
----------------------------------
 
 Download SIP SIMPLE client sources:
 
@@ -185,4 +195,5 @@ Build and install the library system wide:
 
 cd python-sipsimple
 sudo python setup.py install --prefix /usr/local/
+
 

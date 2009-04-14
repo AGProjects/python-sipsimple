@@ -15,13 +15,70 @@ Fore more information see the installation guide available at:
 http://sipsimpleclient.com/wiki/SipInstallation
 
 
-I. Manual installation
-II. Debian package installation
-III. Debian package building
+I. Debian package installation
+II. Manual installation
 
 
-I. Manual installation
-----------------------
+I. Debian package installation
+------------------------------
+
+For people running Debian 5.0 or Ubuntu 8.10 a debian package with the last
+stable version is available in the repository provided by AG Projects. 
+
+Add these lines in /etc/apt/sources.list:
+
+# AG Projects software
+deb     http://ag-projects.com/debian unstable main
+deb-src http://ag-projects.com/debian unstable main
+
+Install AG Projects debian signing key:
+
+wget http://download.ag-projects.com/agp-debian-gpg.key
+sudo apt-key add agp-debian-gpg.key
+
+The install the debian package:
+
+sudo apt-get update
+sudo apt-get install python-sipsimple sipsimple-cli
+
+
+Debian package building instructions
+
+Install Debian development tools
+
+sudo apt-get install build-essential dpkg-dev fakeroot devscripts \
+python-setuptools darcs mercurial subversion libssl-dev
+
+Install the building dependencies and sources of each package
+
+Add these lines in etc/apt/sources.list:                              
+
+# AG Projects software
+deb     http://ag-projects.com/debian unstable main
+deb-src http://ag-projects.com/debian unstable main
+
+sudo apt-get update
+sudo apt-get build-dep sipclient python-eventlet python-msrplib python-xcaplib
+sudo apt-get source sipclient python-eventlet python-msrplib python-xcaplib
+
+You need Cython version 0.10 or higher. If your Debian distribution has an
+older version you must create a debian package for latest cython and install
+it on your system before continuing further.
+
+Build debian packages
+ 
+Go to each of the directories created above and build the corespondent
+debian package:
+
+debuild
+
+You will now have debian packages in the upper level directory that you can
+install using dpkg -i command.
+
+
+
+II. Manual installation
+-----------------------
 
 Step 1. Prerequisites
 	
@@ -118,59 +175,4 @@ Build and install the library system wide:
 
 cd python-sipsimple
 sudo python setup.py install
-
-
-II. Debian package installation
--------------------------------
-
-For people running Debian 5.0 or Ubuntu 8.10 a debian package with the last
-stable version is available in the public repository provided by AG
-Projects. Add these lines in /etc/apt/sources.list:
-
-# AG Projects software
-deb     http://ag-projects.com/debian unstable main
-deb-src http://ag-projects.com/debian unstable main
-
-The install the debian package:
-
-sudo apt-get update
-sudo apt-get install sipclient
-
-
-III. Debian package building
-----------------------------
-
-You can build debian packages that can be installed on Debian or Ubuntu
-systems.
-
-Step 1. Install Debian development tools
-
-sudo apt-get install build-essential dpkg-dev fakeroot devscripts \
-python-setuptools darcs mercurial subversion libssl-dev
-
-Step 2. Install the building dependencies and sources of each package
-
-Add these lines in etc/apt/sources.list:                              
-
-# AG Projects software
-deb     http://ag-projects.com/debian unstable main
-deb-src http://ag-projects.com/debian unstable main
-
-sudo apt-get update
-sudo apt-get build-dep sipclient python-eventlet python-msrplib python-xcaplib
-sudo apt-get source sipclient python-eventlet python-msrplib python-xcaplib
-
-You need Cython version 0.10 or higher. If your Debian distribution has an
-older version you must create a debian package for latest cython and install
-it on your system before continuing further.
-
-Step 3. Build debian packages
- 
-Go to each of the directories created at Step 2 above and build the
-corespondent debian package:
-
-debuild
-
-You will now have debian packages in the upper level directory that you can
-install using dpkg -i command.
 
