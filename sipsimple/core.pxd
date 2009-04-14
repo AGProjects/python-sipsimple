@@ -212,6 +212,13 @@ cdef extern from "pjmedia.h":
     int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options)
     int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port)
     pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port)
+    int pjmedia_null_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count, unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port)
+
+    # master port
+    struct pjmedia_master_port
+    int pjmedia_master_port_create(pj_pool_t *pool, pjmedia_port *u_port, pjmedia_port *d_port, unsigned int options, pjmedia_master_port **p_m)
+    int pjmedia_master_port_start(pjmedia_master_port *m)
+    int pjmedia_master_port_destroy(pjmedia_master_port *m, int destroy_ports)
 
     # conference bridge
     enum pjmedia_conf_option:

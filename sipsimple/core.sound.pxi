@@ -13,6 +13,8 @@ cdef class PJMEDIAConferenceBridge:
     cdef pjmedia_snd_port *c_snd
     cdef list c_pb_in_slots, c_conv_in_slots
     cdef list c_all_out_slots, c_conv_out_slots
+    cdef pjmedia_port *_null_port
+    cdef pjmedia_master_port *_master_port
 
     def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint):
         cdef int status
@@ -21,6 +23,9 @@ cdef class PJMEDIAConferenceBridge:
         status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not create conference bridge", status)
+        status = pjmedia_null_port_create(pjsip_endpoint.c_pool, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, &self._null_port)
+        if status != 0:
+            raise PJSIPError("Could not create dummy audio port", status)
         self.c_conv_in_slots = [0]
         self.c_all_out_slots = [0]
         self.c_pb_in_slots = []
@@ -51,10 +56,11 @@ cdef class PJMEDIAConferenceBridge:
         return 0
 
     cdef object _get_sound_devices(self, bint playback):
+        global _dummy_sound_dev_name
         cdef int i
         cdef int c_count
         cdef pjmedia_snd_dev_info_ptr_const c_info
-        retval = []
+        retval = [_dummy_sound_dev_name]
         for i from 0 <= i < pjmedia_snd_get_dev_count():
             c_info = pjmedia_snd_get_dev_info(i)
             if playback:
@@ -66,8 +72,11 @@ cdef class PJMEDIAConferenceBridge:
         return retval
 
     cdef int _find_sound_device(self, object device_name, int playback) except -1:
+        global _dummy_sound_dev_name
         cdef int i
         cdef pjmedia_snd_dev_info_ptr_const info
+        if device_name == _dummy_sound_dev_name:
+            return -2
         for i from 0 <= i < pjmedia_snd_get_dev_count():
             info = pjmedia_snd_get_dev_info(i)
             if info.name == device_name:
@@ -76,10 +85,13 @@ cdef class PJMEDIAConferenceBridge:
         raise SIPCoreError('Sound device not found: "%s"' % device_name)
 
     cdef object _get_current_device(self, int playback):
+        global _dummy_sound_dev_name
         cdef pjmedia_snd_stream_info snd_info
         cdef pjmedia_snd_dev_info_ptr_const dev_info
         cdef int dev_id
         cdef int status
+        if self._master_port != NULL:
+            return _dummy_sound_dev_name
         if self.c_snd == NULL:
             return None
         status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(self.c_snd), &snd_info)
@@ -96,40 +108,60 @@ cdef class PJMEDIAConferenceBridge:
             return dev_info.name
 
     cdef int _set_sound_devices(self, int playback_index, int recording_index, unsigned int tail_length) except -1:
+        global _dummy_sound_dev_name
         cdef int status
-        if self.c_snd != NULL:
-            self._destroy_snd_port(1)
+        if playback_index == -1 and len(self._get_sound_devices(1)) == 1:
+            playback_index = -2
+        if recording_index == -1 and len(self._get_sound_devices(0)) == 1:
+            recording_index = -2
+        if (playback_index == -2) ^ (recording_index == -2):
+            raise ValueError('Either both playback and recording devices should be "%s" or neither' % _dummy_sound_dev_name)
+        self._destroy_snd_port(1)
         self.c_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "conf_bridge", 4096, 4096)
         if self.c_pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
-        status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_snd)
-        if status != 0:
-            raise PJSIPError("Could not create sound device", status)
-        status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
-        if status != 0:
-            self._destroy_snd_port(0)
-            raise PJSIPError("Could not set echo cancellation", status)
-        status = pjmedia_snd_port_connect(self.c_snd, pjmedia_conf_get_master_port(self.c_obj))
-        if status != 0:
-            self._destroy_snd_port(0)
-            raise PJSIPError("Could not connect sound device", status)
+        if playback_index == -2:
+            status = pjmedia_master_port_create(self.c_pool, self._null_port, pjmedia_conf_get_master_port(self.c_obj), 0, &self._master_port)
+            if status != 0:
+                self._destroy_snd_port(0)
+                raise PJSIPError("Could not create master port for dummy sound device", status)
+            status = pjmedia_master_port_start(self._master_port)
+            if status != 0:
+                self._destroy_snd_port(0)
+                raise PJSIPError("Could not start master port for dummy sound device", status)
+        else:
+            status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_snd)
+            if status != 0:
+                raise PJSIPError("Could not create sound device", status)
+            status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
+            if status != 0:
+                self._destroy_snd_port(0)
+                raise PJSIPError("Could not set echo cancellation", status)
+            status = pjmedia_snd_port_connect(self.c_snd, pjmedia_conf_get_master_port(self.c_obj))
+            if status != 0:
+                self._destroy_snd_port(0)
+                raise PJSIPError("Could not connect sound device", status)
         return 0
 
     cdef int _destroy_snd_port(self, int disconnect) except -1:
-        if disconnect:
-            pjmedia_snd_port_disconnect(self.c_snd)
-        pjmedia_snd_port_destroy(self.c_snd)
-        pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_pool)
-        self.c_snd = NULL
-        self.c_pool = NULL
+        if self.c_snd != NULL:
+            if disconnect:
+                pjmedia_snd_port_disconnect(self.c_snd)
+            pjmedia_snd_port_destroy(self.c_snd)
+            self.c_snd = NULL
+        if self._master_port != NULL:
+            pjmedia_master_port_destroy(self._master_port, 0)
+            self._master_port = NULL
+        if self.c_pool != NULL:
+            pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_pool)
+            self.c_pool = NULL
         return 0
 
     def __dealloc__(self):
         cdef unsigned int slot
         if self.c_tonegen != NULL:
             self._disable_playback_dtmf()
-        if self.c_snd != NULL:
-            self._destroy_snd_port(1)
+        self._destroy_snd_port(1)
         if self.c_obj != NULL:
             pjmedia_conf_destroy(self.c_obj)
 
@@ -500,3 +532,7 @@ cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry
                 wav_file._stop(ua, 0, 1)
     except:
         ua.c_handle_exception(1)
+
+# globals
+
+cdef object _dummy_sound_dev_name = "Dummy"
