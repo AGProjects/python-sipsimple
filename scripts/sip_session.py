@@ -719,6 +719,15 @@ def start(options, console):
         log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or options.trace_pjsip) else 0,
         trace_sip=settings.logging.trace_sip or options.trace_sip)
     try:
+        if engine.recording_devices:
+            print "Available audio input devices: %s" % ", ".join(sorted(engine.recording_devices))
+        if engine.recording_devices:
+            print "Available audio output devices: %s" % ", ".join(sorted(engine.playback_devices))
+        if not options.disable_sound:
+            engine.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
+            print "Using audio input device: %s" % engine.current_recording_device
+        print "Using audio output device: %s" % engine.current_playback_device
+        engine.codecs = list(account.audio.codec_list)
         if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
             engine.detect_nat_type(*options.account.stun_servers[0])
         if options.trace_notifications:
