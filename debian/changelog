@@ -26,6 +26,9 @@ python-sipsimple (0.9.0) unstable; urgency=low
   * sip_send_file and sip_desktop_sharing temporarily disabled until
     migrated to the new APIs
   * Added asynchronous DNS lookup module and removed DNS lookups from core
+  * Added Session manager to manage multiple SIP sessions
+  * Added Account manager to manage multiple SIP accounts
+  * Integrated SIP registration into the SIP account
   * Added next hop failover for INVITE and REGISTER methods
   * Made Route argument mandatory in SIP core object creation
   * Allow settable Contact URI for objects in SIP core
