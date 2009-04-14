@@ -375,9 +375,17 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
 
     e = Engine()
     handler = EventHandler(e)
-    e.start_cfg(enable_sound=not disable_sound,
+    e.start_cfg(enable_sound=False,
                 log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or trace_pjsip) else 0,
                 trace_sip=settings.logging.trace_sip or trace_sip)
+    if e.recording_devices:
+        print "Available audio input devices:\n  %s" % "\n  ".join(sorted(e.recording_devices))
+    if e.recording_devices:
+        print "Available audio output devices:\n  %s" % "\n  ".join(sorted(e.playback_devices))
+    if not disable_sound:
+        e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
+        print "Using audio input device: %s" % e.current_recording_device
+        print "Using audio output device: %s" % e.current_playback_device
     e.codecs = list(account.audio.codec_list)
 
     # start the session manager (for incoming calls)
