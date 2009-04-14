@@ -38,6 +38,16 @@ Middleware
 - Detect IP address changes (OS specific) and signal Engine [RK]
 - Enrollment [LS]
 
+Notifications
+-------------
+
+- review notifications after we have all entities implemented.
+- check if we should separate the DidEnd notifications from the concept that
+  the object posting it is no longer usable and make a new notification
+  for that. There is a distinction between the fact that a certain entity
+  has ended its cycle of operation and the concept that the entity becomes
+  unusable. For some these overlap for others they don't and using a given
+  notification with multiple meanings can be confusing.
 
 Audio
 -----
