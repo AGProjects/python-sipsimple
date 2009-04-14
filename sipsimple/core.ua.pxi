@@ -170,9 +170,9 @@ cdef class PJSIPUA:
         cdef unsigned int c_tail_length = self.ec_tail_length
         self.c_check_self()
         if playback_device is not None:
-            c_playback_device = self.c_conf_bridge._find_sound_device(playback_device)
+            c_playback_device = self.c_conf_bridge._find_sound_device(playback_device, 1)
         if recording_device is not None:
-            c_recording_device = self.c_conf_bridge._find_sound_device(recording_device)
+            c_recording_device = self.c_conf_bridge._find_sound_device(recording_device, 0)
         if tail_length is not None:
             c_tail_length = tail_length
         self.c_conf_bridge._set_sound_devices(c_playback_device, c_recording_device, c_tail_length)

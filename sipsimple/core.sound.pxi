@@ -65,13 +65,14 @@ cdef class PJMEDIAConferenceBridge:
                 retval.append(c_info.name)
         return retval
 
-    cdef int _find_sound_device(self, object device_name) except -1:
+    cdef int _find_sound_device(self, object device_name, int playback) except -1:
         cdef int i
         cdef pjmedia_snd_dev_info_ptr_const info
         for i from 0 <= i < pjmedia_snd_get_dev_count():
             info = pjmedia_snd_get_dev_info(i)
             if info.name == device_name:
-                return i
+                if (playback and info.output_count) or (not playback and info.input_count):
+                    return i
         raise SIPCoreError('Sound device not found: "%s"' % device_name)
 
     cdef object _get_current_device(self, int playback):
