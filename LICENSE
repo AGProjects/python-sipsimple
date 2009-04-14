@@ -12,6 +12,7 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-SIP SIMPLE client is licensed under GNU General Public License version 2.
+SIP SIMPLE client is licensed under GNU Lesser General Public License (LGPL)
 
-For other licensing options see docs/Licenses.txt
+For the licensing of each underlying component see docs/Licenses.txt
+
