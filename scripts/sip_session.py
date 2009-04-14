@@ -386,28 +386,27 @@ class ChatManager(AutoNotificationHandler):
             self.current_session = self.sessions[index % len(self.sessions)]
             self.update_prompt()
 
-    def _validate_stream(self, s):
-        s = complete_word(s.lower(), ['chat', 'audio'])
-        if s:
-            return s
-        else:
-            raise UserCommandError("Please use 'chat' or 'audio'. Cannot understand %r" % s)
+    def _validate_stream(self, s, raise_on_error=True):
+        return complete_word(s.lower(), ['chat', 'audio'], raise_on_error=raise_on_error)
 
     def cmd_call(self, *args):
-        """:call user@domain [audio|chat] \t Initiate an outgoing session. By default, use audio+chat"""
+        """:call user@domain [+]chat \t Initiate an outgoing session. By default, use audio. The second argument specifies whether to propose IM-only session ("chat") or audio+chat ("+chat")"""
         if not args:
             raise UserCommandError('Please provide uri\n%s' % self.cmd_call.__doc__)
         target_uri = args[0]
-        use_audio = True
-        use_chat = True
         if args[2:]:
             raise UserCommandError('Too many arguments\n%s' % self.cmd_call.__doc__)
+        use_audio = True
+        use_chat = False
         if args[1:]:
-            s = self._validate_stream(args[1])
+            s = self._validate_stream(args[1], raise_on_error=False)
             if s == 'chat':
                 use_audio = False
-            elif s == 'audio':
-                use_chat = False
+                use_chat = True
+            elif args[1][:1]=='+':
+                s = self._validate_stream(args[1][1:])
+                if s == 'chat':
+                    use_chat = True
         if not isinstance(target_uri, SIPURI):
             try:
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
@@ -605,7 +604,7 @@ class ChatManager(AutoNotificationHandler):
             session.stop_recording_audio()
 
 
-def complete_word(input, wordlist):
+def complete_word(input, wordlist, raise_on_error=True):
     """
     >>> complete_word('audio', ['chat', 'audio'])
     'audio'
@@ -629,7 +628,7 @@ def complete_word(input, wordlist):
                 results.append(word)
         if len(results)==1:
             return results[0]
-        else:
+        elif raise_on_error:
             raise UserCommandError('Please provide %s. Cannot understand %r' % ('|'.join(wordlist), input))
 
 
