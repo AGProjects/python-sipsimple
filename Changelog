@@ -22,7 +22,11 @@ python-sipsimple (0.9.0) unstable; urgency=low
     session, media can be added/subtracted to/from active session. The
     script can be used for both incoming and outgoing sessions
   * Unify command line arguments for command line tools
-  * Added --auto-answer and --auto-hangup to sip_audio_session script
+  * Added dummy audio device support for systems without sound card
+  * Added --auto-answer and --auto-hangup to sip_audio_session script. 
+    sip_audio_session script can now be used for scripting alarms that check
+    both siganling and media paths, it can detect missing ACK, negative SIP
+    response codes and missing RTP media after call setup
   * sip_send_file and sip_desktop_sharing temporarily disabled until
     migrated to the new APIs
   * Added asynchronous DNS lookup module and removed DNS lookups from core
