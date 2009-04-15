@@ -136,7 +136,7 @@ cdef int c_handle_post_queue(PJSIPUA ua) except -1:
         try:
             post.func(<object> post.obj)
         except:
-            ua.c_handle_exception(1)
+            ua._handle_exception(1)
         post_free = post
         post = post.next
         free(post_free)

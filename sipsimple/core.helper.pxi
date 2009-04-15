@@ -234,8 +234,8 @@ cdef SIPURI c_parse_SIPURI(object uri_str):
     cdef SIPURI retval
     cdef pjsip_uri *uri = NULL
     cdef pj_pool_t *pool = NULL
-    cdef PJSIPUA ua = c_get_ua()
-    pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint._obj, "parse_SIPURI", 4096, 4096)
+    cdef PJSIPUA ua = _get_ua()
+    pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, "parse_SIPURI", 4096, 4096)
     if pool == NULL:
         raise SIPCoreError("Could not allocate memory pool")
     try:
@@ -244,7 +244,7 @@ cdef SIPURI c_parse_SIPURI(object uri_str):
             raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
         retval = c_make_SIPURI(uri, 1)
     finally:
-        pjsip_endpt_release_pool(ua.c_pjsip_endpoint._obj, pool)
+        pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, pool)
     return retval
 
 # globals

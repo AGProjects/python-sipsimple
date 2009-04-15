@@ -24,7 +24,7 @@ cdef class Publication:
         cdef int status
         cdef PJSTR request_uri, fromto_uri
         cdef pj_str_t c_event
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if credentials is None:
             raise SIPCoreError("credentials parameter cannot be None")
         if credentials.uri is None:
@@ -40,7 +40,7 @@ cdef class Publication:
         request_uri = PJSTR(credentials.uri._as_str(1))
         fromto_uri = PJSTR(credentials.uri._as_str(0))
         self.c_credentials._to_c()
-        status = pjsip_publishc_create(ua.c_pjsip_endpoint._obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
+        status = pjsip_publishc_create(ua._pjsip_endpoint._obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not create publication", status)
         _str_to_pj_str(event, &c_event)
@@ -61,11 +61,11 @@ cdef class Publication:
     def __dealloc__(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
         except SIPCoreError:
             return
         if self.c_timer.user_data != NULL:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self.c_timer)
         if self.c_obj != NULL:
             pjsip_publishc_destroy(self.c_obj)
 
@@ -102,23 +102,23 @@ cdef class Publication:
     cdef int _cb_response(self, pjsip_publishc_cbparam *param) except -1:
         cdef pj_time_val c_delay
         cdef bint c_success = 0
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if self.state == "publishing":
             if param.code / 100 == 2:
                 self.state = "published"
                 if self.c_timer.user_data != NULL:
-                    pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
+                    pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self.c_timer)
                 pj_timer_entry_init(&self.c_timer, 0, <void *> self, cb_Publication_cb_expire)
                 c_delay.sec = max(1, min(int(param.expiration * random.uniform(0.75, 0.9)), param.expiration - 10))
                 c_delay.msec = 0
-                pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self.c_timer, &c_delay) # TODO: check return value?
+                pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self.c_timer, &c_delay) # TODO: check return value?
                 c_success = 1
             else:
                 self.state = "unpublished"
         elif self.state == "unpublishing":
             if param.code / 100 == 2:
                 self.state = "unpublished"
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
+                pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self.c_timer)
                 self.c_timer.user_data = NULL
                 c_success = 1
             else:
@@ -191,7 +191,7 @@ cdef class Publication:
     cdef int _create_pub(self, pj_str_t *content_type, pj_str_t *content_subtype, pj_str_t *body) except -1:
         cdef pjsip_msg_body *c_body
         cdef int status
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if body != NULL:
             status = pjsip_publishc_publish(self.c_obj, 0, &self.c_tx_data)
             if status != 0:
@@ -222,20 +222,20 @@ cdef void cb_Publication_cb_response(pjsip_publishc_cbparam *param) with gil:
     cdef Publication c_pub
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
         c_pub = <object> param.token
         c_pub._cb_response(param)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef Publication c_pub
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
@@ -243,4 +243,4 @@ cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *
             c_pub = <object> entry.user_data
             c_pub._cb_expire()
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)

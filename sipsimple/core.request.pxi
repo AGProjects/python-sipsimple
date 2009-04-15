@@ -120,7 +120,7 @@ cdef class Request:
         cdef pjsip_cid_hdr *cid_hdr
         cdef pjsip_cseq_hdr *cseq_hdr
         cdef int status
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if credentials is None:
             raise ValueError("credentials argument may not be None")
         if to_uri is None:
@@ -172,7 +172,7 @@ cdef class Request:
             self._content_type = PJSTR(content_type_spl[0])
             self._content_subtype = PJSTR(content_type_spl[1])
             self._body = PJSTR(body)
-        status = pjsip_endpt_create_request(ua.c_pjsip_endpoint._obj, &method_pj, &request_uri_str.pj_str, &from_uri_str.pj_str, &to_uri_str.pj_str, &contact_uri_str.pj_str, call_id_pj, self.cseq, NULL, &self._tdata)
+        status = pjsip_endpt_create_request(ua._pjsip_endpoint._obj, &method_pj, &request_uri_str.pj_str, &from_uri_str.pj_str, &to_uri_str.pj_str, &contact_uri_str.pj_str, call_id_pj, self.cseq, NULL, &self._tdata)
         if status != 0:
             raise PJSIPError("Could not create request", status)
         self._tdata.msg.body = pjsip_msg_body_create(self._tdata.pool, &self._content_type.pj_str, &self._content_subtype.pj_str, &self._body.pj_str)
@@ -190,7 +190,7 @@ cdef class Request:
         pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route.c_route_hdr)
         _add_headers_to_tdata(self._tdata, self._extra_headers)
         if self._credentials.password is not None:
-            status = pjsip_auth_clt_init(&self._auth, ua.c_pjsip_endpoint._obj, self._tdata.pool, 0)
+            status = pjsip_auth_clt_init(&self._auth, ua._pjsip_endpoint._obj, self._tdata.pool, 0)
             if status != 0:
                 raise PJSIPError("Could not init authentication credentials", status)
             status = pjsip_auth_clt_set_credentials(&self._auth, 1, &self._credentials.c_obj)
@@ -199,15 +199,15 @@ cdef class Request:
             self._need_auth = 1
         else:
             self._need_auth = 0
-        status = pjsip_tsx_create_uac(&ua.c_module, self._tdata, &self._tsx)
+        status = pjsip_tsx_create_uac(&ua._module, self._tdata, &self._tsx)
         if status != 0:
             raise PJSIPError("Could not create transaction for request", status)
-        self._tsx.mod_data[ua.c_module.id] = <void *> self
+        self._tsx.mod_data[ua._module.id] = <void *> self
 
     def __dealloc__(self):
         cdef PJSIPUA ua = self._get_ua()
         if self._tsx != NULL:
-            self._tsx.mod_data[ua.c_module.id] = NULL
+            self._tsx.mod_data[ua._module.id] = NULL
             if self._tsx.state < PJSIP_TSX_STATE_COMPLETED:
                 pjsip_tsx_terminate(self._tsx, 500)
             self._tsx = NULL
@@ -215,7 +215,7 @@ cdef class Request:
             pjsip_tx_data_dec_ref(self._tdata)
             self._tdata = NULL
         if self._timer_active:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
             self._timer_active = 0
 
     def send(self, timeout=None):
@@ -233,7 +233,7 @@ cdef class Request:
         if status != 0:
             raise PJSIPError("Could not send request", status)
         pjsip_tx_data_add_ref(self._tdata)
-        status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self._timer, &timeout_pj)
+        status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
         if status == 0:
             self._timer_active = 1
         self.state = "IN_PROGRESS"
@@ -243,7 +243,7 @@ cdef class Request:
         if self.state == "IN_PROGRESS":
             pjsip_tsx_terminate(self._tsx, 408)
         elif self.state == "EXPIRING":
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
             self._timer_active = 0
             self.state = "TERMINATED"
             c_add_event("SIPRequestDidEnd", dict(obj=self))
@@ -253,7 +253,7 @@ cdef class Request:
     cdef PJSIPUA _get_ua(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
         except SIPCoreError:
             self._tsx = NULL
             self._tdata = NULL
@@ -281,7 +281,7 @@ cdef class Request:
             c_add_event("SIPRequestGotProvisionalResponse", event_dict)
         elif self._tsx.state == PJSIP_TSX_STATE_COMPLETED:
             if self._timer_active:
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
+                pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
                 self._timer_active = 0
             if self._need_auth and self._tsx.status_code in [401, 407]:
                 self._need_auth = 0
@@ -294,15 +294,15 @@ cdef class Request:
                 if cseq != NULL:
                     cseq.cseq += 1
                     self.cseq = cseq.cseq
-                status = pjsip_tsx_create_uac(&ua.c_module, tdata_auth, &tsx_auth)
+                status = pjsip_tsx_create_uac(&ua._module, tdata_auth, &tsx_auth)
                 if status != 0:
                     pjsip_tx_data_dec_ref(tdata_auth)
                     c_add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not create transaction for request with auth %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
                     c_add_event("SIPRequestDidEnd", dict(obj=self))
-                self._tsx.mod_data[ua.c_module.id] = NULL
+                self._tsx.mod_data[ua._module.id] = NULL
                 self._tsx = tsx_auth
-                self._tsx.mod_data[ua.c_module.id] = <void *> self
+                self._tsx.mod_data[ua._module.id] = <void *> self
                 status = pjsip_tsx_send_msg(self._tsx, tdata_auth)
                 if status != 0:
                     pjsip_tx_data_dec_ref(tdata_auth)
@@ -338,7 +338,7 @@ cdef class Request:
                 else:
                     expire_warning.sec = max(1, min(expires - self.expire_warning_time, expires/2))
                     expire_warning.msec = 0
-                    status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self._timer, &expire_warning)
+                    status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &expire_warning)
                     if status == 0:
                         self._timer_active = 1
                         self.state = "EXPIRING"
@@ -349,12 +349,12 @@ cdef class Request:
         if self._tsx.state == PJSIP_TSX_STATE_TERMINATED:
             if self.state == "IN_PROGRESS":
                 if self._timer_active:
-                    pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
+                    pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
                     self._timer_active = 0
                 c_add_event("SIPRequestDidFail", dict(obj=self, code=self._tsx.status_code, reason=_pj_str_to_str(self._tsx.status_text)))
                 self.state = "TERMINATED"
                 c_add_event("SIPRequestDidEnd", dict(obj=self))
-            self._tsx.mod_data[ua.c_module.id] = NULL
+            self._tsx.mod_data[ua._module.id] = NULL
             self._tsx = NULL
 
     cdef int _cb_timer(self, PJSIPUA ua) except -1:
@@ -368,7 +368,7 @@ cdef class Request:
                 expires.sec = self._expire_rest
                 expires.msec = 0
                 self._expire_rest = 0
-                status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self._timer, &expires)
+                status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &expires)
                 if status == 0:
                     self._timer_active = 1
                 else:
@@ -387,11 +387,11 @@ cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with
     cdef Request req
     cdef pjsip_rx_data *rdata = NULL
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
-        req_ptr = tsx.mod_data[ua.c_module.id]
+        req_ptr = tsx.mod_data[ua._module.id]
         if req_ptr != NULL:
             req = <object> req_ptr
             if event.type == PJSIP_EVENT_RX_MSG:
@@ -400,13 +400,13 @@ cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with
                 rdata = event.body.tsx_state.src.rdata
             req._cb_tsx_state(ua, rdata)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef PJSIPUA ua
     cdef Request req
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
@@ -415,4 +415,4 @@ cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) 
             req._timer_active = 0
             req._cb_timer(ua)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)

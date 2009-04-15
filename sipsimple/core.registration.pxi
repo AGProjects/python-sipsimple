@@ -21,7 +21,7 @@ cdef class Registration:
         cdef int status
         cdef object transport
         cdef PJSTR request_uri, fromto_uri
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if credentials is None:
             raise SIPCoreError("credentials parameter cannot be None")
         if credentials.uri is None:
@@ -34,12 +34,12 @@ cdef class Registration:
         transport = self.c_route.transport
         self.c_want_register = 0
         if contact_uri is None:
-            self.c_contact_uri = PJSTR(ua.c_create_contact_uri(route)._as_str(1))
+            self.c_contact_uri = PJSTR(ua._create_contact_uri(route)._as_str(1))
         else:
             self.c_contact_uri = PJSTR(contact_uri._as_str(1))
         request_uri = PJSTR(str(SIPURI(credentials.uri.host)))
         fromto_uri = PJSTR(credentials.uri._as_str(0))
-        status = pjsip_regc_create(ua.c_pjsip_endpoint._obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
+        status = pjsip_regc_create(ua._pjsip_endpoint._obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not create client registration", status)
         status = pjsip_regc_init(self.c_obj, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, 1, &self.c_contact_uri.pj_str, expires)
@@ -59,11 +59,11 @@ cdef class Registration:
     def __dealloc__(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
         except SIPCoreError:
             return
         if self.c_timer.user_data != NULL:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self.c_timer)
         if self.c_obj != NULL:
             pjsip_regc_destroy(self.c_obj)
 
@@ -116,7 +116,7 @@ cdef class Registration:
         cdef int i, length
         cdef list contact_uri_list = []
         cdef char contact_uri_buf[1024]
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         cdef object old_state = self.state
         if self.state == "registering":
             if param.code / 100 == 2:
@@ -124,14 +124,14 @@ cdef class Registration:
                 pj_timer_entry_init(&self.c_timer, 0, <void *> self, cb_Registration_cb_expire)
                 c_delay.sec = max(1, min(int(param.expiration * random.uniform(0.75, 0.9)), param.expiration - 10))
                 c_delay.msec = 0
-                pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self.c_timer, &c_delay) # TODO: check return value?
+                pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self.c_timer, &c_delay) # TODO: check return value?
                 c_success = 1
             else:
                 self.state = "unregistered"
         elif self.state == "unregistering":
             if param.code / 100 == 2:
                 self.state = "unregistered"
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
+                pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self.c_timer)
                 self.c_timer.user_data = NULL
                 c_success = 1
             else:
@@ -196,7 +196,7 @@ cdef class Registration:
 
     cdef int _create_reg(self, bint register) except -1:
         cdef int status
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if register:
             status = pjsip_regc_register(self.c_obj, 0, &self.c_tx_data)
             if status != 0:
@@ -224,20 +224,20 @@ cdef void cb_Registration_cb_response(pjsip_regc_cbparam *param) with gil:
     cdef Registration c_reg
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
         c_reg = <object> param.token
         c_reg._cb_response(param)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_Registration_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef Registration c_reg
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
@@ -245,4 +245,4 @@ cdef void cb_Registration_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry 
             c_reg = <object> entry.user_data
             c_reg._cb_expire()
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)

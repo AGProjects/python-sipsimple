@@ -18,7 +18,7 @@ cdef class Subscription:
     def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route, expires=300, SIPURI contact_uri=None, extra_headers=None):
         cdef int status
         cdef EventPackage pkg
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if credentials is None:
             raise SIPCoreError("credentials parameter cannot be None")
         if credentials.uri is None:
@@ -34,7 +34,7 @@ cdef class Subscription:
         if event not in ua.events:
             raise SIPCoreError('Event "%s" is unknown' % event)
         if contact_uri is None:
-            self.c_contact_uri = PJSTR(ua.c_create_contact_uri(route)._as_str(1))
+            self.c_contact_uri = PJSTR(ua._create_contact_uri(route)._as_str(1))
         else:
             self.c_contact_uri = PJSTR(contact_uri._as_str(1))
         self.state = "TERMINATED"
@@ -46,7 +46,7 @@ cdef class Subscription:
     def __dealloc__(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
         except SIPCoreError:
             return
         if self.c_obj != NULL:
@@ -118,7 +118,7 @@ cdef class Subscription:
         cdef int status
         cdef object transport
         cdef PJSTR c_from, c_to, c_to_req
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         try:
             if first_subscribe:
                 c_from = PJSTR(self.c_credentials.uri._as_str(0))
@@ -137,7 +137,7 @@ cdef class Subscription:
                 status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
                 if status != 0:
                     raise PJSIPError("Could not set route on SUBSCRIBE", status)
-                pjsip_evsub_set_mod_data(self.c_obj, ua.c_event_module.id, <void *> self)
+                pjsip_evsub_set_mod_data(self.c_obj, ua._event_module.id, <void *> self)
             status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
             if status != 0:
                 raise PJSIPError("Could not create SUBSCRIBE message", status)
@@ -174,7 +174,7 @@ cdef class EventPackage:
         self.c_event = PJSTR(event)
         for c_index, c_accept_type in enumerate(accept_types):
             _str_to_pj_str(c_accept_type, &c_accept[c_index])
-        status = pjsip_evsub_register_pkg(&ua.c_event_module, &self.c_event.pj_str, 300, c_accept_cnt, c_accept)
+        status = pjsip_evsub_register_pkg(&ua._event_module, &self.c_event.pj_str, 300, c_accept_cnt, c_accept)
         if status != 0:
             raise PJSIPError("Could not register event package", status)
 
@@ -190,43 +190,43 @@ cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gi
     cdef pjsip_transaction *tsx = NULL
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+        subscription = <object> pjsip_evsub_get_mod_data(sub, ua._event_module.id)
         if event != NULL:
             if event.type == PJSIP_EVENT_TSX_STATE and event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
                 tsx = event.body.tsx_state.tsx
         subscription._cb_state(tsx)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
     cdef Subscription subscription
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+        subscription = <object> pjsip_evsub_get_mod_data(sub, ua._event_module.id)
         subscription._cb_notify(rdata)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil:
     cdef Subscription subscription
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua.c_event_module.id)
+        subscription = <object> pjsip_evsub_get_mod_data(sub, ua._event_module.id)
         subscription._cb_refresh()
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 # globals
 

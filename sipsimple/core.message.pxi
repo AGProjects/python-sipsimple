@@ -12,7 +12,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     cdef tuple saved_data
     cdef char test_buf[1300]
     cdef int size
-    cdef PJSIPUA ua = c_get_ua()
+    cdef PJSIPUA ua = _get_ua()
     if credentials is None:
         raise SIPCoreError("credentials parameter cannot be None")
     if credentials.uri is None:
@@ -24,11 +24,11 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     from_uri = PJSTR(credentials.uri._as_str(0))
     to_uri_to = PJSTR(to_uri._as_str(0))
     to_uri_req = PJSTR(to_uri._as_str(1))
-    if to_uri_req.str in ua.c_sent_messages:
+    if to_uri_req.str in ua._sent_messages:
         raise SIPCoreError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
     message_method.id = PJSIP_OTHER_METHOD
     message_method.name = message_method_name.pj_str
-    status = pjsip_endpt_create_request(ua.c_pjsip_endpoint._obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
+    status = pjsip_endpt_create_request(ua._pjsip_endpoint._obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
     if status != 0:
         raise PJSIPError("Could not create MESSAGE request", status)
     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
@@ -44,12 +44,12 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
         pjsip_tx_data_dec_ref(tdata)
         raise SIPCoreError("MESSAGE request exceeds 1300 bytes")
     saved_data = credentials.copy(), to_uri_req, to_uri.copy()
-    status = pjsip_endpt_send_request(ua.c_pjsip_endpoint._obj, tdata, 10, <void *> saved_data, cb_send_message)
+    status = pjsip_endpt_send_request(ua._pjsip_endpoint._obj, tdata, 10, <void *> saved_data, cb_send_message)
     if status != 0:
         pjsip_tx_data_dec_ref(tdata)
         raise PJSIPError("Could not send MESSAGE request", status)
     Py_INCREF(saved_data)
-    ua.c_sent_messages.add(to_uri_req.str)
+    ua._sent_messages.add(to_uri_req.str)
 
 # callback function
 
@@ -67,7 +67,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
     cdef int status
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
@@ -81,7 +81,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
             elif tsx.status_code in [401, 407]:
                 final = 0
                 try:
-                    status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint._obj, rdata.tp_info.pool, 0)
+                    status = pjsip_auth_clt_init(&auth, ua._pjsip_endpoint._obj, rdata.tp_info.pool, 0)
                     if status != 0:
                         raise PJSIPError("Could not init auth", status)
                     credentials._to_c()
@@ -95,7 +95,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
                         else:
                             raise PJSIPError("Could not create auth response", status)
                     else:
-                        status = pjsip_endpt_send_request(ua.c_pjsip_endpoint._obj, tdata, 10, <void *> saved_data, cb_send_message)
+                        status = pjsip_endpt_send_request(ua._pjsip_endpoint._obj, tdata, 10, <void *> saved_data, cb_send_message)
                         if status != 0:
                             pjsip_tx_data_dec_ref(tdata)
                             raise PJSIPError("Could not send MESSAGE request", status)
@@ -103,9 +103,9 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
                     final = 1
             if final:
                 Py_DECREF(saved_data)
-                ua.c_sent_messages.remove(to_uri_req.str)
+                ua._sent_messages.remove(to_uri_req.str)
                 c_add_event("SIPEngineGotMessageResponse", dict(to_uri=to_uri, code=tsx.status_code, reason=_pj_str_to_str(tsx.status_text)))
                 if exc is not None:
                     raise exc
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)

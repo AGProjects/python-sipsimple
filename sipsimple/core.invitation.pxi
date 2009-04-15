@@ -18,7 +18,7 @@ cdef class Invitation:
     cdef SIPURI c_local_contact_uri
 
     def __cinit__(self, Credentials credentials=None, SIPURI callee_uri=None, Route route=None, SIPURI contact_uri=None):
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         self.c_sdp_neg_status = -1
         self.c_has_active_sdp = 0
         if all([credentials, callee_uri, route]):
@@ -34,7 +34,7 @@ cdef class Invitation:
             self.c_route = route.copy()
             self.transport = route.transport
             if contact_uri is None:
-                self.c_local_contact_uri = ua.c_create_contact_uri(route)
+                self.c_local_contact_uri = ua._create_contact_uri(route)
             else:
                 self.c_local_contact_uri = contact_uri.copy()
         elif any([credentials, callee_uri, route]):
@@ -74,7 +74,7 @@ cdef class Invitation:
             if status != 0:
                 raise PJSIPError("Could not create initial (unused) response to INTIVE", status)
             pjsip_tx_data_dec_ref(tdata)
-            self.c_obj.mod_data[ua.c_module.id] = <void *> self
+            self.c_obj.mod_data[ua._module.id] = <void *> self
             self._cb_state(ua, "INCOMING", rdata)
         except:
             if self.c_obj != NULL:
@@ -91,7 +91,7 @@ cdef class Invitation:
     cdef PJSIPUA _check_ua(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
             return ua
         except:
             self.state = "DISCONNECTED"
@@ -101,11 +101,11 @@ cdef class Invitation:
     cdef int _do_dealloc(self) except -1:
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
         except SIPCoreError:
             return 0
         if self.c_obj != NULL:
-            self.c_obj.mod_data[ua.c_module.id] = NULL
+            self.c_obj.mod_data[ua._module.id] = NULL
             if self.state != "DISCONNECTING":
                 pjsip_inv_terminate(self.c_obj, 481, 0)
             self.c_obj = NULL
@@ -116,8 +116,8 @@ cdef class Invitation:
         self._do_dealloc()
 
     cdef int _fail(self, PJSIPUA ua) except -1:
-        ua.c_handle_exception(0)
-        self.c_obj.mod_data[ua.c_module.id] = NULL
+        ua._handle_exception(0)
+        self.c_obj.mod_data[ua._module.id] = NULL
         if self.state != "DISCONNECTED":
             self.state = "DISCONNECTED"
             # Set prev_state to DISCONNECTED toindicate that we caused the disconnect
@@ -267,7 +267,7 @@ cdef class Invitation:
             if not self.c_obj.cancelling and rdata == NULL and self.c_obj.cause > 0:
                 event_dict["code"] = self.c_obj.cause
                 event_dict["reason"] = _pj_str_to_str(self.c_obj.cause_text)
-            self.c_obj.mod_data[ua.c_module.id] = NULL
+            self.c_obj.mod_data[ua._module.id] = NULL
             self.c_obj = NULL
             self.c_dlg = NULL
         elif state == "REINVITED":
@@ -321,7 +321,7 @@ cdef class Invitation:
         cdef PJSTR contact_uri
         cdef pjmedia_sdp_session *local_sdp = NULL
         cdef int status
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if self.state != "NULL":
             raise SIPCoreError("Can only transition to the CALLING state from the NULL state")
         if self.c_local_sdp_proposed is None:
@@ -342,7 +342,7 @@ cdef class Invitation:
             status = pjsip_inv_create_uac(self.c_dlg, local_sdp, 0, &self.c_obj)
             if status != 0:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
-            self.c_obj.mod_data[ua.c_module.id] = <void *> self
+            self.c_obj.mod_data[ua._module.id] = <void *> self
             if self.c_credentials.password is not None:
                 status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
                 if status != 0:
@@ -453,14 +453,14 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
     cdef pjsip_tx_data *tdata = NULL
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
         if inv.state == PJSIP_INV_STATE_INCOMING:
             return
-        if inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
+        if inv.mod_data[ua._module.id] != NULL:
+            invitation = <object> inv.mod_data[ua._module.id]
             state = pjsip_inv_state_name(inv.state)
             if state == "DISCONNCTD":
                 state = "DISCONNECTED"
@@ -480,48 +480,48 @@ cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gi
             except:
                 invitation._fail(ua)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil:
     cdef Invitation invitation
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
-        if inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
+        if inv.mod_data[ua._module.id] != NULL:
+            invitation = <object> inv.mod_data[ua._module.id]
             try:
                 invitation._cb_sdp_done(ua, status)
             except:
                 invitation._fail(ua)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil:
     cdef Invitation invitation
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
-        if inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
+        if inv.mod_data[ua._module.id] != NULL:
+            invitation = <object> inv.mod_data[ua._module.id]
             try:
                 invitation._cb_state(ua, "REINVITED", rdata)
             except:
                 invitation._fail(ua)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
     cdef Invitation invitation
     cdef pjsip_rx_data *rdata = NULL
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
@@ -529,8 +529,8 @@ cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
             return
         if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
             rdata = e.body.tsx_state.src.rdata
-        if rdata != NULL and inv.mod_data[ua.c_module.id] != NULL:
-            invitation = <object> inv.mod_data[ua.c_module.id]
+        if rdata != NULL and inv.mod_data[ua._module.id] != NULL:
+            invitation = <object> inv.mod_data[ua._module.id]
             if (tsx.state == PJSIP_TSX_STATE_TERMINATED or tsx.state == PJSIP_TSX_STATE_COMPLETED) and invitation.state == "REINVITING":
                 try:
                     invitation._cb_state(ua, "CONFIRMED", rdata)
@@ -545,7 +545,7 @@ cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_trans
                 except:
                     invitation._fail(ua)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!

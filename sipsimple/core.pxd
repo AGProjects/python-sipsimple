@@ -864,13 +864,13 @@ cdef SIPURI c_parse_SIPURI(object uri_str)
 
 cdef class PJSIPThread
 cdef class PJSIPUA
-cdef int cb_PJSIPUA_rx_request(pjsip_rx_data *rdata) with gil
-cdef void cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
-cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil
-cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil
-cdef int cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil
-cdef int cb_add_server_hdr(pjsip_tx_data *tdata) with gil
-cdef PJSIPUA c_get_ua()
+cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil
+cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
+cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil
+cdef int _cb_trace_tx(pjsip_tx_data *tdata) with gil
+cdef int _cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil
+cdef int _cb_add_server_hdr(pjsip_tx_data *tdata) with gil
+cdef PJSIPUA _get_ua()
 
 # core.event
 

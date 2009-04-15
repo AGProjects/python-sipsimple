@@ -270,7 +270,7 @@ cdef class RecordingWaveFile:
     cdef PJSIPUA _check_ua(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
             return ua
         except:
             self._pool = NULL
@@ -293,23 +293,23 @@ cdef class RecordingWaveFile:
     def start(self):
         cdef int status
         cdef object pool_name = "recwav_%s" % self.file_name
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if self._was_started:
             raise SIPCoreError("This RecordingWaveFile was already started once")
-        self._pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint._obj, pool_name, 4096, 4096)
+        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
         if self._pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         try:
             status = pjmedia_wav_writer_port_create(self._pool, self.file_name,
-                                                    ua.c_pjmedia_endpoint._sample_rate * 1000, 1,
-                                                    ua.c_pjmedia_endpoint._sample_rate * 20, 16,
+                                                    ua._pjmedia_endpoint._sample_rate * 1000, 1,
+                                                    ua._pjmedia_endpoint._sample_rate * 20, 16,
                                                     PJMEDIA_FILE_WRITE_PCM, 0, &self._port)
             if status != 0:
                 raise PJSIPError("Could not create WAV file", status)
-            status = pjmedia_conf_add_port(ua.c_conf_bridge._obj, self._pool, self._port, NULL, &self._conf_slot)
+            status = pjmedia_conf_add_port(ua._conf_bridge._obj, self._pool, self._port, NULL, &self._conf_slot)
             if status != 0:
                 raise PJSIPError("Could not connect WAV playback to conference bridge", status)
-            ua.c_conf_bridge._connect_output_slot(self._conf_slot)
+            ua._conf_bridge._connect_output_slot(self._conf_slot)
         except:
             self.stop()
             raise
@@ -321,7 +321,7 @@ cdef class RecordingWaveFile:
             raise SIPCoreError("This RecordingWaveFile is not active")
         if self._is_paused:
             raise SIPCoreError("This RecordingWaveFile is already paused")
-        ua.c_conf_bridge._disconnect_slot(self._conf_slot)
+        ua._conf_bridge._disconnect_slot(self._conf_slot)
         self._is_paused = 1
 
     def resume(self):
@@ -330,7 +330,7 @@ cdef class RecordingWaveFile:
             raise SIPCoreError("This RecordingWaveFile is not active")
         if not self._is_paused:
             raise SIPCoreError("This RecordingWaveFile is not paused")
-        ua.c_conf_bridge._connect_output_slot(self._conf_slot)
+        ua._conf_bridge._connect_output_slot(self._conf_slot)
         self._is_paused = 0
 
     def stop(self):
@@ -339,14 +339,14 @@ cdef class RecordingWaveFile:
 
     cdef int _stop(self, PJSIPUA ua) except -1:
         if self._conf_slot != 0:
-            ua.c_conf_bridge._disconnect_slot(self._conf_slot)
-            pjmedia_conf_remove_port(ua.c_conf_bridge._obj, self._conf_slot)
+            ua._conf_bridge._disconnect_slot(self._conf_slot)
+            pjmedia_conf_remove_port(ua._conf_bridge._obj, self._conf_slot)
             self._conf_slot = 0
         if self._port != NULL:
             pjmedia_port_destroy(self._port)
             self._port = NULL
         if self._pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint._obj, self._pool)
+            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
             self._pool = NULL
         self._is_paused = 0
         return 0
@@ -354,7 +354,7 @@ cdef class RecordingWaveFile:
     def __dealloc__(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
         except:
             return
         self._stop(ua)
@@ -384,7 +384,7 @@ cdef class WaveFile:
     cdef PJSIPUA _check_ua(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
             return ua
         except:
             self._pool = NULL
@@ -401,7 +401,7 @@ cdef class WaveFile:
     cdef int _start(self, PJSIPUA ua) except -1:
         cdef int status
         cdef object pool_name = "playwav_%s" % self.file_name
-        self._pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint._obj, pool_name, 4096, 4096)
+        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
         if self._pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         status = pjmedia_wav_player_port_create(self._pool, self.file_name, 0, PJMEDIA_FILE_NO_LOOP, 0, &self._port)
@@ -410,17 +410,17 @@ cdef class WaveFile:
         status = pjmedia_wav_player_set_eof_cb(self._port, <void *> self, cb_play_wav_eof)
         if status != 0:
             raise PJSIPError("Could not set WAV EOF callback", status)
-        status = pjmedia_conf_add_port(ua.c_conf_bridge._obj, self._pool, self._port, NULL, &self._conf_slot)
+        status = pjmedia_conf_add_port(ua._conf_bridge._obj, self._pool, self._port, NULL, &self._conf_slot)
         if status != 0:
             raise PJSIPError("Could not connect WAV playback to conference bridge", status)
-        status = pjmedia_conf_adjust_rx_level(ua.c_conf_bridge._obj, self._conf_slot, self._level)
+        status = pjmedia_conf_adjust_rx_level(ua._conf_bridge._obj, self._conf_slot, self._level)
         if status != 0:
             raise PJSIPError("Could not set playback volume of WAV file", status)
-        ua.c_conf_bridge._connect_playback_slot(self._conf_slot)
+        ua._conf_bridge._connect_playback_slot(self._conf_slot)
 
     def start(self, int level=100, int loop_count=1, pause_time=0):
         cdef object val
-        cdef PJSIPUA ua = c_get_ua()
+        cdef PJSIPUA ua = _get_ua()
         if self._timer_is_active or self._port != NULL:
             raise SIPCoreError("WAV file is already playing")
         for val in [level, loop_count, pause_time]:
@@ -447,23 +447,23 @@ cdef class WaveFile:
         cdef int status
         cdef int was_active = 0
         if self._timer_is_active:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
             self._timer_is_active = 0
             was_active = 1
         if self._conf_slot != 0:
-            ua.c_conf_bridge._disconnect_slot(self._conf_slot)
-            pjmedia_conf_remove_port(ua.c_conf_bridge._obj, self._conf_slot)
+            ua._conf_bridge._disconnect_slot(self._conf_slot)
+            pjmedia_conf_remove_port(ua._conf_bridge._obj, self._conf_slot)
             self._conf_slot = 0
         if self._port != NULL:
             pjmedia_port_destroy(self._port)
             self._port = NULL
             was_active = 1
         if self._pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint._obj, self._pool)
+            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
             self._pool = NULL
         if reschedule:
             pj_timer_entry_init(&self._timer, 0, <void *> self, cb_play_wav_restart)
-            status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self._timer, &self._pause_time)
+            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &self._pause_time)
             if status == 0:
                 self._timer_is_active = 1
         if was_active and not self._timer_is_active and notify:
@@ -476,7 +476,7 @@ cdef class WaveFile:
     def __dealloc__(self):
         cdef PJSIPUA ua
         try:
-            ua = c_get_ua()
+            ua = _get_ua()
         except:
             return
         self._stop(ua, 0, 0)
@@ -489,11 +489,11 @@ cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
     cdef int status
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return 0
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
         wav_file = <object> user_data
         if wav_file._loop_count == 1:
             wav_file._stop(ua, 0, 1)
@@ -506,17 +506,17 @@ cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
                 try:
                     wav_file._rewind()
                 except:
-                    ua.c_handle_exception(0)
+                    ua._handle_exception(0)
                     wav_file._stop(ua, 0, 1)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
     return 0
 
 cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef WaveFile wav_file
     cdef PJSIPUA ua
     try:
-        ua = c_get_ua()
+        ua = _get_ua()
     except:
         return
     try:
@@ -526,10 +526,10 @@ cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry
             try:
                 wav_file._start(ua)
             except:
-                ua.c_handle_exception(0)
+                ua._handle_exception(0)
                 wav_file._stop(ua, 0, 1)
     except:
-        ua.c_handle_exception(1)
+        ua._handle_exception(1)
 
 # globals
 
