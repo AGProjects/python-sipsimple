@@ -383,10 +383,12 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
         print "Available audio input devices: %s" % ", ".join(sorted(e.recording_devices))
     if e.recording_devices:
         print "Available audio output devices: %s" % ", ".join(sorted(e.playback_devices))
-    if not disable_sound:
+    if disable_sound:
+        e.set_sound_devices(playback_device="Dummy", recording_device="Dummy")
+    else:
         e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
-        print "Using audio input device: %s" % e.current_recording_device
-        print "Using audio output device: %s" % e.current_playback_device
+    print "Using audio input device: %s" % e.current_recording_device
+    print "Using audio output device: %s" % e.current_playback_device
     e.codecs = list(account.audio.codec_list)
 
     # start the session manager (for incoming calls)
