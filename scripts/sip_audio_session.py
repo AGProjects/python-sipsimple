@@ -95,6 +95,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
             e.detect_nat_type(*account.stun_servers[0])
         print_control_keys()
         while True:
+            sys.stdout.flush()
             command, data = queue.get()
             if command == "print":
                 print data
