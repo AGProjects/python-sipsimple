@@ -1,30 +1,32 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+# python imports
+
 import re
 from datetime import datetime
 
-# types
+# c types
 
-cdef struct core_event:
-    core_event *prev
-    core_event *next
+cdef struct _core_event:
+    _core_event *prev
+    _core_event *next
     int is_log
     int level
     void *data
     int len
 
-cdef struct post_handler:
-    post_handler *next
-    post_handler *prev
+cdef struct _post_handler:
+    _post_handler *next
+    _post_handler *prev
     int func(object obj) except -1
     void *obj
 
-# functions
+# callback functions
 
-cdef void cb_log(int level, char_ptr_const data, int len):
-    cdef core_event *event
-    event = <core_event *> malloc(sizeof(core_event))
+cdef void _cb_log(int level, char_ptr_const data, int len):
+    cdef _core_event *event
+    event = <_core_event *> malloc(sizeof(_core_event))
     if event != NULL:
         event.data = malloc(len)
         if event.data == NULL:
@@ -34,28 +36,30 @@ cdef void cb_log(int level, char_ptr_const data, int len):
         event.level = level
         memcpy(event.data, data, len)
         event.len = len
-        if c_event_queue_append(event) != 0:
+        if _event_queue_append(event) != 0:
             free(event.data)
             free(event)
 
-cdef int c_add_event(object event_name, dict params) except -1:
+# functions
+
+cdef int _add_event(object event_name, dict params) except -1:
     cdef tuple data
-    cdef core_event *event
+    cdef _core_event *event
     cdef int status
-    event = <core_event *> malloc(sizeof(core_event))
+    event = <_core_event *> malloc(sizeof(_core_event))
     if event == NULL:
         raise MemoryError()
     params["timestamp"] = datetime.now()
     data = (event_name, params)
     event.is_log = 0
     event.data = <void *> data
-    status = c_event_queue_append(event)
+    status = _event_queue_append(event)
     if status != 0:
         raise PJSIPError("Could not obtain lock", status)
     Py_INCREF(data)
     return 0
 
-cdef int c_event_queue_append(core_event *event):
+cdef int _event_queue_append(_core_event *event):
     global _event_queue_head, _event_queue_tail, _event_queue_lock
     cdef int locked = 0, status
     event.next = NULL
@@ -76,10 +80,10 @@ cdef int c_event_queue_append(core_event *event):
         pj_mutex_unlock(_event_queue_lock)
     return 0
 
-cdef list c_get_clear_event_queue():
+cdef list _get_clear_event_queue():
     global _re_log, _event_queue_head, _event_queue_tail, _event_queue_lock
     cdef list events = []
-    cdef core_event *event, *event_free
+    cdef _core_event *event, *event_free
     cdef tuple event_tup
     cdef object event_params, log_msg, log_match
     cdef int locked = 0
@@ -97,8 +101,10 @@ cdef list c_get_clear_event_queue():
             log_msg = PyString_FromStringAndSize(<char *> event.data, event.len)
             log_match = _re_log.match(log_msg)
             if log_match is not None:
-                event_params = dict(level=event.level, sender=log_match.group("sender"), message=log_match.group("message"))
-                event_params["timestamp"] = datetime(*[int(arg) for arg in log_match.groups()[:6]] + [int(log_match.group("millisecond")) * 1000])
+                event_params = dict(level=event.level, sender=log_match.group("sender"),
+                                    message=log_match.group("message"))
+                event_params["timestamp"] = datetime(*[int(arg) for arg in log_match.groups()[:6]] +
+                                                     [int(log_match.group("millisecond")) * 1000])
                 events.append(("SIPEngineLog", event_params))
         else:
             event_tup = <object> event.data
@@ -109,10 +115,10 @@ cdef list c_get_clear_event_queue():
         free(event_free)
     return events
 
-cdef int c_add_post_handler(int func(object obj) except -1, object obj) except -1:
+cdef int _add_post_handler(int func(object obj) except -1, object obj) except -1:
     global _post_queue_head, _post_queue_tail
-    cdef post_handler *post
-    post = <post_handler *> malloc(sizeof(post_handler))
+    cdef _post_handler *post
+    post = <_post_handler *> malloc(sizeof(_post_handler))
     if post == NULL:
         raise MemoryError()
     post.func = func
@@ -127,9 +133,9 @@ cdef int c_add_post_handler(int func(object obj) except -1, object obj) except -
         post.prev = _post_queue_tail
         _post_queue_tail = post
 
-cdef int c_handle_post_queue(PJSIPUA ua) except -1:
+cdef int _handle_post_queue(PJSIPUA ua) except -1:
     global _post_queue_head, _post_queue_tail
-    cdef post_handler *post, *post_free
+    cdef _post_handler *post, *post_free
     post = _post_queue_head
     _post_queue_head = _post_queue_tail = NULL
     while post != NULL:
@@ -143,9 +149,10 @@ cdef int c_handle_post_queue(PJSIPUA ua) except -1:
 
 # globals
 
-cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):(?P<second>\d+)\.(?P<millisecond>\d+)\s+(?P<sender>\S+)?\s+(?P<message>.*)$")
+cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)\s+(?P<hour>\d+):(?P<minute>\d+):" +
+                                 r"(?P<second>\d+)\.(?P<millisecond>\d+)\s+(?P<sender>\S+)?\s+(?P<message>.*)$")
 cdef pj_mutex_t *_event_queue_lock = NULL
-cdef core_event *_event_queue_head = NULL
-cdef core_event *_event_queue_tail = NULL
-cdef post_handler *_post_queue_head = NULL
-cdef post_handler *_post_queue_tail = NULL
+cdef _core_event *_event_queue_head = NULL
+cdef _core_event *_event_queue_tail = NULL
+cdef _post_handler *_post_queue_head = NULL
+cdef _post_handler *_post_queue_tail = NULL

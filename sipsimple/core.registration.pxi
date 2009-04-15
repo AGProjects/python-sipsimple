@@ -145,15 +145,15 @@ cdef class Registration:
             for i from 0 <= i < param.contact_cnt:
                 length = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, param.contact[i].uri, contact_uri_buf, 1024)
                 contact_uri_list.append((PyString_FromStringAndSize(contact_uri_buf, length), param.contact[i].expires))
-            c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
+            _add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
             if old_state == "registering":
-                c_add_event("SIPRegistrationDidSucceed", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
+                _add_event("SIPRegistrationDidSucceed", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
         else:
-            c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason)))
+            _add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason)))
             if old_state == "registering":
-                c_add_event("SIPRegistrationDidFail", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason)))
+                _add_event("SIPRegistrationDidFail", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason)))
             else:
-                c_add_event("SIPRegistrationDidEnd", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason)))
+                _add_event("SIPRegistrationDidEnd", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason)))
         if c_success:
             if (self.state == "unregistered" and self.c_want_register) or (self.state =="registered" and not self.c_want_register):
                 self._send_reg(self.c_want_register)
@@ -172,13 +172,13 @@ cdef class Registration:
                 self._send_reg(1)
             except Exception, e:
                 self.state = "unregistered"
-                c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state))
-                c_add_event("SIPRegistrationDidFail", dict(obj=self, reason=str(e)))
+                _add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state))
+                _add_event("SIPRegistrationDidFail", dict(obj=self, reason=str(e)))
                 raise
         else:
             self.state = "unregistered"
-            c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state))
-            c_add_event("SIPRegistrationDidEnd", dict(obj=self))
+            _add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state))
+            _add_event("SIPRegistrationDidEnd", dict(obj=self))
 
     def register(self):
         if self.state == "unregistered" or self.state == "unregistering":
@@ -216,7 +216,7 @@ cdef class Registration:
             self.state = "registering"
         else:
             self.state = "unregistering"
-        c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state))
+        _add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state))
 
 # callback functions
 

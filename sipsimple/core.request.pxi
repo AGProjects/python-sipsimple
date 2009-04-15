@@ -246,7 +246,7 @@ cdef class Request:
             pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
             self._timer_active = 0
             self.state = "TERMINATED"
-            c_add_event("SIPRequestDidEnd", dict(obj=self))
+            _add_event("SIPRequestDidEnd", dict(obj=self))
 
     # private methods
 
@@ -278,7 +278,7 @@ cdef class Request:
                 return 0
             event_dict = dict(obj=self)
             _rdata_info_to_dict(rdata, event_dict)
-            c_add_event("SIPRequestGotProvisionalResponse", event_dict)
+            _add_event("SIPRequestGotProvisionalResponse", event_dict)
         elif self._tsx.state == PJSIP_TSX_STATE_COMPLETED:
             if self._timer_active:
                 pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
@@ -287,9 +287,9 @@ cdef class Request:
                 self._need_auth = 0
                 status = pjsip_auth_clt_reinit_req(&self._auth, rdata, self._tdata, &tdata_auth)
                 if status != 0:
-                    c_add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not add auth data to request %s" % _pj_status_to_str(status)))
+                    _add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not add auth data to request %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
-                    c_add_event("SIPRequestDidEnd", dict(obj=self))
+                    _add_event("SIPRequestDidEnd", dict(obj=self))
                 cseq = <pjsip_cseq_hdr *> pjsip_msg_find_hdr(tdata_auth.msg, PJSIP_H_CSEQ, NULL)
                 if cseq != NULL:
                     cseq.cseq += 1
@@ -297,18 +297,18 @@ cdef class Request:
                 status = pjsip_tsx_create_uac(&ua._module, tdata_auth, &tsx_auth)
                 if status != 0:
                     pjsip_tx_data_dec_ref(tdata_auth)
-                    c_add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not create transaction for request with auth %s" % _pj_status_to_str(status)))
+                    _add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not create transaction for request with auth %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
-                    c_add_event("SIPRequestDidEnd", dict(obj=self))
+                    _add_event("SIPRequestDidEnd", dict(obj=self))
                 self._tsx.mod_data[ua._module.id] = NULL
                 self._tsx = tsx_auth
                 self._tsx.mod_data[ua._module.id] = <void *> self
                 status = pjsip_tsx_send_msg(self._tsx, tdata_auth)
                 if status != 0:
                     pjsip_tx_data_dec_ref(tdata_auth)
-                    c_add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not send request with auth %s" % _pj_status_to_str(status)))
+                    _add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not send request with auth %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
-                    c_add_event("SIPRequestDidEnd", dict(obj=self))
+                    _add_event("SIPRequestDidEnd", dict(obj=self))
             else:
                 event_dict = dict(obj=self)
                 if rdata != NULL:
@@ -329,12 +329,12 @@ cdef class Request:
                                 expires = 0
                     event_dict["expires"] = expires
                     self._expire_time = datetime.now() + timedelta(seconds=expires)
-                    c_add_event("SIPRequestDidSucceed", event_dict)
+                    _add_event("SIPRequestDidSucceed", event_dict)
                 else:
-                    c_add_event("SIPRequestDidFail", event_dict)
+                    _add_event("SIPRequestDidFail", event_dict)
                 if expires == 0:
                     self.state = "TERMINATED"
-                    c_add_event("SIPRequestDidEnd", dict(obj=self))
+                    _add_event("SIPRequestDidEnd", dict(obj=self))
                 else:
                     expire_warning.sec = max(1, min(expires - self.expire_warning_time, expires/2))
                     expire_warning.msec = 0
@@ -345,15 +345,15 @@ cdef class Request:
                         self._expire_rest = max(1, expires - expire_warning.sec)
                     else:
                         self.state = "TERMINATED"
-                        c_add_event("SIPRequestDidEnd", dict(obj=self))
+                        _add_event("SIPRequestDidEnd", dict(obj=self))
         if self._tsx.state == PJSIP_TSX_STATE_TERMINATED:
             if self.state == "IN_PROGRESS":
                 if self._timer_active:
                     pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
                     self._timer_active = 0
-                c_add_event("SIPRequestDidFail", dict(obj=self, code=self._tsx.status_code, reason=_pj_str_to_str(self._tsx.status_text)))
+                _add_event("SIPRequestDidFail", dict(obj=self, code=self._tsx.status_code, reason=_pj_str_to_str(self._tsx.status_text)))
                 self.state = "TERMINATED"
-                c_add_event("SIPRequestDidEnd", dict(obj=self))
+                _add_event("SIPRequestDidEnd", dict(obj=self))
             self._tsx.mod_data[ua._module.id] = NULL
             self._tsx = NULL
 
@@ -364,7 +364,7 @@ cdef class Request:
             pjsip_tsx_terminate(self._tsx, 408)
         elif self.state == "EXPIRING":
             if self._expire_rest > 0:
-                c_add_event("SIPRequestWillExpire", dict(obj=self, expires=self._expire_rest))
+                _add_event("SIPRequestWillExpire", dict(obj=self, expires=self._expire_rest))
                 expires.sec = self._expire_rest
                 expires.msec = 0
                 self._expire_rest = 0
@@ -373,10 +373,10 @@ cdef class Request:
                     self._timer_active = 1
                 else:
                     self.state = "TERMINATED"
-                    c_add_event("SIPRequestDidEnd", dict(obj=self))
+                    _add_event("SIPRequestDidEnd", dict(obj=self))
             else:
                 self.state = "TERMINATED"
-                c_add_event("SIPRequestDidEnd", dict(obj=self))
+                _add_event("SIPRequestDidEnd", dict(obj=self))
         return 0
 
 # callback functions

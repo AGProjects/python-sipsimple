@@ -467,7 +467,7 @@ cdef class WaveFile:
             if status == 0:
                 self._timer_is_active = 1
         if was_active and not self._timer_is_active and notify:
-            c_add_event("WaveFileDidFinishPlaying", dict(obj=self))
+            _add_event("WaveFileDidFinishPlaying", dict(obj=self))
 
     def stop(self):
         cdef PJSIPUA ua = self._check_ua()

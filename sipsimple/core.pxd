@@ -874,14 +874,14 @@ cdef PJSIPUA _get_ua()
 
 # core.event
 
-cdef struct core_event
-cdef struct post_handler
-cdef int c_event_queue_append(core_event *event)
-cdef void cb_log(int level, char_ptr_const data, int len)
-cdef int c_add_event(object event_name, dict params) except -1
-cdef list c_get_clear_event_queue()
-cdef int c_add_post_handler(int func(object obj) except -1, object obj) except -1
-cdef int c_handle_post_queue(PJSIPUA ua) except -1
+cdef struct _core_event
+cdef struct _post_handler
+cdef int _event_queue_append(_core_event *event)
+cdef void _cb_log(int level, char_ptr_const data, int len)
+cdef int _add_event(object event_name, dict params) except -1
+cdef list _get_clear_event_queue()
+cdef int _add_post_handler(int func(object obj) except -1, object obj) except -1
+cdef int _handle_post_queue(PJSIPUA ua) except -1
 
 # core.request
 

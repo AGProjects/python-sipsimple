@@ -121,10 +121,10 @@ cdef class Invitation:
         if self.state != "DISCONNECTED":
             self.state = "DISCONNECTED"
             # Set prev_state to DISCONNECTED toindicate that we caused the disconnect
-            c_add_event("SIPInvitationChangedState", dict(obj=self, prev_state="DISCONNECTING", state="DISCONNECTED", code=0, reason="Internal exception occured"))
+            _add_event("SIPInvitationChangedState", dict(obj=self, prev_state="DISCONNECTING", state="DISCONNECTED", code=0, reason="Internal exception occured"))
         # calling do_dealloc from within a callback makes PJSIP crash
         # post_handlers will be executed after pjsip_endpt_handle_events returns
-        c_add_post_handler(cb_Invitation_fail_post, self)
+        _add_post_handler(cb_Invitation_fail_post, self)
 
     property caller_uri:
 
@@ -275,7 +275,7 @@ cdef class Invitation:
             if status != 0:
                 raise PJSIPError("Could not create initial (unused) response to INTIVE", status)
             pjsip_tx_data_dec_ref(tdata)
-        c_add_event("SIPInvitationChangedState", event_dict)
+        _add_event("SIPInvitationChangedState", event_dict)
         return 0
 
     cdef int _cb_sdp_done(self, PJSIPUA ua, int status) except -1:
@@ -296,7 +296,7 @@ cdef class Invitation:
             event_dict["remote_sdp"] = c_make_SDPSession(remote_sdp)
         else:
             event_dict["error"] = _pj_status_to_str(status)
-        c_add_event("SIPInvitationGotSDPUpdate", event_dict)
+        _add_event("SIPInvitationGotSDPUpdate", event_dict)
         if self.state == "REINVITED":
             self._cb_state(ua, "CONFIRMED", NULL)
         elif self.state in ["INCOMING", "EARLY"] and status != 0:

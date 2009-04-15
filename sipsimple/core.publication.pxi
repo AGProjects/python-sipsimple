@@ -128,7 +128,7 @@ cdef class Publication:
                     self.state = "published"
         else:
             raise SIPCoreError("Unexpected response callback in Publication")
-        c_add_event("SIPPublicationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason)))
+        _add_event("SIPPublicationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason)))
         if self.c_new_publish:
             self.c_new_publish = 0
             self._send_pub(1)
@@ -153,11 +153,11 @@ cdef class Publication:
                 self.c_content_subtype = None
                 self.c_body = None
                 self.state = "unpublished"
-                c_add_event("SIPPublicationChangedState", dict(obj=self, state=self.state))
+                _add_event("SIPPublicationChangedState", dict(obj=self, state=self.state))
                 raise
         else:
             self.state = "unpublished"
-            c_add_event("SIPPublicationChangedState", dict(obj=self, state=self.state))
+            _add_event("SIPPublicationChangedState", dict(obj=self, state=self.state))
 
     def publish(self, content_type, content_subtype, body):
         cdef PJSTR c_content_type = PJSTR(content_type)
@@ -214,7 +214,7 @@ cdef class Publication:
             self.state = "publishing"
         else:
             self.state = "unpublishing"
-        c_add_event("SIPPublicationChangedState", dict(obj=self, state=self.state))
+        _add_event("SIPPublicationChangedState", dict(obj=self, state=self.state))
 
 # callback functions
 

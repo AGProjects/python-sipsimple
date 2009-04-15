@@ -104,7 +104,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
             if final:
                 Py_DECREF(saved_data)
                 ua._sent_messages.remove(to_uri_req.str)
-                c_add_event("SIPEngineGotMessageResponse", dict(to_uri=to_uri, code=tsx.status_code, reason=_pj_str_to_str(tsx.status_text)))
+                _add_event("SIPEngineGotMessageResponse", dict(to_uri=to_uri, code=tsx.status_code, reason=_pj_str_to_str(tsx.status_text)))
                 if exc is not None:
                     raise exc
     except:

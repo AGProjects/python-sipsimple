@@ -61,7 +61,7 @@ cdef class PJSIPUA:
         pj_log_set_level(kwargs["log_level"])
         pj_log_set_decor(PJ_LOG_HAS_YEAR | PJ_LOG_HAS_MONTH | PJ_LOG_HAS_DAY_OF_MON |
                          PJ_LOG_HAS_TIME | PJ_LOG_HAS_MICRO_SEC | PJ_LOG_HAS_SENDER)
-        pj_log_set_log_func(cb_log)
+        pj_log_set_log_func(_cb_log)
         self._pjlib = PJLIB()
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self._caching_pool = PJCachingPool()
@@ -482,7 +482,7 @@ cdef class PJSIPUA:
         cdef object event_name
         cdef dict event_params
         cdef list events
-        events = c_get_clear_event_queue()
+        events = _get_clear_event_queue()
         for event_name, event_params in events:
             self._event_handler(event_name, **event_params)
 
@@ -498,7 +498,7 @@ cdef class PJSIPUA:
         ELSE:
             if status != 0:
                 raise PJSIPError("Error while handling events", status)
-        c_handle_post_queue(self)
+        _handle_post_queue(self)
         self._poll_log()
         if self._fatal_error:
             return True
@@ -512,7 +512,7 @@ cdef class PJSIPUA:
         if is_fatal:
             self._fatal_error = is_fatal
         exc_type, exc_val, exc_tb = sys.exc_info()
-        c_add_event("SIPEngineGotException",
+        _add_event("SIPEngineGotException",
                     dict(type=exc_type, value=exc_val,
                          traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
         return 0
@@ -585,7 +585,7 @@ cdef class PJSIPUA:
             message_params["content_subtype"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data,
                                                                 rdata.msg_info.msg.body.len)
-            c_add_event("SIPEngineGotMessage", message_params)
+            _add_event("SIPEngineGotMessage", message_params)
             status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
@@ -629,7 +629,7 @@ cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_con
             event_dict["nat_type"] = res.nat_type_name
         else:
             event_dict["error"] = res.status_text
-        c_add_event("SIPEngineDetectedNATType", event_dict)
+        _add_event("SIPEngineDetectedNATType", event_dict)
     except:
         ua._handle_exception(1)
 
@@ -652,7 +652,7 @@ cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil:
         return 0
     try:
         if ua._trace_sip:
-            c_add_event("SIPEngineSIPTrace",
+            _add_event("SIPEngineSIPTrace",
                         dict(received=True, source_ip=rdata.pkt_info.src_name, source_port=rdata.pkt_info.src_port,
                              destination_ip=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
                              destination_port=rdata.tp_info.transport.local_name.port,
@@ -670,7 +670,7 @@ cdef int _cb_trace_tx(pjsip_tx_data *tdata) with gil:
         return 0
     try:
         if ua._trace_sip:
-            c_add_event("SIPEngineSIPTrace",
+            _add_event("SIPEngineSIPTrace",
                         dict(received=False,
                              source_ip=_pj_str_to_str(tdata.tp_info.transport.local_name.host),
                              source_port=tdata.tp_info.transport.local_name.port, destination_ip=tdata.tp_info.dst_name,

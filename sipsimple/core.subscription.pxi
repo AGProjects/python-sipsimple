@@ -84,15 +84,15 @@ cdef class Subscription:
     cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
         self.state = pjsip_evsub_get_state_name(self.c_obj)
         if tsx == NULL:
-            c_add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state))
+            _add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state))
         else:
-            c_add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state, code=tsx.status_code, reason=_pj_str_to_str(tsx.status_text)))
+            _add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state, code=tsx.status_code, reason=_pj_str_to_str(tsx.status_text)))
         return 0
 
     cdef int _cb_notify(self, pjsip_rx_data *rdata) except -1:
         cdef pjsip_msg_body *c_body = rdata.msg_info.msg.body
         if c_body != NULL:
-            c_add_event("SIPSubscriptionGotNotify", dict(obj=self,
+            _add_event("SIPSubscriptionGotNotify", dict(obj=self,
                                                         body=PyString_FromStringAndSize(<char *> c_body.data, c_body.len),
                                                         content_type=_pj_str_to_str(c_body.content_type.type),
                                                         content_subtype=_pj_str_to_str(c_body.content_type.subtype)))
