@@ -31,9 +31,9 @@ cdef class RTPTransport:
         cdef PJSIPUA ua = c_get_ua()
         if self.state != "NULL":
             raise SIPCoreError("RTPTransport.__init__() was already called")
-        if local_rtp_address is not None and not c_is_valid_ip(self.c_af, local_rtp_address):
+        if local_rtp_address is not None and not _is_valid_ip(self.c_af, local_rtp_address):
             raise ValueError("Not a valid IPv4 address: %s" % local_rtp_address)
-        if ice_stun_address is not None and not c_is_valid_ip(self.c_af, ice_stun_address):
+        if ice_stun_address is not None and not _is_valid_ip(self.c_af, ice_stun_address):
             raise ValueError("Not a valid IPv4 address: %s" % ice_stun_address)
         self.c_local_rtp_address = local_rtp_address
         self.use_srtp = use_srtp
@@ -221,13 +221,13 @@ cdef class RTPTransport:
             if self.c_local_rtp_address is None:
                 c_local_ip_p = NULL
             else:
-                str_to_pj_str(self.c_local_rtp_address, &c_local_ip)
+                _str_to_pj_str(self.c_local_rtp_address, &c_local_ip)
             if self.use_ice:
                 pj_ice_strans_cfg_default(&ice_cfg)
                 ice_cfg.af = self.c_af
                 pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool._obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint._obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint._obj))
                 if self.ice_stun_address is not None:
-                    str_to_pj_str(self.ice_stun_address, &ice_cfg.stun.server)
+                    _str_to_pj_str(self.ice_stun_address, &ice_cfg.stun.server)
                     ice_cfg.stun.port = self.ice_stun_port
                 # IIRC we can't choose the port for ICE
                 status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, c_local_ip_p, 0)
@@ -350,7 +350,7 @@ cdef class AudioTransport:
             if self.c_obj == NULL:
                 return None
             else:
-                return pj_str_to_str(self.c_stream_info.fmt.encoding_name)
+                return _pj_str_to_str(self.c_stream_info.fmt.encoding_name)
 
     property sample_rate:
 
@@ -469,9 +469,9 @@ cdef class AudioTransport:
                 status2 = pjmedia_stream_resume(self.c_obj, PJMEDIA_DIR_DECODING)
         self.direction = direction
         if status1 != 0:
-            raise SIPCoreError("Could not pause or resume encoding: %s" % pj_status_to_str(status1))
+            raise SIPCoreError("Could not pause or resume encoding: %s" % _pj_status_to_str(status1))
         if status2 != 0:
-            raise SIPCoreError("Could not pause or resume decoding: %s" % pj_status_to_str(status2))
+            raise SIPCoreError("Could not pause or resume decoding: %s" % _pj_status_to_str(status2))
 
     def send_dtmf(self, digit):
         cdef pj_str_t c_digit
@@ -481,7 +481,7 @@ cdef class AudioTransport:
             raise SIPCoreError("Stream is not active")
         if len(digit) != 1 or digit not in "0123456789*#ABCD":
             raise SIPCoreError("Not a valid DTMF digit: %s" % digit)
-        str_to_pj_str(digit, &c_digit)
+        _str_to_pj_str(digit, &c_digit)
         status = pjmedia_stream_dial_dtmf(self.c_obj, &c_digit)
         if status != 0:
             raise PJSIPError("Could not send DTMF digit on audio stream", status)
@@ -509,7 +509,7 @@ cdef void cb_RTPTransport_ice_complete(pjmedia_transport *tp, pj_ice_strans_op o
                 if status == 0:
                     c_add_event("RTPTransportDidInitialize", dict(obj=rtp_transport))
                 else:
-                    c_add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=pj_status_to_str(status)))
+                    c_add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
                 _RTPTransport_stun_list.remove(rtp_transport)
                 return
     except:

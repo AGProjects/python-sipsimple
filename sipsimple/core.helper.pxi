@@ -36,7 +36,7 @@ cdef class Route:
         def __set__(self, object value):
             if value is None:
                 raise ValueError("None value of transport is not allowed")
-            if not c_is_valid_ip(pj_AF_INET(), value):
+            if not _is_valid_ip(pj_AF_INET(), value):
                 raise ValueError("Not a valid IPv4 address: %s" % value)
             self.c_address = PJSTR(value)
             self.c_sip_uri.host = self.c_address.pj_str
@@ -97,8 +97,8 @@ cdef class Credentials:
             raise SIPCoreError("Credentials are not fully set")
         if self.uri.user is None:
             raise SIPCoreError("Credentials URI does not have username set")
-        str_to_pj_str(self.uri.user, &self.c_obj.username)
-        str_to_pj_str(self.password, &self.c_obj.data)
+        _str_to_pj_str(self.uri.user, &self.c_obj.username)
+        _str_to_pj_str(self.password, &self.c_obj.data)
         return 0
 
     def copy(self):
@@ -192,8 +192,8 @@ cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named):
     cdef dict parameters = {}
     cdef dict headers = {}
     cdef dict kwargs = dict(parameters=parameters, headers=headers)
-    args = [pj_str_to_str(uri.host)]
-    scheme = pj_str_to_str(pjsip_uri_get_scheme(base_uri)[0])
+    args = [_pj_str_to_str(uri.host)]
+    scheme = _pj_str_to_str(pjsip_uri_get_scheme(base_uri)[0])
     if scheme == "sip":
         kwargs["secure"] = False
     elif scheme == "sips":
@@ -201,33 +201,33 @@ cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named):
     else:
         raise SIPCoreError("Not a sip(s) URI")
     if uri.user.slen > 0:
-        kwargs["user"] = pj_str_to_str(uri.user)
+        kwargs["user"] = _pj_str_to_str(uri.user)
     if uri.passwd.slen > 0:
-        kwargs["password"] = pj_str_to_str(uri.passwd)
+        kwargs["password"] = _pj_str_to_str(uri.passwd)
     if uri.port > 0:
         kwargs["port"] = uri.port
     if uri.user_param.slen > 0:
-        parameters["user"] = pj_str_to_str(uri.user_param)
+        parameters["user"] = _pj_str_to_str(uri.user_param)
     if uri.method_param.slen > 0:
-        parameters["method"] = pj_str_to_str(uri.method_param)
+        parameters["method"] = _pj_str_to_str(uri.method_param)
     if uri.transport_param.slen > 0:
-        parameters["transport"] = pj_str_to_str(uri.transport_param)
+        parameters["transport"] = _pj_str_to_str(uri.transport_param)
     if uri.ttl_param != -1:
         parameters["ttl"] = uri.ttl_param
     if uri.lr_param != 0:
         parameters["lr"] = uri.lr_param
     if uri.maddr_param.slen > 0:
-        parameters["maddr"] = pj_str_to_str(uri.maddr_param)
+        parameters["maddr"] = _pj_str_to_str(uri.maddr_param)
     param = <pjsip_param *> (<pj_list *> &uri.other_param).next
     while param != &uri.other_param:
-        parameters[pj_str_to_str(param.name)] = pj_str_to_str(param.value)
+        parameters[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
         param = <pjsip_param *> (<pj_list *> param).next
     param = <pjsip_param *> (<pj_list *> &uri.header_param).next
     while param != &uri.header_param:
-        headers[pj_str_to_str(param.name)] = pj_str_to_str(param.value)
+        headers[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
         param = <pjsip_param *> (<pj_list *> param).next
     if is_named and named_uri.display.slen > 0:
-        kwargs["display"] = pj_str_to_str(named_uri.display)
+        kwargs["display"] = _pj_str_to_str(named_uri.display)
     return SIPURI(*args, **kwargs)
 
 cdef SIPURI c_parse_SIPURI(object uri_str):

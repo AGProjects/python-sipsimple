@@ -79,7 +79,7 @@ cdef class Registration:
             cdef int status
             status = pjsip_regc_update_expires(self.c_obj, value)
             if status != 0:
-                raise SIPCoreError('Could not set new "expires" value: %s' % pj_status_to_str(status))
+                raise SIPCoreError('Could not set new "expires" value: %s' % _pj_status_to_str(status))
             self.c_expires = value
 
     property expires_received:
@@ -92,7 +92,7 @@ cdef class Registration:
             else:
                 status = pjsip_regc_get_info(self.c_obj, &c_info)
                 if status != 0:
-                    raise SIPCoreError('Could not get registration info: %s' % pj_status_to_str(status))
+                    raise SIPCoreError('Could not get registration info: %s' % _pj_status_to_str(status))
                 return c_info.interval
 
     property extra_headers:
@@ -145,15 +145,15 @@ cdef class Registration:
             for i from 0 <= i < param.contact_cnt:
                 length = pjsip_uri_print(PJSIP_URI_IN_CONTACT_HDR, param.contact[i].uri, contact_uri_buf, 1024)
                 contact_uri_list.append((PyString_FromStringAndSize(contact_uri_buf, length), param.contact[i].expires))
-            c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
+            c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
             if old_state == "registering":
-                c_add_event("SIPRegistrationDidSucceed", dict(obj=self, code=param.code, reason=pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
+                c_add_event("SIPRegistrationDidSucceed", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason), contact_uri=self.c_contact_uri.str, expires=param.expiration, contact_uri_list=contact_uri_list))
         else:
-            c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
+            c_add_event("SIPRegistrationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason)))
             if old_state == "registering":
-                c_add_event("SIPRegistrationDidFail", dict(obj=self, code=param.code, reason=pj_str_to_str(param.reason)))
+                c_add_event("SIPRegistrationDidFail", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason)))
             else:
-                c_add_event("SIPRegistrationDidEnd", dict(obj=self, code=param.code, reason=pj_str_to_str(param.reason)))
+                c_add_event("SIPRegistrationDidEnd", dict(obj=self, code=param.code, reason=_pj_str_to_str(param.reason)))
         if c_success:
             if (self.state == "unregistered" and self.c_want_register) or (self.state =="registered" and not self.c_want_register):
                 self._send_reg(self.c_want_register)
@@ -205,7 +205,7 @@ cdef class Registration:
             status = pjsip_regc_unregister(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise PJSIPError("Could not create unregistration request", status)
-        c_add_headers_to_tdata(self.c_tx_data, self.c_extra_headers)
+        _add_headers_to_tdata(self.c_tx_data, self.c_extra_headers)
 
     cdef int _send_reg(self, bint register) except -1:
         cdef int status

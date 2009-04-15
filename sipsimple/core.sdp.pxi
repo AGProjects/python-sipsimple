@@ -50,13 +50,13 @@ cdef class SDPSession:
         cdef int index
         cdef SDPAttribute attr
         cdef SDPMedia media
-        str_to_pj_str(self.user, &self.c_obj.origin.user)
-        str_to_pj_str(self.net_type, &self.c_obj.origin.net_type)
-        str_to_pj_str(self.address_type, &self.c_obj.origin.addr_type)
-        str_to_pj_str(self.address, &self.c_obj.origin.addr)
-        str_to_pj_str(self.name, &self.c_obj.name)
+        _str_to_pj_str(self.user, &self.c_obj.origin.user)
+        _str_to_pj_str(self.net_type, &self.c_obj.origin.net_type)
+        _str_to_pj_str(self.address_type, &self.c_obj.origin.addr_type)
+        _str_to_pj_str(self.address, &self.c_obj.origin.addr)
+        _str_to_pj_str(self.name, &self.c_obj.name)
         if self.info:
-            str_to_pj_str(self.info, &self.c_obj.info)
+            _str_to_pj_str(self.info, &self.c_obj.info)
         else:
             self.c_obj.info.slen = 0
         if self.connection is None:
@@ -182,17 +182,17 @@ cdef class SDPMedia:
         cdef int index
         cdef object format
         cdef SDPAttribute attr
-        str_to_pj_str(self.media, &self.c_obj.desc.media)
-        str_to_pj_str(self.transport, &self.c_obj.desc.transport)
+        _str_to_pj_str(self.media, &self.c_obj.desc.media)
+        _str_to_pj_str(self.transport, &self.c_obj.desc.transport)
         if self.formats is None:
             self.formats = []
         self.c_obj.desc.fmt_count = len(self.formats)
         if self.c_obj.desc.fmt_count > PJMEDIA_MAX_SDP_FMT:
             raise SIPCoreError("Too many formats")
         for index, format in enumerate(self.formats):
-            str_to_pj_str(format, &self.c_obj.desc.fmt[index])
+            _str_to_pj_str(format, &self.c_obj.desc.fmt[index])
         if self.info:
-            str_to_pj_str(self.info, &self.c_obj.info)
+            _str_to_pj_str(self.info, &self.c_obj.info)
         else:
             self.c_obj.info.slen = 0
         if self.connection is None:
@@ -249,9 +249,9 @@ cdef class SDPConnection:
         self.address = address
 
     cdef int _to_c(self) except -1:
-        str_to_pj_str(self.net_type, &self.c_obj.net_type)
-        str_to_pj_str(self.address_type, &self.c_obj.addr_type)
-        str_to_pj_str(self.address, &self.c_obj.addr)
+        _str_to_pj_str(self.net_type, &self.c_obj.net_type)
+        _str_to_pj_str(self.address_type, &self.c_obj.addr_type)
+        _str_to_pj_str(self.address, &self.c_obj.addr)
         return 0
 
     def __repr__(self):
@@ -282,8 +282,8 @@ cdef class SDPAttribute:
         self.value = value
 
     cdef int _to_c(self) except -1:
-        str_to_pj_str(self.name, &self.c_obj.name)
-        str_to_pj_str(self.value, &self.c_obj.value)
+        _str_to_pj_str(self.name, &self.c_obj.name)
+        _str_to_pj_str(self.value, &self.c_obj.value)
         return 0
 
     def __repr__(self):
@@ -311,14 +311,14 @@ cdef SDPSession c_make_SDPSession(pjmedia_sdp_session_ptr_const pj_session):
     cdef int i
     if pj_session.conn != NULL:
         connection = c_make_SDPConnection(pj_session.conn)
-    return SDPSession(pj_str_to_str(pj_session.origin.addr),
+    return SDPSession(_pj_str_to_str(pj_session.origin.addr),
                       pj_session.origin.id,
                       pj_session.origin.version,
-                      pj_str_to_str(pj_session.origin.user),
-                      pj_str_to_str(pj_session.origin.net_type),
-                      pj_str_to_str(pj_session.origin.addr_type),
-                      pj_str_to_str(pj_session.name),
-                      pj_str_to_str(pj_session.info) or None,
+                      _pj_str_to_str(pj_session.origin.user),
+                      _pj_str_to_str(pj_session.origin.net_type),
+                      _pj_str_to_str(pj_session.origin.addr_type),
+                      _pj_str_to_str(pj_session.name),
+                      _pj_str_to_str(pj_session.info) or None,
                       connection,
                       pj_session.time.start,
                       pj_session.time.stop,
@@ -330,17 +330,17 @@ cdef SDPMedia c_make_SDPMedia(pjmedia_sdp_media *pj_media):
     cdef int i
     if pj_media.conn != NULL:
         connection = c_make_SDPConnection(pj_media.conn)
-    return SDPMedia(pj_str_to_str(pj_media.desc.media),
+    return SDPMedia(_pj_str_to_str(pj_media.desc.media),
                     pj_media.desc.port,
-                    pj_str_to_str(pj_media.desc.transport),
+                    _pj_str_to_str(pj_media.desc.transport),
                     pj_media.desc.port_count,
-                    [pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)],
-                    pj_str_to_str(pj_media.info) or None,
+                    [_pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)],
+                    _pj_str_to_str(pj_media.info) or None,
                     connection,
                     [c_make_SDPAttribute(pj_media.attr[i]) for i in range(pj_media.attr_count)])
 
 cdef SDPConnection c_make_SDPConnection(pjmedia_sdp_conn *pj_conn):
-    return SDPConnection(pj_str_to_str(pj_conn.addr), pj_str_to_str(pj_conn.net_type), pj_str_to_str(pj_conn.addr_type))
+    return SDPConnection(_pj_str_to_str(pj_conn.addr), _pj_str_to_str(pj_conn.net_type), _pj_str_to_str(pj_conn.addr_type))
 
 cdef SDPAttribute c_make_SDPAttribute(pjmedia_sdp_attr *pj_attr):
-    return SDPAttribute(pj_str_to_str(pj_attr.name), pj_str_to_str(pj_attr.value))
+    return SDPAttribute(_pj_str_to_str(pj_attr.name), _pj_str_to_str(pj_attr.value))

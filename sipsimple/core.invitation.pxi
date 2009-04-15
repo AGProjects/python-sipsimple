@@ -51,10 +51,10 @@ cdef class Invitation:
         try:
             self.transport = rdata.tp_info.transport.type_name.lower()
             request_uri = c_make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
-            if c_is_valid_ip(pj_AF_INET(), request_uri.host):
+            if _is_valid_ip(pj_AF_INET(), request_uri.host):
                 self.c_local_contact_uri = request_uri
             else:
-                self.c_local_contact_uri = SIPURI(host=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                self.c_local_contact_uri = SIPURI(host=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                   user=request_uri.user,
                                                   port=rdata.tp_info.transport.local_name.port,
                                                   parameters=({"transport":transport} if self.transport != "udp" else {}))
@@ -190,7 +190,7 @@ cdef class Invitation:
             if self.c_dlg == NULL:
                 return None
             else:
-                return pj_str_to_str(self.c_dlg.call_id.id)
+                return _pj_str_to_str(self.c_dlg.call_id.id)
 
     property local_contact_uri:
 
@@ -262,11 +262,11 @@ cdef class Invitation:
         event_dict = dict(obj=self, prev_state=self.state, state=state)
         self.state = state
         if rdata != NULL:
-            c_rdata_info_to_dict(rdata, event_dict)
+            _rdata_info_to_dict(rdata, event_dict)
         if state == "DISCONNECTED":
             if not self.c_obj.cancelling and rdata == NULL and self.c_obj.cause > 0:
                 event_dict["code"] = self.c_obj.cause
-                event_dict["reason"] = pj_str_to_str(self.c_obj.cause_text)
+                event_dict["reason"] = _pj_str_to_str(self.c_obj.cause_text)
             self.c_obj.mod_data[ua.c_module.id] = NULL
             self.c_obj = NULL
             self.c_dlg = NULL
@@ -295,7 +295,7 @@ cdef class Invitation:
             pjmedia_sdp_neg_get_active_remote(self.c_obj.neg, &remote_sdp)
             event_dict["remote_sdp"] = c_make_SDPSession(remote_sdp)
         else:
-            event_dict["error"] = pj_status_to_str(status)
+            event_dict["error"] = _pj_status_to_str(status)
         c_add_event("SIPInvitationGotSDPUpdate", event_dict)
         if self.state == "REINVITED":
             self._cb_state(ua, "CONFIRMED", NULL)
@@ -305,7 +305,7 @@ cdef class Invitation:
 
     cdef int _send_msg(self, PJSIPUA ua, pjsip_tx_data *tdata, dict extra_headers) except -1:
         cdef int status
-        c_add_headers_to_tdata(tdata, extra_headers)
+        _add_headers_to_tdata(tdata, extra_headers)
         status = pjsip_inv_send_msg(self.c_obj, tdata)
         if status != 0:
             raise PJSIPError("Could not send message in context of INVITE session", status)
@@ -378,7 +378,7 @@ cdef class Invitation:
         try:
             self._send_response(ua, 200, extra_headers)
         except PJSIPError, e:
-            if not pj_status_to_def(e.status).startswith("PJMEDIA_SDPNEG"):
+            if not _pj_status_to_def(e.status).startswith("PJMEDIA_SDPNEG"):
                 raise
 
     cdef int _send_response(self, PJSIPUA ua, int response_code, dict extra_headers) except -1:

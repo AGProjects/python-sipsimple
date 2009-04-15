@@ -86,7 +86,7 @@ cdef class Subscription:
         if tsx == NULL:
             c_add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state))
         else:
-            c_add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state, code=tsx.status_code, reason=pj_str_to_str(tsx.status_text)))
+            c_add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state, code=tsx.status_code, reason=_pj_str_to_str(tsx.status_text)))
         return 0
 
     cdef int _cb_notify(self, pjsip_rx_data *rdata) except -1:
@@ -94,8 +94,8 @@ cdef class Subscription:
         if c_body != NULL:
             c_add_event("SIPSubscriptionGotNotify", dict(obj=self,
                                                         body=PyString_FromStringAndSize(<char *> c_body.data, c_body.len),
-                                                        content_type=pj_str_to_str(c_body.content_type.type),
-                                                        content_subtype=pj_str_to_str(c_body.content_type.subtype)))
+                                                        content_type=_pj_str_to_str(c_body.content_type.type),
+                                                        content_subtype=_pj_str_to_str(c_body.content_type.subtype)))
         return 0
 
     cdef int _cb_refresh(self) except -1:
@@ -141,7 +141,7 @@ cdef class Subscription:
             status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
             if status != 0:
                 raise PJSIPError("Could not create SUBSCRIBE message", status)
-            c_add_headers_to_tdata(c_tdata, self.c_extra_headers)
+            _add_headers_to_tdata(c_tdata, self.c_extra_headers)
             status = pjsip_evsub_send_request(self.c_obj, c_tdata)
             if status != 0:
                 raise PJSIPError("Could not send SUBSCRIBE message", status)
@@ -173,7 +173,7 @@ cdef class EventPackage:
         self.accept_types = accept_types
         self.c_event = PJSTR(event)
         for c_index, c_accept_type in enumerate(accept_types):
-            str_to_pj_str(c_accept_type, &c_accept[c_index])
+            _str_to_pj_str(c_accept_type, &c_accept[c_index])
         status = pjsip_evsub_register_pkg(&ua.c_event_module, &self.c_event.pj_str, 300, c_accept_cnt, c_accept)
         if status != 0:
             raise PJSIPError("Could not register event package", status)

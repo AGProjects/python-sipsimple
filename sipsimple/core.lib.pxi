@@ -56,7 +56,7 @@ cdef class PJSIPEndpoint:
         global _inv_cb, _tls_protocol_mapping
         cdef pj_dns_resolver *resolver
         cdef int status
-        if local_ip is not None and not c_is_valid_ip(pj_AF_INET(), local_ip):
+        if local_ip is not None and not _is_valid_ip(pj_AF_INET(), local_ip):
             raise ValueError("Not a valid IPv4 address: %s" % local_ip)
         status = pjsip_endpt_create(&caching_pool._obj.factory, "core",  &self._obj)
         if status != 0:
@@ -116,7 +116,7 @@ cdef class PJSIPEndpoint:
             raise SIPCoreError("Invalid port: %d" % local_port)
         if local_ip is not None and local_ip is not "0.0.0.0":
             local_ip_p = &local_ip_pj
-            str_to_pj_str(local_ip, local_ip_p)
+            _str_to_pj_str(local_ip, local_ip_p)
         status = pj_sockaddr_in_init(local_addr, local_ip_p, local_port)
         if status != 0:
             raise PJSIPError("Could not create local address", status)

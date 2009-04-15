@@ -43,7 +43,7 @@ cdef class Publication:
         status = pjsip_publishc_create(ua.c_pjsip_endpoint._obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not create publication", status)
-        str_to_pj_str(event, &c_event)
+        _str_to_pj_str(event, &c_event)
         status = pjsip_publishc_init(self.c_obj, &c_event, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, expires)
         if status != 0:
             raise PJSIPError("Could not init publication", status)
@@ -81,7 +81,7 @@ cdef class Publication:
             cdef int status
             status = pjsip_publishc_update_expires(self.c_obj, value)
             if status != 0:
-                raise SIPCoreError('Could not set new "expires" value: %s' % pj_status_to_str(status))
+                raise SIPCoreError('Could not set new "expires" value: %s' % _pj_status_to_str(status))
             self.c_expires = value
 
     property extra_headers:
@@ -128,7 +128,7 @@ cdef class Publication:
                     self.state = "published"
         else:
             raise SIPCoreError("Unexpected response callback in Publication")
-        c_add_event("SIPPublicationChangedState", dict(obj=self, state=self.state, code=param.code, reason=pj_str_to_str(param.reason)))
+        c_add_event("SIPPublicationChangedState", dict(obj=self, state=self.state, code=param.code, reason=_pj_str_to_str(param.reason)))
         if self.c_new_publish:
             self.c_new_publish = 0
             self._send_pub(1)
@@ -204,7 +204,7 @@ cdef class Publication:
             status = pjsip_publishc_unpublish(self.c_obj, &self.c_tx_data)
             if status != 0:
                 raise PJSIPError("Could not create PUBLISH request", status)
-        c_add_headers_to_tdata(self.c_tx_data, self.c_extra_headers)
+        _add_headers_to_tdata(self.c_tx_data, self.c_extra_headers)
 
     cdef int _send_pub(self, bint publish) except -1:
         status = pjsip_publishc_send(self.c_obj, self.c_tx_data)

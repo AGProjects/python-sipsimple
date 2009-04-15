@@ -209,11 +209,11 @@ cdef class PJSIPUA:
         def __get__(self):
             self.c_check_self()
             if self.c_pjsip_endpoint._udp_transport != NULL:
-                return pj_str_to_str(self.c_pjsip_endpoint._udp_transport.local_name.host)
+                return _pj_str_to_str(self.c_pjsip_endpoint._udp_transport.local_name.host)
             elif self.c_pjsip_endpoint._tcp_transport != NULL:
-                return pj_str_to_str(self.c_pjsip_endpoint._tcp_transport.addr_name.host)
+                return _pj_str_to_str(self.c_pjsip_endpoint._tcp_transport.addr_name.host)
             elif self.c_pjsip_endpoint._tls_transport != NULL:
-                return pj_str_to_str(self.c_pjsip_endpoint._tls_transport.addr_name.host)
+                return _pj_str_to_str(self.c_pjsip_endpoint._tls_transport.addr_name.host)
             else:
                 return None
 
@@ -432,9 +432,9 @@ cdef class PJSIPUA:
         cdef pj_sockaddr_in stun_server
         cdef int status
         self.c_check_self()
-        if not c_is_valid_ip(pj_AF_INET(), stun_server_address):
+        if not _is_valid_ip(pj_AF_INET(), stun_server_address):
             raise ValueError("Not a valid IPv4 address: %s" % stun_server_address)
-        str_to_pj_str(stun_server_address, &c_stun_server_address)
+        _str_to_pj_str(stun_server_address, &c_stun_server_address)
         status = pj_sockaddr_in_init(&stun_server, &c_stun_server_address, stun_server_port)
         if status != 0:
             raise PJSIPError("Could not init STUN server address", status)
@@ -531,7 +531,7 @@ cdef class PJSIPUA:
         cdef pjsip_via_hdr *top_via, *via
         cdef pjsip_transaction *tsx = NULL
         cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
-        cdef object method_name = pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
+        cdef object method_name = _pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
         # Temporarily trick PJSIP into believing the last Via header is actually the first
         if method_name != "ACK":
             top_via = via = rdata.msg_info.via
@@ -566,8 +566,8 @@ cdef class PJSIPUA:
             message_params = dict()
             message_params["to_uri"] = c_make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
             message_params["from_uri"] = c_make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
-            message_params["content_type"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
-            message_params["content_subtype"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
+            message_params["content_type"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
+            message_params["content_subtype"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data, rdata.msg_info.msg.body.len)
             c_add_event("SIPEngineGotMessage", message_params)
             status = pjsip_endpt_create_response(self.c_pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
@@ -639,7 +639,7 @@ cdef int cb_trace_rx(pjsip_rx_data *rdata) with gil:
             c_add_event("SIPEngineSIPTrace", dict(received=True,
                                                  source_ip=rdata.pkt_info.src_name,
                                                  source_port=rdata.pkt_info.src_port,
-                                                 destination_ip=pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                                 destination_ip=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                  destination_port=rdata.tp_info.transport.local_name.port,
                                                  data=PyString_FromStringAndSize(rdata.pkt_info.packet, rdata.pkt_info.len),
                                                  transport=rdata.tp_info.transport.type_name))
@@ -656,7 +656,7 @@ cdef int cb_trace_tx(pjsip_tx_data *tdata) with gil:
     try:
         if ua.c_trace_sip:
             c_add_event("SIPEngineSIPTrace", dict(received=False,
-                                                 source_ip=pj_str_to_str(tdata.tp_info.transport.local_name.host),
+                                                 source_ip=_pj_str_to_str(tdata.tp_info.transport.local_name.host),
                                                  source_port=tdata.tp_info.transport.local_name.port,
                                                  destination_ip=tdata.tp_info.dst_name,
                                                  destination_port=tdata.tp_info.dst_port,
