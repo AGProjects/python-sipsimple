@@ -558,12 +558,12 @@ class ChatManager(NotificationHandler):
             if arg == 'sip':
                 self.logger.sip_to_stdout = not self.logger.sip_to_stdout
                 settings = SIPSimpleSettings()
-                self.engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+                self.engine._obj.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
                 print "SIP tracing to console is now %s" % ("activated" if self.logger.sip_to_stdout else "deactivated")
             elif arg == 'pjsip':
                 self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
                 settings = SIPSimpleSettings()
-                self.engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+                self.engine._obj.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
                 print "PJSIP tracing to console is now %s" % ("activated, log level=%s" % self.engine.log_level if self.logger.pjsip_to_stdout else "deactivated")
             elif arg == 'notifications':
                 logstate.EngineTracer().toggle()
