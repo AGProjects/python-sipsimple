@@ -88,7 +88,6 @@ class PJSIP_build_ext(build_ext):
         if not os.path.exists(self.svn_dir):
             log.info("Fetching PJSIP from SVN repository")
             distutils_exec_process(["svn", "co", "-r", self.pjsip_svn_revision, self.pjsip_svn_repo, self.svn_dir], True, input='t\n')
-            open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site))
         else:
             log.info("PJSIP SVN tree found, updating from SVN repository")
             try:
@@ -102,6 +101,7 @@ class PJSIP_build_ext(build_ext):
 
     def patch_pjsip(self):
         log.info("Patching PJSIP")
+        open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
         distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
         for patch_file in self.patch_files:
             distutils_exec_process(["patch", "--forward", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
