@@ -15,10 +15,13 @@ from threading import Timer
 from Queue import Queue
 from optparse import OptionParser
 from socket import gethostbyname
+from time import sleep
 
 from zope.interface import implements
 
 from application.notification import IObserver
+from application.process import process, ProcessError
+from application.log import start_syslog
 
 from sipsimple.engine import Engine
 from sipsimple.core import SIPURI, SIPCoreError
@@ -82,7 +85,7 @@ def print_control_keys():
     print "  Ctrl-d: quit the program"
     print "  ?: display this help message"
 
-def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns):
+def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, fork):
     global user_quit, lock, queue, return_code
     lock.acquire()
     sess = None
@@ -93,7 +96,8 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
     try:
         if hasattr(account, "stun_servers") and account.stun_servers:
             e.detect_nat_type(*account.stun_servers[0])
-        print_control_keys()
+        if not fork:
+            print_control_keys()
         while True:
             sys.stdout.flush()
             command, data = queue.get()
@@ -326,8 +330,20 @@ def twisted_reactor_thread():
     from eventlet.twistedutil import join_reactor
     reactor.run(installSignalHandlers=False)
 
-def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, trace_notifications, auto_answer, auto_hangup):
+def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, trace_notifications, auto_answer, auto_hangup, fork):
     global user_quit, lock, queue
+
+    # deamonize if needed
+
+    if fork:
+        try:
+            print "Forking into background..."
+            process.daemonize("sip_audio_session.pid")
+        except ProcessError,e :
+            print "Failed to deamonize: %s" % e
+            return_code = 1
+            return
+        start_syslog("sip_audio_session")
 
     # start twisted thread
 
@@ -429,18 +445,22 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
                 routes_dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
 
     # start thread and process user input
-    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns))
-    atexit.register(termios_restore)
+    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, fork))
+    if not fork:
+        atexit.register(termios_restore)
     ctrl_d_pressed = False
     try:
         while True:
-            char = getchar()
-            if char == "\x04":
-                if not ctrl_d_pressed:
-                    queue.put(("eof", None))
-                    ctrl_d_pressed = True
+            if fork:
+                sleep(60)
             else:
-                queue.put(("user_input", char))
+                char = getchar()
+                if char == "\x04":
+                    if not ctrl_d_pressed:
+                        queue.put(("eof", None))
+                        ctrl_d_pressed = True
+                else:
+                    queue.put(("user_input", char))
     except KeyboardInterrupt:
         if user_quit:
             print "Ctrl+C pressed, exiting instantly!"
@@ -480,8 +500,12 @@ def parse_options():
     parser.add_option("--auto-answer", action="callback", callback=parse_handle_call_option, callback_args=('auto_answer',), help="Interval after which to answer an incoming session (disabled by default). If the option is specified but the interval is not, it defaults to 0 (accept the session as soon as it starts ringing).", metavar="[INTERVAL]")
     parser.set_default("auto_hangup", None)
     parser.add_option("--auto-hangup", action="callback", callback=parse_handle_call_option, callback_args=('auto_hangup',), help="Interval after which to hang up an established session (applies only to outgoing sessions, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the session as soon as it connects).", metavar="[INTERVAL]")
+    parser.add_option("-D", "--daemonize", action="store_true", dest="fork", default=False, help="Enabled running this program as a deamon. Note that this forces --disable-sound and --auto-answer.")
     options, args = parser.parse_args()
     retval = options.__dict__.copy()
+    if retval["fork"]:
+        retval["auto_answer"] = True
+        retval["disable_sound"] = True
     if args:
         retval["target_uri"] = args[0]
     else:
