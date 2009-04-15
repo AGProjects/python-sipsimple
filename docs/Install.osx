@@ -23,6 +23,74 @@ II. Manual installation
 I. MAC ports installation
 -------------------------
 
+The installation procedure consists of the steps described below:
+
+Step 1. Prerequisites
+Step 2. Install the SIP SIMPLE framework
+
+
+Step 1. Prerequisites
+---------------------
+
+a. MacOSx 10.5 Leopard on Intel CPU
+b. Install Apple Developer tools
+c. Install Macports from http://www.macports.org/
+d. Optionally install Porticus from http://www.apple.com/downloads/macosx/development_tools/porticus.html
+   (if you want a GUI to manage macports)
+
+
+1.1 Configure macports
+----------------------
+
+Edit /opt/local/etc/macports/macports.conf and set portarchivemode to yes like below:
+
+portarchivemode yes
+
+Edit /opt/local/etc/macports/sources.conf and add a line reading 
+
+rsync://rsync.ag-projects.com/macports/
+
+before the other rsync:// lines in the file. After that run:
+
+sudo port selfupdate
+
+
+Step 2. Install the SIP SIMPLE framework
+----------------------------------------
+
+Run the following command:
+
+sudo port install py25-sipsimple
+
+or if you installed Porticus, select py25-sipsimple in the porticus user interface and install it.
+
+Note: if while running, the above command it stops during the installation of py25-py, with
+an error message reading 'Not a directory', please rerun the command.
+
+Note 2: To make the macports python25 installation the default python interpreter, run the
+following commands:
+
+sudo port install python_select
+sudo python_select python25
+
+
+Upgrade procedure for the SIP SIMPLE framework on MacOSX using Macports
+-----------------------------------------------------------------------
+
+To upgrade to the latest available version issue the following commands:
+
+sudo port sync
+sudo port upgrade py25-sipsimple
+
+Note: if you are upgrading from a version prior to 0.9.0, first you have to remove the old
+package as it used to have a different name, but some files are shared and will conflict.
+Since macports cannot do this automatically yet, it has to be done manually. Use the
+following commands to remove all of the previous version and install the latest one:
+
+sudo port uninstall sipclient @0.3.0_0
+sudo port uninstall sipclient @0.4.0_0
+sudo port clean --all sipclient
+sudo port install py25-sipsimple
 
 
 II. Manual installation
