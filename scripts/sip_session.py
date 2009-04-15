@@ -721,7 +721,7 @@ def start(options, console):
     account = options.account
     settings = SIPSimpleSettings()
     engine = GreenEngine()
-    engine.start_cfg(enable_sound=not options.disable_sound,
+    engine.start_cfg(enable_sound=False,
         log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or options.trace_pjsip) else 0,
         trace_sip=settings.logging.trace_sip or options.trace_sip)
     try:
@@ -729,9 +729,11 @@ def start(options, console):
             print "Available audio input devices: %s" % ", ".join(sorted(engine.recording_devices))
         if engine.recording_devices:
             print "Available audio output devices: %s" % ", ".join(sorted(engine.playback_devices))
-        if not options.disable_sound:
+        if options.disable_sound:
+            engine.set_sound_devices(playback_device="Dummy", recording_device="Dummy")
+        else:
             engine.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
-            print "Using audio input device: %s" % engine.current_recording_device
+        print "Using audio input device: %s" % engine.current_recording_device
         print "Using audio output device: %s" % engine.current_playback_device
         engine.codecs = list(account.audio.codec_list)
         if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
