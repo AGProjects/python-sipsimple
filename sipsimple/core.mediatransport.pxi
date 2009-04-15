@@ -425,7 +425,7 @@ cdef class AudioTransport:
             pjmedia_stream_destroy(self.c_obj)
             self.c_obj = NULL
             raise PJSIPError("Could not get audio port for audio session", status)
-        status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.c_pool, media_port, NULL, &self.c_conf_slot)
+        status = pjmedia_conf_add_port(ua.c_conf_bridge._obj, self.c_pool, media_port, NULL, &self.c_conf_slot)
         if status != 0:
             pjmedia_stream_destroy(self.c_obj)
             self.c_obj = NULL
@@ -440,7 +440,7 @@ cdef class AudioTransport:
         if self.c_obj == NULL:
             return
         ua.c_conf_bridge._disconnect_slot(self.c_conf_slot)
-        pjmedia_conf_remove_port(ua.c_conf_bridge.c_obj, self.c_conf_slot)
+        pjmedia_conf_remove_port(ua.c_conf_bridge._obj, self.c_conf_slot)
         pjmedia_stream_destroy(self.c_obj)
         self.c_obj = NULL
         self.transport.set_INIT()

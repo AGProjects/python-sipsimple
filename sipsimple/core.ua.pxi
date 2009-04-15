@@ -165,19 +165,21 @@ cdef class PJSIPUA:
             return self.c_conf_bridge._get_current_device(0)
 
     def set_sound_devices(self, object playback_device=None, object recording_device=None, object tail_length=None):
-        cdef int c_playback_device = -1
-        cdef int c_recording_device = -1
-        cdef unsigned int c_tail_length = self.ec_tail_length
+        cdef int playback_device_id = -1
+        cdef int recording_device_id = -1
+        cdef unsigned int ec_tail_length = self.ec_tail_length
         self.c_check_self()
+        if tail_length is not None:
+            if tail_length < 0:
+                raise ValueError("tail_length parameters may not be negative")
+            ec_tail_length = tail_length
         if playback_device is not None:
-            c_playback_device = self.c_conf_bridge._find_sound_device(playback_device, 1)
+            playback_device_id = self.c_conf_bridge._find_sound_device(playback_device, 1)
         if recording_device is not None:
-            c_recording_device = self.c_conf_bridge._find_sound_device(recording_device, 0)
+            recording_device_id = self.c_conf_bridge._find_sound_device(recording_device, 0)
+        self.c_conf_bridge._set_sound_devices(playback_device_id, recording_device_id, ec_tail_length)
         if tail_length is not None:
-            c_tail_length = tail_length
-        self.c_conf_bridge._set_sound_devices(c_playback_device, c_recording_device, c_tail_length)
-        if tail_length is not None:
-            self.ec_tail_length = c_tail_length
+            self.ec_tail_length = ec_tail_length
 
     property codecs:
 
@@ -298,11 +300,11 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_conf_bridge.c_tonegen != NULL
+            return self.c_conf_bridge._tonegen != NULL
 
         def __set__(self, value):
             self.c_check_self()
-            if bool(value) == (self.c_conf_bridge.c_tonegen != NULL):
+            if bool(value) == (self.c_conf_bridge._tonegen != NULL):
                 return
             if bool(value):
                 self.c_conf_bridge._enable_playback_dtmf()
