@@ -412,7 +412,7 @@ class ChatManager(NotificationHandler):
         self.procs.spawn(self._call, target_uri, use_audio, use_chat)
 
     def _call(self, target_uri, use_audio, use_chat):
-        OK = False
+        session = None
         try:
             session = ChatSession(self, self.account, remote_party=format_uri(target_uri))
             session.update_info(chat=use_chat, audio=use_audio)
@@ -422,11 +422,11 @@ class ChatManager(NotificationHandler):
                 print 'ERROR: No route found to SIP proxy for "%s"' % target_uri
                 return
             session.connect(target_uri, routes, chat=use_chat, audio=use_audio)
-            OK = True
+            session = None
         except SessionError:
             pass
         finally:
-            if not OK:
+            if session is not None:
                 self.remove_session(session)
 
     @staticmethod
