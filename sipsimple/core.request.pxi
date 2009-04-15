@@ -1,6 +1,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+# python imports
+
 from datetime import datetime, timedelta
 
 # main class
@@ -108,7 +110,8 @@ cdef class Request:
 
     # public methods
 
-    def __cinit__(self, method, Credentials credentials, SIPURI to_uri, SIPURI request_uri, SIPURI contact_uri, Route route, call_id=None, cseq=None, dict extra_headers=None, content_type=None, body=None):
+    def __cinit__(self, method, Credentials credentials, SIPURI to_uri, SIPURI request_uri, SIPURI contact_uri,
+                  Route route, call_id=None, cseq=None, dict extra_headers=None, content_type=None, body=None):
         cdef pjsip_method method_pj
         cdef PJSTR from_uri_str
         cdef PJSTR to_uri_str
@@ -172,10 +175,13 @@ cdef class Request:
             self._content_type = PJSTR(content_type_spl[0])
             self._content_subtype = PJSTR(content_type_spl[1])
             self._body = PJSTR(body)
-        status = pjsip_endpt_create_request(ua._pjsip_endpoint._obj, &method_pj, &request_uri_str.pj_str, &from_uri_str.pj_str, &to_uri_str.pj_str, &contact_uri_str.pj_str, call_id_pj, self.cseq, NULL, &self._tdata)
+        status = pjsip_endpt_create_request(ua._pjsip_endpoint._obj, &method_pj, &request_uri_str.pj_str,
+                                            &from_uri_str.pj_str, &to_uri_str.pj_str, &contact_uri_str.pj_str,
+                                            call_id_pj, self.cseq, NULL, &self._tdata)
         if status != 0:
             raise PJSIPError("Could not create request", status)
-        self._tdata.msg.body = pjsip_msg_body_create(self._tdata.pool, &self._content_type.pj_str, &self._content_subtype.pj_str, &self._body.pj_str)
+        self._tdata.msg.body = pjsip_msg_body_create(self._tdata.pool, &self._content_type.pj_str,
+                                                     &self._content_subtype.pj_str, &self._body.pj_str)
         hdr = <pjsip_hdr *> (<pj_list *> &self._tdata.msg.hdr).next
         while hdr != &self._tdata.msg.hdr:
             if _pj_str_to_str(hdr.name) in self._extra_headers.iterkeys():
@@ -287,7 +293,9 @@ cdef class Request:
                 self._need_auth = 0
                 status = pjsip_auth_clt_reinit_req(&self._auth, rdata, self._tdata, &tdata_auth)
                 if status != 0:
-                    _add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not add auth data to request %s" % _pj_status_to_str(status)))
+                    _add_event("SIPRequestDidFail",
+                               dict(obj=self, code=0,
+                                    reason="Could not add auth data to request %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
                 cseq = <pjsip_cseq_hdr *> pjsip_msg_find_hdr(tdata_auth.msg, PJSIP_H_CSEQ, NULL)
@@ -297,7 +305,10 @@ cdef class Request:
                 status = pjsip_tsx_create_uac(&ua._module, tdata_auth, &tsx_auth)
                 if status != 0:
                     pjsip_tx_data_dec_ref(tdata_auth)
-                    _add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not create transaction for request with auth %s" % _pj_status_to_str(status)))
+                    _add_event("SIPRequestDidFail",
+                               dict(obj=self, code=0,
+                                    reason="Could not create transaction for request with auth %s" %
+                                            _pj_status_to_str(status)))
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
                 self._tsx.mod_data[ua._module.id] = NULL
@@ -306,7 +317,9 @@ cdef class Request:
                 status = pjsip_tsx_send_msg(self._tsx, tdata_auth)
                 if status != 0:
                     pjsip_tx_data_dec_ref(tdata_auth)
-                    _add_event("SIPRequestDidFail", dict(obj=self, code=0, reason="Could not send request with auth %s" % _pj_status_to_str(status)))
+                    _add_event("SIPRequestDidFail",
+                               dict(obj=self, code=0,
+                                    reason="Could not send request with auth %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
             else:
@@ -351,7 +364,8 @@ cdef class Request:
                 if self._timer_active:
                     pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
                     self._timer_active = 0
-                _add_event("SIPRequestDidFail", dict(obj=self, code=self._tsx.status_code, reason=_pj_str_to_str(self._tsx.status_text)))
+                _add_event("SIPRequestDidFail", dict(obj=self, code=self._tsx.status_code,
+                                                     reason=_pj_str_to_str(self._tsx.status_text)))
                 self.state = "TERMINATED"
                 _add_event("SIPRequestDidEnd", dict(obj=self))
             self._tsx.mod_data[ua._module.id] = NULL
@@ -378,6 +392,7 @@ cdef class Request:
                 self.state = "TERMINATED"
                 _add_event("SIPRequestDidEnd", dict(obj=self))
         return 0
+
 
 # callback functions
 
