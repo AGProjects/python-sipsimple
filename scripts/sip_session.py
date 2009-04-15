@@ -412,6 +412,7 @@ class ChatManager(NotificationHandler):
         self.procs.spawn(self._call, target_uri, use_audio, use_chat)
 
     def _call(self, target_uri, use_audio, use_chat):
+        OK = False
         try:
             session = ChatSession(self, self.account, remote_party=format_uri(target_uri))
             session.update_info(chat=use_chat, audio=use_audio)
@@ -419,15 +420,14 @@ class ChatManager(NotificationHandler):
             routes = get_routes(target_uri, self.engine, self.account)
             if not routes:
                 print 'ERROR: No route found to SIP proxy for "%s"' % target_uri
-                raise SessionError
+                return
             session.connect(target_uri, routes, chat=use_chat, audio=use_audio)
+            OK = True
         except SessionError:
-            # don't print anything as the error was already logged by InvitationLogger
-            self.remove_session(session)
-        except:
-            # connect may raise an error without firing an appropriate notification
-            self.remove_session(session)
-            raise
+            pass
+        finally:
+            if not OK:
+                self.remove_session(session)
 
     @staticmethod
     def make_SDPMedia(uri_path):
