@@ -64,7 +64,7 @@ cdef class PJSIPUA:
         self.c_caching_pool = PJCachingPool()
         self.c_pjmedia_endpoint = PJMEDIAEndpoint(self.c_caching_pool, kwargs["sample_rate"])
         self.c_pjsip_endpoint = PJSIPEndpoint(self.c_caching_pool, kwargs["local_ip"], kwargs["local_udp_port"], kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_protocol"], kwargs["tls_verify_server"], kwargs["tls_ca_file"], kwargs["tls_cert_file"], kwargs["tls_privkey_file"], kwargs["tls_timeout"])
-        status = pj_mutex_create_simple(self.c_pjsip_endpoint.c_pool, "event_queue_lock", &_event_queue_lock)
+        status = pj_mutex_create_simple(self.c_pjsip_endpoint._pool, "event_queue_lock", &_event_queue_lock)
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
         self.codecs = kwargs["codecs"]
@@ -78,10 +78,10 @@ cdef class PJSIPUA:
         self.c_module.priority = PJSIP_MOD_PRIORITY_APPLICATION
         self.c_module.on_rx_request = cb_PJSIPUA_rx_request
         self.c_module.on_tsx_state = _Request_cb_tsx_state
-        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_module)
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint._obj, &self.c_module)
         if status != 0:
             raise PJSIPError("Could not load application module", status)
-        status = pjsip_endpt_add_capability(self.c_pjsip_endpoint.c_obj, &self.c_module, PJSIP_H_ALLOW, NULL, 1, &c_message_method.pj_str)
+        status = pjsip_endpt_add_capability(self.c_pjsip_endpoint._obj, &self.c_module, PJSIP_H_ALLOW, NULL, 1, &c_message_method.pj_str)
         if status != 0:
             raise PJSIPError("Could not add MESSAGE method to supported methods", status)
         self.c_trace_sip = bool(kwargs["trace_sip"])
@@ -93,7 +93,7 @@ cdef class PJSIPUA:
         self.c_trace_module.on_rx_response = cb_trace_rx
         self.c_trace_module.on_tx_request = cb_trace_tx
         self.c_trace_module.on_tx_response = cb_trace_tx
-        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_trace_module)
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint._obj, &self.c_trace_module)
         if status != 0:
             raise PJSIPError("Could not load sip trace module", status)
         self.c_ua_tag_module_name = PJSTR("mod-core-ua-tag")
@@ -102,21 +102,21 @@ cdef class PJSIPUA:
         self.c_ua_tag_module.priority = PJSIP_MOD_PRIORITY_TRANSPORT_LAYER+1
         self.c_ua_tag_module.on_tx_request = cb_add_user_agent_hdr
         self.c_ua_tag_module.on_tx_response = cb_add_server_hdr
-        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_ua_tag_module)
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint._obj, &self.c_ua_tag_module)
         if status != 0:
             raise PJSIPError("Could not load User-Agent/Server header tagging module", status)
         self.c_event_module_name = PJSTR("mod-core-events")
         self.c_event_module.name = self.c_event_module_name.pj_str
         self.c_event_module.id = -1
         self.c_event_module.priority = PJSIP_MOD_PRIORITY_DIALOG_USAGE
-        status = pjsip_endpt_register_module(self.c_pjsip_endpoint.c_obj, &self.c_event_module)
+        status = pjsip_endpt_register_module(self.c_pjsip_endpoint._obj, &self.c_event_module)
         if status != 0:
             raise PJSIPError("Could not load events module", status)
         self.c_user_agent = PJSTR(kwargs["user_agent"])
         for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
         self.rtp_port_range = kwargs["rtp_port_range"]
-        pj_stun_config_init(&self.c_stun_cfg, &self.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(self.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(self.c_pjsip_endpoint.c_obj))
+        pj_stun_config_init(&self.c_stun_cfg, &self.c_caching_pool._obj.factory, 0, pjmedia_endpt_get_ioqueue(self.c_pjmedia_endpoint._obj), pjsip_endpt_get_timer_heap(self.c_pjsip_endpoint._obj))
 
     property trace_sip:
 
@@ -144,13 +144,13 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_conf_bridge._get_sound_devices(True)
+            return self.c_conf_bridge._get_sound_devices(1)
 
     property recording_devices:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_conf_bridge._get_sound_devices(False)
+            return self.c_conf_bridge._get_sound_devices(0)
 
     property current_playback_device:
 
@@ -183,7 +183,7 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_pjmedia_endpoint.c_codecs[:]
+            return self.c_pjmedia_endpoint._codecs[:]
 
         def __set__(self, val):
             self.c_check_self()
@@ -195,23 +195,23 @@ cdef class PJSIPUA:
             for codec in new_codecs:
                 if not hasattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec):
                     raise ValueError('Unknown codec "%s"' % codec)
-            for codec in self.c_pjmedia_endpoint.c_codecs:
+            for codec in self.c_pjmedia_endpoint._codecs:
                 getattr(self.c_pjmedia_endpoint, "codec_%s_deinit" % codec)()
-            self.c_pjmedia_endpoint.c_codecs = []
+            self.c_pjmedia_endpoint._codecs = []
             for codec in new_codecs:
                 getattr(self.c_pjmedia_endpoint, "codec_%s_init" % codec)()
-            self.c_pjmedia_endpoint.c_codecs = new_codecs
+            self.c_pjmedia_endpoint._codecs = new_codecs
 
     property local_ip:
 
         def __get__(self):
             self.c_check_self()
-            if self.c_pjsip_endpoint.c_udp_transport != NULL:
-                return pj_str_to_str(self.c_pjsip_endpoint.c_udp_transport.local_name.host)
-            elif self.c_pjsip_endpoint.c_tcp_transport != NULL:
-                return pj_str_to_str(self.c_pjsip_endpoint.c_tcp_transport.addr_name.host)
-            elif self.c_pjsip_endpoint.c_tls_transport != NULL:
-                return pj_str_to_str(self.c_pjsip_endpoint.c_tls_transport.addr_name.host)
+            if self.c_pjsip_endpoint._udp_transport != NULL:
+                return pj_str_to_str(self.c_pjsip_endpoint._udp_transport.local_name.host)
+            elif self.c_pjsip_endpoint._tcp_transport != NULL:
+                return pj_str_to_str(self.c_pjsip_endpoint._tcp_transport.addr_name.host)
+            elif self.c_pjsip_endpoint._tls_transport != NULL:
+                return pj_str_to_str(self.c_pjsip_endpoint._tls_transport.addr_name.host)
             else:
                 return None
 
@@ -219,23 +219,23 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            if self.c_pjsip_endpoint.c_udp_transport == NULL:
+            if self.c_pjsip_endpoint._udp_transport == NULL:
                 return None
-            return self.c_pjsip_endpoint.c_udp_transport.local_name.port
+            return self.c_pjsip_endpoint._udp_transport.local_name.port
 
     def set_local_udp_port(self, value):
         cdef int port
         self.c_check_self()
         if value is None:
-            if self.c_pjsip_endpoint.c_udp_transport == NULL:
+            if self.c_pjsip_endpoint._udp_transport == NULL:
                 return
             self.c_pjsip_endpoint._stop_udp_transport()
         else:
             port = value
             if port < 0 or port > 65535:
                 raise ValueError("Not a valid UDP port: %d" % value)
-            if self.c_pjsip_endpoint.c_udp_transport != NULL:
-                if port == self.c_pjsip_endpoint.c_udp_transport.local_name.port:
+            if self.c_pjsip_endpoint._udp_transport != NULL:
+                if port == self.c_pjsip_endpoint._udp_transport.local_name.port:
                     return
                 self.c_pjsip_endpoint._stop_udp_transport()
             self.c_pjsip_endpoint._start_udp_transport(port)
@@ -244,23 +244,23 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            if self.c_pjsip_endpoint.c_tcp_transport == NULL:
+            if self.c_pjsip_endpoint._tcp_transport == NULL:
                 return None
-            return self.c_pjsip_endpoint.c_tcp_transport.addr_name.port
+            return self.c_pjsip_endpoint._tcp_transport.addr_name.port
 
     def set_local_tcp_port(self, value):
         cdef int port
         self.c_check_self()
         if value is None:
-            if self.c_pjsip_endpoint.c_tcp_transport == NULL:
+            if self.c_pjsip_endpoint._tcp_transport == NULL:
                 return
             self.c_pjsip_endpoint._stop_tcp_transport()
         else:
             port = value
             if port < 0 or port > 65535:
                 raise ValueError("Not a valid TCP port: %d" % value)
-            if self.c_pjsip_endpoint.c_tcp_transport != NULL:
-                if port == self.c_pjsip_endpoint.c_tcp_transport.addr_name.port:
+            if self.c_pjsip_endpoint._tcp_transport != NULL:
+                if port == self.c_pjsip_endpoint._tcp_transport.addr_name.port:
                     return
                 self.c_pjsip_endpoint._stop_tcp_transport()
             self.c_pjsip_endpoint._start_tcp_transport(port)
@@ -269,9 +269,9 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            if self.c_pjsip_endpoint.c_tls_transport == NULL:
+            if self.c_pjsip_endpoint._tls_transport == NULL:
                 return None
-            return self.c_pjsip_endpoint.c_tls_transport.addr_name.port
+            return self.c_pjsip_endpoint._tls_transport.addr_name.port
 
     property rtp_port_range:
 
@@ -335,44 +335,44 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_pjsip_endpoint.c_tls_protocol
+            return self.c_pjsip_endpoint._tls_protocol
 
     property tls_verify_server:
 
         def __get__(self):
             self.c_check_self()
-            return bool(self.c_pjsip_endpoint.c_tls_verify_server)
+            return bool(self.c_pjsip_endpoint._tls_verify_server)
 
     property tls_ca_file:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_pjsip_endpoint.c_tls_ca_file and self.c_pjsip_endpoint.c_tls_ca_file.str or None
+            return self.c_pjsip_endpoint._tls_ca_file and self.c_pjsip_endpoint._tls_ca_file.str or None
 
     property tls_cert_file:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_pjsip_endpoint.c_tls_cert_file and self.c_pjsip_endpoint.c_tls_cert_file.str or None
+            return self.c_pjsip_endpoint._tls_cert_file and self.c_pjsip_endpoint._tls_cert_file.str or None
 
     property tls_privkey_file:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_pjsip_endpoint.c_tls_privkey_file and self.c_pjsip_endpoint.c_tls_privkey_file.str or None
+            return self.c_pjsip_endpoint._tls_privkey_file and self.c_pjsip_endpoint._tls_privkey_file.str or None
 
     property tls_timeout:
 
         def __get__(self):
             self.c_check_self()
-            return self.c_pjsip_endpoint.c_tls_timeout
+            return self.c_pjsip_endpoint._tls_timeout
 
     def set_tls_options(self, local_port=None, protocol="TLSv1", verify_server=False, ca_file=None, cert_file=None, privkey_file=None, int timeout=1000):
         global _tls_protocol_mapping
         cdef int port
         self.c_check_self()
         if local_port is None:
-            if self.c_pjsip_endpoint.c_tls_transport == NULL:
+            if self.c_pjsip_endpoint._tls_transport == NULL:
                 return
             self.c_pjsip_endpoint._stop_tls_transport()
         else:
@@ -389,29 +389,29 @@ cdef class PJSIPUA:
                 raise ValueError("Cannot find the specified private key file: %s" % privkey_file)
             if timeout < 0:
                 raise ValueError("Invalid TLS timeout value: %d" % timeout)
-            if self.c_pjsip_endpoint.c_tls_transport != NULL:
+            if self.c_pjsip_endpoint._tls_transport != NULL:
                 self.c_pjsip_endpoint._stop_tls_transport()
-            self.c_pjsip_endpoint.c_tls_protocol = protocol
-            self.c_pjsip_endpoint.c_tls_verify_server = int(bool(verify_server))
+            self.c_pjsip_endpoint._tls_protocol = protocol
+            self.c_pjsip_endpoint._tls_verify_server = int(bool(verify_server))
             if ca_file is None:
-                self.c_pjsip_endpoint.c_tls_ca_file = None
+                self.c_pjsip_endpoint._tls_ca_file = None
             else:
-                self.c_pjsip_endpoint.c_tls_ca_file = PJSTR(ca_file)
+                self.c_pjsip_endpoint._tls_ca_file = PJSTR(ca_file)
             if cert_file is None:
-                self.c_pjsip_endpoint.c_tls_cert_file = None
+                self.c_pjsip_endpoint._tls_cert_file = None
             else:
-                self.c_pjsip_endpoint.c_tls_cert_file = PJSTR(cert_file)
+                self.c_pjsip_endpoint._tls_cert_file = PJSTR(cert_file)
             if privkey_file is None:
-                self.c_pjsip_endpoint.c_tls_privkey_file = None
+                self.c_pjsip_endpoint._tls_privkey_file = None
             else:
-                self.c_pjsip_endpoint.c_tls_privkey_file = PJSTR(privkey_file)
-            self.c_pjsip_endpoint.c_tls_timeout = timeout
+                self.c_pjsip_endpoint._tls_privkey_file = PJSTR(privkey_file)
+            self.c_pjsip_endpoint._tls_timeout = timeout
             self.c_pjsip_endpoint._start_tls_transport(port)
 
     property sample_rate:
 
         def __get__(self):
-            return self.c_pjmedia_endpoint.c_sample_rate
+            return self.c_pjmedia_endpoint._sample_rate
 
     def connect_audio_transport(self, AudioTransport transport):
         self.c_check_self()
@@ -478,7 +478,7 @@ cdef class PJSIPUA:
         cdef object retval = None
         self.c_check_self()
         with nogil:
-            status = pjsip_endpt_handle_events(self.c_pjsip_endpoint.c_obj, &self.c_max_timeout)
+            status = pjsip_endpt_handle_events(self.c_pjsip_endpoint._obj, &self.c_max_timeout)
         IF UNAME_SYSNAME == "Darwin":
             if status not in [0, PJ_ERRNO_START_SYS + EBADF]:
                 raise PJSIPError("Error while handling events", status)
@@ -544,19 +544,19 @@ cdef class PJSIPUA:
                 raise PJSIPError("Could not generate transaction key for incoming request", status)
             tsx = pjsip_tsx_layer_find_tsx(&tsx_key, 0)
         if tsx != NULL:
-            status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 482, NULL, &tdata)
+            status = pjsip_endpt_create_response(self.c_pjsip_endpoint._obj, rdata, 482, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
         elif method_name == "OPTIONS":
-            status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
+            status = pjsip_endpt_create_response(self.c_pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
             for hdr_type in [PJSIP_H_ALLOW, PJSIP_H_ACCEPT, PJSIP_H_SUPPORTED]:
-                hdr_add = pjsip_endpt_get_capability(self.c_pjsip_endpoint.c_obj, hdr_type, NULL)
+                hdr_add = pjsip_endpt_get_capability(self.c_pjsip_endpoint._obj, hdr_type, NULL)
                 if hdr_add != NULL:
                     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, hdr_add))
         elif method_name == "INVITE":
-            status = pjsip_inv_verify_request(rdata, &options, NULL, NULL, self.c_pjsip_endpoint.c_obj, &tdata)
+            status = pjsip_inv_verify_request(rdata, &options, NULL, NULL, self.c_pjsip_endpoint._obj, &tdata)
             if status == 0:
                 inv = Invitation()
                 inv._init_incoming(self, rdata, options)
@@ -568,15 +568,15 @@ cdef class PJSIPUA:
             message_params["content_subtype"] = pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data, rdata.msg_info.msg.body.len)
             c_add_event("SIPEngineGotMessage", message_params)
-            status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 200, NULL, &tdata)
+            status = pjsip_endpt_create_response(self.c_pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
         elif method_name != "ACK":
-            status = pjsip_endpt_create_response(self.c_pjsip_endpoint.c_obj, rdata, 405, NULL, &tdata)
+            status = pjsip_endpt_create_response(self.c_pjsip_endpoint._obj, rdata, 405, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
         if tdata != NULL:
-            status = pjsip_endpt_send_response2(self.c_pjsip_endpoint.c_obj, rdata, tdata, NULL, NULL)
+            status = pjsip_endpt_send_response2(self.c_pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
             if status != 0:
                 pjsip_tx_data_dec_ref(tdata)
                 raise PJSIPError("Could not send response", status)

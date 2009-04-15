@@ -28,7 +28,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
         raise SIPCoreError('Cannot send a MESSAGE request to "%s", no response received to previous sent MESSAGE request.' % to_uri_to.str)
     message_method.id = PJSIP_OTHER_METHOD
     message_method.name = message_method_name.pj_str
-    status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
+    status = pjsip_endpt_create_request(ua.c_pjsip_endpoint._obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
     if status != 0:
         raise PJSIPError("Could not create MESSAGE request", status)
     pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
@@ -44,7 +44,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
         pjsip_tx_data_dec_ref(tdata)
         raise SIPCoreError("MESSAGE request exceeds 1300 bytes")
     saved_data = credentials.copy(), to_uri_req, to_uri.copy()
-    status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
+    status = pjsip_endpt_send_request(ua.c_pjsip_endpoint._obj, tdata, 10, <void *> saved_data, cb_send_message)
     if status != 0:
         pjsip_tx_data_dec_ref(tdata)
         raise PJSIPError("Could not send MESSAGE request", status)
@@ -81,7 +81,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
             elif tsx.status_code in [401, 407]:
                 final = 0
                 try:
-                    status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint.c_obj, rdata.tp_info.pool, 0)
+                    status = pjsip_auth_clt_init(&auth, ua.c_pjsip_endpoint._obj, rdata.tp_info.pool, 0)
                     if status != 0:
                         raise PJSIPError("Could not init auth", status)
                     credentials._to_c()
@@ -95,7 +95,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
                         else:
                             raise PJSIPError("Could not create auth response", status)
                     else:
-                        status = pjsip_endpt_send_request(ua.c_pjsip_endpoint.c_obj, tdata, 10, <void *> saved_data, cb_send_message)
+                        status = pjsip_endpt_send_request(ua.c_pjsip_endpoint._obj, tdata, 10, <void *> saved_data, cb_send_message)
                         if status != 0:
                             pjsip_tx_data_dec_ref(tdata)
                             raise PJSIPError("Could not send MESSAGE request", status)

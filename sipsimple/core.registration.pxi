@@ -39,7 +39,7 @@ cdef class Registration:
             self.c_contact_uri = PJSTR(contact_uri._as_str(1))
         request_uri = PJSTR(str(SIPURI(credentials.uri.host)))
         fromto_uri = PJSTR(credentials.uri._as_str(0))
-        status = pjsip_regc_create(ua.c_pjsip_endpoint.c_obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
+        status = pjsip_regc_create(ua.c_pjsip_endpoint._obj, <void *> self, cb_Registration_cb_response, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not create client registration", status)
         status = pjsip_regc_init(self.c_obj, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, 1, &self.c_contact_uri.pj_str, expires)
@@ -63,7 +63,7 @@ cdef class Registration:
         except SIPCoreError:
             return
         if self.c_timer.user_data != NULL:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
         if self.c_obj != NULL:
             pjsip_regc_destroy(self.c_obj)
 
@@ -124,14 +124,14 @@ cdef class Registration:
                 pj_timer_entry_init(&self.c_timer, 0, <void *> self, cb_Registration_cb_expire)
                 c_delay.sec = max(1, min(int(param.expiration * random.uniform(0.75, 0.9)), param.expiration - 10))
                 c_delay.msec = 0
-                pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer, &c_delay) # TODO: check return value?
+                pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self.c_timer, &c_delay) # TODO: check return value?
                 c_success = 1
             else:
                 self.state = "unregistered"
         elif self.state == "unregistering":
             if param.code / 100 == 2:
                 self.state = "unregistered"
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
+                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
                 self.c_timer.user_data = NULL
                 c_success = 1
             else:

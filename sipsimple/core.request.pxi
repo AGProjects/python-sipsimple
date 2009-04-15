@@ -172,7 +172,7 @@ cdef class Request:
             self._content_type = PJSTR(content_type_spl[0])
             self._content_subtype = PJSTR(content_type_spl[1])
             self._body = PJSTR(body)
-        status = pjsip_endpt_create_request(ua.c_pjsip_endpoint.c_obj, &method_pj, &request_uri_str.pj_str, &from_uri_str.pj_str, &to_uri_str.pj_str, &contact_uri_str.pj_str, call_id_pj, self.cseq, NULL, &self._tdata)
+        status = pjsip_endpt_create_request(ua.c_pjsip_endpoint._obj, &method_pj, &request_uri_str.pj_str, &from_uri_str.pj_str, &to_uri_str.pj_str, &contact_uri_str.pj_str, call_id_pj, self.cseq, NULL, &self._tdata)
         if status != 0:
             raise PJSIPError("Could not create request", status)
         self._tdata.msg.body = pjsip_msg_body_create(self._tdata.pool, &self._content_type.pj_str, &self._content_subtype.pj_str, &self._body.pj_str)
@@ -190,7 +190,7 @@ cdef class Request:
         pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route.c_route_hdr)
         c_add_headers_to_tdata(self._tdata, self._extra_headers)
         if self._credentials.password is not None:
-            status = pjsip_auth_clt_init(&self._auth, ua.c_pjsip_endpoint.c_obj, self._tdata.pool, 0)
+            status = pjsip_auth_clt_init(&self._auth, ua.c_pjsip_endpoint._obj, self._tdata.pool, 0)
             if status != 0:
                 raise PJSIPError("Could not init authentication credentials", status)
             status = pjsip_auth_clt_set_credentials(&self._auth, 1, &self._credentials.c_obj)
@@ -215,7 +215,7 @@ cdef class Request:
             pjsip_tx_data_dec_ref(self._tdata)
             self._tdata = NULL
         if self._timer_active:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self._timer)
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
             self._timer_active = 0
 
     def send(self, timeout=None):
@@ -233,7 +233,7 @@ cdef class Request:
         if status != 0:
             raise PJSIPError("Could not send request", status)
         pjsip_tx_data_add_ref(self._tdata)
-        status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self._timer, &timeout_pj)
+        status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self._timer, &timeout_pj)
         if status == 0:
             self._timer_active = 1
         self.state = "IN_PROGRESS"
@@ -243,7 +243,7 @@ cdef class Request:
         if self.state == "IN_PROGRESS":
             pjsip_tsx_terminate(self._tsx, 408)
         elif self.state == "EXPIRING":
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self._timer)
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
             self._timer_active = 0
             self.state = "TERMINATED"
             c_add_event("SIPRequestDidEnd", dict(obj=self))
@@ -281,7 +281,7 @@ cdef class Request:
             c_add_event("SIPRequestGotProvisionalResponse", event_dict)
         elif self._tsx.state == PJSIP_TSX_STATE_COMPLETED:
             if self._timer_active:
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self._timer)
+                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
                 self._timer_active = 0
             if self._need_auth and self._tsx.status_code in [401, 407]:
                 self._need_auth = 0
@@ -338,7 +338,7 @@ cdef class Request:
                 else:
                     expire_warning.sec = max(1, min(expires - self.expire_warning_time, expires/2))
                     expire_warning.msec = 0
-                    status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self._timer, &expire_warning)
+                    status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self._timer, &expire_warning)
                     if status == 0:
                         self._timer_active = 1
                         self.state = "EXPIRING"
@@ -349,7 +349,7 @@ cdef class Request:
         if self._tsx.state == PJSIP_TSX_STATE_TERMINATED:
             if self.state == "IN_PROGRESS":
                 if self._timer_active:
-                    pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self._timer)
+                    pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self._timer)
                     self._timer_active = 0
                 c_add_event("SIPRequestDidFail", dict(obj=self, code=self._tsx.status_code, reason=pj_str_to_str(self._tsx.status_text)))
                 self.state = "TERMINATED"
@@ -368,7 +368,7 @@ cdef class Request:
                 expires.sec = self._expire_rest
                 expires.msec = 0
                 self._expire_rest = 0
-                status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self._timer, &expires)
+                status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self._timer, &expires)
                 if status == 0:
                     self._timer_active = 1
                 else:

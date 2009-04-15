@@ -40,7 +40,7 @@ cdef class Publication:
         request_uri = PJSTR(credentials.uri._as_str(1))
         fromto_uri = PJSTR(credentials.uri._as_str(0))
         self.c_credentials._to_c()
-        status = pjsip_publishc_create(ua.c_pjsip_endpoint.c_obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
+        status = pjsip_publishc_create(ua.c_pjsip_endpoint._obj, 0, <void *> self, cb_Publication_cb_response, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not create publication", status)
         str_to_pj_str(event, &c_event)
@@ -65,7 +65,7 @@ cdef class Publication:
         except SIPCoreError:
             return
         if self.c_timer.user_data != NULL:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
         if self.c_obj != NULL:
             pjsip_publishc_destroy(self.c_obj)
 
@@ -107,18 +107,18 @@ cdef class Publication:
             if param.code / 100 == 2:
                 self.state = "published"
                 if self.c_timer.user_data != NULL:
-                    pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
+                    pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
                 pj_timer_entry_init(&self.c_timer, 0, <void *> self, cb_Publication_cb_expire)
                 c_delay.sec = max(1, min(int(param.expiration * random.uniform(0.75, 0.9)), param.expiration - 10))
                 c_delay.msec = 0
-                pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer, &c_delay) # TODO: check return value?
+                pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self.c_timer, &c_delay) # TODO: check return value?
                 c_success = 1
             else:
                 self.state = "unpublished"
         elif self.state == "unpublishing":
             if param.code / 100 == 2:
                 self.state = "unpublished"
-                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.c_timer)
+                pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.c_timer)
                 self.c_timer.user_data = NULL
                 c_success = 1
             else:

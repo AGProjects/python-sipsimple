@@ -18,12 +18,12 @@ cdef class PJMEDIAConferenceBridge:
 
     def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint):
         cdef int status
-        self.c_pjsip_endpoint = pjsip_endpoint.c_obj
+        self.c_pjsip_endpoint = pjsip_endpoint._obj
         self.c_pjmedia_endpoint = pjmedia_endpoint
-        status = pjmedia_conf_create(pjsip_endpoint.c_pool, 254, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
+        status = pjmedia_conf_create(pjsip_endpoint._pool, 254, pjmedia_endpoint._sample_rate * 1000, 1, pjmedia_endpoint._sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not create conference bridge", status)
-        status = pjmedia_null_port_create(pjsip_endpoint.c_pool, pjmedia_endpoint.c_sample_rate * 1000, 1, pjmedia_endpoint.c_sample_rate * 20, 16, &self._null_port)
+        status = pjmedia_null_port_create(pjsip_endpoint._pool, pjmedia_endpoint._sample_rate * 1000, 1, pjmedia_endpoint._sample_rate * 20, 16, &self._null_port)
         if status != 0:
             raise PJSIPError("Could not create dummy audio port", status)
         self.c_conv_in_slots = [0]
@@ -35,7 +35,7 @@ cdef class PJMEDIAConferenceBridge:
         self.c_tonegen_pool = pjsip_endpt_create_pool(self.c_pjsip_endpoint, "dtmf_tonegen", 4096, 4096)
         if self.c_tonegen_pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
-        status = pjmedia_tonegen_create(self.c_tonegen_pool, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_tonegen)
+        status = pjmedia_tonegen_create(self.c_tonegen_pool, self.c_pjmedia_endpoint._sample_rate * 1000, 1, self.c_pjmedia_endpoint._sample_rate * 20, 16, 0, &self.c_tonegen)
         if status != 0:
             pjsip_endpt_release_pool(self.c_pjsip_endpoint, self.c_tonegen_pool)
             raise PJSIPError("Could not create DTMF tone generator", status)
@@ -130,7 +130,7 @@ cdef class PJMEDIAConferenceBridge:
                 self._destroy_snd_port(0)
                 raise PJSIPError("Could not start master port for dummy sound device", status)
         else:
-            status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint.c_sample_rate * 1000, 1, self.c_pjmedia_endpoint.c_sample_rate * 20, 16, 0, &self.c_snd)
+            status = pjmedia_snd_port_create(self.c_pool, recording_index, playback_index, self.c_pjmedia_endpoint._sample_rate * 1000, 1, self.c_pjmedia_endpoint._sample_rate * 20, 16, 0, &self.c_snd)
             if status != 0:
                 raise PJSIPError("Could not create sound device", status)
             status = pjmedia_snd_port_set_ec(self.c_snd, self.c_pool, tail_length, 0)
@@ -303,11 +303,11 @@ cdef class RecordingWaveFile:
         cdef PJSIPUA ua = c_get_ua()
         if self.was_started:
             raise SIPCoreError("This RecordingWaveFile was already started once")
-        self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint._obj, pool_name, 4096, 4096)
         if self.pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         try:
-            status = pjmedia_wav_writer_port_create(self.pool, self.file_name, ua.c_pjmedia_endpoint.c_sample_rate * 1000, 1, ua.c_pjmedia_endpoint.c_sample_rate * 20, 16, PJMEDIA_FILE_WRITE_PCM, 0, &self.port)
+            status = pjmedia_wav_writer_port_create(self.pool, self.file_name, ua.c_pjmedia_endpoint._sample_rate * 1000, 1, ua.c_pjmedia_endpoint._sample_rate * 20, 16, PJMEDIA_FILE_WRITE_PCM, 0, &self.port)
             if status != 0:
                 raise PJSIPError("Could not create WAV file", status)
             status = pjmedia_conf_add_port(ua.c_conf_bridge.c_obj, self.pool, self.port, NULL, &self.conf_slot)
@@ -350,7 +350,7 @@ cdef class RecordingWaveFile:
             pjmedia_port_destroy(self.port)
             self.port = NULL
         if self.pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint._obj, self.pool)
             self.pool = NULL
         self.c_is_paused = 0
         return 0
@@ -404,7 +404,7 @@ cdef class WaveFile:
     cdef int _start(self, PJSIPUA ua) except -1:
         cdef int status
         cdef object pool_name = "playwav_%s" % self.file_name
-        self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        self.pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint._obj, pool_name, 4096, 4096)
         if self.pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         status = pjmedia_wav_player_port_create(self.pool, self.file_name, 0, PJMEDIA_FILE_NO_LOOP, 0, &self.port)
@@ -450,7 +450,7 @@ cdef class WaveFile:
         cdef int status
         cdef int was_active = 0
         if self.timer_is_active:
-            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint.c_obj, &self.timer)
+            pjsip_endpt_cancel_timer(ua.c_pjsip_endpoint._obj, &self.timer)
             self.timer_is_active = 0
             was_active = 1
         if self.conf_slot != 0:
@@ -462,11 +462,11 @@ cdef class WaveFile:
             self.port = NULL
             was_active = 1
         if self.pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.pool)
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint._obj, self.pool)
             self.pool = NULL
         if reschedule:
             pj_timer_entry_init(&self.timer, 0, <void *> self, cb_play_wav_restart)
-            status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint.c_obj, &self.timer, &self.pause_time)
+            status = pjsip_endpt_schedule_timer(ua.c_pjsip_endpoint._obj, &self.timer, &self.pause_time)
             if status == 0:
                 self.timer_is_active = 1
         if was_active and not self.timer_is_active and notify:

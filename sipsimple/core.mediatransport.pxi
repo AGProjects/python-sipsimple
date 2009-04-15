@@ -23,7 +23,7 @@ cdef class RTPTransport:
         cdef PJSIPUA ua = c_get_ua()
         self.c_af = pj_AF_INET()
         self.state = "NULL"
-        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint._obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
 
@@ -56,7 +56,7 @@ cdef class RTPTransport:
         if self.c_wrapped_transport != NULL:
             pjmedia_transport_close(self.c_wrapped_transport)
         if self.c_pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint._obj, self.c_pool)
 
     cdef PJSIPUA _check_ua(self):
         cdef PJSIPUA ua
@@ -225,7 +225,7 @@ cdef class RTPTransport:
             if self.use_ice:
                 pj_ice_strans_cfg_default(&ice_cfg)
                 ice_cfg.af = self.c_af
-                pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool.c_obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint.c_obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint.c_obj))
+                pj_stun_config_init(&ice_cfg.stun_cfg, &ua.c_caching_pool._obj.factory, 0, pjmedia_endpt_get_ioqueue(ua.c_pjmedia_endpoint._obj), pjsip_endpt_get_timer_heap(ua.c_pjsip_endpoint._obj))
                 if self.ice_stun_address is not None:
                     str_to_pj_str(self.ice_stun_address, &ice_cfg.stun.server)
                     ice_cfg.stun.port = self.ice_stun_port
@@ -233,13 +233,13 @@ cdef class RTPTransport:
                 status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, c_local_ip_p, 0)
                 if status != 0:
                     raise PJSIPError("Could not init ICE bound address", status)
-                status = pjmedia_ice_create2(ua.c_pjmedia_endpoint.c_obj, NULL, 2, &ice_cfg, &_ice_cb, 0, &self.c_obj)
+                status = pjmedia_ice_create2(ua.c_pjmedia_endpoint._obj, NULL, 2, &ice_cfg, &_ice_cb, 0, &self.c_obj)
                 if status != 0:
                     raise PJSIPError("Could not create ICE media transport", status)
             else:
                 status = PJ_EBUG
                 for i in xrange(ua.c_rtp_port_index, ua.c_rtp_port_index + ua.c_rtp_port_stop - ua.c_rtp_port_start, 2):
-                    status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint.c_obj, self.c_af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
+                    status = pjmedia_transport_udp_create3(ua.c_pjmedia_endpoint._obj, self.c_af, NULL, c_local_ip_p, ua.c_rtp_port_start + i % (ua.c_rtp_port_stop - ua.c_rtp_port_start), 0, &self.c_obj)
                     if status != PJ_ERRNO_START_SYS + EADDRINUSE:
                         ua.c_rtp_port_index = (i + 2) % (ua.c_rtp_port_stop - ua.c_rtp_port_start)
                         break
@@ -251,7 +251,7 @@ cdef class RTPTransport:
                 pjmedia_srtp_setting_default(&srtp_setting)
                 if self.srtp_forced:
                     srtp_setting.use = PJMEDIA_SRTP_MANDATORY
-                status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint.c_obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
+                status = pjmedia_transport_srtp_create(ua.c_pjmedia_endpoint._obj, self.c_wrapped_transport, &srtp_setting, &self.c_obj)
                 if status != 0:
                     pjmedia_transport_close(self.c_wrapped_transport)
                     self.c_wrapped_transport = NULL
@@ -293,11 +293,11 @@ cdef class AudioTransport:
         self.c_vad = int(bool(enable_silence_detection))
         self.transport = transport
         self.c_started = 0
-        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint.c_obj, pool_name, 4096, 4096)
+        self.c_pool = pjsip_endpt_create_pool(ua.c_pjsip_endpoint._obj, pool_name, 4096, 4096)
         if self.c_pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         transport._get_info(&info)
-        status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint.c_obj, self.c_pool, 1, &info.sock_info, &c_local_sdp)
+        status = pjmedia_endpt_create_sdp(ua.c_pjmedia_endpoint._obj, self.c_pool, 1, &info.sock_info, &c_local_sdp)
         if status != 0:
             raise PJSIPError("Could not generate SDP for audio session", status)
         local_sdp = c_make_SDPSession(c_local_sdp)
@@ -320,7 +320,7 @@ cdef class AudioTransport:
         if self.c_obj != NULL:
             self.stop()
         if self.c_pool != NULL:
-            pjsip_endpt_release_pool(ua.c_pjsip_endpoint.c_obj, self.c_pool)
+            pjsip_endpt_release_pool(ua.c_pjsip_endpoint._obj, self.c_pool)
 
     cdef PJSIPUA _check_ua(self):
         cdef PJSIPUA ua
@@ -403,11 +403,11 @@ cdef class AudioTransport:
         else:
             local_sdp._to_c()
             remote_sdp._to_c()
-        status = pjmedia_stream_info_from_sdp(&self.c_stream_info, self.c_pool, ua.c_pjmedia_endpoint.c_obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
+        status = pjmedia_stream_info_from_sdp(&self.c_stream_info, self.c_pool, ua.c_pjmedia_endpoint._obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
         if status != 0:
             raise PJSIPError("Could not parse SDP for audio session", status)
         self.c_stream_info.param.setting.vad = self.c_vad
-        status = pjmedia_stream_create(ua.c_pjmedia_endpoint.c_obj, self.c_pool, &self.c_stream_info, self.transport.c_obj, NULL, &self.c_obj)
+        status = pjmedia_stream_create(ua.c_pjmedia_endpoint._obj, self.c_pool, &self.c_stream_info, self.transport.c_obj, NULL, &self.c_obj)
         if status != 0:
             raise PJSIPError("Could not initialize RTP for audio session", status)
         status = pjmedia_stream_set_dtmf_callback(self.c_obj, cb_AudioTransport_cb_dtmf, <void *> self)
