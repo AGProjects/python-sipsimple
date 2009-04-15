@@ -857,8 +857,8 @@ cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1
 cdef class Route
 cdef class Credentials
 cdef class SIPURI
-cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named)
-cdef SIPURI c_parse_SIPURI(object uri_str)
+cdef SIPURI _make_SIPURI(pjsip_uri *base_uri, int is_named)
+cdef SIPURI _parse_SIPURI(object uri_str)
 
 # core.ua
 

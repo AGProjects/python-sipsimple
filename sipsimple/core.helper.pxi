@@ -1,26 +1,28 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+# python imports
+
 import string
 
 # classes
 
 cdef class Route:
-    cdef pj_list c_route_set
-    cdef pjsip_route_hdr c_route_hdr
-    cdef pjsip_sip_uri c_sip_uri
-    cdef PJSTR c_address
-    cdef PJSTR c_transport
+    cdef pj_list _route_set
+    cdef pjsip_route_hdr _route_hdr
+    cdef pjsip_sip_uri _sip_uri
+    cdef PJSTR _address
+    cdef PJSTR _transport
 
     def __cinit__(self, object address, int port=5060, object transport="udp"):
-        pjsip_route_hdr_init(NULL, <void *> &self.c_route_hdr)
-        pjsip_sip_uri_init(&self.c_sip_uri, 0)
-        self.c_sip_uri.lr_param = 1
-        self.c_route_hdr.name_addr.uri = <pjsip_uri *> &self.c_sip_uri
-        (<pj_list *> &self.c_route_hdr).next = &self.c_route_set
-        (<pj_list *> &self.c_route_hdr).prev = &self.c_route_set
-        self.c_route_set.next = &self.c_route_hdr
-        self.c_route_set.prev = &self.c_route_hdr
+        pjsip_route_hdr_init(NULL, <void *> &self._route_hdr)
+        pjsip_sip_uri_init(&self._sip_uri, 0)
+        self._sip_uri.lr_param = 1
+        self._route_hdr.name_addr.uri = <pjsip_uri *> &self._sip_uri
+        (<pj_list *> &self._route_hdr).next = &self._route_set
+        (<pj_list *> &self._route_hdr).prev = &self._route_set
+        self._route_set.next = &self._route_hdr
+        self._route_set.prev = &self._route_hdr
         self.address = address
         self.port = port
         self.transport = transport
@@ -31,30 +33,30 @@ cdef class Route:
     property address:
 
         def __get__(self):
-            return self.c_address.str
+            return self._address.str
 
         def __set__(self, object value):
             if value is None:
                 raise ValueError("None value of transport is not allowed")
             if not _is_valid_ip(pj_AF_INET(), value):
                 raise ValueError("Not a valid IPv4 address: %s" % value)
-            self.c_address = PJSTR(value)
-            self.c_sip_uri.host = self.c_address.pj_str
+            self._address = PJSTR(value)
+            self._sip_uri.host = self._address.pj_str
 
     property port:
 
         def __get__(self):
-            return self.c_sip_uri.port
+            return self._sip_uri.port
 
         def __set__(self, int value):
             if value < 0 or value > 65535:
                 raise ValueError("Invalid port: %d" % value)
-            self.c_sip_uri.port = value
+            self._sip_uri.port = value
 
     property transport:
 
         def __get__(self):
-            return self.c_transport.str
+            return self._transport.str
 
         def __set__(self, object value):
             if value is None:
@@ -62,12 +64,12 @@ cdef class Route:
             value = value.lower()
             if value not in ["udp", "tcp", "tls"]:
                 raise ValueError("Unknown transport: %s" % value)
-            self.c_transport = PJSTR(value)
+            self._transport = PJSTR(value)
             if value == "udp":
-                self.c_sip_uri.transport_param.ptr = NULL
-                self.c_sip_uri.transport_param.slen = 0
+                self._sip_uri.transport_param.ptr = NULL
+                self._sip_uri.transport_param.slen = 0
             else:
-                self.c_sip_uri.transport_param = self.c_transport.pj_str
+                self._sip_uri.transport_param = self._transport.pj_str
 
     def __copy__(self):
         return Route(self.address, self.port, self.transport)
@@ -75,8 +77,9 @@ cdef class Route:
     def copy(self):
         return self.__copy__()
 
+
 cdef class Credentials:
-    cdef pjsip_cred_info c_obj
+    cdef pjsip_cred_info _obj
     cdef public SIPURI uri
     cdef public object password
 
@@ -85,9 +88,9 @@ cdef class Credentials:
         cdef SIPURI req_uri
         self.uri = uri
         self.password = password
-        self.c_obj.realm = _Credentials_realm_wildcard.pj_str
-        self.c_obj.scheme = _Credentials_scheme_digest.pj_str
-        self.c_obj.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
+        self._obj.realm = _Credentials_realm_wildcard.pj_str
+        self._obj.scheme = _Credentials_scheme_digest.pj_str
+        self._obj.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
 
     def __repr__(self):
         return "<Credentials for '%s'>" % self.uri
@@ -97,14 +100,15 @@ cdef class Credentials:
             raise SIPCoreError("Credentials are not fully set")
         if self.uri.user is None:
             raise SIPCoreError("Credentials URI does not have username set")
-        _str_to_pj_str(self.uri.user, &self.c_obj.username)
-        _str_to_pj_str(self.password, &self.c_obj.data)
+        _str_to_pj_str(self.uri.user, &self._obj.username)
+        _str_to_pj_str(self.password, &self._obj.data)
         return 0
 
     def copy(self):
         if self.uri is None:
             raise SIPCoreError("Credentials URI is set to None")
         return Credentials(self.uri.copy(), self.password)
+
 
 cdef class SIPURI:
     cdef public object user
@@ -116,7 +120,8 @@ cdef class SIPURI:
     cdef public dict parameters
     cdef public dict headers
 
-    def __init__(self, host, user=None, password=None, port=None, display=None, secure=False, parameters=None, headers=None):
+    def __init__(self, host, user=None, password=None, port=None,
+                 display=None, secure=False, parameters=None, headers=None):
         self.host = host
         self.user = user
         self.password = password
@@ -154,7 +159,8 @@ cdef class SIPURI:
             return not eq
 
     def copy(self):
-        return SIPURI(self.host, self.user, self.password, self.port, self.display, self.secure, self.parameters.copy(), self.headers.copy())
+        return SIPURI(self.host, self.user, self.password, self.port, self.display,
+                      self.secure, self.parameters.copy(), self.headers.copy())
 
     cdef _as_str(self, int skip_display):
         cdef object name
@@ -180,9 +186,10 @@ cdef class SIPURI:
         else:
             return '"%s" <%s>' % (self.display, string)
 
+
 # factory functions
 
-cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named):
+cdef SIPURI _make_SIPURI(pjsip_uri *base_uri, int is_named):
     cdef object scheme
     cdef pj_str_t *scheme_str
     cdef pjsip_sip_uri *uri = <pjsip_sip_uri *> pjsip_uri_get_uri(base_uri)
@@ -230,7 +237,7 @@ cdef SIPURI c_make_SIPURI(pjsip_uri *base_uri, int is_named):
         kwargs["display"] = _pj_str_to_str(named_uri.display)
     return SIPURI(*args, **kwargs)
 
-cdef SIPURI c_parse_SIPURI(object uri_str):
+cdef SIPURI _parse_SIPURI(object uri_str):
     cdef SIPURI retval
     cdef pjsip_uri *uri = NULL
     cdef pj_pool_t *pool = NULL
@@ -242,7 +249,7 @@ cdef SIPURI c_parse_SIPURI(object uri_str):
         uri = pjsip_parse_uri(pool, uri_str, len(uri_str), PJSIP_PARSE_URI_AS_NAMEADDR)
         if uri == NULL:
             raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
-        retval = c_make_SIPURI(uri, 1)
+        retval = _make_SIPURI(uri, 1)
     finally:
         pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, pool)
     return retval

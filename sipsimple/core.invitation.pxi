@@ -50,7 +50,7 @@ cdef class Invitation:
         cdef int status
         try:
             self.transport = rdata.tp_info.transport.type_name.lower()
-            request_uri = c_make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
+            request_uri = _make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
             if _is_valid_ip(pj_AF_INET(), request_uri.host):
                 self.c_local_contact_uri = request_uri
             else:
@@ -84,8 +84,8 @@ cdef class Invitation:
             self.c_obj = NULL
             self.c_dlg = NULL
             raise
-        self.c_caller_uri = c_make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
-        self.c_callee_uri = c_make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
+        self.c_caller_uri = _make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
+        self.c_callee_uri = _make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
         return 0
 
     cdef PJSIPUA _check_ua(self):
@@ -344,10 +344,10 @@ cdef class Invitation:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
             self.c_obj.mod_data[ua._module.id] = <void *> self
             if self.c_credentials.password is not None:
-                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
+                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials._obj)
                 if status != 0:
                     raise PJSIPError("Could not set credentials for INVITE session", status)
-            status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
+            status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route._route_set)
             if status != 0:
                 raise PJSIPError("Could not set route for INVITE session", status)
             status = pjsip_inv_invite(self.c_obj, &tdata)

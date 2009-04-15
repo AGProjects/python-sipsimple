@@ -31,7 +31,7 @@ def send_message(Credentials credentials, SIPURI to_uri, content_type, content_s
     status = pjsip_endpt_create_request(ua._pjsip_endpoint._obj, &message_method, &to_uri_req.pj_str, &from_uri.pj_str, &to_uri_to.pj_str, NULL, NULL, -1, NULL, &tdata)
     if status != 0:
         raise PJSIPError("Could not create MESSAGE request", status)
-    pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route.c_route_hdr))
+    pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *> pjsip_hdr_clone(tdata.pool, &route._route_hdr))
     content_type_pj = PJSTR(content_type)
     content_subtype_pj = PJSTR(content_subtype)
     body_pj = PJSTR(body)
@@ -85,7 +85,7 @@ cdef void cb_send_message(void *token, pjsip_event *e) with gil:
                     if status != 0:
                         raise PJSIPError("Could not init auth", status)
                     credentials._to_c()
-                    status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials.c_obj)
+                    status = pjsip_auth_clt_set_credentials(&auth, 1, &credentials._obj)
                     if status != 0:
                         raise PJSIPError("Could not set auth credentials", status)
                     status = pjsip_auth_clt_reinit_req(&auth, rdata, tsx.last_tx, &tdata)

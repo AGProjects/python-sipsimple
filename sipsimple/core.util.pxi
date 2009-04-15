@@ -76,7 +76,7 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         elif hdr_name == "Contact":
             hdr_multi = True
             contact_hdr = <pjsip_contact_hdr *> hdr
-            hdr_data = (contact_hdr.star and None or c_make_SIPURI(contact_hdr.uri, 1),
+            hdr_data = (contact_hdr.star and None or _make_SIPURI(contact_hdr.uri, 1),
                         _pjsip_param_to_dict(&contact_hdr.other_param))
             if contact_hdr.q1000 != 0:
                 hdr_data[1]["q"] = contact_hdr.q1000 / 1000.0
@@ -98,12 +98,12 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
             hdr_data = int_hdr.ivalue
         elif hdr_name in ["From", "To"]:
             fromto_hdr = <pjsip_fromto_hdr *> hdr
-            hdr_data = (c_make_SIPURI(fromto_hdr.uri, 1), _pj_str_to_str(fromto_hdr.tag),
+            hdr_data = (_make_SIPURI(fromto_hdr.uri, 1), _pj_str_to_str(fromto_hdr.tag),
                         _pjsip_param_to_dict(&fromto_hdr.other_param))
         elif hdr_name in ["Record-Route", "Route"]:
             hdr_multi = True
             routing_hdr = <pjsip_routing_hdr *> hdr
-            hdr_data = (c_make_SIPURI(<pjsip_uri *> &routing_hdr.name_addr, 1),
+            hdr_data = (_make_SIPURI(<pjsip_uri *> &routing_hdr.name_addr, 1),
                         _pjsip_param_to_dict(&routing_hdr.other_param))
         elif hdr_name == "Retry-After":
             retry_after_hdr = <pjsip_retry_after_hdr *> hdr
@@ -147,7 +147,7 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         info_dict["body"] = PyString_FromStringAndSize(<char *> body.data, body.len)
     if rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
         info_dict["method"] = _pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
-        info_dict["request_uri"] = c_make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
+        info_dict["request_uri"] = _make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
     else:
         info_dict["code"] = rdata.msg_info.msg.line.status.code
         info_dict["reason"] = _pj_str_to_str(rdata.msg_info.msg.line.status.reason)

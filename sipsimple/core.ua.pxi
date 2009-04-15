@@ -455,7 +455,7 @@ cdef class PJSIPUA:
 
     def parse_sip_uri(self, uri_string):
         # no need for self._check_self(), _get_ua() is called in the function
-        return c_parse_SIPURI(uri_string)
+        return _parse_SIPURI(uri_string)
 
     def __dealloc__(self):
         self.dealloc()
@@ -579,8 +579,8 @@ cdef class PJSIPUA:
                 inv._init_incoming(self, rdata, options)
         elif method_name == "MESSAGE":
             message_params = dict()
-            message_params["to_uri"] = c_make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
-            message_params["from_uri"] = c_make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
+            message_params["to_uri"] = _make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
+            message_params["from_uri"] = _make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
             message_params["content_type"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
             message_params["content_subtype"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data,

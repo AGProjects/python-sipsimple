@@ -131,10 +131,10 @@ cdef class Subscription:
                 status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
                 if status != 0:
                     raise PJSIPError("Could not create SUBSCRIBE", status)
-                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials.c_obj)
+                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials._obj)
                 if status != 0:
                     raise PJSIPError("Could not set SUBSCRIBE credentials", status)
-                status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route.c_route_set)
+                status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route._route_set)
                 if status != 0:
                     raise PJSIPError("Could not set route on SUBSCRIBE", status)
                 pjsip_evsub_set_mod_data(self.c_obj, ua._event_module.id, <void *> self)

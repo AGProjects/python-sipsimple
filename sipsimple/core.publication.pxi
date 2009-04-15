@@ -47,10 +47,10 @@ cdef class Publication:
         status = pjsip_publishc_init(self.c_obj, &c_event, &request_uri.pj_str, &fromto_uri.pj_str, &fromto_uri.pj_str, expires)
         if status != 0:
             raise PJSIPError("Could not init publication", status)
-        status = pjsip_publishc_set_credentials(self.c_obj, 1, &self.c_credentials.c_obj)
+        status = pjsip_publishc_set_credentials(self.c_obj, 1, &self.c_credentials._obj)
         if status != 0:
             raise PJSIPError("Could not set publication credentials", status)
-        status = pjsip_publishc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route.c_route_set)
+        status = pjsip_publishc_set_route_set(self.c_obj, <pjsip_route_hdr *> &self.c_route._route_set)
         if status != 0:
             raise PJSIPError("Could not set route set on publication", status)
         if extra_headers is None:

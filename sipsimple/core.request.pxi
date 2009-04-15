@@ -187,13 +187,13 @@ cdef class Request:
                 cseq_hdr = <pjsip_cseq_hdr *> hdr
                 self.cseq = cseq_hdr.cseq
             hdr = <pjsip_hdr *> (<pj_list *> hdr).next
-        pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route.c_route_hdr)
+        pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route._route_hdr)
         _add_headers_to_tdata(self._tdata, self._extra_headers)
         if self._credentials.password is not None:
             status = pjsip_auth_clt_init(&self._auth, ua._pjsip_endpoint._obj, self._tdata.pool, 0)
             if status != 0:
                 raise PJSIPError("Could not init authentication credentials", status)
-            status = pjsip_auth_clt_set_credentials(&self._auth, 1, &self._credentials.c_obj)
+            status = pjsip_auth_clt_set_credentials(&self._auth, 1, &self._credentials._obj)
             if status != 0:
                 raise PJSIPError("Could not set authentication credentials", status)
             self._need_auth = 1
