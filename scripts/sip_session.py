@@ -647,6 +647,11 @@ class InfoPrinter(NotificationHandler):
         if session.remote_user_agent is not None:
             print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
 
+    def _NH_MSRPChatDidStart(self, chat, data):
+        transport = chat.msrp.msrp
+        print 'MSRP endpoints %s:%s <-> %s:%s' % (transport.getHost().host, transport.getHost().port,
+                                                  transport.getPeer().host, transport.getPeer().port)
+
     def _NH_SIPSessionDidFail(self, session, data):
         if data.code:
             print "Session failed: %d %s" % (data.code, data.reason)
