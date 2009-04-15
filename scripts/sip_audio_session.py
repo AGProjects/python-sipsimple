@@ -152,7 +152,10 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     if sess is None:
                         sess = obj
                         from_whom = SIPURI(obj.caller_uri.host, user=obj.caller_uri.user, display=obj.caller_uri.display, secure=obj.caller_uri.secure)
-                        print 'Incoming audio session from "%s", do you want to accept? (y/n)' % from_whom
+                        if auto_answer:
+                            print 'Incoming audio session from "%s"' % from_whom
+                        else:
+                            print 'Incoming audio session from "%s", do you want to accept? (y/n)' % from_whom
                         if auto_answer is not None:
                             def auto_answer_call():
                                 print 'Auto-answering session'
