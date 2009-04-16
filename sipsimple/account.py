@@ -240,7 +240,7 @@ class Account(SettingsObject):
         self._registrar = None
         
         account_manager = AccountManager()
-        if not (hasattr(notification.data, 'code') and notification.data.code==401) and not account_manager.stopping:
+        if not (hasattr(notification.data, 'code') and notification.data.code==401) and account_manager.state not in ('stopping', 'stopped'):
             if not self._register_routes or time() >= self._register_timeout:
                 self._register_wait = min(self._register_wait*2, 30)
                 timeout = random.uniform(self._register_wait, 2*self._register_wait)
@@ -459,13 +459,14 @@ class AccountManager(object):
 
     def __init__(self):
         self.accounts = {}
-        self.stopping = False
+        self.state = 'stopped'
 
     def start(self):
         """
         Load all accounts from the configuration. The accounts with the enabled
         flag set will automatically activate.
         """
+        self.state = 'starting'
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=Engine())
@@ -482,12 +483,14 @@ class AccountManager(object):
             pass
         else:
             [Account(id) for id in names if id != bonjour_account.id]
+        self.state = 'started'
 
     def stop(self):
-        self.stopping = True
+        self.state = 'stopping'
         for account in self.accounts.itervalues():
             if account.enabled:
                 account._deactivate()
+        self.state = 'stopped'
 
     def has_account(self, id):
         return id in self.accounts
@@ -516,15 +519,17 @@ class AccountManager(object):
             handler(notification)
     
     def _NH_SIPEngineWillEnd(self, notification):
-        self.stopping = True
+        self.state = 'stopping'
 
     def _NH_SIPAccountDidActivate(self, notification):
+        if self.state != 'started':
+            return
         settings = SIPSimpleSettings()
         if settings.default_account is None:
             self.default_account = notification.sender
 
     def _NH_SIPAccountDidDeactivate(self, notification):
-        if self.stopping:
+        if self.state != 'started':
             return
         if self.default_account is notification.sender:
             try:
