@@ -1,19 +1,33 @@
+from __future__ import with_statement
 import sys
-from application.notification import NotificationCenter
+import datetime
+from application.notification import NotificationCenter, Any
 from application.python.util import Singleton
 from eventlet import proc, api
 
 from sipsimple.core import SIPURI, SDPSession, SDPConnection
 from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
+from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
 from sipsimple.session import TimestampedNotificationData
 from sipsimple.msrpstream import MSRPChat
-from sipsimple.util import NotificationHandler
+from sipsimple import util
 from sipsimple.account import AccountManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 
-class Session(object):
+class NotificationHandler(util.NotificationHandler):
+
+    def subscribe_to_all(self, sender=Any):
+        return util.NotificationHandler.subscribe_to_all(self, sender=sender, observer=NotifyFromThreadObserver(self))
+
+class Error(Exception):
+    pass
+
+class LocalSaysBye(Error):
+    pass
+
+class Session(NotificationHandler):
 
     def __init__(self, account, inv=None):
         # Note, that we require and use GreenInvitation here. To access the real Invitation use inv._obj
@@ -21,28 +35,64 @@ class Session(object):
         self.inv = inv
         self.direction = None
         self.notification_center = NotificationCenter()
-        self.stop_time = None # XXX
+        self.start_time = None
+        self.stop_time = None
+        self.greenlet = None
+        self.state = 'NULL'
+
+    def _set_state(self, new_state, originator=None):
+        prev_state = self.state
+        assert prev_state != new_state, (prev_state, new_state)
+        self.state = new_state
+        data = TimestampedNotificationData(prev_state=prev_state, state=new_state)
+        if new_state == 'TERMINATED':
+            self.stop_time = datetime.datetime.now()
+        self.notification_center.post_notification("SIPSessionChangedState", self, data)
+        if new_state == 'TERMINATED':
+            data = TimestampedNotificationData(originator=originator)
+            self.notification_center.post_notification("SIPSessionDidEnd", self, data)
+
+    def wait_state(self, state):
+        if self.state == state:
+            return
+        with linked_notification('SIPSessionChangedState') as q:
+            while True:
+                n = q.wait()
+                if n.state == state:
+                    return
+
+    def _NH_SIPInvitationChangedState(self, inv, data):
+        assert self.inv._obj == inv, (self.inv, self.inv._obj, inv, data)
+        if data.state=='DISCONNECTED' and data.prev_state!='DISCONNECTING':
+            self._set_state('TERMINATED', originator='remote')
 
     def connect(self, callee_uri, routes, streams):
-        self.direction = 'outgoing'
-        route = iter(routes).next()
-        contact_uri = SIPURI(user=self.account.contact.username,
-                             host=self.account.contact.domain,
-                             port=getattr(Engine(), "local_%s_port" % route.transport),
-                             parameters={"transport": route.transport} if route.transport != "udp" else None)
-        self.inv = GreenInvitation(self.account.credentials, callee_uri, route, contact_uri)
-        self.notification_center.post_notification("SIPSessionNewOutgoing", self, TimestampedNotificationData(streams=streams))
-        initialize_procs = [proc.spawn(stream.initialize, self) for stream in streams]
-        start_procs = []
+        assert self.state == 'NULL', 'Cannot connect() because session is %s' % self.state
+        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
         ERROR = (500, None, 'local') # code, reason, originator
+        workers = []
+        self.greenlet = api.getcurrent()
+        self._set_state('CALLING')
         try:
-            proc.waitall(initialize_procs)
+            self.direction = 'outgoing'
+            route = iter(routes).next()
+            contact_uri = SIPURI(user=self.account.contact.username,
+                                 host=self.account.contact.domain,
+                                 port=getattr(Engine(), "local_%s_port" % route.transport),
+                                 parameters={"transport": route.transport} if route.transport != "udp" else None)
+            self.inv = GreenInvitation(self.account.credentials, callee_uri, route, contact_uri)
+            self.subscribe_to_all(sender=self.inv._obj)
+            self.notification_center.post_notification("SIPSessionNewOutgoing", self, TimestampedNotificationData(streams=streams))
+            workers = [proc.spawn(stream.initialize, self) for stream in streams]
+            proc.waitall(workers)
+            workers = []
             local_ip = SIPSimpleSettings().local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip))
             for stream in streams:
                 local_sdp.media.append(stream.get_local_media())
             self.inv.set_offered_local_sdp(local_sdp)
             confirmed_notification, sdp_notification = self.inv.send_invite()
+            self.start_time = datetime.datetime.now()
             remote_sdp = sdp_notification.data.remote_sdp
             local_sdp = sdp_notification.data.local_sdp
             for index, local_media in enumerate(local_sdp.media):
@@ -54,11 +104,14 @@ class Session(object):
                     break
                 else:
                     if remote_media.port:
-                        start_procs.append(proc.spawn(streams[index].start, local_sdp, remote_sdp, index))
+                        workers.append(proc.spawn(streams[index].start, local_sdp, remote_sdp, index))
                     else:
                         proc.spawn(streams[index].end)
-            proc.waitall(start_procs)
+            proc.waitall(workers)
             ERROR = None
+        except LocalSaysBye:
+            ERROR = (None, None, 'local')
+            raise
         except InvitationError, ex:
             ERROR = (ex.code, ex.reason, 'remote')
             raise
@@ -67,20 +120,34 @@ class Session(object):
             ERROR = (500, str(exc) or str(typ.__name__), 'local')
             raise
         finally:
-            if ERROR is not None:
+            self.greenlet = None
+            if ERROR is None:
+                self._set_state('ESTABLISHED')
+            else:
                 code, reason, originator = ERROR
-                data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
-                self.notification_center.post_notification("SIPSessionDidFail", self, data)
-                self.notification_center.post_notification("SIPSessionDidEnd", self, data)
-                if self.inv.state != 'NULL':
-                    api.get_hub().schedule_call_global(0, self.inv._obj.disconnect, 500)
-                killall(initialize_procs, wait=False)
-                killall(start_procs, wait=False)
+                if code is not None:
+                    data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                    self.notification_center.post_notification("SIPSessionDidFail", self, data)
+                proc.spawn(self._terminate, code or 486)
+                killall(workers, wait=False)
                 for stream in streams:
                     proc.spawn(stream.end)
 
-#     def accept(self, stream_descriptions):
-#         remote_sdp = self.inv.get_offered_remote_sdp()
+    def _terminate(self, code=486):
+        if self.state in ['TERMINATED', 'TERMINATING']:
+            return self.wait_state('TERMINATED')
+        self._set_state('TERMINATING')
+        data = TimestampedNotificationData(originator='local')
+        self.notification_center.post_notification("SIPSessionWillEnd", self, data)
+        self.inv.disconnect(code)
+        self._set_state('TERMINATED', originator='local')
+
+    # XXX if we have TERMINATING and TERMINATED stated we should have terminate() method, not end() or rename the states
+    def end(self):
+        if self.greenlet:
+            api.kill(self.greenlet, LocalSaysBye)
+        elif self.inv:
+            self._terminate()
 
 
 class StreamFactory(object):
