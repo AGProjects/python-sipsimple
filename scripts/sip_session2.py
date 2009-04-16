@@ -10,10 +10,9 @@ import datetime
 import time
 from optparse import OptionParser
 from twisted.internet.error import ConnectionClosed
-from application.notification import NotificationCenter, IObserver, Any
+from application.notification import NotificationCenter
 from application import log
 from application.python.util import Singleton
-from zope.interface import implements
 
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
@@ -24,9 +23,8 @@ from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine, InvitationError
 from sipsimple.green.sessionold import make_SDPMedia
-from sipsimple.session2 import Session as GreenSession
+from sipsimple.session2 import Session as GreenSession, NotificationHandler, LocalSaysBye
 from sipsimple.green.notification import linked_notification, linked_notifications
-from sipsimple import util
 from sipsimple.session import SessionManager, SessionStateError
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import format_cmdline_uri
@@ -50,11 +48,6 @@ log.level.current = log.level.WARNING
 
 class UserCommandError(Exception):
     pass
-
-class NotificationHandler(util.NotificationHandler):
-
-    def subscribe_to_all(self, sender=Any):
-        return util.NotificationHandler.subscribe_to_all(self, sender=sender, observer=NotifyFromThreadObserver(self))
 
 def format_display_user_host(display, user, host):
     if display:
@@ -184,9 +177,8 @@ class ChatSession(NotificationHandler):
 
     def format_prompt(self):
         result = '%s to %s' % (self.info, self.remote_party)
-        state = getattr(self.inv, 'state', None)
-        if state != 'CONFIRMED':
-            result += ' [%s]' % state
+        if self.state != 'ESTABLISHED':
+            result += ' [%s]' % self.state
         return result + ': '
 
     def update_info(self, streams):
@@ -415,7 +407,7 @@ class ChatManager(NotificationHandler):
                 stream._chatsession = chat
             chat.connect(target_uri, routes, streams=streams)
             chat = None
-        except InvitationError, ex:
+        except (InvitationError, LocalSaysBye), ex:
             pass # already logged by InfoPrinter
         finally:
             if chat is not None:
@@ -644,7 +636,7 @@ class InfoPrinter(NotificationHandler):
 
     def _NH_SIPSessionDidEnd(self, session, data):
         after = ''
-        if session.stop_time is not None:
+        if session.stop_time is not None and session.start_time is not None:
             duration = session.stop_time - session.start_time
             after = " after %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
         if data.originator == 'local':
