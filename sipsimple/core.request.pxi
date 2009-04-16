@@ -110,8 +110,13 @@ cdef class Request:
 
     # public methods
 
-    def __cinit__(self, method, Credentials credentials, SIPURI to_uri, SIPURI request_uri, SIPURI contact_uri,
-                  Route route, call_id=None, cseq=None, dict extra_headers=None, content_type=None, body=None):
+    def __cinit__(self, *args, **kwargs):
+        self.state = "INIT"
+        pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_timer)
+        self._timer_active = 0
+
+    def __init__(self, method, Credentials credentials, SIPURI to_uri, SIPURI request_uri, SIPURI contact_uri,
+                 Route route, call_id=None, cseq=None, dict extra_headers=None, content_type=None, body=None):
         cdef pjsip_method method_pj
         cdef PJSTR from_uri_str
         cdef PJSTR to_uri_str
@@ -124,6 +129,8 @@ cdef class Request:
         cdef pjsip_cseq_hdr *cseq_hdr
         cdef int status
         cdef PJSIPUA ua = _get_ua()
+        if self._tsx != NULL or self.state != "INIT":
+            raise SIPCoreError("Request.__init__() was already called")
         if credentials is None:
             raise ValueError("credentials argument may not be None")
         if to_uri is None:
@@ -143,9 +150,6 @@ cdef class Request:
             raise ValueError("Cannot specify a content_type without a body")
         if content_type is None and body is not None:
             raise ValueError("Cannot specify a body without a content_type")
-        self.state = "INIT"
-        pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_timer)
-        self._timer_active = 0
         self._method = PJSTR(method)
         pjsip_method_init_np(&method_pj, &self._method.pj_str)
         self._credentials = credentials.copy()
