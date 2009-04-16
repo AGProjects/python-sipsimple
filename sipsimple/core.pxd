@@ -916,12 +916,12 @@ cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil
 # core.invitation
 
 cdef class Invitation
-cdef void cb_Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
-cdef void cb_Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
-cdef void cb_Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
-cdef void cb_Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
-cdef void cb_new_Invitation(pjsip_inv_session *inv, pjsip_event *e) with gil
-cdef int cb_Invitation_fail_post(object obj) except -1
+cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
+cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
+cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
+cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
+cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
+cdef int _Invitation_cb_fail_post(object obj) except -1
 
 # core.sdp
 
