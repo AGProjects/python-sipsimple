@@ -126,7 +126,8 @@ cdef extern from "pjlib.h":
     struct pj_timer_heap_t
     struct pj_timer_entry:
         void *user_data
-    pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data, void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
+    pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data,
+                                        void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
 
     # lists
     struct pj_list:
@@ -153,7 +154,8 @@ cdef extern from "pjnath.h":
         pass
     struct pj_stun_sock_cfg:
         pj_sockaddr bound_addr
-    void pj_stun_config_init(pj_stun_config *cfg, pj_pool_factory *factory, unsigned int options, pj_ioqueue_t *ioqueue, pj_timer_heap_t *timer_heap)
+    void pj_stun_config_init(pj_stun_config *cfg, pj_pool_factory *factory, unsigned int options,
+                             pj_ioqueue_t *ioqueue, pj_timer_heap_t *timer_heap)
 
     # NAT detection
     struct pj_stun_nat_detect_result:
@@ -161,7 +163,9 @@ cdef extern from "pjnath.h":
         char *status_text
         char *nat_type_name
     ctypedef pj_stun_nat_detect_result *pj_stun_nat_detect_result_ptr_const "const pj_stun_nat_detect_result *"
-    int pj_stun_detect_nat_type(pj_sockaddr_in *server, pj_stun_config *stun_cfg, void *user_data, void pj_stun_nat_detect_cb(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil)
+    int pj_stun_detect_nat_type(pj_sockaddr_in *server, pj_stun_config *stun_cfg, void *user_data,
+                                void pj_stun_nat_detect_cb(void *user_data,
+                                                           pj_stun_nat_detect_result_ptr_const res) with gil)
 
     # ICE
     struct pj_ice_strans_cfg_stun:
@@ -206,17 +210,20 @@ cdef extern from "pjmedia.h":
     # sound port
     struct pjmedia_port
     struct pjmedia_snd_port
-    int pjmedia_snd_port_create(pj_pool_t *pool, int rec_id, int play_id, int clock_rate, int channel_count, int samples_per_frame, int bits_per_sample, int options, pjmedia_snd_port **p_port)
+    int pjmedia_snd_port_create(pj_pool_t *pool, int rec_id, int play_id, int clock_rate, int channel_count,
+                                int samples_per_frame, int bits_per_sample, int options, pjmedia_snd_port **p_port)
     int pjmedia_snd_port_connect(pjmedia_snd_port *snd_port, pjmedia_port *port)
     int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port)
     int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options)
     int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port)
     pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port)
-    int pjmedia_null_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count, unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port)
+    int pjmedia_null_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count,
+                                 unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port)
 
     # master port
     struct pjmedia_master_port
-    int pjmedia_master_port_create(pj_pool_t *pool, pjmedia_port *u_port, pjmedia_port *d_port, unsigned int options, pjmedia_master_port **p_m)
+    int pjmedia_master_port_create(pj_pool_t *pool, pjmedia_port *u_port, pjmedia_port *d_port,
+                                   unsigned int options, pjmedia_master_port **p_m)
     int pjmedia_master_port_start(pjmedia_master_port *m)
     int pjmedia_master_port_destroy(pjmedia_master_port *m, int destroy_ports)
 
@@ -224,10 +231,12 @@ cdef extern from "pjmedia.h":
     enum pjmedia_conf_option:
         PJMEDIA_CONF_NO_DEVICE
     struct pjmedia_conf
-    int pjmedia_conf_create(pj_pool_t *pool, int max_slots, int sampling_rate, int channel_count, int samples_per_frame, int bits_per_sample, int options, pjmedia_conf **p_conf)
+    int pjmedia_conf_create(pj_pool_t *pool, int max_slots, int sampling_rate, int channel_count,
+                            int samples_per_frame, int bits_per_sample, int options, pjmedia_conf **p_conf)
     int pjmedia_conf_destroy(pjmedia_conf *conf)
     pjmedia_port *pjmedia_conf_get_master_port(pjmedia_conf *conf)
-    int pjmedia_conf_add_port(pjmedia_conf *conf, pj_pool_t *pool, pjmedia_port *strm_port, pj_str_t *name, unsigned int *p_slot)
+    int pjmedia_conf_add_port(pjmedia_conf *conf, pj_pool_t *pool, pjmedia_port *strm_port,
+                              pj_str_t *name, unsigned int *p_slot)
     int pjmedia_conf_remove_port(pjmedia_conf *conf, unsigned int slot)
     int pjmedia_conf_connect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot, int level)
     int pjmedia_conf_disconnect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot)
@@ -316,14 +325,19 @@ cdef extern from "pjmedia.h":
     struct pjmedia_srtp_info:
         int active
     void pjmedia_transport_info_init(pjmedia_transport_info *info)
-    int pjmedia_transport_udp_create3(pjmedia_endpt *endpt, int af, char *name, pj_str_t *addr, int port, unsigned int options, pjmedia_transport **p_tp)
+    int pjmedia_transport_udp_create3(pjmedia_endpt *endpt, int af, char *name, pj_str_t *addr, int port,
+                                      unsigned int options, pjmedia_transport **p_tp)
     int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info)
     int pjmedia_transport_close(pjmedia_transport *tp)
-    int pjmedia_transport_media_create(pjmedia_transport *tp, pj_pool_t *sdp_pool, unsigned int options, pjmedia_sdp_session *rem_sdp, unsigned int media_index)
-    int pjmedia_transport_encode_sdp(pjmedia_transport *tp, pj_pool_t *sdp_pool, pjmedia_sdp_session *sdp, pjmedia_sdp_session *rem_sdp, unsigned int media_index)
-    int pjmedia_transport_media_start(pjmedia_transport *tp, pj_pool_t *tmp_pool, pjmedia_sdp_session *sdp_local, pjmedia_sdp_session *sdp_remote, unsigned int media_index)
+    int pjmedia_transport_media_create(pjmedia_transport *tp, pj_pool_t *sdp_pool, unsigned int options,
+                                       pjmedia_sdp_session *rem_sdp, unsigned int media_index)
+    int pjmedia_transport_encode_sdp(pjmedia_transport *tp, pj_pool_t *sdp_pool, pjmedia_sdp_session *sdp,
+                                     pjmedia_sdp_session *rem_sdp, unsigned int media_index)
+    int pjmedia_transport_media_start(pjmedia_transport *tp, pj_pool_t *tmp_pool, pjmedia_sdp_session *sdp_local,
+                                      pjmedia_sdp_session *sdp_remote, unsigned int media_index)
     int pjmedia_transport_media_stop(pjmedia_transport *tp)
-    int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt, pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
+    int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt,
+                                 pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
 
     # SRTP
     enum pjmedia_srtp_use:
@@ -331,12 +345,14 @@ cdef extern from "pjmedia.h":
     struct pjmedia_srtp_setting:
         pjmedia_srtp_use use
     void pjmedia_srtp_setting_default(pjmedia_srtp_setting *opt)
-    int pjmedia_transport_srtp_create(pjmedia_endpt *endpt, pjmedia_transport *tp, pjmedia_srtp_setting *opt, pjmedia_transport **p_tp)
+    int pjmedia_transport_srtp_create(pjmedia_endpt *endpt, pjmedia_transport *tp,
+                                      pjmedia_srtp_setting *opt, pjmedia_transport **p_tp)
 
     # ICE
     struct pjmedia_ice_cb:
         void on_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
-    int pjmedia_ice_create2(pjmedia_endpt *endpt, char *name, unsigned int comp_cnt, pj_ice_strans_cfg *cfg, pjmedia_ice_cb *cb, unsigned int options, pjmedia_transport **p_tp)
+    int pjmedia_ice_create2(pjmedia_endpt *endpt, char *name, unsigned int comp_cnt, pj_ice_strans_cfg *cfg,
+                            pjmedia_ice_cb *cb, unsigned int options, pjmedia_transport **p_tp)
 
     # stream
     enum pjmedia_dir:
@@ -353,13 +369,17 @@ cdef extern from "pjmedia.h":
         pjmedia_codec_info fmt
         pjmedia_codec_param *param
     struct pjmedia_stream
-    int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt, pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
-    int pjmedia_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_stream_info *info, pjmedia_transport *tp, void *user_data, pjmedia_stream **p_stream)
+    int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt,
+                                     pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
+    int pjmedia_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_stream_info *info,
+                              pjmedia_transport *tp, void *user_data, pjmedia_stream **p_stream)
     int pjmedia_stream_destroy(pjmedia_stream *stream)
     int pjmedia_stream_get_port(pjmedia_stream *stream, pjmedia_port **p_port)
     int pjmedia_stream_start(pjmedia_stream *stream)
     int pjmedia_stream_dial_dtmf(pjmedia_stream *stream, pj_str_t *ascii_digit)
-    int pjmedia_stream_set_dtmf_callback(pjmedia_stream *stream, void cb(pjmedia_stream *stream, void *user_data, int digit) with gil, void *user_data)
+    int pjmedia_stream_set_dtmf_callback(pjmedia_stream *stream,
+                                         void cb(pjmedia_stream *stream, void *user_data, int digit) with gil,
+                                         void *user_data)
     int pjmedia_stream_pause(pjmedia_stream *stream, pjmedia_dir dir)
     int pjmedia_stream_resume(pjmedia_stream *stream, pjmedia_dir dir)
 
@@ -367,14 +387,19 @@ cdef extern from "pjmedia.h":
     enum:
         PJMEDIA_FILE_NO_LOOP
     int pjmedia_port_destroy(pjmedia_port *port)
-    int pjmedia_wav_player_port_create(pj_pool_t *pool, char *filename, unsigned int ptime, unsigned int flags, unsigned int buff_size, pjmedia_port **p_port)
-    int pjmedia_wav_player_set_eof_cb(pjmedia_port *port, void *user_data, int cb(pjmedia_port *port, void *usr_data) with gil)
+    int pjmedia_wav_player_port_create(pj_pool_t *pool, char *filename, unsigned int ptime, unsigned int flags,
+                                       unsigned int buff_size, pjmedia_port **p_port)
+    int pjmedia_wav_player_set_eof_cb(pjmedia_port *port, void *user_data,
+                                      int cb(pjmedia_port *port, void *usr_data) with gil)
     int pjmedia_wav_player_port_set_pos(pjmedia_port *port, unsigned int offset)
 
     # wav recorder
     enum pjmedia_file_writer_option:
         PJMEDIA_FILE_WRITE_PCM
-    int pjmedia_wav_writer_port_create(pj_pool_t *pool, char *filename, unsigned int clock_rate, unsigned int channel_count, unsigned int samples_per_frame, unsigned int bits_per_sample, unsigned int flags, int buff_size, pjmedia_port **p_port)
+    int pjmedia_wav_writer_port_create(pj_pool_t *pool, char *filename, unsigned int clock_rate,
+                                       unsigned int channel_count, unsigned int samples_per_frame,
+                                       unsigned int bits_per_sample, unsigned int flags, int buff_size,
+                                       pjmedia_port **p_port)
 
     # tone generator
     struct pjmedia_tone_digit:
@@ -382,8 +407,11 @@ cdef extern from "pjmedia.h":
         short on_msec
         short off_msec
         short volume
-    int pjmedia_tonegen_create(pj_pool_t *pool, unsigned int clock_rate, unsigned int channel_count, unsigned int samples_per_frame, unsigned int bits_per_sample, unsigned int options, pjmedia_port **p_port)
-    int pjmedia_tonegen_play_digits(pjmedia_port *tonegen, unsigned int count, pjmedia_tone_digit digits[], unsigned int options)
+    int pjmedia_tonegen_create(pj_pool_t *pool, unsigned int clock_rate, unsigned int channel_count,
+                               unsigned int samples_per_frame, unsigned int bits_per_sample,
+                               unsigned int options, pjmedia_port **p_port)
+    int pjmedia_tonegen_play_digits(pjmedia_port *tonegen, unsigned int count,
+                                    pjmedia_tone_digit digits[], unsigned int options)
     int pjmedia_tonegen_stop(pjmedia_port *tonegen)
 
 cdef extern from "pjmedia-codec.h":
@@ -600,10 +628,15 @@ cdef extern from "pjsip.h":
         PJSIP_H_ALLOW
         PJSIP_H_SUPPORTED
     pjsip_hdr_ptr_const pjsip_endpt_get_capability(pjsip_endpoint *endpt, int htype, pj_str_t *hname)
-    int pjsip_endpt_add_capability(pjsip_endpoint *endpt, pjsip_module *mod, int htype, pj_str_t *hname, unsigned count, pj_str_t *tags)
-    int pjsip_endpt_create_response(pjsip_endpoint *endpt, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
-    int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata, pjsip_tx_data *tdata, void *token, void *cb)
-    int pjsip_endpt_create_request(pjsip_endpoint *endpt, pjsip_method *method, pj_str_t *target, pj_str_t *frm, pj_str_t *to, pj_str_t *contact, pj_str_t *call_id, int cseq, pj_str_t *text, pjsip_tx_data **p_tdata)
+    int pjsip_endpt_add_capability(pjsip_endpoint *endpt, pjsip_module *mod, int htype,
+                                   pj_str_t *hname, unsigned count, pj_str_t *tags)
+    int pjsip_endpt_create_response(pjsip_endpoint *endpt, pjsip_rx_data *rdata,
+                                    int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
+    int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata,
+                                   pjsip_tx_data *tdata, void *token, void *cb)
+    int pjsip_endpt_create_request(pjsip_endpoint *endpt, pjsip_method *method, pj_str_t *target, pj_str_t *frm,
+                                   pj_str_t *to, pj_str_t *contact, pj_str_t *call_id,
+                                   int cseq,pj_str_t *text, pjsip_tx_data **p_tdata)
     pj_timer_heap_t *pjsip_endpt_get_timer_heap(pjsip_endpoint *endpt)
     int pjsip_endpt_create_resolver(pjsip_endpoint *endpt, pj_dns_resolver **p_resv)
     int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv)
@@ -636,9 +669,12 @@ cdef extern from "pjsip.h":
         pjsip_tpselector_type type
         pjsip_tpselector_u u
     int pjsip_transport_shutdown(pjsip_transport *tp)
-    int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned int async_cnt, pjsip_transport **p_transport)
-    int pjsip_tcp_transport_start2(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned int async_cnt, pjsip_tpfactory **p_tpfactory)
-    int pjsip_tls_transport_start(pjsip_endpoint *endpt, pjsip_tls_setting *opt, pj_sockaddr_in *local, pjsip_host_port *a_name, unsigned async_cnt, pjsip_tpfactory **p_factory)
+    int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name,
+                                  unsigned int async_cnt, pjsip_transport **p_transport)
+    int pjsip_tcp_transport_start2(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name,
+                                   unsigned int async_cnt, pjsip_tpfactory **p_tpfactory)
+    int pjsip_tls_transport_start(pjsip_endpoint *endpt, pjsip_tls_setting *opt, pj_sockaddr_in *local,
+                                  pjsip_host_port *a_name, unsigned async_cnt, pjsip_tpfactory **p_factory)
     void pjsip_tls_setting_default(pjsip_tls_setting *tls_opt)
     int pjsip_transport_shutdown(pjsip_transport *tp)
 
@@ -657,7 +693,8 @@ cdef extern from "pjsip.h":
         pjsip_tsx_state_e state
         void **mod_data
     int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
-    int pjsip_tsx_create_key(pj_pool_t *pool, pj_str_t *key, pjsip_role_e role, pjsip_method *method, pjsip_rx_data *rdata)
+    int pjsip_tsx_create_key(pj_pool_t *pool, pj_str_t *key, pjsip_role_e role,
+                             pjsip_method *method, pjsip_rx_data *rdata)
     pjsip_transaction *pjsip_tsx_layer_find_tsx(pj_str_t *key, int lock)
     int pjsip_tsx_create_uac(pjsip_module *tsx_user, pjsip_tx_data *tdata, pjsip_transaction **p_tsx)
     int pjsip_tsx_terminate(pjsip_transaction *tsx, int code)
@@ -685,7 +722,8 @@ cdef extern from "pjsip.h":
     struct pjsip_event:
         pjsip_event_id_e type
         pjsip_event_body body
-    int pjsip_endpt_send_request(pjsip_endpoint *endpt, pjsip_tx_data *tdata, int timeout, void *token, void cb(void *token, pjsip_event *e) with gil)
+    int pjsip_endpt_send_request(pjsip_endpoint *endpt, pjsip_tx_data *tdata, int timeout,
+                                 void *token, void cb(void *token, pjsip_event *e) with gil)
 
     # auth
     enum:
@@ -702,7 +740,8 @@ cdef extern from "pjsip.h":
         pass
     int pjsip_auth_clt_init(pjsip_auth_clt_sess *sess, pjsip_endpoint *endpt, pj_pool_t *pool, unsigned int options)
     int pjsip_auth_clt_set_credentials(pjsip_auth_clt_sess *sess, int cred_cnt, pjsip_cred_info *c)
-    int pjsip_auth_clt_reinit_req(pjsip_auth_clt_sess *sess, pjsip_rx_data *rdata, pjsip_tx_data *old_request, pjsip_tx_data **new_request)
+    int pjsip_auth_clt_reinit_req(pjsip_auth_clt_sess *sess, pjsip_rx_data *rdata,
+                                  pjsip_tx_data *old_request, pjsip_tx_data **new_request)
 
     # dialog layer
     ctypedef pjsip_module pjsip_user_agent
@@ -713,7 +752,8 @@ cdef extern from "pjsip.h":
         pjsip_dialog *on_dlg_forked(pjsip_dialog *first_set, pjsip_rx_data *res)
     int pjsip_ua_init_module(pjsip_endpoint *endpt, pjsip_ua_init_param *prm)
     pjsip_user_agent *pjsip_ua_instance()
-    int pjsip_dlg_create_uac(pjsip_user_agent *ua, pj_str_t *local_uri, pj_str_t *local_contact_uri, pj_str_t *remote_uri, pj_str_t *target, pjsip_dialog **p_dlg)
+    int pjsip_dlg_create_uac(pjsip_user_agent *ua, pj_str_t *local_uri, pj_str_t *local_contact_uri,
+                             pj_str_t *remote_uri, pj_str_t *target, pjsip_dialog **p_dlg)
     int pjsip_dlg_set_route_set(pjsip_dialog *dlg, pjsip_route_hdr *route_set)
     int pjsip_dlg_create_uas(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg)
     int pjsip_dlg_terminate(pjsip_dialog *dlg)
@@ -730,9 +770,11 @@ cdef extern from "pjsip_simple.h":
         pjsip_rx_data *rdata
         int expiration
     int pjsip_publishc_init_module(pjsip_endpoint *endpt)
-    int pjsip_publishc_create(pjsip_endpoint *endpt, int options, void *token, void cb(pjsip_publishc_cbparam *param) with gil, pjsip_publishc **p_pubc)
+    int pjsip_publishc_create(pjsip_endpoint *endpt, int options, void *token,
+                              void cb(pjsip_publishc_cbparam *param) with gil, pjsip_publishc **p_pubc)
     int pjsip_publishc_destroy(pjsip_publishc *pubc)
-    int pjsip_publishc_init(pjsip_publishc *pubc, pj_str_t *event, pj_str_t *target_uri, pj_str_t *from_uri, pj_str_t *to_uri, unsigned int expires)
+    int pjsip_publishc_init(pjsip_publishc *pubc, pj_str_t *event, pj_str_t *target_uri,
+                            pj_str_t *from_uri, pj_str_t *to_uri, unsigned int expires)
     int pjsip_publishc_set_credentials(pjsip_publishc *pubc, int count, pjsip_cred_info *c)
     int pjsip_publishc_publish(pjsip_publishc *pubc, int auto_refresh, pjsip_tx_data **p_tdata)
     int pjsip_publishc_unpublish(pjsip_publishc *pubc, pjsip_tx_data **p_tdata)
@@ -746,11 +788,14 @@ cdef extern from "pjsip_simple.h":
     struct pjsip_evsub
     struct pjsip_evsub_user:
         void on_evsub_state(pjsip_evsub *sub, pjsip_event *event) with gil
-        void on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+        void on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+                          pj_str_t **p_st_text,pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
         void on_client_refresh(pjsip_evsub *sub) with gil
     int pjsip_evsub_init_module(pjsip_endpoint *endpt)
-    int pjsip_evsub_register_pkg(pjsip_module *pkg_mod, pj_str_t *event_name, unsigned int expires, unsigned int accept_cnt, pj_str_t *accept)
-    int pjsip_evsub_create_uac(pjsip_dialog *dlg, pjsip_evsub_user *user_cb, pj_str_t *event, int option, pjsip_evsub **p_evsub)
+    int pjsip_evsub_register_pkg(pjsip_module *pkg_mod, pj_str_t *event_name,
+                                 unsigned int expires, unsigned int accept_cnt, pj_str_t *accept)
+    int pjsip_evsub_create_uac(pjsip_dialog *dlg, pjsip_evsub_user *user_cb,
+                               pj_str_t *event, int option, pjsip_evsub **p_evsub)
     int pjsip_evsub_initiate(pjsip_evsub *sub, void *method, unsigned int expires, pjsip_tx_data **p_tdata)
     int pjsip_evsub_send_request(pjsip_evsub *sub, pjsip_tx_data *tdata)
     int pjsip_evsub_terminate(pjsip_evsub *sub, int notify)
@@ -773,9 +818,11 @@ cdef extern from "pjsip_ua.h":
     struct pjsip_regc_info:
         int interval
         int next_reg
-    int pjsip_regc_create(pjsip_endpoint *endpt, void *token, void cb(pjsip_regc_cbparam *param) with gil, pjsip_regc **p_regc)
+    int pjsip_regc_create(pjsip_endpoint *endpt, void *token,
+                          void cb(pjsip_regc_cbparam *param) with gil, pjsip_regc **p_regc)
     int pjsip_regc_destroy(pjsip_regc *regc)
-    int pjsip_regc_init(pjsip_regc *regc, pj_str_t *srv_url, pj_str_t *from_url, pj_str_t *to_url, int ccnt, pj_str_t *contact, unsigned int expires)
+    int pjsip_regc_init(pjsip_regc *regc, pj_str_t *srv_url, pj_str_t *from_url,
+                        pj_str_t *to_url, int ccnt,pj_str_t *contact, unsigned int expires)
     int pjsip_regc_set_credentials(pjsip_regc *regc, int count, pjsip_cred_info *cred)
     int pjsip_regc_register(pjsip_regc *regc, int autoreg, pjsip_tx_data **p_tdata)
     int pjsip_regc_unregister(pjsip_regc *regc, pjsip_tx_data **p_tdata)
@@ -813,14 +860,20 @@ cdef extern from "pjsip_ua.h":
     int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify)
     int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
     int pjsip_inv_send_msg(pjsip_inv_session *inv, pjsip_tx_data *tdata)
-    int pjsip_inv_verify_request(pjsip_rx_data *rdata, unsigned int *options, pjmedia_sdp_session *sdp, pjsip_dialog *dlg, pjsip_endpoint *endpt, pjsip_tx_data **tdata)
-    int pjsip_inv_create_uas(pjsip_dialog *dlg, pjsip_rx_data *rdata, pjmedia_sdp_session *local_sdp, unsigned int options, pjsip_inv_session **p_inv)
-    int pjsip_inv_initial_answer(pjsip_inv_session *inv, pjsip_rx_data *rdata, int st_code, pj_str_t *st_text, pjmedia_sdp_session *sdp, pjsip_tx_data **p_tdata)
-    int pjsip_inv_answer(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjmedia_sdp_session *local_sdp, pjsip_tx_data **p_tdata)
-    int pjsip_inv_create_uac(pjsip_dialog *dlg, pjmedia_sdp_session *local_sdp, unsigned int options, pjsip_inv_session **p_inv)
+    int pjsip_inv_verify_request(pjsip_rx_data *rdata, unsigned int *options, pjmedia_sdp_session *sdp,
+                                 pjsip_dialog *dlg, pjsip_endpoint *endpt, pjsip_tx_data **tdata)
+    int pjsip_inv_create_uas(pjsip_dialog *dlg, pjsip_rx_data *rdata, pjmedia_sdp_session *local_sdp,
+                             unsigned int options, pjsip_inv_session **p_inv)
+    int pjsip_inv_initial_answer(pjsip_inv_session *inv, pjsip_rx_data *rdata, int st_code,
+                                 pj_str_t *st_text, pjmedia_sdp_session *sdp, pjsip_tx_data **p_tdata)
+    int pjsip_inv_answer(pjsip_inv_session *inv, int st_code, pj_str_t *st_text,
+                         pjmedia_sdp_session *local_sdp, pjsip_tx_data **p_tdata)
+    int pjsip_inv_create_uac(pjsip_dialog *dlg, pjmedia_sdp_session *local_sdp,
+                             unsigned int options, pjsip_inv_session **p_inv)
     int pjsip_inv_invite(pjsip_inv_session *inv, pjsip_tx_data **p_tdata)
     char *pjsip_inv_state_name(pjsip_inv_state state)
-    int pjsip_inv_reinvite(pjsip_inv_session *inv, pj_str_t *new_contact, pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata)
+    int pjsip_inv_reinvite(pjsip_inv_session *inv, pj_str_t *new_contact,
+                           pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata)
 
 # declarations
 
@@ -910,7 +963,8 @@ cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *
 cdef class Subscription
 cdef class EventPackage
 cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
-cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+                                    pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
 cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil
 
 # core.invitation
@@ -918,7 +972,8 @@ cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil
 cdef class Invitation
 cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
-cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
+cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
+                                     pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
 cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef int _Invitation_cb_fail_post(object obj) except -1
