@@ -85,14 +85,15 @@ cdef class Credentials:
     cdef public SIPURI uri
     cdef public object password
 
-    def __cinit__(self, SIPURI uri, password=None):
+    def __cinit__(self, *args, **kwargs):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
-        cdef SIPURI req_uri
-        self.uri = uri
-        self.password = password
         self._obj.realm = _Credentials_realm_wildcard.pj_str
         self._obj.scheme = _Credentials_scheme_digest.pj_str
         self._obj.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
+
+    def __init__(self, SIPURI uri, password=None):
+        self.uri = uri
+        self.password = password
 
     def __repr__(self):
         return "<Credentials for '%s'>" % self.uri
