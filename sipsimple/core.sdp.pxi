@@ -15,8 +15,8 @@ cdef class SDPSession:
     cdef public list attributes
     cdef public list media
 
-    def __cinit__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ",
-                  info=None, SDPConnection connection=None, start_time=0, stop_time=0, attributes=None, media=None):
+    def __init__(self, address, id=None, version=None, user="-", net_type="IN", address_type="IP4", name=" ",
+                info=None, SDPConnection connection=None, start_time=0, stop_time=0, attributes=None, media=None):
         cdef unsigned int version_id = 2208988800UL
         cdef pj_time_val tv
         self.user = user
@@ -148,8 +148,8 @@ cdef class SDPMedia:
     cdef public SDPConnection connection
     cdef public list attributes
 
-    def __cinit__(self, media, port, transport, port_count=1, formats=None,
-                  info=None, SDPConnection connection=None, attributes=None):
+    def __init__(self, media, port, transport, port_count=1, formats=None,
+                 info=None, SDPConnection connection=None, attributes=None):
         self.media = media
         self._obj.desc.port = port
         self._obj.desc.port_count = port_count
@@ -247,7 +247,7 @@ cdef class SDPConnection:
     cdef public object address_type
     cdef public object address
 
-    def __cinit__(self, address, net_type = "IN", address_type = "IP4"):
+    def __init__(self, address, net_type = "IN", address_type = "IP4"):
         self.net_type = net_type
         self.address_type = address_type
         self.address = address
@@ -282,7 +282,7 @@ cdef class SDPAttribute:
     cdef public object name
     cdef public object value
 
-    def __cinit__(self, name, value):
+    def __init__(self, name, value):
         self.name = name
         self.value = value
 
