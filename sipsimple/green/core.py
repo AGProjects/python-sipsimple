@@ -219,6 +219,8 @@ class GreenInvitation(GreenBase):
     def connected(self):
         return self.state == 'CONFIRMED'
 
+    # XXX remove ringer from here (we only provide what Invitation provides, no bells and whistles)
+    # XXX check that no old script is still using ringer
     def send_invite(self, *args, **kwargs):
         """Call send_invite on the proxied object. Wait until session is established or terminated.
 
@@ -231,6 +233,7 @@ class GreenInvitation(GreenBase):
         assert self.state not in ['CONFIRMED', 'CONNECTING', 'EARLY', 'CALLING'], self.state
         ringer = kwargs.pop('ringer', None)
         ringing = False
+        confirmed_notification, sdp_notification = None, None
         with self.linked_notifications() as q:
             self._obj.send_invite(*args, **kwargs)
             try:
@@ -242,12 +245,21 @@ class GreenInvitation(GreenBase):
                                 ringer.start()
                                 ringing = True
                         elif notification.data.state=='CONFIRMED':
-                            return notification.data
+                            confirmed_notification = notification
+                            break
                         elif notification.data.state=='DISCONNECTED':
                             raise InvitationError(notification.data.__dict__)
                     elif notification.name == self.event_names[1]:
+                        sdp_notification = notification
                         if not notification.data.succeeded:
                             raise SDPNegotiationError('SDP negotiation failed: %s' % notification.data.error)
+                if sdp_notification is None:
+                    while True:
+                        notification = w.wait()
+                        if notification.name == self.event_names[1]:
+                            sdp_notification = notification
+                            break
+                return (confirmed_notification, sdp_notification)
             finally:
                 if ringer is not None and ringing:
                     ringer.stop()
