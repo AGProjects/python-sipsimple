@@ -15,6 +15,8 @@ from sipsimple import util
 from sipsimple.account import AccountManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 
+__all__ = ['Session',
+           'IncomingHandler']
 
 class NotificationHandler(util.NotificationHandler):
 
