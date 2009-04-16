@@ -6,7 +6,6 @@ SIP core
 - Add isfocus attribute for both session parties, present in Contact header [RK]
 - Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 - Fix PJSIP problems with sending a negative reply to a re-INVITE [RK]
-- Properly split __cinit__() and __init__() methods on Cython objects [RK]
 - Handle incoming SUBSCRIBE requests [RK]
 - Handle incoming REGISTER requests [RK]
 - Make MESSAGE handling a class, fix timeout [RK]
