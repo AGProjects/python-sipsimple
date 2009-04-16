@@ -136,7 +136,7 @@ class ChatSession(NotificationHandler):
 
     info = 'Session'
 
-    def __init__(self, session, manager, remote_party):
+    def __init__(self, session, manager, remote_party, streams):
         self.session = session
         self.session._chat = self
         self.manager = manager
@@ -148,6 +148,7 @@ class ChatSession(NotificationHandler):
             if self.remote_party is None:
                 self.remote_party = format_uri(self.inv.remote_uri)
         self.subscribe_to_all(sender=self.session)
+        self.update_streams(streams)
 
     def __getattr__(self, item):
         return getattr(self.session, item)
@@ -157,7 +158,7 @@ class ChatSession(NotificationHandler):
             self.history_file = get_history_file(session.inv)
 
     def _NH_SIPSessionGotStreamUpdate(self, session, data):
-        self.update_info(data.streams)
+        self.update_streams(data.streams)
 
     def end(self):
         self.session.end()
@@ -166,8 +167,10 @@ class ChatSession(NotificationHandler):
             self.history_file = None
 
     def send_message(self, msg):
+        if not self.chat:
+            raise UserCommandError('No chat stream on this session. Try :add chat')
         dt = datetime.datetime.utcnow()
-        chunk = self.session.send_message(msg, dt=dt)
+        chunk = self.chat.send_message(msg, dt=dt)
         printed_msg = format_outgoing_message(self.inv.local_uri, msg, dt=dt)
         print printed_msg
         if self.history_file:
@@ -181,10 +184,15 @@ class ChatSession(NotificationHandler):
             result += ' [%s]' % self.state
         return result + ': '
 
-    def update_info(self, streams):
+    def update_streams(self, streams):
+        self.streams = streams
         self.info = '/'.join([type(stream).__name__ for stream in streams])
-        if not self.info:
-            self.info = 'Session with no streams'
+        self.info = self.info or 'Session with no streams'
+        self.chat = None
+        for stream in streams:
+            if isinstance(stream, MSRPChat):
+                self.chat = stream
+                break
         self.manager.update_prompt()
 
     def hold(self):
@@ -396,8 +404,7 @@ class ChatManager(NotificationHandler):
         chat = None
         try:
             session = GreenSession(self.account)
-            chat = ChatSession(session, self, remote_party=format_uri(target_uri))
-            chat.update_info(streams)
+            chat = ChatSession(session, self, remote_party=format_uri(target_uri), streams=streams)
             self.add_session(chat)
             routes = get_routes(target_uri, self.engine, self.account)
             if not routes:
@@ -420,22 +427,11 @@ class ChatManager(NotificationHandler):
     def get_current_session(self, error_prefix=None):
         session = self.current_session
         if not session:
-            if not error_prefix:
-                msg = 'No active session'
-            else:
-                msg = error_prefix + ': no active session'
             raise UserCommandError(msg)
         return session
 
     def send_message(self, message):
-        session = self.get_current_session('Cannot send message %r' % message)
-        try:
-            if session.send_message(message):
-                #print 'sent %s %s' % (session, message)
-                return True # indicate that the message was send and echoed
-        except ConnectionClosed, ex:
-            proc.spawn(self.remove_session, session)
-            raise UserCommandError(str(ex))
+        return self.get_current_session().send_message(message)
 
     def cmd_hold(self):
         """:hold  (or CTRL-H) \t Put the current session on hold"""
