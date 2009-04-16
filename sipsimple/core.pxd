@@ -938,5 +938,5 @@ cdef SDPAttribute _make_SDPAttribute(pjmedia_sdp_attr *pj_attr)
 
 cdef class RTPTransport
 cdef class AudioTransport
-cdef void cb_RTPTransport_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
-cdef void cb_AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
+cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
+cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil

@@ -428,15 +428,15 @@ cdef class PJSIPUA:
 
     def connect_audio_transport(self, AudioTransport transport):
         self._check_self()
-        if transport.c_obj == NULL:
+        if transport._obj == NULL:
             raise SIPCoreError("Cannot connect an AudioTransport that was not started yet")
-        self._conf_bridge._connect_conv_slot(transport.c_conf_slot)
+        self._conf_bridge._connect_conv_slot(transport._conf_slot)
 
     def disconnect_audio_transport(self, AudioTransport transport):
         self._check_self()
-        if transport.c_obj == NULL:
+        if transport._obj == NULL:
             raise SIPCoreError("Cannot disconnect an AudioTransport that was not started yet")
-        self._conf_bridge._disconnect_slot(transport.c_conf_slot)
+        self._conf_bridge._disconnect_slot(transport._conf_slot)
 
     def detect_nat_type(self, stun_server_address, stun_server_port=PJ_STUN_PORT):
         cdef pj_str_t stun_server_address_pj
