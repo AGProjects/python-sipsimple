@@ -557,13 +557,14 @@ class AccountManager(object):
         if not account.enabled:
             raise ValueError("account %s is not enabled" % account.id)
         settings = SIPSimpleSettings()
+        old_account = self.accounts.get(settings.default_account, None)
         if account is None:
             settings.default_account = None
         else:
             settings.default_account = account.id
         settings.save()
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountManagerDidChangeDefaultAccount', sender=self, data=NotificationData(account=account))
+        notification_center.post_notification('SIPAccountManagerDidChangeDefaultAccount', sender=self, data=NotificationData(old_account=old_account, account=account))
 
     default_account = property(_get_default_account, _set_default_account)
     del _get_default_account, _set_default_account
