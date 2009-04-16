@@ -275,6 +275,7 @@ class GreenConsole(object):
             self.terminalProtocol.cursorToBOL()
             self.terminalProtocol.pn = 0
         try:
+            self.terminal.eraseLine()
             self.terminalProtocol.drawInputLine()
             return self._receive()
         finally:
