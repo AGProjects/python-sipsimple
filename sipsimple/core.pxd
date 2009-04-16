@@ -929,10 +929,10 @@ cdef class SDPSession
 cdef class SDPMedia
 cdef class SDPConnection
 cdef class SDPAttribute
-cdef SDPSession c_make_SDPSession(pjmedia_sdp_session_ptr_const pj_session)
-cdef SDPMedia c_make_SDPMedia(pjmedia_sdp_media *pj_media)
-cdef SDPConnection c_make_SDPConnection(pjmedia_sdp_conn *pj_conn)
-cdef SDPAttribute c_make_SDPAttribute(pjmedia_sdp_attr *pj_attr)
+cdef SDPSession _make_SDPSession(pjmedia_sdp_session_ptr_const pj_session)
+cdef SDPMedia _make_SDPMedia(pjmedia_sdp_media *pj_media)
+cdef SDPConnection _make_SDPConnection(pjmedia_sdp_conn *pj_conn)
+cdef SDPAttribute _make_SDPAttribute(pjmedia_sdp_attr *pj_attr)
 
 # core.mediatransport
 

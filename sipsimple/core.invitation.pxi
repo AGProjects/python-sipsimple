@@ -207,7 +207,7 @@ cdef class Invitation:
         self._check_ua()
         if self._obj != NULL and self._has_active_sdp:
             pjmedia_sdp_neg_get_active_local(self._obj.neg, &sdp)
-            return c_make_SDPSession(sdp)
+            return _make_SDPSession(sdp)
         else:
             return None
 
@@ -216,7 +216,7 @@ cdef class Invitation:
         self._check_ua()
         if self._obj != NULL and self._has_active_sdp:
             pjmedia_sdp_neg_get_active_remote(self._obj.neg, &sdp)
-            return c_make_SDPSession(sdp)
+            return _make_SDPSession(sdp)
         else:
             return None
 
@@ -226,7 +226,7 @@ cdef class Invitation:
         if self._obj != NULL and pjmedia_sdp_neg_get_state(self._obj.neg) in [PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER,
                                                                               PJMEDIA_SDP_NEG_STATE_WAIT_NEGO]:
             pjmedia_sdp_neg_get_neg_remote(self._obj.neg, &sdp)
-            return c_make_SDPSession(sdp)
+            return _make_SDPSession(sdp)
         else:
             return None
 
@@ -236,7 +236,7 @@ cdef class Invitation:
         if self._obj != NULL and pjmedia_sdp_neg_get_state(self._obj.neg) in [PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER,
                                                                               PJMEDIA_SDP_NEG_STATE_WAIT_NEGO]:
             pjmedia_sdp_neg_get_neg_local(self._obj.neg, &sdp)
-            return c_make_SDPSession(sdp)
+            return _make_SDPSession(sdp)
         else:
             return self._local_sdp_proposed
 
@@ -295,9 +295,9 @@ cdef class Invitation:
         event_dict = dict(obj=self, succeeded=status == 0)
         if status == 0:
             pjmedia_sdp_neg_get_active_local(self._obj.neg, &local_sdp)
-            event_dict["local_sdp"] = c_make_SDPSession(local_sdp)
+            event_dict["local_sdp"] = _make_SDPSession(local_sdp)
             pjmedia_sdp_neg_get_active_remote(self._obj.neg, &remote_sdp)
-            event_dict["remote_sdp"] = c_make_SDPSession(remote_sdp)
+            event_dict["remote_sdp"] = _make_SDPSession(remote_sdp)
         else:
             event_dict["error"] = _pj_status_to_str(status)
         _add_event("SIPInvitationGotSDPUpdate", event_dict)
@@ -343,7 +343,7 @@ cdef class Invitation:
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
             self._local_sdp_proposed._to_c()
-            local_sdp = &self._local_sdp_proposed.c_obj
+            local_sdp = &self._local_sdp_proposed._obj
             status = pjsip_inv_create_uac(self._dlg, local_sdp, 0, &self._obj)
             if status != 0:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
@@ -394,7 +394,7 @@ cdef class Invitation:
             if self._local_sdp_proposed is None:
                 raise SIPCoreError("Local SDP has not been set")
             self._local_sdp_proposed._to_c()
-            local_sdp = &self._local_sdp_proposed.c_obj
+            local_sdp = &self._local_sdp_proposed._obj
         status = pjsip_inv_answer(self._obj, response_code, NULL, local_sdp, &tdata)
         if status != 0:
                 raise PJSIPError("Could not create %d reply to INVITE" % response_code, status)
@@ -442,7 +442,7 @@ cdef class Invitation:
             raise SIPCoreError("Cannot send re-INVITE in CONFIRMED state")
         if self._local_sdp_proposed is not None:
             self._local_sdp_proposed._to_c()
-            local_sdp = &self._local_sdp_proposed.c_obj
+            local_sdp = &self._local_sdp_proposed._obj
         status = pjsip_inv_reinvite(self._obj, NULL, local_sdp, &tdata)
         if status != 0:
             raise PJSIPError("Could not create re-INVITE message", status)

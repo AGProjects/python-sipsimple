@@ -152,12 +152,12 @@ cdef class RTPTransport:
         cdef int status
         if sdp_index < 0:
             raise ValueError("sdp_index argument cannot be negative")
-        if sdp_index >= local_sdp.c_obj.media_count:
+        if sdp_index >= local_sdp._obj.media_count:
             raise ValueError("sdp_index argument out of range")
         status = pjmedia_transport_media_create(self.c_obj, self.c_pool, 0, c_remote_sdp, sdp_index)
         if status != 0:
             raise PJSIPError("Could not create media transport", status)
-        status = pjmedia_transport_encode_sdp(self.c_obj, self.c_pool, &local_sdp.c_obj, c_remote_sdp, sdp_index)
+        status = pjmedia_transport_encode_sdp(self.c_obj, self.c_pool, &local_sdp._obj, c_remote_sdp, sdp_index)
         if status != 0:
             raise PJSIPError("Could not update SDP for media transport", status)
         # TODO: work the changes back into the local_sdp object, but we don't need to do that yet.
@@ -187,8 +187,8 @@ cdef class RTPTransport:
         local_sdp._to_c()
         remote_sdp._to_c()
         if self.state == "INIT":
-            self._update_local_sdp(local_sdp, sdp_index, &remote_sdp.c_obj)
-        status = pjmedia_transport_media_start(self.c_obj, self.c_pool, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
+            self._update_local_sdp(local_sdp, sdp_index, &remote_sdp._obj)
+        status = pjmedia_transport_media_start(self.c_obj, self.c_pool, &local_sdp._obj, &remote_sdp._obj, sdp_index)
         if status != 0:
             raise PJSIPError("Could not start media transport", status)
         if remote_sdp.media[sdp_index].connection is None:
@@ -300,7 +300,7 @@ cdef class AudioTransport:
         status = pjmedia_endpt_create_sdp(ua._pjmedia_endpoint._obj, self.c_pool, 1, &info.sock_info, &c_local_sdp)
         if status != 0:
             raise PJSIPError("Could not generate SDP for audio session", status)
-        local_sdp = c_make_SDPSession(c_local_sdp)
+        local_sdp = _make_SDPSession(c_local_sdp)
         if remote_sdp is None:
             self.c_offer = 1
             self.transport.set_LOCAL(local_sdp, 0)
@@ -309,7 +309,7 @@ cdef class AudioTransport:
             if sdp_index != 0:
                 local_sdp.media = (sdp_index+1) * local_sdp.media
             self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
-        self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp.c_obj.media[sdp_index])
+        self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp._obj.media[sdp_index])
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -372,7 +372,7 @@ cdef class AudioTransport:
         cdef object direction_attr
         if is_offer and direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
             raise SIPCoreError("Unknown direction: %s" % direction)
-        local_media = c_make_SDPMedia(self.c_local_media)
+        local_media = _make_SDPMedia(self.c_local_media)
         local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ["sendrecv", "sendonly", "recvonly", "inactive"]]
         if is_offer:
             direction_attr = direction
@@ -403,7 +403,7 @@ cdef class AudioTransport:
         else:
             local_sdp._to_c()
             remote_sdp._to_c()
-        status = pjmedia_stream_info_from_sdp(&self.c_stream_info, self.c_pool, ua._pjmedia_endpoint._obj, &local_sdp.c_obj, &remote_sdp.c_obj, sdp_index)
+        status = pjmedia_stream_info_from_sdp(&self.c_stream_info, self.c_pool, ua._pjmedia_endpoint._obj, &local_sdp._obj, &remote_sdp._obj, sdp_index)
         if status != 0:
             raise PJSIPError("Could not parse SDP for audio session", status)
         self.c_stream_info.param.setting.vad = self.c_vad
@@ -432,7 +432,7 @@ cdef class AudioTransport:
             raise PJSIPError("Could not connect audio session to conference bridge", status)
         self.direction = "sendrecv"
         self.update_direction(local_sdp.media[sdp_index].get_direction())
-        self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp.c_obj.media[sdp_index])
+        self.c_local_media = pjmedia_sdp_media_clone(self.c_pool, local_sdp._obj.media[sdp_index])
         self.c_started = 1
 
     def stop(self):
