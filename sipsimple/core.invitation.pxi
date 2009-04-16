@@ -17,11 +17,15 @@ cdef class Invitation:
     cdef readonly object transport
     cdef SIPURI _local_contact_uri
 
-    def __cinit__(self, Credentials credentials=None, SIPURI callee_uri=None,
+    def __cinit__(self, *args, **kwargs):
+        self._sdp_neg_status = -1
+        self.state = "INVALID"
+
+    def __init__(self, Credentials credentials=None, SIPURI callee_uri=None,
                   Route route=None, SIPURI contact_uri=None):
         cdef PJSIPUA ua = _get_ua()
-        self._sdp_neg_status = -1
-        self._has_active_sdp = 0
+        if self.state != "INVALID":
+            raise SIPCoreError("Invitation.__init__() was already called")
         if all([credentials, callee_uri, route]):
             self.state = "NULL"
             self._credentials = credentials
@@ -40,8 +44,6 @@ cdef class Invitation:
                 self._local_contact_uri = contact_uri.copy()
         elif any([credentials, callee_uri, route]):
             raise ValueError("All arguments need to be supplied when creating an outbound Invitation")
-        else:
-            self.state = "INVALID"
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
