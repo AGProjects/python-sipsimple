@@ -92,6 +92,7 @@ class MSRPChat(object):
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
+            self.remote_uri = session.remote_uri
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
             self.notification_center.post_notification('DidFail', self, ndata)

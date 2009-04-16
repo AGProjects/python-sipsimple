@@ -77,6 +77,7 @@ class Session(NotificationHandler):
         self._set_state('CALLING')
         try:
             self.direction = 'outgoing'
+            self.remote_uri = callee_uri
             route = iter(routes).next()
             contact_uri = SIPURI(user=self.account.contact.username,
                                  host=self.account.contact.domain,
