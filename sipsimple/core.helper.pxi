@@ -14,7 +14,7 @@ cdef class Route:
     cdef PJSTR _address
     cdef PJSTR _transport
 
-    def __cinit__(self, object address, int port=5060, object transport="udp"):
+    def __cinit__(self, *args, **kwargs):
         pjsip_route_hdr_init(NULL, <void *> &self._route_hdr)
         pjsip_sip_uri_init(&self._sip_uri, 0)
         self._sip_uri.lr_param = 1
@@ -23,6 +23,8 @@ cdef class Route:
         (<pj_list *> &self._route_hdr).prev = &self._route_set
         self._route_set.next = &self._route_hdr
         self._route_set.prev = &self._route_hdr
+
+    def __init__(self, object address, int port=5060, object transport="udp"):
         self.address = address
         self.port = port
         self.transport = transport
