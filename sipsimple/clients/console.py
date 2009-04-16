@@ -288,7 +288,7 @@ class GreenConsole(object):
         if self.terminalProtocol is None:
             raise ConnectionDone
         if self.terminalProtocol.lineBuffer:
-            self.terminalProtocol.terminal.nextLine()
+            self.terminal.nextLine()
         with self.terminalProtocol.temporary_prompt(prompt):
             yield
 
@@ -309,7 +309,7 @@ class GreenConsole(object):
                     if allowed is None or key in allowed:
                         if echo:
                             #self.terminalProtocol.lineBuffer.append(str(key))
-                            self.terminalProtocol.terminal.write(str(key))
+                            self.terminal.write(str(key))
                         return type, value
                 else:
                     return type, value
