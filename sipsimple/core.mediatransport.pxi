@@ -285,14 +285,22 @@ cdef class AudioTransport:
     cdef int _is_offer
     cdef unsigned int _vad
 
-    def __cinit__(self, RTPTransport transport, SDPSession remote_sdp=None,
-                  int sdp_index=0, enable_silence_detection=True):
+    def __cinit__(self, *args, **kwargs):
         cdef object pool_name = "AudioTransport_%d" % id(self)
+        cdef PJSIPUA ua = _get_ua()
+        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
+        if self._pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+
+    def __init__(self, RTPTransport transport, SDPSession remote_sdp=None,
+                 int sdp_index=0, enable_silence_detection=True):
         cdef pjmedia_transport_info info
         cdef pjmedia_sdp_session *local_sdp_c
         cdef SDPSession local_sdp
         cdef int status
         cdef PJSIPUA ua = _get_ua()
+        if self.transport is not None:
+            raise SIPCoreError("AudioTransport.__init__() was already called")
         if transport is None:
             raise ValueError("transport argument cannot be None")
         if sdp_index < 0:
@@ -301,10 +309,6 @@ cdef class AudioTransport:
             raise SIPCoreError('RTPTransport object provided is not in the "INIT" state')
         self._vad = int(bool(enable_silence_detection))
         self.transport = transport
-        self._is_started = 0
-        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
-        if self._pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
         transport._get_info(&info)
         status = pjmedia_endpt_create_sdp(ua._pjmedia_endpoint._obj, self._pool, 1, &info.sock_info, &local_sdp_c)
         if status != 0:
