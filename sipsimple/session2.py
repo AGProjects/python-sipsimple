@@ -103,13 +103,13 @@ class Session(NotificationHandler):
                     remote_media = remote_sdp.media[index]
                 except LookupError:
                     for not_used_stream in streams[index:]:
-                        proc.spawn(not_used_stream.end)
+                        proc.spawn_greenlet(not_used_stream.end)
                     break
                 else:
                     if remote_media.port:
                         workers.append(proc.spawn(streams[index].start, local_sdp, remote_sdp, index))
                     else:
-                        proc.spawn(streams[index].end)
+                        proc.spawn_greenlet(streams[index].end)
             proc.waitall(workers)
             ERROR = None
         except LocalSaysBye:
@@ -131,10 +131,10 @@ class Session(NotificationHandler):
                 if code is not None:
                     data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
                     self.notification_center.post_notification("SIPSessionDidFail", self, data)
-                proc.spawn(self._terminate, code or 486)
+                proc.spawn_greenlet(self._terminate, code or 486)
                 killall(workers, wait=False)
                 for stream in streams:
-                    proc.spawn(stream.end)
+                    proc.spawn_greenlet(stream.end)
 
     def _terminate(self, code=486):
         if self.state in ['TERMINATED', 'TERMINATING']:
