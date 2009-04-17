@@ -24,7 +24,7 @@ from application.process import process, ProcessError
 from application.log import start_syslog
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPURI, SIPCoreError
+from sipsimple.core import SIPURI, SIPCoreError, sip_status_messages
 from sipsimple.session import Session, SessionManager
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
@@ -173,7 +173,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                             auto_answer_timer = Timer(auto_answer, auto_answer_call)
                             auto_answer_timer.start()
                     else:
-                        print "Rejecting with 486 (Busy)"
+                        print "Rejecting with %d (%s)" % (486, sip_status_messages[486])
                         obj.reject(True)
                 elif event_name == "SIPSessionDidStart":
                     print 'Session established, using "%s" codec at %dHz' % (sess.audio_codec, sess.audio_sample_rate)
@@ -245,7 +245,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     if sess.state == "INCOMING":
                         if data.lower() == "n":
                             sess.reject()
-                            print "Session rejected with 603 (Decline)"
+                            print "Session rejected with %d (%s)" % (603, sip_status_messages[603])
                             sess = None
                         elif data.lower() == "y":
                             if auto_answer_timer is not None:
