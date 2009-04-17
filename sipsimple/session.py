@@ -354,7 +354,7 @@ class Session(NotificationHandler):
         finally:
             self._lock.release()
 
-    def reject(self):
+    def reject(self, is_busy=False):
         """Rejects an incoming SIP session. Moves the object from the INCOMING to
            the TERMINATING state."""
         with self._lock:
@@ -362,7 +362,7 @@ class Session(NotificationHandler):
                 return
             if self.state != "INCOMING":
                 raise SessionStateError("This method can only be called while in the INCOMING state")
-            self._do_end()
+            self._do_end(is_busy)
 
     def add_audio(self):
         """Add an audio RTP stream to an already established SIP session."""
@@ -513,20 +513,20 @@ class Session(NotificationHandler):
             if len(self._queue) == 1:
                 self._process_queue()
 
-    def end(self):
+    def end(self, is_busy=False):
         """Terminates the SIP session from whatever state it is in.
            Moves the object to the TERMINATING state."""
         with self._lock:
             if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
                 return
-            self._do_end()
+            self._do_end(is_busy)
 
-    def _do_end(self):
+    def _do_end(self, is_busy):
         self._change_state("TERMINATING")
         self.notification_center.post_notification("SIPSessionWillEnd", self, TimestampedNotificationData())
         if self._inv.state != "DISCONNECTING":
             try:
-                self._inv.disconnect()
+                self._inv.disconnect(486 if is_busy else 603)
             except SIPCoreError:
                 self._change_state("TERMINATED")
                 self.notification_center.post_notification("SIPSessionDidEnd", self, TimestampedNotificationData(originator="local"))
