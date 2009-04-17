@@ -237,6 +237,30 @@ cdef class PJMEDIAConferenceBridge:
             raise PJSIPError("Could not playback DTMF tone", status)
         return 0
 
+    cdef int _play_tones(self, object tones) except -1:
+        cdef int freq1, freq2, duration
+        cdef pjmedia_tone_desc tones_arr[PJMEDIA_TONEGEN_MAX_DIGITS]
+        cdef unsigned int count = 0
+        cdef int status
+        for freq1, freq2, duration in tones:
+            if freq1 == 0 and count > 0:
+                tones_arr[count-1].off_msec += duration
+            else:
+                if count >= PJMEDIA_TONEGEN_MAX_DIGITS:
+                    raise SIPCoreError("Too many tones")
+                tones_arr[count].freq1 = freq1
+                tones_arr[count].freq2 = freq2
+                tones_arr[count].on_msec = duration
+                tones_arr[count].off_msec = duration
+                tones_arr[count].volume = 0
+                tones_arr[count].flags = 0
+                count += 1
+        if count > 0:
+            status = pjmedia_tonegen_play(self._tonegen, count, tones_arr, 0)
+            if status != 0:
+                raise PJSIPError("Could not playback tones", status)
+        return 0
+
 
 cdef class RecordingWaveFile:
     cdef pj_pool_t *_pool

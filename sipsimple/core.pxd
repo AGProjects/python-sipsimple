@@ -402,6 +402,15 @@ cdef extern from "pjmedia.h":
                                        pjmedia_port **p_port)
 
     # tone generator
+    enum:
+        PJMEDIA_TONEGEN_MAX_DIGITS
+    struct pjmedia_tone_desc:
+        short freq1
+        short freq2
+        short on_msec
+        short off_msec
+        short volume
+        short flags
     struct pjmedia_tone_digit:
         char digit
         short on_msec
@@ -410,8 +419,9 @@ cdef extern from "pjmedia.h":
     int pjmedia_tonegen_create(pj_pool_t *pool, unsigned int clock_rate, unsigned int channel_count,
                                unsigned int samples_per_frame, unsigned int bits_per_sample,
                                unsigned int options, pjmedia_port **p_port)
+    int pjmedia_tonegen_play(pjmedia_port *tonegen, unsigned int count, pjmedia_tone_desc *tones, unsigned int options)
     int pjmedia_tonegen_play_digits(pjmedia_port *tonegen, unsigned int count,
-                                    pjmedia_tone_digit digits[], unsigned int options)
+                                    pjmedia_tone_digit *digits, unsigned int options)
     int pjmedia_tonegen_stop(pjmedia_port *tonegen)
 
 cdef extern from "pjmedia-codec.h":

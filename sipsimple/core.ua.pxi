@@ -453,6 +453,9 @@ cdef class PJSIPUA:
         # no need for self._check_self(), _get_ua() is called in the function
         return _parse_SIPURI(uri_string)
 
+    def play_tones(self, tones):
+        self._conf_bridge._play_tones(tones)
+
     def __dealloc__(self):
         self.dealloc()
 
