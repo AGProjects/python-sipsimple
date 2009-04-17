@@ -47,6 +47,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
     sent = False
     msg_buf = []
     routes = None
+    is_registered = False
     try:
         if target_uri is None:
             print "Press Ctrl+D to stop the program."
@@ -88,8 +89,10 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                     user_quit = False
                     command = "quit"
                 elif event_name == "SIPAccountRegistrationDidSucceed":
-                    route = args['registration'].route
-                    print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
+                    if not is_registered:
+                        route = args['registration'].route
+                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
+                        is_registered = True
                 elif event_name == "SIPAccountRegistrationDidFail":
                     if args['registration'] is not None:
                         route = args['registration'].route
@@ -107,6 +110,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                         print '%s Failed to register contact for sip:%s: %s' % (datetime.now().replace(microsecond=0), account.id, args["reason"])
                         user_quit = False
                         command = "quit"
+                    is_registered = False
                 elif event_name == "SIPAccountRegistrationDidEnd":
                     if 'code' in args:
                         print '%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), args['code'], args['reason'])
@@ -114,6 +118,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                         print '%s Registration ended.' % (datetime.now().replace(microsecond=0),)
                     user_quit = False
                     command = "quit"
+                    is_registered = False
                 elif event_name == "SIPEngineGotException":
                     print "An exception occured within the SIP core:"
                     print args["traceback"]
@@ -126,7 +131,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
             if command == "eof":
                 if target_uri is None:
                     am.stop()
-                    if isinstance(account, BonjourAccount):
+                    if not is_registered:
                         user_quit = False
                         command = "quit"
                 elif sent:
