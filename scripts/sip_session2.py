@@ -23,9 +23,8 @@ from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine, InvitationError
 from sipsimple.green.sessionold import make_SDPMedia
-from sipsimple.session2 import Session as GreenSession, NotificationHandler, LocalSaysBye
+from sipsimple.session2 import Session as GreenSession, NotificationHandler, IncomingHandler
 from sipsimple.green.notification import linked_notification, linked_notifications
-from sipsimple.session import SessionManager, SessionStateError
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import format_cmdline_uri
 from sipsimple import logstate
@@ -136,11 +135,16 @@ class ChatSession(NotificationHandler):
 
     info = 'Session'
 
-    def __init__(self, session, manager, remote_party, streams):
+    def __init__(self, session, manager, remote_party=None, streams=None):
         self.session = session
         self.session._chat = self
         self.manager = manager
+        if remote_party is None:
+            remote_party = session.inv.remote_uri
         self.remote_party = remote_party
+        if streams is None:
+            streams = session.streams
+            assert streams
         self.history_file = None
         self.put_on_hold = False
         if self.inv is not None:
@@ -259,15 +263,17 @@ class ChatManager(NotificationHandler):
 
     def _handle_incoming(self, session, data):
         session._chat = ChatSession(session, self)
-        session._chat.info = '/'.join(x.capitalize() for x in data.streams)
-        has_chat = 'chat' in data.streams
-        has_audio = 'audio' in data.streams
+        for stream in session.streams:
+            stream._chatsession = session._chat
+        session._chat.info = '/'.join(type(x).__name__ for x in session.streams)
+        has_chat = False
+        has_audio = False
         replies = list('yYnN') + [CTRL_D]
         replies_txt = 'y/n'
         if has_chat and has_audio:
             replies += list('aAcC')
             replies_txt += '/a/c'
-        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chat.info, self.inv.caller_uri, replies_txt)
+        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chat.info, session.inv.caller_uri, replies_txt)
         with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
@@ -283,7 +289,8 @@ class ChatManager(NotificationHandler):
             has_audio = False
             has_chat = True
         if result in list('yYaAcC'):
-            session.accept(chat=has_chat, audio=has_audio)
+            with api.timeout(30, api.TimeoutError('timed out while accepting the session')):
+                session.accept()
             self.add_session(session._chat)
         else:
             session.end()
@@ -414,7 +421,7 @@ class ChatManager(NotificationHandler):
                 stream._chatsession = chat
             chat.connect(target_uri, routes, streams=streams)
             chat = None
-        except (InvitationError, LocalSaysBye), ex:
+        except InvitationError, ex:
             pass # already logged by InfoPrinter
         finally:
             if chat is not None:
@@ -424,10 +431,10 @@ class ChatManager(NotificationHandler):
     def make_SDPMedia(uri_path):
         return make_SDPMedia(uri_path, ['message/cpim'], ['text/plain'])
 
-    def get_current_session(self, error_prefix=None):
+    def get_current_session(self):
         session = self.current_session
         if not session:
-            raise UserCommandError(msg)
+            raise UserCommandError('No active session')
         return session
 
     def send_message(self, message):
@@ -607,7 +614,7 @@ class InfoPrinter(NotificationHandler):
         if data.succeeded:
             print "Detected NAT type: %s" % data.nat_type
 
-    def _NH_SIPSessionDidStart(self, session, _data):
+    def _NH_SIPSessionDidStart(self, session, data):
         try:
             print 'Session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
             print "Audio RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
@@ -718,7 +725,7 @@ def start(options, console):
             if engine.local_tls_port:
                 print 'Local contact: %s:%s;transport=tls' % (account.contact, engine.local_tls_port)
         MessageRenderer().start()
-        session_manager = SessionManager()
+        IncomingHandler().subscribe_to_all()
         manager = ChatManager(engine, account, console, options.logger)
         manager.update_prompt()
         try:
@@ -728,7 +735,7 @@ def start(options, console):
             else:
                 try:
                     manager.cmd_call(*options.args)
-                except (UserCommandError, SessionStateError), ex:
+                except UserCommandError, ex:
                     print str(ex)
             while True:
                 try:
@@ -749,8 +756,6 @@ def start(options, console):
             with calming_message(1, "Disconnecting the session(s)..."):
                 manager.close()
     finally:
-        with calming_message(1, "Disconnecting the session(s)..."):
-            proc.waitall([proc.spawn(session.end) for session in SessionManager().sessions])
         RegistrationManager().unregister()
         with calming_message(2, "Stopping the engine..."):
             engine.stop()
@@ -773,7 +778,7 @@ def readloop(console, manager, shortcuts):
             if key in shortcuts:
                 try:
                     shortcuts[key]()
-                except (UserCommandError, SessionStateError), ex:
+                except UserCommandError, ex:
                     print ex
         elif type == 'line':
             echoed = []
@@ -794,7 +799,7 @@ def readloop(console, manager, shortcuts):
                     if value:
                         if manager.send_message(value):
                             echoed.append(1)
-            except (UserCommandError, SessionStateError), ex:
+            except UserCommandError, ex:
                 echo()
                 print ex
             # will get there without echoing if user pressed enter on an empty line; let's echo it
