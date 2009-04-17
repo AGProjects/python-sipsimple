@@ -302,8 +302,11 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     sess.connect(target_uri, routes, audio=True)
                     print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.caller_uri, sess.callee_uri, routes[0].transport, routes[0].address, routes[0].port)
             if command == "eof":
-                command = "end"
-                want_quit = True
+                if target_uri is None and sess is not None and sess.state != "TERMINATING":
+                    sess.end()
+                elif not want_quit:
+                    command = "end"
+                    want_quit = True
             if command == "end":
                 try:
                     sess.end()
@@ -454,7 +457,6 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, fork))
     if not fork:
         atexit.register(termios_restore)
-    ctrl_d_pressed = False
     try:
         while True:
             if fork:
@@ -462,9 +464,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             else:
                 char = getchar()
                 if char == "\x04":
-                    if not ctrl_d_pressed:
-                        queue.put(("eof", None))
-                        ctrl_d_pressed = True
+                    queue.put(("eof", None))
                 else:
                     queue.put(("user_input", char))
     except KeyboardInterrupt:

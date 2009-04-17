@@ -76,6 +76,7 @@ cdef class PJSIPUA:
         self.codecs = kwargs["codecs"]
         self._conf_bridge = PJMEDIAConferenceBridge(self._pjsip_endpoint, self._pjmedia_endpoint)
         self.ec_tail_length = kwargs["ec_tail_length"]
+        self._conf_bridge._set_sound_devices(-2, -2, 0)
         if kwargs["playback_dtmf"]:
             self._conf_bridge._enable_playback_dtmf()
         self._module_name = PJSTR("mod-core")
