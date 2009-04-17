@@ -52,11 +52,9 @@ Audio
 
 - Add audio device settings for two profiles: headset and speakerphone [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK]
-- Add method to core for playing arbitrary tones on the conference bridge [RK]
 - Added general volume control for the conference bridge [RK]
 - Play a non-disruptive tone when a session is received while in another [RK]
 - Play a soft-tone while on hold every 30 seconds, use tone generator [RK]
-- Play a short tone when a session is terminated, use tone generator [RK]
 - Fix high CPU usage on OS X [RK]
 - Comfort noise generator [RK]
 - N810 maemo audio driver [LS]
