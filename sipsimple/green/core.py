@@ -36,7 +36,7 @@ __all__ = ['Error',
            'GreenInvitation']
 
 
-class Error(RuntimeError):
+class Error(Exception):
     pass
 
 class SIPError(Error):
