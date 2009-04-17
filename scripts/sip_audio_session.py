@@ -173,7 +173,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                             auto_answer_timer = Timer(auto_answer, auto_answer_call)
                             auto_answer_timer.start()
                     else:
-                        print "Rejecting."
+                        print "Rejecting with 486 (Busy)"
                         obj.reject(True)
                 elif event_name == "SIPSessionDidStart":
                     print 'Session established, using "%s" codec at %dHz' % (sess.audio_codec, sess.audio_sample_rate)
@@ -245,7 +245,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     if sess.state == "INCOMING":
                         if data.lower() == "n":
                             sess.reject()
-                            print "Session rejected."
+                            print "Session rejected with 603 (Decline)"
                             sess = None
                         elif data.lower() == "y":
                             if auto_answer_timer is not None:
