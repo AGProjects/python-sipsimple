@@ -407,7 +407,7 @@ class ChatManager(NotificationHandler):
         if not isinstance(target_uri, SIPURI):
             try:
                 target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
-            except ValueError, ex:
+            except (ValueError, SIPCoreError), ex:
                 raise UserCommandError(str(ex))
         self.procs.spawn(self._call, target_uri, use_audio, use_chat)
 
