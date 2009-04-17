@@ -150,7 +150,7 @@ class ChatSession(NotificationHandler):
         if self.inv is not None:
             self.history_file = get_history_file(self.inv)
             if self.remote_party is None:
-                self.remote_party = format_uri(self.inv.remote_uri)
+                self.remote_party = self.inv.remote_uri
         self.subscribe_to_all(sender=self.session)
         self.update_streams(streams)
 
@@ -183,7 +183,7 @@ class ChatSession(NotificationHandler):
         return chunk
 
     def format_prompt(self):
-        result = '%s to %s' % (self.info, self.remote_party)
+        result = '%s to %s' % (self.info, format_uri(self.remote_party))
         if self.state != 'ESTABLISHED':
             result += ' [%s]' % self.state
         return result + ': '
@@ -411,7 +411,7 @@ class ChatManager(NotificationHandler):
         chat = None
         try:
             session = GreenSession(self.account)
-            chat = ChatSession(session, self, remote_party=format_uri(target_uri), streams=streams)
+            chat = ChatSession(session, self, remote_party=target_uri, streams=streams)
             self.add_session(chat)
             routes = get_routes(target_uri, self.engine, self.account)
             if not routes:
