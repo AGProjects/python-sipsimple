@@ -7,7 +7,7 @@ cdef class PJMEDIAConferenceBridge:
     cdef pjmedia_conf *_obj
     cdef pjsip_endpoint *_pjsip_endpoint
     cdef PJMEDIAEndpoint _pjmedia_endpoint
-    cdef pj_pool_t *_pool, *_tonegen_pool
+    cdef pj_pool_t *_pool
     cdef pjmedia_port *_tonegen
     cdef unsigned int _tonegen_slot
     cdef pjmedia_snd_port *_snd
@@ -15,11 +15,17 @@ cdef class PJMEDIAConferenceBridge:
     cdef list _all_out_slots, _conv_out_slots
     cdef pjmedia_port *_null_port
     cdef pjmedia_master_port *_master_port
+    cdef int _do_playback_dtmf
 
-    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint):
+    def __cinit__(self, PJSIPEndpoint pjsip_endpoint, PJMEDIAEndpoint pjmedia_endpoint, int playback_dtmf):
         cdef int status
         self._pjsip_endpoint = pjsip_endpoint._obj
         self._pjmedia_endpoint = pjmedia_endpoint
+        self._do_playback_dtmf = playback_dtmf
+        self._conv_in_slots = [0]
+        self._all_out_slots = [0]
+        self._pb_in_slots = []
+        self._conv_out_slots = []
         status = pjmedia_conf_create(pjsip_endpoint._pool, 254, pjmedia_endpoint._sample_rate * 1000, 1,
                                      pjmedia_endpoint._sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self._obj)
         if status != 0:
@@ -28,35 +34,14 @@ cdef class PJMEDIAConferenceBridge:
                                           pjmedia_endpoint._sample_rate * 20, 16, &self._null_port)
         if status != 0:
             raise PJSIPError("Could not create dummy audio port", status)
-        self._conv_in_slots = [0]
-        self._all_out_slots = [0]
-        self._pb_in_slots = []
-        self._conv_out_slots = []
-
-    cdef int _enable_playback_dtmf(self) except -1:
-        self._tonegen_pool = pjsip_endpt_create_pool(self._pjsip_endpoint, "dtmf_tonegen", 4096, 4096)
-        if self._tonegen_pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
-        status = pjmedia_tonegen_create(self._tonegen_pool, self._pjmedia_endpoint._sample_rate * 1000, 1,
+        status = pjmedia_tonegen_create(pjsip_endpoint._pool, self._pjmedia_endpoint._sample_rate * 1000, 1,
                                         self._pjmedia_endpoint._sample_rate * 20, 16, 0, &self._tonegen)
         if status != 0:
-            pjsip_endpt_release_pool(self._pjsip_endpoint, self._tonegen_pool)
             raise PJSIPError("Could not create DTMF tone generator", status)
-        status = pjmedia_conf_add_port(self._obj, self._tonegen_pool, self._tonegen, NULL, &self._tonegen_slot)
+        status = pjmedia_conf_add_port(self._obj, pjsip_endpoint._pool, self._tonegen, NULL, &self._tonegen_slot)
         if status != 0:
-            pjsip_endpt_release_pool(self._pjsip_endpoint, self._tonegen_pool)
             raise PJSIPError("Could not connect DTMF tone generator to conference bridge", status)
         self._connect_playback_slot(self._tonegen_slot)
-        return 0
-
-    cdef int _disable_playback_dtmf(self) except -1:
-        self._disconnect_slot(self._tonegen_slot)
-        pjmedia_tonegen_stop(self._tonegen)
-        pjmedia_conf_remove_port(self._obj, self._tonegen_slot)
-        self._tonegen = NULL
-        pjsip_endpt_release_pool(self._pjsip_endpoint, self._tonegen_pool)
-        self._tonegen_pool = NULL
-        return 0
 
     cdef object _get_sound_devices(self, int is_playback):
         global _dummy_sound_dev_name
@@ -165,11 +150,16 @@ cdef class PJMEDIAConferenceBridge:
     def __dealloc__(self):
         self._destroy_snd_dev()
         if self._tonegen != NULL:
-            self._disable_playback_dtmf()
+            self._disconnect_slot(self._tonegen_slot)
+            pjmedia_tonegen_stop(self._tonegen)
+            pjmedia_conf_remove_port(self._obj, self._tonegen_slot)
+            self._tonegen = NULL
         if self._null_port != NULL:
             pjmedia_port_destroy(self._null_port)
+            self._null_port = NULL
         if self._obj != NULL:
             pjmedia_conf_destroy(self._obj)
+            self._obj = NULL
 
     cdef int _connect_playback_slot(self, unsigned int slot) except -1:
         cdef unsigned int output_slot
@@ -236,7 +226,7 @@ cdef class PJMEDIAConferenceBridge:
     cdef int _playback_dtmf(self, char digit) except -1:
         cdef pjmedia_tone_digit tone
         cdef int status
-        if self._tonegen == NULL:
+        if not self._do_playback_dtmf:
             return 0
         tone.digit = digit
         tone.on_msec = 200

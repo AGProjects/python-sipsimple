@@ -74,11 +74,9 @@ cdef class PJSIPUA:
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
         self.codecs = kwargs["codecs"]
-        self._conf_bridge = PJMEDIAConferenceBridge(self._pjsip_endpoint, self._pjmedia_endpoint)
+        self._conf_bridge = PJMEDIAConferenceBridge(self._pjsip_endpoint, self._pjmedia_endpoint, int(bool(kwargs["playback_dtmf"])))
         self.ec_tail_length = kwargs["ec_tail_length"]
         self._conf_bridge._set_sound_devices(-2, -2, 0)
-        if kwargs["playback_dtmf"]:
-            self._conf_bridge._enable_playback_dtmf()
         self._module_name = PJSTR("mod-core")
         self._module.name = self._module_name.pj_str
         self._module.id = -1
@@ -311,16 +309,12 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self._check_self()
-            return self._conf_bridge._tonegen != NULL
+            return bool(self._conf_bridge._do_playback_dtmf)
 
         def __set__(self, value):
             self._check_self()
-            if bool(value) == (self._conf_bridge._tonegen != NULL):
-                return
-            if bool(value):
-                self._conf_bridge._enable_playback_dtmf()
-            else:
-                self._conf_bridge._disable_playback_dtmf()
+            value = int(bool(value))
+            self._conf_bridge._do_playback_dtmf = int(bool(value))
 
     property user_agent:
 
