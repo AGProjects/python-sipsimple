@@ -19,6 +19,20 @@ cdef class PJSTR:
         return self.str
 
 
+cdef class SIPStatusMessages:
+    cdef object _default_status
+
+    def __cinit__(self, *args, **kwargs):
+        self._default_status = _pj_str_to_str(pjsip_get_status_text(0)[0])
+
+    def __getitem__(self, int val):
+        cdef object _status
+        _status = _pj_str_to_str(pjsip_get_status_text(val)[0])
+        if _status == self._default_status:
+            raise IndexError("Unknown SIP response code: %d" % val)
+        return _status
+
+
 # functions
 
 cdef int _str_to_pj_str(object string, pj_str_t *pj_str) except -1:
@@ -186,3 +200,4 @@ cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1:
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
 cdef object _re_warning_hdr = re.compile('([0-9]{3}) (.*?) "(.*?)"')
+sip_status_messages = SIPStatusMessages()

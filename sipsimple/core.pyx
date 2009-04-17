@@ -32,6 +32,7 @@ CORE_REVISION = 41
 __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "SIPCoreError", "PJSIPError",
            "RecordingWaveFile", "WaveFile",
+           "sip_status_messages",
            "Route", "Credentials", "SIPURI",
            "send_message",
            "Request",

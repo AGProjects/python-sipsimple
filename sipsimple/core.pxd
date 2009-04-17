@@ -595,6 +595,7 @@ cdef extern from "pjsip.h":
         PJSIP_PARSE_URI_AS_NAMEADDR
     pjsip_uri *pjsip_parse_uri(pj_pool_t *pool, char *buf, unsigned int size, unsigned int options)
     void pjsip_method_init_np(pjsip_method *m, pj_str_t *str)
+    pj_str_t *pjsip_get_status_text(int status_code)
 
     # module
     enum pjsip_module_priority:
