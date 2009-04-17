@@ -235,8 +235,19 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     user_quit = False
                     command = "quit"
             if command == "user_input":
+                data = data[0]
                 if sess is not None:
-                    data = data[0]
+                    if sess.state == "INCOMING":
+                        if data.lower() == "n":
+                            sess.reject()
+                            print "Session rejected."
+                            sess = None
+                        elif data.lower() == "y":
+                            if auto_answer_timer is not None:
+                                auto_answer_timer.cancel()
+                                auto_answer_timer = None
+                            sess.accept(audio=True)
+                        continue
                     if data.lower() == "h":
                         command = "end"
                         want_quit = target_uri is not None
@@ -257,16 +268,6 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                                     sess.hold()
                             except RuntimeError:
                                 pass
-                    elif sess.state == "INCOMING":
-                        if data.lower() == "n":
-                            sess.reject()
-                            print "Session rejected."
-                            sess = None
-                        elif data.lower() == "y":
-                            if auto_answer_timer is not None:
-                                auto_answer_timer.cancel()
-                                auto_answer_timer = None
-                            sess.accept(audio=True)
                 if data in ",<":
                     if e.ec_tail_length > 0:
                         e.set_sound_devices(tail_length=max(0, e.ec_tail_length - 10))
