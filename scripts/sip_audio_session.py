@@ -92,6 +92,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
     want_quit = target_uri is not None
     auto_answer_timer = None
     routes = None
+    is_registered = False
     got_stun = not hasattr(account, "stun_servers") or account.stun_servers
     try:
         if hasattr(account, "stun_servers") and account.stun_servers:
@@ -124,8 +125,10 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     got_stun = True
                     command = "check_call"
                 elif event_name == "SIPAccountRegistrationDidSucceed":
-                    route = args['registration'].route
-                    print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
+                    if not is_registered:
+                        route = args['registration'].route
+                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
+                        is_registered = True
                 elif event_name == "SIPAccountRegistrationDidFail":
                     if args['registration'] is not None:
                         route = args['registration'].route
@@ -143,6 +146,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                         print '%s Failed to register contact for sip:%s: %s' % (datetime.now().replace(microsecond=0), account.id, args["reason"])
                         command = "quit"
                         user_quit = False
+                    is_registered = False
                 elif event_name == "SIPAccountRegistrationDidEnd":
                     if 'code' in args:
                         print '%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), args['code'], args['reason'])
@@ -150,6 +154,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                         print '%s Registration ended.' % (datetime.now().replace(microsecond=0),)
                     command = "quit"
                     user_quit = False
+                    is_registered = False
                 elif event_name == "SIPSessionGotRingIndication":
                     print "Ringing..."
                 elif event_name == "SIPSessionNewIncoming":
@@ -306,7 +311,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     command = "unregister"
             if command == "unregister":
                 am.stop()
-                if isinstance(account, BonjourAccount) or target_uri is not None:
+                if not is_registered:
                     user_quit = False
                     command = "quit"
             if command == "quit":
