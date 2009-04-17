@@ -403,7 +403,7 @@ cdef class Invitation:
         self._send_msg(ua, tdata, extra_headers or {})
         return 0
 
-    def disconnect(self, int response_code=486, dict extra_headers=None):
+    def disconnect(self, int response_code=603, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = self._check_ua()
