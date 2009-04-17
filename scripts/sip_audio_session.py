@@ -174,7 +174,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                             auto_answer_timer.start()
                     else:
                         print "Rejecting."
-                        obj.reject()
+                        obj.reject(True)
                 elif event_name == "SIPSessionDidStart":
                     print 'Session established, using "%s" codec at %dHz' % (sess.audio_codec, sess.audio_sample_rate)
                     print "Audio RTP endpoints %s:%d <-> %s:%d" % (sess.audio_local_rtp_address, sess.audio_local_rtp_port, sess.audio_remote_rtp_address_sdp, sess.audio_remote_rtp_port_sdp)
