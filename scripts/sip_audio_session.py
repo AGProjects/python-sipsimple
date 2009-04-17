@@ -304,7 +304,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
             if command == "eof":
                 if target_uri is None and sess is not None and sess.state != "TERMINATING":
                     sess.end()
-                elif not want_quit:
+                else:
                     command = "end"
                     want_quit = True
             if command == "end":
@@ -313,10 +313,11 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                 except:
                     command = "unregister"
             if command == "unregister":
-                am.stop()
-                if not is_registered:
-                    user_quit = False
-                    command = "quit"
+                if am.state not in ["stopping", "stopped"]:
+                    am.stop()
+                    if not is_registered:
+                        user_quit = False
+                        command = "quit"
             if command == "quit":
                 break
             data, args = None, None
