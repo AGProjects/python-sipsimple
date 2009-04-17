@@ -41,15 +41,14 @@ class Error(Exception):
 
 class SIPError(Error):
 
-    msg = 'Failed: '
-
-    def __init__(self, params, msg=None):
+    def __init__(self, **params):
+        params.setdefault('code', None)
+        params.setdefault('reason', None)
+        params.setdefault('originator', 'remote')
         self.params = params
-        if msg is not None:
-            self.msg = msg
 
     def __str__(self):
-        return self.msg + '%s %s' % (self.params.get('code'), self.params.get('reason'))
+        return '%s %s' % (self.params.get('code'), self.params.get('reason'))
 
     def __getattr__(self, item):
         try:
@@ -58,10 +57,10 @@ class SIPError(Error):
             raise AttributeError('No key %r in params' % item)
 
 class RegistrationError(SIPError):
-    msg = 'Registration failed: '
+    pass
 
 class InvitationError(SIPError):
-    msg = 'Invite failed: '
+    pass
 
 class SDPNegotiationError(Error):
     pass
@@ -178,7 +177,7 @@ class GreenRegistration(GreenBase):
                     log.error('Unexpected notification: %s' % (n, ))
                 return n
 
-
+# DEPRECATED, will be removed
 class Ringer(object):
 
     delay = 5
@@ -219,50 +218,37 @@ class GreenInvitation(GreenBase):
     def connected(self):
         return self.state == 'CONFIRMED'
 
-    # XXX remove ringer from here (we only provide what Invitation provides, no bells and whistles)
-    # XXX check that no old script is still using ringer
+    def _wait_confirmed_and_sdp(self, q):
+        """Wait for SIPInvitationChangedState(state=CONFIRMED) and SIPInvitationGotSDPUpdate notifications.
+        Return tuple of 2 items - data of those 2 notifications.
+        """
+        confirmed_notification, sdp_notification = None, None
+        while confirmed_notification is None or sdp_notification is None:
+            notification = q.wait()
+            data = notification.data
+            if notification.name == self.event_names[0]:
+                if data.state=='CONFIRMED':
+                    confirmed_notification = notification
+                elif data.state=='DISCONNECTING':
+                    raise InvitationError(originator='local')
+                elif data.state=='DISCONNECTED':
+                    raise InvitationError(**data.__dict__)
+            elif notification.name == self.event_names[1]:
+                sdp_notification = notification
+                if not data.succeeded:
+                    raise SDPNegotiationError('SDP negotiation failed: %s' % notification.data.error)
+        return confirmed_notification.data, sdp_notification.data
+
     def send_invite(self, *args, **kwargs):
         """Call send_invite on the proxied object. Wait until session is established or terminated.
-
-        If `ringer' keyword argument is provided, call its start() method when SIP session enters
-        EARLY state and stop() method before exiting. This argument is not passed to Invitation.send_invite.
 
         Raise SessionError if session was not established.
         Raise SDPNegotiationError is SDP negotiation failed.
         """
-        assert self.state not in ['CONFIRMED', 'CONNECTING', 'EARLY', 'CALLING'], self.state
-        ringer = kwargs.pop('ringer', None)
-        ringing = False
-        confirmed_notification, sdp_notification = None, None
+        assert self.state=='NULL', self.state
         with self.linked_notifications() as q:
             self._obj.send_invite(*args, **kwargs)
-            try:
-                while True:
-                    notification = q.wait()
-                    if notification.name == self.event_names[0]:
-                        if notification.data.state == 'EARLY':
-                            if ringer is not None and not ringing:
-                                ringer.start()
-                                ringing = True
-                        elif notification.data.state=='CONFIRMED':
-                            confirmed_notification = notification
-                            break
-                        elif notification.data.state=='DISCONNECTED':
-                            raise InvitationError(notification.data.__dict__)
-                    elif notification.name == self.event_names[1]:
-                        sdp_notification = notification
-                        if not notification.data.succeeded:
-                            raise SDPNegotiationError('SDP negotiation failed: %s' % notification.data.error)
-                if sdp_notification is None:
-                    while True:
-                        notification = w.wait()
-                        if notification.name == self.event_names[1]:
-                            sdp_notification = notification
-                            break
-                return (confirmed_notification, sdp_notification)
-            finally:
-                if ringer is not None and ringing:
-                    ringer.stop()
+            return self._wait_confirmed_and_sdp(q)
 
     def disconnect(self, *args, **kwargs):
         """Call disconnect() on the proxied object. Wait until SIP session is disconnected"""
@@ -277,17 +263,10 @@ class GreenInvitation(GreenBase):
         """Call accept_invite() on the proxied object. Wait until SIP session is confirmed.
         Raise InvitationError if session was disconnected.
         """
-        with self.linked_notification(self.event_names[0]) as q:
-            if self.state == 'CONFIRMED':
-                return
-            else:
-                self._obj.accept_invite(*args, **kwargs)
-            while True:
-                notification = q.wait()
-                if notification.data.state == 'CONFIRMED':
-                    return notification
-                elif notification.data.state == 'DISCONNECTED':
-                    raise InvitationError(notification.data.__dict__)
+        assert self.state in ['INCOMING', 'EARLY'], self.state
+        with self.linked_notifications() as q:
+            self._obj.accept_invite(*args, **kwargs)
+            return self._wait_confirmed_and_sdp(q)
 
     def call_on_disconnect(self, func):
         # legacy function still used by the old script; use a notification in new scripts

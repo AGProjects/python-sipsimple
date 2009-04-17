@@ -33,13 +33,14 @@ def make_SDPMedia(uri_path, accept_types=['text/plain'], accept_wrapped_types=No
 
 
 def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
+    # ringer is ignored because GreenInvitation does not do that anymore
     full_local_path = msrp_connector.prepare(local_uri)
     try:
         local_ip = gethostbyname(msrp_connector.getHost().host)
         local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
                                media=[SDPMedia_factory(full_local_path)])
         inv.set_offered_local_sdp(local_sdp)
-        invite_response = inv.send_invite(ringer=ringer)
+        invite_response = inv.send_invite()
         remote_sdp = inv.get_active_remote_sdp()
         full_remote_path = None
         for attr in remote_sdp.media[0].attributes:
