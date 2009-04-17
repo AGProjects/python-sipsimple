@@ -438,7 +438,7 @@ cdef class PJSIPUA:
             raise SIPCoreError("Cannot disconnect an AudioTransport that was not started yet")
         self._conf_bridge._disconnect_slot(transport._conf_slot)
 
-    def detect_nat_type(self, stun_server_address, stun_server_port=PJ_STUN_PORT):
+    def detect_nat_type(self, stun_server_address, stun_server_port=PJ_STUN_PORT, object user_data=None):
         cdef pj_str_t stun_server_address_pj
         cdef pj_sockaddr_in stun_server
         cdef int status
@@ -449,9 +449,10 @@ cdef class PJSIPUA:
         status = pj_sockaddr_in_init(&stun_server, &stun_server_address_pj, stun_server_port)
         if status != 0:
             raise PJSIPError("Could not init STUN server address", status)
-        status = pj_stun_detect_nat_type(&stun_server, &self._stun_cfg, NULL, _cb_detect_nat_type)
+        status = pj_stun_detect_nat_type(&stun_server, &self._stun_cfg, <void *> user_data, _cb_detect_nat_type)
         if status != 0:
             raise PJSIPError("Could not start NAT type detection", status)
+        Py_INCREF(user_data)
 
     def parse_sip_uri(self, uri_string):
         # no need for self._check_self(), _get_ua() is called in the function
@@ -618,6 +619,8 @@ cdef class PJSIPThread:
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil:
     cdef PJSIPUA ua
     cdef dict event_dict
+    cdef object user_data_obj = <object> user_data
+    Py_DECREF(user_data_obj)
     try:
         ua = _get_ua()
     except:
@@ -625,6 +628,7 @@ cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_con
     try:
         event_dict = dict()
         event_dict["succeeded"] = res.status == 0
+        event_dict["user_data"] = user_data_obj
         if res.status == 0:
             event_dict["nat_type"] = res.nat_type_name
         else:
