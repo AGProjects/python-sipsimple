@@ -410,7 +410,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
                 trace_sip=settings.logging.trace_sip or trace_sip)
     if e.recording_devices:
         print "Available audio input devices: %s" % ", ".join(sorted(e.recording_devices))
-    if e.recording_devices:
+    if e.playback_devices:
         print "Available audio output devices: %s" % ", ".join(sorted(e.playback_devices))
     if disable_sound:
         e.set_sound_devices(playback_device="Dummy", recording_device="Dummy")

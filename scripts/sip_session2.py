@@ -706,7 +706,7 @@ def start(options, console):
     try:
         if engine.recording_devices:
             print "Available audio input devices: %s" % ", ".join(sorted(engine.recording_devices))
-        if engine.recording_devices:
+        if engine.playback_devices:
             print "Available audio output devices: %s" % ", ".join(sorted(engine.playback_devices))
         if not options.disable_sound:
             engine.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
