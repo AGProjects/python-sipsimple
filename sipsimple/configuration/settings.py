@@ -11,7 +11,7 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports
+from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports, AudioCodecs
 
 
 __all__ = ['SIPSimpleSettings']
@@ -25,6 +25,7 @@ class AudioSettings(SettingsGroup):
     sample_rate = Setting(type=SampleRate, default=32)
     silent = Setting(type=bool, default=False)
     playback_dtmf = Setting(type=bool, default=True)
+    codec_list = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
 
 
 class ChatSettings(SettingsGroup):

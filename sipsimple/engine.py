@@ -120,7 +120,8 @@ class Engine(object):
             sip_trace=settings.logging.trace_sip,
             sample_rate=settings.audio.sample_rate,
             playback_dtmf=settings.audio.playback_dtmf,
-            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end))
+            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
+            codecs=list(settings.audio.codec_list))
         self.start(auto_sound=False, local_ip=local_ip, **kwargs)
         if enable_sound:
             self.set_sound_devices(playback_device=settings.audio.output_device,

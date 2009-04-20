@@ -735,7 +735,6 @@ def start(options, console):
             engine.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
         print "Using audio input device: %s" % engine.current_recording_device
         print "Using audio output device: %s" % engine.current_playback_device
-        engine.codecs = list(account.audio.codec_list)
         if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
             engine.detect_nat_type(*options.account.stun_servers[0])
         if options.trace_notifications:

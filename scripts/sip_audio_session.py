@@ -418,7 +418,6 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
         e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
     print "Using audio input device: %s" % e.current_recording_device
     print "Using audio output device: %s" % e.current_playback_device
-    e.codecs = list(account.audio.codec_list)
 
     # start the session manager (for incoming calls)
 
