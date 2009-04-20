@@ -53,8 +53,11 @@ class Engine(object):
 
     def __getattr__(self, attr):
         if hasattr(self, "_ua"):
-            if hasattr(self._ua, attr) and attr != "poll":
-                return getattr(self._ua, attr)
+            if attr != "poll":
+                try:
+                    return getattr(self._ua, attr)
+                except AttributeError:
+                    pass
         raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
 
     def __setattr__(self, attr, value):
