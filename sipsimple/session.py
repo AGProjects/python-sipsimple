@@ -773,7 +773,7 @@ class Session(NotificationHandler):
         else:
             self.audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
             Engine().connect_audio_transport(self.audio_transport)
-            self._no_audio_timer = Timer(5, self._check_audio)
+            self._no_audio_timer = Timer(10, self._check_audio)
             self._no_audio_timer.start()
             self.has_audio = True
             self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
