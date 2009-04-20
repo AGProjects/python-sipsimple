@@ -61,7 +61,8 @@ class NonNegativeInteger(int):
 ## Audio related
 
 class AudioCodecs(tuple):
-    available_codecs = ('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM')
+    available_codecs = ('speex', 'g722', 'g711', 'ilbc', 'gsm', # old list
+                        'speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM') # new list
     def __new__(cls, values):
         values = tuple(values)
         if not set(values).issubset(cls.available_codecs):
