@@ -743,9 +743,9 @@ class Session(NotificationHandler):
         """Initialize everything needed for an audio RTP stream and return a
            SDPMedia object describing it. Called internally."""
         if remote_sdp is None:
-            self.audio_transport = AudioTransport(rtp_transport)
+            self.audio_transport = AudioTransport(rtp_transport, codecs=(list(self.account.audio.codec_list) if self.account.audio.codec_list else None))
         else:
-            self.audio_transport = AudioTransport(rtp_transport, remote_sdp, sdp_index)
+            self.audio_transport = AudioTransport(rtp_transport, remote_sdp, sdp_index, codecs=(list(self.account.audio.codec_list) if self.account.audio.codec_list else None))
         self.session_manager.audio_transport_mapping[self.audio_transport] = self
         return self.audio_transport.get_local_media(remote_sdp is None)
 
