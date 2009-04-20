@@ -62,7 +62,7 @@ class Engine(object):
 
     def __setattr__(self, attr, value):
         if hasattr(self, "_ua"):
-            if hasattr(self._ua, attr) and attr != "poll":
+            if attr != "poll" and attr in dir(self._ua):
                 setattr(self._ua, attr, value)
                 return
         object.__setattr__(self, attr, value)
