@@ -28,7 +28,7 @@ cdef class RTPTransport:
             raise SIPCoreError("Could not allocate memory pool")
 
     def __init__(self, local_rtp_address=None, use_srtp=False, srtp_forced=False, use_ice=False,
-                 ice_stun_address=None, ice_stun_port=PJ_STUN_PORT, *args, **kwargs):
+                 ice_stun_address=None, ice_stun_port=PJ_STUN_PORT):
         cdef PJSIPUA ua = _get_ua()
         if self.state != "NULL":
             raise SIPCoreError("RTPTransport.__init__() was already called")
@@ -293,10 +293,11 @@ cdef class AudioTransport:
             raise SIPCoreError("Could not allocate memory pool")
 
     def __init__(self, RTPTransport transport, SDPSession remote_sdp=None,
-                 int sdp_index=0, enable_silence_detection=True):
+                 int sdp_index=0, enable_silence_detection=True, list codecs=None):
         cdef pjmedia_transport_info info
         cdef pjmedia_sdp_session *local_sdp_c
         cdef SDPSession local_sdp
+        cdef list global_codecs
         cdef int status
         cdef PJSIPUA ua = _get_ua()
         if self.transport is not None:
@@ -310,9 +311,17 @@ cdef class AudioTransport:
         self._vad = int(bool(enable_silence_detection))
         self.transport = transport
         transport._get_info(&info)
-        status = pjmedia_endpt_create_sdp(ua._pjmedia_endpoint._obj, self._pool, 1, &info.sock_info, &local_sdp_c)
-        if status != 0:
-            raise PJSIPError("Could not generate SDP for audio session", status)
+        if codecs is not None:
+            global_codecs = ua._pjmedia_endpoint._get_codecs()
+        try:
+            if codecs is not None:
+                ua._pjmedia_endpoint._set_codecs(codecs)
+            status = pjmedia_endpt_create_sdp(ua._pjmedia_endpoint._obj, self._pool, 1, &info.sock_info, &local_sdp_c)
+            if status != 0:
+                raise PJSIPError("Could not generate SDP for audio session", status)
+        finally:
+            if codecs is not None:
+                ua._pjmedia_endpoint._set_codecs(global_codecs)
         local_sdp = _make_SDPSession(local_sdp_c)
         if remote_sdp is None:
             self._is_offer = 1
