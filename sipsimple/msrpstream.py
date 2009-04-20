@@ -95,10 +95,10 @@ class MSRPChat(object):
             self.remote_uri = session.remote_uri
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
-            self.notification_center.post_notification('DidFail', self, ndata)
+            self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
             raise
         else:
-            self.notification_center.post_notification('DidInitialize', self)
+            self.notification_center.post_notification('MediaStreamDidInitialize', self)
 
     def start(self, local_sdp, remote_sdp, stream_index):
         try:
@@ -120,10 +120,10 @@ class MSRPChat(object):
             self.msrp_connector = None
         except Exception, ex:
             ndata = NotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
-            self.notification_center.post_notification('MSRPChatDidFail', self, ndata)
+            self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
             raise
         else:
-            self.notification_center.post_notification('MSRPChatDidStart', self)
+            self.notification_center.post_notification('MediaStreamDidStart', self)
             for send_args in self.message_queue:
                 spawn_from_thread(self._send_raw_message, *send_args)
             self.message_queue.clear()
@@ -134,14 +134,14 @@ class MSRPChat(object):
             return
         msrp, self.msrp = self.msrp, None
         msrp_connector, self.msrp_connector = self.msrp_connector, None
-        self.notification_center.post_notification('MSRPChatWillEnd', self)
+        self.notification_center.post_notification('MediaStreamWillEnd', self)
         try:
             if msrp is not None:
                 msrp.shutdown()
             if msrp_connector is not None:
                 msrp_connector.cleanup()
         finally:
-            self.notification_center.post_notification('MSRPChatDidEnd', self)
+            self.notification_center.post_notification('MediaStreamDidEnd', self)
 
     def validate_update(self, remote_sdp, stream_index):
         raise NotImplementedError
@@ -152,10 +152,10 @@ class MSRPChat(object):
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
             if isinstance(error.value, ConnectionDone):
-                self.notification_center.post_notification('MSRPChatDidEnd', self)
+                self.notification_center.post_notification('MediaStreamDidEnd', self)
             else:
                 ndata = NotificationData(context='reading', failure=error, reason=error.getErrorMessage())
-                self.notification_center.post_notification('MSRPChatDidFail', self, ndata)
+                self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
         elif chunk.method=='REPORT':
             # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
             data = NotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
@@ -186,7 +186,7 @@ class MSRPChat(object):
     def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
         """Send raw MSRP message. For IM prefer send_message.
         If called before the connection was established, the messages will be
-        queued until MSRPChatDidStart notification.
+        queued until MediaStreamDidStart notification.
 
         Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
         """
@@ -209,7 +209,7 @@ class MSRPChat(object):
     def send_message(self, content, content_type='text/plain', to_uri=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
-        queued until MSRPChatDidStart notification.
+        queued until MediaStreamDidStart notification.
 
         - content (str) - content of the message;
         - to_uri (SIPURI) - "To" header of CPIM wrapper;
