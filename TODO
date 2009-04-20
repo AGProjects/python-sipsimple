@@ -1,3 +1,37 @@
+Sessions
+--------
+
+- Video aquisition sub-system [RK]
+- Support for H.264 codec [RK]
+- Properly implement RFB/VNC library used by desktop sharing [LS]
+- Application sharing [LS]
+
+
+Middleware
+----------
+
+- FileTransfer high level class [DB]
+- Desktop sharing high level class [DB]
+- Capture MSRP trace as notifications [DB]
+- MediaStream high level class [DB]
+- Audio MediaStream high level class [RK]
+- Chat MediaStream high level class [DB]
+- Registration high level class [LS]
+- Buddylist high-level class [LS]
+- Publication  high level class [LS]
+- Subscribtion high level class [LS]
+- Video sessions high level class [LS]
+- Application sharing high level class [LS]
+- Conference audio sessions [RK]
+- Log XCAP messages [LS]
+- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
+- Auto PUBLISH event=presence with device status when start/end audio session [RK] [LS]
+- Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
+- Auto ENUM lookup during session if number looks like E.164 [LS]
+- Handle 301/302 redirect [RK]
+- Detect IP address changes (OS specific) and signal Engine [RK]
+- Enrollment [LS]
+
 
 SIP core
 --------
@@ -17,23 +51,6 @@ SIP core
 - Handle incoming REFER requests [RK]
 
 
-Middleware
-----------
-
-- FileTransfer high level class [DB]
-- Desktop sharing high level class [DB]
-- MediaStream high level class [RK]
-- Conference audio sessions [RK]
-- Buddylist high-level class [LS]
-- Log XCAP messages [LS]
-- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
-- Auto PUBLISH event=presence with device status when start/end audio session [RK] [LS]
-- Auto PUBLISH event=dialog when enter/exit audio session [RK] [LS]
-- Auto ENUM lookup during session if number looks like E.164 [LS]
-- Handle 301/302 redirect [RK]
-- Detect IP address changes (OS specific) and signal Engine [RK]
-- Enrollment [LS]
-
 Notifications
 -------------
 
@@ -44,6 +61,7 @@ Notifications
   has ended its cycle of operation and the concept that the entity becomes
   unusable. For some these overlap for others they don't and using a given
   notification with multiple meanings can be confusing.
+
 
 Audio
 -----
@@ -90,8 +108,8 @@ Other applications
 ------------------
 
 - Message-summary payload [LS]
-- ENUM lookups [RK]
 - Bonjour mDNS broadcast [LS]
+- ENUM lookups [LS]
 
 
 Command line tools
@@ -102,13 +120,6 @@ Command line tools
 - sip_subscribe_conference script [LS]
 - sip_subscribe_xcap_diff script [LS]
  
-
-Sessions
---------
-
-- Video sessions [RK]
-- H.264 codec [RK]
-- Real Time Text (RTT) []
 
 
 Porting
