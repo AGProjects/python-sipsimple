@@ -36,7 +36,7 @@ class ContactURI(SIPAddress):
 
 
 class AudioSettings(SettingsGroup):
-    codec_list = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'), nillable=True)
+    codec_list = Setting(type=AudioCodecs, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
     use_srtp_without_tls = Setting(type=bool, default=False)
 
