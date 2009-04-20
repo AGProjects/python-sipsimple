@@ -34,7 +34,7 @@ class Engine(object):
                              "sample_rate": 32,
                              "playback_dtmf": True,
                              "rtp_port_range": (40000, 40100),
-                             "codecs": ["speex", "g711", "ilbc", "gsm", "g722"],
+                             "codecs": ["speex", "G722", "PCMU", "PCMA", "iLBC", "GSM"],
                              "events": {"presence": ["application/pidf+xml"],
                                         "message-summary": ["application/simple-message-summary"],
                                         "presence.winfo": ["application/watcherinfo+xml"],

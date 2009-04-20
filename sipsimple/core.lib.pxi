@@ -188,58 +188,110 @@ cdef class PJSIPEndpoint:
 
 cdef class PJMEDIAEndpoint:
     cdef pjmedia_endpt *_obj
-    cdef list _codecs
     cdef unsigned int _sample_rate
+    cdef int _has_speex
+    cdef int _has_g722
+    cdef int _has_g711
+    cdef int _has_ilbc
+    cdef int _has_gsm
 
     def __cinit__(self, PJCachingPool caching_pool, unsigned int sample_rate):
         cdef int status
+        cdef int speex_options = 0
         status = pjmedia_endpt_create(&caching_pool._obj.factory, NULL, 1, &self._obj)
         if status != 0:
             raise PJSIPError("Could not create PJMEDIA endpoint", status)
         self._sample_rate = sample_rate
-        self._codecs = []
+        if sample_rate < 32:
+            speex_options |= PJMEDIA_SPEEX_NO_UWB
+        if sample_rate < 16:
+            speex_options |= PJMEDIA_SPEEX_NO_WB
+        status = pjmedia_codec_speex_init(self._obj, speex_options, -1, -1)
+        if status != 0:
+            raise PJSIPError("Could not initialize speex codec", status)
+        self._has_speex = 1
+        status = pjmedia_codec_g722_init(self._obj)
+        if status != 0:
+            raise PJSIPError("Could not initialize G.722 codec", status)
+        self._has_g722 = 1
+        pjmedia_codec_g711_init(self._obj)
+        if status != 0:
+            raise PJSIPError("Could not initialize G.711 codecs", status)
+        self._has_g711 = 1
+        status = pjmedia_codec_ilbc_init(self._obj, 20)
+        if status != 0:
+            raise PJSIPError("Could not initialize iLBC codec", status)
+        self._has_ilbc = 1
+        status = pjmedia_codec_gsm_init(self._obj)
+        if status != 0:
+            raise PJSIPError("Could not initialize GSM codec", status)
+        self._has_gsm = 1
 
     def __dealloc__(self):
+        if self._has_gsm:
+            pjmedia_codec_gsm_deinit()
+        if self._has_ilbc:
+            pjmedia_codec_ilbc_deinit()
+        if self._has_g711:
+            pjmedia_codec_g711_deinit()
+        if self._has_g722:
+            pjmedia_codec_g722_deinit()
+        if self._has_speex:
+            pjmedia_codec_speex_deinit()
         if self._obj != NULL:
-            for codec in self._codecs:
-                getattr(self, "codec_%s_deinit" % codec)()
             pjmedia_endpt_destroy(self._obj)
 
-    def codec_g711_init(self):
-        pjmedia_codec_g711_init(self._obj)
+    cdef list _get_prio_codecs(self):
+        cdef unsigned int count = PJMEDIA_CODEC_MGR_MAX_CODECS
+        cdef pjmedia_codec_info info[PJMEDIA_CODEC_MGR_MAX_CODECS]
+        cdef unsigned int prio[PJMEDIA_CODEC_MGR_MAX_CODECS]
+        cdef int i
+        cdef object codec
+        cdef list codecs = []
+        cdef list retval = []
+        cdef int status
+        status = pjmedia_codec_mgr_enum_codecs(pjmedia_endpt_get_codec_mgr(self._obj), &count, info, prio)
+        if status != 0:
+            raise PJSIPError("Could not get available codecs", status)
+        for i from 0 <= i < count:
+            codec = _pj_str_to_str(info[i].encoding_name)
+            if codec not in codecs:
+                codecs.append(codec)
+                retval.append((prio[i], codec))
+        return retval
 
-    def codec_g711_deinit(self):
-        pjmedia_codec_g711_deinit()
+    cdef list _get_all_codecs(self):
+        cdef object codec_prio
+        cdef list codecs = self._get_prio_codecs()
+        return [codec_prio[1] for codec_prio in codecs]
 
-    def codec_gsm_init(self):
-        pjmedia_codec_gsm_init(self._obj)
+    cdef list _get_codecs(self):
+        cdef object codec_prio
+        cdef list codecs = [codec_prio for codec_prio in self._get_prio_codecs() if codec_prio[0] > 0]
+        return [codec_prio[1] for codec_prio in sorted(codecs, reverse=True)]
 
-    def codec_gsm_deinit(self):
-        pjmedia_codec_gsm_deinit()
-
-    def codec_g722_init(self):
-        pjmedia_codec_g722_init(self._obj)
-
-    def codec_g722_deinit(self):
-        pjmedia_codec_g722_deinit()
-
-    def codec_ilbc_init(self):
-        pjmedia_codec_ilbc_init(self._obj, 20)
-
-    def codec_ilbc_deinit(self):
-        pjmedia_codec_ilbc_deinit()
-
-    def codec_speex_init(self):
-        cdef int options = 0
-        if self._sample_rate < 32:
-            options |= PJMEDIA_SPEEX_NO_UWB
-        if self._sample_rate < 16:
-            options |= PJMEDIA_SPEEX_NO_WB
-        pjmedia_codec_speex_init(self._obj, options, -1, -1)
-
-    def codec_speex_deinit(self):
-        pjmedia_codec_speex_deinit()
-
+    cdef int _set_codecs(self, list codecs) except -1:
+        cdef object codec
+        cdef unsigned int prio
+        cdef pj_str_t codec_pj
+        cdef object codec_set
+        cdef object new_codecs = set([codec.lower() for codec in codecs])
+        cdef object all_codecs = set([codec.lower() for codec in self._get_all_codecs()])
+        codec_set = new_codecs.difference(all_codecs)
+        if len(codec_set) > 0:
+            raise SIPCoreError("Unknown codec(s): %s" % ", ".join(codec_set))
+        for prio, codec in enumerate(reversed(codecs)):
+            _str_to_pj_str(codec, &codec_pj)
+            status = pjmedia_codec_mgr_set_codec_priority(pjmedia_endpt_get_codec_mgr(self._obj), &codec_pj, prio + 1)
+            if status != 0:
+                raise PJSIPError("Could not set codec priority", status)
+        codec_set = all_codecs.difference(new_codecs)
+        for codec in codec_set:
+            _str_to_pj_str(codec, &codec_pj)
+            status = pjmedia_codec_mgr_set_codec_priority(pjmedia_endpt_get_codec_mgr(self._obj), &codec_pj, 0)
+            if status != 0:
+                raise PJSIPError("Could not set codec priority", status)
+        return 0
 
 # globals
 

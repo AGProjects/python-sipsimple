@@ -183,11 +183,23 @@ cdef extern from "pjnath.h":
 
 cdef extern from "pjmedia.h":
 
+    # codec manager
+    struct pjmedia_codec_mgr
+    enum:
+        PJMEDIA_CODEC_MGR_MAX_CODECS
+    struct pjmedia_codec_info:
+        pj_str_t encoding_name
+        unsigned int clock_rate
+    int pjmedia_codec_mgr_enum_codecs(pjmedia_codec_mgr *mgr, unsigned int *count,
+                                      pjmedia_codec_info *info, unsigned int *prio)
+    int pjmedia_codec_mgr_set_codec_priority(pjmedia_codec_mgr *mgr, pj_str_t *codec_id, unsigned int prio)
+
     # endpoint
     struct pjmedia_endpt
     int pjmedia_endpt_create(pj_pool_factory *pf, pj_ioqueue_t *ioqueue, int worker_cnt, pjmedia_endpt **p_endpt)
     int pjmedia_endpt_destroy(pjmedia_endpt *endpt)
     pj_ioqueue_t *pjmedia_endpt_get_ioqueue(pjmedia_endpt *endpt)
+    pjmedia_codec_mgr *pjmedia_endpt_get_codec_mgr(pjmedia_endpt *endpt)
 
     # codecs
     int pjmedia_codec_g711_init(pjmedia_endpt *endpt)
@@ -358,9 +370,6 @@ cdef extern from "pjmedia.h":
     enum pjmedia_dir:
         PJMEDIA_DIR_ENCODING
         PJMEDIA_DIR_DECODING
-    struct pjmedia_codec_info:
-        pj_str_t encoding_name
-        unsigned int clock_rate
     struct pjmedia_codec_param_setting:
         unsigned int vad
     struct pjmedia_codec_param:

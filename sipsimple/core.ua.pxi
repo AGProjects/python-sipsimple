@@ -189,29 +189,21 @@ cdef class PJSIPUA:
         if tail_length is not None:
             self.ec_tail_length = ec_tail_length
 
+    property available_codecs:
+
+        def __get__(self):
+            self._check_self()
+            return self._pjmedia_endpoint._get_all_codecs()
+
     property codecs:
 
         def __get__(self):
             self._check_self()
-            return self._pjmedia_endpoint._codecs[:]
+            return self._pjmedia_endpoint._get_codecs()
 
-        def __set__(self, val):
-            cdef object codec, new_codecs
+        def __set__(self, value):
             self._check_self()
-            if not isinstance(val, list):
-                raise TypeError("codecs attribute should be a list")
-            new_codecs = val[:]
-            if len(new_codecs) != len(set(new_codecs)):
-                raise ValueError("Duplicate codecs found in list")
-            for codec in new_codecs:
-                if not hasattr(self._pjmedia_endpoint, "codec_%s_init" % codec):
-                    raise ValueError('Unknown codec "%s"' % codec)
-            for codec in self._pjmedia_endpoint._codecs:
-                getattr(self._pjmedia_endpoint, "codec_%s_deinit" % codec)()
-            self._pjmedia_endpoint._codecs = []
-            for codec in new_codecs:
-                getattr(self._pjmedia_endpoint, "codec_%s_init" % codec)()
-            self._pjmedia_endpoint._codecs = new_codecs
+            self._pjmedia_endpoint._set_codecs(value)
 
     property local_ip:
 
