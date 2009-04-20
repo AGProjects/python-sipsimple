@@ -12,8 +12,6 @@ SIP core
 - Handle incoming OPTIONS requests [RK]
 - Add feature to send OPTIONS method and parse the replies [RK]
 - Handle sending and receiving of multipart bodies for Invitation [RK]
-- Set list of codecs in order of preference on each AudioTransport instance,
-  not at the global level [RK]
 - Use STUN to determine the public contact address used for REGISTER [RK]
 - Handle UPDATE for re-INVITE [RK]
 - Handle incoming REFER requests [RK]
