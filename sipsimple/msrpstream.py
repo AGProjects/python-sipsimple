@@ -27,7 +27,7 @@ class MSRPChatError(Exception):
 class MSRPChat(object):
     implements(IMediaStream)
 
-    def __init__(self, account, direction=None, file_selector=None):
+    def __init__(self, account, direction='sendrecv', file_selector=None):
         self.account = account
         self.direction = direction
         self.file_selector = file_selector
@@ -69,7 +69,12 @@ class MSRPChat(object):
         return self.local_media
 
     def validate_incoming(self, remote_sdp, stream_index):
-        return True # TODO
+        media = remote_sdp.media[stream_index]
+        media_attributes = dict((attr.name, attr.value) for attr in media.attributes)
+        direction = media_attributes.get('direction', 'sendrecv')
+        if direction != self.direction:
+            return False
+        return True
 
     def initialize(self, session):
         try:
@@ -171,6 +176,8 @@ class MSRPChat(object):
             else:
                 self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, data)
         elif chunk.method=='SEND':
+            if self.direction=='sendonly':
+                return
             if chunk.content_type.lower()=='message/cpim':
                 cpim_headers, content = MessageCPIMParser.parse_string(chunk.data)
                 content_type = cpim_headers.get('Content-Type')
@@ -195,6 +202,8 @@ class MSRPChat(object):
 
         Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
         """
+        if self.direction=='recvonly':
+            raise MSRPChatError('Cannot send message on recvonly stream')
         if self.session is None:
             self.message_queue.append((message, content_type, failure_report, success_report))
             return
