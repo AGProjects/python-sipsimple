@@ -263,6 +263,8 @@ class MSRPOutgoingFileStream(MSRPChat):
         file_selector = FileSelector(os.path.basename(filename), content_type, size, sha1)
         MSRPChat.__init__(self, account, direction='sendonly', file_selector=file_selector)
         self.outgoing_file = OutgoingFile(fileobj, size, content_type=content_type)
+        self.outgoing_file.headers['Success-Report'] = SuccessReportHeader('yes')
+        self.outgoing_file.headers['Failure-Report'] = FailureReportHeader('partial')
 
     def _on_start(self):
         self.send_file(self.outgoing_file)
