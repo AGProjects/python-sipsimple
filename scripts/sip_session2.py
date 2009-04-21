@@ -881,6 +881,9 @@ def readloop(console, manager, shortcuts):
             except UserCommandError, ex:
                 echo()
                 print ex
+            except Exception:
+                echo()
+                traceback.print_exc()
             # will get there without echoing if user pressed enter on an empty line; let's echo it
             echo()
 
