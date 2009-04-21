@@ -507,9 +507,9 @@ class ChatManager(NotificationHandler):
                 self.remove_session(chat)
 
     def cmd_send(self, *args):
-        """:send user@domain filename \t Send the file to the user"""
+        """:send user@domain filename \t Transfer file to user@domain"""
         if len(args)!=2:
-            raise UserCommandError('Please provide uri and filename\n%s' % self.cmd_call.__doc__)
+            raise UserCommandError('Please provide SIP address and filename\n%s' % self.cmd_call.__doc__)
         target_uri, filename = args[0], args[1]
         if not isinstance(target_uri, SIPURI):
             try:
@@ -528,39 +528,39 @@ class ChatManager(NotificationHandler):
     def get_current_session(self):
         session = self.current_session
         if not session:
-            raise UserCommandError('No active session')
+            raise UserCommandError('No active SIP session')
         return session
 
     def send_message(self, message):
         return self.get_current_session().send_message(message)
 
     def cmd_hold(self):
-        """:hold  (or CTRL-H) \t Put the current session on hold"""
+        """:hold  (or CTRL-H) \t Put the current SIP session on hold"""
         self.get_current_session().hold()
 
     def cmd_unhold(self):
-        """:unhold  (or CTRL-H) \t Un-hold the current session"""
+        """:unhold  (or CTRL-H) \t Take the current SIP session out of hold"""
         self.get_current_session().unhold()
 
     def toggle_hold(self):
         self.get_current_session().toggle_hold()
 
     def cmd_add(self, *args):
-        """:add audio|chat \t Add a new stream to the current session"""
+        """:add audio|chat \t Add a new stream to the current SIP session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
         session.add_stream(self.get_stream(args[0]))
 
     def cmd_remove(self, *args):
-        """:remove audio|chat \t Remove the stream from the current session"""
+        """:remove audio|chat \t Remove the stream from the current SIP session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
         session.remove_stream(self.get_stream(args[0]))
 
     def cmd_dtmf(self, *args):
-        """:dtmf DIGITS \t Send DTMF digits. Also try CTRL-SPACE for virtual numpad"""
+        """:dtmf DIGITS \t Send DTMF digits. Press CTRL-SPACE for numeric pad"""
         session = self.get_current_session()
         data = ''.join(args).upper()
         for x in data:
@@ -585,7 +585,7 @@ class ChatManager(NotificationHandler):
     def dtmf_numpad(self, *args):
         session = self.get_current_session()
         if not session.has_audio:
-            raise UserCommandError('Session does not have audio stream to send DTMF over')
+            raise UserCommandError('The SIP session does not have audio stream to send DTMF over')
         print """\
 +------+-----+------+
 |  1   |  2  |  3   |
@@ -643,9 +643,9 @@ class ChatManager(NotificationHandler):
                 print "Notifications tracing to console is now %s" % ("activated" if logstate.EngineTracer().started() else "deactivated")
 
     def cmd_echo(self, *args):
-        """:echo +|-|MILISECONDS \t Adjust echo cancellation"""
+        """:echo +|-|MILISECONDS \t Adjust audio echo cancellation"""
         if not args:
-            print 'Current echo cancellation: %s' % self.engine.ec_tail_length
+            print 'Current audio echo cancellation: %s' % self.engine.ec_tail_length
             return
         if len(args)>1:
             raise UserCommandError("This command has one argument only\n%s" % self.cmd_echo.__doc__)
@@ -663,7 +663,7 @@ class ChatManager(NotificationHandler):
             number = self.engine.ec_tail_length + number
         number = min(500, max(0, number))
         self.engine.set_sound_devices(tail_length=number)
-        print "Set echo cancellation tail length to %s ms" % self.engine.ec_tail_length
+        print "Set audio echo cancellation tail length to %s ms" % self.engine.ec_tail_length
 
     def cmd_record(self, *args):
         """:record \t Toggle audio recording"""
@@ -729,8 +729,8 @@ class InfoPrinter(NotificationHandler):
 
     def _NH_SIPSessionDidStart(self, session, data):
         try:
-            print 'Session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
-            print "Audio RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
+            print 'RTP audio session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
+            print "RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
                                                            session.audio_remote_rtp_address_sdp, session.audio_remote_rtp_port_sdp)
             if session.audio_srtp_active:
                 print "RTP audio stream is encrypted"
@@ -747,9 +747,9 @@ class InfoPrinter(NotificationHandler):
 
     def _NH_SIPSessionDidFail(self, session, data):
         if data.code:
-            print "Session failed: %d %s" % (data.code, data.reason)
+            print "SIP session failed: %d %s" % (data.code, data.reason)
         else:
-            print "Session failed: %s" % data.reason
+            print "SIP session failed: %s" % data.reason
 
     def _NH_SIPSessionDidEnd(self, session, data):
         after = ''
@@ -757,30 +757,30 @@ class InfoPrinter(NotificationHandler):
             duration = session.stop_time - session.start_time
             after = " after %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
         if data.originator == 'local':
-            print "Session ended by local party%s." % after
+            print "SIP session ended by local party%s." % after
         else:
-            print "Session ended by remote party%s." % after
+            print "SIP session ended by remote party%s." % after
 
     def _NH_SIPSessionRejectedStreamProposal(self, session, data):
         print data.reason
 
     def _NH_SIPSessionGotHoldRequest(self, session, data):
         if data.originator == 'local':
-            print "Call is put on hold"
+            print "SIP session is put on hold"
         else:
-            print "Remote party has put the audio session on hold"
+            print "Remote party has put the SIP session on hold"
 
     def _NH_SIPSessionGotUnholdRequest(self, session, data):
         if data.originator == "local":
-            print "Call is taken out of hold"
+            print "SIP session is taken out of hold"
         else:
-            print "Remote party has taken the audio session out of hold"
+            print "Remote party has taken the SIP session out of hold"
 
     boring_messages = set()
 
     def _NH_SIPAccountRegistrationDidSucceed(self, account, data):
         route = data.registration.route
-        msg = 'Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % \
+        msg = 'Registered SIP contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % \
               (data.contact_uri, account.id, route.address, route.port, route.transport, data.registration.expires)
         if msg not in self.boring_messages:
             print msg
@@ -792,22 +792,22 @@ class InfoPrinter(NotificationHandler):
             route = data.registration.route
             if data.next_route:
                 next_route = data.next_route
-                next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+                next_route = 'Trying next SIP route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
             else:
-                next_route = 'No more routes to try; retrying in %.2f seconds.' % (data.delay)
+                next_route = 'No more SIP routes to try; retrying in %.2f seconds.' % (data.delay)
             if 'code' in data.__dict__:
                 status = '%d %s' % (data.code, data.reason)
             else:
                 status = data.reason
-            print 'Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s' % (account.id, route.address, route.port, route.transport, status, next_route)
+            print 'Failed to register SIP contact for sip:%s at %s:%d;transport=%s: %s. %s' % (account.id, route.address, route.port, route.transport, status, next_route)
         else:
-            print 'Failed to register contact for sip:%s: %s' % (account.id, data.reason)
+            print 'Failed to register SIP contact for sip:%s: %s' % (account.id, data.reason)
 
     def _NH_SIPAccountRegistrationDidEnd(self, account, data):
         if 'code' in data.__dict__:
-            print 'Registration ended: %d %s.' % (data.code, data.reason)
+            print 'SIP registration ended: %d %s.' % (data.code, data.reason)
         else:
-            print 'Registration ended.'
+            print 'SIP registration ended.'
 
     def _NH_SIPSessionDidStartRecordingAudio(self, session, data):
         print 'Recording audio to "%s"' % data.file_name
@@ -837,11 +837,11 @@ def start(options, console):
             logstate.EngineTracer().start()
         if isinstance(account, BonjourAccount):
             if engine.local_udp_port:
-                print 'Local contact: %s:%s;transport=udp' % (account.contact, engine.local_udp_port)
+                print 'Local SIP contact: %s:%s;transport=udp' % (account.contact, engine.local_udp_port)
             if engine.local_tcp_port:
-                print 'Local contact: %s:%s;transport=tcp' % (account.contact, engine.local_tcp_port)
+                print 'Local SIP contact: %s:%s;transport=tcp' % (account.contact, engine.local_tcp_port)
             if engine.local_tls_port:
-                print 'Local contact: %s:%s;transport=tls' % (account.contact, engine.local_tls_port)
+                print 'Local SIP contact: %s:%s;transport=tls' % (account.contact, engine.local_tls_port)
         MessageRenderer().start()
         IncomingHandler().subscribe_to_all()
         manager = ChatManager(engine, account, console, options.logger)
@@ -874,7 +874,7 @@ def start(options, console):
                 traceback.print_exc()
         finally:
             console.copy_input_line()
-            with calming_message(1, "Disconnecting the session(s)..."):
+            with calming_message(1, "Disconnecting the SIP session(s)..."):
                 manager.close()
     finally:
         RegistrationManager().unregister()
@@ -930,21 +930,21 @@ def readloop(console, manager, shortcuts):
             echo()
 
 
-description = "This script will either sit idle waiting for an incoming session, or start a new session with the specified target SIP address. The program will close the session and quit when CTRL-D is pressed. This scripts supports RTP audio and MSRP chat sessions."
+description = "This script will either sit idle waiting for an incoming SIP session, or start a new SIP session with the specified target SIP address. The program will close the SIP session and quit when CTRL-D is pressed. This scripts supports RTP audio, MSRP instant messaging and file transfer sessions."
 usage = "%prog [options] [target-user@target-domain.com] [audio|chat]"
 
 def get_account(key):
     account_manager = AccountManager()
     accounts = account_manager.accounts
     if not accounts:
-        sys.exit('No accounts defined')
+        sys.exit('No SIP accounts defined')
     if key is None:
         if account_manager.default_account is not None:
             return account_manager.default_account
         elif len(accounts)==1:
             return accounts.items()[0]
         else:
-            sys.exit('Please specify account to use with "-a username@domain" option')
+            sys.exit('Please specify the SIP account to use with "-a username@domain" option')
     try:
         return accounts[key]
     except KeyError:
@@ -953,9 +953,9 @@ def get_account(key):
             if x.find(key) != -1:
                 matched.append(x)
         if not matched:
-            sys.exit('None of the accounts matches %r' % key)
+            sys.exit('None of the SIP accounts matches %r' % key)
         elif len(matched)>1:
-            sys.exit('The following accounts match %r:\n%s\nPlease provide longer substring' % (key, '\n'.join(matched)))
+            sys.exit('The following SIP accounts match %r:\n%s\nPlease provide longer substring' % (key, '\n'.join(matched)))
         return accounts[matched[0]]
 
 def get_routes(target_uri, engine, account):
@@ -1003,9 +1003,9 @@ class RegistrationManager(NotificationHandler):
 def parse_options(usage, description):
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-a", "--account-name", type="string", metavar='ACCOUNT_NAME',
-                      help='The name of the account to use.')
+                      help='The name of the SIP account to use.')
     parser.add_option("--no-register", dest='register', default=True, action='store_false',
-                      help='Bypass registration.')
+                      help='Bypass SIP registration.')
     parser.add_option("-c", "--config_file", type="string", dest="config_file",
                       help="The path to a configuration file to use. "
                            "This overrides the default location of the configuration file.", metavar="FILE")
