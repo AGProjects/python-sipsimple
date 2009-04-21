@@ -105,7 +105,13 @@ def get_file_mimetype(filename):
         return 'application/octet-stream'
 
 def read_sha1(filename):
-    hash = hashlib.sha1(file(filename).read())
+    f = file(filename)
+    hash = hashlib.sha1()
+    while True:
+        data = f.read(100000)
+        if not data:
+            break
+        hash.update(data)
     return 'sha-1:' + ':'.join('%.2X' % ord(x) for x in hash.digest())
 
 def get_download_path(fullname):
@@ -148,7 +154,7 @@ class MessageRenderer(NotificationHandler):
             # for the fool-proof implementation need set of ranges data structure that track which bytes were written
             print 'Finished downloading %s to %s' % (msrpstream.file_selector, msrpstream.filepath)
             msrpstream.fileobj.close()
-            real_sha1 = read_sha1(msrpstream.filepath)
+            real_sha1 = read_sha1(msrpstream.filepath) # XXX calculate the hash when writing
             if real_sha1 != msrpstream.file_selector.hash:
                 print 'Hash mismatch: expected %s calculated %s' % (msrpstream.file_selector.hash, real_sha1)
         return True
