@@ -682,7 +682,7 @@ def get_userfriendly_desc(stream):
         else:
             return str(stream.file_selector)
     except Exception:
-        pass
+        traceback.print_exc()
     return type(stream).__name__
 
 
