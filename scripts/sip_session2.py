@@ -8,6 +8,9 @@ import sys
 import os
 import datetime
 import time
+import traceback
+import hashlib
+import glob
 from optparse import OptionParser
 from application.notification import NotificationCenter
 from application import log
@@ -33,7 +36,7 @@ from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
 from sipsimple.msrp import LoggerSingleton
-from sipsimple.msrpstream import MSRPChat
+from sipsimple.msrpstream import MSRPChat, MSRPOutgoingFileStream, MSRPIncomingFileStream
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 KEY_AUDIO_CONTROL = '\x00' # Ctrl-SPACE
@@ -89,26 +92,68 @@ def format_incoming_message(text, uri, cpim_from, dt):
 def format_outgoing_message(uri, message, dt):
     return '%s %s: %s' % (format_datetime(dt), format_uri(uri), message)
 
+file_cmd = "file -b --mime '%s'"
+
+# file --mime-type may not be available (as seen on darwin)
+# file --mime may return the charset or it may not
+
+def get_file_mimetype(filename):
+    try:
+        return os.popen(file_cmd % filename).read().strip().split()[0].strip(';:,')
+    except Exception:
+        traceback.print_exc()
+        return 'application/octet-stream'
+
+def read_sha1(filename):
+    hash = hashlib.sha1(file(filename).read())
+    return 'sha-1:' + ':'.join('%.2X' % ord(x) for x in hash.digest())
+
+def get_download_path(fullname):
+    name = os.path.basename(fullname)
+    assert name, 'Invalid file name %s' % fullname
+    path = os.path.join(SIPSimpleSettings().file_transfer.directory.normalized, name)
+    if os.path.exists(path):
+        all = [int(x[len(path)+1:]) for x in glob.glob(path + '.*')]
+        if not all:
+            return path + '.1'
+        else:
+            return path + '.' + str(max(all)+1)
+    return path
 
 class MessageRenderer(NotificationHandler):
 
     def start(self):
         self.subscribe_to_all()
 
-    def _NH_MSRPChatGotMessage(self, msrpchat, data):
-        session = msrpchat._chatsession
-        try:
-            msg = format_incoming_message(data.content, session.inv.remote_uri,
-                                          data.cpim_headers.get('From'), data.cpim_headers.get('DateTime'))
-        except ValueError:
-            chunk = data.message
-            print 'Failed to parse incoming message, content_type=%r, data=%r' % (chunk.content_type, chunk.data)
-            # XXX: issue REPORT here?
+    def _NH_MSRPChatGotMessage(self, msrpstream, data):
+        session = msrpstream._chatsession
+        if isinstance(msrpstream, MSRPIncomingFileStream):
+            fro, to, total = data.message.byte_range
+            if not hasattr(msrpstream, 'fileobj'):
+                msrpstream.filepath = get_download_path(msrpstream.file_selector.name)
+                assert not os.path.exists(msrpstream.filepath)
+                msrpstream.fileobj = file(msrpstream.filepath, 'w')
+            msrpstream.fileobj.seek(fro-1)
+            msrpstream.fileobj.write(data.message.data)
+            if data.message.contflag == '$':
+                print 'Finished downloading %s to %s' % (msrpstream.file_selector, msrpstream.filepath)
+                msrpstream.fileobj.close()
+                real_sha1 = read_sha1(msrpstream.filepath)
+                if real_sha1 != msrpstream.file_selector.hash:
+                    print 'Hash mismatch: expected %s calculated %s' % (msrpstream.file_selector.hash, real_sha1)
         else:
-            print msg
-            if session.history_file:
-                session.history_file.write(msg + '\n')
-                session.history_file.flush()
+            try:
+                msg = format_incoming_message(data.content, session.inv.remote_uri,
+                                              data.cpim_headers.get('From'), data.cpim_headers.get('DateTime'))
+            except ValueError:
+                chunk = data.message
+                print 'Failed to parse incoming message, content_type=%r, data=%r' % (chunk.content_type, chunk.data)
+                # XXX: issue REPORT here?
+            else:
+                print msg
+                if session.history_file:
+                    session.history_file.write(msg + '\n')
+                    session.history_file.flush()
 
 def get_history_file(invitation):
     return _get_history_file('%s@%s' % (invitation.local_uri.user, invitation.local_uri.host),
@@ -188,7 +233,7 @@ class ChatSession(NotificationHandler):
 
     def update_streams(self, streams):
         self.streams = streams
-        self.info = '/'.join([type(stream).__name__ for stream in streams])
+        self.info = '/'.join([get_userfriendly_desc(stream) for stream in streams])
         self.info = self.info or 'Session with no streams'
         self.chat = None
         for stream in streams:
@@ -263,7 +308,7 @@ class ChatManager(NotificationHandler):
         session._chat = ChatSession(session, self)
         for stream in session.streams:
             stream._chatsession = session._chat
-        session._chat.info = '/'.join(type(x).__name__ for x in session.streams)
+        session._chat.info = '/'.join(get_userfriendly_desc(x) for x in session.streams)
         has_chat = False
         has_audio = False
         replies = list('yYnN') + [CTRL_D]
@@ -379,6 +424,7 @@ class ChatManager(NotificationHandler):
             self.update_prompt()
 
     streams = {'chat': MSRPChat}
+    _reverse_streams = dict((v, k) for (k, v) in streams.items())
     default_stream = MSRPChat
 
     def get_stream(self, s):
@@ -424,6 +470,25 @@ class ChatManager(NotificationHandler):
         finally:
             if chat is not None:
                 self.remove_session(chat)
+
+    def cmd_send(self, *args):
+        """:send user@domain filename \t Send the file to the user"""
+        if len(args)!=2:
+            raise UserCommandError('Please provide uri and filename\n%s' % self.cmd_call.__doc__)
+        target_uri, filename = args[0], args[1]
+        if not isinstance(target_uri, SIPURI):
+            try:
+                target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
+            except (ValueError, SIPCoreError), ex:
+                raise UserCommandError(str(ex))
+        try:
+            fileobj = file(filename)
+            size = os.stat(filename).st_size
+            content_type = get_file_mimetype(filename)
+        except IOError, ex:
+            raise UserCommandError(str(ex) or type(ex).__name__)
+        stream = MSRPOutgoingFileStream(self.account, filename, fileobj, size, content_type, read_sha1(filename))
+        self.procs.spawn(self._call, target_uri, [stream])
 
     def get_current_session(self):
         session = self.current_session
@@ -572,6 +637,18 @@ class ChatManager(NotificationHandler):
             session.start_recording_audio()
         else:
             session.stop_recording_audio()
+
+
+def get_userfriendly_desc(stream):
+    try:
+        return ChatManager._reverse_streams[type(stream)].capitalize()
+    except KeyError:
+        pass
+    try:
+        return str(stream.file_selector)
+    except Exception:
+        pass
+    return type(stream).__name__
 
 
 def complete_word(input, wordlist):
@@ -728,7 +805,10 @@ def start(options, console):
                 print 'Waiting for incoming SIP session requests...'
             else:
                 try:
-                    manager.cmd_call(*options.args)
+                    if os.path.isfile(options.args[1]):
+                        manager.cmd_send(*options.args)
+                    else:
+                        manager.cmd_call(*options.args)
                 except UserCommandError, ex:
                     print str(ex)
             while True:
