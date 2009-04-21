@@ -8,9 +8,9 @@ def pformat_file_size(size):
     if size <= 1024:
         return str(size) + ' bytes'
     elif size <= 100*1024:
-        return str(size/1024) + ' KiB'
+        return str(size/1024) + ' KB'
     else:
-        return '%.2f MiB' % (size/1024./1024.)
+        return '%.2f MB' % (size/1024./1024.)
 
 _fs_name = 'name:"(?P<name>[^"]+)"'
 _fs_type = 'type:(?P<type>[^ ]+)'
