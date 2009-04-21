@@ -162,7 +162,7 @@ class Session(NotificationHandler):
                 for stream in streams:
                     proc.spawn_greenlet(stream.end)
 
-    def _terminate(self, code=486):
+    def _terminate(self, code=603):
         if self.state in ['TERMINATED', 'TERMINATING']:
             return self.wait_state('TERMINATED')
         self._set_state('TERMINATING')
@@ -172,7 +172,7 @@ class Session(NotificationHandler):
         self._set_state('TERMINATED', originator='local')
         self.unsubscribe_from_all(sender=self.inv._obj)
 
-    # XXX if we have TERMINATING and TERMINATED stated we should have terminate() method, not end() or rename the states
+    # XXX if we have TERMINATING and TERMINATED states we should have terminate() method, not end() or rename the states
     def end(self):
         if self.greenlet:
             api.kill(self.greenlet, InvitationError(originator='local'))
