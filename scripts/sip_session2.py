@@ -9,7 +9,6 @@ import os
 import datetime
 import time
 from optparse import OptionParser
-from twisted.internet.error import ConnectionClosed
 from application.notification import NotificationCenter
 from application import log
 from application.python.util import Singleton
@@ -22,7 +21,6 @@ from sipsimple.core import SIPURI, SIPCoreError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine, InvitationError
-from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.session2 import Session as GreenSession, NotificationHandler, IncomingHandler
 from sipsimple.green.notification import linked_notification, linked_notifications
 from sipsimple.clients.clientconfig import get_path
@@ -426,10 +424,6 @@ class ChatManager(NotificationHandler):
         finally:
             if chat is not None:
                 self.remove_session(chat)
-
-    @staticmethod
-    def make_SDPMedia(uri_path):
-        return make_SDPMedia(uri_path, ['message/cpim'], ['text/plain'])
 
     def get_current_session(self):
         session = self.current_session

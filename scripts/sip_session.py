@@ -23,7 +23,6 @@ from sipsimple.core import SIPURI, SIPCoreError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine
-from sipsimple.green.sessionold import make_SDPMedia
 from sipsimple.green.session import GreenSession, SessionError
 from sipsimple.green.notification import linked_notification, linked_notifications
 from sipsimple import util
@@ -428,10 +427,6 @@ class ChatManager(NotificationHandler):
         finally:
             if session is not None:
                 self.remove_session(session)
-
-    @staticmethod
-    def make_SDPMedia(uri_path):
-        return make_SDPMedia(uri_path, ['message/cpim'], ['text/plain'])
 
     def get_current_session(self, error_prefix=None):
         session = self.current_session
