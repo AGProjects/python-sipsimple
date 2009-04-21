@@ -21,6 +21,7 @@ Middleware
 - Publication  high level class [LS]
 - Subscribtion high level class [LS]
 - Video sessions high level class [LS]
+- XCAP high level class [LS]
 - Application sharing high level class [LS]
 - Conference audio sessions [RK]
 - Log XCAP messages [LS]
