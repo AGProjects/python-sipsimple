@@ -22,7 +22,7 @@ from sipsimple.core import RecordingWaveFile
 from sipsimple.core import SIPCoreError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
-from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile
+from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile, TimestampedNotificationData
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 class SessionStateError(Exception):
