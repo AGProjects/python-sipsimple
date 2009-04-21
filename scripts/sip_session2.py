@@ -622,7 +622,7 @@ class InfoPrinter(NotificationHandler):
 
     def _NH_MediaStreamDidStart(self, chat, data):
         if isinstance(chat, MSRPChat):
-            transport = chat.msrp.msrp
+            transport = chat.msrp
             print 'MSRP endpoints %s:%s <-> %s:%s' % (transport.getHost().host, transport.getHost().port,
                                                       transport.getPeer().host, transport.getPeer().port)
 

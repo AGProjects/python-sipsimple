@@ -1,3 +1,4 @@
+import os
 import random
 from datetime import datetime
 from collections import deque
@@ -6,17 +7,17 @@ from application.notification import NotificationCenter, NotificationData
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
 
+from eventlet import proc
 from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
-from msrplib.session import MSRPSession, contains_mime_type
+from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 
+from sipsimple.core import SDPAttribute, SDPMedia
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.util import SilenceableWaveFile
 from sipsimple.msrp import LoggerSingleton, get_X509Credentials
-from sipsimple.green.sessionold import make_SDPMedia
-from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
+from sipsimple.clients.sdputil import FileSelector
 
 
 class MSRPChatError(Exception):
@@ -26,29 +27,37 @@ class MSRPChatError(Exception):
 class MSRPChat(object):
     implements(IMediaStream)
 
-    def __init__(self, account):
+    def __init__(self, account, direction=None, file_selector=None):
         self.account = account
+        self.direction = direction
+        self.file_selector = file_selector
         self.notification_center = NotificationCenter()
-
         settings = SIPSimpleSettings()
         self.accept_types = list(settings.chat.accept_types)
-        self.accept_wrapped_types = list(settings.chat.accept_wrapped_types)
-
         self.local_media = None
-        self.msrp = None ## Placeholder for the MSRPSession that will be added when started
+        self.msrp = None ## Placeholder for the MSRPTransport that will be set when started
+        self.accept_wrapped_types = list(settings.chat.accept_wrapped_types)
         self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
         self.message_queue = deque() # messages stored here until the connection established
+        self.session = None
 
-        # TODO: history
-        if settings.chat.message_received_sound:
-            self.message_received_sound = SilenceableWaveFile(settings.chat.message_received_sound.path, settings.chat.message_received_sound.volume)
+    def make_SDPMedia(self, uri_path):
+        attributes = []
+        attributes.append(SDPAttribute("path", " ".join([str(uri) for uri in uri_path])))
+        if self.direction not in [None, 'sendrecv']:
+            attributes.append(SDPAttribute(self.direction, ''))
+        if self.accept_types is not None:
+            attributes.append(SDPAttribute("accept-types", " ".join(self.accept_types)))
+        if self.accept_wrapped_types is not None:
+            attributes.append(SDPAttribute("accept-wrapped-types", " ".join(self.accept_wrapped_types)))
+        if self.file_selector is not None:
+            attributes.append(SDPAttribute('file-selector', self.file_selector.format_sdp()))
+        if uri_path[-1].use_tls:
+            transport = "TCP/TLS/MSRP"
         else:
-            self.message_received_sound = None
-        if settings.chat.message_sent_sound:
-            self.message_sent_sound = SilenceableWaveFile(settings.chat.message_sent_sound.path, settings.chat.message_sent_sound.volume)
-        else:
-            self.message_sent_sound = None
+            transport = "TCP/MSRP"
+        return SDPMedia("message", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
     @property
     def from_uri(self):
@@ -91,7 +100,7 @@ class MSRPChat(object):
                             use_tls=self.transport=='tls',
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
-            self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
+            self.local_media = self.make_SDPMedia(full_local_path)
             self.remote_uri = session.remote_uri
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
@@ -115,9 +124,10 @@ class MSRPChat(object):
                 raise AttributeError("remote SDP media does not have 'path' attribute")
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
             context = 'start'
-            msrp_transport = self.msrp_connector.complete(full_remote_path)
-            self.msrp = MSRPSession(msrp_transport, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
+            self.msrp = self.msrp_connector.complete(full_remote_path)
+            self.session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
             self.msrp_connector = None
+            self._on_start()
         except Exception, ex:
             ndata = NotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
@@ -125,29 +135,26 @@ class MSRPChat(object):
         else:
             self.notification_center.post_notification('MediaStreamDidStart', self)
             for send_args in self.message_queue:
-                spawn_from_thread(self._send_raw_message, *send_args)
+                proc.spawn_greenlet(self._send_raw_message, *send_args)
             self.message_queue.clear()
         # what if starting has failed? should I generate MSRPChatDidNotDeliver per each message?
 
+    def _on_start(self):
+        pass
+
     def end(self):
-        if self.msrp is None and self.msrp_connector is None:
+        if self.session is None and self.msrp_connector is None:
             return
-        msrp, self.msrp = self.msrp, None
+        session, self.session = self.session, None
         msrp_connector, self.msrp_connector = self.msrp_connector, None
         self.notification_center.post_notification('MediaStreamWillEnd', self)
         try:
-            if msrp is not None:
-                msrp.shutdown()
+            if session is not None:
+                session.shutdown()
             if msrp_connector is not None:
                 msrp_connector.cleanup()
         finally:
             self.notification_center.post_notification('MediaStreamDidEnd', self)
-
-    def validate_update(self, remote_sdp, stream_index):
-        raise NotImplementedError
-
-    def update(self, local_sdp, remote_sdp, stream_index):
-        raise NotImplementedError
 
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
@@ -175,8 +182,6 @@ class MSRPChat(object):
             # TODO: check wrapped content-type and issue a report if it's invalid
             ndata = NotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
-            if self.message_received_sound is not None and not self.message_received_sound.is_active:
-                self.message_received_sound.start(loop_count=1)
 
     def _on_transaction_response(self, message_id, response):
         if response.code!=200:
@@ -190,20 +195,18 @@ class MSRPChat(object):
 
         Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
         """
-        if self.msrp is None:
+        if self.session is None:
             self.message_queue.append((message, content_type, failure_report, success_report))
             return
         if not contains_mime_type(self.accept_types, content_type):
             raise MSRPChatError('Invalid content_type for outgoing message: %r' % (content_type, ))
         message_id = '%x' % random.getrandbits(64)
-        chunk = self.msrp.make_message(message, content_type=content_type, message_id=message_id)
+        chunk = self.session.make_message(message, content_type=content_type, message_id=message_id)
         if failure_report is not None:
             chunk.add_header(FailureReportHeader(failure_report))
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
-        if self.message_sent_sound is not None and not self.message_sent_sound.is_active:
-            self.message_sent_sound.start(loop_count=1)
-        callFromAnyThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
+        self.session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return chunk
 
     def send_message(self, content, content_type='text/plain', to_uri=None, dt=None):
@@ -241,4 +244,29 @@ class MSRPChat(object):
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
 
+    def send_file(self, outgoing_file):
+        self.session.send_file(outgoing_file)
+
+
+class MSRPOutgoingFileStream(MSRPChat):
+
+    def __init__(self, account, filename, fileobj, size, content_type, sha1):
+        file_selector = FileSelector(os.path.basename(filename), content_type, size, sha1)
+        MSRPChat.__init__(self, account, direction='sendonly', file_selector=file_selector)
+        self.outgoing_file = OutgoingFile(fileobj, size, content_type=content_type)
+
+    def _on_start(self):
+        self.send_file(self.outgoing_file)
+
+
+class MSRPIncomingFileStream(MSRPChat):
+
+    def __init__(self, account):
+        MSRPChat.__init__(self, account, direction='recvonly')
+
+    def validate_incoming(self, remote_sdp, stream_index):
+        media = remote_sdp.media[stream_index]
+        media_attributes = dict((attr.name, attr.value) for attr in media.attributes)
+        self.file_selector = FileSelector.parse(media_attributes['file-selector'])
+        return True
 
