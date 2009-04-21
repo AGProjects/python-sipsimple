@@ -134,12 +134,15 @@ class MessageRenderer(NotificationHandler):
                 assert not os.path.exists(msrpstream.filepath)
                 msrpstream.message_id = data.message.message_id
                 msrpstream.fileobj = file(msrpstream.filepath, 'w')
+                msrpstream.written = 0
             else:
-                return # could be file wrapped in message/cpim
+                return # could be a file wrapped in message/cpim
         if msrpstream.message_id != data.message.message_id:
             return
         msrpstream.fileobj.seek(fro-1)
         msrpstream.fileobj.write(data.message.data)
+        msrpstream.written += len(data.message.data)
+        NotificationCenter().post_notification('update_prompt')
         if data.message.contflag == '$':
             # assuming this chunk arrives at the end.
             # for the fool-proof implementation need set of ranges data structure that track which bytes were written
@@ -170,6 +173,11 @@ class MessageRenderer(NotificationHandler):
             if self.handle_file_part(msrpstream, data):
                 return
         self.handle_message(msrpstream, data)
+
+    def _NH_MSRPChatDidDeliverMessage(self, msrpstream, data):
+        fro, to, total = data.message.byte_range
+        msrpstream.sent = max(getattr(msrpstream, 'sent', 0), to)
+        NotificationCenter().post_notification('update_prompt')
 
 
 def get_history_file(invitation):
@@ -243,6 +251,13 @@ class ChatSession(NotificationHandler):
         return chunk
 
     def format_prompt(self):
+        self.info = '/'.join([get_userfriendly_desc(stream) for stream in self.streams])
+        self.info = self.info or 'Session with no streams'
+        self.chat = None
+        for stream in self.streams:
+            if isinstance(stream, MSRPChat):
+                self.chat = stream
+                break
         result = '%s to %s' % (self.info, format_uri(self.remote_party))
         if self.state != 'ESTABLISHED':
             result += ' [%s]' % self.state
@@ -250,13 +265,6 @@ class ChatSession(NotificationHandler):
 
     def update_streams(self, streams):
         self.streams = streams
-        self.info = '/'.join([get_userfriendly_desc(stream) for stream in streams])
-        self.info = self.info or 'Session with no streams'
-        self.chat = None
-        for stream in streams:
-            if isinstance(stream, MSRPChat):
-                self.chat = stream
-                break
         self.manager.update_prompt()
 
     def hold(self):
@@ -366,6 +374,9 @@ class ChatManager(NotificationHandler):
         if self.current_session is not None:
             self.procs.spawn(self.current_session.end)
             self.remove_session(self.current_session)
+
+    def _NH_update_prompt(self, sender, data):
+        self.update_prompt()
 
     def update_prompt(self):
         if self.current_session:
@@ -662,7 +673,14 @@ def get_userfriendly_desc(stream):
     except KeyError:
         pass
     try:
-        return str(stream.file_selector)
+        if hasattr(stream, 'written'):
+            percent = 100.0 * stream.written / stream.file_selector.size
+            return 'Receiving %s %d%% of %s' % (stream.file_selector.name, percent, stream.file_selector.size)
+        elif hasattr(stream, 'sent'):
+            percent = 100.0 * stream.sent / stream.file_selector.size
+            return 'Sending %s %d%% of %s' % (stream.file_selector.name, percent, stream.file_selector.size)
+        else:
+            return str(stream.file_selector)
     except Exception:
         pass
     return type(stream).__name__
