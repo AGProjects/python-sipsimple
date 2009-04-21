@@ -36,7 +36,7 @@ from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
 from sipsimple.msrp import LoggerSingleton
-from sipsimple.msrpstream import MSRPChat, MSRPOutgoingFileStream, MSRPIncomingFileStream
+from sipsimple.msrpstream import MSRPChat, MSRPOutgoingFileStream, MSRPIncomingFileStream, MSRPChatError
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 KEY_AUDIO_CONTROL = '\x00' # Ctrl-SPACE
@@ -831,8 +831,8 @@ def start(options, console):
                         manager.cmd_send(*options.args)
                     else:
                         manager.cmd_call(*options.args)
-                except UserCommandError, ex:
-                    print str(ex)
+                except (UserCommandError, MSRPChatError), ex:
+                    print str(ex) or type(ex).__name__
             while True:
                 try:
                     readloop(console, manager, manager.get_shortcuts())
