@@ -195,6 +195,7 @@ class Session(NotificationHandler):
                                    start_time=remote_sdp.start_time,
                                    stop_time=remote_sdp.stop_time)
             self.inv.set_offered_local_sdp(local_sdp)
+            self.start_time = datetime.datetime.now()
             confirmed_notification, sdp_notification = self.inv.accept_invite()
             for index, stream in enumerate(streams):
                 workers.append(proc.spawn(stream.start, sdp_notification.local_sdp.media[index], sdp_notification.remote_sdp, index))
