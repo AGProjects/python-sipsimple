@@ -4,6 +4,14 @@
 """Parser for file-selector field in SDP"""
 import re
 
+def pformat_file_size(size):
+    if size <= 1024:
+        return str(size) + ' bytes'
+    elif size <= 100*1024:
+        return str(size/1024) + ' KiB'
+    else:
+        return '%.2f MiB' % (size/1024./1024.)
+
 _fs_name = 'name:"(?P<name>[^"]+)"'
 _fs_type = 'type:(?P<type>[^ ]+)'
 _fs_size = 'size:(?P<size>\d+)'
@@ -29,7 +37,7 @@ class FileSelector(object):
         if self.type:
             info.append('%s' % self.type)
         if self.size:
-            info.append('%s bytes' % self.size)
+            info.append(pformat_file_size(self.size))
         info = ', '.join(info)
         if not name:
             return info

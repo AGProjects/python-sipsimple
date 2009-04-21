@@ -28,6 +28,7 @@ from sipsimple.session2 import Session as GreenSession, NotificationHandler, Inc
 from sipsimple.green.notification import linked_notification, linked_notifications
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import format_cmdline_uri
+from sipsimple.clients.sdputil import pformat_file_size
 from sipsimple import logstate
 from sipsimple.green.notification import NotifyFromThreadObserver
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -681,10 +682,10 @@ def get_userfriendly_desc(stream):
     try:
         if hasattr(stream, 'written'):
             percent = 100.0 * stream.written / stream.file_selector.size
-            return 'Receiving %s %d%% of %s' % (stream.file_selector.name, percent, stream.file_selector.size)
+            return 'Receiving %s %d%% of %s' % (stream.file_selector.name, percent, pformat_file_size(stream.file_selector.size))
         elif hasattr(stream, 'sent'):
             percent = 100.0 * stream.sent / stream.file_selector.size
-            return 'Sending %s %d%% of %s' % (stream.file_selector.name, percent, stream.file_selector.size)
+            return 'Sending %s %d%% of %s' % (stream.file_selector.name, percent, pformat_file_size(stream.file_selector.size))
         else:
             return str(stream.file_selector)
     except Exception:
