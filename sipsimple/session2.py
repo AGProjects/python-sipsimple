@@ -10,7 +10,7 @@ from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
 from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
 from sipsimple.util import TimestampedNotificationData
-from sipsimple.msrpstream import MSRPChat
+from sipsimple.msrpstream import MSRPChat, MSRPIncomingFileStream
 from sipsimple import util
 from sipsimple.account import AccountManager
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -36,8 +36,10 @@ class NotificationHandler(util.NotificationHandler):
                 if name.startswith('_NH_'):
                     nc.remove_observer(self._observer, name.replace('_NH_', ''), sender=sender)
 
+
 class Error(Exception):
     pass
+
 
 class Session(NotificationHandler):
 
@@ -227,7 +229,11 @@ class StreamFactory(object):
     def make_media_stream(self, remote_sdp, index, account):
         media = remote_sdp.media[index]
         if media.media=='message':
-            stream = MSRPChat(account)
+            media_attributes = dict((attr.name, attr.value) for attr in media.attributes)
+            if 'file-selector' in media_attributes:
+                stream = MSRPIncomingFileStream(account)
+            else:
+                stream = MSRPChat(account)
         else:
             return
         if stream.validate_incoming(remote_sdp, index):
@@ -263,6 +269,7 @@ class IncomingHandler(NotificationHandler):
             inv.respond_to_invite_provisionally(180)
             session = Session(account, GreenInvitation(__obj=inv), 'incoming', data.headers.get("User-Agent"), streams)
             self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(data=data))
+
 
 # move this to eventlet.proc
 def killall(procs, *throw_args, **kwargs):
