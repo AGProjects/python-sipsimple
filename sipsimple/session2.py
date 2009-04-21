@@ -9,7 +9,7 @@ from sipsimple.core import SIPURI, SDPSession, SDPConnection
 from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
 from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
-from sipsimple.session import TimestampedNotificationData
+from sipsimple.util import TimestampedNotificationData
 from sipsimple.msrpstream import MSRPChat
 from sipsimple import util
 from sipsimple.account import AccountManager

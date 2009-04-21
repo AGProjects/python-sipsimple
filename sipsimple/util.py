@@ -3,13 +3,22 @@
 
 import errno
 import os
+from datetime import datetime
 
 from zope.interface import implements
-from application.notification import IObserver, Any, NotificationCenter
+from application.notification import IObserver, Any, NotificationCenter, NotificationData
 
 from sipsimple.core import WaveFile
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.green.notification import NotifyFromThreadObserver
+
+
+class TimestampedNotificationData(NotificationData):
+
+    def __init__(self, **kwargs):
+        self.timestamp = datetime.now()
+        NotificationData.__init__(self, **kwargs)
+
 
 class SilenceableWaveFile(WaveFile):
 

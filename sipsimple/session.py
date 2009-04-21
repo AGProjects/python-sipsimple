@@ -29,13 +29,6 @@ class SessionStateError(Exception):
     pass
 
 
-class TimestampedNotificationData(NotificationData):
-
-    def __init__(self, **kwargs):
-        self.timestamp = datetime.now()
-        NotificationData.__init__(self, **kwargs)
-
-
 class AccountRTPTransport(RTPTransport):
 
     def __init__(self, account, transport):
