@@ -120,40 +120,57 @@ def get_download_path(fullname):
             return path + '.' + str(max(all)+1)
     return path
 
+
 class MessageRenderer(NotificationHandler):
 
     def start(self):
         self.subscribe_to_all()
 
-    def _NH_MSRPChatGotMessage(self, msrpstream, data):
-        session = msrpstream._chatsession
-        if isinstance(msrpstream, MSRPIncomingFileStream):
-            fro, to, total = data.message.byte_range
-            if not hasattr(msrpstream, 'fileobj'):
+    def handle_file_part(self, msrpstream, data):
+        fro, to, total = data.message.byte_range
+        if not hasattr(msrpstream, 'fileobj'):
+            if data.message.content_type == msrpstream.file_selector.type and total in [None, msrpstream.file_selector.size]:
                 msrpstream.filepath = get_download_path(msrpstream.file_selector.name)
                 assert not os.path.exists(msrpstream.filepath)
+                msrpstream.message_id = data.message.message_id
                 msrpstream.fileobj = file(msrpstream.filepath, 'w')
-            msrpstream.fileobj.seek(fro-1)
-            msrpstream.fileobj.write(data.message.data)
-            if data.message.contflag == '$':
-                print 'Finished downloading %s to %s' % (msrpstream.file_selector, msrpstream.filepath)
-                msrpstream.fileobj.close()
-                real_sha1 = read_sha1(msrpstream.filepath)
-                if real_sha1 != msrpstream.file_selector.hash:
-                    print 'Hash mismatch: expected %s calculated %s' % (msrpstream.file_selector.hash, real_sha1)
-        else:
-            try:
-                msg = format_incoming_message(data.content, session.inv.remote_uri,
-                                              data.cpim_headers.get('From'), data.cpim_headers.get('DateTime'))
-            except ValueError:
-                chunk = data.message
-                print 'Failed to parse incoming message, content_type=%r, data=%r' % (chunk.content_type, chunk.data)
-                # XXX: issue REPORT here?
             else:
-                print msg
-                if session.history_file:
-                    session.history_file.write(msg + '\n')
-                    session.history_file.flush()
+                return # could be file wrapped in message/cpim
+        if msrpstream.message_id != data.message.message_id:
+            return
+        msrpstream.fileobj.seek(fro-1)
+        msrpstream.fileobj.write(data.message.data)
+        if data.message.contflag == '$':
+            # assuming this chunk arrives at the end.
+            # for the fool-proof implementation need set of ranges data structure that track which bytes were written
+            print 'Finished downloading %s to %s' % (msrpstream.file_selector, msrpstream.filepath)
+            msrpstream.fileobj.close()
+            real_sha1 = read_sha1(msrpstream.filepath)
+            if real_sha1 != msrpstream.file_selector.hash:
+                print 'Hash mismatch: expected %s calculated %s' % (msrpstream.file_selector.hash, real_sha1)
+        return True
+
+    def handle_message(self, msrpstream, data):
+        session = msrpstream._chatsession
+        try:
+            msg = format_incoming_message(data.content, session.inv.remote_uri,
+                                          data.cpim_headers.get('From'), data.cpim_headers.get('DateTime'))
+        except ValueError:
+            chunk = data.message
+            print 'Failed to parse incoming message, content_type=%r, data=%r' % (chunk.content_type, chunk.data)
+            # XXX: issue REPORT here?
+        else:
+            print msg
+            if session.history_file:
+                session.history_file.write(msg + '\n')
+                session.history_file.flush()
+
+    def _NH_MSRPChatGotMessage(self, msrpstream, data):
+        if isinstance(msrpstream, MSRPIncomingFileStream):
+            if self.handle_file_part(msrpstream, data):
+                return
+        self.handle_message(msrpstream, data)
+
 
 def get_history_file(invitation):
     return _get_history_file('%s@%s' % (invitation.local_uri.user, invitation.local_uri.host),
