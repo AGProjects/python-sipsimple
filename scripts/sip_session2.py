@@ -734,13 +734,18 @@ class InfoPrinter(NotificationHandler):
         else:
             print "Remote party has taken the audio session out of hold"
 
+    boring_messages = set()
+
     def _NH_SIPAccountRegistrationDidSucceed(self, account, data):
         route = data.registration.route
-        print 'Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % \
-            (data.contact_uri, account.id, route.address, route.port,
-             route.transport, data.registration.expires)
+        msg = 'Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % \
+              (data.contact_uri, account.id, route.address, route.port, route.transport, data.registration.expires)
+        if msg not in self.boring_messages:
+            print msg
+            self.boring_messages.add(msg)
 
     def _NH_SIPAccountRegistrationDidFail(self, account, data):
+        self.boring_messages.clear()
         if data.registration is not None:
             route = data.registration.route
             if data.next_route:
