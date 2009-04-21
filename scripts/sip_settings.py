@@ -152,58 +152,72 @@ class AccountConfigurator(object):
         print 'Account added'
 
     def delete(self, sip_address):
-        if not self.account_manager.has_account(sip_address):
+        if sip_address != 'ALL' and not self.account_manager.has_account(sip_address):
             print 'Account %s does not exist' % sip_address
             return
         if sip_address == BonjourAccount.__id__:
             print 'Cannot delete bonjour account'
             return
-        account = self.account_manager.get_account(sip_address)
-        account.delete()
-        print 'Account deleted'
+        if sip_address == 'ALL':
+            for account in self.account_manager.get_accounts():
+                account.delete()
+            print 'Accounts deleted'
+        else:
+            account = self.account_manager.get_account(sip_address)
+            account.delete()
+            print 'Account deleted'
 
     def show(self, sip_address):
-        if not self.account_manager.has_account(sip_address):
+        if sip_address != 'ALL' and not self.account_manager.has_account(sip_address):
             print 'Account %s does not exist' % sip_address
             return
-        print 'Account %s:' % sip_address
-        account = self.account_manager.get_account(sip_address)
-        display_object(account, 'account')
+        if sip_address == 'ALL':
+            accounts = self.account_manager.get_accounts()
+        else:
+            accounts = [self.account_manager.get_account(sip_address)]
+        for account in accounts:
+            print 'Account %s:' % account.id
+            display_object(account, 'account')
 
     def set(self, sip_address, *args):
-        if not self.account_manager.has_account(sip_address):
+        if sip_address != 'ALL' and not self.account_manager.has_account(sip_address):
             print 'Account %s does not exist' % sip_address
             return
-        account = self.account_manager.get_account(sip_address)
+        if sip_address == 'ALL':
+            accounts = self.account_manager.get_accounts()
+        else:
+            accounts = [self.account_manager.get_account(sip_address)]
+        
         try:
             settings = dict(arg.split('=', 1) for arg in args)
         except ValueError:
             print 'Illegal arguments: %s' % ' '.join(args)
             return
         
-        for attrname, value in settings.iteritems():
-            object = account
-            name = attrname
-            while '.' in name:
-                local_name, name = name.split('.', 1)
-                try:
-                    object = getattr(object, local_name)
-                except AttributeError:
-                    print 'Unknown setting: %s' % attrname
-                    object = None
-                    break
-            if object is not None:
-                try:
-                    attribute = getattr(type(object), name)
-                    value = SettingsParser.parse(attribute.type, value)
-                    setattr(object, name, value)
-                except AttributeError:
-                    print 'Unknown setting: %s' % attrname
-                except ValueError, e:
-                    print '%s: %s' % (attrname, str(e))
-        
-        account.save()
-        print 'Account updated'
+        for account in accounts:
+            for attrname, value in settings.iteritems():
+                object = account
+                name = attrname
+                while '.' in name:
+                    local_name, name = name.split('.', 1)
+                    try:
+                        object = getattr(object, local_name)
+                    except AttributeError:
+                        print 'Unknown setting: %s' % attrname
+                        object = None
+                        break
+                if object is not None:
+                    try:
+                        attribute = getattr(type(object), name)
+                        value = SettingsParser.parse(attribute.type, value)
+                        setattr(object, name, value)
+                    except AttributeError:
+                        print 'Unknown setting: %s' % attrname
+                    except ValueError, e:
+                        print '%s: %s' % (attrname, str(e))
+            
+            account.save()
+        print 'Account%s updated' % 's' if len(accounts) > 1 else ''
 
     def default(self, sip_address):
         if not self.account_manager.has_account(sip_address):
@@ -267,9 +281,9 @@ if __name__ == '__main__':
        %prog --general set key1=value1 [key2=value2 ...]
        %prog --account list
        %prog --account add user@domain password
-       %prog --account delete user@domain
-       %prog --account show user@domain
-       %prog --account set user@domain key1=value1 [key2=value2 ...]
+       %prog --account delete user@domain|ALL
+       %prog --account show user@domain|ALL
+       %prog --account set user@domain|ALL key1=value1 [key2=value2 ...]
        %prog --account default user@domain"""
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-a", "--account", action="store_true", dest="account", help="Manage SIP accounts' settings")
