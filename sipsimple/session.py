@@ -923,7 +923,10 @@ class SessionManager(NotificationHandler):
             session._inv = inv
             session.remote_user_agent = data.headers.get("User-Agent", None)
             self.inv_mapping[inv] = session
-            if [other_sess for other_sess in self.inv_mapping.itervalues() if other_sess is not session and other_sess.state in ["CALLING", "ESTABLISHED", "PROPOSING", "PROPOSED"] and not other_sess.on_hold_by_local]:
+            if [other_sess for other_sess in self.inv_mapping.itervalues() if (other_sess is not session and
+                                                                               other_sess.state in ["CALLING", "ESTABLISHED", "PROPOSING", "PROPOSED"] and
+                                                                               other_sess.has_audio and
+                                                                               not other_sess.on_hold_by_local)]:
                 session._ringtone = PersistentTones([(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
             else:
                 ringtone = account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
