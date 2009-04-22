@@ -204,7 +204,6 @@ class AudioStream(NotificationHandler):
         with self._lock:
             if self.state != "ENDED":
                 if self._audio_transport is not None:
-                    self.state = 'ENDING'
                     self.notification_center.post_notification("MediaStreamWillEnd", self,
                                                                TimestampedNotificationData())
                     self._audio_transport.stop()
@@ -232,17 +231,6 @@ class GreenAudioStream(GreenBase):
     def start(self, local_sdp, remote_sdp, stream_index):
         with self.linked_notifications(names=['MediaStreamDidStart', 'MediaStreamDidFail']) as q:
             self._obj.start(local_sdp, remote_sdp, stream_index)
-            n = q.wait()
-            if n.name == 'MediaStreamDidFail':
-                raise SIPCoreError(n.data.reason)
-            return n
-
-    def end(self):
-        if self.state in ['ENDED', 'ENDING', 'NULL']:
-            return
-        with self.linked_notifications(names=['MediaStreamDidEnd', 'MediaStreamDidFail']) as q:
-            if self.state!='ENDING':
-                self._obj.end()
             n = q.wait()
             if n.name == 'MediaStreamDidFail':
                 raise SIPCoreError(n.data.reason)
