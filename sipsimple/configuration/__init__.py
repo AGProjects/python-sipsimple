@@ -303,7 +303,10 @@ class SettingsState(object):
         for name, value in state.iteritems():
             attribute = getattr(self.__class__, name, None)
             if isinstance(attribute, (SettingsGroupMeta, Setting)):
-                setattr(self, name, value)
+                try:
+                    setattr(self, name, value)
+                except ValueError:
+                    pass #FIXME: add log message saying that stored value could not be used. -Luci
             if isinstance(attribute, Setting):
                 attribute.clear_dirty(self)
 
