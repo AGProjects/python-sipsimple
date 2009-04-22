@@ -14,7 +14,7 @@ import urlparse
 __all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate',
            'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange',
            'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol',
-           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'ResourcePath', 'UserDataPath', 'SoundFile']
+           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'Path', 'ResourcePath', 'UserDataPath', 'SoundFile']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -360,10 +360,8 @@ class Resolution(object):
 
 ## Path related
 
-class AbsolutePath(str):
+class Path(str):
     def __new__(cls, value):
-        if not os.path.isabs(value):
-            raise ValueError("path %s is not absolute" % value)
         return value
 
 

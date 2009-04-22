@@ -11,7 +11,7 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, UserDataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports, AudioCodecs
+from sipsimple.configuration.datatypes import Path, ContentTypeList, UserDataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports, AudioCodecs
 
 
 __all__ = ['SIPSimpleSettings']
@@ -39,8 +39,8 @@ class ChatSettings(SettingsGroup):
 class DesktopSharingSettings(SettingsGroup):
     color_depth = Setting(type=ImageDepth, default=8)
     resolution = Setting(type=Resolution, default=Resolution(width=1024, height=768))
-    client_command = Setting(type=AbsolutePath, default=None, nillable=True)
-    server_command = Setting(type=AbsolutePath, default=None, nillable=True)
+    client_command = Setting(type=Path, default=None, nillable=True)
+    server_command = Setting(type=Path, default=None, nillable=True)
 
 
 class FileTransferSettings(SettingsGroup):
@@ -92,7 +92,7 @@ class SIPSimpleSettings(SettingsObject):
     __section__ = 'Global'
     __id__ = 'SIPSimple'
     
-    user_data_directory = Setting(type=AbsolutePath, default=os.path.expanduser('~/.sipclient'))
+    user_data_directory = Setting(type=Path, default=os.path.expanduser('~/.sipclient'))
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
     local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)
