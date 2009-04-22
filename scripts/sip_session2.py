@@ -495,11 +495,11 @@ class ChatManager(NotificationHandler):
             print usage + ' ' * (usage_width-len(usage)) + desc
 
     def cmd_audio(self, *args):
-        """:audio user[@domain] [+chat] \t Initiate an audio session. Optionally with chat."""
+        """:audio user[@domain] [+chat] \t Initiate an audio session, optionally with chat"""
         return self._cmd_call(args, default_stream=GreenAudioStream, doc=self.cmd_audio.__doc__)
 
     def cmd_chat(self, *args):
-        """:chat user[@domain [+audio] \t Initiate a chat session. Optionally with audio."""
+        """:chat user[@domain [+audio] \t Initiate a chat session, optionally with audio"""
         return self._cmd_call(args, default_stream=MSRPChat, doc=self.cmd_chat.__doc__)
 
     def _cmd_call(self, args, default_stream=None, doc=''):
@@ -551,7 +551,7 @@ class ChatManager(NotificationHandler):
         self.procs.spawn(self._call, target_uri, [stream])
 
     def cmd_dtmf(self, *args):
-        """:dtmf DIGITS \t Send DTMF digits. Press CTRL-SPACE to display telephone pad"""
+        """:dtmf DIGITS \t Send DTMF digits or press CTRL-SPACE to display DTMF numeric pad"""
         self.get_current_session().send_dtmf(*args)
 
     char_to_digit = {}
@@ -653,7 +653,7 @@ class ChatManager(NotificationHandler):
         session.add_stream(self.get_stream(args[0]))
 
     def cmd_remove(self, *args):
-        """:remove audio|chat \t Remove the stream from the current session"""
+        """:remove audio|chat \t Remove a stream from the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
@@ -669,7 +669,7 @@ class ChatManager(NotificationHandler):
             self.update_prompt()
 
     def cmd_trace(self, *args):
-        """:trace sip|pjsip|notifications \t Toggle the debug messages of given category"""
+        """:trace sip|pjsip|notifications \t Toggle debug messages for a given category"""
         if not args:
             raise UserCommandError('Please provide an argument\n%s' % self.cmd_trace.__doc__)
         args = [complete_word(x, ['sip', 'pjsip', 'msrp', 'notifications']) for x in args]
