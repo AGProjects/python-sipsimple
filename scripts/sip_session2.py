@@ -495,11 +495,11 @@ class ChatManager(NotificationHandler):
             print usage + ' ' * (usage_width-len(usage)) + desc
 
     def cmd_audio(self, *args):
-        """:audio user@domain [+chat] \t Initiate an audio session. Optionally with chat."""
+        """:audio user[@domain] [+chat] \t Initiate an audio session. Optionally with chat."""
         return self._cmd_call(args, default_stream=GreenAudioStream, doc=self.cmd_audio.__doc__)
 
     def cmd_chat(self, *args):
-        """:chat user@domain [+audio] \t Initiate a chat session. Optionally with audio."""
+        """:chat user[@domain [+audio] \t Initiate a chat session. Optionally with audio."""
         return self._cmd_call(args, default_stream=MSRPChat, doc=self.cmd_chat.__doc__)
 
     def _cmd_call(self, args, default_stream=None, doc=''):
@@ -536,7 +536,7 @@ class ChatManager(NotificationHandler):
                 self.remove_session(chat)
 
     def cmd_transfer(self, *args):
-        """:transfer user@domain filename \t Initiate a file transfer session"""
+        """:transfer user[@domain] filename \t Initiate a file transfer session"""
         # if you already in session with someone, you should be able to skip the uri
         if len(args)!=2:
             raise UserCommandError('Please provide the SIP address and the filename\n%s' % self.cmd_transfer.__doc__)
