@@ -261,17 +261,21 @@ class ChatSession(NotificationHandler):
     def format_prompt(self):
         self.info = '/'.join([get_userfriendly_desc(stream) for stream in self.streams])
         self.info = self.info or 'Session with no streams'
-        self.chat = None
-        for stream in self.streams:
-            if isinstance(stream, MSRPChat):
-                self.chat = stream
-                break
         result = '%s to %s' % (self.info, format_uri(self.remote_party))
         if self.state != 'ESTABLISHED':
             result += ' [%s]' % self.state
         return result + ': '
 
     def update_streams(self, streams):
+        self.chat = None
+        self.audio = None
+        for stream in streams:
+            if isinstance(stream, MSRPChat):
+                self.chat = stream
+                break
+            if isinstance(stream, GreenAudioStream):
+                self.audio = stream
+                break
         self.streams = streams
         self.manager.update_prompt()
 
@@ -288,6 +292,22 @@ class ChatSession(NotificationHandler):
             self.unhold()
         else:
             self.hold()
+
+    def send_dtmf(self, *args):
+        if not self.audio:
+            raise UserCommandError('This session does not have audio stream')
+        data = ''.join(args).upper()
+        for x in data:
+            if x not in "0123456789*#ABCD":
+                raise UserCommandError('Invalid DTMF digit: %r' % x)
+        for x in data:
+            self.audio.send_dtmf(x)
+
+    def toggle_recording(self, *args):
+        if self.audio_recording_file_name is None:
+            self.start_recording_audio()
+        else:
+            self.stop_recording_audio()
 
 
 class ChatManager(NotificationHandler):
@@ -531,13 +551,7 @@ class ChatManager(NotificationHandler):
 
     def cmd_dtmf(self, *args):
         """:dtmf DIGITS \t Send DTMF digits. Press CTRL-SPACE for numeric pad"""
-        session = self.get_current_session()
-        data = ''.join(args).upper()
-        for x in data:
-            if x not in "0123456789*#ABCD":
-                raise UserCommandError('Invalid DTMF digit: %r' % x)
-        for x in data:
-            session.send_dtmf(x)
+        self.get_current_session().send_dtmf(*args)
 
     char_to_digit = {}
     def _extend(dict, keys, value):
@@ -554,7 +568,7 @@ class ChatManager(NotificationHandler):
 
     def dtmf_numpad(self, *args):
         session = self.get_current_session()
-        if not session.has_audio:
+        if not session.audio:
             raise UserCommandError('The SIP session does not have audio stream to send DTMF over')
         print """\
 +------+-----+------+
@@ -628,11 +642,7 @@ class ChatManager(NotificationHandler):
 
     def cmd_record(self, *args):
         """:record \t Toggle audio recording"""
-        session = self.get_current_session()
-        if session.audio_recording_file_name is None:
-            session.start_recording_audio()
-        else:
-            session.stop_recording_audio()
+        self.get_current_session().toggle_recording()
 
     def cmd_add(self, *args):
         """:add audio|chat \t Add a new stream to the current SIP session"""
