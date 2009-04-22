@@ -222,7 +222,7 @@ class Session(NotificationHandler):
                 msrp_chat = None
             ringtone = self.settings.ringtone.outbound
             if ringtone is not None:
-                ringtone = SilenceableWaveFile(ringtone.path, ringtone.volume, force_playback=True)
+                ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume, force_playback=True)
             media_initializer = MediaTransportInitializer(self._connect_continue, self._connect_fail, audio_rtp, msrp_chat)
             self._inv = inv
             self.chat_transport = msrp_chat
@@ -920,7 +920,7 @@ class SessionManager(NotificationHandler):
             self.inv_mapping[inv] = session
             ringtone = account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
             if ringtone is not None:
-                session._ringtone = SilenceableWaveFile(ringtone.path, ringtone.volume)
+                session._ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume)
             session.direction = "incoming"
             session._change_state("INCOMING")
             self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(streams=proposed_media))

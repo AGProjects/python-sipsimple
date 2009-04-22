@@ -14,11 +14,10 @@ import urlparse
 __all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate',
            'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange',
            'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol',
-           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'UserDataPath', 'SoundFile']
+           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'ResourcePath', 'UserDataPath', 'SoundFile']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
-application_directory = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(sys.argv[0]))), 'share', 'sipclient')
 
 
 ## General datatypes
@@ -366,11 +365,39 @@ class AbsolutePath(str):
         if not os.path.isabs(value):
             raise ValueError("path %s is not absolute" % value)
         return value
+
+
+class ResourcePath(object):
+    def __init__(self, path):
+        self.path = path
     
-    @classmethod
-    def get_application_path(cls, filename):
-        # is os.path.realpath really needed here? -Luci
-        return os.path.realpath(os.path.join(application_directory, filename))
+    @property
+    def normalized(self):
+        path = os.path.expanduser(self.path)
+        if os.path.isabs(path):
+            return path
+        binary_path = os.path.realpath(sys.argv[0])
+        root_directory = os.path.dirname(os.path.dirname(binary_path))
+        if os.path.basename(os.path.dirname(binary_path)) in ('bin', 'scripts'):
+            resources_directory = os.path.join(root_directory, 'share', 'sipclient')
+        else:
+            resources_directory = os.path.join(root_directory, 'Resources')
+        return os.path.join(resources_directory, path)
+
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, self.path)
+
+    def __str__(self):
+        return self.path
+
+    def __eq__(self, other):
+        try:
+            return self.path == other.path
+        except AttributeError:
+            return False
+
+    def __hash__(self):
+        return hash(self.path)
 
 
 class UserDataPath(object):
@@ -404,7 +431,7 @@ class UserDataPath(object):
 
 class SoundFile(object):
     def __init__(self, path, volume=100):
-        self.path = AbsolutePath(path)
+        self.path = ResourcePath(path)
         self.volume = int(volume)
         if self.volume < 0 or self.volume > 100:
             raise ValueError("illegal volume level: %d" % self.volume)

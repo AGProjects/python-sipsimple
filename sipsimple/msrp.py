@@ -118,11 +118,11 @@ class MSRPChat(object):
 
         # TODO: history
         if settings.chat.message_received_sound:
-            self.message_received_sound = SilenceableWaveFile(settings.chat.message_received_sound.path, settings.chat.message_received_sound.volume)
+            self.message_received_sound = SilenceableWaveFile(settings.chat.message_received_sound.path.normalized, settings.chat.message_received_sound.volume)
         else:
             self.message_received_sound = None
         if settings.chat.message_sent_sound:
-            self.message_sent_sound = SilenceableWaveFile(settings.chat.message_sent_sound.path, settings.chat.message_sent_sound.volume)
+            self.message_sent_sound = SilenceableWaveFile(settings.chat.message_sent_sound.path.normalized, settings.chat.message_sent_sound.volume)
         else:
             self.message_sent_sound = None
 

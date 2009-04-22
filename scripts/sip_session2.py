@@ -26,7 +26,6 @@ from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine, InvitationError
 from sipsimple.session2 import Session as GreenSession, NotificationHandler, IncomingHandler
 from sipsimple.green.notification import linked_notification, linked_notifications
-from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients import format_cmdline_uri
 from sipsimple.clients.sdputil import pformat_file_size
 from sipsimple import logstate
@@ -1070,13 +1069,13 @@ def main():
     update_settings(options)
 
     if settings.ringtone.inbound is None:
-        settings.ringtone.inbound = get_path("ring_inbound.wav")
+        settings.ringtone.inbound = "ring_inbound.wav"
     if settings.ringtone.outbound is None:
-        settings.ringtone.outbound = get_path("ring_outbound.wav")
+        settings.ringtone.outbound = "ring_outbound.wav"
     if settings.chat.message_received_sound is None:
-        settings.chat.message_received_sound = get_path("message_received.wav")
+        settings.chat.message_received_sound = "message_received.wav"
     if settings.chat.message_sent_sound is None:
-        settings.chat.message_sent_sound = get_path("message_sent.wav")
+        settings.chat.message_sent_sound = "message_sent.wav"
 
     # set up logger
     options.logger = Logger(options.trace_sip, options.trace_pjsip)

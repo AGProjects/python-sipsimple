@@ -33,7 +33,6 @@ from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.account import AccountManager, BonjourAccount
-from sipsimple.clients.clientconfig import get_path as get_default_ringtone_path
 
 queue = Queue()
 old = None
@@ -397,9 +396,9 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
 
     # set up default ringtones
     if settings.ringtone.inbound is None:
-        settings.ringtone.inbound = get_default_ringtone_path("ring_inbound.wav")
+        settings.ringtone.inbound = "ring_inbound.wav"
     if settings.ringtone.outbound is None:
-        settings.ringtone.outbound = get_default_ringtone_path("ring_outbound.wav")
+        settings.ringtone.outbound = "ring_outbound.wav"
 
     # start engine
 
