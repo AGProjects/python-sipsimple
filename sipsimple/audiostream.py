@@ -157,8 +157,8 @@ class AudioStream(NotificationHandler):
             raise RuntimeError("AudioStream.get_local_media() may only be " +
                                "called in the INITIALIZED or ESTABLISHED states")
         self._audio_transport.start(local_sdp, remote_sdp, stream_index)
-        self.on_hold_by_local = "recv" in self._audio_transport.direction
-        self.on_hold_by_remote = "send" in self._audio_transport.direction
+        self.on_hold_by_local = "recv" not in self._audio_transport.direction
+        self.on_hold_by_remote = "send" not in self._audio_transport.direction
         if not self.on_hold_by_local:
             Engine().connect_audio_transport(self._audio_transport)
 
@@ -180,8 +180,8 @@ class AudioStream(NotificationHandler):
         new_direction = local_sdp.media[stream_index].get_direction()
         self._audio_transport.update_direction(new_direction)
         was_on_hold = self.on_hold_by_local
-        self.on_hold_by_local = "recv" in self._audio_transport.direction
-        self.on_hold_by_remote = "send" in self._audio_transport.direction
+        self.on_hold_by_local = "recv" not in self._audio_transport.direction
+        self.on_hold_by_remote = "send" not in self._audio_transport.direction
         if was_on_hold and not self.on_hold_by_local:
             Engine().connect_audio_transport(self._audio_transport)
 
