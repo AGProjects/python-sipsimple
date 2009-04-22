@@ -499,7 +499,7 @@ class ChatManager(NotificationHandler):
         return self._cmd_call(args, default_stream=GreenAudioStream, doc=self.cmd_audio.__doc__)
 
     def cmd_chat(self, *args):
-        """:chat user[@domain [+audio] \t Initiate a chat session, optionally with audio"""
+        """:chat user[@domain] [+audio] \t Initiate a chat session, optionally with audio"""
         return self._cmd_call(args, default_stream=MSRPChat, doc=self.cmd_chat.__doc__)
 
     def _cmd_call(self, args, default_stream=None, doc=''):
