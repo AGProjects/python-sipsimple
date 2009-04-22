@@ -145,28 +145,31 @@ class AudioStream(NotificationHandler):
             self.notification_center.post_notification("MediaStreamDidInitialize", self, TimestampedNotificationData())
 
     def get_local_media(self, for_offer=True, on_hold=False):
-        if self.state not in ["INITIALIZED", "ESTABLISHED"]:
-            raise RuntimeError("AudioStream.get_local_media() may only be " +
-                               "called in the INITIALIZED or ESTABLISHED states")
-        if on_hold and self.state == "ESTABLISHED" and not self.on_hold_by_local:
-            Engine().disconnect_audio_transport(self._audio_transport)
-        return self._audio_transport.get_local_media(for_offer) # XXX on_hold is not used
+        with self._lock:
+            if self.state not in ["INITIALIZED", "ESTABLISHED"]:
+                raise RuntimeError("AudioStream.get_local_media() may only be " +
+                                   "called in the INITIALIZED or ESTABLISHED states")
+            if on_hold and self.state == "ESTABLISHED" and not self.on_hold_by_local:
+                Engine().disconnect_audio_transport(self._audio_transport)
+            return self._audio_transport.get_local_media(for_offer) # XXX on_hold is not used
 
     def start(self, local_sdp, remote_sdp, stream_index):
-        if self.state != "INITIALIZED":
-            raise RuntimeError("AudioStream.get_local_media() may only be " +
-                               "called in the INITIALIZED or ESTABLISHED states")
-        self._audio_transport.start(local_sdp, remote_sdp, stream_index)
-        self.on_hold_by_local = "recv" not in self._audio_transport.direction
-        self.on_hold_by_remote = "send" not in self._audio_transport.direction
-        if not self.on_hold_by_local:
-            Engine().connect_audio_transport(self._audio_transport)
-        self.notification_center.post_notification("MediaStreamDidStart", self, TimestampedNotificationData())
+        with self._lock:
+            if self.state != "INITIALIZED":
+                raise RuntimeError("AudioStream.get_local_media() may only be " +
+                                   "called in the INITIALIZED or ESTABLISHED states")
+            self._audio_transport.start(local_sdp, remote_sdp, stream_index)
+            self.on_hold_by_local = "recv" not in self._audio_transport.direction
+            self.on_hold_by_remote = "send" not in self._audio_transport.direction
+            if not self.on_hold_by_local:
+                Engine().connect_audio_transport(self._audio_transport)
+            self.notification_center.post_notification("MediaStreamDidStart", self, TimestampedNotificationData())
 
     def send_dtmf(self, digit):
-        if self.state != "ESTABLISHED":
-            raise RuntimeError("AudioStream.send_dtmf() may only be called in the ESTABLISHED state")
-        self._audio_transport.send_dtmf(digit)
+        with self._lock:
+            if self.state != "ESTABLISHED":
+                raise RuntimeError("AudioStream.send_dtmf() may only be called in the ESTABLISHED state")
+            self._audio_transport.send_dtmf(digit)
 
     def _NH_RTPAudioStreamGotDTMF(self, audio_transport, data):
         self.notification_center.post_notification("AudioStreamGotDTMF", self,
@@ -178,13 +181,14 @@ class AudioStream(NotificationHandler):
             return True
 
     def update(self, local_sdp, remote_sdp, stream_index):
-        new_direction = local_sdp.media[stream_index].get_direction()
-        self._audio_transport.update_direction(new_direction)
-        was_on_hold = self.on_hold_by_local
-        self.on_hold_by_local = "recv" not in self._audio_transport.direction
-        self.on_hold_by_remote = "send" not in self._audio_transport.direction
-        if was_on_hold and not self.on_hold_by_local:
-            Engine().connect_audio_transport(self._audio_transport)
+        with self._lock:
+            new_direction = local_sdp.media[stream_index].get_direction()
+            self._audio_transport.update_direction(new_direction)
+            was_on_hold = self.on_hold_by_local
+            self.on_hold_by_local = "recv" not in self._audio_transport.direction
+            self.on_hold_by_remote = "send" not in self._audio_transport.direction
+            if was_on_hold and not self.on_hold_by_local:
+                Engine().connect_audio_transport(self._audio_transport)
 
     def end(self):
         with self._lock:
