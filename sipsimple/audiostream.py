@@ -150,7 +150,7 @@ class AudioStream(NotificationHandler):
                                "called in the INITIALIZED or ESTABLISHED states")
         if on_hold and self.state == "ESTABLISHED" and not self.on_hold_by_local:
             Engine().disconnect_audio_transport(self._audio_transport)
-        return self._audio_transport.get_local_media(for_offer, on_hold)
+        return self._audio_transport.get_local_media(for_offer) # XXX on_hold is not used
 
     def start(self, local_sdp, remote_sdp, stream_index):
         if self.state != "INITIALIZED":
