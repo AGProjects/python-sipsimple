@@ -251,7 +251,7 @@ cdef class PJMEDIAConferenceBridge:
                 tones_arr[count].freq1 = freq1
                 tones_arr[count].freq2 = freq2
                 tones_arr[count].on_msec = duration
-                tones_arr[count].off_msec = duration
+                tones_arr[count].off_msec = 0
                 tones_arr[count].volume = 0
                 tones_arr[count].flags = 0
                 count += 1
