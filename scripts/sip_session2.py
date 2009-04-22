@@ -513,7 +513,7 @@ class ChatManager(NotificationHandler):
         """:transfer user@domain filename \t Transfer a file to user@domain"""
         # if you already in session with someone, you should be able to skip the uri
         if len(args)!=2:
-            raise UserCommandError('Please provide SIP address and filename\n%s' % self.cmd_call.__doc__)
+            raise UserCommandError('Please provide SIP address and filename\n%s' % self.cmd_transfer.__doc__)
         target_uri, filename = args[0], args[1]
         if not isinstance(target_uri, SIPURI):
             try:
