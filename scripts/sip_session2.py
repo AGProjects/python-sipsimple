@@ -481,7 +481,7 @@ class ChatManager(NotificationHandler):
                 raise UserCommandError(str(ex))
 
     def cmd_help(self):
-        """:help \t Print this help message"""
+        #""":help \t Print this help message"""
         lines = []
         commands = [getattr(self, x) for x in dir(self) if x.startswith('cmd_')]
         commands.sort(key = lambda x: x.func_code.co_firstlineno)
