@@ -184,7 +184,7 @@ sudo easy_install --script-dir /usr/bin -U setuptools
 
 Install python packages using easy_install:
 
-sudo easy_install -U cython dnspython twisted py
+sudo easy_install -U mercurial cython dnspython twisted py
 
 Download and install SIP SIMPLE client dependencies available in AG Projects
 repositories:
