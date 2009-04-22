@@ -29,7 +29,6 @@ from sipsimple.green.notification import linked_notification, linked_notificatio
 from sipsimple.clients import format_cmdline_uri
 from sipsimple.clients.sdputil import pformat_file_size
 from sipsimple import logstate
-from sipsimple.green.notification import NotifyFromThreadObserver
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration import ConfigurationManager
