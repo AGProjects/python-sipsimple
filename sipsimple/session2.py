@@ -44,7 +44,7 @@ class Error(Exception):
 class Session(NotificationHandler):
 
     def __init__(self, account, inv=None, direction=None, remote_user_agent=None, streams=None):
-        # Note, that we require and use GreenInvitation here. To access the real Invitation use inv._obj
+        # Note, that we require and use GreenInvitation here. To access the real Invitation use _inv
         self.account = account
         self.inv = inv
         if inv is not None:
@@ -60,6 +60,10 @@ class Session(NotificationHandler):
             self.state = 'INCOMING'
         else:
             self.state = 'NULL'
+
+    @property
+    def _inv(self):
+        return self.inv._obj
 
     def _set_state(self, new_state, originator=None):
         prev_state = self.state
