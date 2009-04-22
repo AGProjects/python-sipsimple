@@ -446,6 +446,7 @@ cdef class PJSIPUA:
         return _parse_SIPURI(uri_string)
 
     def play_tones(self, tones):
+        self._check_self()
         self._conf_bridge._play_tones(tones)
 
     def __dealloc__(self):
