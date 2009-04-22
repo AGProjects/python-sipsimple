@@ -886,6 +886,7 @@ class SessionManager(NotificationHandler):
         self.audio_transport_mapping = {}
         self.msrp_chat_mapping = {}
         self.notification_center = NotificationCenter()
+        self._hold_tone = PersistentTones([(300, 0, 100), (0,0,100), (300, 0, 100)], 30)
         self.notification_center.add_observer(self, "SIPInvitationChangedState")
         self.notification_center.add_observer(self, "SIPInvitationGotSDPUpdate")
         self.notification_center.add_observer(self, "RTPAudioStreamGotDTMF")
@@ -895,6 +896,9 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "MSRPChatDidStart")
         self.notification_center.add_observer(self, "MSRPChatDidFail")
         self.notification_center.add_observer(self, "MSRPChatDidEnd")
+        self.notification_center.add_observer(self, "SIPSessionGotHoldRequest")
+        self.notification_center.add_observer(self, "SIPSessionGotUnholdRequest")
+        self.notification_center.add_observer(self, "SIPSessionDidEnd")
 
     @property
     def sessions(self):
@@ -1126,6 +1130,22 @@ class SessionManager(NotificationHandler):
                 del self.msrp_chat_mapping[msrp_chat]
                 session.has_chat = False
                 self.notification_center.post_notification("SIPSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
+
+    def _NH_SIPSessionGotHoldRequest(self, session, data):
+        if data.originator == "local":
+            if not self._hold_tone.is_active:
+                self._hold_tone.start()
+
+    def _NH_SIPSessionGotUnholdRequest(self, session, data):
+        if data.originator == "local":
+            self._check_hold_tone()
+
+    def _NH_SIPSessionDidEnd(self, session, data):
+        self._check_hold_tone()
+
+    def _check_hold_tone(self):
+        if self._hold_tone.is_active and not [sess for sess in self.inv_mapping.itervalues() if sess.on_hold_by_local]:
+            self._hold_tone.stop()
 
 
 __all__ = ["SessionManager", "Session"]
