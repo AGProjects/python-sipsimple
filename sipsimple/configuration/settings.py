@@ -11,7 +11,7 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, DataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports, AudioCodecs
+from sipsimple.configuration.datatypes import AbsolutePath, ContentTypeList, UserDataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports, AudioCodecs
 
 
 __all__ = ['SIPSimpleSettings']
@@ -21,7 +21,7 @@ class AudioSettings(SettingsGroup):
     input_device = Setting(type=str, default=None, nillable=True)
     output_device = Setting(type=str, default=None, nillable=True)
     echo_delay = Setting(type=NonNegativeInteger, default=200)
-    recordings_directory = Setting(type=DataPath, default=DataPath('history'))
+    recordings_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32)
     silent = Setting(type=bool, default=False)
     playback_dtmf = Setting(type=bool, default=True)
@@ -31,7 +31,7 @@ class AudioSettings(SettingsGroup):
 class ChatSettings(SettingsGroup):
     message_received_sound = Setting(type=SoundFile, default=None, nillable=True)
     message_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
-    history_directory = Setting(type=DataPath, default=DataPath('history'))
+    history_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     accept_types = Setting(type=ContentTypeList, default=('message/cpim', 'text/*'))
     accept_wrapped_types = Setting(type=ContentTypeList, default=('*',))
 
@@ -44,13 +44,13 @@ class DesktopSharingSettings(SettingsGroup):
 
 
 class FileTransferSettings(SettingsGroup):
-    directory = Setting(type=DataPath, default=DataPath('file_transfers'))
+    directory = Setting(type=UserDataPath, default=UserDataPath('file_transfers'))
     file_received_sound = Setting(type=SoundFile, default=None, nillable=True)
     file_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class LoggingSettings(SettingsGroup):
-    directory = Setting(type=DataPath, default=DataPath('logs'))
+    directory = Setting(type=UserDataPath, default=UserDataPath('logs'))
     trace_sip = Setting(type=bool, default=False)
     trace_pjsip = Setting(type=bool, default=False)
     trace_msrp = Setting(type=bool, default=False)
@@ -80,9 +80,9 @@ class SIPSettings(SettingsGroup):
 
 
 class TLSSettings(SettingsGroup):
-    ca_list_file = Setting(type=DataPath, default=None, nillable=True)
-    certificate_file = Setting(type=DataPath, default=None, nillable=True)
-    private_key_file = Setting(type=DataPath, default=None, nillable=True)
+    ca_list_file = Setting(type=UserDataPath, default=None, nillable=True)
+    certificate_file = Setting(type=UserDataPath, default=None, nillable=True)
+    private_key_file = Setting(type=UserDataPath, default=None, nillable=True)
     protocol = Setting(type=TLSProtocol, default='TLSv1')
     verify_server = Setting(type=bool, default=False)
     timeout = Setting(type=NonNegativeInteger, default=1000)
@@ -92,7 +92,7 @@ class SIPSimpleSettings(SettingsObject):
     __section__ = 'Global'
     __id__ = 'SIPSimple'
     
-    data_directory = Setting(type=AbsolutePath, default=os.path.expanduser('~/.sipclient'))
+    user_data_directory = Setting(type=AbsolutePath, default=os.path.expanduser('~/.sipclient'))
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
     local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)

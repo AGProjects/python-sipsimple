@@ -14,7 +14,7 @@ import urlparse
 __all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate',
            'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange',
            'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol',
-           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'DataPath', 'SoundFile']
+           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'AbsolutePath', 'UserDataPath', 'SoundFile']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -373,7 +373,7 @@ class AbsolutePath(str):
         return os.path.realpath(os.path.join(application_directory, filename))
 
 
-class DataPath(object):
+class UserDataPath(object):
     def __init__(self, path):
         self.path = path
     
@@ -384,7 +384,7 @@ class DataPath(object):
             return path
         from sipsimple.configuration.settings import SIPSimpleSettings
         settings = SIPSimpleSettings()
-        return os.path.join(settings.data_directory, path)
+        return os.path.join(settings.user_data_directory, path)
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.path)
