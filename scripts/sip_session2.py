@@ -38,6 +38,7 @@ from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_service_for_sip_uri
 from sipsimple.msrp import LoggerSingleton
 from sipsimple.msrpstream import MSRPChat, MSRPOutgoingFileStream, MSRPIncomingFileStream, MSRPChatError
+from sipsimple.audiostream import GreenAudioStream
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 KEY_AUDIO_CONTROL = '\x00' # Ctrl-SPACE
@@ -458,7 +459,8 @@ class ChatManager(NotificationHandler):
             self.current_session = self.sessions[index % len(self.sessions)]
             self.update_prompt()
 
-    streams = {'chat': MSRPChat}
+    streams = {'chat': MSRPChat,
+               'audio': GreenAudioStream}
     _reverse_streams = dict((v, k) for (k, v) in streams.items())
     default_stream = MSRPChat
 
