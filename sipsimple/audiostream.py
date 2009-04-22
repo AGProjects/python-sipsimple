@@ -11,6 +11,8 @@ from sipsimple.lookup import DNSLookup
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError
 from sipsimple.engine import Engine
+from sipsimple.green import GreenBase
+
 
 # TODO:
 # - Add audio recording
@@ -196,4 +198,34 @@ class AudioStream(NotificationHandler):
                     self.notification_center.post_notification("MediaStreamDidEnd", self,
                                                                TimestampedNotificationData())
                 self.state = "ENDED"
+
+
+class GreenAudioStream(GreenBase):
+    implements(IMediaStream)
+
+    klass = AudioStream
+
+    def initialize(self, session):
+        with self.linked_notifications(names=['MediaStreamDidInitialize', 'MediaStreamDidFail']) as q:
+            self._obj.initialize(session)
+            n = q.wait()
+            if n.name == 'MediaStreamDidFail':
+                raise SIPCoreError(n.data.reason)
+            return n
+
+    def start(self, local_sdp, remote_sdp, stream_index):
+        with self.linked_notifications(names=['MediaStreamDidStart', 'MediaStreamDidFail']) as q:
+            self._obj.start(local_sdp, remote_sdp, stream_index)
+            n = q.wait()
+            if n.name == 'MediaStreamDidFail':
+                raise SIPCoreError(n.data.reason)
+            return n
+
+    def end(self):
+        with self.linked_notifications(names=['MediaStreamDidStart', 'MediaStreamDidFail']) as q:
+            self._obj.end()
+            n = q.wait()
+            if n.name == 'MediaStreamDidFail':
+                raise SIPCoreError(n.data.reason)
+            return n
 
