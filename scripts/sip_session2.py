@@ -862,8 +862,10 @@ def start(options, console):
         manager = ChatManager(engine, account, console, options.logger)
         manager.update_prompt()
         try:
-            print "Type :help to get information about commands and shortcuts"
             if not options.args:
+                print
+                manager.cmd_help()
+                print
                 print 'Waiting for incoming session requests ...'
             else:
                 try:
