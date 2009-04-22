@@ -467,7 +467,7 @@ class ChatManager(NotificationHandler):
     def get_current_session(self):
         session = self.current_session
         if not session:
-            raise UserCommandError('No active SIP session')
+            raise UserCommandError('No active session')
         return session
 
     def send_message(self, message):
@@ -495,16 +495,16 @@ class ChatManager(NotificationHandler):
             print usage + ' ' * (usage_width-len(usage)) + desc
 
     def cmd_audio(self, *args):
-        """:audio user@domain [+chat] \t Initiate an a text chat session. Optionally with an audio stream"""
+        """:audio user@domain [+chat] \t Initiate an audio session. Optionally with chat."""
         return self._cmd_call(args, default_stream=GreenAudioStream, doc=self.cmd_audio.__doc__)
 
     def cmd_chat(self, *args):
-        """:chat user@domain [+audio] \t Initiate an audio chat session. Optionally with a chat stream"""
+        """:chat user@domain [+audio] \t Initiate a chat session. Optionally with audio."""
         return self._cmd_call(args, default_stream=MSRPChat, doc=self.cmd_chat.__doc__)
 
     def _cmd_call(self, args, default_stream=None, doc=''):
         if not args:
-            raise UserCommandError('Please provide uri\n%s' % __doc__)
+            raise UserCommandError('Please provide SIP address\n%s' % __doc__)
         target_uri, streams = self.parse_uri(args[0]), args[1:]
         if not streams:
             streams = [default_stream]
@@ -523,7 +523,7 @@ class ChatManager(NotificationHandler):
             self.add_session(chat)
             routes = get_routes(target_uri, self.engine, self.account)
             if not routes:
-                print 'ERROR: No route found to SIP proxy for "%s"' % target_uri
+                print 'ERROR: No SIP route found for "%s"' % target_uri
                 return
             for stream in streams:
                 stream._chatsession = chat
@@ -536,10 +536,10 @@ class ChatManager(NotificationHandler):
                 self.remove_session(chat)
 
     def cmd_transfer(self, *args):
-        """:transfer user@domain filename \t Transfer a file to user@domain"""
+        """:transfer user@domain filename \t Initiate a file transfer session"""
         # if you already in session with someone, you should be able to skip the uri
         if len(args)!=2:
-            raise UserCommandError('Please provide SIP address and filename\n%s' % self.cmd_transfer.__doc__)
+            raise UserCommandError('Please provide the SIP address and the filename\n%s' % self.cmd_transfer.__doc__)
         target_uri, filename = self.parse_uri(args[0]), args[1]
         try:
             fileobj = file(filename)
@@ -551,7 +551,7 @@ class ChatManager(NotificationHandler):
         self.procs.spawn(self._call, target_uri, [stream])
 
     def cmd_dtmf(self, *args):
-        """:dtmf DIGITS \t Send DTMF digits. Press CTRL-SPACE for numeric pad"""
+        """:dtmf DIGITS \t Send DTMF digits. Press CTRL-SPACE to display telephone pad"""
         self.get_current_session().send_dtmf(*args)
 
     char_to_digit = {}
@@ -570,7 +570,7 @@ class ChatManager(NotificationHandler):
     def dtmf_numpad(self, *args):
         session = self.get_current_session()
         if not session.audio:
-            raise UserCommandError('The SIP session does not have audio stream to send DTMF over')
+            raise UserCommandError('The session does not have audio stream to send DTMF over')
         print """\
 +------+-----+------+
 |  1   |  2  |  3   |
@@ -608,11 +608,11 @@ class ChatManager(NotificationHandler):
             console.terminalProtocol.send_keys = old_send_keys
 
     def cmd_hold(self):
-        """:hold  (or CTRL-H) \t Put the current SIP session on hold"""
+        """:hold  (or CTRL-H) \t Put the current audio session on hold"""
         self.get_current_session().hold()
 
     def cmd_unhold(self):
-        """:unhold  (or CTRL-H) \t Take the current SIP session out of hold"""
+        """:unhold  (or CTRL-H) \t Take the current audio session out of hold"""
         self.get_current_session().unhold()
 
     def toggle_hold(self):
@@ -642,18 +642,18 @@ class ChatManager(NotificationHandler):
         print "Set audio echo cancellation tail length to %s ms" % self.engine.ec_tail_length
 
     def cmd_record(self, *args):
-        """:record \t Toggle audio recording"""
+        """:record \t Toggle recording of active audio session"""
         self.get_current_session().toggle_recording()
 
     def cmd_add(self, *args):
-        """:add audio|chat \t Add a new stream to the current SIP session"""
+        """:add audio|chat \t Add a new stream to the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
         session.add_stream(self.get_stream(args[0]))
 
     def cmd_remove(self, *args):
-        """:remove audio|chat \t Remove the stream from the current SIP session"""
+        """:remove audio|chat \t Remove the stream from the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
@@ -762,9 +762,9 @@ class InfoPrinter(NotificationHandler):
 
     def _NH_SIPSessionDidFail(self, session, data):
         if data.code:
-            print "SIP session failed: %d %s" % (data.code, data.reason)
+            print "Session failed: %d %s" % (data.code, data.reason)
         else:
-            print "SIP session failed: %s" % data.reason
+            print "Session failed: %s" % data.reason
 
     def _NH_SIPSessionDidEnd(self, session, data):
         after = ''
@@ -772,24 +772,24 @@ class InfoPrinter(NotificationHandler):
             duration = session.stop_time - session.start_time
             after = " after %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
         if data.originator == 'local':
-            print "SIP session ended by local party%s." % after
+            print "Session ended by local party%s." % after
         else:
-            print "SIP session ended by remote party%s." % after
+            print "Session ended by remote party%s." % after
 
     def _NH_SIPSessionRejectedStreamProposal(self, session, data):
         print data.reason
 
     def _NH_SIPSessionGotHoldRequest(self, session, data):
         if data.originator == 'local':
-            print "SIP session is put on hold"
+            print "Session is put on hold"
         else:
-            print "Remote party has put the SIP session on hold"
+            print "Remote party has put the session on hold"
 
     def _NH_SIPSessionGotUnholdRequest(self, session, data):
         if data.originator == "local":
-            print "SIP session is taken out of hold"
+            print "Session is taken out of hold"
         else:
-            print "Remote party has taken the SIP session out of hold"
+            print "Remote party has taken the session out of hold"
 
     boring_messages = set()
 
@@ -864,7 +864,7 @@ def start(options, console):
         try:
             print "Type :help to get information about commands and shortcuts"
             if not options.args:
-                print 'Waiting for incoming SIP session requests...'
+                print 'Waiting for incoming session requests ...'
             else:
                 try:
                     if os.path.isfile(options.args[1]):
@@ -889,11 +889,11 @@ def start(options, console):
                 traceback.print_exc()
         finally:
             console.copy_input_line()
-            with calming_message(1, "Disconnecting the SIP session(s)..."):
+            with calming_message(1, "Disconnecting existing session(s) ..."):
                 manager.close()
     finally:
         RegistrationManager().unregister()
-        with calming_message(2, "Stopping the engine..."):
+        with calming_message(2, "Stopping the engine ..."):
             engine.stop()
         api.sleep(0.1)
 
@@ -945,7 +945,7 @@ def readloop(console, manager, shortcuts):
             echo()
 
 
-description = "This script will either sit idle waiting for an incoming SIP session, or start a new SIP session with the specified target SIP address. The program will close the SIP session and quit when CTRL-D is pressed. This scripts supports RTP audio, MSRP instant messaging and file transfer sessions."
+description = "This script will either sit idle waiting for an incoming session, or start a new session with the specified target SIP address. The program will close the SIP session and quit when CTRL-D is pressed. This scripts supports RTP audio, MSRP instant messaging and file transfer sessions."
 usage = "%prog [options] [target-user@target-domain.com] [audio|chat]"
 
 def get_account(key):
