@@ -619,7 +619,7 @@ class ChatManager(NotificationHandler):
         self.get_current_session().toggle_hold()
 
     def cmd_echo(self, *args):
-        """:echo +|-|MILISECONDS \t Adjust audio echo cancellation"""
+        """:echo [+-]MILISECONDS \t Adjust audio echo cancellation"""
         if not args:
             print 'Current audio echo cancellation: %s' % self.engine.ec_tail_length
             return
