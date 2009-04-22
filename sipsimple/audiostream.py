@@ -16,7 +16,6 @@ from sipsimple.green import GreenBase
 
 # TODO:
 # - Add audio recording
-# - Add hold notifications
 # - Resolve remaining TODOs
 
 class AudioStream(NotificationHandler):
@@ -163,16 +162,33 @@ class AudioStream(NotificationHandler):
                 new_direction = None
             return self._audio_transport.get_local_media(for_offer, new_direction)
 
+    def _check_hold(self, direction, is_initial):
+        was_on_hold_by_local = self.on_hold_by_local
+        was_on_hold_by_remote = self.on_hold_by_remote
+        self.on_hold_by_local = "recv" not in direction
+        self.on_hold_by_remote = "send" not in direction
+        if (is_initial or was_on_hold_by_local) and not self.on_hold_by_local:
+            Engine().connect_audio_transport(self._audio_transport)
+        if not was_on_hold_by_local and self.on_hold_by_local:
+            self.notification_center.post_notification("AudioStreamGotHoldRequest", self,
+                                                       TimestampedNotificationData(originator="local"))
+        if was_on_hold_by_local and not self.on_hold_by_local:
+            self.notification_center.post_notification("AudioStreamGotUnholdRequest", self,
+                                                       TimestampedNotificationData(originator="local"))
+        if not was_on_hold_by_remote and self.on_hold_by_remote:
+            self.notification_center.post_notification("AudioStreamGotHoldRequest", self,
+                                                       TimestampedNotificationData(originator="remote"))
+        if was_on_hold_by_remote and not self.on_hold_by_remote:
+            self.notification_center.post_notification("AudioStreamGotUnholdRequest", self,
+                                                       TimestampedNotificationData(originator="remote"))
+
     def start(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
             if self.state != "INITIALIZED":
                 raise RuntimeError("AudioStream.get_local_media() may only be " +
                                    "called in the INITIALIZED or ESTABLISHED states")
             self._audio_transport.start(local_sdp, remote_sdp, stream_index)
-            self.on_hold_by_local = "recv" not in self._audio_transport.direction
-            self.on_hold_by_remote = "send" not in self._audio_transport.direction
-            if not self.on_hold_by_local:
-                Engine().connect_audio_transport(self._audio_transport)
+            self._check_hold(self._audio_transport.direction, True)
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification("MediaStreamDidStart", self, TimestampedNotificationData())
 
@@ -195,11 +211,7 @@ class AudioStream(NotificationHandler):
         with self._lock:
             new_direction = local_sdp.media[stream_index].get_direction()
             self._audio_transport.update_direction(new_direction)
-            was_on_hold = self.on_hold_by_local
-            self.on_hold_by_local = "recv" not in self._audio_transport.direction
-            self.on_hold_by_remote = "send" not in self._audio_transport.direction
-            if was_on_hold and not self.on_hold_by_local:
-                Engine().connect_audio_transport(self._audio_transport)
+            self._check_hold(new_direction, False)
 
     def end(self):
         with self._lock:
