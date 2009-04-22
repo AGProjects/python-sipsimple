@@ -210,9 +210,11 @@ class AudioStream(NotificationHandler):
                     self.notification_center.remove_observer(self, sender=self._audio_transport)
                     self._audio_transport = None
                     self._rtp_transport = None
+                    self.state = "ENDED"
                     self.notification_center.post_notification("MediaStreamDidEnd", self,
                                                                TimestampedNotificationData())
-                self.state = "ENDED"
+                else:
+                    self.state = "ENDED"
 
 
 class GreenAudioStream(GreenBase):
