@@ -973,14 +973,15 @@ class SessionManager(NotificationHandler):
                 elif data.state == "REINVITED":
                     current_remote_sdp = inv.get_active_remote_sdp()
                     proposed_remote_sdp = inv.get_offered_remote_sdp()
-                    if proposed_remote_sdp.version == current_remote_sdp.version:
-                        if current_remote_sdp != proposed_remote_sdp:
-                            inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Same version, but not identical SDP")})
-                        else:
-                            # same version, same SDP, respond with the already present local SDP
-                            inv.set_offered_local_sdp(inv.get_active_local_sdp())
-                            inv.respond_to_reinvite(200)
-                    elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
+#                    if proposed_remote_sdp.version == current_remote_sdp.version:
+#                        if current_remote_sdp != proposed_remote_sdp:
+#                            inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Same version, but not identical SDP")})
+#                        else:
+#                            # same version, same SDP, respond with the already present local SDP
+#                            inv.set_offered_local_sdp(inv.get_active_local_sdp())
+#                            inv.respond_to_reinvite(200)
+#                    elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
+                    if True:
                         for attr in ["user", "id", "net_type", "address_type", "address"]:
                             if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
                                 inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Difference in contents of o= line")})
@@ -1016,8 +1017,8 @@ class SessionManager(NotificationHandler):
                         else:
                             inv.set_offered_local_sdp(session._make_next_sdp(False))
                             inv.respond_to_reinvite(200)
-                    else:
-                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
+#                    else:
+#                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
                 elif data.state == "DISCONNECTING":
                     if data.prev_state == "CONFIRMED":
                         Engine().play_tones([(800,400,100),(400,0,200)])
