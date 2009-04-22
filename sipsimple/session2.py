@@ -10,7 +10,6 @@ from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
 from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
 from sipsimple.util import TimestampedNotificationData
-from sipsimple.msrpstream import MSRPChat, MSRPIncomingFileStream
 from sipsimple import util
 from sipsimple.account import AccountManager
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -231,8 +230,12 @@ class StreamFactory(object):
     __metaclass__ = Singleton
 
     def make_media_stream(self, remote_sdp, index, account):
+        from sipsimple.msrpstream import MSRPChat, MSRPIncomingFileStream
+        from sipsimple.audiostream import GreenAudioStream
         media = remote_sdp.media[index]
-        if media.media=='message':
+        if media.media=='audio':
+            stream = GreenAudioStream(account)
+        elif media.media=='message':
             media_attributes = dict((attr.name, attr.value) for attr in media.attributes)
             if 'file-selector' in media_attributes:
                 stream = MSRPIncomingFileStream(account)
