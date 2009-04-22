@@ -161,6 +161,7 @@ class AudioStream(NotificationHandler):
         self.on_hold_by_remote = "send" not in self._audio_transport.direction
         if not self.on_hold_by_local:
             Engine().connect_audio_transport(self._audio_transport)
+        self.notification_center.post_notification("MediaStreamDidStart", self, TimestampedNotificationData())
 
     def send_dtmf(self, digit):
         if self.state != "ESTABLISHED":
