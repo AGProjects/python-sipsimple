@@ -313,7 +313,6 @@ class ChatManager(NotificationHandler):
     streams = {'chat': MSRPChat,
                'audio': GreenAudioStream}
     _reverse_streams = dict((v, k) for (k, v) in streams.items())
-    default_stream = MSRPChat
 
     def __init__(self, engine, account, console, logger):
         self.engine = engine
@@ -474,6 +473,13 @@ class ChatManager(NotificationHandler):
     def send_message(self, message):
         return self.get_current_session().send_message(message)
 
+    def parse_uri(self, uri):
+        if not isinstance(uri, SIPURI):
+            try:
+                return self.engine.parse_sip_uri(format_cmdline_uri(uri, self.account.id.domain))
+            except (ValueError, SIPCoreError), ex:
+                raise UserCommandError(str(ex))
+
     def cmd_help(self):
         """:help \t Print this help message"""
         lines = []
@@ -488,20 +494,22 @@ class ChatManager(NotificationHandler):
         for usage, desc in lines:
             print usage + ' ' * (usage_width-len(usage)) + desc
 
-    def cmd_call(self, *args):
-        """:call user@domain [+]chat \t Initiate a SIP audio session. Optionally propose chat only or audio+chat"""
+    def cmd_audio(self, *args):
+        """:audio user@domain [+chat] \t Initiate an a text chat session. Optionally with an audio stream"""
+        return self._cmd_call(args, default_stream=GreenAudioStream, doc=self.cmd_audio.__doc__)
+
+    def cmd_chat(self, *args):
+        """:chat user@domain [+audio] \t Initiate an audio chat session. Optionally with a chat stream"""
+        return self._cmd_call(args, default_stream=MSRPChat, doc=self.cmd_chat.__doc__)
+
+    def _cmd_call(self, args, default_stream=None, doc=''):
         if not args:
-            raise UserCommandError('Please provide uri\n%s' % self.cmd_call.__doc__)
-        target_uri, streams = args[0], args[1:]
-        if not isinstance(target_uri, SIPURI):
-            try:
-                target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
-            except (ValueError, SIPCoreError), ex:
-                raise UserCommandError(str(ex))
+            raise UserCommandError('Please provide uri\n%s' % __doc__)
+        target_uri, streams = self.parse_uri(args[0]), args[1:]
         if not streams:
-            streams = [self.default_stream]
+            streams = [default_stream]
         elif streams[0][:1]=='+':
-            streams = [self.default_stream] + [self.get_stream(x) for x in streams]
+            streams = [default_stream] + [self.get_stream(x) for x in streams]
         else:
             streams = [self.get_stream(x) for x in streams]
         streams = [Stream(self.account) for Stream in streams]
@@ -532,12 +540,7 @@ class ChatManager(NotificationHandler):
         # if you already in session with someone, you should be able to skip the uri
         if len(args)!=2:
             raise UserCommandError('Please provide SIP address and filename\n%s' % self.cmd_transfer.__doc__)
-        target_uri, filename = args[0], args[1]
-        if not isinstance(target_uri, SIPURI):
-            try:
-                target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
-            except (ValueError, SIPCoreError), ex:
-                raise UserCommandError(str(ex))
+        target_uri, filename = self.parse_uri(args[0]), args[1]
         try:
             fileobj = file(filename)
             size = os.stat(filename).st_size
