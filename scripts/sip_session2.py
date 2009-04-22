@@ -502,7 +502,7 @@ class ChatManager(NotificationHandler):
         """:chat user[@domain] [+audio] \t Initiate a chat session, optionally with audio"""
         return self._cmd_call(args, MSRPChat, self.cmd_chat.__doc__)
 
-    def _cmd_call(self, args, None, ''):
+    def _cmd_call(self, args, default_stream=None, __doc__=''):
         if not args:
             raise UserCommandError('Please provide SIP address\n%s' % __doc__)
         target_uri, streams = self.parse_uri(args[0]), args[1:]
