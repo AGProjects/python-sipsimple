@@ -440,12 +440,13 @@ class ChatManager(NotificationHandler):
     def cmd_help(self):
         """:help \t Print this help message"""
         lines = []
-        for k in dir(self):
-            if k.startswith('cmd_'):
-                doc = getattr(self, k).__doc__
-                if doc:
-                    usage, desc = doc.split(' \t ')
-                    lines.append((usage, desc))
+        commands = [getattr(self, x) for x in dir(self) if x.startswith('cmd_')]
+        commands.sort(key = lambda x: x.func_code.co_firstlineno)
+        for command in commands:
+            doc = command.__doc__
+            if doc:
+                usage, desc = doc.split(' \t ')
+                lines.append((usage, desc))
         usage_width = max(len(x[0]) for x in lines) + 3
         for usage, desc in lines:
             print usage + ' ' * (usage_width-len(usage)) + desc
