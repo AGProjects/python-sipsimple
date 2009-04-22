@@ -20,10 +20,10 @@ from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from msrplib import trafficlog
 
-from sipsimple.core import SIPURI, SIPCoreError
+from sipsimple.core import SIPURI, SIPCoreError, PJSIPError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
-from sipsimple.green.core import GreenEngine, InvitationError
+from sipsimple.green.core import GreenEngine, InvitationError, SDPNegotiationError
 from sipsimple.session2 import Session as GreenSession, NotificationHandler, IncomingHandler
 from sipsimple.green.notification import linked_notification, linked_notifications
 from sipsimple.clients import format_cmdline_uri
@@ -529,7 +529,7 @@ class ChatManager(NotificationHandler):
                 stream._chatsession = chat
             chat.connect(target_uri, routes, streams=streams)
             chat = None
-        except InvitationError, ex:
+        except (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError), ex:
             pass # already logged by InfoPrinter
         finally:
             if chat is not None:
