@@ -1,16 +1,20 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+from __future__ import with_statement
+
 import errno
 import os
 from datetime import datetime
+from threading import Timer
+from thread import allocate_lock
 
 from zope.interface import implements
 from application.notification import IObserver, Any, NotificationCenter, NotificationData
 
 from sipsimple.core import WaveFile
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.green.notification import NotifyFromThreadObserver
+from sipsimple.engine import Engine
 
 
 class TimestampedNotificationData(NotificationData):
@@ -32,6 +36,37 @@ class SilenceableWaveFile(WaveFile):
     def start(self, *args, **kwargs):
         if self.force_playback or not SIPSimpleSettings().audio.silent:
             WaveFile.start(self, level=self.volume, *args, **kwargs)
+
+
+class PersistentTones(object):
+
+    def __init__(self, tones, interval):
+        self.tones = tones
+        self.interval = interval
+        self._timer = None
+        self._lock = allocate_lock()
+
+    @property
+    def is_active(self):
+        with self._lock:
+            return self._timer is not None
+
+    def _play_tones(self):
+        with self._lock:
+            Engine().play_tones(self.tones)
+            self._timer = Timer(self.interval, self._play_tones)
+            self._timer.setDaemon(True)
+            self._timer.start()
+
+    def start(self, *args, **kwargs):
+        if self._timer is None:
+            self._play_tones()
+
+    def stop(self):
+        with self._lock:
+            if self._timer is not None:
+                self._timer.cancel()
+                self._timer = None
 
 
 class NotificationHandler(object):
@@ -61,3 +96,4 @@ def makedirs(path):
         raise
 
 
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "makedirs"]
