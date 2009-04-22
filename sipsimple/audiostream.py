@@ -84,7 +84,7 @@ class AudioStream(NotificationHandler):
         self._rtp_args["use_ice"] = hasattr(self.account, "ice") and self.account.ice.enabled
         del self._sip_transport
         self._stun_servers = [(None, None)]
-        if stun_servers:            
+        if stun_servers:
             self._stun_servers.extend(reversed(stun_servers))
         self._try_next_rtp_transport()
 
