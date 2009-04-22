@@ -203,7 +203,7 @@ class Session(NotificationHandler):
             self.start_time = datetime.datetime.now()
             confirmed_notification, sdp_notification = self.inv.accept_invite()
             for index, stream in enumerate(streams):
-                workers.append(proc.spawn(stream.start, sdp_notification.local_sdp.media[index], sdp_notification.remote_sdp, index))
+                workers.append(proc.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, index))
             proc.waitall(workers)
             ERROR = None
         except:
