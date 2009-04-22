@@ -263,11 +263,10 @@ if [ -d python-sipsimple ]; then
 else
         darcs get http://devel.ag-projects.com/repositories/python-sipsimple
 fi
-cd..
+cd ..
 
 Build and install the library system wide:
 
 cd python-sipsimple
 sudo python setup.py install --prefix /usr/local/
-
 
