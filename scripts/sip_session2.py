@@ -982,11 +982,6 @@ class RegistrationManager(NotificationHandler):
     def __init__(self):
         self.accounts = set()
 
-    def start(self):
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPAccountRegistrationDidSucceed')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPAccountRegistrationDidEnd')
-        NotificationCenter().add_observer(NotifyFromThreadObserver(self), name='SIPAccountRegistrationDidFail')
-
     def _NH_SIPAccountRegistrationDidSucceed(self, account, data):
         self.accounts.add(account)
 
@@ -1057,7 +1052,7 @@ def update_settings(options):
 def main():
     options = parse_options(usage, description)
 
-    RegistrationManager().start()
+    RegistrationManager().subscribe_to_all()
     ConfigurationManager().start(ConfigFileBackend(options.config_file))
     AccountManager().start()
     settings = SIPSimpleSettings()
