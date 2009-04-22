@@ -144,14 +144,24 @@ class AudioStream(NotificationHandler):
             self.state = "INITIALIZED"
             self.notification_center.post_notification("MediaStreamDidInitialize", self, TimestampedNotificationData())
 
-    def get_local_media(self, for_offer=True, on_hold=False):
+    def get_local_media(self, for_offer, on_hold=False):
         with self._lock:
             if self.state not in ["INITIALIZED", "ESTABLISHED"]:
                 raise RuntimeError("AudioStream.get_local_media() may only be " +
                                    "called in the INITIALIZED or ESTABLISHED states")
             if on_hold and self.state == "ESTABLISHED" and not self.on_hold_by_local:
                 Engine().disconnect_audio_transport(self._audio_transport)
-            return self._audio_transport.get_local_media(for_offer) # XXX on_hold is not used
+            if for_offer:
+                old_direction = self._audio_transport.direction
+                if old_direction is None:
+                    new_direction = "sendrecv"
+                elif "send" in old_direction:
+                    new_direction = ("sendonly" if on_hold else "sendrecv")
+                else:
+                    new_direction = ("inactive" if on_hold else "recvonly")
+            else:
+                new_direction = None
+            return self._audio_transport.get_local_media(for_offer, new_direction)
 
     def start(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
