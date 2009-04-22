@@ -179,7 +179,7 @@ class AudioStream(NotificationHandler):
     def send_dtmf(self, digit):
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("AudioStream.send_dtmf() may only be called in the ESTABLISHED state")
+                raise RuntimeError("AudioStream.send_dtmf() cannot be used in %s state" % self.state)
             self._audio_transport.send_dtmf(digit)
 
     def _NH_RTPAudioStreamGotDTMF(self, audio_transport, data):
