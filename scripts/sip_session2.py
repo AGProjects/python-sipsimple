@@ -509,8 +509,9 @@ class ChatManager(NotificationHandler):
             if chat is not None:
                 self.remove_session(chat)
 
-    def cmd_send(self, *args):
-        """:send user@domain filename \t Transfer a file to user@domain"""
+    def cmd_transfer(self, *args):
+        """:transfer user@domain filename \t Transfer a file to user@domain"""
+        # if you already in session with someone, you should be able to skip the uri
         if len(args)!=2:
             raise UserCommandError('Please provide SIP address and filename\n%s' % self.cmd_call.__doc__)
         target_uri, filename = args[0], args[1]
@@ -856,7 +857,7 @@ def start(options, console):
             else:
                 try:
                     if os.path.isfile(options.args[1]):
-                        manager.cmd_send(*options.args)
+                        manager.cmd_transfer(*options.args)
                     else:
                         manager.cmd_call(*options.args)
                 except (UserCommandError, MSRPChatError), ex:
