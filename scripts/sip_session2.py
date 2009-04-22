@@ -468,7 +468,7 @@ class ChatManager(NotificationHandler):
         return self.streams[s]
 
     def cmd_call(self, *args):
-        """:call user@domain [+]chat \t Initiate an outgoing session. By default, use audio. The second argument specifies whether to propose IM-only session ("chat") or audio+chat ("+chat")"""
+        """:call user@domain [+]chat \t Initiate a SIP audio session. Optionally propose chat only or audio+chat"""
         if not args:
             raise UserCommandError('Please provide uri\n%s' % self.cmd_call.__doc__)
         target_uri, streams = args[0], args[1:]
@@ -507,7 +507,7 @@ class ChatManager(NotificationHandler):
                 self.remove_session(chat)
 
     def cmd_send(self, *args):
-        """:send user@domain filename \t Transfer file to user@domain"""
+        """:send user@domain filename \t Transfer a file to user@domain"""
         if len(args)!=2:
             raise UserCommandError('Please provide SIP address and filename\n%s' % self.cmd_call.__doc__)
         target_uri, filename = args[0], args[1]
