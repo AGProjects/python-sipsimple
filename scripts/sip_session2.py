@@ -292,6 +292,11 @@ class ChatSession(NotificationHandler):
 
 class ChatManager(NotificationHandler):
 
+    streams = {'chat': MSRPChat,
+               'audio': GreenAudioStream}
+    _reverse_streams = dict((v, k) for (k, v) in streams.items())
+    default_stream = MSRPChat
+
     def __init__(self, engine, account, console, logger):
         self.engine = engine
         self.account = account
@@ -437,6 +442,20 @@ class ChatManager(NotificationHandler):
     def get_cmd(self, cmd):
         return getattr(self, 'cmd_%s' % cmd, None)
 
+    def get_stream(self, s):
+        s = s.replace('+', '').lower()
+        s = complete_word(s.lower(), self.streams.keys())
+        return self.streams[s]
+
+    def get_current_session(self):
+        session = self.current_session
+        if not session:
+            raise UserCommandError('No active SIP session')
+        return session
+
+    def send_message(self, message):
+        return self.get_current_session().send_message(message)
+
     def cmd_help(self):
         """:help \t Print this help message"""
         lines = []
@@ -450,25 +469,6 @@ class ChatManager(NotificationHandler):
         usage_width = max(len(x[0]) for x in lines) + 3
         for usage, desc in lines:
             print usage + ' ' * (usage_width-len(usage)) + desc
-
-    def cmd_switch(self):
-        """:switch  (or CTRL-N) \t Switch between active sessions"""
-        if len(self.sessions)<2:
-            print "There's no other session to switch to."
-        else:
-            index = 1+self.sessions.index(self.current_session)
-            self.current_session = self.sessions[index % len(self.sessions)]
-            self.update_prompt()
-
-    streams = {'chat': MSRPChat,
-               'audio': GreenAudioStream}
-    _reverse_streams = dict((v, k) for (k, v) in streams.items())
-    default_stream = MSRPChat
-
-    def get_stream(self, s):
-        s = s.replace('+', '').lower()
-        s = complete_word(s.lower(), self.streams.keys())
-        return self.streams[s]
 
     def cmd_call(self, *args):
         """:call user@domain [+]chat \t Initiate a SIP audio session. Optionally propose chat only or audio+chat"""
@@ -527,40 +527,6 @@ class ChatManager(NotificationHandler):
             raise UserCommandError(str(ex) or type(ex).__name__)
         stream = MSRPOutgoingFileStream(self.account, filename, fileobj, size, content_type, read_sha1(filename))
         self.procs.spawn(self._call, target_uri, [stream])
-
-    def get_current_session(self):
-        session = self.current_session
-        if not session:
-            raise UserCommandError('No active SIP session')
-        return session
-
-    def send_message(self, message):
-        return self.get_current_session().send_message(message)
-
-    def cmd_hold(self):
-        """:hold  (or CTRL-H) \t Put the current SIP session on hold"""
-        self.get_current_session().hold()
-
-    def cmd_unhold(self):
-        """:unhold  (or CTRL-H) \t Take the current SIP session out of hold"""
-        self.get_current_session().unhold()
-
-    def toggle_hold(self):
-        self.get_current_session().toggle_hold()
-
-    def cmd_add(self, *args):
-        """:add audio|chat \t Add a new stream to the current SIP session"""
-        session = self.get_current_session()
-        if len(args) != 1:
-            raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
-        session.add_stream(self.get_stream(args[0]))
-
-    def cmd_remove(self, *args):
-        """:remove audio|chat \t Remove the stream from the current SIP session"""
-        session = self.get_current_session()
-        if len(args) != 1:
-            raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
-        session.remove_stream(self.get_stream(args[0]))
 
     def cmd_dtmf(self, *args):
         """:dtmf DIGITS \t Send DTMF digits. Press CTRL-SPACE for numeric pad"""
@@ -625,25 +591,16 @@ class ChatManager(NotificationHandler):
         finally:
             console.terminalProtocol.send_keys = old_send_keys
 
-    def cmd_trace(self, *args):
-        """:trace sip|pjsip|notifications \t Toggle the debug messages of given category"""
-        if not args:
-            raise UserCommandError('Please provide an argument\n%s' % self.cmd_trace.__doc__)
-        args = [complete_word(x, ['sip', 'pjsip', 'msrp', 'notifications']) for x in args]
-        for arg in args:
-            if arg == 'sip':
-                self.logger.sip_to_stdout = not self.logger.sip_to_stdout
-                settings = SIPSimpleSettings()
-                self.engine._obj.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
-                print "SIP tracing to console is now %s" % ("activated" if self.logger.sip_to_stdout else "deactivated")
-            elif arg == 'pjsip':
-                self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
-                settings = SIPSimpleSettings()
-                self.engine._obj.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
-                print "PJSIP tracing to console is now %s" % ("activated, log level=%s" % self.engine.log_level if self.logger.pjsip_to_stdout else "deactivated")
-            elif arg == 'notifications':
-                logstate.EngineTracer().toggle()
-                print "Notifications tracing to console is now %s" % ("activated" if logstate.EngineTracer().started() else "deactivated")
+    def cmd_hold(self):
+        """:hold  (or CTRL-H) \t Put the current SIP session on hold"""
+        self.get_current_session().hold()
+
+    def cmd_unhold(self):
+        """:unhold  (or CTRL-H) \t Take the current SIP session out of hold"""
+        self.get_current_session().unhold()
+
+    def toggle_hold(self):
+        self.get_current_session().toggle_hold()
 
     def cmd_echo(self, *args):
         """:echo +|-|MILISECONDS \t Adjust audio echo cancellation"""
@@ -675,6 +632,49 @@ class ChatManager(NotificationHandler):
             session.start_recording_audio()
         else:
             session.stop_recording_audio()
+
+    def cmd_add(self, *args):
+        """:add audio|chat \t Add a new stream to the current SIP session"""
+        session = self.get_current_session()
+        if len(args) != 1:
+            raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
+        session.add_stream(self.get_stream(args[0]))
+
+    def cmd_remove(self, *args):
+        """:remove audio|chat \t Remove the stream from the current SIP session"""
+        session = self.get_current_session()
+        if len(args) != 1:
+            raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
+        session.remove_stream(self.get_stream(args[0]))
+
+    def cmd_switch(self):
+        """:switch  (or CTRL-N) \t Switch between active sessions"""
+        if len(self.sessions)<2:
+            print "There's no other session to switch to."
+        else:
+            index = 1+self.sessions.index(self.current_session)
+            self.current_session = self.sessions[index % len(self.sessions)]
+            self.update_prompt()
+
+    def cmd_trace(self, *args):
+        """:trace sip|pjsip|notifications \t Toggle the debug messages of given category"""
+        if not args:
+            raise UserCommandError('Please provide an argument\n%s' % self.cmd_trace.__doc__)
+        args = [complete_word(x, ['sip', 'pjsip', 'msrp', 'notifications']) for x in args]
+        for arg in args:
+            if arg == 'sip':
+                self.logger.sip_to_stdout = not self.logger.sip_to_stdout
+                settings = SIPSimpleSettings()
+                self.engine._obj.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+                print "SIP tracing to console is now %s" % ("activated" if self.logger.sip_to_stdout else "deactivated")
+            elif arg == 'pjsip':
+                self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
+                settings = SIPSimpleSettings()
+                self.engine._obj.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+                print "PJSIP tracing to console is now %s" % ("activated, log level=%s" % self.engine.log_level if self.logger.pjsip_to_stdout else "deactivated")
+            elif arg == 'notifications':
+                logstate.EngineTracer().toggle()
+                print "Notifications tracing to console is now %s" % ("activated" if logstate.EngineTracer().started() else "deactivated")
 
 
 def get_userfriendly_desc(stream):
