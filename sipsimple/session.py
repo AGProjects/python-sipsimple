@@ -22,7 +22,7 @@ from sipsimple.core import RecordingWaveFile
 from sipsimple.core import SIPCoreError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
-from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile, TimestampedNotificationData
+from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile, TimestampedNotificationData, PersistentTones
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 class SessionStateError(Exception):
@@ -598,6 +598,7 @@ class Session(NotificationHandler):
                     self._start_ringtone()
             if prev_state == "INCOMING" or prev_state == "CALLING":
                 if self._ringtone is not None:
+                    self._ringtone.stop()
                     self._ringtone = None
             self.notification_center.post_notification("SIPSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
 
@@ -918,9 +919,12 @@ class SessionManager(NotificationHandler):
             session._inv = inv
             session.remote_user_agent = data.headers.get("User-Agent", None)
             self.inv_mapping[inv] = session
-            ringtone = account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
-            if ringtone is not None:
-                session._ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume)
+            if [other_sess for other_sess in self.inv_mapping.itervalues() if other_sess is not session and other_sess.state in ["CALLING", "ESTABLISHED", "PROPOSING", "PROPOSED"] and not other_sess.on_hold_by_local]:
+                session._ringtone = PersistentTones([(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
+            else:
+                ringtone = account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
+                if ringtone is not None:
+                    session._ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume)
             session.direction = "incoming"
             session._change_state("INCOMING")
             self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(streams=proposed_media))
