@@ -496,13 +496,13 @@ class ChatManager(NotificationHandler):
 
     def cmd_audio(self, *args):
         """:audio user[@domain] [+chat] \t Initiate an audio session, optionally with chat"""
-        return self._cmd_call(args, default_stream=GreenAudioStream, doc=self.cmd_audio.__doc__)
+        return self._cmd_call(args, GreenAudioStream, self.cmd_audio.__doc__)
 
     def cmd_chat(self, *args):
         """:chat user[@domain] [+audio] \t Initiate a chat session, optionally with audio"""
-        return self._cmd_call(args, default_stream=MSRPChat, doc=self.cmd_chat.__doc__)
+        return self._cmd_call(args, MSRPChat, self.cmd_chat.__doc__)
 
-    def _cmd_call(self, args, default_stream=None, doc=''):
+    def _cmd_call(self, args, None, ''):
         if not args:
             raise UserCommandError('Please provide SIP address\n%s' % __doc__)
         target_uri, streams = self.parse_uri(args[0]), args[1:]
