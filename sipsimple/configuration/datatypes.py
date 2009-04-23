@@ -418,7 +418,7 @@ class UserDataPath(object):
             return path
         from sipsimple.configuration.settings import SIPSimpleSettings
         settings = SIPSimpleSettings()
-        return os.path.join(settings.user_data_directory, path)
+        return os.path.realpath(os.path.join(settings.user_data_directory, path))
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.path)
