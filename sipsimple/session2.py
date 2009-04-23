@@ -96,7 +96,7 @@ class Session(NotificationHandler):
         # TODO: update remote_user_agent
 
     def connect(self, callee_uri, routes, streams=None):
-        assert self.state == 'NULL', 'Cannot connect() because session is %s' % self.state
+        assert self.state == 'NULL', self.state
         assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
         if streams is None:
             streams = self.streams
@@ -184,6 +184,7 @@ class Session(NotificationHandler):
 
     def accept(self):
         assert self.state == 'INCOMING', self.state
+        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
         self.greenlet = api.getcurrent()
         ERROR = (500, None, 'local') # code, reason, originator
         self._set_state('ACCEPTING')
