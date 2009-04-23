@@ -495,24 +495,28 @@ class ChatManager(NotificationHandler):
 
     def cmd_audio(self, *args):
         """:audio user[@domain] [+chat] \t Initiate an audio session, optionally with chat"""
-        return self._cmd_call(args, GreenAudioStream, self.cmd_audio.__doc__)
+        return self._cmd_call(args, [GreenAudioStream], self.cmd_audio.__doc__)
 
     def cmd_chat(self, *args):
         """:chat user[@domain] [+audio] \t Initiate a chat session, optionally with audio"""
-        return self._cmd_call(args, MSRPChat, self.cmd_chat.__doc__)
+        return self._cmd_call(args, [MSRPChat], self.cmd_chat.__doc__)
 
-    def _cmd_call(self, args, default_stream=None, __doc__=''):
+    def _cmd_call(self, args, default_streams, doc):
         if not args:
-            raise UserCommandError('Please provide SIP address\n%s' % __doc__)
+            raise UserCommandError('Please provide SIP address\n%s' % doc)
         target_uri, streams = self.parse_uri(args[0]), args[1:]
         if not streams:
-            streams = [default_stream]
+            streams = default_streams[:]
         elif streams[0][:1]=='+':
-            streams = [default_stream] + [self.get_stream(x) for x in streams]
+            streams = default_streams[:] + [self.get_stream(x) for x in streams]
         else:
             streams = [self.get_stream(x) for x in streams]
         streams = [Stream(self.account) for Stream in streams]
         self.procs.spawn(self._call, target_uri, streams)
+
+    def cmd_call(self, *args):
+        """:call user[@domain] [streams] \t Initiate an audio+chat session"""
+        return self._cmd_call(args, [GreenAudioStream, MSRPChat], self.cmd_audio.__doc__)
 
     def _call(self, target_uri, streams):
         chat = None
@@ -868,10 +872,11 @@ def start(options, console):
                 print 'Waiting for incoming session requests ...'
             else:
                 try:
-                    if os.path.isfile(options.args[1]):
-                        manager.cmd_transfer(*options.args)
+                    if len(options.args)>=2 and os.path.isfile(options.args[1]):
+                        command = manager.cmd_transfer
                     else:
-                        manager.cmd_call(*options.args)
+                        command = manager.cmd_call
+                    command(*options.args)
                 except (UserCommandError, MSRPChatError), ex:
                     print str(ex) or type(ex).__name__
             while True:
