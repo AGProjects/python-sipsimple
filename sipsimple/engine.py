@@ -3,7 +3,7 @@
 
 import sys
 import traceback
-
+import atexit
 from datetime import datetime
 from thread import start_new_thread, allocate_lock, get_ident as get_thread_ident
 
@@ -137,6 +137,7 @@ class Engine(object):
     # worker thread
     def _run(self):
         failed = False
+        atexit.register(self.stop)
         try:
             while not self._thread_stopping:
                 try:
@@ -167,20 +168,9 @@ class Engine(object):
         if self.notification_center is not None:
             self.notification_center.post_notification(name, self, NotificationData(timestamp=datetime.now(), **kwargs))
 
+
 def setdefault(where, **what):
     for k, x in what.iteritems():
         where.setdefault(k, x)
-
-
-class EngineStopper(object):
-
-    def __del__(self):
-        if hasattr(Engine, '_instance_creator'):
-            engine = Engine()
-            engine.notification_center = None
-            engine.stop()
-
-
-_helper = EngineStopper()
 
 __all__ = ["Engine"]
