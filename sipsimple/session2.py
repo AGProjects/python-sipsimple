@@ -92,8 +92,11 @@ class Session(NotificationHandler):
 
     def _NH_SIPInvitationChangedState(self, inv, data):
         assert self.inv._obj == inv, (self.inv, self.inv._obj, inv, data)
-        if data.state=='DISCONNECTED' and data.prev_state!='DISCONNECTING':
-            self._set_state('TERMINATED', originator='remote')
+        if data.state=='DISCONNECTED':
+            if data.prev_state=='DISCONNECTING':
+                self._set_state('TERMINATED', originator='remote')
+            else:
+                self._set_state('TERMINATED', originator='local')
         # TODO: update remote_user_agent
 
     def connect(self, callee_uri, routes, streams=None):
