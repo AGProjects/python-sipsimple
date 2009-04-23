@@ -266,7 +266,9 @@ class Session(NotificationHandler):
             local_sdp.media.append(stream.get_local_media())
             self.inv.set_offered_local_sdp(local_sdp)
             self.inv.send_reinvite()
-            remote_sdp = self._inv.get_active_remote_sdp()  
+            remote_sdp = self._inv.get_active_remote_sdp()
+            if len(remote_sdp.media)<len(local_sdp.media):
+                raise InvitationError(code=488, reason='The answerer does not seem to support adding a stream', origin='local')
             stream.start(local_sdp, remote_sdp, len(local_sdp.media)-1)
             ERROR = None
         except InvitationError, ex:
@@ -284,13 +286,14 @@ class Session(NotificationHandler):
                 #self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self)
                 self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
             else:
-                code, reason, originator = ERROR
-                data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
-                self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
                 proc.spawn_greenlet(stream.end)
+                code, reason, originator = ERROR
                 if code == 500:
                     proc.spawn_greenlet(self._terminate, code)
-
+                else:
+                    self._set_state('ESTABLISHED')
+                data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
 
 class StreamFactory(object):
     __metaclass__ = Singleton
