@@ -13,7 +13,6 @@ from zope.interface import implements
 from application.notification import IObserver, Any, NotificationCenter, NotificationData
 
 from sipsimple.core import WaveFile
-from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.engine import Engine
 
 
@@ -34,6 +33,7 @@ class SilenceableWaveFile(WaveFile):
             raise ValueError("File not found: %s" % file_name)
 
     def start(self, *args, **kwargs):
+        from sipsimple.configuration.settings import SIPSimpleSettings
         if self.force_playback or not SIPSimpleSettings().audio.silent:
             WaveFile.start(self, level=self.volume, *args, **kwargs)
 
