@@ -215,7 +215,7 @@ class GreenInvitation(GreenBase):
     klass = Invitation
 
     @property
-    def connected(self):
+    def confirmed(self):
         return self.state == 'CONFIRMED'
 
     def _wait_confirmed_and_sdp(self, q):
