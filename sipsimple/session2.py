@@ -98,9 +98,9 @@ class Session(NotificationHandler):
     def connect(self, callee_uri, routes, streams=None):
         assert self.state == 'NULL', self.state
         assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        if streams is None:
-            streams = self.streams
-        if not streams:
+        if streams is not None:
+            self.streams = streams
+        if not self.streams:
             raise ValueError('Must provide streams')
         workers = []
         self.direction = 'outgoing'
@@ -121,7 +121,7 @@ class Session(NotificationHandler):
             workers = []
             local_ip = SIPSimpleSettings().local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip))
-            for stream in streams:
+            for stream in self.streams:
                 local_sdp.media.append(stream.get_local_media(True))
             self.inv.set_offered_local_sdp(local_sdp)
             confirmed_notification, sdp_notification = self.inv.send_invite()
@@ -132,14 +132,14 @@ class Session(NotificationHandler):
                 try:
                     remote_media = remote_sdp.media[index]
                 except LookupError:
-                    for not_used_stream in streams[index:]:
+                    for not_used_stream in self.streams[index:]:
                         proc.spawn_greenlet(not_used_stream.end)
                     break
                 else:
                     if remote_media.port:
-                        workers.append(proc.spawn(streams[index].start, local_sdp, remote_sdp, index))
+                        workers.append(proc.spawn(self.streams[index].start, local_sdp, remote_sdp, index))
                     else:
-                        proc.spawn_greenlet(streams[index].end)
+                        proc.spawn_greenlet(self.streams[index].end)
             proc.waitall(workers)
             # TODO: subscribe to stream failure
             ERROR = None
@@ -162,7 +162,7 @@ class Session(NotificationHandler):
                     self.notification_center.post_notification("SIPSessionDidFail", self, data)
                 proc.spawn_greenlet(self._terminate, code or 486)
                 killall(workers, wait=False)
-                for stream in streams:
+                for stream in self.streams:
                     proc.spawn_greenlet(stream.end)
 
     def _terminate(self, code=603):
