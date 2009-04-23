@@ -46,6 +46,9 @@ trafficlog.hook_std_output()
 
 log.level.current = log.level.WARNING
 
+# we'll suppress tracebacks for the following
+BORING_EXCEPTIONS = (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError)
+
 class UserCommandError(Exception):
     pass
 
@@ -323,6 +326,9 @@ class ChatManager(NotificationHandler):
         self.procs = proc.RunningProcSet()
         self.subscribe_to_all()
 
+    def _spawn(self, function, *args, **kwargs):
+        return self.procs.spawn(proc.wrap_errors(BORING_EXCEPTIONS, function), *args, **kwargs)
+
     def _NH_SIPSessionDidEnd(self, session, data):
         try:
             self.remove_session(session._chat)
@@ -332,7 +338,7 @@ class ChatManager(NotificationHandler):
     _NH_SIPSessionDidFail = _NH_SIPSessionDidEnd
 
     def _NH_SIPSessionNewIncoming(self, session, data):
-        self.procs.spawn(self._handle_incoming, session, data)
+        self._spawn(self._handle_incoming, session, data)
 
     def _NH_SIPSessionChangedState(self, session, data):
         self.update_prompt()
@@ -340,7 +346,7 @@ class ChatManager(NotificationHandler):
     # this notification is handled here and not on the session because we have access to the console here
     def _NH_SIPSessionGotStreamProposal(self, session, data):
         if data.proposer == 'remote':
-            self.procs.spawn(self._handle_proposal, session, data)
+            self._spawn(self._handle_proposal, session, data)
 
     def _handle_proposal(self, session, data):
         txt = '/'.join(x.capitalize() for x in data.streams)
@@ -394,14 +400,14 @@ class ChatManager(NotificationHandler):
 
     def close(self):
         for session in self.sessions[:]:
-            self.procs.spawn(session.end)
+            self._spawn(session.end)
         self.sessions = []
         self.update_prompt()
         self.procs.waitall()
 
     def close_current_session(self):
         if self.current_session is not None:
-            self.procs.spawn(self.current_session.end)
+            self._spawn(self.current_session.end)
             self.remove_session(self.current_session)
 
     def _NH_update_prompt(self, sender, data):
@@ -512,14 +518,13 @@ class ChatManager(NotificationHandler):
         else:
             streams = [self.get_stream(x) for x in streams]
         streams = [Stream(self.account) for Stream in streams]
-        self.procs.spawn(self._call, target_uri, streams)
+        self._spawn(self._call, target_uri, streams)
 
     def cmd_call(self, *args):
         """:call user[@domain] [streams] \t Initiate an audio+chat session"""
         return self._cmd_call(args, [GreenAudioStream, MSRPChat], self.cmd_audio.__doc__)
 
     def _call(self, target_uri, streams):
-        chat = None
         try:
             session = GreenSession(self.account)
             chat = ChatSession(session, self, remote_party=target_uri, streams=streams)
@@ -531,12 +536,9 @@ class ChatManager(NotificationHandler):
             for stream in streams:
                 stream._chatsession = chat
             chat.connect(target_uri, routes, streams=streams)
-            chat = None
-        except (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError), ex:
-            pass # already logged by InfoPrinter
-        finally:
-            if chat is not None:
-                self.remove_session(chat)
+        except:
+            self.remove_session(chat)
+            raise
 
     def cmd_transfer(self, *args):
         """:transfer user[@domain] filename \t Initiate a file transfer session"""
@@ -551,7 +553,7 @@ class ChatManager(NotificationHandler):
         except IOError, ex:
             raise UserCommandError(str(ex) or type(ex).__name__)
         stream = MSRPOutgoingFileStream(self.account, filename, fileobj, size, content_type, read_sha1(filename))
-        self.procs.spawn(self._call, target_uri, [stream])
+        self._spawn(self._call, target_uri, [stream])
 
     def cmd_dtmf(self, *args):
         """:dtmf DIGITS \t Send DTMF digits or press CTRL-SPACE to display DTMF numeric pad"""
@@ -653,14 +655,14 @@ class ChatManager(NotificationHandler):
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
-        self.procs.spawn(session.add_stream, self.get_stream(args[0])(self.account))
+        self._spawn(session.add_stream, self.get_stream(args[0])(self.account))
 
     def cmd_remove(self, *args):
         """:remove audio|chat \t Remove a stream from the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
-        self.procs.spawn(session.remove_stream, self.get_stream(args[0]))
+        self._spawn(session.remove_stream, self.get_stream(args[0]))
 
     def cmd_switch(self):
         """:switch  (or CTRL-N) \t Switch between active sessions"""
