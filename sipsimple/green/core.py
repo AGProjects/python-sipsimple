@@ -250,6 +250,12 @@ class GreenInvitation(GreenBase):
             self._obj.send_invite(*args, **kwargs)
             return self._wait_confirmed_and_sdp(q)
 
+    def send_reinvite(self, *args, **kwargs):
+        assert self.state=='CONFIRMED', self.state # this asserts are probably should be just removed
+        with self.linked_notifications() as q:
+            self._obj.send_reinvite(*args, **kwargs)
+            return self._wait_confirmed_and_sdp(q)
+
     def disconnect(self, *args, **kwargs):
         """Call disconnect() on the proxied object. Wait until SIP session is disconnected"""
         with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='DISCONNECTED') as q:
