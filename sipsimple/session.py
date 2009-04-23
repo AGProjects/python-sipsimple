@@ -993,7 +993,8 @@ class SessionManager(NotificationHandler):
 #                            inv.respond_to_reinvite(200)
 #                    elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
                     if True:
-                        for attr in ["user", "id", "net_type", "address_type", "address"]:
+#                        for attr in ["user", "id", "net_type", "address_type", "address"]:
+                        for attr in ["user", "net_type", "address_type", "address"]:
                             if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
                                 inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Difference in contents of o= line")})
                                 return
