@@ -143,7 +143,7 @@ class AudioStream(NotificationHandler):
             self.state = "INITIALIZED"
             self.notification_center.post_notification("MediaStreamDidInitialize", self, TimestampedNotificationData())
 
-    def get_local_media(self, for_offer=True, on_hold=False):
+    def get_local_media(self, for_offer, on_hold=False):
         with self._lock:
             if self.state not in ["INITIALIZED", "ESTABLISHED"]:
                 raise RuntimeError("AudioStream.get_local_media() may only be " +

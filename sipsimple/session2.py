@@ -263,7 +263,7 @@ class Session(NotificationHandler):
             self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=[stream], proposer="local"))
             stream.initialize(self)
             local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-            local_sdp.media.append(stream.get_local_media())
+            local_sdp.media.append(stream.get_local_media(True))
             self.inv.set_offered_local_sdp(local_sdp)
             self.inv.send_reinvite()
             remote_sdp = self._inv.get_active_remote_sdp()
