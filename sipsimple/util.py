@@ -87,6 +87,17 @@ class NotificationHandler(object):
                 nc.add_observer(observer, name.replace('_NH_', ''), sender=sender)
 
 
+def classproperty(function):
+    class Descriptor(object):
+        def __get__(self, instance, owner):
+            return function(owner)
+        def __set__(self, instance, value):
+            raise AttributeError("read-only attribute cannot be set")
+        def __delete__(self, instance):
+            raise AttributeError("read-only attribute cannot be deleted")
+    return Descriptor()
+
+
 def makedirs(path):
     try:
         os.makedirs(path)
@@ -96,4 +107,4 @@ def makedirs(path):
         raise
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "makedirs"]
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "classproperty", "makedirs"]

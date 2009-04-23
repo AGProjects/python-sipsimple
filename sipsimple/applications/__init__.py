@@ -28,16 +28,6 @@ class ValidationError(ParserError): pass
 
 ## Utilities
 
-def classproperty(function):
-    class Descriptor(object):
-        def __get__(self, instance, owner):
-            return function(owner)
-        def __set__(self, instance, value):
-            raise AttributeError("read-only attribute cannot be set")
-        def __delete__(self, instance):
-            raise AttributeError("read-only attribute cannot be deleted")
-    return Descriptor()
-
 def parse_qname(qname):
     if qname[0] == '{':
         qname = qname[1:]
