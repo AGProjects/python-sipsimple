@@ -66,7 +66,8 @@ class Session(NotificationHandler):
 
     def _set_state(self, new_state, originator=None):
         prev_state = self.state
-        assert prev_state != new_state, (prev_state, new_state)
+        if prev_state == new_state:
+            return
         self.state = new_state
         data = TimestampedNotificationData(prev_state=prev_state, state=new_state)
         if new_state == 'TERMINATED':
