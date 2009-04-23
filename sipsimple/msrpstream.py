@@ -115,9 +115,9 @@ class MSRPChat(object):
             self.notification_center.post_notification('MediaStreamDidInitialize', self)
 
     def start(self, local_sdp, remote_sdp, stream_index):
+        context = 'sdp_negotiation'
         try:
             remote_media = remote_sdp.media[stream_index]
-            context = 'sdp_negotiation'
             media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
             remote_accept_types = media_attributes.get('accept-types')
             # TODO: update accept_types and accept_wrapped_types from remote_media
