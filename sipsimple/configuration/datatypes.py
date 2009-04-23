@@ -10,6 +10,8 @@ import re
 import sys
 import urlparse
 
+from sipsimple.util import classproperty
+
 
 __all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate',
            'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange',
@@ -373,14 +375,21 @@ class ResourcePath(object):
     def normalized(self):
         path = os.path.expanduser(self.path)
         if os.path.isabs(path):
-            return path
-        binary_path = os.path.realpath(sys.argv[0])
-        root_directory = os.path.dirname(os.path.dirname(binary_path))
-        if os.path.basename(os.path.dirname(binary_path)) in ('bin', 'scripts'):
-            resources_directory = os.path.join(root_directory, 'share', 'sipclient')
+            return os.path.realpath(path)
+        return os.path.realpath(os.path.join(self.resources_directory, path))
+
+    @classproperty
+    def resources_directory(cls):
+        binary_directory = os.path.dirname(os.path.realpath(sys.argv[0]))
+        if os.path.basename(binary_directory) in ('bin', 'scripts', 'MacOS'):
+            application_directory = os.path.dirname(binary_directory)
         else:
-            resources_directory = os.path.join(root_directory, 'Resources')
-        return os.path.join(resources_directory, path)
+            application_directory = binary_directory
+        from sipsimple.configuration.settings import SIPSimpleSettings
+        settings = SIPSimpleSettings()
+        mapping = dict(bin='share/sipclient', scripts='resources', MacOS='Resources')
+        resources_component = settings.resources_directory or mapping.get(os.path.basename(binary_directory)) or ''
+        return os.path.realpath(os.path.join(application_directory, resources_component))
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.path)
