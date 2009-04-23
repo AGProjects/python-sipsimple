@@ -14,7 +14,7 @@ version = re.search('__version__ = "([0-9.]+)"', open(os.path.join(os.path.dirna
 title = "SIP SIMPLE client"
 description = "Python SIP SIMPLE client library using PJSIP"
 scripts = [os.path.join('scripts', x) for x in os.listdir('scripts') if re.match('^sip_.*\\.py$', x) or re.match('^xcap_.*\\.py$', x)]
-data_files = glob.glob(os.path.join('share/sipclient', '*.wav'))
+data_files = glob.glob(os.path.join('resources', '*.wav'))
 
 if os.name == 'posix':
     class my_build_scripts(build_scripts):
