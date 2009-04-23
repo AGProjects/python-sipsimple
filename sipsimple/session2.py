@@ -161,21 +161,21 @@ class Session(NotificationHandler):
                 self.notification_center.post_notification("SIPSessionDidStart", self)
             else:
                 code, reason, originator = ERROR
-                if code is not None:
+                if code is not None: # InvitationError can be injected by end() method, in which case it won't have 'code'
                     data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
                     self.notification_center.post_notification("SIPSessionDidFail", self, data)
-                proc.spawn_greenlet(self._terminate, code or 486)
+                proc.spawn_greenlet(self._terminate, code)
                 killall(workers, wait=False)
                 for stream in self.streams:
                     proc.spawn_greenlet(stream.end)
 
-    def _terminate(self, code=603):
+    def _terminate(self, code=None):
         if self.state in ['TERMINATED', 'TERMINATING']:
             return self.wait_state('TERMINATED')
         self._set_state('TERMINATING')
         data = TimestampedNotificationData(originator='local')
         self.notification_center.post_notification("SIPSessionWillEnd", self, data)
-        self.inv.disconnect(code)
+        self.inv.disconnect(code or 603)
         self._set_state('TERMINATED', originator='local')
         self.unsubscribe_from_all(sender=self.inv._obj)
 
@@ -225,7 +225,7 @@ class Session(NotificationHandler):
                 if code is not None:
                     data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
                     self.notification_center.post_notification("SIPSessionDidFail", self, data)
-                proc.spawn_greenlet(self._terminate, code or 486)
+                proc.spawn_greenlet(self._terminate, code)
                 killall(workers, wait=False)
                 for stream in streams:
                     proc.spawn_greenlet(stream.end)
