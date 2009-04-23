@@ -237,6 +237,7 @@ class ChatSession(NotificationHandler):
 
     def _NH_SIPSessionGotStreamUpdate(self, session, data):
         self.update_streams(data.streams)
+        self.manager.update_prompt()
 
     def end(self):
         self.session.end()
@@ -268,14 +269,12 @@ class ChatSession(NotificationHandler):
         self.chat = None
         self.audio = None
         for stream in streams:
+            stream._chatsession = self
             if isinstance(stream, MSRPChat):
                 self.chat = stream
-                break
-            if isinstance(stream, GreenAudioStream):
+            elif isinstance(stream, GreenAudioStream):
                 self.audio = stream
-                break
         self.streams = streams
-        self.manager.update_prompt()
 
     def hold(self):
         self.session.hold()
