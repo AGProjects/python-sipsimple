@@ -311,10 +311,12 @@ class ChatSession(NotificationHandler):
             self.audio.send_dtmf(x)
 
     def toggle_recording(self, *args):
-        if self.audio_recording_file_name is None:
-            self.start_recording_audio()
+        if not self.audio:
+            raise UserCommandError('This session does not have audio stream')
+        if self.audio.audio_recording_file_name is None:
+            self.audio.start_recording_audio()
         else:
-            self.stop_recording_audio()
+            self.audio.stop_recording_audio()
 
 
 class ChatManager(NotificationHandler):
@@ -836,10 +838,10 @@ class InfoPrinter(NotificationHandler):
         else:
             print 'SIP registration ended.'
 
-    def _NH_SIPSessionDidStartRecordingAudio(self, session, data):
+    def _NH_AudioStreamDidStartRecordingAudio(self, session, data):
         print 'Recording audio to "%s"' % data.file_name
 
-    def _NH_SIPSessionDidStopRecordingAudio(self, session, data):
+    def _NH_AudioStreamDidStopRecordingAudio(self, session, data):
         print 'Stopped recording audio to "%s"' % data.file_name
 
 def start(options, console):
