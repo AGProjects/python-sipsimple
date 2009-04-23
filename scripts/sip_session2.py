@@ -261,7 +261,7 @@ class ChatSession(NotificationHandler):
         return chunk
 
     def format_prompt(self):
-        self.info = '/'.join([get_userfriendly_desc(stream) for stream in self.streams])
+        self.info = '/'.join([get_userfriendly_desc(stream) for stream in self.streams if stream])
         self.info = self.info or 'Session with no streams'
         result = '%s to %s' % (self.info, format_uri(self.remote_party))
         if self.state != 'ESTABLISHED':
@@ -272,11 +272,12 @@ class ChatSession(NotificationHandler):
         self.chat = None
         self.audio = None
         for stream in streams:
-            stream._chatsession = self
-            if isinstance(stream, MSRPChat):
-                self.chat = stream
-            elif isinstance(stream, GreenAudioStream):
-                self.audio = stream
+            if stream:
+                stream._chatsession = self
+                if isinstance(stream, MSRPChat):
+                    self.chat = stream
+                elif isinstance(stream, GreenAudioStream):
+                    self.audio = stream
         self.streams = streams
 
     def remove_stream(self, stream_class):
