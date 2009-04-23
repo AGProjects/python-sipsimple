@@ -222,7 +222,6 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pj
     handler = EventHandler(e)
     e.start_cfg(log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or trace_pjsip) else 0,
                 trace_sip=settings.logging.trace_sip or trace_sip)
-    e.codecs = list(account.audio.codec_list)
 
     # start the session manager (for incoming calls)
 
