@@ -361,13 +361,13 @@ class Resolution(object):
 ## Path related
 
 class Path(str):
-    def __new__(cls, value):
-        return value
+    def __new__(cls, path):
+        return os.path.normpath(path)
 
 
 class ResourcePath(object):
     def __init__(self, path):
-        self.path = path
+        self.path = os.path.normpath(path)
     
     @property
     def normalized(self):
@@ -400,7 +400,7 @@ class ResourcePath(object):
 
 class UserDataPath(object):
     def __init__(self, path):
-        self.path = path
+        self.path = os.path.normpath(path)
     
     @property
     def normalized(self):
