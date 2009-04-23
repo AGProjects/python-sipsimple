@@ -295,6 +295,48 @@ class Session(NotificationHandler):
                 data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
                 self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
 
+    def remove_stream(self, index):
+        assert self.state == 'ESTABLISHED', self.state
+        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
+        if not 0 <= index < len(self.streams):
+            raise ValueError('No stream with index %s' % index)
+        self.greenlet = api.getcurrent()
+        ERROR = (500, None, 'local')
+        self._set_state("PROPOSING")
+        try:
+            local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
+            local_sdp.media[index].port = 0
+            self.inv.set_offered_local_sdp(local_sdp)
+            self.inv.send_reinvite()
+            remote_sdp = self._inv.get_active_remote_sdp()
+            if len(remote_sdp.media)!=len(local_sdp.media):
+                raise InvitationError(code=488, reason='The answerer does not seem to support re-invites', origin='local')
+            ERROR = None
+        except InvitationError, ex:
+            ERROR = (ex.code, ex.reason, ex.originator)
+            raise
+        except:
+            typ, exc, tb = sys.exc_info()
+            ERROR = (500, str(exc) or str(typ.__name__), 'local')
+            raise
+        finally:
+            self.greenlet = None
+            if ERROR is None:
+                proc.spawn_greenlet(self.streams[index].end)
+                self.streams[index]=None
+                self._set_state('ESTABLISHED')
+                #self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self)
+                self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
+            else:
+                code, reason, originator = ERROR
+                if code == 500:
+                    proc.spawn_greenlet(self._terminate, code)
+                else:
+                    self._set_state('ESTABLISHED')
+                data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
+
+
 class StreamFactory(object):
     __metaclass__ = Singleton
 

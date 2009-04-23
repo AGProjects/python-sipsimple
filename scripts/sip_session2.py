@@ -279,6 +279,12 @@ class ChatSession(NotificationHandler):
                 self.audio = stream
         self.streams = streams
 
+    def remove_stream(self, stream_class):
+        for index, stream in enumerate(self.streams):
+            if isinstance(stream, stream_class):
+                break
+        self.session.remove_stream(index)
+
     def hold(self):
         self.session.hold()
         self.put_on_hold = True
