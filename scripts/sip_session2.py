@@ -653,14 +653,14 @@ class ChatManager(NotificationHandler):
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
-        session.add_stream(self.get_stream(args[0]))
+        self.procs.spawn(session.add_stream, self.get_stream(args[0])(self.account))
 
     def cmd_remove(self, *args):
         """:remove audio|chat \t Remove a stream from the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
-        session.remove_stream(self.get_stream(args[0]))
+        self.procs.spawn(session.remove_stream, self.get_stream(args[0]))
 
     def cmd_switch(self):
         """:switch  (or CTRL-N) \t Switch between active sessions"""
