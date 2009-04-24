@@ -97,6 +97,8 @@ class Session(NotificationHandler):
                 self._set_state('TERMINATED', originator='remote')
             else:
                 self._set_state('TERMINATED', originator='local')
+            for stream in self.streams:
+                proc.spawn_greenlet(stream.end)
         # TODO: update remote_user_agent
 
     def connect(self, callee_uri, routes, streams=None):
