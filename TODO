@@ -43,7 +43,6 @@ SIP core
 - Prohibit sending negative reply for re-INVITE in Invitation [RK]
 - Handle incoming SUBSCRIBE requests [RK]
 - Handle incoming REGISTER requests [RK]
-- Make MESSAGE handling a class, fix timeout [RK]
 - Handle incoming OPTIONS requests [RK]
 - Add feature to send OPTIONS method and parse the replies [RK]
 - Handle sending and receiving of multipart bodies for Invitation [RK]
