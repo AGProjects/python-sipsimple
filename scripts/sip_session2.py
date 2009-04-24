@@ -414,7 +414,7 @@ class ChatManager(NotificationHandler):
             session.end()
 
     def close(self):
-        for session in self.sessions[:]:
+        for session in self.sessions:
             self._spawn(session.end)
         self.sessions = []
         self.update_prompt()
