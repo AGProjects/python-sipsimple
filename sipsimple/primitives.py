@@ -120,4 +120,53 @@ class Registration(NotificationHandler):
                                                         data=NotificationData(expired=True))
 
 
-__all__ = ["Registration"]
+class Message(NotificationHandler):
+
+    def __init__(self, credentials, to_uri, route, content_type, body):
+        self._request = Request("MESSAGE", credentials, to_uri, to_uri, route, content_type=content_type, body=body)
+        self._notification_center = NotificationCenter()
+        self._lock = allocate_lock()
+
+    credentials = property(lambda self: self._request.credentials)
+    to_uri = property(lambda self: self._request.to_uri)
+    route = property(lambda self: self._request.route)
+    content_type = property(lambda self: self._request.content_type)
+    body = property(lambda self: self._request.body)
+    is_sent = property(lambda self: self._request.state != "INIT")
+    in_progress = property(lambda self: self._request.state == "IN_PROGRESS")
+
+    def send(self, timeout=None):
+        with self._lock:
+            if self.is_sent:
+                raise RuntimeError("This MESSAGE was already sent")
+            self._notification_center.add_observer(self, sender=self._request)
+            try:
+                self._request.send(timeout)
+            except:
+                self._notification_center.remove_observer(self, sender=self._request)
+
+    def end(self):
+        with self._lock:
+            self._request.terminate()
+
+    @keyword_handler
+    def _NH_SIPRequestDidSucceed(self, request, timestamp, code, reason, headers, body, expires):
+        with self._lock:
+            if expires:
+                # this shouldn't happen really
+                request.terminate()
+            self._notification_center.post_notification("SIPMessageDidSucceed", sender=self, data=NotificationData())
+
+    @keyword_handler
+    def _NH_SIPRequestDidFail(self, request, timestamp, code, reason, headers=None, body=None):
+        with self._lock:
+            self._notification_center.post_notification("SIPMessageDidFail", sender=self,
+                                                        data=NotificationData(code=code, reason=reason))
+
+    @keyword_handler
+    def _NH_SIPRequestDidEnd(self, request, timestamp):
+        with self._lock:
+            self._notification_center.remove_observer(self, sender=request)
+
+
+__all__ = ["Registration", "Message"]
