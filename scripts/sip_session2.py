@@ -416,9 +416,10 @@ class ChatManager(NotificationHandler):
     def close(self):
         for session in self.sessions:
             self._spawn(session.end)
-        self.sessions = []
         self.update_prompt()
-        self.procs.waitall()
+        with calming_message(1, lambda : 'Waiting for %s' % ', '.join(str(p) for p in self.procs)):
+            self.procs.waitall()
+        self.sessions = []
 
     def close_current_session(self):
         if self.current_session is not None:
@@ -912,8 +913,7 @@ def start(options, console):
                 traceback.print_exc()
         finally:
             console.copy_input_line()
-            with calming_message(1, "Disconnecting existing session(s) ..."):
-                manager.close()
+            manager.close()
     finally:
         RegistrationManager().unregister()
         with calming_message(2, "Stopping the engine ..."):
@@ -923,7 +923,11 @@ def start(options, console):
 @contextmanager
 def calming_message(seconds, message):
     """Print `message' after `seconds'."""
-    t = api.get_hub().schedule_call(seconds, sys.stdout.write, message + '\n')
+    if callable(message):
+        get_message = message
+    else:
+        get_message = lambda : message
+    t = api.get_hub().schedule_call(seconds, sys.stdout.write, get_message() + '\n')
     try:
         yield t
     finally:
