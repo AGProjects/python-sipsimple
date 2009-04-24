@@ -70,6 +70,8 @@ class Session(NotificationHandler):
             return
         self.state = new_state
         data = TimestampedNotificationData(prev_state=prev_state, state=new_state)
+        if originator is not None:
+            data.originator = originator
         if new_state == 'TERMINATED':
             self.stop_time = datetime.datetime.now()
         self.notification_center.post_notification("SIPSessionChangedState", self, data)
@@ -94,9 +96,9 @@ class Session(NotificationHandler):
         assert self.inv._obj == inv, (self.inv, self.inv._obj, inv, data)
         if data.state=='DISCONNECTED':
             if data.prev_state=='DISCONNECTING':
-                self._set_state('TERMINATED', originator='remote')
-            else:
                 self._set_state('TERMINATED', originator='local')
+            else:
+                self._set_state('TERMINATED', originator='remote')
             for stream in self.streams:
                 proc.spawn_greenlet(stream.end)
         # TODO: update remote_user_agent
