@@ -15,6 +15,7 @@ from optparse import OptionParser
 from application.notification import NotificationCenter
 from application import log
 from application.python.util import Singleton
+from gnutls.errors import GNUTLSError
 
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
@@ -47,7 +48,7 @@ trafficlog.hook_std_output()
 log.level.current = log.level.WARNING
 
 # we'll suppress tracebacks for the following
-BORING_EXCEPTIONS = (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError)
+BORING_EXCEPTIONS = (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError, GNUTLSError)
 
 class UserCommandError(Exception):
     pass
