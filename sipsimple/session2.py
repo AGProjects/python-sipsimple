@@ -3,7 +3,7 @@ import sys
 import datetime
 from application.notification import NotificationCenter, Any
 from application.python.util import Singleton
-from eventlet import proc, api
+from eventlet import proc, api, coros
 
 from sipsimple.core import SIPURI, SDPSession, SDPConnection
 from sipsimple.engine import Engine
@@ -16,6 +16,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 
 __all__ = ['Session',
            'IncomingHandler']
+
 
 class NotificationHandler(util.NotificationHandler):
 
@@ -110,7 +111,7 @@ class Session(NotificationHandler):
             self.streams = streams
         if not self.streams:
             raise ValueError('Must provide streams')
-        workers = []
+        workers = Workers()
         self.direction = 'outgoing'
         route = iter(routes).next()
         contact_uri = SIPURI(user=self.account.contact.username,
@@ -124,9 +125,10 @@ class Session(NotificationHandler):
         self._set_state('CALLING')
         try:
             self.notification_center.post_notification("SIPSessionNewOutgoing", self, TimestampedNotificationData(streams=streams))
-            workers = [proc.spawn(stream.initialize, self) for stream in streams]
-            proc.waitall(workers)
-            workers = []
+            for stream in streams:
+                workers.spawn(stream.initialize, self)
+            workers.waitall()
+            workers = Workers()
             local_ip = SIPSimpleSettings().local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip))
             for stream in self.streams:
@@ -145,10 +147,10 @@ class Session(NotificationHandler):
                     break
                 else:
                     if remote_media.port:
-                        workers.append(proc.spawn(self.streams[index].start, local_sdp, remote_sdp, index))
+                        workers.spawn(self.streams[index].start, local_sdp, remote_sdp, index)
                     else:
                         proc.spawn_greenlet(self.streams[index].end)
-            proc.waitall(workers)
+            workers.waitall()
             # TODO: subscribe to stream failure
             ERROR = None
         except InvitationError, ex:
@@ -169,7 +171,7 @@ class Session(NotificationHandler):
                     data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
                     self.notification_center.post_notification("SIPSessionDidFail", self, data)
                 proc.spawn_greenlet(self._terminate, code)
-                killall(workers, wait=False)
+                workers.killall()
                 for stream in self.streams:
                     proc.spawn_greenlet(stream.end)
 
@@ -193,14 +195,16 @@ class Session(NotificationHandler):
     def accept(self):
         assert self.state == 'INCOMING', self.state
         assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
+        streams = self.streams
+        workers = Workers()
         self.greenlet = api.getcurrent()
         ERROR = (500, None, 'local') # code, reason, originator
         self._set_state('ACCEPTING')
-        streams = self.streams
         try:
-            workers = [proc.spawn(stream.initialize, self) for stream in streams]
-            proc.waitall(workers)
-            workers = []
+            for stream in streams:
+                workers.spawn(stream.initialize, self)
+            workers.waitall()
+            workers = Workers()
             media = [stream.get_local_media(False) for stream in streams]
             remote_sdp = self.inv.get_offered_remote_sdp()
             local_ip = SIPSimpleSettings().local_ip.normalized
@@ -212,8 +216,8 @@ class Session(NotificationHandler):
             self.start_time = datetime.datetime.now()
             confirmed_notification, sdp_notification = self.inv.accept_invite()
             for index, stream in enumerate(streams):
-                workers.append(proc.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, index))
-            proc.waitall(workers)
+                workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, index)
+            workers.waitall()
             ERROR = None
         except:
             typ, exc, tb = sys.exc_info()
@@ -230,7 +234,7 @@ class Session(NotificationHandler):
                     data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
                     self.notification_center.post_notification("SIPSessionDidFail", self, data)
                 proc.spawn_greenlet(self._terminate, code)
-                killall(workers, wait=False)
+                workers.killall()
                 for stream in streams:
                     proc.spawn_greenlet(stream.end)
 
@@ -393,13 +397,38 @@ class IncomingHandler(NotificationHandler):
             self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(data=data))
 
 
-# move this to eventlet.proc
-def killall(procs, *throw_args, **kwargs):
-    if not throw_args:
-        throw_args = (proc.ProcExit, )
-    for g in procs:
-        if not g.dead:
-            api.get_hub().schedule_call_global(0, g.throw, *throw_args)
-    if kwargs.get('wait') and api.getcurrent() is not api.get_hub().greenlet:
-        api.sleep(0)
+class Workers(object):
+    # does not log the first failure of the worker (the exception will still be reraised by waitall())
+
+    def __init__(self):
+        self.error_event = proc.Source()
+        self.procs = []
+
+    def spawn(self, function, *args, **kwargs):
+        p = proc.spawn(send_error(self.error_event, function), *args, **kwargs)
+        self.procs.append(p)
+
+    def waitall(self, trap_errors=False):
+        queue = coros.queue()
+        self.error_event.link(queue)
+        return proc.waitall(self.procs, trap_errors=trap_errors, queue=queue)
+
+    def killall(self, wait=False):
+        proc.killall(self.procs, wait=wait)
+
+
+class send_error(proc.wrap_errors):
+
+    def __init__(self, error_event, func):
+        self.error_event = error_event
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        try:
+            return self.func(*args, **kwargs)
+        except:
+            if self.error_event.has_exception():
+                raise
+            else:
+                self.error_event.send_exception(*sys.exc_info())
 
