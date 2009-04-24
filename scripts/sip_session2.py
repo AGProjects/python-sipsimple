@@ -211,8 +211,6 @@ def _get_history_file(local_uri, remote_uri, is_outgoing):
 
 class ChatSession(NotificationHandler):
 
-    info = 'Session'
-
     def __init__(self, session, manager, remote_party=None, streams=None):
         self.session = session
         self.session._chat = self
@@ -231,6 +229,9 @@ class ChatSession(NotificationHandler):
                 self.remote_party = self.inv.remote_uri
         self.subscribe_to_all(sender=self.session)
         self.update_streams(streams)
+
+    def __bool__(self):
+        return self.state != 'TERMINATED'
 
     def __getattr__(self, item):
         return getattr(self.session, item)
@@ -261,10 +262,15 @@ class ChatSession(NotificationHandler):
             self.history_file.flush()
         return chunk
 
+    def format_stream_info(self):
+        result = '/'.join([get_userfriendly_desc(stream) for stream in self.streams if stream])
+        return result or 'Session with no streams'
+
+    def format_desc(self):
+        return '%s to %s' % (self.format_stream_info(), format_uri(self.remote_party))
+
     def format_prompt(self):
-        self.info = '/'.join([get_userfriendly_desc(stream) for stream in self.streams if stream])
-        self.info = self.info or 'Session with no streams'
-        result = '%s to %s' % (self.info, format_uri(self.remote_party))
+        result = self.format_desc()
         if self.state != 'ESTABLISHED':
             result += ' [%s]' % self.state
         return result + ': '
@@ -378,7 +384,6 @@ class ChatManager(NotificationHandler):
         session._chat = ChatSession(session, self)
         for stream in session.streams:
             stream._chatsession = session._chat
-        session._chat.info = '/'.join(get_userfriendly_desc(x) for x in session.streams)
         has_chat = False
         has_audio = False
         replies = list('yYnN') + [CTRL_D]
@@ -386,7 +391,7 @@ class ChatManager(NotificationHandler):
         if has_chat and has_audio:
             replies += list('aAcC')
             replies_txt += '/a/c'
-        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chat.info, session.inv.caller_uri, replies_txt)
+        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chat.format_stream_info(), session.inv.caller_uri, replies_txt)
         with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
