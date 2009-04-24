@@ -16,7 +16,8 @@ from zope.interface import implements
 from application.notification import IObserver
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPURI, SIPCoreError, send_message, Credentials
+from sipsimple.core import SIPURI, SIPCoreError, Credentials
+from sipsimple.primitives import Message
 from sipsimple.session import SessionManager
 from sipsimple.lookup import DNSLookup
 from sipsimple.clients import format_cmdline_uri
@@ -44,7 +45,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
     global user_quit, lock, queue
     lock.acquire()
     sending = False
-    sent = False
+    msg = None
     msg_buf = []
     routes = None
     is_registered = False
@@ -81,11 +82,12 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                 elif event_name == "SIPEngineGotMessage":
                     print 'Received MESSAGE from "%(from_uri)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
                     print args["body"]
-                elif event_name == "SIPEngineGotMessageResponse":
-                    if args["code"] / 100 != 2:
-                        print "Could not deliver MESSAGE: %(code)d %(reason)s" % args
-                    else:
-                        print "MESSAGE was accepted by remote party."
+                elif event_name == "SIPMessageDidSucceed":
+                    print "MESSAGE was accepted by remote party."
+                    user_quit = False
+                    command = "quit"
+                elif event_name == "SIPMessageDidFail":
+                    print "Could not deliver MESSAGE: %(code)d %(reason)s" % args
                     user_quit = False
                     command = "quit"
                 elif event_name == "SIPAccountRegistrationDidSucceed":
@@ -126,7 +128,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                     user_quit = False
                     command = "quit"
             if command == "user_input":
-                if not sent:
+                if msg is None:
                     msg_buf.append(data)
             if command == "eof":
                 if target_uri is None:
@@ -134,7 +136,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                     if not is_registered:
                         user_quit = False
                         command = "quit"
-                elif sent:
+                elif message is not None:
                     user_quit = False
                     command = "quit"
                 else:
@@ -150,7 +152,8 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                         credentials = Credentials(SIPURI(user="bonjour", host="local"))
                     else:
                         credentials = account.credentials
-                    send_message(credentials, target_uri, "text", "plain", "\n".join(msg_buf), routes[0])
+                    msg = Message(credentials, target_uri, routes[0], "text/plain", "\n".join(msg_buf))
+                    msg.send()
                     print "Press Ctrl+D to stop the program."
             if command == "quit":
                 break
