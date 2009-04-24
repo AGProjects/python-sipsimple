@@ -56,7 +56,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_UNESCAPE_IN_PLACE 1",
                    "#define PJMEDIA_HAS_L16_CODEC 0"]
     patch_files = ["patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
-                   "patches/pjsip-2425-sdp_media_line.patch"]
+                   "patches/pjsip-2425-sdp_media_line.patch",
+                   "patches/pjsip-2553-sip_inv-recv_neg_reply_to_reinvite.patch"]
 
     user_options = build_ext.user_options
     user_options.extend([
