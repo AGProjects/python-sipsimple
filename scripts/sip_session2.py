@@ -407,9 +407,9 @@ class ChatManager(NotificationHandler):
             has_audio = False
             has_chat = True
         if result in list('yYaAcC'):
+            self.add_session(session._chat)
             with api.timeout(30, api.TimeoutError('timed out while accepting the session')):
                 session.accept()
-            self.add_session(session._chat)
         else:
             session.end()
 
