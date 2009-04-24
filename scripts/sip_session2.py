@@ -332,11 +332,12 @@ class ChatManager(NotificationHandler):
                'audio': GreenAudioStream}
     _reverse_streams = dict((v, k) for (k, v) in streams.items())
 
-    def __init__(self, engine, account, console, logger):
+    def __init__(self, engine, account, console, logger, auto_answer):
         self.engine = engine
         self.account = account
         self.console = console
         self.logger = logger
+        self.auto_answer = auto_answer
         self.sessions = []
         self.current_session = None
         self.procs = proc.RunningProcSet()
@@ -365,16 +366,19 @@ class ChatManager(NotificationHandler):
             self._spawn(self._handle_proposal, session, data)
 
     def _handle_proposal(self, session, data):
-        txt = '/'.join(x.capitalize() for x in data.streams)
-        question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(self.inv.caller_uri), txt)
-        with linked_notification(name='SIPSessionChangedState', sender=session) as q:
-            p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
-            # spawn a greenlet that will wait for a change in session state and kill p1 if there is
-            p2 = proc.spawn(lambda : q.wait() and p1.kill())
-            try:
-                result = p1.wait() in ['y', 'Y']
-            finally:
-                p2.kill()
+        if self.auto_answer:
+            result = True
+        else:
+            txt = '/'.join(x.capitalize() for x in data.streams)
+            question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(self.inv.caller_uri), txt)
+            with linked_notification(name='SIPSessionChangedState', sender=session) as q:
+                p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
+                # spawn a greenlet that will wait for a change in session state and kill p1 if there is
+                p2 = proc.spawn(lambda : q.wait() and p1.kill())
+                try:
+                    result = p1.wait() in ['y', 'Y']
+                finally:
+                    p2.kill()
         if result:
             session.accept_proposal(chat='chat' in data.streams, audio='audio' in data.streams)
         else:
@@ -384,28 +388,29 @@ class ChatManager(NotificationHandler):
         session._chat = ChatSession(session, self)
         for stream in session.streams:
             stream._chatsession = session._chat
-        has_chat = False
-        has_audio = False
-        replies = list('yYnN') + [CTRL_D]
-        replies_txt = 'y/n'
-        if has_chat and has_audio:
-            replies += list('aAcC')
-            replies_txt += '/a/c'
-        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chat.format_stream_info(), session.inv.caller_uri, replies_txt)
-        with linked_notification(name='SIPSessionChangedState', sender=session) as q:
-            p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
-            # spawn a greenlet that will wait for a change in session state and kill p1 if there is
-            p2 = proc.spawn(lambda : q.wait() and p1.kill())
-            try:
-                result = p1.wait()
-            finally:
-                p2.kill()
-        if result in list('aA'):
-            has_audio = True
-            has_chat = False
-        elif result in list('cC'):
-            has_audio = False
-            has_chat = True
+        if self.auto_answer:
+            result = 'Y'
+        else:
+            replies = list('yYnN') + [CTRL_D]
+            replies_txt = 'y/n'
+            #if has_chat and has_audio:
+            #    replies += list('aAcC')
+            #    replies_txt += '/a/c'
+            question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chat.format_stream_info(), session.inv.caller_uri, replies_txt)
+            with linked_notification(name='SIPSessionChangedState', sender=session) as q:
+                p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
+                # spawn a greenlet that will wait for a change in session state and kill p1 if there is
+                p2 = proc.spawn(lambda : q.wait() and p1.kill())
+                try:
+                    result = p1.wait()
+                finally:
+                    p2.kill()
+#         if result in list('aA'):
+#             has_audio = True
+#             has_chat = False
+#         elif result in list('cC'):
+#             has_audio = False
+#             has_chat = True
         if result in list('yYaAcC'):
             self.add_session(session._chat)
             with api.timeout(30, api.TimeoutError('timed out while accepting the session')):
@@ -880,7 +885,7 @@ def start(options, console):
                 print 'Local SIP contact: %s:%s;transport=tls' % (account.contact, engine.local_tls_port)
         MessageRenderer().start()
         IncomingHandler().subscribe_to_all()
-        manager = ChatManager(engine, account, console, options.logger)
+        manager = ChatManager(engine, account, console, options.logger, options.auto_answer)
         manager.update_prompt()
         try:
             if not options.args:
@@ -1059,6 +1064,7 @@ def parse_options(usage, description):
                       help="Log the raw contents of incoming and outgoing MSRP messages.")
     parser.add_option("--no-relay", action='store_true', help="Don't use the MSRP relay.")
     parser.add_option("--msrp-tcp", action='store_true', help="Use TCP for MSRP connections.")
+    parser.add_option("--auto-answer", action='store_true')
     options, args = parser.parse_args()
     options.args = args
     return options
