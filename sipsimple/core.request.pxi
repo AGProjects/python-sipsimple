@@ -64,7 +64,10 @@ cdef class Request:
     property contact_uri:
 
         def __get__(self):
-            return self._contact_uri.copy()
+            if self._contact_uri is None:
+                return None
+            else:
+                return self._contact_uri.copy()
 
     property route:
 
@@ -115,13 +118,15 @@ cdef class Request:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_timer)
         self._timer_active = 0
 
-    def __init__(self, method, Credentials credentials, SIPURI to_uri, SIPURI request_uri, SIPURI contact_uri,
-                 Route route, call_id=None, cseq=None, dict extra_headers=None, content_type=None, body=None):
+    def __init__(self, method, Credentials credentials, SIPURI to_uri, SIPURI request_uri,
+                 Route route, SIPURI contact_uri=None, call_id=None, cseq=None,
+                 dict extra_headers=None, content_type=None, body=None):
         cdef pjsip_method method_pj
         cdef PJSTR from_uri_str
         cdef PJSTR to_uri_str
         cdef PJSTR request_uri_str
         cdef PJSTR contact_uri_str
+        cdef pj_str_t *contact_uri_pj = NULL
         cdef pj_str_t *call_id_pj = NULL
         cdef object content_type_spl
         cdef pjsip_hdr *hdr
@@ -135,8 +140,6 @@ cdef class Request:
             raise ValueError("credentials argument may not be None")
         if to_uri is None:
             raise ValueError("to_uri argument may not be None")
-        if contact_uri is None:
-            raise ValueError("contact_uri argument may not be None")
         if route is None:
             raise ValueError("route argument may not be None")
         if cseq is not None and cseq < 0:
@@ -160,9 +163,11 @@ cdef class Request:
         to_uri_str = PJSTR(to_uri._as_str(0))
         self._request_uri = request_uri.copy()
         request_uri_str = PJSTR(request_uri._as_str(1))
-        self._contact_uri = contact_uri.copy()
-        contact_uri_str = PJSTR(contact_uri._as_str(0))
         self._route = route.copy()
+        if contact_uri is not None:
+            self._contact_uri = contact_uri.copy()
+            contact_uri_str = PJSTR(contact_uri._as_str(0))
+            contact_uri_pj = &contact_uri_str.pj_str
         if call_id is not None:
             self._call_id = PJSTR(call_id)
             call_id_pj = &self._call_id.pj_str
@@ -180,7 +185,7 @@ cdef class Request:
             self._content_subtype = PJSTR(content_type_spl[1])
             self._body = PJSTR(body)
         status = pjsip_endpt_create_request(ua._pjsip_endpoint._obj, &method_pj, &request_uri_str.pj_str,
-                                            &from_uri_str.pj_str, &to_uri_str.pj_str, &contact_uri_str.pj_str,
+                                            &from_uri_str.pj_str, &to_uri_str.pj_str, contact_uri_pj,
                                             call_id_pj, self.cseq, NULL, &self._tdata)
         if status != 0:
             raise PJSIPError("Could not create request", status)

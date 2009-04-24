@@ -49,7 +49,7 @@ class Registration(NotificationHandler):
             call_id = None
             cseq = 1
         request = Request("REGISTER", self.credentials, self.credentials.uri,
-                          SIPURI(self.credentials.uri.host), contact_uri, route, call_id=call_id,
+                          SIPURI(self.credentials.uri.host), route, contact_uri, call_id=call_id,
                           cseq=cseq, extra_headers={"Expires": str(int(self.duration) if do_register else 0)})
         self._notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
