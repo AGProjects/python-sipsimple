@@ -75,12 +75,14 @@ class Registration(NotificationHandler):
                     self._last_request.terminate()
                     self._last_request = None
                 self._expire_time = None
-                self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self, data=NotificationData(expired=False))
+                self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
+                                                            data=NotificationData(expired=False))
             else:
                 self._last_request = request
                 self._notification_center.post_notification("SIPRegistrationDidSucceed", sender=self,
                                                             data=NotificationData(code=code, reason=reason,
-                                                                                  contact_uri=request.contact_uri, expires_in=expires))
+                                                                                  contact_uri=request.contact_uri,
+                                                                                  expires_in=expires))
 
     @keyword_handler
     def _NH_SIPRequestDidFail(self, request, timestamp, code, reason, headers=None, body=None):
@@ -100,7 +102,8 @@ class Registration(NotificationHandler):
         with self._lock:
             if request is not self._last_request:
                 return
-            self._notification_center.post_notification("SIPRegistrationWillExpire", sender=self, data=NotificationData(expires=expires))
+            self._notification_center.post_notification("SIPRegistrationWillExpire", sender=self,
+                                                        data=NotificationData(expires=expires))
 
     @keyword_handler
     def _NH_SIPRequestDidEnd(self, request, timestamp):
@@ -113,7 +116,8 @@ class Registration(NotificationHandler):
                 self._current_request.terminate()
                 self._current_request = None
             self._expire_time = None
-            self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self, data=NotificationData(expired=True))
+            self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
+                                                        data=NotificationData(expired=True))
 
 
 __all__ = ["Registration"]
