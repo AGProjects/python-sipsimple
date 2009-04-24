@@ -36,6 +36,7 @@ class MSRPChat(object):
         self.accept_types = list(settings.chat.accept_types)
         self.local_media = None
         self.msrp = None ## Placeholder for the MSRPTransport that will be set when started
+        self.msrp_connector = None
         self.accept_wrapped_types = list(settings.chat.accept_wrapped_types)
         self.cpim_enabled = None             # Boolean value. None means it was not negotiated yet
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
