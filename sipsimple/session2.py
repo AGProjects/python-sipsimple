@@ -325,7 +325,7 @@ class Session(NotificationHandler):
             raise
         except:
             typ, exc, tb = sys.exc_info()
-            ERROR = (500, str(exc) or str(typ.__name__), 'local')
+            ERROR = (500, str(exc) or typ.__name__, 'local')
             raise
         finally:
             self.greenlet = None
