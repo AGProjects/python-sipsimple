@@ -603,7 +603,6 @@ cdef extern from "pjsip.h":
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
-    int pjsip_msg_print(pjsip_msg *msg, char *buf, unsigned int size)
     int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata)
     void pjsip_tx_data_add_ref(pjsip_tx_data *tdata)
     pj_str_t *pjsip_uri_get_scheme(pjsip_uri *uri)
@@ -961,10 +960,6 @@ cdef int _handle_post_queue(PJSIPUA ua) except -1
 cdef class Request
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
-
-# core.message
-
-cdef void cb_send_message(void *token, pjsip_event *e) with gil
 
 # core.registration
 
