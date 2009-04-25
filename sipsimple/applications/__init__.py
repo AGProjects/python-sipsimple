@@ -6,6 +6,8 @@ import sys
 
 from lxml import etree
 
+from sipsimple.util import classproperty
+
 __all__ = ['ParserError',
            'BuilderError',
            'ValidationError',
