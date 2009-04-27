@@ -23,18 +23,25 @@ class NotificationHandler(util.NotificationHandler):
     def subscribe_to_all(self, sender=Any):
         """Subscribe to all the notifications this class is interested in (based on what handler methods it has)"""
         nc = NotificationCenter()
-        if not hasattr(self, '_observer'):
-            self._observer = NotifyFromThreadObserver(self)
+        try:
+            observer = self.__dict__['_observer']
+        except KeyError:
+            observer = NotifyFromThreadObserver(self)
+            self.__dict__['_observer'] = observer
         for name in dir(self):
             if name.startswith('_NH_'):
-                nc.add_observer(self._observer, name.replace('_NH_', ''), sender=sender)
+                nc.add_observer(observer, name.replace('_NH_', ''), sender=sender)
 
     def unsubscribe_from_all(self, sender=Any):
-        if hasattr(self, '_observer'):
+        try:
+            observer = self.__dict__['_observer']
+        except KeyError:
+            return
+        else:
             nc = NotificationCenter()
             for name in dir(self):
                 if name.startswith('_NH_'):
-                    nc.remove_observer(self._observer, name.replace('_NH_', ''), sender=sender)
+                    nc.remove_observer(observer, name.replace('_NH_', ''), sender=sender)
 
 
 class Error(Exception):
