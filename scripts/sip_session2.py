@@ -16,6 +16,7 @@ from application.notification import NotificationCenter
 from application import log
 from application.python.util import Singleton
 from gnutls.errors import GNUTLSError
+from twisted.internet.error import DNSLookupError
 
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
@@ -48,7 +49,7 @@ trafficlog.hook_std_output()
 log.level.current = log.level.WARNING
 
 # we'll suppress tracebacks for the following
-BORING_EXCEPTIONS = (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError, GNUTLSError)
+BORING_EXCEPTIONS = (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError, GNUTLSError, DNSLookupError)
 
 class UserCommandError(Exception):
     pass
