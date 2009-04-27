@@ -136,7 +136,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                     if not is_registered:
                         user_quit = False
                         command = "quit"
-                elif message is not None:
+                elif len(msg_buf) == 0:
                     user_quit = False
                     command = "quit"
                 else:
