@@ -108,7 +108,8 @@ class Session(NotificationHandler):
             else:
                 self._set_state('TERMINATED', originator='remote')
             for stream in self.streams:
-                proc.spawn_greenlet(stream.end)
+                if stream:
+                    proc.spawn_greenlet(stream.end)
         # TODO: update remote_user_agent
 
     def connect(self, callee_uri, routes, streams=None):
@@ -150,13 +151,15 @@ class Session(NotificationHandler):
                     remote_media = remote_sdp.media[index]
                 except LookupError:
                     for not_used_stream in self.streams[index:]:
-                        proc.spawn_greenlet(not_used_stream.end)
+                        if not_used_stream:
+                            proc.spawn_greenlet(not_used_stream.end)
                     break
                 else:
                     if remote_media.port:
                         workers.spawn(self.streams[index].start, local_sdp, remote_sdp, index)
                     else:
-                        proc.spawn_greenlet(self.streams[index].end)
+                        if self.streams[index]:
+                            proc.spawn_greenlet(self.streams[index].end)
             workers.waitall()
             # TODO: subscribe to stream failure
             ERROR = None
@@ -180,7 +183,8 @@ class Session(NotificationHandler):
                 proc.spawn_greenlet(self._terminate, code)
                 workers.killall()
                 for stream in self.streams:
-                    proc.spawn_greenlet(stream.end)
+                    if stream:
+                        proc.spawn_greenlet(stream.end)
 
     def _terminate(self, code=None):
         if self.state in ['TERMINATED', 'TERMINATING']:
@@ -243,7 +247,8 @@ class Session(NotificationHandler):
                 proc.spawn_greenlet(self._terminate, code)
                 workers.killall()
                 for stream in streams:
-                    proc.spawn_greenlet(stream.end)
+                    if stream:
+                        proc.spawn_greenlet(stream.end)
 
     def _make_next_sdp(self, is_offer, on_hold=False):
         local_sdp = self._inv.get_active_local_sdp()
@@ -313,7 +318,7 @@ class Session(NotificationHandler):
     def remove_stream(self, index):
         assert self.state == 'ESTABLISHED', self.state
         assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        if not 0 <= index < len(self.streams):
+        if not 0 <= index < len(self.streams) or not self.streams[index]:
             raise ValueError('No stream with index %s' % index)
         self.greenlet = api.getcurrent()
         ERROR = (500, None, 'local')
