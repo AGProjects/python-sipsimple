@@ -67,6 +67,8 @@ class Session(NotificationHandler):
             self.state = 'INCOMING'
         else:
             self.state = 'NULL'
+        self._proposed_streams = []
+        self._proposed_media = None
 
     @property
     def _inv(self):
@@ -111,6 +113,41 @@ class Session(NotificationHandler):
                 if stream:
                     proc.spawn_greenlet(stream.end)
         # TODO: update remote_user_agent
+        elif data.state == "REINVITED":
+            current_remote_sdp = inv.get_active_remote_sdp()
+            proposed_remote_sdp = inv.get_offered_remote_sdp()
+            for attr in ["user", "net_type", "address_type", "address"]:
+                if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
+                    inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Difference in contents of o= line")})
+                    return
+            if len(proposed_remote_sdp.media) < len(current_remote_sdp.media):
+                inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Reduction in number of media streams")})
+                return
+            for index, (current_media, proposed_media) in enumerate(zip(current_remote_sdp.media, proposed_remote_sdp.media)):
+                if current_media.media != proposed_media.media:
+                    inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, 'Media changed')})
+                    return
+                if not proposed_media.port and current_media.port:
+                    if self.streams[index]:
+                        proc.spawn_greenlet(self.streams[index].end)
+                        self.streams[index] = None
+                        self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
+            self._proposed_media =  proposed_remote_sdp.media[len(current_remote_sdp.media):]
+            if self._proposed_media:
+                streams = []
+                for index, media in enumerate(self._proposed_media):
+                    s = StreamFactory().make_media_stream(proposed_remote_sdp, len(current_remote_sdp.media) + index, self.account)
+                    streams.append(s)
+                self._proposed_streams = streams
+                inv.respond_to_reinvite(180)
+                self._set_state("PROPOSED")
+                self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=streams, proposer="remote"))
+            else:
+                inv.set_offered_local_sdp(self._make_next_sdp(False))
+                inv.respond_to_reinvite(200)
+#                    else:
+#                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
+
 
     def connect(self, callee_uri, routes, streams=None):
         assert self.state == 'NULL', self.state
@@ -248,6 +285,53 @@ class Session(NotificationHandler):
                 proc.spawn_greenlet(self._terminate, code)
                 workers.killall()
                 for stream in streams:
+                    if stream:
+                        proc.spawn_greenlet(stream.end)
+
+    def accept_proposal(self):
+        assert self.state == 'PROPOSED', self.state
+        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
+        assert self._proposed_streams, self._proposed_streams
+        streams = self._proposed_streams
+        workers = Workers()
+        self.greenlet = api.getcurrent()
+        ERROR = (500, None, 'local') # code, reason, originator
+        self._set_state('ACCEPTING_PROPOSAL')
+        try:
+            for stream in streams:
+                workers.spawn(stream.initialize, self)
+            workers.waitall()
+            workers = Workers()
+            media = [stream.get_local_media(False) for stream in streams]
+            remote_sdp = self.inv.get_offered_remote_sdp()
+            local_sdp = self._make_next_sdp(False)
+            offset = len(local_sdp.media)
+            new_local_media = [stream.get_local_media(False) for stream in streams]
+            local_sdp.media.extend(new_local_media)
+            self.inv.set_offered_local_sdp(local_sdp)
+            confirmed_notification, sdp_notification = self.inv.respond_to_reinvite()
+            for index, stream in enumerate(streams):
+                workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, offset+index)
+            workers.waitall()
+            ERROR = None
+        except:
+            typ, exc, tb = sys.exc_info()
+            ERROR = (500, str(exc) or str(typ.__name__), 'local')
+            raise
+        finally:
+            self.greenlet = None
+            if ERROR is None:
+                self.streams.extend(streams)
+                self._set_state('ESTABLISHED')
+                self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams, proposer="remote"))
+            else:
+                code, reason, originator = ERROR
+                if code is not None:
+                    data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                    self.notification_center.post_notification("SIPSessionDidFail", self, data)
+                proc.spawn_greenlet(self._terminate, code)
+                workers.killall()
+                for stream in self.streams:
                     if stream:
                         proc.spawn_greenlet(stream.end)
 

@@ -370,7 +370,7 @@ class ChatManager(NotificationHandler):
         if self.auto_answer:
             result = True
         else:
-            txt = '/'.join(x.capitalize() for x in data.streams)
+            txt = '/'.join([get_userfriendly_desc(stream) for stream in data.streams])
             question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(session.inv.caller_uri), txt)
             with linked_notification(name='SIPSessionChangedState', sender=session) as q:
                 p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
@@ -381,7 +381,7 @@ class ChatManager(NotificationHandler):
                 finally:
                     p2.kill()
         if result:
-            session.accept_proposal(chat='chat' in data.streams, audio='audio' in data.streams)
+            session.accept_proposal()
         else:
             session.reject_proposal()
 
