@@ -461,9 +461,9 @@ class ChatManager(NotificationHandler):
             self.update_prompt()
 
     def remove_session(self, session):
-        assert isinstance(session, ChatSession), repr(session)
         if session is None:
             return
+        assert isinstance(session, ChatSession), repr(session)
         try:
             index = self.sessions.index(session)
         except ValueError:
