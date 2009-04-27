@@ -370,7 +370,7 @@ class ChatManager(NotificationHandler):
             result = True
         else:
             txt = '/'.join(x.capitalize() for x in data.streams)
-            question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(self.inv.caller_uri), txt)
+            question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(session.inv.caller_uri), txt)
             with linked_notification(name='SIPSessionChangedState', sender=session) as q:
                 p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
                 # spawn a greenlet that will wait for a change in session state and kill p1 if there is
