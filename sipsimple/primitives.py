@@ -1,6 +1,6 @@
 from __future__ import with_statement
 
-from thread import allocate_lock
+from threading import RLock
 
 from application.python.decorator import decorator
 from application.notification import NotificationCenter, NotificationData
@@ -23,7 +23,7 @@ class Registration(NotificationHandler):
         self._current_request = None
         self._last_request = None
         self._unregistering = False
-        self._lock = allocate_lock()
+        self._lock = RLock()
 
     is_registered = property(lambda self: self._last_request is not None)
     contact_uri = property(lambda self: None if self._last_request is None else self._last_request.contact_uri)
@@ -125,7 +125,7 @@ class Message(NotificationHandler):
     def __init__(self, credentials, to_uri, route, content_type, body):
         self._request = Request("MESSAGE", credentials, to_uri, to_uri, route, content_type=content_type, body=body)
         self._notification_center = NotificationCenter()
-        self._lock = allocate_lock()
+        self._lock = RLock()
 
     credentials = property(lambda self: self._request.credentials)
     to_uri = property(lambda self: self._request.to_uri)
