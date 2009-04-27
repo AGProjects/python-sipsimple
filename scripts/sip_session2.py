@@ -290,8 +290,8 @@ class ChatSession(NotificationHandler):
     def remove_stream(self, stream_class):
         for index, stream in enumerate(self.streams):
             if isinstance(stream, stream_class):
-                break
-        self.session.remove_stream(index)
+                return proc.spawn_greenlet(self.session.remove_stream, index)
+        raise UserCommandError("The session does not have such stream")
 
     def hold(self):
         self.session.hold()
@@ -683,7 +683,7 @@ class ChatManager(NotificationHandler):
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
-        self._spawn(session.remove_stream, self.get_stream(args[0]))
+        session.remove_stream(self.get_stream(args[0]))
 
     def cmd_switch(self):
         """:switch  (or CTRL-N) \t Switch between active sessions"""
