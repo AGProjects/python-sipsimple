@@ -274,6 +274,12 @@ class GreenInvitation(GreenBase):
             self._obj.accept_invite(*args, **kwargs)
             return self._wait_confirmed_and_sdp(q)
 
+    def respond_to_reinvite(self, *args, **kwargs):
+        assert self.state in ['REINVITED'], self.state
+        with self.linked_notifications() as q:
+            self._obj.respond_to_reinvite(*args, **kwargs)
+            return self._wait_confirmed_and_sdp(q)
+
     def call_on_disconnect(self, func):
         # legacy function still used by the old script; use a notification in new scripts
         observer = notification.CallFromThreadObserver(func, condition=lambda n: n.data.state=='DISCONNECTED')
