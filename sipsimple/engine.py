@@ -1,11 +1,13 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+from __future__ import with_statement
+
 import sys
 import traceback
 import atexit
 from datetime import datetime
-from thread import start_new_thread, allocate_lock, get_ident as get_thread_ident
+from threading import Thread, Lock
 
 from application.system import default_host_ip
 from application.python.util import Singleton
@@ -14,7 +16,7 @@ from application.notification import NotificationCenter, NotificationData
 from sipsimple.core import PJSIPUA, PJ_VERSION, PJ_SVN_REVISION, SIPCoreError
 from sipsimple import __version__
 
-class Engine(object):
+class Engine(Thread):
     __metaclass__ = Singleton
     default_start_options = {"auto_sound": True,
                              "local_ip": None,
@@ -43,28 +45,26 @@ class Engine(object):
     def __init__(self):
         self.notification_center = NotificationCenter()
         self._thread_started = False
+        atexit.register(self.stop)
+        self._lock = Lock()
+        Thread.__init__(self)
+        # This will probably need to be removed later, but that causes too many problems for now:
+        self.setDaemon(True)
 
     @property
     def is_running(self):
-        return hasattr(self, "_ua") \
-                and hasattr(self, "_thread_started") \
-                and self._thread_started \
-                and not self._thread_stopping
+        return (hasattr(self, "_ua") and hasattr(self, "_thread_started")
+                and self._thread_started and not self._thread_stopping)
 
     def __getattr__(self, attr):
-        if hasattr(self, "_ua"):
-            if attr != "poll":
-                try:
-                    return getattr(self._ua, attr)
-                except AttributeError:
-                    pass
+        if attr not in ["_ua", "poll"] and hasattr(self, "_ua") and attr in dir(self._ua):
+            return getattr(self._ua, attr)
         raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
 
     def __setattr__(self, attr, value):
-        if hasattr(self, "_ua"):
-            if attr != "poll" and attr in dir(self._ua):
-                setattr(self._ua, attr, value)
-                return
+        if attr not in ["_ua", "poll"] and hasattr(self, "_ua") and attr in dir(self._ua):
+            setattr(self._ua, attr, value)
+            return
         object.__setattr__(self, attr, value)
 
     def start(self, auto_sound=True, local_ip=None, **kwargs):
@@ -73,30 +73,25 @@ class Engine(object):
         init_options = Engine.default_start_options.copy()
         init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
         self._post_notification("SIPEngineWillStart")
-        try:
-            self._ua = PJSIPUA(self._handle_event, **init_options)
-            if auto_sound:
-                self._ua.set_sound_devices()
-            self._lock = allocate_lock()
-            self._thread_stopping = False
-            self._lock.acquire()
-            self._thread_started = True
-            self._thread_id = start_new_thread(self._run, ())
-        except:
-            self._thread_started = False
-            if hasattr(self, "_thread_stopping"):
-                del self._thread_stopping
-            if hasattr(self, "_lock"):
-                if self._lock.locked():
-                    self._lock.release()
-                del self._lock
-            if hasattr(self, "_ua"):
-                self._ua.dealloc()
-                del self._ua
-            self._post_notification("SIPEngineDidFail")
-            raise
-        else:
-            self._post_notification("SIPEngineDidStart")
+        with self._lock:
+            try:
+                self._thread_stopping = False
+                self._thread_started = True
+                self._ua = PJSIPUA(self._handle_event, **init_options)
+                if auto_sound:
+                    self._ua.set_sound_devices()
+                Thread.start(self)
+            except:
+                self._thread_started = False
+                if hasattr(self, "_thread_stopping"):
+                    del self._thread_stopping
+                if hasattr(self, "_ua"):
+                    self._ua.dealloc()
+                    del self._ua
+                self._post_notification("SIPEngineDidFail")
+                raise
+            else:
+                self._post_notification("SIPEngineDidStart")
 
     def start_cfg(self, enable_sound=True, local_ip=None, **kwargs):
         # Take the default values for the arguments from SIPSimpleSettings
@@ -124,38 +119,33 @@ class Engine(object):
             codecs=list(settings.audio.codec_list))
         self.start(auto_sound=False, local_ip=local_ip, **kwargs)
         if enable_sound:
-            self.set_sound_devices(playback_device=settings.audio.output_device,
-                                   recording_device=settings.audio.input_device)
+            self._ua.set_sound_devices(playback_device=settings.audio.output_device,
+                                       recording_device=settings.audio.input_device)
 
     def stop(self):
-        if self._thread_started:
-            self._thread_stopping = True
-            if get_thread_ident() != self._thread_id:
-                self._lock.acquire()
-                self._lock.release()
+        with self._lock:
+            if self._thread_started:
+                self._thread_stopping = True
+                self.join()
 
     # worker thread
-    def _run(self):
+    def run(self):
         failed = False
-        atexit.register(self.stop)
-        try:
-            while not self._thread_stopping:
-                try:
-                    failed = self._ua.poll()
-                except:
-                    exc_type, exc_val, exc_tb = sys.exc_info()
-                    self._post_notification("SIPEngineGotException", type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
-                    failed = True
-                if failed:
-                    self._post_notification("SIPEngineDidFail")
-                    break
-            if not failed:
-                self._post_notification("SIPEngineWillEnd")
-            self._ua.dealloc()
-            del self._ua
-        finally:
-            self._lock.release()
-            self._post_notification("SIPEngineDidEnd")
+        while not self._thread_stopping:
+            try:
+                failed = self._ua.poll()
+            except:
+                exc_type, exc_val, exc_tb = sys.exc_info()
+                self._post_notification("SIPEngineGotException", type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
+                failed = True
+            if failed:
+                self._post_notification("SIPEngineDidFail")
+                break
+        if not failed:
+            self._post_notification("SIPEngineWillEnd")
+        self._ua.dealloc()
+        del self._ua
+        self._post_notification("SIPEngineDidEnd")
 
     def _handle_event(self, event_name, **kwargs):
         sender = kwargs.pop("obj", None)
