@@ -1,5 +1,5 @@
 from __future__ import with_statement
-from thread import allocate_lock
+from threading import RLock
 import os
 from datetime import datetime
 
@@ -27,7 +27,7 @@ class AudioStream(NotificationHandler):
         self._audio_transport = None
         self._rtp_transport = None
         self._audio_rec = None
-        self._lock = allocate_lock()
+        self._lock = RLock()
 
     @property
     def on_hold(self):
@@ -35,10 +35,11 @@ class AudioStream(NotificationHandler):
 
     @property
     def audio_recording_file_name(self):
-        if self._audio_rec is None:
-            return None
-        else:
-            return self._audio_rec.file_name
+        with self._lock:
+            if self._audio_rec is None:
+                return None
+            else:
+                return self._audio_rec.file_name
 
     def validate_incoming(self, remote_sdp, stream_index):
         with self._lock:
@@ -237,11 +238,11 @@ class AudioStream(NotificationHandler):
             try:
                 self._audio_rec.start()
             except SIPCoreError, e:
+                self._audio_rec = None
                 self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
                                                            TimestampedNotificationData(file_name=
                                                                                        self._audio_rec.file_name,
                                                                                        reason=e.args[0]))
-                self._audio_rec = None
             else:
                 self.notification_center.post_notification("AudioStreamDidStartRecordingAudio", self,
                                                            TimestampedNotificationData(file_name=
@@ -252,10 +253,10 @@ class AudioStream(NotificationHandler):
             try:
                 self._audio_rec.stop()
             finally:
+                self._audio_rec = None
                 self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
                                                            TimestampedNotificationData(file_name=
                                                                                        self._audio_rec.file_name))
-                self._audio_rec = None
 
     def validate_update(self, remote_sdp, stream_index):
         with self._lock:
