@@ -546,6 +546,7 @@ class ChatManager(NotificationHandler):
         return self._cmd_call(args, [GreenAudioStream, MSRPChat], self.cmd_audio.__doc__)
 
     def _call(self, target_uri, streams):
+        chat = None
         try:
             session = GreenSession(self.account)
             chat = ChatSession(session, self, remote_party=target_uri, streams=streams)
