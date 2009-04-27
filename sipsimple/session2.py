@@ -187,6 +187,7 @@ class Session(NotificationHandler):
                         proc.spawn_greenlet(stream.end)
 
     def _terminate(self, code=None):
+        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
         if self.state in ['TERMINATED', 'TERMINATING']:
             return self.wait_state('TERMINATED')
         self._set_state('TERMINATING')
