@@ -438,6 +438,8 @@ cdef class AudioTransport:
                                               &local_sdp._obj, &remote_sdp._obj, sdp_index)
         if status != 0:
             raise PJSIPError("Could not parse SDP for audio session", status)
+        if self._stream_info.param == NULL:
+            raise SIPCoreError("Could not parse SDP for audio session")
         self._stream_info.param.setting.vad = self._vad
         status = pjmedia_stream_create(ua._pjmedia_endpoint._obj, self._pool, &self._stream_info,
                                        self.transport._obj, NULL, &self._obj)
