@@ -171,7 +171,7 @@ cdef class RTPTransport:
         if self.state == "LOCAL":
             return
         if self.state != "INIT":
-            raise SIPCoreError('set_LOCAL can only be called in the "INIT" state')
+            raise SIPCoreError('set_LOCAL can only be called in the "INIT" state, current state is "%s"' % self.state)
         local_sdp._to_c()
         self._update_local_sdp(local_sdp, sdp_index, NULL)
         self.state = "LOCAL"
@@ -184,7 +184,8 @@ cdef class RTPTransport:
         if self.state == "ESTABLISHED":
             return
         if self.state not in ["INIT", "LOCAL"]:
-            raise SIPCoreError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states')
+            raise SIPCoreError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states, ' +
+                               'current state is "%s"' % self.state)
         local_sdp._to_c()
         remote_sdp._to_c()
         if self.state == "INIT":
@@ -270,7 +271,8 @@ cdef class RTPTransport:
                 self.state = "WAIT_STUN"
                 _RTPTransport_stun_list.append(self)
         else:
-            raise SIPCoreError('set_INIT can only be called in the "NULL", "LOCAL" and "ESTABLISHED" states')
+            raise SIPCoreError('set_INIT can only be called in the "NULL", "LOCAL" and "ESTABLISHED" states, ' +
+                               'current state is "%s"' % self.state)
 
 
 cdef class AudioTransport:
@@ -307,7 +309,8 @@ cdef class AudioTransport:
         if sdp_index < 0:
             raise ValueError("sdp_index argument cannot be negative")
         if transport.state != "INIT":
-            raise SIPCoreError('RTPTransport object provided is not in the "INIT" state')
+            raise SIPCoreError('RTPTransport object provided is not in the "INIT" state, but in the "%s" state' %
+                               transport.state)
         self._vad = int(bool(enable_silence_detection))
         self.transport = transport
         transport._get_info(&info)
@@ -412,12 +415,14 @@ cdef class AudioTransport:
     def start(self, SDPSession local_sdp, SDPSession remote_sdp, int sdp_index):
         cdef pjmedia_port *media_port
         cdef int status
+        cdef object desired_state
         cdef PJSIPUA ua = _get_ua()
         if self._is_started:
             raise SIPCoreError("This AudioTransport was already started once")
-        if ((self._is_offer and self.transport.state != "LOCAL") or
-            (not self._is_offer and self.transport.state != "ESTABLISHED")):
-            raise SIPCoreError("RTPTransport object provided is in wrong state")
+        desired_state = ("LOCAL" if self._is_offer else "ESTABLISHED")
+        if self.transport.state != desired_state:
+            raise SIPCoreError('RTPTransport object provided is not in the "%s" state, but in the "%s" state' %
+                               (desired_state, self.transport.state))
         if None in [local_sdp, remote_sdp]:
             raise ValueError("SDP arguments cannot be None")
         if sdp_index < 0:

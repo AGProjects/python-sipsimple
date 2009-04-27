@@ -329,7 +329,8 @@ cdef class Invitation:
         cdef int status
         cdef PJSIPUA ua = _get_ua()
         if self.state != "NULL":
-            raise SIPCoreError("Can only transition to the CALLING state from the NULL state")
+            raise SIPCoreError('Can only transition to the "CALLING" state from the "NULL" state, ' +
+                               'currently in the "%s" state' % self.state)
         if self._local_sdp_proposed is None:
             raise SIPCoreError("Local SDP has not been set")
         caller_uri = PJSTR(self._caller_uri._as_str(0))
@@ -373,7 +374,8 @@ cdef class Invitation:
     def respond_to_invite_provisionally(self, int response_code=180, dict extra_headers=None):
         cdef PJSIPUA ua = self._check_ua()
         if self.state != "INCOMING":
-            raise SIPCoreError("Can only transition to the EARLY state from the INCOMING state")
+            raise SIPCoreError('Can only transition to the "EARLY" state from the "INCOMING" state, ' +
+                               'currently in the "%s" state.' % self.state)
         if response_code / 100 != 1:
             raise SIPCoreError("Not a provisional response: %d" % response_code)
         self._send_response(ua, response_code, extra_headers)
@@ -381,7 +383,8 @@ cdef class Invitation:
     def accept_invite(self, dict extra_headers=None):
         cdef PJSIPUA ua = self._check_ua()
         if self.state not in ["INCOMING", "EARLY"]:
-            raise SIPCoreError("Can only transition to the EARLY state from the INCOMING or EARLY states")
+            raise SIPCoreError('Can only transition to the "EARLY" state from the "INCOMING" or "EARLY" states, ' +
+                               'currently in the "%s" state' % self.state)
         try:
             self._send_response(ua, 200, extra_headers)
         except PJSIPError, e:
@@ -430,7 +433,8 @@ cdef class Invitation:
     def respond_to_reinvite(self, int response_code=200, dict extra_headers=None):
         cdef PJSIPUA ua = self._check_ua()
         if self.state != "REINVITED":
-            raise SIPCoreError("Can only send a response to a re-INVITE in the REINVITED state")
+            raise SIPCoreError('Can only send a response to a re-INVITE in the "REINVITED" state, ' +
+                               'currently in the "%s" state' % self.state)
         self._send_response(ua, response_code, extra_headers)
         if response_code / 100 > 2:
             self._cb_state(ua, "CONFIRMED", NULL)
@@ -441,7 +445,7 @@ cdef class Invitation:
         cdef pjmedia_sdp_session *local_sdp = NULL
         cdef PJSIPUA ua = self._check_ua()
         if self.state != "CONFIRMED":
-            raise SIPCoreError("Cannot send re-INVITE in CONFIRMED state")
+            raise SIPCoreError('Cannot send re-INVITE in "CONFIRMED" state')
         if self._local_sdp_proposed is not None:
             self._local_sdp_proposed._to_c()
             local_sdp = &self._local_sdp_proposed._obj

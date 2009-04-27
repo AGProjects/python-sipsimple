@@ -238,7 +238,7 @@ cdef class Request:
         cdef int status
         cdef PJSIPUA ua = self._get_ua()
         if self.state != "INIT":
-            raise SIPCoreError("This method may only be called in the INIT state")
+            raise SIPCoreError('This method may only be called in the "INIT" state, current state is "%s"' % self.state)
         if timeout is not None:
             if timeout <= 0:
                 raise ValueError("Timeout value cannot be negative")
