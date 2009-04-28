@@ -89,8 +89,10 @@ class EngineTracer(FileLoggerBase):
     def handle_notification(self, notification):
         if notification.name in self.excluded_notifications:
             return
-        self.write("%s Notification name=%r sender=%r\n%s" % (datetime.now(), notification.name, notification.sender,
-                                                              pformat(notification.data.__dict__)))
+        message = "%s %s name=%r sender=%r" % (datetime.now(), type(notification).__name__, notification.name, notification.sender)
+        if notification.data.__dict__:
+            message += '\n' + pformat(notification.data.__dict__)
+        self.write(message)
 
 
 class LoggerManager(object):
