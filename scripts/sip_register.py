@@ -190,17 +190,17 @@ class RegistrationApplication(object):
 
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if not self.success:
-            route = notification.data.registration.route
-            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.registration.expires)
+            route = notification.data.route
+            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.expires)
             contact_uri_list = notification.data.contact_uri_list
             if len(contact_uri_list) > 1:
-                message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %d seconds)" % (other_contact[1:-1], expires) for other_contact, expires in contact_uri_list if other_contact[1:-1] != notification.data.contact_uri])
+                message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %d seconds)" % (str(other_contact_uri), params["expires"]) for other_contact_uri, params in contact_uri_list if other_contact_uri != notification.data.contact_uri])
             self.output.put(message)
             
             self.success = True
         else:
-            route = notification.data.registration.route
-            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.registration.expires))
+            route = notification.data.route
+            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.expires))
         
         if self.max_registers is not None:
             self.max_registers -= 1
@@ -209,13 +209,16 @@ class RegistrationApplication(object):
 
     def _NH_SIPAccountRegistrationDidFail(self, notification):
         if notification.data.registration is not None:
-            route = notification.data.registration.route
+            route = notification.data.route
             if notification.data.next_route:
                 next_route = notification.data.next_route
                 next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
             else:
-                next_route = 'No more routes to try; retrying in %.2f seconds.' % (notification.data.delay)
-            if hasattr(notification.data, 'code'):
+                if notification.data.delay:
+                    next_route = 'No more routes to try; retrying in %.2f seconds.' % (notification.data.delay)
+                else:
+                    next_route = 'No more routes to try'
+            if notification.data.code:
                 status = '%d %s' % (notification.data.code, notification.data.reason)
             else:
                 status = notification.data.reason
@@ -233,10 +236,7 @@ class RegistrationApplication(object):
                 engine.stop()
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
-        if hasattr(notification.data, 'code'):
-            self.output.put('%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), notification.data.code, notification.data.reason))
-        else:
-            self.output.put('%s Registration ended.' % (datetime.now().replace(microsecond=0),))
+        self.output.put('%s Registration %s.' % (datetime.now().replace(microsecond=0), ("expired" if notification.data.expired else "ended")))
         
         engine = Engine()
         engine.stop()
