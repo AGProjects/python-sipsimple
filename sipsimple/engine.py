@@ -48,8 +48,6 @@ class Engine(Thread):
         atexit.register(self.stop)
         self._lock = Lock()
         Thread.__init__(self)
-        # This will probably need to be removed later, but that causes too many problems for now:
-        self.setDaemon(True)
 
     @property
     def is_running(self):

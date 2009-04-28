@@ -407,55 +407,61 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     e.start_cfg(enable_sound=False,
                 log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or trace_pjsip) else 0,
                 trace_sip=settings.logging.trace_sip or trace_sip)
-    if e.recording_devices:
-        print "Available audio input devices: %s" % ", ".join(sorted(e.recording_devices))
-    if e.playback_devices:
-        print "Available audio output devices: %s" % ", ".join(sorted(e.playback_devices))
-    if disable_sound:
-        e.set_sound_devices(playback_device="Dummy", recording_device="Dummy")
-    else:
-        e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
-    print "Using audio input device: %s" % e.current_recording_device
-    print "Using audio output device: %s" % e.current_playback_device
-
-    # start the session manager (for incoming calls)
-
-    sm = SessionManager()
-
-    # pre-lookups
-
-    routes_dns = DNSLookup()
-    stun_dns = DNSLookup()
-    if isinstance(account, BonjourAccount):
-        # print listening addresses
-        for transport in settings.sip.transports:
-            local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
-            print 'Listening on "%s"' % local_uri
-        if target_uri is not None:
-            # setup routes
-            if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
-                target_uri = "sip:%s" % target_uri
-            target_uri = e.parse_sip_uri(target_uri)
-            routes_dns.lookup_sip_proxy(target_uri, settings.sip.transports)
-    else:
-        # lookup STUN servers, as we don't support doing this asynchronously yet
-        if account.stun_servers:
-            account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
+    try:
+        if e.recording_devices:
+            print "Available audio input devices: %s" % ", ".join(sorted(e.recording_devices))
+        if e.playback_devices:
+            print "Available audio output devices: %s" % ", ".join(sorted(e.playback_devices))
+        if disable_sound:
+            e.set_sound_devices(playback_device="Dummy", recording_device="Dummy")
         else:
-            stun_dns.lookup_service(SIPURI(host=account.id.domain), "stun")
-        # setup routes
-        if target_uri is not None:
-            target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
-            if account.outbound_proxy is None:
-                routes_dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
-            else:
-                proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
-                routes_dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
+            e.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
+        print "Using audio input device: %s" % e.current_recording_device
+        print "Using audio output device: %s" % e.current_playback_device
 
-    # start thread and process user input
-    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, fork))
-    if not fork:
-        atexit.register(termios_restore)
+        # start the session manager (for incoming calls)
+
+        sm = SessionManager()
+
+        # pre-lookups
+
+        routes_dns = DNSLookup()
+        stun_dns = DNSLookup()
+        if isinstance(account, BonjourAccount):
+            # print listening addresses
+            for transport in settings.sip.transports:
+                local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
+                print 'Listening on "%s"' % local_uri
+            if target_uri is not None:
+                # setup routes
+                if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
+                    target_uri = "sip:%s" % target_uri
+                target_uri = e.parse_sip_uri(target_uri)
+                routes_dns.lookup_sip_proxy(target_uri, settings.sip.transports)
+        else:
+            # lookup STUN servers, as we don't support doing this asynchronously yet
+            if account.stun_servers:
+                account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
+            else:
+                stun_dns.lookup_service(SIPURI(host=account.id.domain), "stun")
+            # setup routes
+            if target_uri is not None:
+                target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
+                if account.outbound_proxy is None:
+                    routes_dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
+                else:
+                    proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
+                    routes_dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
+
+        # start thread and process user input
+        if not fork:
+            atexit.register(termios_restore)
+        start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, fork))
+
+    except:
+        e.stop()
+        raise
+
     try:
         while True:
             if fork:
@@ -469,7 +475,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     except KeyboardInterrupt:
         if user_quit:
             print "Ctrl+C pressed, exiting instantly!"
-            queue.put(("quit", True))
+    finally:
+        queue.put(("quit", True))
         lock.acquire()
 
 def parse_handle_call_option(option, opt_str, value, parser, name):

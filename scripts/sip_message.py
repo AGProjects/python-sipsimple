@@ -226,36 +226,43 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pj
     e.start_cfg(log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or trace_pjsip) else 0,
                 trace_sip=settings.logging.trace_sip or trace_sip)
 
-    # start the session manager (for incoming calls)
+    try:
 
-    sm = SessionManager()
+        # start the session manager (for incoming calls)
 
-    # pre-lookups
+        sm = SessionManager()
 
-    dns = DNSLookup()
-    if isinstance(account, BonjourAccount):
-        # print listening addresses
-        for transport in settings.sip.transports:
-            local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
-            print 'Listening on "%s"' % local_uri
-        if target_uri is not None:
+        # pre-lookups
+
+        dns = DNSLookup()
+        if isinstance(account, BonjourAccount):
+            # print listening addresses
+            for transport in settings.sip.transports:
+                local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
+                print 'Listening on "%s"' % local_uri
+            if target_uri is not None:
+                # setup routes
+                if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
+                    target_uri = "sip:%s" % target_uri
+                target_uri = e.parse_sip_uri(target_uri)
+                dns.lookup_sip_proxy(target_uri, settings.sip.transports)
+        else:
             # setup routes
-            if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
-                target_uri = "sip:%s" % target_uri
-            target_uri = e.parse_sip_uri(target_uri)
-            dns.lookup_sip_proxy(target_uri, settings.sip.transports)
-    else:
-        # setup routes
-        if target_uri is not None:
-            target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
-            if account.outbound_proxy is None:
-                dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
-            else:
-                proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
-                dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
+            if target_uri is not None:
+                target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
+                if account.outbound_proxy is None:
+                    dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
+                else:
+                    proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port, parameters={"transport": account.outbound_proxy.transport})
+                    dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
 
-    # start thread and process user input
-    start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, message, dns))
+        # start thread and process user input
+        start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, message, dns))
+
+    except:
+        e.stop()
+        raise
+
     ctrl_d_pressed = False
     try:
         while True:
@@ -269,7 +276,8 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pj
     except KeyboardInterrupt:
         if user_quit:
             print "Ctrl+C pressed, exiting instantly!"
-            queue.put(("quit", True))
+    finally:
+        queue.put(("quit", True))
         lock.acquire()
 
 def parse_options():
