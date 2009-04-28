@@ -145,9 +145,8 @@ class Session(NotificationHandler):
             else:
                 inv.set_offered_local_sdp(self._make_next_sdp(False))
                 inv.respond_to_reinvite(200)
-#                    else:
-#                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
-
+        elif data.state == 'CONFIRMED' and data.prev_state == 'REINVITING':
+            self._set_state('ESTABLISHED')
 
     def connect(self, callee_uri, routes, streams=None):
         assert self.state == 'NULL', self.state
@@ -298,6 +297,7 @@ class Session(NotificationHandler):
         ERROR = (500, None, 'local') # code, reason, originator
         self._set_state('ACCEPTING_PROPOSAL')
         try:
+            self.streams.extend(streams)
             for stream in streams:
                 workers.spawn(stream.initialize, self)
             workers.waitall()
@@ -321,7 +321,6 @@ class Session(NotificationHandler):
         finally:
             self.greenlet = None
             if ERROR is None:
-                self.streams.extend(streams)
                 self._set_state('ESTABLISHED')
                 self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams, proposer="remote"))
             else:
@@ -334,6 +333,26 @@ class Session(NotificationHandler):
                 for stream in self.streams:
                     if stream:
                         proc.spawn_greenlet(stream.end)
+
+    def reject_proposal(self):
+        assert self.state == 'PROPOSED', self.state
+        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
+        self.greenlet = api.getcurrent()
+        self._set_state('REJECTING_PROPOSAL')
+        try:
+            self.streams.extend([None] * len(self._proposed_streams))
+            remote_sdp = self.inv.get_offered_remote_sdp()
+            local_sdp = self._make_next_sdp(False)
+            offset = len(local_sdp.media)
+            proposed_media = remote_sdp.media[offset:]
+            for m in proposed_media:
+                m.port = 0
+            local_sdp.media.extend(proposed_media)
+            self.inv.set_offered_local_sdp(local_sdp)
+            self.inv.respond_to_reinvite()
+        finally:
+            self.greenlet = None
+            self._set_state('ESTABLISHED')
 
     def _make_next_sdp(self, is_offer, on_hold=False):
         local_sdp = self._inv.get_active_local_sdp()
@@ -365,10 +384,13 @@ class Session(NotificationHandler):
         ERROR = (500, None, 'local')
         self._set_state("PROPOSING")
         try:
+            self.streams.append(stream)
             self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=[stream], proposer="local"))
             stream.initialize(self)
             local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-            local_sdp.media.append(stream.get_local_media(True))
+            media = stream.get_local_media(True)
+            index = len(local_sdp.media)
+            local_sdp.media.append(media)
             self.inv.set_offered_local_sdp(local_sdp)
             self.inv.send_reinvite()
             remote_sdp = self._inv.get_active_remote_sdp()
@@ -390,13 +412,13 @@ class Session(NotificationHandler):
         finally:
             self.greenlet = None
             if ERROR is None:
-                self.streams.append(stream)
                 self._set_state('ESTABLISHED')
                 #self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self)
                 self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
             else:
                 proc.spawn_greenlet(stream.end)
                 code, reason, originator = ERROR
+                del self.streams[-1]
                 if code == 500:
                     proc.spawn_greenlet(self._terminate, code)
                 else:
@@ -499,7 +521,7 @@ class IncomingHandler(NotificationHandler):
 
 
 class Workers(object):
-    # does not log the first failure of the worker (the exception will still be reraised by waitall())
+    # does not log the first failure of a worker (the exception will still be reraised by waitall())
 
     def __init__(self):
         self.error_event = proc.Source()
