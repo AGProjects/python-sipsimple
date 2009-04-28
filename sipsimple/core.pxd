@@ -825,31 +825,6 @@ cdef extern from "pjsip_simple.h":
 
 cdef extern from "pjsip_ua.h":
 
-    # client registration
-    struct pjsip_regc
-    struct pjsip_regc_cbparam:
-        void *token
-        int code
-        pj_str_t reason
-        int expiration
-        int contact_cnt
-        pjsip_contact_hdr **contact
-    struct pjsip_regc_info:
-        int interval
-        int next_reg
-    int pjsip_regc_create(pjsip_endpoint *endpt, void *token,
-                          void cb(pjsip_regc_cbparam *param) with gil, pjsip_regc **p_regc)
-    int pjsip_regc_destroy(pjsip_regc *regc)
-    int pjsip_regc_init(pjsip_regc *regc, pj_str_t *srv_url, pj_str_t *from_url,
-                        pj_str_t *to_url, int ccnt,pj_str_t *contact, unsigned int expires)
-    int pjsip_regc_set_credentials(pjsip_regc *regc, int count, pjsip_cred_info *cred)
-    int pjsip_regc_register(pjsip_regc *regc, int autoreg, pjsip_tx_data **p_tdata)
-    int pjsip_regc_unregister(pjsip_regc *regc, pjsip_tx_data **p_tdata)
-    int pjsip_regc_send(pjsip_regc *regc, pjsip_tx_data *tdata)
-    int pjsip_regc_update_expires(pjsip_regc *regc, unsigned int expires)
-    int pjsip_regc_get_info(pjsip_regc *regc, pjsip_regc_info *info)
-    int pjsip_regc_set_route_set(pjsip_regc *regc, pjsip_route_hdr *route_set)
-
     # 100rel / PRACK
     int pjsip_100rel_init_module(pjsip_endpoint *endpt)
 
@@ -960,12 +935,6 @@ cdef int _handle_post_queue(PJSIPUA ua) except -1
 cdef class Request
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
-
-# core.registration
-
-cdef class Registration
-cdef void cb_Registration_cb_response(pjsip_regc_cbparam *param) with gil
-cdef void cb_Registration_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
 # core.publication
 
