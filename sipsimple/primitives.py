@@ -79,10 +79,16 @@ class Registration(NotificationHandler):
                                                             data=NotificationData(expired=False))
             else:
                 self._last_request = request
+                try:
+                    contact_uri_list = headers["Contact"]
+                except IndexError:
+                    contact_uri_list = []
                 self._notification_center.post_notification("SIPRegistrationDidSucceed", sender=self,
                                                             data=NotificationData(code=code, reason=reason,
                                                                                   contact_uri=request.contact_uri,
-                                                                                  expires_in=expires))
+                                                                                  contact_uri_list=contact_uri_list,
+                                                                                  expires_in=expires,
+                                                                                  route=request.route))
 
     @keyword_handler
     def _NH_SIPRequestDidFail(self, request, timestamp, code, reason, headers=None, body=None):
@@ -95,7 +101,8 @@ class Registration(NotificationHandler):
                                                             data=NotificationData(code=code, reason=reason))
             else:
                 self._notification_center.post_notification("SIPRegistrationDidFail", sender=self,
-                                                            data=NotificationData(code=code, reason=reason))
+                                                            data=NotificationData(code=code, reason=reason,
+                                                                                  route=request.route))
 
     @keyword_handler
     def _NH_SIPRequestWillExpire(self, request, timestamp, expires):
