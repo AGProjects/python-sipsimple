@@ -62,6 +62,9 @@ class RegistrationError(SIPError):
 class InvitationError(SIPError):
     pass
 
+class ReInvitationError(InvitationError):
+    pass
+
 class SDPNegotiationError(Error):
     pass
 
@@ -218,26 +221,28 @@ class GreenInvitation(GreenBase):
     def confirmed(self):
         return self.state == 'CONFIRMED'
 
-    def _wait_confirmed_and_sdp(self, q):
+    def _wait_notifications(self, q, sdp_notification_data=None):
         """Wait for SIPInvitationChangedState(state=CONFIRMED) and SIPInvitationGotSDPUpdate notifications.
         Return tuple of 2 items - data of those 2 notifications.
         """
-        confirmed_notification, sdp_notification = None, None
-        while confirmed_notification is None or sdp_notification is None:
+        confirmed_notification_data = None
+        while confirmed_notification_data is None or sdp_notification_data is None:
             notification = q.wait()
             data = notification.data
             if notification.name == self.event_names[0]:
                 if data.state=='CONFIRMED':
-                    confirmed_notification = notification
+                    confirmed_notification_data = notification.data
+                    if getattr(data, 'code', 200) != 200:
+                        raise ReInvitationError(**data.__dict__)
                 elif data.state=='DISCONNECTING':
                     raise InvitationError(originator='local')
                 elif data.state=='DISCONNECTED':
                     raise InvitationError(**data.__dict__)
             elif notification.name == self.event_names[1]:
-                sdp_notification = notification
+                sdp_notification_data = notification.data
                 if not data.succeeded:
                     raise SDPNegotiationError('SDP negotiation failed: %s' % notification.data.error)
-        return confirmed_notification.data, sdp_notification.data
+        return confirmed_notification_data, sdp_notification_data
 
     def send_invite(self, *args, **kwargs):
         """Call send_invite on the proxied object. Wait until session is established or terminated.
@@ -248,13 +253,13 @@ class GreenInvitation(GreenBase):
         assert self.state=='NULL', self.state
         with self.linked_notifications() as q:
             self._obj.send_invite(*args, **kwargs)
-            return self._wait_confirmed_and_sdp(q)
+            return self._wait_notifications(q)
 
     def send_reinvite(self, *args, **kwargs):
         assert self.state=='CONFIRMED', self.state # this asserts are probably should be just removed
         with self.linked_notifications() as q:
             self._obj.send_reinvite(*args, **kwargs)
-            return self._wait_confirmed_and_sdp(q)
+            return self._wait_notifications(q)
 
     def disconnect(self, *args, **kwargs):
         """Call disconnect() on the proxied object. Wait until SIP session is disconnected"""
@@ -272,13 +277,13 @@ class GreenInvitation(GreenBase):
         assert self.state in ['INCOMING', 'EARLY'], self.state
         with self.linked_notifications() as q:
             self._obj.accept_invite(*args, **kwargs)
-            return self._wait_confirmed_and_sdp(q)
+            return self._wait_notifications(q)
 
     def respond_to_reinvite(self, *args, **kwargs):
         assert self.state in ['REINVITED'], self.state
         with self.linked_notifications() as q:
             self._obj.respond_to_reinvite(*args, **kwargs)
-            return self._wait_confirmed_and_sdp(q)
+            return self._wait_notifications(q, sdp_notification_data=False)
 
     def call_on_disconnect(self, func):
         # legacy function still used by the old script; use a notification in new scripts
