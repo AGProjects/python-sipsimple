@@ -770,6 +770,9 @@ class Session(NotificationHandler):
             self._no_audio_timer = Timer(10, self._check_audio)
             self._no_audio_timer.start()
             self.has_audio = True
+            if self._ringtone is not None:
+                self._ringtone.stop()
+                self._ringtone = None
             self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
         was_on_hold = self.on_hold_by_remote
         new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
