@@ -108,20 +108,20 @@ class Account(SettingsObject):
      * SIPAccountDidActivate
      * SIPAccountDidDeactivate
     """
-    
+
     implements(IObserver)
-    
+
     __section__ = 'Accounts'
 
     id = SettingsObjectID(type=SIPAddress)
     enabled = Setting(type=bool, default=False)
     password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)
-    
+
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
     stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
-    
+
     audio = AudioSettings
     dialog_event = DialogEventSettings
     enum = ENUMSettings
@@ -134,12 +134,12 @@ class Account(SettingsObject):
 
     def __init__(self, id):
         self.id = id
-        
+
         username = ''.join(random.sample(string.lowercase, 8))
         settings = SIPSimpleSettings()
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
         self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
-        
+
         self.active = False
         self._register_wait = 0.5
         self._register_routes = None
@@ -152,7 +152,7 @@ class Account(SettingsObject):
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
-        
+
         engine = Engine()
         notification_center.add_observer(self, name='SIPEngineDidStart', sender=engine)
         notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
@@ -167,10 +167,10 @@ class Account(SettingsObject):
 
     def delete(self):
         SettingsObject.delete(self)
-        
+
         if self.enabled:
             self._deactivate()
-        
+
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
@@ -189,7 +189,7 @@ class Account(SettingsObject):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification)
-        
+
     def _NH_CFGSettingsObjectDidChange(self, notification):
         enabled_value = notification.data.modified.get('enabled', None)
         if enabled_value is not None:
@@ -239,7 +239,7 @@ class Account(SettingsObject):
 
     def _NH_SIPRegistrationDidEnd(self, notification):
         notification_center = NotificationCenter()
-        
+
         data = NotificationData(registration=notification.sender, expired=notification.data.expired)
         notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=data)
 
@@ -247,7 +247,7 @@ class Account(SettingsObject):
 
     def _NH_SIPRegistrationDidFail(self, notification):
         notification_center = NotificationCenter()
-        
+
         account_manager = AccountManager()
         if account_manager.state not in ('stopping', 'stopped'):
             if notification.data.code == 401:
@@ -258,17 +258,17 @@ class Account(SettingsObject):
             elif not self._register_routes or time() >= self._register_timeout:
                 self._register_wait = min(self._register_wait*2, 30)
                 timeout = random.uniform(self._register_wait, 2*self._register_wait)
-                
+
                 data = NotificationData(reason=notification.data.reason, registration=notification.sender,
                                         code=notification.data.code, next_route=None, delay=timeout,
                                         route=notification.data.route)
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
-        
+
                 from twisted.internet import reactor
                 reactor.callFromThread(reactor.callLater, timeout, self._register)
             else:
                 route = self._register_routes.popleft()
-                
+
                 data = NotificationData(reason=notification.data.reason, registration=notification.sender,
                                         code=notification.data.code, next_route=route, delay=0,
                                         route=notification.data.route)
@@ -287,23 +287,23 @@ class Account(SettingsObject):
 
         if not self.active:
             return
-        
+
         settings = SIPSimpleSettings()
-        
+
         self._register_routes = deque(notification.data.result)
         route = self._register_routes.popleft()
         self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
         contact_uri = self.contact[route.transport]
         self._registrar.register(contact_uri, route, timeout=10) # TODO: make timeout configurable?
-    
+
     def _NH_DNSLookupDidFail(self, notification):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=notification.sender)
         self._lookup = None
-        
+
         timeout = random.uniform(1.0, 2.0)
         notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=NotificationData(code=0, reason='DNS lookup failed: %s' % notification.data.error, registration=None, route=None, next_route=None, delay=timeout))
-        
+
         from twisted.internet import reactor
         reactor.callLater(timeout, self._register)
 
@@ -333,7 +333,7 @@ class Account(SettingsObject):
 
         if self.registration.enabled:
             self._register()
-        
+
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self)
 
@@ -372,17 +372,17 @@ class BonjourAccount(SettingsObject):
      * SIPAccountDidActivate
      * SIPAccountDidDeactivate
     """
-    
+
     implements(IObserver)
-    
+
     __section__ = 'Accounts'
     __id__ = SIPAddress('bonjour@local')
-    
+
     id = property(lambda self: self.__id__)
     enabled = Setting(type=bool, default=True)
     display_name = Setting(type=str, default=None, nillable=True)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
-    
+
     audio = AudioSettings
     ringtone = RingtoneSettings
 
@@ -402,11 +402,11 @@ class BonjourAccount(SettingsObject):
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
-        
+
         engine = Engine()
         notification_center.add_observer(self, name='SIPEngineDidStart', sender=engine)
         notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
-        
+
         if self.enabled and engine.is_running:
             self._activate()
 
@@ -414,7 +414,7 @@ class BonjourAccount(SettingsObject):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification)
-        
+
     def _NH_SIPEngineDidStart(self, notification):
         if self.enabled:
             self._activate()
@@ -444,7 +444,7 @@ class BonjourAccount(SettingsObject):
         if not self.active:
             return
         self.active = False
-        
+
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
@@ -522,18 +522,18 @@ class AccountManager(object):
 
     def find_account(self, contact_uri):
         contact_address = '%s@%s' % (contact_uri.user, contact_uri.host)
-        
+
         # compare contact_address with account contact
         exact_matches = (account for account in self.accounts.itervalues() if account.enabled and account.contact==contact_address)
         # compare username in contact URI with account username
         loose_matches = (account for account in self.accounts.itervalues() if account.enabled and account.id.username==contact_uri.user)
         return chain(exact_matches, loose_matches, [None]).next()
-    
+
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification)
-    
+
     def _NH_SIPEngineWillEnd(self, notification):
         self.state = 'stopping'
 
