@@ -92,34 +92,34 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                     command = "quit"
                 elif event_name == "SIPAccountRegistrationDidSucceed":
                     if not is_registered:
-                        route = args['registration'].route
-                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['registration'].expires)
+                        route = args['route']
+                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['expires'])
                         is_registered = True
                 elif event_name == "SIPAccountRegistrationDidFail":
                     if args['registration'] is not None:
-                        route = args['registration'].route
+                        route = args['route']
                         if args['next_route']:
                             next_route = args['next_route']
                             next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
                         else:
-                            next_route = 'No more routes to try; retrying in %.2f seconds.' % (args['delay'])
-                        if 'code' in args:
+                            if args['delay']:
+                                next_route = 'No more routes to try; retrying in %.2f seconds.' % (args['delay'])
+                            else:
+                                next_route = 'No more routes to try'
+                        if args['code']:
                             status = '%d %s' % (args['code'], args['reason'])
                         else:
                             status = args['reason']
                         print '%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), account.id, route.address, route.port, route.transport, status, next_route)
                     else:
                         print '%s Failed to register contact for sip:%s: %s' % (datetime.now().replace(microsecond=0), account.id, args["reason"])
-                        user_quit = False
                         command = "quit"
+                        user_quit = False
                     is_registered = False
                 elif event_name == "SIPAccountRegistrationDidEnd":
-                    if 'code' in args:
-                        print '%s Registration ended: %d %s.' % (datetime.now().replace(microsecond=0), args['code'], args['reason'])
-                    else:
-                        print '%s Registration ended.' % (datetime.now().replace(microsecond=0),)
-                    user_quit = False
+                    print '%s Registration %s.' % (datetime.now().replace(microsecond=0), ("expired" if args["expired"] else "ended"))
                     command = "quit"
+                    user_quit = False
                     is_registered = False
                 elif event_name == "SIPEngineGotException":
                     print "An exception occured within the SIP core:"
