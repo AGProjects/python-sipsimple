@@ -374,7 +374,11 @@ class Session(NotificationHandler):
             remote_sdp = self._inv.get_active_remote_sdp()
             if len(remote_sdp.media)<len(local_sdp.media):
                 raise InvitationError(code=488, reason='The answerer does not seem to support adding a stream', origin='local')
-            stream.start(local_sdp, remote_sdp, len(local_sdp.media)-1)
+            if remote_sdp.media[index].port:
+                #print InvitationError(code=200, reason='The answerer rejected the stream proposal by zeroing port in SDP', origin='local')
+                stream.start(local_sdp, remote_sdp, len(local_sdp.media)-1)
+            else:
+                self.streams[index] = None
             ERROR = None
         except InvitationError, ex:
             ERROR = (ex.code, ex.reason, ex.originator)
