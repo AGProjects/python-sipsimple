@@ -822,9 +822,9 @@ class InfoPrinter(NotificationHandler):
     boring_messages = set()
 
     def _NH_SIPAccountRegistrationDidSucceed(self, account, data):
-        route = data.registration.route
+        route = data.route
         msg = 'Registered SIP contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % \
-              (data.contact_uri, account.id, route.address, route.port, route.transport, data.registration.expires)
+              (data.contact_uri, account.id, route.address, route.port, route.transport, data.expires)
         if msg not in self.boring_messages:
             print msg
             self.boring_messages.add(msg)
@@ -837,8 +837,11 @@ class InfoPrinter(NotificationHandler):
                 next_route = data.next_route
                 next_route = 'Trying next SIP route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
             else:
-                next_route = 'No more SIP routes to try; retrying in %.2f seconds.' % (data.delay)
-            if 'code' in data.__dict__:
+                if data.delay:
+                    next_route = 'No more SIP routes to try; retrying in %.2f seconds.' % (data.delay)
+                else:
+                    next_route = 'No more SIP routes to try.'
+            if data.code:
                 status = '%d %s' % (data.code, data.reason)
             else:
                 status = data.reason
@@ -847,10 +850,7 @@ class InfoPrinter(NotificationHandler):
             print 'Failed to register SIP contact for sip:%s: %s' % (account.id, data.reason)
 
     def _NH_SIPAccountRegistrationDidEnd(self, account, data):
-        if 'code' in data.__dict__:
-            print 'SIP registration ended: %d %s.' % (data.code, data.reason)
-        else:
-            print 'SIP registration ended.'
+        print 'SIP registration %s.' % ("expired" if data.expired else "ended")
 
     def _NH_AudioStreamDidStartRecordingAudio(self, session, data):
         print 'Recording audio to "%s"' % data.file_name
