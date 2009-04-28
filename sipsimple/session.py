@@ -1033,10 +1033,16 @@ class SessionManager(NotificationHandler):
 #                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
                 elif data.state == "DISCONNECTING":
                     if data.prev_state == "CONFIRMED":
-                        Engine().play_tones([(800,400,100),(0,0,100),(400,0,200)])
+                        try:
+                            Engine().play_tones([(800,400,100),(0,0,100),(400,0,200)])
+                        except SIPCoreError:
+                            pass
                 elif data.state == "DISCONNECTED":
                     if data.prev_state == "CONFIRMED":
-                        Engine().play_tones([(800,400,100),(0,0,100),(400,0,200)])
+                        try:
+                            Engine().play_tones([(800,400,100),(0,0,100),(400,0,200)])
+                        except SIPCoreError:
+                            pass
                     if session.start_time is not None:
                         session.stop_time = datetime.now()
                     del self.inv_mapping[inv]
