@@ -104,6 +104,11 @@ class Session(NotificationHandler):
 
     def _NH_SIPInvitationChangedState(self, inv, data):
         assert self.inv._obj == inv, (self.inv, self.inv._obj, inv, data)
+        remote_user_agent = getattr(data, 'headers', {}).get('User-Agent')
+        if not remote_user_agent:
+            remote_user_agent = getattr(data, 'headers', {}).get('Server')
+        if remote_user_agent:
+            self.remote_user_agent = remote_user_agent
         if data.state=='DISCONNECTED':
             if data.prev_state=='DISCONNECTING':
                 self._set_state('TERMINATED', originator='local')
@@ -112,7 +117,6 @@ class Session(NotificationHandler):
             for stream in self.streams:
                 if stream:
                     proc.spawn_greenlet(stream.end)
-        # TODO: update remote_user_agent
         elif data.state == "REINVITED":
             current_remote_sdp = inv.get_active_remote_sdp()
             proposed_remote_sdp = inv.get_offered_remote_sdp()
