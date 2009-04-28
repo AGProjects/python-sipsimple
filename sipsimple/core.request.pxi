@@ -353,6 +353,7 @@ cdef class Request:
                     self._expire_time = datetime.now() + timedelta(seconds=expires)
                     _add_event("SIPRequestDidSucceed", event_dict)
                 else:
+                    expires = 0
                     _add_event("SIPRequestDidFail", event_dict)
                 if expires == 0:
                     self.state = "TERMINATED"
