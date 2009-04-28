@@ -20,18 +20,16 @@ from eventlet.api import sleep
 from eventlet import api, proc, coros
 
 from sipsimple.engine import Engine
-from sipsimple.core import Registration, Invitation, WaveFile
+from sipsimple.core import Invitation, WaveFile
 from sipsimple.green import notification, GreenBase
 from sipsimple.util import NotificationHandler
 
 __all__ = ['Error',
            'SIPError',
-           'RegistrationError',
            'InvitationError',
            'SDPNegotiationError',
            'GreenEngine',
            'IncomingSessionHandler',
-           'GreenRegistration',
            'Ringer',
            'GreenInvitation']
 
@@ -55,9 +53,6 @@ class SIPError(Error):
             return self.params[item]
         except KeyError:
             raise AttributeError('No key %r in params' % item)
-
-class RegistrationError(SIPError):
-    pass
 
 class InvitationError(SIPError):
     pass
@@ -156,29 +151,6 @@ class IncomingSessionHandler(object):
             if ERROR is not None:
                 proc.spawn_greenlet(inv.disconnect, ERROR)
 
-
-class GreenRegistration(GreenBase):
-    event_name = 'SIPRegistrationChangedState'
-    klass = Registration
-
-    def register(self):
-        if self.state != 'registered':
-            with self.linked_notification(condition = lambda n: n.data.state in ['registered', 'unregistered']) as q:
-                if self.state != 'registering':
-                    self._obj.register()
-                n = q.wait()
-                if n.data.state != 'registered':
-                    raise RegistrationError(n.data.__dict__)
-
-    def unregister(self):
-        if self.state != 'unregistered':
-            with self.linked_notification(condition=lambda n: n.data.state in ['unregistered', 'registered']) as q:
-                if self.state != 'unregistering':
-                    self._obj.unregister()
-                n = q.wait()
-                if n.data.state != 'unregistered':
-                    log.error('Unexpected notification: %s' % (n, ))
-                return n
 
 # DEPRECATED, will be removed
 class Ringer(object):
