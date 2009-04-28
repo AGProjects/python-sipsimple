@@ -7,7 +7,7 @@ import sys
 import traceback
 import atexit
 from datetime import datetime
-from threading import Thread, Lock
+from threading import Thread, Lock, currentThread
 
 from application.system import default_host_ip
 from application.python.util import Singleton
@@ -124,7 +124,8 @@ class Engine(Thread):
         with self._lock:
             if self._thread_started:
                 self._thread_stopping = True
-                self.join()
+                if currentThread() is not self:
+                    self.join()
 
     # worker thread
     def run(self):
