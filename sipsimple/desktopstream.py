@@ -14,6 +14,7 @@ from sipsimple.core import SDPAttribute, SDPMedia
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.msrp import LoggerSingleton, get_X509Credentials
+from sipsimple.green.core import SDPNegotiationError
 
 from sipsimple.applications.desktopsharing import vncviewer, vncserver
 
@@ -128,7 +129,7 @@ class MSRPDesktop(object):
             self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
             remote_uri_path = media_attributes.get('path')
             if remote_uri_path is None:
-                raise AttributeError("remote SDP media does not have 'path' attribute")
+                raise SDPNegotiationError(reason="remote SDP media does not have 'path' attribute")
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
