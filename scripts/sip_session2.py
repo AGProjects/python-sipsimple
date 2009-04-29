@@ -23,6 +23,7 @@ from eventlet.green.socket import gethostbyname
 from msrplib import trafficlog
 
 from sipsimple.core import SIPURI, SIPCoreError, PJSIPError
+from sipsimple.util import SilenceableWaveFile, PersistentTones
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine, InvitationError
@@ -335,6 +336,7 @@ class ChatSession(NotificationHandler):
 class OfferDesktop(MSRPDesktop):
     setup = 'passive'
 
+chat_manager = None
 
 class ChatManager(NotificationHandler):
 
@@ -891,7 +893,52 @@ class InfoPrinter(NotificationHandler):
     def _NH_AudioStreamDidStopRecordingAudio(self, session, data):
         print 'Stopped recording audio to "%s"' % data.file_name
 
+
+class Ringer(NotificationHandler):
+    __metaclass__ = Singleton
+
+    def __init__(self):
+        outr = SIPSimpleSettings().ringtone.outbound
+        self.outbound_ringtone = outr and SilenceableWaveFile(outr.path.normalized, outr.volume, force_playback=True)
+        self.session_ringing_outboung = set()
+        self.incoming_sessions = set()
+
+    def _NH_SIPSessionGotRingIndication(self, session, data):
+        self.session_ringing_outboung.add(session)
+        if len(self.session_ringing_outboung)==1:
+            if self._audio_busy(session):
+                session._ringtone = PersistentTones([(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
+                session._ringtone.start(loop_count=1)
+            else:
+                self.outbound_ringtone.start(loop_count=0, pause_time=2)
+
+    def _NH_SIPSessionChangedState(self, session, data):
+        if session.state != 'CALLING':
+            if session in self.session_ringing_outboung:
+                self.session_ringing_outboung.discard(session)
+                if not self.session_ringing_outboung:
+                    self.outbound_ringtone.stop()
+        if hasattr(session, '_ringtone') and session.state != 'INCOMING':
+            if session._ringtone.is_active:
+                session._ringtone.stop()
+
+    def _audio_busy(self, session):
+        return [other_sess for other_sess in chat_manager.sessions if (other_sess.session is not session and
+                                                                       other_sess.state in ["CALLING", "ESTABLISHED", "PROPOSING", "PROPOSED"] and
+                                                                       other_sess.audio is not None)]
+
+    def _NH_SIPSessionNewIncoming(self, session, data):
+        if self._audio_busy(session):
+            session._ringtone = PersistentTones([(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
+        else:
+            ringtone = session.account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
+            if ringtone is not None:
+                session._ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume)
+        session._ringtone.start()
+
+
 def start(options, console):
+    global chat_manager
     account = options.account
     settings = SIPSimpleSettings()
     engine = GreenEngine()
@@ -920,29 +967,29 @@ def start(options, console):
                 print 'Local SIP contact: %s:%s;transport=tls' % (account.contact, engine.local_tls_port)
         MessageRenderer().start()
         IncomingHandler().subscribe_to_all()
-        manager = ChatManager(engine, account, console, options.logger, options.auto_answer)
-        manager.update_prompt()
+        chat_manager = ChatManager(engine, account, console, options.logger, options.auto_answer)
+        chat_manager.update_prompt()
         try:
             if not options.args:
                 print
-                manager.cmd_help()
+                chat_manager.cmd_help()
                 print
                 print 'Waiting for incoming session requests ...'
             else:
                 try:
                     if len(options.args)>=2 and os.path.isfile(options.args[1]):
-                        command = manager.cmd_transfer
+                        command = chat_manager.cmd_transfer
                     else:
-                        command = manager.cmd_call
+                        command = chat_manager.cmd_call
                     command(*options.args)
                 except (UserCommandError, MSRPChatError), ex:
                     print str(ex) or type(ex).__name__
             while True:
                 try:
-                    readloop(console, manager, manager.get_shortcuts())
+                    readloop(console, chat_manager, chat_manager.get_shortcuts())
                 except EOF:
-                    if manager.current_session:
-                        manager.remove_session(manager.current_session)
+                    if chat_manager.current_session:
+                        chat_manager.remove_session(chat_manager.current_session)
                     else:
                         raise
         except BaseException, ex:
@@ -953,7 +1000,7 @@ def start(options, console):
                 traceback.print_exc()
         finally:
             console.copy_input_line()
-            manager.close()
+            chat_manager.close()
     finally:
         RegistrationManager().unregister()
         with calming_message(2, "Stopping the engine ..."):
@@ -1158,6 +1205,7 @@ def main():
         print "Logging MSRP trace to file '%s'" % LoggerSingleton().msrptrace_filename
 
     InfoPrinter().subscribe_to_all()
+    Ringer().subscribe_to_all()
 
     try:
         with setup_console() as console:
