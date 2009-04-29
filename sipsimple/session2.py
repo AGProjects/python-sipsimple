@@ -84,14 +84,15 @@ class Lock(coros.Semaphore):
         self.greenlet = api.getcurrent()
 
     def release(self):
-        coros.Semaphore.release(self)
         self.greenlet = None
+        coros.Semaphore.release(self)
 
     def __enter__(self):
-        return self.acquire()
+        self.acquire()
 
     def __exit__(self, *args):
-        return self.release()
+        self.release()
+
 
 
 class Session(NotificationHandler):
