@@ -9,7 +9,6 @@ import atexit
 from datetime import datetime
 from threading import Thread, Lock, currentThread
 
-from application.system import default_host_ip
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData
 
@@ -69,7 +68,7 @@ class Engine(Thread):
         if self._thread_started:
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
-        init_options.update(kwargs, local_ip=(default_host_ip if local_ip is None else local_ip))
+        init_options.update(kwargs)
         self._post_notification("SIPEngineWillStart")
         with self._lock:
             try:
@@ -96,7 +95,10 @@ class Engine(Thread):
         from sipsimple.configuration.settings import SIPSimpleSettings
         settings = SIPSimpleSettings()
         if local_ip is None:
-            local_ip = settings.local_ip.normalized
+            if settings.local_ip is settings.local_ip.DefaultHostIP:
+                local_ip = None
+            else:
+                local_ip = settings.local_ip.normalized
         setdefault(kwargs,
             local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
             local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
