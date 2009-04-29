@@ -11,7 +11,7 @@ from msrplib import connect
 from msrplib.trafficlog import Logger, hook_std_output
 from msrplib.protocol import URI
 
-from sipsimple.core import Credentials
+from sipsimple.core import Credentials, SIPRUI
 from sipsimple.green.core import GreenEngine, Ringer, IncomingSessionHandler, GreenRegistration, GreenInvitation, play_wav_file
 from sipsimple.clients.clientconfig import get_path
 from sipsimple.clients.console import setup_console, EOF
@@ -108,9 +108,9 @@ def main():
                                trace_engine=options.trace_engine)
         credentials = Credentials(options.uri, options.password)
         if options.register:
-            reg = GreenRegistration(credentials, route=options.route, expires=10)
+            reg = GreenRegistration(credentials, duration=60)
             #proc.spawn_greenlet(reg.register)
-            reg.register()
+            reg.register(SIPURI(options.local_ip, port=options.local_port), options.route)
 
         if not options.target_uri:
             handler = IncomingSessionHandler()
