@@ -544,6 +544,17 @@ class ChatManager(NotificationHandler):
         """:chat user[@domain] [+audio] \t Initiate a chat session, optionally with audio"""
         return self._cmd_call(args, [MSRPChat], self.cmd_chat.__doc__)
 
+    def cmd_desktop(self, *args):
+        """:desktop user[@domain] [offer] \t Request desktop sharing from remote user. Optionally, offer you own desktop to share"""
+        args = list(args)
+        try:
+            args.remove('offer')
+        except ValueError:
+            klass = MSRPDesktop
+        else:
+            klass = OfferDesktop
+        return self._cmd_call(args, [klass, GreenAudioStream], self.cmd_chat.__doc__)
+
     def _cmd_call(self, args, default_streams, doc):
         if not args:
             raise UserCommandError('Please provide SIP address\n%s' % doc)
