@@ -39,6 +39,7 @@ from sipsimple.clients.dns_lookup import lookup_routes_for_sip_uri, lookup_servi
 from sipsimple.msrp import LoggerSingleton
 from sipsimple.msrpstream import MSRPChat, MSRPOutgoingFileStream, MSRPIncomingFileStream, MSRPChatError
 from sipsimple.audiostream import GreenAudioStream
+from sipsimple.desktopstream import MSRPDesktop
 
 KEY_NEXT_SESSION = '\x0e' # Ctrl-N
 KEY_AUDIO_CONTROL = '\x00' # Ctrl-SPACE
@@ -331,10 +332,16 @@ class ChatSession(NotificationHandler):
             self.audio.stop_recording_audio()
 
 
+class OfferDesktop(MSRPDesktop):
+    setup = 'passive'
+
+
 class ChatManager(NotificationHandler):
 
     streams = {'chat': MSRPChat,
-               'audio': GreenAudioStream}
+               'audio': GreenAudioStream,
+               'desktop': MSRPDesktop,
+               'desktop-offer': OfferDesktop}
     _reverse_streams = dict((v, k) for (k, v) in streams.items())
 
     def __init__(self, engine, account, console, logger, auto_answer):
@@ -728,22 +735,25 @@ class ChatManager(NotificationHandler):
 
 
 def get_userfriendly_desc(stream):
+    if isinstance(stream, MSRPDesktop):
+        if stream.setup == 'active':
+            return "Connect to Desktop"
+        else:
+            return "Offer Desktop"
     try:
         return ChatManager._reverse_streams[type(stream)].capitalize()
     except KeyError:
         pass
-    try:
-        if hasattr(stream, 'written'):
-            percent = 100.0 * stream.written / stream.file_selector.size
-            return 'Receiving %s %d%% of %s' % (stream.file_selector.name, percent, pformat_file_size(stream.file_selector.size))
-        elif hasattr(stream, 'sent'):
-            percent = 100.0 * stream.sent / stream.file_selector.size
-            return 'Sending %s %d%% of %s' % (stream.file_selector.name, percent, pformat_file_size(stream.file_selector.size))
-        else:
-            return str(stream.file_selector)
-    except Exception:
-        traceback.print_exc()
-    return type(stream).__name__
+    if hasattr(stream, 'written'):
+        percent = 100.0 * stream.written / stream.file_selector.size
+        return 'Receiving %s %d%% of %s' % (stream.file_selector.name, percent, pformat_file_size(stream.file_selector.size))
+    elif hasattr(stream, 'sent'):
+        percent = 100.0 * stream.sent / stream.file_selector.size
+        return 'Sending %s %d%% of %s' % (stream.file_selector.name, percent, pformat_file_size(stream.file_selector.size))
+    elif hasattr(stream, 'file_selector'):
+        return str(stream.file_selector)
+    else:
+        return type(stream).__name__
 
 
 def complete_word(input, wordlist):
@@ -760,6 +770,8 @@ def complete_word(input, wordlist):
     Traceback (most recent call last):
      ...
     UserCommandError: Please provide chat|audio|audi. Cannot understand 'au'
+    >>> complete_word('desktop-o', ['desktop', 'desktop-offer'])
+    'desktop-offer
     """
     if input in wordlist:
         return input

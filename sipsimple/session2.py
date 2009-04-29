@@ -540,6 +540,7 @@ class StreamFactory(object):
     def make_media_stream(self, remote_sdp, index, account):
         from sipsimple.msrpstream import MSRPChat, MSRPIncomingFileStream
         from sipsimple.audiostream import GreenAudioStream
+        from sipsimple.desktopstream import MSRPDesktop
         media = remote_sdp.media[index]
         if media.media=='audio':
             stream = GreenAudioStream(account)
@@ -549,6 +550,8 @@ class StreamFactory(object):
                 stream = MSRPIncomingFileStream(account)
             else:
                 stream = MSRPChat(account)
+        elif media.media=='application':
+            stream = MSRPDesktop(account)
         else:
             return
         if stream.validate_incoming(remote_sdp, index):
