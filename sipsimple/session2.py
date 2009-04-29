@@ -305,7 +305,10 @@ class Session(NotificationHandler):
             self._set_state('TERMINATING')
             data = TimestampedNotificationData(originator='local')
             self.notification_center.post_notification("SIPSessionWillEnd", self, data)
-            self.inv.disconnect(code or 603)
+            try:
+                self.inv.disconnect(code or 603)
+            except Exception:
+                pass
             self._set_state('TERMINATED', originator='local')
             self.unsubscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
 
