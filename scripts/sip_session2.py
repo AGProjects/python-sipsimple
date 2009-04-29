@@ -25,7 +25,7 @@ from msrplib import trafficlog
 from sipsimple.core import SIPURI, SIPCoreError, PJSIPError
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
-from sipsimple.green.core import GreenEngine, InvitationError, SDPNegotiationError
+from sipsimple.green.core import GreenEngine, InvitationError
 from sipsimple.session2 import Session as GreenSession, NotificationHandler, IncomingHandler
 from sipsimple.green.notification import linked_notification, linked_notifications
 from sipsimple.clients import format_cmdline_uri
@@ -50,7 +50,7 @@ trafficlog.hook_std_output()
 log.level.current = log.level.WARNING
 
 # we'll suppress tracebacks for the following
-BORING_EXCEPTIONS = (InvitationError, SDPNegotiationError, PJSIPError, SIPCoreError, GNUTLSError, DNSLookupError)
+BORING_EXCEPTIONS = (InvitationError, PJSIPError, SIPCoreError, GNUTLSError, DNSLookupError)
 
 class UserCommandError(Exception):
     pass
