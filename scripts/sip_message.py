@@ -65,7 +65,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
             if command == "core_event":
                 event_name, obj, args = data
                 if event_name == "SIPSessionNewIncoming":
-                    obj.reject()
+                    obj.reject(True)
                 elif event_name == "DNSLookupDidFail" and obj is dns:
                     print "DNS lookup failed: %(error)s" % args
                     user_quit = False
