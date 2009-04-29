@@ -52,7 +52,10 @@ class SIPError(Error):
         self.params = params
 
     def __str__(self):
-        return '%s %s' % (self.params.get('code'), self.params.get('reason'))
+        if self.params.get('code') or self.params.get('reason'):
+            return '%s %s' % (self.params.get('code'), self.params.get('reason'))
+        elif self.params:
+            return str(self.params)
 
     def __getattr__(self, item):
         try:
