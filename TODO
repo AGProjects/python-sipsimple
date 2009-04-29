@@ -10,6 +10,7 @@ Sessions
 Middleware
 ----------
 
+- Configuration changes listener [LS]
 - FileTransfer high level class [DB]
 - Desktop sharing high level class [DB]
 - Capture MSRP trace as notifications [DB]
