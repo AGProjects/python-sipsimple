@@ -212,16 +212,14 @@ def _get_history_file(local_uri, remote_uri, is_outgoing):
 
 class ChatSession(NotificationHandler):
 
-    def __init__(self, session, manager, remote_party=None, streams=None):
+    def __init__(self, session, manager, remote_party=None):
         self.session = session
-        self.session._chat = self
+        self.session._chatsession = self
         self.manager = manager
         if remote_party is None:
             remote_party = session.inv.remote_uri
         self.remote_party = remote_party
-        if streams is None:
-            streams = session.streams
-            assert streams
+        assert session.streams
         self.history_file = None
         self.put_on_hold = False
         if self.inv is not None:
@@ -229,7 +227,12 @@ class ChatSession(NotificationHandler):
             if self.remote_party is None:
                 self.remote_party = self.inv.remote_uri
         self.subscribe_to_all(sender=self.session)
-        self.update_streams(streams)
+        self.update_streams(session.streams)
+        self.auxiliary_procs = proc.RunningProcSet() # procs that must be killed when the user closes the session
+
+    def _spawn_auxiliary(self, function, *args, **kwargs):
+        wrap_errors = kwargs.pop('wrap_errors', BORING_EXCEPTIONS)
+        return self.auxiliary_procs.spawn(proc.wrap_errors(wrap_errors, function), *args, **kwargs)
 
     def __bool__(self):
         return self.state != 'TERMINATED'
@@ -250,6 +253,7 @@ class ChatSession(NotificationHandler):
         if self.history_file:
             self.history_file.close()
             self.history_file = None
+        self.auxiliary_procs.killall(wait=True)
 
     def send_message(self, msg):
         if not self.chat:
@@ -291,7 +295,7 @@ class ChatSession(NotificationHandler):
     def remove_stream(self, stream_class):
         for index, stream in enumerate(self.streams):
             if isinstance(stream, stream_class):
-                return proc.spawn_greenlet(self.session.remove_stream, index)
+                self._spawn_auxiliary(self.session.remove_stream, index)
         raise UserCommandError("The session does not have such stream")
 
     def hold(self):
@@ -341,22 +345,30 @@ class ChatManager(NotificationHandler):
         self.auto_answer = auto_answer
         self.sessions = []
         self.current_session = None
-        self.procs = proc.RunningProcSet()
+        self.auxiliary_procs = proc.RunningProcSet() # procs that must be killed when user closes the program
+        self.principal_procs = proc.RunningProcSet() # procs that must complete execution before the program exits
         self.subscribe_to_all()
 
-    def _spawn(self, function, *args, **kwargs):
-        return self.procs.spawn(proc.wrap_errors(BORING_EXCEPTIONS, function), *args, **kwargs)
+    def _spawn_auxiliary(self, function, *args, **kwargs):
+        wrap_errors = kwargs.pop('wrap_errors', BORING_EXCEPTIONS)
+        return self.auxiliary_procs.spawn(proc.wrap_errors(wrap_errors, function), *args, **kwargs)
+
+    def _spawn_principal(self, function, *args, **kwargs):
+        wrap_errors = kwargs.pop('wrap_errors', BORING_EXCEPTIONS)
+        return self.principal_procs.spawn(proc.wrap_errors(wrap_errors, function), *args, **kwargs)
 
     def _NH_SIPSessionDidEnd(self, session, data):
         try:
-            self.remove_session(session._chat)
+            self.remove_session(session._chatsession)
         except ValueError:
             pass
 
     _NH_SIPSessionDidFail = _NH_SIPSessionDidEnd
 
     def _NH_SIPSessionNewIncoming(self, session, data):
-        self._spawn(self._handle_incoming, session, data)
+        session._chatsession = ChatSession(session, self)
+        p = session._chatsession._spawn_auxiliary(self._handle_incoming, session, data)
+        self.auxiliary_procs.add(p)
 
     def _NH_SIPSessionChangedState(self, session, data):
         self.update_prompt()
@@ -364,7 +376,7 @@ class ChatManager(NotificationHandler):
     # this notification is handled here and not on the session because we have access to the console here
     def _NH_SIPSessionGotStreamProposal(self, session, data):
         if data.proposer == 'remote':
-            self._spawn(self._handle_proposal, session, data)
+            session._chatsession._spawn_auxiliary(self._handle_proposal, session, data)
 
     def _handle_proposal(self, session, data):
         if self.auto_answer:
@@ -373,9 +385,9 @@ class ChatManager(NotificationHandler):
             txt = '/'.join([get_userfriendly_desc(stream) for stream in data.streams])
             question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(session.inv.caller_uri), txt)
             with linked_notification(name='SIPSessionChangedState', sender=session) as q:
-                p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
+                p1 = session._chatsession._spawn_auxiliary(self.console.ask_question, question, list('yYnN') + [CTRL_D], wrap_errors=(proc.ProcExit, ))
                 # spawn a greenlet that will wait for a change in session state and kill p1 if there is
-                p2 = proc.spawn(lambda : q.wait() and p1.kill())
+                p2 = session._chatsession._spawn_auxiliary(lambda : q.wait() and p1.kill())
                 try:
                     result = p1.wait() in ['y', 'Y']
                 finally:
@@ -386,9 +398,8 @@ class ChatManager(NotificationHandler):
             session.reject_proposal()
 
     def _handle_incoming(self, session, data):
-        session._chat = ChatSession(session, self)
         for stream in session.streams:
-            stream._chatsession = session._chat
+            stream._chatsession = session._chatsession
         if self.auto_answer:
             result = 'Y'
         else:
@@ -397,11 +408,11 @@ class ChatManager(NotificationHandler):
             #if has_chat and has_audio:
             #    replies += list('aAcC')
             #    replies_txt += '/a/c'
-            question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chat.format_stream_info(), session.inv.caller_uri, replies_txt)
+            question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._chatsession.format_stream_info(), session.inv.caller_uri, replies_txt)
             with linked_notification(name='SIPSessionChangedState', sender=session) as q:
-                p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
+                p1 = self._spawn_auxiliary(self.console.ask_question, question, replies, wrap_errors=(proc.ProcExit,))
                 # spawn a greenlet that will wait for a change in session state and kill p1 if there is
-                p2 = proc.spawn(lambda : q.wait() and p1.kill())
+                p2 = self._spawn_auxiliary(lambda : q.wait() and p1.kill())
                 try:
                     result = p1.wait()
                 finally:
@@ -413,7 +424,7 @@ class ChatManager(NotificationHandler):
 #             has_audio = False
 #             has_chat = True
         if result in list('yYaAcC'):
-            self.add_session(session._chat)
+            self.add_session(session._chatsession)
             with api.timeout(30, api.TimeoutError('timed out while accepting the session')):
                 session.accept()
         else:
@@ -421,16 +432,12 @@ class ChatManager(NotificationHandler):
 
     def close(self):
         for session in self.sessions:
-            self._spawn(session.end)
+            self._spawn_principal(session.end)
         self.update_prompt()
-        with calming_message(1, lambda : 'Waiting for %s' % ', '.join(str(p) for p in self.procs)):
-            self.procs.waitall()
+        self.auxiliary_procs.killall(wait=True)
+        with calming_message(1, lambda : 'Waiting for %s' % ', '.join(str(p) for p in self.principal_procs)):
+            self.principal_procs.waitall()
         self.sessions = []
-
-    def close_current_session(self):
-        if self.current_session is not None:
-            self._spawn(self.current_session.end)
-            self.remove_session(self.current_session)
 
     def _NH_update_prompt(self, sender, data):
         self.update_prompt()
@@ -465,6 +472,7 @@ class ChatManager(NotificationHandler):
         if session is None:
             return
         assert isinstance(session, ChatSession), repr(session)
+        self._spawn_principal(session.end)
         try:
             index = self.sessions.index(session)
         except ValueError:
@@ -540,27 +548,29 @@ class ChatManager(NotificationHandler):
         else:
             streams = [self.get_stream(x) for x in streams]
         streams = [Stream(self.account) for Stream in streams]
-        self._spawn(self._call, target_uri, streams)
+        self._add_new_session(target_uri, streams)
 
     def cmd_call(self, *args):
         """:call user[@domain] [streams] \t Initiate an audio+chat session"""
         return self._cmd_call(args, [GreenAudioStream, MSRPChat], self.cmd_audio.__doc__)
 
-    def _call(self, target_uri, streams):
-        chat = None
+    def _add_new_session(self, target_uri, streams):
+        session = GreenSession(self.account, streams=streams)
+        chatsession = ChatSession(session, self, remote_party=target_uri)
+        self.add_session(chatsession)
+        chatsession._spawn_auxiliary(self._call, chatsession)
+
+    def _call(self, chatsession):
         try:
-            session = GreenSession(self.account)
-            chat = ChatSession(session, self, remote_party=target_uri, streams=streams)
-            self.add_session(chat)
-            routes = get_routes(target_uri, self.engine, self.account)
+            routes = get_routes(chatsession.remote_party, self.engine, self.account)
             if not routes:
-                print 'ERROR: No SIP route found for "%s"' % target_uri
+                print 'ERROR: No SIP route found for "%s"' % chatsession.remote_party
                 raise proc.ProcExit # won't print the stacktrace
-            for stream in streams:
-                stream._chatsession = chat
-            chat.connect(target_uri, routes, streams=streams)
+            for stream in chatsession.streams:
+                stream._chatsession = chatsession
+            chatsession.connect(chatsession.remote_party, routes, streams=chatsession.streams)
         except:
-            self.remove_session(chat)
+            self.remove_session(chatsession)
             raise
 
     def cmd_transfer(self, *args):
@@ -576,7 +586,7 @@ class ChatManager(NotificationHandler):
         except IOError, ex:
             raise UserCommandError(str(ex) or type(ex).__name__)
         stream = MSRPOutgoingFileStream(self.account, filename, fileobj, size, content_type, read_sha1(filename))
-        self._spawn(self._call, target_uri, [stream])
+        self._add_new_session(target_uri, [stream])
 
     def cmd_dtmf(self, *args):
         """:dtmf DIGITS \t Send DTMF digits or press CTRL-SPACE to display DTMF numeric pad"""
@@ -678,7 +688,7 @@ class ChatManager(NotificationHandler):
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
-        self._spawn(session.add_stream, self.get_stream(args[0])(self.account))
+        session._spawn_auxiliary(session.add_stream, self.get_stream(args[0])(self.account))
 
     def cmd_remove(self, *args):
         """:remove audio|chat \t Remove a stream from the current session"""
@@ -909,7 +919,7 @@ def start(options, console):
                     readloop(console, manager, manager.get_shortcuts())
                 except EOF:
                     if manager.current_session:
-                        manager.close_current_session()
+                        manager.remove_session(manager.current_session)
                     else:
                         raise
         except BaseException, ex:
