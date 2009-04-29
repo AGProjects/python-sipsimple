@@ -333,8 +333,11 @@ class ChatSession(NotificationHandler):
             self.audio.stop_recording_audio()
 
 
-class OfferDesktop(MSRPDesktop):
+class LocalDesktop(MSRPDesktop):
     setup = 'passive'
+
+class RemoteDesktop(MSRPDesktop):
+    setup = 'active'
 
 chat_manager = None
 
@@ -342,8 +345,8 @@ class ChatManager(NotificationHandler):
 
     streams = {'chat': MSRPChat,
                'audio': GreenAudioStream,
-               'desktop': MSRPDesktop,
-               'desktop-offer': OfferDesktop}
+               'desktop': RemoteDesktop,
+               'desktop-local': LocalDesktop}
     _reverse_streams = dict((v, k) for (k, v) in streams.items())
 
     def __init__(self, engine, account, console, logger, auto_answer):
@@ -547,14 +550,14 @@ class ChatManager(NotificationHandler):
         return self._cmd_call(args, [MSRPChat], self.cmd_chat.__doc__)
 
     def cmd_desktop(self, *args):
-        """:desktop user[@domain] [offer] \t Request desktop sharing from remote user. Optionally, offer you own desktop to share"""
+        """:desktop user[@domain] [local] \t Request sharing remote desktop, optionally local"""
         args = list(args)
         try:
-            args.remove('offer')
+            args.remove('local')
         except ValueError:
-            klass = MSRPDesktop
+            klass = RemoteDesktop
         else:
-            klass = OfferDesktop
+            klass = LocalDesktop
         return self._cmd_call(args, [klass, GreenAudioStream], self.cmd_chat.__doc__)
 
     def _cmd_call(self, args, default_streams, doc):
@@ -609,7 +612,7 @@ class ChatManager(NotificationHandler):
         self._add_new_session(target_uri, [stream])
 
     def cmd_dtmf(self, *args):
-        """:dtmf DIGITS \t Send DTMF digits or press CTRL-SPACE to display DTMF numeric pad"""
+        """:dtmf DIGITS \t Send DTMF, press CTRL-SPACE to display numeric pad"""
         self.get_current_session().send_dtmf(*args)
 
     char_to_digit = {}
@@ -748,11 +751,11 @@ class ChatManager(NotificationHandler):
 
 
 def get_userfriendly_desc(stream):
-    if isinstance(stream, MSRPDesktop):
+    if isinstance(stream, RemoteDesktop):
         if stream.setup == 'active':
-            return "Connect to Desktop"
+            return "Connect to remote desktop"
         else:
-            return "Offer Desktop"
+            return "Local desktop"
     try:
         return ChatManager._reverse_streams[type(stream)].capitalize()
     except KeyError:
@@ -783,8 +786,8 @@ def complete_word(input, wordlist):
     Traceback (most recent call last):
      ...
     UserCommandError: Please provide chat|audio|audi. Cannot understand 'au'
-    >>> complete_word('desktop-o', ['desktop', 'desktop-offer'])
-    'desktop-offer
+    >>> complete_word('desktop-o', ['desktop', 'desktop-local'])
+    'desktop-local
     """
     if input in wordlist:
         return input
