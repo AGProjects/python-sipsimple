@@ -555,7 +555,7 @@ class ChatManager(NotificationHandler):
             routes = get_routes(target_uri, self.engine, self.account)
             if not routes:
                 print 'ERROR: No SIP route found for "%s"' % target_uri
-                return
+                raise proc.ProcExit # won't print the stacktrace
             for stream in streams:
                 stream._chatsession = chat
             chat.connect(target_uri, routes, streams=streams)
