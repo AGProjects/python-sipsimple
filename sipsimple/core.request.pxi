@@ -189,8 +189,9 @@ cdef class Request:
                                             call_id_pj, self.cseq, NULL, &self._tdata)
         if status != 0:
             raise PJSIPError("Could not create request", status)
-        self._tdata.msg.body = pjsip_msg_body_create(self._tdata.pool, &self._content_type.pj_str,
-                                                     &self._content_subtype.pj_str, &self._body.pj_str)
+        if body is not None:
+            self._tdata.msg.body = pjsip_msg_body_create(self._tdata.pool, &self._content_type.pj_str,
+                                                         &self._content_subtype.pj_str, &self._body.pj_str)
         hdr = <pjsip_hdr *> (<pj_list *> &self._tdata.msg.hdr).next
         while hdr != &self._tdata.msg.hdr:
             if _pj_str_to_str(hdr.name) in self._extra_headers.iterkeys():
