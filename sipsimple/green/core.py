@@ -12,8 +12,9 @@ waits for 'registered' or 'unregistered' event. If the event received is
 """
 from __future__ import with_statement
 from contextlib import contextmanager
+from zope.interface import implements
 from application import log
-from application.notification import NotificationCenter
+from application.notification import NotificationCenter, IObserver
 from application.python.util import Singleton
 
 from eventlet.api import sleep
@@ -23,13 +24,16 @@ from sipsimple.engine import Engine
 from sipsimple.core import Invitation, WaveFile
 from sipsimple.green import notification, GreenBase
 from sipsimple.util import NotificationHandler
+from sipsimple.primitives import Registration
 
 __all__ = ['Error',
            'SIPError',
+           'RegistrationError',
            'InvitationError',
            'SDPNegotiationError',
            'GreenEngine',
            'IncomingSessionHandler',
+           'GreenRegistration',
            'Ringer',
            'GreenInvitation']
 
@@ -55,6 +59,9 @@ class SIPError(Error):
             return self.params[item]
         except KeyError:
             raise AttributeError('No key %r in params' % item)
+
+class RegistrationError(SIPError):
+    pass
 
 class InvitationError(SIPError):
     pass
@@ -152,6 +159,35 @@ class IncomingSessionHandler(object):
         finally:
             if ERROR is not None:
                 proc.spawn_greenlet(inv.disconnect, ERROR)
+
+
+class GreenRegistration(GreenBase, NotificationHandler):
+    implements(IObserver)
+
+    klass = Registration
+
+    def register(self, *args, **kwargs):
+        with self.linked_notifications(names=['SIPRegistrationDidSucceed', 'SIPRegistrationDidFail']) as q:
+            NotificationCenter().add_observer(self, sender=self._obj)
+            self._obj.register(*args, **kwargs)
+            n = q.wait()
+            if n.name == "SIPRegistrationDidFail":
+                raise RegistrationError(n.data.__dict__)
+                NotificationCenter().remove_observer(self, sender=self._obj)
+
+    def unregister(self, *args, **kwargs):
+        with self.linked_notifications(names=['SIPRegistrationDidEnd', 'SIPRegistrationDidNotEnd']) as q:
+            self._obj.unregister(*args, **kwargs)
+            n = q.wait()
+            if n.name == "SIPRegistrationDidNotEnd":
+                raise log.error("Could not unregister: %d %s" % (n.data.code, n.data.reason))
+
+    def _NH_SIPRegistrationWillExpire(self, sender, data):
+        # This is a bit of a cheat, but this class is temporary anyways
+        self._obj.register(self._obj.contact_uri, self._obj._last_request.route)
+
+    def _NH_SIPRegistrationDidEnd(self, sender, data):
+        NotificationCenter().remove_observer(self, self._obj)
 
 
 # DEPRECATED, will be removed
