@@ -94,6 +94,8 @@ class Lock(coros.Semaphore):
         self.release()
 
 
+class LocalInvitationError(InvitationError):
+    pass
 
 class Session(NotificationHandler):
 
@@ -304,7 +306,7 @@ class Session(NotificationHandler):
     # XXX if we have TERMINATING and TERMINATED states we should have terminate() method, not end() or rename the states
     def end(self):
         if self.lock.greenlet:
-            api.kill(self.lock.greenlet, InvitationError(originator='local'))
+            api.kill(self.lock.greenlet, LocalInvitationError(reason='Disconnected by the local request', originator='local'))
         if self.inv:
             self._terminate()
 
