@@ -43,6 +43,8 @@ class SIPError(Error):
         params.setdefault('code', None)
         params.setdefault('reason', None)
         params.setdefault('originator', 'remote')
+        if not params.get('reason') and params.get('error'):
+            params['reason'] = params['error']
         self.params = params
 
     def __str__(self):
@@ -60,7 +62,7 @@ class InvitationError(SIPError):
 class ReInvitationError(InvitationError):
     pass
 
-class SDPNegotiationError(Error):
+class SDPNegotiationError(InvitationError):
     pass
 
 class EngineError(Error):
@@ -213,7 +215,7 @@ class GreenInvitation(GreenBase):
             elif notification.name == self.event_names[1]:
                 sdp_notification_data = notification.data
                 if not data.succeeded:
-                    raise SDPNegotiationError('SDP negotiation failed: %s' % notification.data.error)
+                    raise SDPNegotiationError(**data.__dict__)
         return confirmed_notification_data, sdp_notification_data
 
     def send_invite(self, *args, **kwargs):
