@@ -178,7 +178,7 @@ class Session(NotificationHandler):
             workers.waitall()
             workers = Workers()
             local_ip = SIPSimpleSettings().local_ip.normalized
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip))
+            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=SIPSimpleSettings().user_agent)
             for stream in self.streams:
                 local_sdp.media.append(stream.get_local_media(True))
             self.inv.set_offered_local_sdp(local_sdp)
@@ -263,7 +263,8 @@ class Session(NotificationHandler):
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
                                    media=media,
                                    start_time=remote_sdp.start_time,
-                                   stop_time=remote_sdp.stop_time)
+                                   stop_time=remote_sdp.stop_time,
+                                   name=SIPSimpleSettings().user_agent)
             self.inv.set_offered_local_sdp(local_sdp)
             self.start_time = datetime.datetime.now()
             confirmed_notification, sdp_notification = self.inv.accept_invite()

@@ -263,7 +263,7 @@ class Session(NotificationHandler):
                 return
             sdp_index = 0
             local_ip = self.settings.local_ip.normalized
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip))
+            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=self.settings.user_agent)
             if audio_rtp:
                 self._audio_sdp_index = sdp_index
                 sdp_index += 1
@@ -325,7 +325,7 @@ class Session(NotificationHandler):
                 return
             remote_sdp = self._inv.get_offered_remote_sdp()
             local_ip = self.settings.local_ip.normalized
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time)
+            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time, name=self.settings.user_agent)
             sdp_media_todo = range(len(remote_sdp.media))
             if audio_rtp:
                 sdp_media_todo.remove(self._audio_sdp_index)
