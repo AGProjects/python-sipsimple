@@ -176,7 +176,7 @@ def twisted_reactor_thread():
     from eventlet.twistedutil import join_reactor
     reactor.run(installSignalHandlers=False)
 
-def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pjsip, trace_notifications):
+def do_message(account_id, target_uri, message, trace_sip, trace_pjsip, trace_notifications):
     global user_quit, lock, queue
 
     # start twisted thread
@@ -186,7 +186,7 @@ def do_message(account_id, config_file, target_uri, message, trace_sip, trace_pj
     # acquire settings
 
     cm = ConfigurationManager()
-    cm.start(ConfigFileBackend(config_file))
+    cm.start(ConfigFileBackend())
     settings = SIPSimpleSettings()
 
     # select account
@@ -287,7 +287,6 @@ def parse_options():
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account", type="string", dest="account_id", help="The account name to use for any outgoing traffic. If not supplied, the default account will be used.", metavar="NAME")
-    parser.add_option("-c", "--config_file", type="string", dest="config_file", help="The path to a configuration file to use. This overrides the default location of the configuration file.", metavar="[FILE]")
     parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages.")
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output.")
     parser.add_option("-n", "--trace-notifications", action="store_true", dest="trace_notifications", default=False, help="Print all notifications (disabled by default).")
