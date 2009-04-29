@@ -154,6 +154,9 @@ class Session(NotificationHandler):
         return self.inv.remote_uri
 
     def _NH_SIPInvitationChangedState(self, inv, data):
+        proc.spawn_greenlet(self._on_sip_changed_state, inv, data)
+
+    def _on_sip_changed_state(self, inv, data):
         assert self.inv._obj == inv, (self.inv, self.inv._obj, inv, data)
         remote_user_agent = getattr(data, 'headers', {}).get('User-Agent')
         if not remote_user_agent:
@@ -210,6 +213,9 @@ class Session(NotificationHandler):
                 self.notification_center.post_notification("SIPSessionGotRingIndication", self, TimestampedNotificationData())
 
     def _NH_MediaStreamDidEnd(self, stream, data):
+        proc.spawn_greenlet(self._on_media_stream_end, stream, data)
+
+    def _on_media_stream_end(self, stream, data):
         try:
             index = self.streams.index(stream)
         except IndexError:
