@@ -20,6 +20,27 @@ __all__ = ['Session',
 
 class NotificationHandler(util.NotificationHandler):
 
+    def _set_observer(self):
+        try:
+            observer = self.__dict__['_observer']
+        except KeyError:
+            observer = NotifyFromThreadObserver(self)
+            self.__dict__['_observer'] = observer
+        return observer
+
+    def subscribe(self, name=Any, sender=Any):
+        NotificationCenter().add_observer(self._set_observer(), name, sender=sender)
+
+    def unsubscribe(self, name=Any, sender=Any):
+        try:
+            observer = self.__dict__['_observer']
+        except KeyError:
+            return
+        try:
+            NotificationCenter().remove_observer(observer, name=name, sender=sender)
+        except KeyError:
+            pass # it is wrong for this function to raise an error, IMO
+
     def subscribe_to_all(self, sender=Any):
         """Subscribe to all the notifications this class is interested in (based on what handler methods it has)"""
         nc = NotificationCenter()
@@ -51,6 +72,28 @@ class Error(Exception):
     pass
 
 
+class Lock(coros.Semaphore):
+    # lock that reports the greenlet that acquired the lock
+
+    def __init__(self):
+        coros.Semaphore.__init__(self, 1)
+        self.greenlet = None
+
+    def acquire(self):
+        coros.Semaphore.acquire(self)
+        self.greenlet = api.getcurrent()
+
+    def release(self):
+        coros.Semaphore.release(self)
+        self.greenlet = None
+
+    def __enter__(self):
+        return self.acquire()
+
+    def __exit__(self, *args):
+        return self.release()
+
+
 class Session(NotificationHandler):
 
     def __init__(self, account, inv=None, direction=None, remote_user_agent=None, streams=None):
@@ -58,20 +101,22 @@ class Session(NotificationHandler):
         self.account = account
         self.inv = inv
         if inv is not None:
-            self.subscribe_to_all(sender=self.inv._obj)
+            self.subscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
         self.direction = direction
         self.remote_user_agent = remote_user_agent
         self.streams = streams
+        for stream in streams:
+            self.subscribe('MediaStreamDidEnd', stream)
         self.notification_center = NotificationCenter()
         self.start_time = None
         self.stop_time = None
-        self.greenlet = None
         if direction == 'incoming':
             self.state = 'INCOMING'
         else:
             self.state = 'NULL'
         self._proposed_streams = []
         self._proposed_media = None
+        self.lock = Lock()
 
     @property
     def _inv(self):
@@ -136,6 +181,7 @@ class Session(NotificationHandler):
                     return
                 if not proposed_media.port and current_media.port:
                     if self.streams[index]:
+                        self.unsubscribe('MediaStreamDidEnd', sender=self.streams[index])
                         proc.spawn_greenlet(self.streams[index].end)
                         self.streams[index] = None
                         self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
@@ -144,6 +190,7 @@ class Session(NotificationHandler):
                 streams = []
                 for index, media in enumerate(self._proposed_media):
                     s = StreamFactory().make_media_stream(proposed_remote_sdp, len(current_remote_sdp.media) + index, self.account)
+                    self.subscribe('MediaStreamDidEnd', s)
                     streams.append(s)
                 self._proposed_streams = streams
                 inv.respond_to_reinvite(180)
@@ -152,215 +199,222 @@ class Session(NotificationHandler):
             else:
                 inv.set_offered_local_sdp(self._make_next_sdp(False))
                 inv.respond_to_reinvite(200)
-        elif data.state == 'CONFIRMED' and data.prev_state == 'REINVITING':
-            self._set_state('ESTABLISHED')
+        elif data.state == 'CONFIRMED':
+            if data.prev_state == 'REINVITING':
+                self._set_state('ESTABLISHED')
+        elif data.state == "EARLY":
+            if inv.is_outgoing and getattr(data, "code", None)==180:
+                self.notification_center.post_notification("SIPSessionGotRingIndication", self, TimestampedNotificationData())
+
+    def _NH_MediaStreamDidEnd(self, stream, data):
+        try:
+            index = self.streams.index(stream)
+        except IndexError:
+            pass
+        else:
+            proc.spawn_greenlet(proc.wrap_errors(InvitationError, self.remove_stream), index)
+        finally:
+            self.unsubscribe('MediaStreamDidEnd', stream)
 
     def connect(self, callee_uri, routes, streams=None):
-        assert self.state == 'NULL', self.state
-        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        if streams is not None:
-            self.streams = streams
-        if not self.streams:
-            raise ValueError('Must provide streams')
-        workers = Workers()
-        self.direction = 'outgoing'
-        route = iter(routes).next()
-        contact_uri = SIPURI(user=self.account.contact.username,
-                             host=self.account.contact.domain,
-                             port=getattr(Engine(), "local_%s_port" % route.transport),
-                             parameters={"transport": route.transport} if route.transport != "udp" else None)
-        self.inv = GreenInvitation(self.account.credentials, callee_uri, route, contact_uri)
-        self.subscribe_to_all(sender=self.inv._obj)
-        self.greenlet = api.getcurrent()
-        ERROR = (500, None, 'local') # code, reason, originator
-        self._set_state('CALLING')
-        try:
-            self.notification_center.post_notification("SIPSessionNewOutgoing", self, TimestampedNotificationData(streams=streams))
-            for stream in streams:
-                workers.spawn(stream.initialize, self)
-            workers.waitall()
+        with self.lock:
+            assert self.state == 'NULL', self.state
+            if streams is not None:
+                self.streams = streams
+            if not self.streams:
+                raise ValueError('Must provide streams')
             workers = Workers()
-            local_ip = SIPSimpleSettings().local_ip.normalized
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=SIPSimpleSettings().user_agent)
-            for stream in self.streams:
-                local_sdp.media.append(stream.get_local_media(True))
-            self.inv.set_offered_local_sdp(local_sdp)
-            confirmed_notification, sdp_notification = self.inv.send_invite()
-            self.start_time = datetime.datetime.now()
-            remote_sdp = sdp_notification.remote_sdp
-            local_sdp = sdp_notification.local_sdp
-            for index, local_media in enumerate(local_sdp.media):
-                try:
-                    remote_media = remote_sdp.media[index]
-                except LookupError:
-                    for not_used_stream in self.streams[index:]:
-                        if not_used_stream:
-                            proc.spawn_greenlet(not_used_stream.end)
-                    break
-                else:
-                    if remote_media.port:
-                        workers.spawn(self.streams[index].start, local_sdp, remote_sdp, index)
-                    else:
-                        if self.streams[index]:
-                            proc.spawn_greenlet(self.streams[index].end)
-            workers.waitall()
-            # TODO: subscribe to stream failure
-            ERROR = None
-        except InvitationError, ex:
-            ERROR = (ex.code, ex.reason, ex.originator)
-            raise
-        except:
-            typ, exc, tb = sys.exc_info()
-            ERROR = (500, str(exc) or str(typ.__name__), 'local')
-            raise
-        finally:
-            self.greenlet = None
-            if ERROR is None:
-                self._set_state('ESTABLISHED')
-                self.notification_center.post_notification("SIPSessionDidStart", self)
-            else:
-                code, reason, originator = ERROR
-                if code is not None: # InvitationError can be injected by end() method, in which case it won't have 'code'
-                    data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
-                    self.notification_center.post_notification("SIPSessionDidFail", self, data)
-                proc.spawn_greenlet(self._terminate, code)
-                workers.killall()
+            self.direction = 'outgoing'
+            route = iter(routes).next()
+            contact_uri = SIPURI(user=self.account.contact.username,
+                                 host=self.account.contact.domain,
+                                 port=getattr(Engine(), "local_%s_port" % route.transport),
+                                 parameters={"transport": route.transport} if route.transport != "udp" else None)
+            self.inv = GreenInvitation(self.account.credentials, callee_uri, route, contact_uri)
+            self.subscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
+            ERROR = (500, None, 'local') # code, reason, originator
+            self._set_state('CALLING')
+            try:
+                self.notification_center.post_notification("SIPSessionNewOutgoing", self, TimestampedNotificationData(streams=streams))
+                for stream in streams:
+                    self.subscribe('MediaStreamDidEnd', stream)
+                    workers.spawn(stream.initialize, self)
+                workers.waitall()
+                workers = Workers()
+                local_ip = SIPSimpleSettings().local_ip.normalized
+                local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=SIPSimpleSettings().user_agent)
                 for stream in self.streams:
-                    if stream:
-                        proc.spawn_greenlet(stream.end)
+                    local_sdp.media.append(stream.get_local_media(True))
+                self.inv.set_offered_local_sdp(local_sdp)
+                confirmed_notification, sdp_notification = self.inv.send_invite()
+                self.start_time = datetime.datetime.now()
+                remote_sdp = sdp_notification.remote_sdp
+                local_sdp = sdp_notification.local_sdp
+                for index, local_media in enumerate(local_sdp.media):
+                    try:
+                        remote_media = remote_sdp.media[index]
+                    except LookupError:
+                        for not_used_stream in self.streams[index:]:
+                            if not_used_stream:
+                                proc.spawn_greenlet(not_used_stream.end)
+                        break
+                    else:
+                        if remote_media.port:
+                            workers.spawn(self.streams[index].start, local_sdp, remote_sdp, index)
+                        else:
+                            if self.streams[index]:
+                                proc.spawn_greenlet(self.streams[index].end)
+                workers.waitall()
+                # TODO: subscribe to stream failure
+                ERROR = None
+            except InvitationError, ex:
+                ERROR = (ex.code, ex.reason, ex.originator)
+                raise
+            except:
+                typ, exc, tb = sys.exc_info()
+                ERROR = (500, str(exc) or str(typ.__name__), 'local')
+                raise
+            finally:
+                if ERROR is None:
+                    self._set_state('ESTABLISHED')
+                    self.notification_center.post_notification("SIPSessionDidStart", self)
+                else:
+                    code, reason, originator = ERROR
+                    if code is not None: # InvitationError can be injected by end() method, in which case it won't have 'code'
+                        data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                        self.notification_center.post_notification("SIPSessionDidFail", self, data)
+                    proc.spawn_greenlet(self._terminate, code)
+                    workers.killall()
+                    for stream in self.streams:
+                        if stream:
+                            proc.spawn_greenlet(stream.end)
 
     def _terminate(self, code=None):
-        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
         if self.state in ['TERMINATED', 'TERMINATING']:
             return self.wait_state('TERMINATED')
-        self._set_state('TERMINATING')
-        data = TimestampedNotificationData(originator='local')
-        self.notification_center.post_notification("SIPSessionWillEnd", self, data)
-        self.inv.disconnect(code or 603)
-        self._set_state('TERMINATED', originator='local')
-        self.unsubscribe_from_all(sender=self.inv._obj)
+        with self.lock:
+            self._set_state('TERMINATING')
+            data = TimestampedNotificationData(originator='local')
+            self.notification_center.post_notification("SIPSessionWillEnd", self, data)
+            self.inv.disconnect(code or 603)
+            self._set_state('TERMINATED', originator='local')
+            self.unsubscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
 
     # XXX if we have TERMINATING and TERMINATED states we should have terminate() method, not end() or rename the states
     def end(self):
-        if self.greenlet:
-            api.kill(self.greenlet, InvitationError(originator='local'))
-        elif self.inv:
+        if self.lock.greenlet:
+            api.kill(self.lock.greenlet, InvitationError(originator='local'))
+        if self.inv:
             self._terminate()
 
     def accept(self):
-        assert self.state == 'INCOMING', self.state
-        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        streams = self.streams
-        workers = Workers()
-        self.greenlet = api.getcurrent()
-        ERROR = (500, None, 'local') # code, reason, originator
-        self._set_state('ACCEPTING')
-        try:
-            for stream in streams:
-                workers.spawn(stream.initialize, self)
-            workers.waitall()
+        with self.lock:
+            assert self.state == 'INCOMING', self.state
+            streams = self.streams
             workers = Workers()
-            media = [stream.get_local_media(False) for stream in streams]
-            remote_sdp = self.inv.get_offered_remote_sdp()
-            local_ip = SIPSimpleSettings().local_ip.normalized
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
-                                   media=media,
-                                   start_time=remote_sdp.start_time,
-                                   stop_time=remote_sdp.stop_time,
-                                   name=SIPSimpleSettings().user_agent)
-            self.inv.set_offered_local_sdp(local_sdp)
-            self.start_time = datetime.datetime.now()
-            confirmed_notification, sdp_notification = self.inv.accept_invite()
-            for index, stream in enumerate(streams):
-                workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, index)
-            workers.waitall()
-            ERROR = None
-        except:
-            typ, exc, tb = sys.exc_info()
-            ERROR = (500, str(exc) or str(typ.__name__), 'local')
-            raise
-        finally:
-            self.greenlet = None
-            if ERROR is None:
-                self._set_state('ESTABLISHED')
-                self.notification_center.post_notification("SIPSessionDidStart", self)
-            else:
-                code, reason, originator = ERROR
-                if code is not None:
-                    data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
-                    self.notification_center.post_notification("SIPSessionDidFail", self, data)
-                proc.spawn_greenlet(self._terminate, code)
-                workers.killall()
+            ERROR = (500, None, 'local') # code, reason, originator
+            self._set_state('ACCEPTING')
+            try:
                 for stream in streams:
-                    if stream:
-                        proc.spawn_greenlet(stream.end)
+                    workers.spawn(stream.initialize, self)
+                workers.waitall()
+                workers = Workers()
+                media = [stream.get_local_media(False) for stream in streams]
+                remote_sdp = self.inv.get_offered_remote_sdp()
+                local_ip = SIPSimpleSettings().local_ip.normalized
+                local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
+                                       media=media,
+                                       start_time=remote_sdp.start_time,
+                                       stop_time=remote_sdp.stop_time,
+                                       name=SIPSimpleSettings().user_agent)
+                self.inv.set_offered_local_sdp(local_sdp)
+                self.start_time = datetime.datetime.now()
+                confirmed_notification, sdp_notification = self.inv.accept_invite()
+                for index, stream in enumerate(streams):
+                    workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, index)
+                workers.waitall()
+                ERROR = None
+            except:
+                typ, exc, tb = sys.exc_info()
+                ERROR = (500, str(exc) or str(typ.__name__), 'local')
+                raise
+            finally:
+                if ERROR is None:
+                    self._set_state('ESTABLISHED')
+                    self.notification_center.post_notification("SIPSessionDidStart", self)
+                else:
+                    code, reason, originator = ERROR
+                    if code is not None:
+                        data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                        self.notification_center.post_notification("SIPSessionDidFail", self, data)
+                    proc.spawn_greenlet(self._terminate, code)
+                    workers.killall()
+                    for stream in streams:
+                        if stream:
+                            proc.spawn_greenlet(stream.end)
 
     def accept_proposal(self):
-        assert self.state == 'PROPOSED', self.state
-        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        assert self._proposed_streams, self._proposed_streams
-        streams = self._proposed_streams
-        workers = Workers()
-        self.greenlet = api.getcurrent()
-        ERROR = (500, None, 'local') # code, reason, originator
-        self._set_state('ACCEPTING_PROPOSAL')
-        try:
-            self.streams.extend(streams)
-            for stream in streams:
-                workers.spawn(stream.initialize, self)
-            workers.waitall()
+        with self.lock:
+            assert self.state == 'PROPOSED', self.state
+            assert self._proposed_streams, self._proposed_streams
+            streams = self._proposed_streams
             workers = Workers()
-            media = [stream.get_local_media(False) for stream in streams]
-            remote_sdp = self.inv.get_offered_remote_sdp()
-            local_sdp = self._make_next_sdp(False)
-            offset = len(local_sdp.media)
-            new_local_media = [stream.get_local_media(False) for stream in streams]
-            local_sdp.media.extend(new_local_media)
-            self.inv.set_offered_local_sdp(local_sdp)
-            confirmed_notification, sdp_notification = self.inv.respond_to_reinvite()
-            for index, stream in enumerate(streams):
-                workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, offset+index)
-            workers.waitall()
-            ERROR = None
-        except:
-            typ, exc, tb = sys.exc_info()
-            ERROR = (500, str(exc) or str(typ.__name__), 'local')
-            raise
-        finally:
-            self.greenlet = None
-            if ERROR is None:
-                self._set_state('ESTABLISHED')
-                self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams, proposer="remote"))
-            else:
-                code, reason, originator = ERROR
-                if code is not None:
-                    data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
-                    self.notification_center.post_notification("SIPSessionDidFail", self, data)
-                proc.spawn_greenlet(self._terminate, code)
-                workers.killall()
-                for stream in self.streams:
-                    if stream:
-                        proc.spawn_greenlet(stream.end)
+            ERROR = (500, None, 'local') # code, reason, originator
+            self._set_state('ACCEPTING_PROPOSAL')
+            try:
+                self.streams.extend(streams)
+                for stream in streams:
+                    workers.spawn(stream.initialize, self)
+                workers.waitall()
+                workers = Workers()
+                media = [stream.get_local_media(False) for stream in streams]
+                remote_sdp = self.inv.get_offered_remote_sdp()
+                local_sdp = self._make_next_sdp(False)
+                offset = len(local_sdp.media)
+                new_local_media = [stream.get_local_media(False) for stream in streams]
+                local_sdp.media.extend(new_local_media)
+                self.inv.set_offered_local_sdp(local_sdp)
+                confirmed_notification, sdp_notification = self.inv.respond_to_reinvite()
+                for index, stream in enumerate(streams):
+                    workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, offset+index)
+                workers.waitall()
+                ERROR = None
+            except:
+                typ, exc, tb = sys.exc_info()
+                ERROR = (500, str(exc) or str(typ.__name__), 'local')
+                raise
+            finally:
+                if ERROR is None:
+                    self._set_state('ESTABLISHED')
+                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams, proposer="remote"))
+                else:
+                    code, reason, originator = ERROR
+                    if code is not None:
+                        data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                        self.notification_center.post_notification("SIPSessionDidFail", self, data)
+                    proc.spawn_greenlet(self._terminate, code)
+                    workers.killall()
+                    for stream in self.streams:
+                        if stream:
+                            proc.spawn_greenlet(stream.end)
 
     def reject_proposal(self):
-        assert self.state == 'PROPOSED', self.state
-        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        self.greenlet = api.getcurrent()
-        self._set_state('REJECTING_PROPOSAL')
-        try:
-            self.streams.extend([None] * len(self._proposed_streams))
-            remote_sdp = self.inv.get_offered_remote_sdp()
-            local_sdp = self._make_next_sdp(False)
-            offset = len(local_sdp.media)
-            proposed_media = remote_sdp.media[offset:]
-            for m in proposed_media:
-                m.port = 0
-            local_sdp.media.extend(proposed_media)
-            self.inv.set_offered_local_sdp(local_sdp)
-            self.inv.respond_to_reinvite()
-        finally:
-            self.greenlet = None
-            self._set_state('ESTABLISHED')
+        with self.lock:
+            assert self.state == 'PROPOSED', self.state
+            self._set_state('REJECTING_PROPOSAL')
+            try:
+                self.streams.extend([None] * len(self._proposed_streams))
+                remote_sdp = self.inv.get_offered_remote_sdp()
+                local_sdp = self._make_next_sdp(False)
+                offset = len(local_sdp.media)
+                proposed_media = remote_sdp.media[offset:]
+                for m in proposed_media:
+                    m.port = 0
+                local_sdp.media.extend(proposed_media)
+                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv.respond_to_reinvite()
+            finally:
+                self._set_state('ESTABLISHED')
 
     def _make_next_sdp(self, is_offer, on_hold=False):
         local_sdp = self._inv.get_active_local_sdp()
@@ -386,94 +440,98 @@ class Session(NotificationHandler):
     on_hold_by_local = False # XXX fix
 
     def add_stream(self, stream):
-        assert self.state == 'ESTABLISHED', self.state
-        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        self.greenlet = api.getcurrent()
-        ERROR = (500, None, 'local')
-        self._set_state("PROPOSING")
-        try:
-            self.streams.append(stream)
-            self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=[stream], proposer="local"))
-            stream.initialize(self)
-            local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-            media = stream.get_local_media(True)
-            index = len(local_sdp.media)
-            local_sdp.media.append(media)
-            self.inv.set_offered_local_sdp(local_sdp)
-            self.inv.send_reinvite()
-            remote_sdp = self._inv.get_active_remote_sdp()
-            if len(remote_sdp.media)<len(local_sdp.media):
-                raise InvitationError(code=488, reason='The answerer does not seem to support adding a stream', origin='local')
-            if remote_sdp.media[index].port:
-                #print InvitationError(code=200, reason='The answerer rejected the stream proposal by zeroing port in SDP', origin='local')
-                stream.start(local_sdp, remote_sdp, len(local_sdp.media)-1)
-            else:
-                self.streams[index] = None
-            ERROR = None
-        except InvitationError, ex:
-            ERROR = (ex.code, ex.reason, ex.originator)
-            raise
-        except:
-            typ, exc, tb = sys.exc_info()
-            ERROR = (500, str(exc) or str(typ.__name__), 'local')
-            raise
-        finally:
-            self.greenlet = None
-            if ERROR is None:
-                self._set_state('ESTABLISHED')
-                #self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self)
-                self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
-            else:
-                proc.spawn_greenlet(stream.end)
-                code, reason, originator = ERROR
-                del self.streams[-1]
-                if code == 500:
-                    proc.spawn_greenlet(self._terminate, code)
+        with self.lock:
+            assert self.state == 'ESTABLISHED', self.state
+            ERROR = (500, None, 'local')
+            self._set_state("PROPOSING")
+            try:
+                self.subscribe('MediaStreamDidEnd', stream)
+                index = len(self.streams)
+                self.streams.append(stream)
+                self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=[stream], proposer="local"))
+                stream.initialize(self)
+                local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
+                media = stream.get_local_media(True)
+                assert index == len(local_sdp.media), (index, local_sdp.media)
+                local_sdp.media.append(media)
+                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv.send_reinvite()
+                remote_sdp = self._inv.get_active_remote_sdp()
+                if len(remote_sdp.media)<len(local_sdp.media):
+                    raise InvitationError(code=488, reason='The answerer does not seem to support adding a stream', origin='local')
+                if remote_sdp.media[index].port:
+                    stream.start(local_sdp, remote_sdp, len(local_sdp.media)-1)
                 else:
+                    proc.spawn_greenlet(stream.end)
+                    self.unsubscribe('MediaStreamDidEnd', stream)
+                    self.streams[index] = None
+                ERROR = None
+            except InvitationError, ex:
+                ERROR = (ex.code, ex.reason, ex.originator)
+                raise
+            except:
+                typ, exc, tb = sys.exc_info()
+                ERROR = (500, str(exc) or str(typ.__name__), 'local')
+                raise
+            finally:
+                if ERROR is None:
                     self._set_state('ESTABLISHED')
-                data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
-                self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
+                    #self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self)
+                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
+                else:
+                    proc.spawn_greenlet(stream.end)
+                    code, reason, originator = ERROR
+                    del self.streams[-1]
+                    if code == 500:
+                        proc.spawn_greenlet(self._terminate, code)
+                    else:
+                        self._set_state('ESTABLISHED')
+                    data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                    self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
 
     def remove_stream(self, index):
-        assert self.state == 'ESTABLISHED', self.state
-        assert self.greenlet is None, 'This object is used by greenlet %r' % self.greenlet
-        if not 0 <= index < len(self.streams) or not self.streams[index]:
-            raise ValueError('No stream with index %s' % index)
-        self.greenlet = api.getcurrent()
-        ERROR = (500, None, 'local')
-        self._set_state("PROPOSING")
-        try:
-            local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-            local_sdp.media[index].port = 0
-            self.inv.set_offered_local_sdp(local_sdp)
-            self.inv.send_reinvite()
-            remote_sdp = self._inv.get_active_remote_sdp()
-            if len(remote_sdp.media)!=len(local_sdp.media):
-                raise InvitationError(code=488, reason='The answerer does not seem to support re-invites', origin='local')
-            ERROR = None
-        except InvitationError, ex:
-            ERROR = (ex.code, ex.reason, ex.originator)
-            raise
-        except:
-            typ, exc, tb = sys.exc_info()
-            ERROR = (500, str(exc) or typ.__name__, 'local')
-            raise
-        finally:
-            self.greenlet = None
-            if ERROR is None:
-                proc.spawn_greenlet(self.streams[index].end)
+        with self.lock:
+            if not 0 <= index < len(self.streams) or not self.streams[index]:
+                raise ValueError('No stream with index %s' % index)
+            stream = self.streams[index]
+            if stream is not None:
+                self.unsubscribe('MediaStreamDidEnd', stream)
+                proc.spawn_greenlet(stream.end)
                 self.streams[index]=None
-                self._set_state('ESTABLISHED')
-                #self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self)
-                self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
-            else:
-                code, reason, originator = ERROR
-                if code == 500:
-                    proc.spawn_greenlet(self._terminate, code)
-                else:
+            if not self.inv or not self.inv.get_active_local_sdp() or not self.inv.get_active_local_sdp().media[index].port:
+                return
+            if self.state != 'ESTABLISHED':
+                return
+            ERROR = (500, None, 'local')
+            self._set_state("PROPOSING")
+            try:
+                local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
+                local_sdp.media[index].port = 0
+                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv.send_reinvite()
+                remote_sdp = self._inv.get_active_remote_sdp()
+                if len(remote_sdp.media)!=len(local_sdp.media):
+                    raise InvitationError(code=488, reason='The answerer does not seem to support re-invites', origin='local')
+                ERROR = None
+            except InvitationError, ex:
+                ERROR = (ex.code, ex.reason, ex.originator)
+                raise
+            except:
+                typ, exc, tb = sys.exc_info()
+                ERROR = (500, str(exc) or typ.__name__, 'local')
+                raise
+            finally:
+                if ERROR is None:
                     self._set_state('ESTABLISHED')
-                data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
-                self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
+                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
+                else:
+                    code, reason, originator = ERROR
+                    if code == 500:
+                        proc.spawn_greenlet(self._terminate, code)
+                    else:
+                        self._set_state('ESTABLISHED')
+                    data = TimestampedNotificationData(originator=originator, code=code, reason=reason)
+                    self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, data)
 
 
 class StreamFactory(object):
