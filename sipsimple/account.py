@@ -250,14 +250,12 @@ class Account(SettingsObject):
 
         account_manager = AccountManager()
         if account_manager.state not in ('stopping', 'stopped'):
-            if notification.data.code == 401:
-                data = NotificationData(reason=notification.data.reason, registration=notification.sender,
-                                        code=notification.data.code, next_route=None, delay=0,
-                                        route=notification.data.route)
-                notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
-            elif not self._register_routes or time() >= self._register_timeout:
-                self._register_wait = min(self._register_wait*2, 30)
-                timeout = random.uniform(self._register_wait, 2*self._register_wait)
+            if notification.data.code == 401 or not self._register_routes or time() >= self._register_timeout:
+                if notification.data.code == 401:
+                    timeout = random.uniform(60, 120)
+                else:
+                    self._register_wait = min(self._register_wait*2, 30)
+                    timeout = random.uniform(self._register_wait, 2*self._register_wait)
 
                 data = NotificationData(reason=notification.data.reason, registration=notification.sender,
                                         code=notification.data.code, next_route=None, delay=timeout,
