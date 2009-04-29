@@ -172,8 +172,9 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                             auto_answer_timer = Timer(auto_answer, auto_answer_call)
                             auto_answer_timer.start()
                     else:
-                        print "Rejecting with %d (%s)" % (486, sip_status_messages[486])
-                        obj.reject(True)
+                        resp_code = 486
+                        print "Rejecting with %d (%s)" % (resp_code, sip_status_messages[resp_code])
+                        obj.reject(resp_code)
                 elif event_name == "SIPSessionDidStart":
                     print 'Session established, using "%s" codec at %dHz' % (sess.audio_codec, sess.audio_sample_rate)
                     print "Audio RTP endpoints %s:%d <-> %s:%d" % (sess.audio_local_rtp_address, sess.audio_local_rtp_port, sess.audio_remote_rtp_address_sdp, sess.audio_remote_rtp_port_sdp)
@@ -243,8 +244,9 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                 if sess is not None:
                     if sess.state == "INCOMING":
                         if data.lower() == "n":
-                            sess.reject()
-                            print "Session rejected with %d (%s)" % (603, sip_status_messages[603])
+                            resp_code = 603
+                            sess.reject(resp_code)
+                            print "Session rejected with %d (%s)" % (resp_code, sip_status_messages[resp_code])
                             sess = None
                         elif data.lower() == "y":
                             if auto_answer_timer is not None:
