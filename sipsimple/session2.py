@@ -41,7 +41,10 @@ class NotificationHandler(util.NotificationHandler):
             nc = NotificationCenter()
             for name in dir(self):
                 if name.startswith('_NH_'):
-                    nc.remove_observer(observer, name.replace('_NH_', ''), sender=sender)
+                    try:
+                        nc.remove_observer(observer, name.replace('_NH_', ''), sender=sender)
+                    except KeyError:
+                        pass
 
 
 class Error(Exception):
