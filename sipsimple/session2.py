@@ -608,6 +608,9 @@ class Workers(object):
         self.error_event = proc.Source()
         self.procs = []
 
+    def __repr__(self):
+        return "<Workers error_event=%r procs=%r>" % (self.error_event, self.procs)
+
     def spawn(self, function, *args, **kwargs):
         p = proc.spawn(send_error(self.error_event, function), *args, **kwargs)
         self.procs.append(p)
