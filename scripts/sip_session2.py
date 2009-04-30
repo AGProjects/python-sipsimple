@@ -756,11 +756,12 @@ class ChatManager(NotificationHandler):
 
 
 def get_userfriendly_desc(stream):
+    # incoming sessions have stream of this type instead of those defined above
     if isinstance(stream, MSRPDesktop):
         if stream.setup == 'active':
-            return "Connect to remote desktop"
+            return "RemoteDesktop"
         else:
-            return "Local desktop"
+            return "LocalDesktop"
     try:
         return ChatManager._reverse_streams[type(stream)].capitalize()
     except KeyError:
