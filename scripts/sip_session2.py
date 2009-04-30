@@ -752,7 +752,7 @@ class ChatManager(NotificationHandler):
 
 
 def get_userfriendly_desc(stream):
-    if isinstance(stream, RemoteDesktop):
+    if isinstance(stream, MSRPDesktop):
         if stream.setup == 'active':
             return "Connect to remote desktop"
         else:
