@@ -882,7 +882,7 @@ class InfoPrinter(NotificationHandler):
     def _NH_SIPAccountRegistrationDidFail(self, account, data):
         self.boring_messages.clear()
         if data.registration is not None:
-            route = data.registration.route
+            route = data.route
             if data.next_route:
                 next_route = data.next_route
                 next_route = 'Trying next SIP route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
