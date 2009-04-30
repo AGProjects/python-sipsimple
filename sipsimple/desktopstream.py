@@ -16,7 +16,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.msrp import LoggerSingleton, get_X509Credentials
 from sipsimple.green.core import SDPNegotiationError
 
-from sipsimple.applications.desktopsharing import vncviewer, vncserver
+from sipsimple.applications.desktopsharing import vncviewer, pygamevncviewer, gvncviewer, xtightvncviewer, vncserver
 
 
 class MSRPDesktop(object):
@@ -146,7 +146,17 @@ class MSRPDesktop(object):
         if self.setup == 'passive':
             self.worker = proc.spawn(vncserver, SocketOverMSRPTransport(self.msrp), x11opts=" -speeds modem")
         else:
-            self.worker = proc.spawn(vncviewer, SocketOverMSRPTransport(self.msrp), str(self.remote_uri), depth=8)
+            depth = SIPSimpleSettings().desktop_sharing.color_depth
+            viewer = SIPSimpleSettings().desktop_sharing.client_command
+            if viewer == 'pygame':
+                v = pygamevncviewer
+            elif viewer == 'gvncviewer':
+                v = gvncviewer
+            elif viewer == 'xtightvncviewer':
+                v = xtightvncviewer
+            else:
+                v = vncviewer
+            self.worker = proc.spawn(vncviewer, SocketOverMSRPTransport(self.msrp), str(self.remote_uri), depth=depth)
         self.worker.link_value(lambda p: proc.spawn(self.end))
         self.worker.link_exception(lambda p: self._report_failure(p))
 
