@@ -157,8 +157,6 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='SIPEngineDidStart', sender=engine)
         notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
 
-        notification_center.add_observer(self, sender=self._registrar)
-
         if self.enabled:
             self._registrar = Registration(self.credentials, duration=self.registration.interval)
             notification_center.add_observer(self, sender=self._registrar)
@@ -272,8 +270,9 @@ class Account(SettingsObject):
                                         route=notification.data.route)
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
 
+                self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
                 contact_uri = self.contact[route.transport]
-                self._registrar.register(contact_uri, route, timeout=10) # TODO: make timeout configurable?
+                self._registrar.register(contact_uri, route, timeout=min(10, time()-self._register_timeout+0.25))
 
     def _NH_SIPRegistrationWillExpire(self, notification):
         self._register()
@@ -292,7 +291,7 @@ class Account(SettingsObject):
         route = self._register_routes.popleft()
         self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
         contact_uri = self.contact[route.transport]
-        self._registrar.register(contact_uri, route, timeout=10) # TODO: make timeout configurable?
+        self._registrar.register(contact_uri, route, timeout=min(10, time()-self._register_timeout+0.25))
 
     def _NH_DNSLookupDidFail(self, notification):
         notification_center = NotificationCenter()
