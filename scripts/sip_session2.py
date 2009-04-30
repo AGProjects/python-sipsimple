@@ -922,7 +922,7 @@ class Ringer(NotificationHandler):
                 if not self.session_ringing_outboung and self.outbound_ringtone.is_active:
                     self.outbound_ringtone.stop()
         if hasattr(session, '_ringtone') and session.state != 'INCOMING':
-            if session._ringtone.is_active:
+            if session._ringtone and session._ringtone.is_active:
                 session._ringtone.stop()
 
     def _audio_busy(self, session):
@@ -931,13 +931,15 @@ class Ringer(NotificationHandler):
                                                                        other_sess.audio is not None)]
 
     def _NH_SIPSessionNewIncoming(self, session, data):
+        session._ringtone = None
         if self._audio_busy(session):
             session._ringtone = PersistentTones([(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
         else:
             ringtone = session.account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
             if ringtone is not None:
                 session._ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume)
-        session._ringtone.start()
+        if session._ringtone:
+            session._ringtone.start()
 
 
 def start(options, console):
