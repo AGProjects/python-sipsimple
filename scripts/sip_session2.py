@@ -712,14 +712,14 @@ class ChatManager(NotificationHandler):
         self.get_current_session().toggle_recording()
 
     def cmd_add(self, *args):
-        """:add audio|chat \t Add a new stream to the current session"""
+        """:add audio|chat|desktop|desktop-local \t Add a new stream to the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_add.__doc__)
         session._spawn_auxiliary(session.add_stream, self.get_stream(args[0])(self.account))
 
     def cmd_remove(self, *args):
-        """:remove audio|chat \t Remove a stream from the current session"""
+        """:remove audio|chat|desktop|desktop-local \t Remove a stream from the current session"""
         session = self.get_current_session()
         if len(args) != 1:
             raise UserCommandError('Invalid number of arguments\n:%s' % self.cmd_remove.__doc__)
