@@ -912,14 +912,14 @@ class Ringer(NotificationHandler):
             if self._audio_busy(session):
                 session._ringtone = PersistentTones([(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
                 session._ringtone.start(loop_count=1)
-            else:
+            elif not self.outbound_ringtone.is_active:
                 self.outbound_ringtone.start(loop_count=0, pause_time=2)
 
     def _NH_SIPSessionChangedState(self, session, data):
         if session.state != 'CALLING':
             if session in self.session_ringing_outboung:
                 self.session_ringing_outboung.discard(session)
-                if not self.session_ringing_outboung:
+                if not self.session_ringing_outboung and self.outbound_ringtone.is_active:
                     self.outbound_ringtone.stop()
         if hasattr(session, '_ringtone') and session.state != 'INCOMING':
             if session._ringtone.is_active:
