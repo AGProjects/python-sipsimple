@@ -835,8 +835,15 @@ class InfoPrinter(NotificationHandler):
     def _NH_SIPSessionDidEnd(self, session, data):
         after = ''
         if session.stop_time is not None and session.start_time is not None:
-            duration = session.stop_time - session.start_time
-            after = " after %s%s%d seconds" % ("%d days, " % duration.days if duration.days else "", "%d minutes, " % (duration.seconds / 60) if duration.seconds > 60 else "", duration.seconds % 60)
+            d = session.stop_time.replace(microsecond=0) - session.start_time.replace(microsecond=0)
+            d = str(d)
+            if d[:2]=='0:':
+                d = d[2:]
+            if d[:3]=='00:':
+                d = d[3:] + ' seconds'
+            if d[1:] and d[:1]=='0':
+                d = d[1:]
+            after = ' after ' + d
         if data.originator == 'local':
             print "Session ended by local party%s." % after
         else:
