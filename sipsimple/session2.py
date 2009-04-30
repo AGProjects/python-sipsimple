@@ -218,7 +218,7 @@ class Session(NotificationHandler):
     def _on_media_stream_end(self, stream, data):
         try:
             index = self.streams.index(stream)
-        except IndexError:
+        except ValueError:
             pass
         else:
             proc.spawn_greenlet(proc.wrap_errors(InvitationError, self.remove_stream), index)
