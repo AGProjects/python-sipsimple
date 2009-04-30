@@ -810,22 +810,21 @@ class InfoPrinter(NotificationHandler):
             print "Detected NAT type: %s" % data.nat_type
 
     def _NH_SIPSessionDidStart(self, session, data):
-        try:
-            print 'RTP audio session established, using "%s" codec at %dHz' % (session.audio_codec, session.audio_sample_rate)
-            print "RTP endpoints %s:%d <-> %s:%d" % (session.audio_local_rtp_address, session.audio_local_rtp_port,
-                                                           session.audio_remote_rtp_address_sdp, session.audio_remote_rtp_port_sdp)
-            if session.audio_srtp_active:
-                print "RTP audio stream is encrypted"
-        except AttributeError:
-            pass
         if session.remote_user_agent is not None:
             print 'Remote SIP User Agent is "%s"' % session.remote_user_agent
 
-    def _NH_MediaStreamDidStart(self, chat, data):
-        if isinstance(chat, MSRPChat):
-            transport = chat.msrp
+    def _NH_MediaStreamDidStart(self, s, data):
+        if isinstance(s, MSRPChat):
+            transport = s.msrp
             print 'MSRP endpoints %s:%s <-> %s:%s' % (transport.getHost().host, transport.getHost().port,
                                                       transport.getPeer().host, transport.getPeer().port)
+        elif isinstance(s, GreenAudioStream.klass):
+            s = s._audio_transport
+            print 'Session established, using "%s" codec at %dHz' % (s.codec, s.sample_rate)
+            s = s.transport
+            print "Audio RTP endpoints %s:%d <-> %s:%d" % (s.local_rtp_address, s.local_rtp_port, s.remote_rtp_address_sdp, s.remote_rtp_port_sdp)
+            if s.srtp_active:
+                print "RTP audio stream is encrypted"
 
     def _NH_SIPSessionDidFail(self, session, data):
         if data.code:
