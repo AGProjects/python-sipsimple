@@ -221,7 +221,7 @@ class Session(NotificationHandler):
         except ValueError:
             pass
         else:
-            proc.spawn_greenlet(proc.wrap_errors(InvitationError, self.remove_stream), index)
+            proc.spawn_greenlet(proc.wrap_errors((InvitationError, ValueError), self.remove_stream), index)
         finally:
             self.unsubscribe('MediaStreamDidEnd', stream)
 
