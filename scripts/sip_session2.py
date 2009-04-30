@@ -188,12 +188,13 @@ class MessageRenderer(NotificationHandler):
         self.handle_message(msrpstream, data)
 
     def _NH_MSRPChatDidDeliverMessage(self, msrpstream, data):
-        fro, to, total = data.message.byte_range
-        msrpstream.sent = max(getattr(msrpstream, 'sent', 0), to)
-        if msrpstream.outgoing_file.size == msrpstream.sent:
-            global chat_manager
-            chat_manager.remove_session(msrpstream._chatsession)
-        NotificationCenter().post_notification('update_prompt')
+        if isinstance(msrpstream, MSRPOutgoingFileStream):
+            fro, to, total = data.message.byte_range
+            msrpstream.sent = max(getattr(msrpstream, 'sent', 0), to)
+            if msrpstream.outgoing_file.size == msrpstream.sent:
+                global chat_manager
+                chat_manager.remove_session(msrpstream._chatsession)
+            NotificationCenter().post_notification('update_prompt')
 
 
 def get_history_file(invitation):
