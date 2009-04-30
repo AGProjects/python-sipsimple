@@ -298,6 +298,7 @@ class ChatSession(NotificationHandler):
         for index, stream in enumerate(self.streams):
             if isinstance(stream, stream_class):
                 self._spawn_auxiliary(self.session.remove_stream, index)
+                return
         raise UserCommandError("The session does not have such stream")
 
     def hold(self):
