@@ -190,7 +190,7 @@ class Session(NotificationHandler):
                         self.unsubscribe('MediaStreamDidEnd', sender=self.streams[index])
                         proc.spawn_greenlet(self.streams[index].end)
                         self.streams[index] = None
-                        self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
+                        self.notification_center.post_notification("SIPSessionGotStreamUpdate", self)
             self._proposed_media =  proposed_remote_sdp.media[len(current_remote_sdp.media):]
             if self._proposed_media:
                 streams = []
@@ -222,6 +222,7 @@ class Session(NotificationHandler):
             pass
         else:
             self.streams[index]=None
+            self.notification_center.post_notification('SIPSessionGotStreamUpdate', self)
         finally:
             self.unsubscribe('MediaStreamDidEnd', stream)
 
@@ -398,7 +399,7 @@ class Session(NotificationHandler):
             finally:
                 if ERROR is None:
                     self._set_state('ESTABLISHED')
-                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams, proposer="remote"))
+                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self)
                 else:
                     code, reason, originator = ERROR
                     if code is not None:
@@ -489,7 +490,7 @@ class Session(NotificationHandler):
                 if ERROR is None:
                     self._set_state('ESTABLISHED')
                     #self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self)
-                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
+                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self)
                 else:
                     proc.spawn_greenlet(stream.end)
                     code, reason, originator = ERROR
@@ -535,7 +536,7 @@ class Session(NotificationHandler):
             finally:
                 if ERROR is None:
                     self._set_state('ESTABLISHED')
-                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=self.streams))
+                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", self)
                 else:
                     code, reason, originator = ERROR
                     if code == 500:

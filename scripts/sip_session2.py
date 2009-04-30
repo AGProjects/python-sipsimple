@@ -247,7 +247,7 @@ class ChatSession(NotificationHandler):
             self.history_file = get_history_file(session.inv)
 
     def _NH_SIPSessionGotStreamUpdate(self, session, data):
-        self.update_streams(data.streams)
+        self.update_streams(session.streams)
         self.manager.update_prompt()
 
     def end(self):
