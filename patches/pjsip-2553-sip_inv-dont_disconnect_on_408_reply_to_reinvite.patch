@@ -1,0 +1,15 @@
+--- pjsip/src/pjsip-ua/sip_inv.c.orig	2009-05-04 12:16:11.000000000 +0200
++++ pjsip/src/pjsip-ua/sip_inv.c	2009-05-04 12:18:22.000000000 +0200
+@@ -2863,9 +2863,10 @@
+     if (inv->state != PJSIP_INV_STATE_DISCONNECTED &&
+ 	((tsx->status_code == PJSIP_SC_CALL_TSX_DOES_NOT_EXIST &&
+ 	    tsx->method.id != PJSIP_CANCEL_METHOD) ||
+-	 tsx->status_code == PJSIP_SC_REQUEST_TIMEOUT ||
++	 (inv->state != PJSIP_INV_STATE_CONFIRMED &&
++	 (tsx->status_code == PJSIP_SC_REQUEST_TIMEOUT ||
+ 	 tsx->status_code == PJSIP_SC_TSX_TIMEOUT ||
+-	 tsx->status_code == PJSIP_SC_TSX_TRANSPORT_ERROR))
++	 tsx->status_code == PJSIP_SC_TSX_TRANSPORT_ERROR))))
+     {
+ 	pjsip_tx_data *bye;
+ 	pj_status_t status;
