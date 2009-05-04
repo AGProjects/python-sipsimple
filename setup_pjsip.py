@@ -45,8 +45,15 @@ def get_makefile_variables(makefile):
     stdout = distutils_exec_process([get_make_cmd(), "-f", makefile, "-pR", makefile], True)
     return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
 
-def get_svn_revision(svn_dir):
+def get_svn_repo_url(svn_dir):
     svn_info = distutils_exec_process(["svn", "info", svn_dir], True)
+    return re.search("URL: (.*)", svn_info).group(1)
+
+def get_svn_revision(svn_dir, max_revision=None):
+    if max_revision is None:
+        svn_info = distutils_exec_process(["svn", "info", svn_dir], True)
+    else:
+        svn_info = distutils_exec_process(["svn", "-r", str(max_revision), "info", svn_dir], True)
     return int(re.search("Last Changed Rev: (\d+)", svn_info).group(1))
 
 class PJSIP_build_ext(build_ext):
@@ -58,12 +65,17 @@ class PJSIP_build_ext(build_ext):
     patch_files = ["patches/sdp_neg_cancel_remote_offer_r2669.patch",
                    "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2425-sdp_media_line.patch",
-                   "patches/pjsip-2553-sip_inv-recv_neg_reply_to_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-dont_disconnect_on_408_reply_to_reinvite.patch"]
+    pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
+                       "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
+    trunk_overrides = [("pjsip/src/pjsip-ua/sip_inv.c", 2670),
+                       ("pjsip/include/pjsip-ua/sip_inv.h", 2647),
+                       ("pjmedia/src/pjmedia/sdp_neg.c", 2643),
+                       ("pjsip/src/pjsip/sip_transaction.c", 2646),
+                       ("pjsip/include/pjsip/sip_transaction.h", 2646)]
 
     user_options = build_ext.user_options
     user_options.extend([
-        ("pjsip-svn-repo=", None, "PJSIP SVN repository to checkout from"),
         ("pjsip-svn-revision=", None, "PJSIP SVN revision to fetch"),
         ("pjsip-clean-compile", None, "Clean PJSIP tree before compilation")
         ])
@@ -74,9 +86,9 @@ class PJSIP_build_ext(build_ext):
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.pjsip_clean_compile = 0
-        self.pjsip_svn_repo = os.environ.get("PJSIP_SVN_REPO", "http://svn.pjsip.org/repos/pjproject/branches/1.0")
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
         self.pjsip_build_dir = os.environ.get("PJSIP_BUILD_DIR", None)
+        self.pjsip_svn_repo = self.pjsip_svn_repos["1.0"]
 
     def check_cython_version(self):
         from Cython.Compiler.Version import version as cython_version
@@ -85,28 +97,46 @@ class PJSIP_build_ext(build_ext):
 
     def fetch_pjsip_from_svn(self):
         self.svn_dir = os.path.join(self.pjsip_build_dir or self.build_temp, "pjsip")
-        try:
-            old_svn_rev = get_svn_revision(self.svn_dir)
-        except:
-            old_svn_rev = -1
         if not os.path.exists(self.svn_dir):
             log.info("Fetching PJSIP from SVN repository")
             distutils_exec_process(["svn", "co", "-r", self.pjsip_svn_revision, self.pjsip_svn_repo, self.svn_dir], True, input='t\n')
+            new_svn_rev = get_svn_revision(self.svn_dir)
+            svn_updated = True
         else:
-            log.info("PJSIP SVN tree found, updating from SVN repository")
             try:
-                distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
+                old_svn_rev = get_svn_revision(self.svn_dir)
+            except:
+                old_svn_rev = -1
+            local_svn_repo = get_svn_repo_url(self.svn_dir)
+            if local_svn_repo != self.pjsip_svn_repo:
+                raise DistutilsError("Local build dir PJSIP SVN repository (%s) does not not match the one provided (%s)" % (local_svn_repo, self.pjsip_svn_repo))
+            log.info("PJSIP SVN tree found, checking SVN repository for updates")
+            try:
+                new_svn_rev = get_svn_revision(local_svn_repo, self.pjsip_svn_revision)
             except DistutilsError, e:
-                log.info("Error updating PJSIP from SVN, continuing with existing tree:")
+                if self.pjsip_clean_compile:
+                    raise
+                log.info("Could not contact SVN repository, continuing with existing tree:")
                 log.info(str(e))
-        new_svn_rev = get_svn_revision(self.svn_dir)
+                new_svn_rev = old_svn_rev
+                svn_updated = False
+            else:
+                svn_updated = self.pjsip_clean_compile or new_svn_rev != old_svn_rev
+                if svn_updated:
+                    log.info("Fetching updates from PJSIP SVN repository")
+                    distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
+                    distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
+                    if self.pjsip_svn_repo == self.pjsip_svn_repos["1.0"]:
+                        for override_file, override_revision in self.trunk_overrides:
+                            distutils_exec_process(["svn", "merge", "-r", "%d:%d" % (new_svn_rev, override_revision), "/".join([self.pjsip_svn_repos["trunk"], override_file]), os.path.join(self.svn_dir, override_file)], True)
+                else:
+                    log.info("No updates in PJSIP SVN")
         print "Using SVN revision %d" % new_svn_rev
-        return old_svn_rev != new_svn_rev
+        return svn_updated
 
     def patch_pjsip(self):
         log.info("Patching PJSIP")
         open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
-        distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
         for patch_file in self.patch_files:
             distutils_exec_process(["patch", "--forward", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
 
@@ -155,7 +185,7 @@ class PJSIP_build_ext(build_ext):
         if extension.name == "sipsimple.core":
             self.check_cython_version()
             svn_updated = self.fetch_pjsip_from_svn()
-            if self.patch_files:
+            if svn_updated:
                 self.patch_pjsip()
             compile_needed = svn_updated
             if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
@@ -163,7 +193,6 @@ class PJSIP_build_ext(build_ext):
                 compile_needed = True
             if self.pjsip_clean_compile:
                 self.clean_pjsip()
-                compile_needed = True
             self.update_extension(extension)
             if compile_needed or not all(map(lambda x: os.path.exists(x), self.libraries)):
                 self.remove_libs()
