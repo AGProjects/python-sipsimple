@@ -244,6 +244,7 @@ class Account(SettingsObject):
         self._register()
 
     def _NH_SIPRegistrationDidFail(self, notification):
+        settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
 
         account_manager = AccountManager()
