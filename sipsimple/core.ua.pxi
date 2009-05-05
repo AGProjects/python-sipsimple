@@ -346,19 +346,28 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self._check_self()
-            return self._pjsip_endpoint._tls_ca_file and self._pjsip_endpoint._tls_ca_file.str or None
+            if self._pjsip_endpoint._tls_ca_file is None:
+                return None
+            else:
+                return self._pjsip_endpoint._tls_ca_file.str
 
     property tls_cert_file:
 
         def __get__(self):
             self._check_self()
-            return self._pjsip_endpoint._tls_cert_file and self._pjsip_endpoint._tls_cert_file.str or None
+            if self._pjsip_endpoint._tls_cert_file is None:
+                return None
+            else:
+                return self._pjsip_endpoint._tls_cert_file.str
 
     property tls_privkey_file:
 
         def __get__(self):
             self._check_self()
-            return self._pjsip_endpoint._tls_privkey_file and self._pjsip_endpoint._tls_privkey_file.str or None
+            if self._pjsip_endpoint._tls_privkey_file is None:
+                return None
+            else:
+                return self._pjsip_endpoint._tls_privkey_file.str
 
     property tls_timeout:
 
