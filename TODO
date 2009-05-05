@@ -11,13 +11,10 @@ Middleware
 ----------
 
 - Configuration changes listener [LS]
-- FileTransfer high level class [DB]
-- Desktop sharing high level class [DB]
-- Capture MSRP trace as notifications [DB]
-- MediaStream high level class [DB]
-- Audio MediaStream high level class [RK]
-- Chat MediaStream high level class [DB]
-- Registration high level class [LS]
+- FileTransfer high level class [LS]
+- Desktop sharing high level class [LS]
+- Capture MSRP trace as notifications [LS]
+- MediaStream high level class [LS]
 - Buddylist high-level class [LS]
 - Publication  high level class [LS]
 - Subscribtion high level class [LS]
@@ -72,6 +69,7 @@ Audio
 - Added general volume control for the conference bridge [RK]
 - Fix high CPU usage on OS X [RK]
 - Comfort noise generator [RK]
+- zRTP [RK]
 - N810 maemo audio driver [LS]
 - Improve Acoustic Echo Cancellation []
 
@@ -79,18 +77,10 @@ Audio
 Instant messaging
 -----------------
 
-- File transfer support based on draft-ietf-mmusic-file-transfer-mech-11 [DB]
-- Use MSRPServer class to share the listening port [DB]
-- Is-composing payload [LS]
-- Fix sip_im_session to accept unicode characters [DB]
-
-
-Security and privacy
---------------------
-
-- Off-the-Record Messaging for IM [LS]
-- zRTP for audio [RK]
+- Use MSRPServer class to share the listening port []
+- Is-composing payload [RK]
 - Anonymous URI multi-party chat support [RK]
+- Off-the-Record Messaging for IM [LS]
 
 
 Presence
@@ -114,7 +104,6 @@ Other applications
 Command line tools
 ------------------
 
-- Add --auto-answer and --auto-hangup parameter to sip_im_session [DB]
 - xcap_pidf_manipulation script [LS]
 - sip_subscribe_conference script [LS]
 - sip_subscribe_xcap_diff script [LS]
