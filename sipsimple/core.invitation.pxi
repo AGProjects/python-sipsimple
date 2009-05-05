@@ -16,6 +16,7 @@ cdef class Invitation:
     cdef int _has_active_sdp
     cdef readonly object transport
     cdef SIPURI _local_contact_uri
+    cdef pjsip_transaction *_reinvite_tsx
 
     def __cinit__(self, *args, **kwargs):
         self._sdp_neg_status = -1
@@ -265,6 +266,10 @@ cdef class Invitation:
         if self._obj.cancelling and state == "DISCONNECTED":
             # Hack to indicate that we caused the disconnect
             self.state = "DISCONNECTING"
+        if state in ["REINVITED", "REINVITING"]:
+            self._reinvite_tsx = self._obj.invite_tsx
+        elif self.state in ["REINVITED", "REINVITING"]:
+            self._reinvite_tsx = NULL
         event_dict = dict(obj=self, prev_state=self.state, state=state)
         self.state = state
         if rdata != NULL:
@@ -303,9 +308,7 @@ cdef class Invitation:
         else:
             event_dict["error"] = _pj_status_to_str(status)
         _add_event("SIPInvitationGotSDPUpdate", event_dict)
-        if self.state == "REINVITED":
-            self._cb_state(ua, "CONFIRMED", NULL)
-        elif self.state in ["INCOMING", "EARLY"] and status != 0:
+        if self.state in ["INCOMING", "EARLY"] and status != 0:
             self.disconnect(488)
         return 0
 
@@ -436,8 +439,6 @@ cdef class Invitation:
             raise SIPCoreError('Can only send a response to a re-INVITE in the "REINVITED" state, ' +
                                'currently in the "%s" state' % self.state)
         self._send_response(ua, response_code, extra_headers)
-        if response_code / 100 > 2:
-            self._cb_state(ua, "CONFIRMED", NULL)
 
     def send_reinvite(self, dict extra_headers=None):
         cdef pjsip_tx_data *tdata
@@ -543,16 +544,16 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
             return
         if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
             rdata = e.body.tsx_state.src.rdata
-        if rdata != NULL and inv.mod_data[ua._module.id] != NULL:
+        if inv.mod_data[ua._module.id] != NULL:
             invitation = <object> inv.mod_data[ua._module.id]
             if ((tsx.state == PJSIP_TSX_STATE_TERMINATED or tsx.state == PJSIP_TSX_STATE_COMPLETED) and
-                invitation.state == "REINVITING"):
+                invitation._reinvite_tsx != NULL and invitation._reinvite_tsx == tsx):
                 try:
                     invitation._cb_state(ua, "CONFIRMED", rdata)
                 except:
                     invitation._fail(ua)
             elif (invitation.state in ["INCOMING", "EARLY"] and invitation._credentials is None and
-                  rdata.msg_info.msg.type == PJSIP_REQUEST_MSG and
+                  rdata != NULL and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG and
                   rdata.msg_info.msg.line.req.method.id == PJSIP_CANCEL_METHOD):
                 try:
                     invitation._cb_state(ua, "DISCONNECTED", rdata)
