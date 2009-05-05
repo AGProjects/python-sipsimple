@@ -66,6 +66,7 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-cancel_sdp_neg_on_sending_negative_reply_to_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-dont_disconnect_on_408_reply_to_reinvite.patch",
+                   "patches/pjsip-2553-sip_inv-terminate-reinvite-tsx-on-cancel.patch",
                    "patches/pjsip-2425-sdp_media_line.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
