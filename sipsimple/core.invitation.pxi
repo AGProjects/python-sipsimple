@@ -446,7 +446,7 @@ cdef class Invitation:
         cdef pjmedia_sdp_session *local_sdp = NULL
         cdef PJSIPUA ua = self._check_ua()
         if self.state != "CONFIRMED":
-            raise SIPCoreError('Cannot send re-INVITE in "CONFIRMED" state')
+            raise SIPCoreError('Can only send re-INVITE in "CONFIRMED" state, not "%s" state' % self.state)
         if self._local_sdp_proposed is not None:
             self._local_sdp_proposed._to_c()
             local_sdp = &self._local_sdp_proposed._obj
