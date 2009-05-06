@@ -249,7 +249,8 @@ cdef class Request:
         if status != 0:
             raise PJSIPError("Could not send request", status)
         pjsip_tx_data_add_ref(self._tdata)
-        status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
+        if timeout_pj.sec or timeout_pj.msec:
+            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
         if status == 0:
             self._timer_active = 1
         self.state = "IN_PROGRESS"
