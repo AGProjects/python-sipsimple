@@ -61,7 +61,7 @@ documents using XCAP protocol.
  * MSRP protocol RFC4975
  * MSRP protocol relay extension RFC4976
  * MSRP ad-hoc multi-party chat sessions draft-ietf-simple-chat-03
- * MSRP file transfer draft-ietf-mmusic-file-transfer-mech-11
+ * MSRP file transfer RFC 5547
  * Desktop sharing draft-garcia-mmusic-sdp-collaboration-00
  * Message summary event package RFC3842
  * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-03
