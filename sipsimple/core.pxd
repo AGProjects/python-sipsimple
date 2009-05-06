@@ -962,6 +962,7 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
 cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef int _Invitation_cb_fail_post(object obj) except -1
+cdef void _Request_cb_disconnect_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
 # core.sdp
 

@@ -519,7 +519,7 @@ class Session(NotificationHandler):
         self.notification_center.post_notification("SIPSessionWillEnd", self, TimestampedNotificationData())
         if self._inv.state != "DISCONNECTING":
             try:
-                self._inv.disconnect(code)
+                self._inv.disconnect(code, timeout=0.5)
             except SIPCoreError:
                 self._change_state("TERMINATED")
                 self.notification_center.post_notification("SIPSessionDidEnd", self, TimestampedNotificationData(originator="local"))

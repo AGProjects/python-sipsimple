@@ -17,9 +17,12 @@ cdef class Invitation:
     cdef readonly object transport
     cdef SIPURI _local_contact_uri
     cdef pjsip_transaction *_reinvite_tsx
+    cdef pj_timer_entry _timer
+    cdef int _timer_active
 
     def __cinit__(self, *args, **kwargs):
         self._sdp_neg_status = -1
+        pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_disconnect_timer)
         self.state = "INVALID"
 
     def __init__(self, Credentials credentials=None, SIPURI callee_uri=None,
@@ -114,6 +117,9 @@ cdef class Invitation:
                 pjsip_inv_terminate(self._obj, 481, 0)
             self._obj = NULL
             self._dlg = NULL
+        if self._timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
+            self._timer_active = 0
         return 0
 
     def __dealloc__(self):
@@ -281,6 +287,9 @@ cdef class Invitation:
             self._obj.mod_data[ua._module.id] = NULL
             self._obj = NULL
             self._dlg = NULL
+            if self._timer_active:
+                pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
+                self._timer_active = 0
         elif state == "REINVITED":
             status = pjsip_inv_initial_answer(self._obj, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
@@ -409,7 +418,8 @@ cdef class Invitation:
         self._send_msg(ua, tdata, extra_headers or {})
         return 0
 
-    def disconnect(self, int response_code=603, dict extra_headers=None):
+    def disconnect(self, int response_code=603, dict extra_headers=None, timeout=None):
+        cdef pj_time_val timeout_pj
         cdef pjsip_tx_data *tdata
         cdef int status
         cdef PJSIPUA ua = self._check_ua()
@@ -423,6 +433,11 @@ cdef class Invitation:
             raise SIPCoreError("Not a non-2xx final response: %d" % response_code)
         if response_code == 487:
             raise SIPCoreError("487 response can only be used following a CANCEL request")
+        if timeout is not None:
+            if timeout <= 0:
+                raise ValueError("Timeout value cannot be negative")
+            timeout_pj.sec = int(timeout)
+            timeout_pj.msec = (timeout * 1000) % 1000
         if self.state == "INCOMING":
             status = pjsip_inv_answer(self._obj, response_code, NULL, NULL, &tdata)
         else:
@@ -432,6 +447,10 @@ cdef class Invitation:
         self._cb_state(ua, "DISCONNECTING", NULL)
         if tdata != NULL:
             self._send_msg(ua, tdata, extra_headers or {})
+            if timeout_pj.sec or timeout_pj.msec:
+                status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
+                if status == 0:
+                    self._timer_active = 1
 
     def respond_to_reinvite(self, int response_code=200, dict extra_headers=None):
         cdef PJSIPUA ua = self._check_ua()
@@ -569,6 +588,21 @@ cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil:
 cdef int _Invitation_cb_fail_post(object obj) except -1:
     cdef Invitation invitation = obj
     invitation._do_dealloc()
+
+cdef void _Request_cb_disconnect_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
+    cdef PJSIPUA ua
+    cdef Invitation inv
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        if entry.user_data != NULL:
+            inv = <object> entry.user_data
+            inv._timer_active = 0
+            inv._cb_state(ua, "DISCONNECTED", NULL)
+    except:
+        ua._handle_exception(1)
 
 # globals
 
