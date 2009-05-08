@@ -447,10 +447,10 @@ cdef class Invitation:
         self._cb_state(ua, "DISCONNECTING", NULL)
         if tdata != NULL:
             self._send_msg(ua, tdata, extra_headers or {})
-            if timeout_pj.sec or timeout_pj.msec:
-                status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
-                if status == 0:
-                    self._timer_active = 1
+        if timeout_pj.sec or timeout_pj.msec:
+            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
+            if status == 0:
+                self._timer_active = 1
 
     def respond_to_reinvite(self, int response_code=200, dict extra_headers=None):
         cdef PJSIPUA ua = self._check_ua()
