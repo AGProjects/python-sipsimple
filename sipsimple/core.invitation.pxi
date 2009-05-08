@@ -290,6 +290,9 @@ cdef class Invitation:
             if self._timer_active:
                 pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
                 self._timer_active = 0
+        elif state in ["EARLY", "CONNECTING"] and self._timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
+            self._timer_active = 0
         elif state == "REINVITED":
             status = pjsip_inv_initial_answer(self._obj, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
@@ -329,7 +332,7 @@ cdef class Invitation:
             raise PJSIPError("Could not send message in context of INVITE session", status)
         return 0
 
-    def send_invite(self, dict extra_headers=None):
+    def send_invite(self, dict extra_headers=None, timeout=None):
         cdef pjsip_tx_data *tdata
         cdef object transport
         cdef PJSTR caller_uri
@@ -338,6 +341,7 @@ cdef class Invitation:
         cdef PJSTR callee_target
         cdef PJSTR contact_uri
         cdef pjmedia_sdp_session *local_sdp = NULL
+        cdef pj_time_val timeout_pj
         cdef int status
         cdef PJSIPUA ua = _get_ua()
         if self.state != "NULL":
@@ -345,6 +349,11 @@ cdef class Invitation:
                                'currently in the "%s" state' % self.state)
         if self._local_sdp_proposed is None:
             raise SIPCoreError("Local SDP has not been set")
+        if timeout is not None:
+            if timeout <= 0:
+                raise ValueError("Timeout value cannot be negative")
+            timeout_pj.sec = int(timeout)
+            timeout_pj.msec = (timeout * 1000) % 1000
         caller_uri = PJSTR(self._caller_uri._as_str(0))
         callee_uri = PJSTR(self._callee_uri._as_str(0))
         callee_target_uri = self._callee_uri.copy()
@@ -382,6 +391,10 @@ cdef class Invitation:
             self._obj = NULL
             self._dlg = NULL
             raise
+        if timeout_pj.sec or timeout_pj.msec:
+            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
+            if status == 0:
+                self._timer_active = 1
 
     def respond_to_invite_provisionally(self, int response_code=180, dict extra_headers=None):
         cdef PJSIPUA ua = self._check_ua()
@@ -447,6 +460,9 @@ cdef class Invitation:
         self._cb_state(ua, "DISCONNECTING", NULL)
         if tdata != NULL:
             self._send_msg(ua, tdata, extra_headers or {})
+        if self._timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
+            self._timer_active = 0
         if timeout_pj.sec or timeout_pj.msec:
             status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
             if status == 0:
@@ -600,7 +616,7 @@ cdef void _Request_cb_disconnect_timer(pj_timer_heap_t *timer_heap, pj_timer_ent
         if entry.user_data != NULL:
             inv = <object> entry.user_data
             inv._timer_active = 0
-            inv._cb_state(ua, "DISCONNECTED", NULL)
+            pjsip_inv_terminate(inv._obj, 408, 1)
     except:
         ua._handle_exception(1)
 
