@@ -604,7 +604,7 @@ cdef void _AudioTransport_cb_check_rtp(pj_timer_heap_t *timer_heap, pj_timer_ent
             status = pjmedia_stream_get_stat(audio_transport._obj, &stat)
             if status == 0:
                 if audio_transport._packets_received == stat.rx.pkt:
-                    _add_event("RTPAudioTransportGotNoRTP", dict(obj=audio_transport, got_any=(stat.rx.pkt != 0)))
+                    _add_event("RTPAudioTransportDidNotGetRTP", dict(obj=audio_transport, got_any=(stat.rx.pkt != 0)))
                 audio_transport._packets_received = stat.rx.pkt
                 no_media_pj.sec = entry.id
                 no_media_pj.msec = 0

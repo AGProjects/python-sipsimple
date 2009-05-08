@@ -881,7 +881,7 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "SIPInvitationChangedState")
         self.notification_center.add_observer(self, "SIPInvitationGotSDPUpdate")
         self.notification_center.add_observer(self, "RTPAudioStreamGotDTMF")
-        self.notification_center.add_observer(self, "RTPAudioTransportGotNoRTP")
+        self.notification_center.add_observer(self, "RTPAudioTransportDidNotGetRTP")
         self.notification_center.add_observer(self, "MSRPChatGotMessage")
         self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
         self.notification_center.add_observer(self, "MSRPChatDidNotDeliverMessage")
@@ -1091,7 +1091,7 @@ class SessionManager(NotificationHandler):
         if session is not None:
             self.notification_center.post_notification("SIPSessionGotDTMF", session, data)
 
-    def _NH_RTPAudioTransportGotNoRTP(self, audio_transport, data):
+    def _NH_RTPAudioTransportDidNotGetRTP(self, audio_transport, data):
         session = self.audio_transport_mapping.get(audio_transport, None)
         if session is not None:
             self.notification_center.post_notification("SIPSessionGotNoAudio", session, data)
