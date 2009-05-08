@@ -286,6 +286,9 @@ cdef class AudioTransport:
     cdef int _is_started
     cdef int _is_offer
     cdef unsigned int _vad
+    cdef pj_timer_entry _timer
+    cdef int _timer_active
+    cdef unsigned int _packets_received
 
     def __cinit__(self, *args, **kwargs):
         cdef object pool_name = "AudioTransport_%d" % id(self)
@@ -293,6 +296,7 @@ cdef class AudioTransport:
         self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
         if self._pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
+        pj_timer_entry_init(&self._timer, 0, <void *> self, _AudioTransport_cb_check_rtp)
 
     def __init__(self, RTPTransport transport, SDPSession remote_sdp=None,
                  int sdp_index=0, enable_silence_detection=True, list codecs=None):
@@ -412,8 +416,10 @@ cdef class AudioTransport:
         local_media.attributes.append(SDPAttribute(direction_attr, ""))
         return local_media
 
-    def start(self, SDPSession local_sdp, SDPSession remote_sdp, int sdp_index):
+    def start(self, SDPSession local_sdp, SDPSession remote_sdp, int sdp_index,
+              int no_media_timeout=10, int media_check_interval=30):
         cdef pjmedia_port *media_port
+        cdef pj_time_val no_media_pj
         cdef int status
         cdef object desired_state
         cdef PJSIPUA ua = _get_ua()
@@ -429,6 +435,12 @@ cdef class AudioTransport:
             raise ValueError("sdp_index argument cannot be negative")
         if local_sdp.media[sdp_index].port == 0 or remote_sdp.media[sdp_index].port == 0:
             raise SIPCoreError("Cannot start a rejected audio stream")
+        if no_media_timeout <= 0:
+            raise ValueError("no_media_timeout value cannot be negative or 0")
+        if media_check_interval <= 0:
+            raise ValueError("media_check_interval value cannot be negative or 0")
+        no_media_pj.sec = no_media_timeout
+        no_media_pj.msec = 0
         if self.transport.state == "LOCAL":
             self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
         else:
@@ -469,9 +481,16 @@ cdef class AudioTransport:
         self.update_direction(local_sdp.media[sdp_index].get_direction())
         self._local_media = pjmedia_sdp_media_clone(self._pool, local_sdp._obj.media[sdp_index])
         self._is_started = 1
+        self._timer.id = media_check_interval
+        status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &no_media_pj)
+        if status == 0:
+            self._timer_active = 1
 
     def stop(self):
         cdef PJSIPUA ua = self._check_ua()
+        if self._timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
+            self._timer_active = 0
         if self._obj == NULL:
             return
         ua._conf_bridge._disconnect_slot(self._conf_slot)
@@ -565,6 +584,33 @@ cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int d
             ua._conf_bridge._playback_dtmf(digit)
         except:
             ua._handle_exception(0)
+    except:
+        ua._handle_exception(1)
+
+cdef void _AudioTransport_cb_check_rtp(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
+    cdef PJSIPUA ua
+    cdef AudioTransport audio_transport
+    cdef pjmedia_rtcp_stat stat
+    cdef pj_time_val no_media_pj
+    cdef int status
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        if entry.user_data != NULL:
+            audio_transport = <object> entry.user_data
+            audio_transport._timer_active = 0
+            status = pjmedia_stream_get_stat(audio_transport._obj, &stat)
+            if status == 0:
+                if audio_transport._packets_received == stat.rx.pkt:
+                    _add_event("RTPAudioTransportGotNoRTP", dict(obj=audio_transport, got_any=(stat.rx.pkt != 0)))
+                audio_transport._packets_received = stat.rx.pkt
+                no_media_pj.sec = entry.id
+                no_media_pj.msec = 0
+                status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, entry, &no_media_pj)
+                if status == 0:
+                    audio_transport._timer_active = 1
     except:
         ua._handle_exception(1)
 

@@ -126,6 +126,7 @@ cdef extern from "pjlib.h":
     struct pj_timer_heap_t
     struct pj_timer_entry:
         void *user_data
+        int id
     pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data,
                                         void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
 
@@ -377,6 +378,10 @@ cdef extern from "pjmedia.h":
     struct pjmedia_stream_info:
         pjmedia_codec_info fmt
         pjmedia_codec_param *param
+    struct pjmedia_rtcp_stream_stat:
+        unsigned int pkt
+    struct pjmedia_rtcp_stat:
+        pjmedia_rtcp_stream_stat rx
     struct pjmedia_stream
     int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt,
                                      pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
@@ -391,6 +396,7 @@ cdef extern from "pjmedia.h":
                                          void *user_data)
     int pjmedia_stream_pause(pjmedia_stream *stream, pjmedia_dir dir)
     int pjmedia_stream_resume(pjmedia_stream *stream, pjmedia_dir dir)
+    int pjmedia_stream_get_stat(pjmedia_stream *stream, pjmedia_rtcp_stat *stat)
 
     # wav player
     enum:
@@ -981,3 +987,4 @@ cdef class RTPTransport
 cdef class AudioTransport
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
+cdef void _AudioTransport_cb_check_rtp(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
