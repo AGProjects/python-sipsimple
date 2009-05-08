@@ -68,7 +68,7 @@ class Engine(Thread):
         if self._thread_started:
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
-        init_options.update(kwargs)
+        init_options.update(kwargs, local_ip=local_ip)
         self._post_notification("SIPEngineWillStart")
         with self._lock:
             try:
