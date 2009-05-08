@@ -166,7 +166,6 @@ class Session(NotificationHandler):
         self._queue = deque()
         self._ringtone = None
         self._sdpneg_failure_reason = None
-        self._no_audio_timer = None
         self._audio_rec = None
 
     def __getattr__(self, attr):
@@ -767,8 +766,6 @@ class Session(NotificationHandler):
         else:
             self.audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index)
             Engine().connect_audio_transport(self.audio_transport)
-            self._no_audio_timer = Timer(10, self._check_audio)
-            self._no_audio_timer.start()
             self.has_audio = True
             if self._ringtone is not None:
                 self._ringtone.stop()
@@ -806,9 +803,6 @@ class Session(NotificationHandler):
         if self.audio_transport.is_active:
             Engine().disconnect_audio_transport(self.audio_transport)
             self.audio_transport.stop()
-            if self._no_audio_timer is not None:
-                self._no_audio_timer.cancel()
-                self._no_audio_timer = None
             if self._audio_rec is not None:
                 self._stop_recording_audio()
         del self.session_manager.audio_transport_mapping[self.audio_transport]
@@ -827,12 +821,6 @@ class Session(NotificationHandler):
         if had_chat:
             self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
         msrp_chat.end()
-
-    def _check_audio(self):
-        with self._lock:
-            self._no_audio_timer = None
-            if not self.audio_was_received:
-                self.notification_center.post_notification("SIPSessionGotNoAudio", self, TimestampedNotificationData())
 
     def _cancel_media(self):
         # This should, in principle, never throw exceptions
@@ -893,6 +881,7 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "SIPInvitationChangedState")
         self.notification_center.add_observer(self, "SIPInvitationGotSDPUpdate")
         self.notification_center.add_observer(self, "RTPAudioStreamGotDTMF")
+        self.notification_center.add_observer(self, "RTPAudioTransportGotNoRTP")
         self.notification_center.add_observer(self, "MSRPChatGotMessage")
         self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
         self.notification_center.add_observer(self, "MSRPChatDidNotDeliverMessage")
@@ -1101,6 +1090,11 @@ class SessionManager(NotificationHandler):
         session = self.audio_transport_mapping.get(audio_transport, None)
         if session is not None:
             self.notification_center.post_notification("SIPSessionGotDTMF", session, data)
+
+    def _NH_RTPAudioTransportGotNoRTP(self, audio_transport, data):
+        session = self.audio_transport_mapping.get(audio_transport, None)
+        if session is not None:
+            self.notification_center.post_notification("SIPSessionGotNoAudio", session, data)
 
     def _NH_MSRPChatGotMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
