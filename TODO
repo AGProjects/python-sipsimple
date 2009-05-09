@@ -35,6 +35,8 @@ Middleware
 SIP core
 --------
 
+- Add option sip.disconnect_if_no_ack default = false
+- Add option sip.disconnect_if_no_rtp default = false
 - Cleanup Publication and Subscription to behave more like Invitation [RK]
 - Add isfocus attribute for both session parties, present in Contact header [RK]
 - Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
