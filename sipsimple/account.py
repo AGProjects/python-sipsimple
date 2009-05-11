@@ -40,6 +40,7 @@ class AudioSettings(SettingsGroup):
     codec_list = Setting(type=AudioCodecs, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
     use_srtp_without_tls = Setting(type=bool, default=False)
+    media_timeout = Setting(type=NonNegativeInteger, default=10)
 
 
 class DialogEventSettings(SettingsGroup):
