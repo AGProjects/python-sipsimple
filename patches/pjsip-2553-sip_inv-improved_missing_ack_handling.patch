@@ -1,0 +1,49 @@
+===================================================================
+--- pjsip/include/pjsip-ua/sip_inv.h	(revision 2673)
++++ pjsip/include/pjsip-ua/sip_inv.h	(working copy)
+@@ -305,6 +305,10 @@
+      */
+     PJSIP_INV_REQUIRE_TIMER	= 64,
+ 
++    /**
++     * Don't disconnect on missing ACK.
++     */
++    PJSIP_INV_IGNORE_MISSING_ACK = 128
+ };
+ 
+ 
+Index: pjsip/src/pjsip-ua/sip_inv.c
+===================================================================
+--- pjsip/src/pjsip-ua/sip_inv.c	(revision 2673)
++++ pjsip/src/pjsip-ua/sip_inv.c	(working copy)
+@@ -3384,10 +3384,26 @@
+ 	     * transaction received 2xx response or because of transport
+ 	     * error.
+ 	     */
+-	    if (tsx->status_code/100 != 2) {
+-		inv_set_cause(inv, tsx->status_code, &tsx->status_text);
+-		inv_set_state(inv, PJSIP_INV_STATE_DISCONNECTED, e);
+-	    }
++        if (tsx->status_code/100 != 2) {
++            if ((tsx->status_code == PJSIP_SC_TSX_TIMEOUT) &&
++                    (inv->options & PJSIP_INV_IGNORE_MISSING_ACK)) {
++                inv_set_state(inv, PJSIP_INV_STATE_CONFIRMED, e);
++                return;
++            } else {
++                inv_set_cause(inv, tsx->status_code, &tsx->status_text);
++                inv_set_state(inv, PJSIP_INV_STATE_DISCONNECTED, e);
++            }
++
++            if (tsx->status_code == PJSIP_SC_TSX_TIMEOUT) {
++                pjsip_tx_data *bye;
++                pj_status_t status;
++                status = pjsip_dlg_create_request(inv->dlg,
++                        pjsip_get_bye_method(), -1, &bye);
++                if (status == PJ_SUCCESS) {
++                    pjsip_inv_send_msg(inv, bye);
++                }
++            }
++        }
+ 	    break;
+ 
+ 	case PJSIP_TSX_STATE_DESTROYED:
