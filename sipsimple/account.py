@@ -17,7 +17,7 @@ from application.python.util import Singleton
 from zope.interface import implements
 
 from sipsimple.engine import Engine
-from sipsimple.core import Credentials, SIPURI
+from sipsimple.core import Credentials, SIPURI, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
 from sipsimple.configuration.datatypes import AudioCodecs, CountryCode, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -330,7 +330,11 @@ class Account(SettingsObject):
         self.active = True
 
         if self.registration.enabled:
-            self._register()
+            try:
+                self._register()
+            except:
+                self.active = False
+                raise
 
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self)
@@ -341,7 +345,10 @@ class Account(SettingsObject):
         self.active = False
 
         if self.registration.enabled:
-            self._registrar.unregister(timeout=2)
+            try:
+                self._registrar.unregister(timeout=2)
+            except SIPCoreError:
+                pass
 
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
