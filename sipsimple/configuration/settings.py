@@ -77,6 +77,7 @@ class SIPSettings(SettingsGroup):
     local_tcp_port = Setting(type=Port, default=0)
     local_tls_port = Setting(type=Port, default=0)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
+    ignore_missing_ack = Setting(type=bool, default=False)
 
 
 class TLSSettings(SettingsGroup):

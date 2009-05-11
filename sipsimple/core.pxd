@@ -835,8 +835,9 @@ cdef extern from "pjsip_ua.h":
     int pjsip_100rel_init_module(pjsip_endpoint *endpt)
 
     # invite sessions
-    enum:
+    enum pjsip_inv_option:
         PJSIP_INV_SUPPORT_100REL
+        PJSIP_INV_IGNORE_MISSING_ACK
     enum pjsip_inv_state:
         PJSIP_INV_STATE_INCOMING
         PJSIP_INV_STATE_CONFIRMED
