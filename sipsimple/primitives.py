@@ -49,7 +49,7 @@ class Registration(NotificationHandler):
             call_id = None
             cseq = 1
         request = Request("REGISTER", self.credentials, self.credentials.uri,
-                          SIPURI(self.credentials.uri.host), route, contact_uri, call_id=call_id,
+                          SIPURI(self.credentials.uri.host), route, contact_uri=contact_uri, call_id=call_id,
                           cseq=cseq, extra_headers={"Expires": str(int(self.duration) if do_register else 0)})
         self._notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
@@ -74,7 +74,6 @@ class Registration(NotificationHandler):
                 if self._last_request is not None:
                     self._last_request.terminate()
                     self._last_request = None
-                self._expire_time = None
                 self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
                                                             data=NotificationData(expired=False))
             else:
@@ -122,7 +121,6 @@ class Registration(NotificationHandler):
             if self._current_request is not None:
                 self._current_request.terminate()
                 self._current_request = None
-            self._expire_time = None
             self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
                                                         data=NotificationData(expired=True))
 
