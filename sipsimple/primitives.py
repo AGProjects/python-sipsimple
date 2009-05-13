@@ -174,6 +174,10 @@ class Message(NotificationHandler):
             self._notification_center.remove_observer(self, sender=request)
 
 
+class PublicationError(Exception):
+    pass
+
+
 class Publication(NotificationHandler):
 
     def __init__(self, credentials, event, content_type, duration=300):
@@ -195,15 +199,15 @@ class Publication(NotificationHandler):
         with self._lock:
             if body is None:
                 if self._last_request is None:
-                    raise RuntimeError("Need body for initial PUBLISH")
+                    raise ValueError("Need body for initial PUBLISH")
                 elif self._last_etag is None:
-                    raise RuntimeError("Cannot refresh, last ETag was invalid")
+                    raise PublicationError("Cannot refresh, last ETag was invalid")
             self._make_and_send_request(body, route, timeout, True)
 
     def unpublish(self, timeout=None):
         with self._lock:
             if self._last_request is None:
-                return
+                raise PublicationError("Nothing is currently published")
             self._make_and_send_request(None, self._last_request.route, timeout, False)
             self._notification_center.post_notification("SIPPublicationWillEnd", sender=self, data=NotificationData())
 
@@ -290,4 +294,4 @@ class Publication(NotificationHandler):
                                                         data=NotificationData(expired=True))
 
 
-__all__ = ["Registration", "Message", "Publication"]
+__all__ = ["Registration", "Message", "PublicationError", "Publication"]
