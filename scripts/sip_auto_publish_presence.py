@@ -2,6 +2,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+from __future__ import with_statement
+
 import datetime
 import os
 import random
@@ -17,7 +19,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.queue import EventQueue
 from collections import deque
 from optparse import OptionParser
-from threading import Thread
+from threading import Thread, RLock
 from time import time
 from twisted.internet.error import ReactorNotRunning
 from twisted.python import threadable
@@ -27,7 +29,8 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import Publication, SIPCoreError, SIPURI
+from sipsimple.core import SIPCoreError, SIPURI
+from sipsimple.primitives import Publication, PublicationError
 from sipsimple.account import AccountManager
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
@@ -89,6 +92,8 @@ class AutoPublicationApplication(object):
         self.input = InputThread(self)
         self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
         self.logger = Logger(trace_sip, trace_pjsip, trace_notifications)
+        self.lookup = DNSLookup()
+        self.publication_lock = RLock()
         self.success = False
         self.account = None
         self.publication = None
@@ -98,6 +103,7 @@ class AutoPublicationApplication(object):
         self.person = None
         self.device = None
         self.stopping = False
+        self.publishing = False
 
         self._publication_routes = None
         self._publication_timeout = 0.0
@@ -110,6 +116,7 @@ class AutoPublicationApplication(object):
         notification_center.add_observer(self, sender=account_manager)
         notification_center.add_observer(self, sender=engine)
         notification_center.add_observer(self, sender=self.input)
+        notification_center.add_observer(self, sender=self.lookup)
 
         log.level.current = log.level.WARNING
 
@@ -191,6 +198,10 @@ class AutoPublicationApplication(object):
         # start getting input
         self.input.start()
 
+        # initialize publication object
+        self.publication = Publication(self.account.credentials, "presence", "application/pidf+xml", duration=self.account.presence.publish_interval)
+        notification_center.add_observer(self, sender=self.publication)
+
         reactor.callLater(0, self._publish)
 
         # start twisted
@@ -211,11 +222,14 @@ class AutoPublicationApplication(object):
         self.stopping = True
         account_manager = AccountManager()
         account_manager.stop()
-        if self.publication is not None and self.publication.state in ('published', 'publishing'):
-            self.publication.unpublish()
-        else:
-            engine = Engine()
-            engine.stop()
+        if self.publication is not None:
+            try:
+                self.publication.unpublish(timeout=1)
+                return
+            except PublicationError:
+                pass
+        engine = Engine()
+        engine.stop()
 
     def print_help(self):
         message  = 'Available control keys:\n'
@@ -240,47 +254,70 @@ class AutoPublicationApplication(object):
         else:
             account.enabled = False
 
-    def _NH_SIPPublicationChangedState(self, notification):
-        route = notification.sender.route
-        if notification.data.state == 'published':
+    def _NH_SIPPublicationDidSucceed(self, notification):
+        with self.publication_lock:
             self._publication_routes = None
             self._publication_wait = 0.5
             self.success = True
+            route = notification.data.route
             self.output.put('PUBLISH was successful at %s:%d;transport=%s' % (route.address, route.port, route.transport))
             if self._republish:
                 self._republish = False
-                reactor.callFromThread(reactor.callLater, self.interval, reactor.callInThread, self._auto_publish)
-        elif notification.data.state == 'unpublished':
-            self.publication = None
+                reactor.callFromThread(reactor.callLater, self.interval, self._publish)
+            self.publishing = False
+
+    def _NH_SIPPublicationDidFail(self, notification):
+        with self.publication_lock:
             self.success = False
-            self.output.put('Unpublished from %s:%d;transport=%s: %d %s' % (route.address, route.port, route.transport, notification.data.code, notification.data.reason))
-            if self.stopping or notification.data.code in (401, 403, 407):
-                if notification.data.code / 100 == 2:
-                    self.success = True
+            self.output.put('Publishing failed: %d %s' % (notification.data.code, notification.data.reason))
+            if notification.data.code in (401, 403, 407):
+                self.publishing = False
                 self.stop()
             else:
                 if not self._publication_routes or time() > self._publication_timeout:
                     self._publication_wait = min(self._publication_wait*2, 30)
                     timeout = random.uniform(self._publication_wait, 2*self._publication_wait)
                     reactor.callFromThread(reactor.callLater, timeout, self._publish)
+                    self.publishing = False
                 else:
-                    self.publication = Publication(self.account.credentials, "presence", route=self._publication_routes.popleft(), expires=self.account.presence.publish_interval)
-                    notification_center = NotificationCenter()
-                    notification_center.add_observer(self, sender=self.publication)
-                    reactor.callInThread(self._auto_publish)
+                    route = self._publication_routes.popleft()
+                    self._auto_publish(route)
+
+    def _NH_SIPPublicationWillExpire(self, notification):
+        with self.publication_lock:
+            if not self.publishing:
+                self.publication.publish(None, route=self.publication._last_request.route)
+                self.publishing = True
+
+    def _NH_SIPPublicationDidNotEnd(self, notification):
+        self.success = False
+        engine = Engine()
+        engine.stop()
+
+    def _NH_SIPPublicationDidEnd(self, notification):
+        if notification.data.expired:
+            self.output.put('Publication expired')
+        else:
+            self.output.put('Unpublished')
+        if self.stopping:
+            self.success = True
+            engine = Engine()
+            engine.stop()
+        else:
+            self._publish()
 
     def _NH_DNSLookupDidSucceed(self, notification):
-        # create publication and register to get notifications from it
-        self._publication_routes = deque(notification.data.result)
-        self.publication = Publication(self.account.credentials, "presence", route=self._publication_routes.popleft(), expires=self.account.presence.publish_interval)
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=self.publication)
-        reactor.callInThread(self._auto_publish)
+        with self.publication_lock:
+            self._publication_routes = deque(notification.data.result)
+            route = self._publication_routes.popleft()
+            reactor.callInThread(self._auto_publish, route)
 
     def _NH_DNSLookupDidFail(self, notification):
-        self.output.put('DNS lookup failed: %s' % notification.data.error)
-        timeout = random.uniform(1.0, 2.0)
-        reactor.callLater(timeout, self._publish)
+        with self.publication_lock:
+            self.output.put('DNS lookup failed: %s' % notification.data.error)
+            timeout = random.uniform(1.0, 2.0)
+            reactor.callLater(timeout, self._publish)
+            self.publishing = False
 
     def _NH_SAInputWasReceived(self, notification):
         engine = Engine()
@@ -323,18 +360,22 @@ class AutoPublicationApplication(object):
             pass
     
     def _publish(self):
-        settings = SIPSimpleSettings()
-        
-        self._publication_timeout = time()+30
+        with self.publication_lock:
+            if self.stopping:
+                return
+            if self.publishing:
+                reactor.callLater(1, self._publish)
 
-        lookup = DNSLookup()
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=lookup)
-        if self.account.outbound_proxy is not None:
-            uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
-        else:
-            uri = SIPURI(host=self.account.id.domain)
-        lookup.lookup_sip_proxy(uri, settings.sip.transports)
+            settings = SIPSimpleSettings()
+            
+            self._publication_timeout = time()+30
+    
+            if self.account.outbound_proxy is not None:
+                uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
+            else:
+                uri = SIPURI(host=self.account.id.domain)
+            self.lookup.lookup_sip_proxy(uri, settings.sip.transports)
+            self.publishing = True
 
     def _random_note(self):
         try:
@@ -344,7 +385,7 @@ class AutoPublicationApplication(object):
         except:
             return 'Fortune is not installed'
 
-    def _auto_publish(self):
+    def _auto_publish(self, route):
         # 50% chance that basic status will change
         if random.randint(0, 1) == 1:
             if self.main_service.status.basic == 'open':
@@ -425,7 +466,7 @@ class AutoPublicationApplication(object):
         # publish new pidf
         self._republish = True
         try:
-            self.publication.publish("application", "pidf+xml", self.pidf.toxml())
+            self.publication.publish(self.pidf.toxml(), route, timeout=5)
         except BuilderError, e:
             print "PIDF as currently defined is invalid: %s" % str(e)
         except:
