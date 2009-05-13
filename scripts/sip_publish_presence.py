@@ -2,6 +2,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+from __future__ import with_statement
+
 import os
 import random
 import select
@@ -14,7 +16,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.queue import EventQueue
 from collections import deque
 from optparse import OptionParser
-from threading import Thread
+from threading import Thread, RLock
 from time import time
 from twisted.internet.error import ReactorNotRunning
 from twisted.python import threadable
@@ -24,7 +26,8 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import Publication, SIPCoreError, SIPURI
+from sipsimple.core import SIPCoreError, SIPURI
+from sipsimple.primitives import Publication, PublicationError
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
@@ -104,7 +107,7 @@ class MoodMenu(Menu):
                 person.mood = Mood()
             person.mood.append(values[m-1])
             person.timestamp = PersonTimestamp()
-            self.interface.application.republish()
+            self.interface.application.publish()
             self.interface.application.output.put('Mood added')
         self.interface.show_top_level()
 
@@ -138,7 +141,7 @@ class MoodMenu(Menu):
         else:
             person.mood.remove(values[m-1])
             person.timestamp = PersonTimestamp()
-            self.interface.application.republish()
+            self.interface.application.publish()
             self.interface.application.output.put('Mood deleted')
         self.interface.show_top_level()
 
@@ -150,7 +153,7 @@ class MoodMenu(Menu):
             return
         person.mood = None
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.interface.application.output.put('Mood information cleared')
         self.interface.show_top_level()
 
@@ -169,7 +172,7 @@ class MoodMenu(Menu):
             person.mood.notes.add(RPIDNote(note, lang='en'))
             self.interface.application.output.put('Note set')
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.interface.show_top_level()
 
     def _set_random(self):
@@ -185,7 +188,7 @@ class MoodMenu(Menu):
         for mood in values:
             person.mood.append(mood)
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.interface.application.output.put('You are now ' + ', '.join(values))
         self.interface.show_top_level()
 
@@ -240,7 +243,7 @@ class ActivitiesMenu(Menu):
                 person.activities.clear()
             person.activities.append(values[a-1])
             person.timestamp = PersonTimestamp()
-            self.interface.application.republish()
+            self.interface.application.publish()
             self.interface.application.output.put('Activity set')
         self.interface.show_top_level()
 
@@ -252,7 +255,7 @@ class ActivitiesMenu(Menu):
         person.activities.clear()
         person.activities.append('unknown')
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.interface.application.output.put('Activity deleted')
         self.interface.show_top_level()
 
@@ -263,7 +266,7 @@ class ActivitiesMenu(Menu):
             return
         person.activities = None
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.interface.application.output.put('Activities information cleared')
         self.interface.show_top_level()
 
@@ -283,7 +286,7 @@ class ActivitiesMenu(Menu):
             person.activities.notes.add(RPIDNote(note, lang='en'))
             self.interface.application.output.put('Note set')
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.inteface.show_top_level()
 
     def _set_random(self):
@@ -297,7 +300,7 @@ class ActivitiesMenu(Menu):
             person.activities.clear()
         person.activities.append(activity)
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.interface.application.output.put('You are now %s' % activity)
         self.interface.show_top_level()
 
@@ -339,7 +342,7 @@ class TopLevelMenu(Menu):
             service.status.basic = 'open'
         service.timestamp = ServiceTimestamp()
         self.interface.application.output.put("Your basic status is now '%s'" % service.status.basic)
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.print_prompt()
 
     def _set_note(self):
@@ -355,7 +358,7 @@ class TopLevelMenu(Menu):
             person.notes.add(PersonNote(note, lang='en'))
             self.interface.application.output.put('Note added')
         person.timestamp = PersonTimestamp()
-        self.interface.application.republish()
+        self.interface.application.publish()
         self.print_prompt()
 
     key_bindings = {'s': KeyBinding(description='show PIDF', handler=_show_pidf),
@@ -439,6 +442,8 @@ class PublicationApplication(object):
         self.interface = UserInterface(self)
         self.output = EventQueue(self._output_handler)
         self.logger = Logger(trace_sip, trace_pjsip, trace_notifications)
+        self.lookup = DNSLookup()
+        self.publication_lock = RLock()
         self.success = False
         self.account = None
         self.publication = None
@@ -447,6 +452,7 @@ class PublicationApplication(object):
         self.person = None
         self.device = None
         self.stopping = False
+        self.publishing = False
 
         self._publication_routes = None
         self._publication_timeout = 0.0
@@ -458,6 +464,7 @@ class PublicationApplication(object):
         notification_center.add_observer(self, sender=account_manager)
         notification_center.add_observer(self, sender=engine)
         notification_center.add_observer(self, sender=self.interface)
+        notification_center.add_observer(self, sender=self.lookup)
 
         log.level.current = log.level.WARNING
 
@@ -533,7 +540,11 @@ class PublicationApplication(object):
         # start the interface thread
         self.interface.start()
 
-        reactor.callLater(0, self._publish)
+        # initialize publication object
+        self.publication = Publication(self.account.credentials, "presence", "application/pidf+xml", duration=self.account.presence.publish_interval)
+        notification_center.add_observer(self, sender=self.publication)
+
+        reactor.callLater(0, self.publish)
 
         # start twisted
         try:
@@ -553,11 +564,14 @@ class PublicationApplication(object):
         self.stopping = True
         account_manager = AccountManager()
         account_manager.stop()
-        if self.publication is not None and self.publication.state in ('published', 'publishing'):
-            self.publication.unpublish()
-        else:
-            engine = Engine()
-            engine.stop()
+        if self.publication is not None:
+            try:
+                self.publication.unpublish(timeout=1)
+                return
+            except PublicationError:
+                pass
+        engine = Engine()
+        engine.stop()
 
     def print_help(self):
         message  = 'Available control keys:\n'
@@ -568,15 +582,21 @@ class PublicationApplication(object):
         message += '  ?: display this help message\n'
         self.output.put('\n'+message)
 
-    def republish(self):
-        if self.publication is None:
-            self.output.put("There is no PUBLISH dialog active.")
-        try:
-            self.publication.publish("application", "pidf+xml", self.pidf.toxml())
-        except BuilderError, e:
-            self.output.put("PIDF as currently defined is invalid: %s" % str(e))
-        except:
-            traceback.print_exc()
+    def publish(self):
+        with self.publication_lock:
+            if self.publishing:
+                return
+
+            settings = SIPSimpleSettings()
+
+            self._publication_timeout = time() + 30
+
+            if self.account.outbound_proxy is not None:
+                uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
+            else:
+                uri = SIPURI(host=self.account.id.domain)
+            self.lookup.lookup_sip_proxy(uri, settings.sip.transports)
+            self.publishing = True
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
@@ -593,45 +613,63 @@ class PublicationApplication(object):
         else:
             account.enabled = False
 
-    def _NH_SIPPublicationChangedState(self, notification):
-        if notification.data.state == 'published':
+    def _NH_SIPPublicationDidSucceed(self, notification):
+        with self.publication_lock:
             self._publication_routes = None
             self._publication_wait = 0.5
             self.success = True
-        elif notification.data.state == 'unpublished':
-            self.publication = None
+            self.publishing = False
+
+    def _NH_SIPPublicationDidFail(self, notification):
+        with self.publication_lock:
             self.success = False
-            if hasattr(notification.data, 'code'):
-                self.output.put('Unpublished: %d %s' % (notification.data.code, notification.data.reason))
-            else:
-                self.output.put('Unpublished')
-            if self.stopping or notification.data.code in (401, 403, 407):
-                if notification.data.code / 100 == 2:
-                    self.success = True
+            self.output.put('Publishing failed: %d %s' % (notification.data.code, notification.data.reason))
+            if notification.data.code in (401, 403, 407):
+                self.publishing = False
                 self.stop()
             else:
                 if not self._publication_routes or time() > self._publication_timeout:
                     self._publication_wait = min(self._publication_wait*2, 30)
                     timeout = random.uniform(self._publication_wait, 2*self._publication_wait)
-                    reactor.callFromThread(reactor.callLater, timeout, self._publish)
+                    reactor.callFromThread(reactor.callLater, timeout, self.publish)
+                    self.publishing = False
                 else:
-                    self.publication = Publication(self.account.credentials, "presence", route=self._publication_routes.popleft(), expires=self.account.presence.publish_interval)
-                    notification_center = NotificationCenter()
-                    notification_center.add_observer(self, sender=self.publication)
-                    self.republish()
+                    route = self._publication_routes.popleft()
+                    self._do_publish(route)
+
+    def _NH_SIPPublicationWillExpire(self, notification):
+        # For now, just re-publish the whole document instead of sending a refresh
+        self.publish()
+
+    def _NH_SIPPublicationDidNotEnd(self, notification):
+        self.success = False
+        engine = Engine()
+        engine.stop()
+
+    def _NH_SIPPublicationDidEnd(self, notification):
+        if notification.data.expired:
+            self.output.put('Publication expired')
+        else:
+            self.output.put('Unpublished')
+        if self.stopping:
+            self.success = True
+            engine = Engine()
+            engine.stop()
+        else:
+            self.publish()
 
     def _NH_DNSLookupDidSucceed(self, notification):
-        # create publication and register to get notifications from it
-        self._publication_routes = deque(notification.data.result)
-        self.publication = Publication(self.account.credentials, "presence", route=self._publication_routes.popleft(), expires=self.account.presence.publish_interval)
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=self.publication)
-        self.republish()
+        with self.publication_lock:
+            self._publication_routes = deque(notification.data.result)
+            route = self._publication_routes.popleft()
+            self._do_publish(route)
 
     def _NH_DNSLookupDidFail(self, notification):
-        self.output.put('DNS lookup failed: %s' % notification.data.error)
-        timeout = random.uniform(1.0, 2.0)
-        reactor.callLater(timeout, self._publish)
+        with self.publication_lock:
+            self.output.put('DNS lookup failed: %s' % notification.data.error)
+            timeout = random.uniform(1.0, 2.0)
+            reactor.callLater(timeout, self.publish)
+            self.publishing = False
 
     def _NH_SAInputWasReceived(self, notification):
         engine = Engine()
@@ -673,19 +711,15 @@ class PublicationApplication(object):
         except ReactorNotRunning:
             pass
 
-    def _publish(self):
-        settings = SIPSimpleSettings()
-
-        self._publication_timeout = time() + 30
-
-        lookup = DNSLookup()
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=lookup)
-        if self.account.outbound_proxy is not None:
-            uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
-        else:
-            uri = SIPURI(host=self.account.id.domain)
-        lookup.lookup_sip_proxy(uri, settings.sip.transports)
+    def _do_publish(self, route):
+        try:
+            self.publication.publish(self.pidf.toxml(), route, timeout=5)
+        except BuilderError, e:
+            self.output.put("PIDF as currently defined is invalid: %s" % str(e))
+            self.publishing = False
+        except:
+            traceback.print_exc()
+            self.publishing = False
 
     def _output_handler(self, event):
         if isinstance(event, Prompt):
