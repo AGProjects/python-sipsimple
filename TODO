@@ -16,7 +16,6 @@ Middleware
 - Capture MSRP trace as notifications [LS]
 - MediaStream high level class [LS]
 - Buddylist high-level class [LS]
-- Publication  high level class [LS]
 - Subscribtion high level class [LS]
 - Video sessions high level class [LS]
 - XCAP high level class [LS]
@@ -35,7 +34,7 @@ Middleware
 SIP core
 --------
 
-- Cleanup Publication and Subscription to behave more like Invitation [RK]
+- Cleanup Subscription to behave more like other SIP primitive classes [RK]
 - Add isfocus attribute for both session parties, present in Contact header [RK]
 - Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 - Prohibit sending negative reply for re-INVITE in Invitation [RK]
