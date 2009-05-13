@@ -13,7 +13,6 @@ include "core.ua.pxi"
 include "core.event.pxi"
 include "core.request.pxi"
 include "core.helper.pxi"
-include "core.publication.pxi"
 include "core.subscription.pxi"
 include "core.invitation.pxi"
 include "core.sdp.pxi"
@@ -23,7 +22,7 @@ include "core.mediatransport.pxi"
 
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-CORE_REVISION = 49
+CORE_REVISION = 50
 
 # exports
 
@@ -33,7 +32,6 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "sip_status_messages",
            "Route", "Credentials", "SIPURI",
            "Request",
-           "Publication",
            "Subscription",
            "Invitation",
            "SDPSession", "SDPMedia", "SDPConnection", "SDPAttribute",

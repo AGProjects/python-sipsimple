@@ -70,9 +70,6 @@ cdef class PJSIPEndpoint:
         status = pjsip_ua_init_module(self._obj, NULL) # TODO: handle forking
         if status != 0:
             raise PJSIPError("Could not initialize common dialog layer module", status)
-        status = pjsip_publishc_init_module(self._obj)
-        if status != 0:
-            raise PJSIPError("Could not initialize publish client module", status)
         status = pjsip_evsub_init_module(self._obj)
         if status != 0:
             raise PJSIPError("Could not initialize event subscription module", status)

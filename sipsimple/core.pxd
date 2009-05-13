@@ -786,27 +786,6 @@ cdef extern from "pjsip.h":
 
 cdef extern from "pjsip_simple.h":
 
-    # publish
-    struct pjsip_publishc
-    struct pjsip_publishc_cbparam:
-        void *token
-        int code
-        pj_str_t reason
-        pjsip_rx_data *rdata
-        int expiration
-    int pjsip_publishc_init_module(pjsip_endpoint *endpt)
-    int pjsip_publishc_create(pjsip_endpoint *endpt, int options, void *token,
-                              void cb(pjsip_publishc_cbparam *param) with gil, pjsip_publishc **p_pubc)
-    int pjsip_publishc_destroy(pjsip_publishc *pubc)
-    int pjsip_publishc_init(pjsip_publishc *pubc, pj_str_t *event, pj_str_t *target_uri,
-                            pj_str_t *from_uri, pj_str_t *to_uri, unsigned int expires)
-    int pjsip_publishc_set_credentials(pjsip_publishc *pubc, int count, pjsip_cred_info *c)
-    int pjsip_publishc_publish(pjsip_publishc *pubc, int auto_refresh, pjsip_tx_data **p_tdata)
-    int pjsip_publishc_unpublish(pjsip_publishc *pubc, pjsip_tx_data **p_tdata)
-    int pjsip_publishc_send(pjsip_publishc *pubc, pjsip_tx_data *tdata)
-    int pjsip_publishc_update_expires(pjsip_publishc *pubc, unsigned int expires)
-    int pjsip_publishc_set_route_set(pjsip_publishc *pubc, pjsip_route_hdr *rs)
-
     # subscribe / notify
     enum:
         PJSIP_EVSUB_NO_EVENT_ID
@@ -943,12 +922,6 @@ cdef int _handle_post_queue(PJSIPUA ua) except -1
 cdef class Request
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
-
-# core.publication
-
-cdef class Publication
-cdef void cb_Publication_cb_response(pjsip_publishc_cbparam *param) with gil
-cdef void cb_Publication_cb_expire(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
 # core.subscription
 
