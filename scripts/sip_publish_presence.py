@@ -188,7 +188,7 @@ class MoodMenu(Menu):
         self.interface.application.republish()
         self.interface.application.output.put('You are now ' + ', '.join(values))
         self.interface.show_top_level()
-        
+
     key_bindings = {'s': KeyBinding(description='show current moods', handler=_show_moods),
                     'a': KeyBinding(description='add a mood', handler=_add_mood),
                     'd': KeyBinding(description='delete a mood', handler=_del_mood),
@@ -310,7 +310,7 @@ class ActivitiesMenu(Menu):
                     'x': KeyBinding(description='exit to upper level menu', handler=Menu._exit),
                     'q': KeyBinding(description='quit program', handler=Menu._exit_program)}
 
-        
+
 class TopLevelMenu(Menu):
     def _show_pidf(self):
         try:
@@ -466,10 +466,10 @@ class PublicationApplication(object):
         configuration = ConfigurationManager()
         engine = Engine()
         notification_center = NotificationCenter()
-        
+
         # start output thread
         self.output.start()
-    
+
         # startup configuration
         configuration.start()
         account_manager.start()
@@ -508,7 +508,7 @@ class PublicationApplication(object):
             trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
             log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
         )
-        
+
         # initialize pidf
         self.pidf = PIDF(entity=self.account.id) # entity will be determined when account is selected
 
@@ -540,11 +540,11 @@ class PublicationApplication(object):
             reactor.run()
         finally:
             self.interface.stop()
-        
+
         # stop the output
         self.output.stop()
         self.output.join()
-        
+
         self.logger.stop()
 
         return 0 if self.success else 1
@@ -577,7 +577,7 @@ class PublicationApplication(object):
             self.output.put("PIDF as currently defined is invalid: %s" % str(e))
         except:
             traceback.print_exc()
-        
+
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
@@ -672,10 +672,10 @@ class PublicationApplication(object):
             reactor.stop()
         except ReactorNotRunning:
             pass
-    
+
     def _publish(self):
         settings = SIPSimpleSettings()
-        
+
         self._publication_timeout = time() + 30
 
         lookup = DNSLookup()
@@ -705,7 +705,7 @@ if __name__ == "__main__":
     parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
     parser.add_option("-n", "--trace-notifications", action="store_true", dest="trace_notifications", default=False, help="Print all notifications (disabled by default).")
     options, args = parser.parse_args()
-    
+
     try:
         application = PublicationApplication(options.account_name, options.trace_sip, options.trace_pjsip, options.trace_notifications)
         return_code = application.run()
