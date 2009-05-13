@@ -125,10 +125,10 @@ class AutoPublicationApplication(object):
         configuration = ConfigurationManager()
         engine = Engine()
         notification_center = NotificationCenter()
-        
+
         # start output thread
         self.output.start()
-    
+
         # startup configuration
         configuration.start()
         account_manager.start()
@@ -163,7 +163,7 @@ class AutoPublicationApplication(object):
             trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
             log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
         )
-        
+
         # initialize pidf
         self.pidf = PIDF(entity=self.account.id) # entity will be determined when account is selected
 
@@ -209,11 +209,11 @@ class AutoPublicationApplication(object):
             reactor.run()
         finally:
             self.input.stop()
-        
+
         # stop the output
         self.output.stop()
         self.output.join()
-        
+
         self.logger.stop()
 
         return 0 if self.success else 1
@@ -239,7 +239,7 @@ class AutoPublicationApplication(object):
         message += '  Ctrl-d: quit the program\n'
         message += '  ?: display this help message\n'
         self.output.put('\n'+message)
-        
+
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
@@ -358,7 +358,7 @@ class AutoPublicationApplication(object):
             reactor.stop()
         except ReactorNotRunning:
             pass
-    
+
     def _publish(self):
         with self.publication_lock:
             if self.stopping:
@@ -367,9 +367,9 @@ class AutoPublicationApplication(object):
                 reactor.callLater(1, self._publish)
 
             settings = SIPSimpleSettings()
-            
+
             self._publication_timeout = time()+30
-    
+
             if self.account.outbound_proxy is not None:
                 uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
             else:
@@ -393,7 +393,7 @@ class AutoPublicationApplication(object):
             else:
                 self.main_service.status.basic = 'open'
             self.main_service.timestamp = ServiceTimestamp()
-        
+
         # set sphere (9-18 at work (except on weekends), else at home)
         now = datetime.datetime.now()
         if (now.hour >= 9 and now.hour < 18) and now.isoweekday() not in (6, 7):
@@ -415,7 +415,7 @@ class AutoPublicationApplication(object):
         if len(self.person.notes) > 0:
             del self.person.notes['en']
         self.person.notes.add(PersonNote(self._random_note(), lang='en'))
-        
+
         # change person activity
         if self.person.activities is None:
             self.person.activities = Activities()
@@ -450,7 +450,7 @@ class AutoPublicationApplication(object):
             self.person.place_is.text = random.choice(('uncomfortable', 'inappropriate', 'ok', 'unknown'))
 
         self.person.timestamp = PersonTimestamp()
-        
+
         # set user-input
         if self.device.user_input.value == 'idle':
             # 50 % chance to change to active:
@@ -462,7 +462,7 @@ class AutoPublicationApplication(object):
             if random.randint(0, 1) == 1:
                 self.device.user_input.value = 'idle'
                 self.device.user_input.last_input = now - datetime.timedelta(seconds=30)
-        
+
         # publish new pidf
         self._republish = True
         try:
