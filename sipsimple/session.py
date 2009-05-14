@@ -19,7 +19,7 @@ from sipsimple.core import SIPURI, Invitation
 from sipsimple.core import SDPSession, SDPMedia, SDPAttribute, SDPConnection
 from sipsimple.core import RTPTransport, AudioTransport
 from sipsimple.core import RecordingWaveFile
-from sipsimple.core import SIPCoreError
+from sipsimple.core import SIPCoreError, PJSIPError
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
 from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile, TimestampedNotificationData, PersistentTones
@@ -832,7 +832,11 @@ class Session(NotificationHandler):
     def send_dtmf(self, digit):
         if self.audio_transport is None or not self.audio_transport.is_active:
             raise SessionStateError("This SIP session does not have an active audio RTP stream to transmit DMTF over")
-        self.audio_transport.send_dtmf(digit)
+        try:
+            self.audio_transport.send_dtmf(digit)
+        except PJSIPError, e:
+            if not e.args[0].endswith("(PJ_ETOOMANY)"):
+                raise
 
     def _make_next_sdp(self, is_offer, on_hold=False):
         # This should, in principle, never throw exceptions

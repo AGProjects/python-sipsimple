@@ -11,7 +11,7 @@ from sipsimple.interfaces import IMediaStream
 from sipsimple.util import TimestampedNotificationData, NotificationHandler, makedirs
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError, RecordingWaveFile
+from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError, PJSIPError, RecordingWaveFile
 from sipsimple.engine import Engine
 from sipsimple.green import GreenBase
 
@@ -203,7 +203,11 @@ class AudioStream(NotificationHandler):
         with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("AudioStream.send_dtmf() cannot be used in %s state" % self.state)
-            self._audio_transport.send_dtmf(digit)
+            try:
+                self._audio_transport.send_dtmf(digit)
+            except PJSIPError, e:
+                if not e.args[0].endswith("(PJ_ETOOMANY)"):
+                    raise
 
     def _NH_RTPAudioStreamGotDTMF(self, audio_transport, data):
         self.notification_center.post_notification("AudioStreamGotDTMF", self,
