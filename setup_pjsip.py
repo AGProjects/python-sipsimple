@@ -146,9 +146,9 @@ class PJSIP_build_ext(build_ext):
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
         if sys.platform == "darwin":
-            cflags = "-fPIC -arch ppc -arch i386"
+            cflags = "-O3 -fPIC -arch ppc -arch i386"
         else:
-            cflags = "-fPIC"
+            cflags = "-O3 -fPIC"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
