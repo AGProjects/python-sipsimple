@@ -68,18 +68,18 @@ cdef class Invitation:
             contact_uri = PJSTR(self._local_contact_uri._as_str(1))
             status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri.pj_str, &self._dlg)
             if status != 0:
-                raise PJSIPError("Could not create dialog for new INTIVE session", status)
+                raise PJSIPError("Could not create dialog for new INVITE session", status)
             status = pjsip_inv_create_uas(self._dlg, rdata, NULL, inv_options, &self._obj)
             if status != 0:
-                raise PJSIPError("Could not create new INTIVE session", status)
+                raise PJSIPError("Could not create new INVITE session", status)
             tp_sel.type = PJSIP_TPSELECTOR_TRANSPORT
             tp_sel.u.transport = rdata.tp_info.transport
             status = pjsip_dlg_set_transport(self._dlg, &tp_sel)
             if status != 0:
-                raise PJSIPError("Could not set transport for INTIVE session", status)
+                raise PJSIPError("Could not set transport for INVITE session", status)
             status = pjsip_inv_initial_answer(self._obj, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
-                raise PJSIPError("Could not create initial (unused) response to INTIVE", status)
+                raise PJSIPError("Could not create initial (unused) response to INVITE", status)
             pjsip_tx_data_dec_ref(tdata)
             self._obj.mod_data[ua._module.id] = <void *> self
             self._cb_state(ua, "INCOMING", rdata)
@@ -296,7 +296,7 @@ cdef class Invitation:
         elif state == "REINVITED":
             status = pjsip_inv_initial_answer(self._obj, rdata, 100, NULL, NULL, &tdata)
             if status != 0:
-                raise PJSIPError("Could not create initial (unused) response to INTIVE", status)
+                raise PJSIPError("Could not create initial (unused) response to INVITE", status)
             pjsip_tx_data_dec_ref(tdata)
         _add_event("SIPInvitationChangedState", event_dict)
         return 0
