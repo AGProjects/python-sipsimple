@@ -80,15 +80,17 @@ class PJSIP_build_ext(build_ext):
     user_options = build_ext.user_options
     user_options.extend([
         ("pjsip-svn-revision=", None, "PJSIP SVN revision to fetch"),
-        ("pjsip-clean-compile", None, "Clean PJSIP tree before compilation")
+        ("pjsip-clean-compile", None, "Clean PJSIP tree before compilation"),
+        ("pjsip-disable-assertions", None, "Disable assertion checks within PJSIP, most will revert to exceptions instead")
         ])
     boolean_options = build_ext.boolean_options
-    boolean_options.extend(["pjsip-clean-compile"])
+    boolean_options.extend(["pjsip-clean-compile", "pjsip-disable-assertions"])
     cython_version_required = (0, 10)
 
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.pjsip_clean_compile = 0
+        self.pjsip_disable_assertions = int(os.environ.get("PJSIP_NO_ASSERT", 0))
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
         self.pjsip_build_dir = os.environ.get("PJSIP_BUILD_DIR", None)
         self.pjsip_svn_repo = self.pjsip_svn_repos["1.0"]
@@ -149,6 +151,8 @@ class PJSIP_build_ext(build_ext):
             cflags = "-O3 -fPIC -arch ppc -arch i386"
         else:
             cflags = "-O3 -fPIC"
+        if self.pjsip_disable_assertions:
+            cflags += " -DNDEBUG"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
