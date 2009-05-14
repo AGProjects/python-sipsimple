@@ -364,7 +364,7 @@ class Session(NotificationHandler):
             if self.audio_transport is not None:
                 raise SessionStateError("An audio RTP stream is already active within this SIP session")
             self._queue.append("add_audio")
-            if len(self._queue) == 1:
+            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
                 self._process_queue()
 
     def remove_audio(self):
@@ -376,7 +376,7 @@ class Session(NotificationHandler):
             if not any([self.chat_transport]):
                 raise SessionStateError("Removing audio would leave the SIP session without active media")
             self._queue.append("remove_audio")
-            if len(self._queue) == 1:
+            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
                 self._process_queue()
 
     def add_chat(self):
@@ -386,7 +386,7 @@ class Session(NotificationHandler):
             if self.chat_transport is not None:
                 raise SessionStateError("An MSRP chat stream is already active within this SIP session")
             self._queue.append("add_chat")
-            if len(self._queue) == 1:
+            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
                 self._process_queue()
 
     def remove_chat(self):
@@ -398,7 +398,7 @@ class Session(NotificationHandler):
             if not any([self.audio_transport]):
                 raise SessionStateError("Removing MSRP chat would leave the SIP session without active media")
             self._queue.append("remove_chat")
-            if len(self._queue) == 1:
+            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
                 self._process_queue()
 
     def accept_proposal(self, audio=False, chat=False):
@@ -492,7 +492,7 @@ class Session(NotificationHandler):
             if self.state != "ESTABLISHED":
                 raise SessionStateError("Session is not active")
             self._queue.append("hold")
-            if len(self._queue) == 1:
+            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
                 self._process_queue()
 
     def unhold(self):
@@ -502,7 +502,7 @@ class Session(NotificationHandler):
             if self.state != "ESTABLISHED":
                 raise SessionStateError("Session is not active")
             self._queue.append("unhold")
-            if len(self._queue) == 1:
+            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
                 self._process_queue()
 
     def end(self, code=603):
