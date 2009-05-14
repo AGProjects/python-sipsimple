@@ -38,6 +38,7 @@ cdef extern from "pjlib.h":
     enum:
         PJ_ERRNO_START_SYS
         PJ_EBUG
+        PJ_ETOOMANY
 
     # init / shutdown
     int pj_init()

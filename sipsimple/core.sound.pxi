@@ -233,7 +233,7 @@ cdef class PJMEDIAConferenceBridge:
         tone.off_msec = 50
         tone.volume = 0
         status = pjmedia_tonegen_play_digits(self._tonegen, 1, &tone, 0)
-        if status != 0:
+        if status != 0 and status != PJ_ETOOMANY:
             raise PJSIPError("Could not playback DTMF tone", status)
         return 0
 
