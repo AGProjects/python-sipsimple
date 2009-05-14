@@ -191,9 +191,10 @@ class PJSIP_build_ext(build_ext):
             if svn_updated:
                 self.patch_pjsip()
             compile_needed = svn_updated
-            if not os.path.exists(os.path.join(self.svn_dir, "build.mak")):
+            if not os.path.exists(os.path.join(self.svn_dir, "build.mak")) or self.pjsip_clean_compile:
                 self.configure_pjsip()
                 compile_needed = True
+                self.pjsip_clean_compile = 1
             if self.pjsip_clean_compile:
                 self.clean_pjsip()
             self.update_extension(extension)
