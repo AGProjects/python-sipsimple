@@ -12,7 +12,7 @@ from thread import allocate_lock
 from zope.interface import implements
 from application.notification import IObserver, Any, NotificationCenter, NotificationData
 
-from sipsimple.core import WaveFile
+from sipsimple.core import WaveFile, SIPCoreError
 from sipsimple.engine import Engine
 
 
@@ -53,7 +53,10 @@ class PersistentTones(object):
 
     def _play_tones(self):
         with self._lock:
-            Engine().play_tones(self.tones)
+            try:
+                Engine().play_tones(self.tones)
+            except SIPCoreError:
+                pass
             self._timer = Timer(self.interval, self._play_tones)
             self._timer.setDaemon(True)
             self._timer.start()
