@@ -63,7 +63,6 @@ Notifications
 Audio
 -----
 
-- Play on-hold audio tones no matter which party put the call on hold
 - Add audio device settings for two profiles: headset and speakerphone [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK]
 - Added general volume control for the conference bridge [RK]
