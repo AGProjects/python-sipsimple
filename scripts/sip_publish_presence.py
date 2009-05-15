@@ -566,7 +566,7 @@ class PublicationApplication(object):
         account_manager.stop()
         if self.publication is not None:
             try:
-                self.publication.unpublish(timeout=1)
+                self.publication.end(timeout=1)
                 return
             except PublicationError:
                 pass

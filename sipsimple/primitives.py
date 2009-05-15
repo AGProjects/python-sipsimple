@@ -204,7 +204,7 @@ class Publication(NotificationHandler):
                     raise PublicationError("Cannot refresh, last ETag was invalid")
             self._make_and_send_request(body, route, timeout, True)
 
-    def unpublish(self, timeout=None):
+    def end(self, timeout=None):
         with self._lock:
             if self._last_request is None:
                 raise PublicationError("Nothing is currently published")
