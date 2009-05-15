@@ -159,7 +159,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                 elif event_name == "SIPSessionNewIncoming":
                     if sess is None:
                         sess = obj
-                        from_whom = SIPURI(obj.caller_uri.host, user=obj.caller_uri.user, display=obj.caller_uri.display, secure=obj.caller_uri.secure)
+                        from_whom = SIPURI(obj.from_uri.host, user=obj.from_uri.user, display=obj.from_uri.display, secure=obj.from_uri.secure)
                         if auto_answer:
                             print 'Incoming audio session from "%s"' % from_whom
                         else:
@@ -301,7 +301,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                 if target_uri is not None and sess is None and routes is not None and got_stun:
                     sess = Session(account)
                     sess.connect(target_uri, routes, audio=True)
-                    print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.caller_uri, sess.callee_uri, routes[0].transport, routes[0].address, routes[0].port)
+                    print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.from_uri, sess.to_uri, routes[0].transport, routes[0].address, routes[0].port)
             if command == "eof":
                 if target_uri is None and sess is not None and sess.state != "TERMINATING":
                     sess.end()

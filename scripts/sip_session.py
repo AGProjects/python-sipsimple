@@ -250,7 +250,7 @@ class ChatManager(NotificationHandler):
     def _handle_proposal(self, session, data):
         inv = session._inv
         txt = '/'.join(x.capitalize() for x in data.streams)
-        question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(inv.caller_uri), txt)
+        question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(inv.from_uri), txt)
         with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
@@ -275,7 +275,7 @@ class ChatManager(NotificationHandler):
         if has_chat and has_audio:
             replies += list('aAcC')
             replies_txt += '/a/c'
-        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, inv.caller_uri, replies_txt)
+        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, inv.from_uri, replies_txt)
         with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is

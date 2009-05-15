@@ -223,7 +223,7 @@ class InvitationLogger(StateLoggerBase):
         return 'to %s' % self.obj.remote_uri
 
     def _format_fromtoproxy(self):
-        result = 'from %s to %s' % (self.obj.caller_uri, self.obj.remote_uri)
+        result = 'from %s to %s' % (self.obj.from_uri, self.obj.remote_uri)
         if self.obj.route:
             result += " via %s:%s:%d" % (self.obj.route.transport, self.obj.route.address, self.obj.route.port)
         return result

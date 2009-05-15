@@ -170,7 +170,7 @@ class Session(NotificationHandler):
 
     def __getattr__(self, attr):
         if self._inv is not None:
-            if attr in ["caller_uri", "callee_uri", "local_uri", "remote_uri", "route"]:
+            if attr in ["from_uri", "to_uri", "local_uri", "remote_uri", "route"]:
                 return getattr(self._inv, attr)
         if self.audio_transport is not None:
             if attr.startswith("audio_"):
@@ -200,7 +200,7 @@ class Session(NotificationHandler):
             return self._audio_rec.file_name
 
     # user interface
-    def connect(self, callee_uri, routes, audio=False, chat=False):
+    def connect(self, to_uri, routes, audio=False, chat=False):
         """Creates a new SIP session to the callee with the requested stream(s).
            Moves the object from the NULL into the CALLING state."""
         with self._lock:
@@ -210,13 +210,13 @@ class Session(NotificationHandler):
                 raise ValueError("No media stream requested")
             route = iter(routes).next()
             contact_uri = SIPURI(user=self.account.contact.username, host=self.account.contact.domain, port=getattr(Engine(), "local_%s_port" % route.transport), parameters={"transport": route.transport} if route.transport != "udp" else None)
-            inv = Invitation(self.account.credentials, callee_uri, route, contact_uri)
+            inv = Invitation(self.account.credentials, to_uri, route, contact_uri)
             if audio:
                 audio_rtp = AccountRTPTransport(self.account, inv.transport)
             else:
                 audio_rtp = None
             if chat:
-                msrp_chat = MSRPChat(self.account, callee_uri, True)
+                msrp_chat = MSRPChat(self.account, to_uri, True)
             else:
                 msrp_chat = None
             ringtone = self.settings.ringtone.outbound

@@ -7,8 +7,8 @@ cdef class Invitation:
     cdef pjsip_inv_session *_obj
     cdef pjsip_dialog *_dlg
     cdef Credentials _credentials
-    cdef SIPURI _caller_uri
-    cdef SIPURI _callee_uri
+    cdef SIPURI _from_uri
+    cdef SIPURI _to_uri
     cdef Route _route
     cdef readonly object state
     cdef SDPSession _local_sdp_proposed
@@ -25,28 +25,28 @@ cdef class Invitation:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_disconnect_timer)
         self.state = "INVALID"
 
-    def __init__(self, Credentials credentials=None, SIPURI callee_uri=None,
+    def __init__(self, Credentials credentials=None, SIPURI to_uri=None,
                   Route route=None, SIPURI contact_uri=None):
         cdef PJSIPUA ua = _get_ua()
         if self.state != "INVALID":
             raise SIPCoreError("Invitation.__init__() was already called")
-        if all([credentials, callee_uri, route]):
+        if all([credentials, to_uri, route]):
             self.state = "NULL"
             self._credentials = credentials
-            self._callee_uri = callee_uri
+            self._to_uri = to_uri
             if self._credentials.uri is None:
                 raise SIPCoreError("No SIP URI set on credentials")
             self._credentials = self._credentials.copy()
             if self._credentials.password is not None:
                 self._credentials._to_c()
-            self._caller_uri = self._credentials.uri
+            self._from_uri = self._credentials.uri
             self._route = route.copy()
             self.transport = route.transport
             if contact_uri is None:
                 self._local_contact_uri = ua._create_contact_uri(route)
             else:
                 self._local_contact_uri = contact_uri.copy()
-        elif any([credentials, callee_uri, route]):
+        elif any([credentials, to_uri, route]):
             raise ValueError("All arguments need to be supplied when creating an outbound Invitation")
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
@@ -91,8 +91,8 @@ cdef class Invitation:
             self._obj = NULL
             self._dlg = NULL
             raise
-        self._caller_uri = _make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
-        self._callee_uri = _make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
+        self._from_uri = _make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
+        self._to_uri = _make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
         return 0
 
     cdef PJSIPUA _check_ua(self):
@@ -137,41 +137,41 @@ cdef class Invitation:
         # post_handlers will be executed after pjsip_endpt_handle_events returns
         _add_post_handler(_Invitation_cb_fail_post, self)
 
-    property caller_uri:
+    property from_uri:
 
         def __get__(self):
-            if self._caller_uri is None:
+            if self._from_uri is None:
                 return None
             else:
-                return self._caller_uri.copy()
+                return self._from_uri.copy()
 
-    property callee_uri:
+    property to_uri:
 
         def __get__(self):
-            if self._callee_uri is None:
+            if self._to_uri is None:
                 return None
             else:
-                return self._callee_uri.copy()
+                return self._to_uri.copy()
 
     property local_uri:
 
         def __get__(self):
-            if self._caller_uri is None:
+            if self._from_uri is None:
                 return None
             if self._credentials is None:
-                return self._callee_uri.copy()
+                return self._to_uri.copy()
             else:
-                return self._caller_uri.copy()
+                return self._from_uri.copy()
 
     property remote_uri:
 
         def __get__(self):
-            if self._caller_uri is None:
+            if self._from_uri is None:
                 return None
             if self._credentials is None:
-                return self._caller_uri.copy()
+                return self._from_uri.copy()
             else:
-                return self._callee_uri.copy()
+                return self._to_uri.copy()
 
     property credentials:
 
@@ -335,8 +335,8 @@ cdef class Invitation:
     def send_invite(self, dict extra_headers=None, timeout=None):
         cdef pjsip_tx_data *tdata
         cdef object transport
-        cdef PJSTR caller_uri
-        cdef PJSTR callee_uri
+        cdef PJSTR from_uri
+        cdef PJSTR to_uri
         cdef SIPURI callee_target_uri
         cdef PJSTR callee_target
         cdef PJSTR contact_uri
@@ -354,16 +354,16 @@ cdef class Invitation:
                 raise ValueError("Timeout value cannot be negative")
             timeout_pj.sec = int(timeout)
             timeout_pj.msec = (timeout * 1000) % 1000
-        caller_uri = PJSTR(self._caller_uri._as_str(0))
-        callee_uri = PJSTR(self._callee_uri._as_str(0))
-        callee_target_uri = self._callee_uri.copy()
+        from_uri = PJSTR(self._from_uri._as_str(0))
+        to_uri = PJSTR(self._to_uri._as_str(0))
+        callee_target_uri = self._to_uri.copy()
         if callee_target_uri.parameters.get("transport", "udp").lower() != self.transport:
             callee_target_uri.parameters["transport"] = self.transport
         callee_target = PJSTR(callee_target_uri._as_str(1))
         contact_uri = PJSTR(self._local_contact_uri._as_str(1))
         try:
-            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &caller_uri.pj_str, &contact_uri.pj_str,
-                                          &callee_uri.pj_str, &callee_target.pj_str, &self._dlg)
+            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_uri.pj_str, &contact_uri.pj_str,
+                                          &to_uri.pj_str, &callee_target.pj_str, &self._dlg)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
             self._local_sdp_proposed._to_c()
