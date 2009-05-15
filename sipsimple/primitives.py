@@ -33,7 +33,7 @@ class Registration(NotificationHandler):
         with self._lock:
             self._make_and_send_request(contact_uri, route, timeout, True)
 
-    def unregister(self, timeout=None):
+    def end(self, timeout=None):
         with self._lock:
             if self._last_request is None:
                 return

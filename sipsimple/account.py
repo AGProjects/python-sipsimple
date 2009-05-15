@@ -203,7 +203,7 @@ class Account(SettingsObject):
                 if not self.registration.enabled:
                     notification_center.remove_observer(self, sender=self._registrar)
                     if self._registrar.is_registered:
-                        self._registrar.unregister(timeout=2)
+                        self._registrar.end(timeout=2)
                     self._registrar = None
                 elif engine.is_running:
                     self._registrar = Registration(self.credentials, duration=self.registration.interval)
@@ -347,7 +347,7 @@ class Account(SettingsObject):
 
         if self.registration.enabled:
             try:
-                self._registrar.unregister(timeout=2)
+                self._registrar.end(timeout=2)
             except SIPCoreError:
                 pass
 
