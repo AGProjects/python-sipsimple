@@ -255,7 +255,7 @@ cdef class Request:
             self._timer_active = 1
         self.state = "IN_PROGRESS"
 
-    def terminate(self):
+    def end(self):
         cdef PJSIPUA ua = self._get_ua()
         if self.state == "IN_PROGRESS":
             pjsip_tsx_terminate(self._tsx, 408)

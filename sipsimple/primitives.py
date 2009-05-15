@@ -54,7 +54,7 @@ class Registration(NotificationHandler):
         self._notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
             # we are trying to send something already, cancel whatever it is
-            self._current_request.terminate()
+            self._current_request.end()
             self._current_request = None
         try:
             request.send(timeout=timeout)
@@ -72,7 +72,7 @@ class Registration(NotificationHandler):
             self._current_request = None
             if self._unregistering:
                 if self._last_request is not None:
-                    self._last_request.terminate()
+                    self._last_request.end()
                     self._last_request = None
                 self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
                                                             data=NotificationData(expired=False))
@@ -119,7 +119,7 @@ class Registration(NotificationHandler):
                 return
             self._last_request = None
             if self._current_request is not None:
-                self._current_request.terminate()
+                self._current_request.end()
                 self._current_request = None
             self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
                                                         data=NotificationData(expired=True))
@@ -152,14 +152,14 @@ class Message(NotificationHandler):
 
     def end(self):
         with self._lock:
-            self._request.terminate()
+            self._request.end()
 
     @keyword_handler
     def _NH_SIPRequestDidSucceed(self, request, timestamp, code, reason, headers, body, expires):
         with self._lock:
             if expires:
                 # this shouldn't happen really
-                request.terminate()
+                request.end()
             self._notification_center.post_notification("SIPMessageDidSucceed", sender=self, data=NotificationData())
 
     @keyword_handler
@@ -223,7 +223,7 @@ class Publication(NotificationHandler):
         self._notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
             # we are trying to send something already, cancel whatever it is
-            self._current_request.terminate()
+            self._current_request.end()
             self._current_request = None
         try:
             request.send(timeout=timeout)
@@ -241,7 +241,7 @@ class Publication(NotificationHandler):
             self._current_request = None
             if self._unpublishing:
                 if self._last_request is not None:
-                    self._last_request.terminate()
+                    self._last_request.end()
                     self._last_request = None
                 self._last_etag = None
                 self._notification_center.post_notification("SIPPublicationDidEnd", sender=self,
@@ -287,7 +287,7 @@ class Publication(NotificationHandler):
                 return
             self._last_request = None
             if self._current_request is not None:
-                self._current_request.terminate()
+                self._current_request.end()
                 self._current_request = None
             self._last_etag = None
             self._notification_center.post_notification("SIPPublicationDidEnd", sender=self,
