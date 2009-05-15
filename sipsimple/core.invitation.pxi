@@ -267,7 +267,7 @@ cdef class Invitation:
             return 0
         if state == "CONFIRMED":
             if self.state == "CONNECTING" and self._sdp_neg_status != 0:
-                self.disconnect(488)
+                self.end(488)
                 return 0
         if self._obj.cancelling and state == "DISCONNECTED":
             # Hack to indicate that we caused the disconnect
@@ -321,7 +321,7 @@ cdef class Invitation:
             event_dict["error"] = _pj_status_to_str(status)
         _add_event("SIPInvitationGotSDPUpdate", event_dict)
         if self.state in ["INCOMING", "EARLY"] and status != 0:
-            self.disconnect(488)
+            self.end(488)
         return 0
 
     cdef int _send_msg(self, PJSIPUA ua, pjsip_tx_data *tdata, dict extra_headers) except -1:
@@ -431,7 +431,7 @@ cdef class Invitation:
         self._send_msg(ua, tdata, extra_headers or {})
         return 0
 
-    def disconnect(self, int response_code=603, dict extra_headers=None, timeout=None):
+    def end(self, int response_code=603, dict extra_headers=None, timeout=None):
         cdef pj_time_val timeout_pj
         cdef pjsip_tx_data *tdata
         cdef int status

@@ -241,7 +241,7 @@ class Session(NotificationHandler):
         del self.session_manager.inv_mapping[self._inv]
         if self._inv.state != "NULL":
             try:
-                self._inv.disconnect(500)
+                self._inv.end(500)
             except SIPCoreError:
                 traceback.print_exc()
         self._inv = None
@@ -341,7 +341,7 @@ class Session(NotificationHandler):
             self._inv.set_offered_local_sdp(local_sdp)
             self._inv.accept_invite()
         except SIPCoreError, e:
-            self._inv.disconnect(500)
+            self._inv.end(500)
             self._do_fail(e.args[0])
         finally:
             self._lock.release()
@@ -518,7 +518,7 @@ class Session(NotificationHandler):
         self.notification_center.post_notification("SIPSessionWillEnd", self, TimestampedNotificationData())
         if self._inv.state != "DISCONNECTING":
             try:
-                self._inv.disconnect(code)
+                self._inv.end(code)
             except SIPCoreError:
                 self._change_state("TERMINATED")
                 self.notification_center.post_notification("SIPSessionDidEnd", self, TimestampedNotificationData(originator="local"))
@@ -903,16 +903,16 @@ class SessionManager(NotificationHandler):
     def _NH_SIPInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
             if "To" not in data.headers.iterkeys():
-                inv.disconnect(404)
+                inv.end(404)
                 return
             to_uri = data.headers['To'][0]
             account = AccountManager().find_account(data.request_uri)
             if account is None:
-                inv.disconnect(404)
+                inv.end(404)
                 return
             proposed_media = list(set(("chat" if media.media == "message" else media.media) for media in inv.get_offered_remote_sdp().media if media.media in ["audio", "message"] and media.port != 0))
             if len(proposed_media) == 0:
-                inv.disconnect(415)
+                inv.end(415)
                 return
             inv.respond_to_invite_provisionally(180)
             session = Session(account)

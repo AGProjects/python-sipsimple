@@ -307,7 +307,7 @@ class Session(NotificationHandler):
             data = TimestampedNotificationData(originator='local')
             self.notification_center.post_notification("SIPSessionWillEnd", self, data)
             try:
-                self.inv.disconnect(code or 603)
+                self.inv.end(code or 603)
             except Exception:
                 pass
             self._set_state('TERMINATED', originator='local')
@@ -579,12 +579,12 @@ class IncomingHandler(NotificationHandler):
     def _NH_SIPInvitationChangedState(self, inv, data):
         if data.state == "INCOMING":
             if "To" not in data.headers.iterkeys():
-                inv.disconnect(404)
+                inv.end(404)
                 return
             to_uri = data.headers['To'][0]
             account = AccountManager().find_account(data.request_uri)
             if account is None:
-                inv.disconnect(404)
+                inv.end(404)
                 return
             remote_sdp = inv.get_offered_remote_sdp()
             streams = []
@@ -595,7 +595,7 @@ class IncomingHandler(NotificationHandler):
                         stream.index = index
                         streams.append(stream)
             if not streams:
-                inv.disconnect(415)
+                inv.end(415)
                 return
             inv.respond_to_invite_provisionally(180)
             session = Session(account, GreenInvitation(__obj=inv), 'incoming', data.headers.get("User-Agent"), streams)

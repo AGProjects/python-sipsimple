@@ -53,7 +53,7 @@ def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
         msrp = session.GreenMSRPSession(msrp_connector.complete(full_remote_path))
         return invite_response, msrp
     except:
-        proc.spawn_greenlet(inv.disconnect)
+        proc.spawn_greenlet(inv.end)
         raise
     finally:
         msrp_connector.cleanup()
@@ -96,14 +96,14 @@ class MSRPSession(object):
             self.source.send(None)
         if self.sip:
             self._disconnect_link.cancel()
-            self.sip.disconnect()
+            self.sip.end()
         self._shutdown_msrp()
 
     def _end_sip(self):
         """Close SIP session but keep everything else intact. For testing only."""
         if self.sip.state=='CONFIRMED':
             self._disconnect_link.cancel()
-            self.sip.disconnect()
+            self.sip.end()
 
     def _on_sip_disconnect_cb(self, params):
         proc.spawn_greenlet(self._on_sip_disconnect)
@@ -201,5 +201,5 @@ class IncomingMSRPHandler(object):
                 acceptor.cleanup()
         finally:
             if ERROR is not None:
-                proc.spawn_greenlet(inv.disconnect, ERROR)
+                proc.spawn_greenlet(inv.end, ERROR)
 

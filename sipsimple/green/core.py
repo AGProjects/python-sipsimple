@@ -161,7 +161,7 @@ class IncomingSessionHandler(object):
             raise
         finally:
             if ERROR is not None:
-                proc.spawn_greenlet(inv.disconnect, ERROR)
+                proc.spawn_greenlet(inv.end, ERROR)
 
 
 class GreenRegistration(GreenBase, NotificationHandler):
@@ -274,13 +274,13 @@ class GreenInvitation(GreenBase):
             self._obj.send_reinvite(*args, **kwargs)
             return self._wait_notifications(q)
 
-    def disconnect(self, *args, **kwargs):
-        """Call disconnect() on the proxied object. Wait until SIP session is disconnected"""
+    def end(self, *args, **kwargs):
+        """Call end() on the proxied object. Wait until SIP session is disconnected"""
         with self.linked_notification(self.event_names[0], condition=lambda n: n.data.state=='DISCONNECTED') as q:
             if self.state in ['NULL', 'DISCONNECTED']:
                 return
             if self.state != 'DISCONNECTING':
-                self._obj.disconnect(*args, **kwargs)
+                self._obj.end(*args, **kwargs)
             return q.wait()
 
     def accept_invite(self, *args, **kwargs):

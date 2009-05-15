@@ -57,11 +57,11 @@ def wait_notification(name=Any, sender=Any, condition=None):
     Danger: you should probably be using linked_notification(s).
 
     The reason is that it's quite easy to miss the expected notification and block forever.
-    For example, you have disconnect() function that posts 'DISCONNECTED' event once complete.
+    For example, you have end() function that posts 'DISCONNECTED' event once complete.
 
     This usage has a bug:
 
-        disconnect()
+        end()
         wait_notification('DISCONNECTED')
 
     The notification may be posted inside disconnect() call or there could be a context
@@ -72,7 +72,7 @@ def wait_notification(name=Any, sender=Any, condition=None):
     The correct usage is:
 
         with linked_notification('DISCONNECTED') as q:
-            disconnect()
+            end()
             q.wait()
     """
     notification_center = NotificationCenter()
