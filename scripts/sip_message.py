@@ -148,11 +148,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                 else:
                     sent = True
                     print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (account.id, target_uri, routes[0].transport, routes[0].address, routes[0].port)
-                    if account.id == "bonjour@local":
-                        credentials = Credentials(SIPURI(user="bonjour", host="local"))
-                    else:
-                        credentials = account.credentials
-                    msg = Message(credentials, target_uri, routes[0], "text/plain", "\n".join(msg_buf))
+                    msg = Message(account.uri, target_uri, routes[0], "text/plain", "\n".join(msg_buf), credentials=account.credentials)
                     msg.send()
                     print "Press Ctrl+D to stop the program."
             if command == "quit":
