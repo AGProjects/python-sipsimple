@@ -210,7 +210,7 @@ class Session(NotificationHandler):
                 raise ValueError("No media stream requested")
             route = iter(routes).next()
             contact_uri = SIPURI(user=self.account.contact.username, host=self.account.contact.domain, port=getattr(Engine(), "local_%s_port" % route.transport), parameters={"transport": route.transport} if route.transport != "udp" else None)
-            inv = Invitation(self.account.credentials, to_uri, route, contact_uri)
+            inv = Invitation(self.account.uri, to_uri, route, self.account.credentials, contact_uri)
             if audio:
                 audio_rtp = AccountRTPTransport(self.account, inv.transport)
             else:
