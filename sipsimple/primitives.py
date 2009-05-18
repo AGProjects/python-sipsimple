@@ -128,16 +128,18 @@ class Registration(NotificationHandler):
 
 class Message(NotificationHandler):
 
-    def __init__(self, credentials, to_uri, route, content_type, body):
-        self._request = Request("MESSAGE", credentials, to_uri, to_uri, route, content_type=content_type, body=body)
+    def __init__(self, from_uri, to_uri, route, content_type, body, credentials=None):
+        self._request = Request("MESSAGE", from_uri, to_uri, to_uri, route,
+                                credentials=credentials, content_type=content_type, body=body)
         self._notification_center = NotificationCenter()
         self._lock = RLock()
 
-    credentials = property(lambda self: self._request.credentials)
+    from_uri = property(lambda self: self._request.from_uri)
     to_uri = property(lambda self: self._request.to_uri)
     route = property(lambda self: self._request.route)
     content_type = property(lambda self: self._request.content_type)
     body = property(lambda self: self._request.body)
+    credentials = property(lambda self: self._request.credentials)
     is_sent = property(lambda self: self._request.state != "INIT")
     in_progress = property(lambda self: self._request.state == "IN_PROGRESS")
 
