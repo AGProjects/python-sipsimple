@@ -183,10 +183,11 @@ class PublicationError(Exception):
 
 class Publication(NotificationHandler):
 
-    def __init__(self, credentials, event, content_type, duration=300):
-        self.credentials = credentials
+    def __init__(self, uri, event, content_type, credentials=None, duration=300):
+        self.uri = uri
         self.event = event
         self.content_type = content_type
+        self.credentials = credentials
         self.duration = duration
         self._notification_center = NotificationCenter()
         self._last_etag = None
@@ -221,8 +222,9 @@ class Publication(NotificationHandler):
         if self._last_etag is not None:
             extra_headers["SIP-If-Match"] = self._last_etag
         content_type = (self.content_type if body is not None else None)
-        request = Request("PUBLISH", self.credentials, self.credentials.uri, self.credentials.uri, route,
-                          cseq=1, extra_headers=extra_headers, content_type=content_type, body=body)
+        request = Request("PUBLISH", self.uri, self.uri, self.uri, route,
+                          credentials=self.credentials, cseq=1, extra_headers=extra_headers,
+                          content_type=content_type, body=body)
         self._notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
             # we are trying to send something already, cancel whatever it is
