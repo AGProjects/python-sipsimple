@@ -240,7 +240,7 @@ class Session(NotificationHandler):
                                  host=self.account.contact.domain,
                                  port=getattr(Engine(), "local_%s_port" % route.transport),
                                  parameters={"transport": route.transport} if route.transport != "udp" else None)
-            self.inv = GreenInvitation(self.account.credentials, to_uri, route, contact_uri)
+            self.inv = GreenInvitation(self.account.uri, to_uri, route, self.account.credentials, contact_uri)
             self.subscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
             ERROR = (500, None, 'local') # code, reason, originator
             self._set_state('CALLING')
