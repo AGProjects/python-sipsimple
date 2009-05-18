@@ -541,7 +541,8 @@ class PublicationApplication(object):
         self.interface.start()
 
         # initialize publication object
-        self.publication = Publication(self.account.credentials, "presence", "application/pidf+xml", duration=self.account.presence.publish_interval)
+        self.publication = Publication(self.account.uri, "presence", "application/pidf+xml",
+                                       credentials=self.account.credentials, duration=self.account.presence.publish_interval)
         notification_center.add_observer(self, sender=self.publication)
 
         reactor.callLater(0, self.publish)
