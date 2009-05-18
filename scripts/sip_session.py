@@ -315,9 +315,9 @@ class ChatManager(NotificationHandler):
                 prefix = '%s/%s ' % (1+self.sessions.index(self.current_session), len(self.sessions))
             ps = prefix + self.current_session.format_prompt()
         else:
-            if hasattr(self.account, 'credentials'):
-                credentials = self.account.credentials
-                username, domain, port = credentials.uri.user, credentials.uri.host, credentials.uri.port
+            if hasattr(self.account, 'uri'):
+                uri = self.account.uri
+                username, domain, port = uri.user, uri.host, uri.port
                 if port in [None, 0, 5060]:
                     ps = '%s@%s' % (username, domain)
                 else:
