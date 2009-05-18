@@ -251,7 +251,7 @@ class SubscriptionApplication(object):
                     timeout = random.uniform(self._subscription_wait, 2*self._subscription_wait)
                     reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
                 else:
-                    self.subscription = Subscription(self.account.credentials, self.target, "presence", route=self._subscription_routes.popleft(), expires=self.account.presence.subscribe_interval)
+                    self.subscription = Subscription(self.account.uri, self.target, "presence", route=self._subscription_routes.popleft(), credentials=self.account.credentials, expires=self.account.presence.subscribe_interval)
                     notification_center = NotificationCenter()
                     notification_center.add_observer(self, sender=self.subscription)
                     self.subscription.subscribe()
@@ -270,7 +270,7 @@ class SubscriptionApplication(object):
     def _NH_DNSLookupDidSucceed(self, notification):
         # create subscription and register to get notifications from it
         self._subscription_routes = deque(notification.data.result)
-        self.subscription = Subscription(self.account.credentials, self.target, "presence", route=self._subscription_routes.popleft(), expires=self.account.presence.subscribe_interval)
+        self.subscription = Subscription(self.account.uri, self.target, "presence", route=self._subscription_routes.popleft(), credentials=self.account.credentials, expires=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
         self.subscription.subscribe()
