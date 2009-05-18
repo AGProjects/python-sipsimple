@@ -9,26 +9,26 @@ cdef class Subscription:
     cdef Credentials c_credentials
     cdef Route c_route
     cdef readonly unsigned int expires
+    cdef readonly SIPURI c_from_uri
     cdef readonly SIPURI c_to_uri
     cdef PJSTR c_event
     cdef readonly object state
     cdef dict c_extra_headers
     cdef PJSTR c_contact_uri
 
-    def __cinit__(self, Credentials credentials, SIPURI to_uri, event, route, expires=300, SIPURI contact_uri=None, extra_headers=None):
+    def __cinit__(self, SIPURI from_uri, SIPURI to_uri, event, route, expires=300, Credentials credentials=None, SIPURI contact_uri=None, extra_headers=None):
         cdef int status
         cdef EventPackage pkg
         cdef PJSIPUA ua = _get_ua()
-        if credentials is None:
-            raise SIPCoreError("credentials parameter cannot be None")
-        if credentials.uri is None:
-            raise SIPCoreError("No SIP URI set on credentials")
+        if from_uri is None:
+            raise SIPCoreError("from_uri parameter cannot be None")
         if to_uri is None:
             raise SIPCoreError("to_uri parameter cannot be None")
-        self.c_credentials = credentials.copy()
-        self.c_credentials._to_c()
+        if credentials is not None:
+            self.c_credentials = credentials.copy()
         self.c_route = route.copy()
         self.expires = expires
+        self.c_from_uri = from_uri.copy()
         self.c_to_uri = to_uri.copy()
         self.c_event = PJSTR(event)
         if event not in ua.events:
@@ -56,6 +56,11 @@ cdef class Subscription:
     def __repr__(self):
         return "<Subscription for '%s' of '%s'>" % (self.c_event.str, self.c_to_uri._as_str(0))
 
+    property from_uri:
+
+        def __get__(self):
+            return self.c_from_uri.copy()
+
     property to_uri:
 
         def __get__(self):
@@ -74,7 +79,10 @@ cdef class Subscription:
     property credentials:
 
         def __get__(self):
-            return self.c_credentials.copy()
+            if self.c_credentials is None:
+                return None
+            else:
+                return self.c_credentials.copy()
 
     property route:
 
@@ -121,7 +129,7 @@ cdef class Subscription:
         cdef PJSIPUA ua = _get_ua()
         try:
             if first_subscribe:
-                c_from = PJSTR(self.c_credentials.uri._as_str(0))
+                c_from = PJSTR(self.c_from_uri._as_str(0))
                 c_to = PJSTR(self.c_to_uri._as_str(0))
                 c_to_req = PJSTR(self.c_to_uri._as_str(1))
                 transport = self.c_route.transport
@@ -131,9 +139,10 @@ cdef class Subscription:
                 status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
                 if status != 0:
                     raise PJSIPError("Could not create SUBSCRIBE", status)
-                status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials._obj)
-                if status != 0:
-                    raise PJSIPError("Could not set SUBSCRIBE credentials", status)
+                if self.c_credentials is not None:
+                    status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials._obj)
+                    if status != 0:
+                        raise PJSIPError("Could not set SUBSCRIBE credentials", status)
                 status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route._route_set)
                 if status != 0:
                     raise PJSIPError("Could not set route on SUBSCRIBE", status)

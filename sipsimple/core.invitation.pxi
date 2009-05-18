@@ -25,29 +25,26 @@ cdef class Invitation:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_disconnect_timer)
         self.state = "INVALID"
 
-    def __init__(self, Credentials credentials=None, SIPURI to_uri=None,
-                  Route route=None, SIPURI contact_uri=None):
+    def __init__(self, SIPURI from_uri=None, SIPURI to_uri=None, Route route=None,
+                 Credentials credentials=None, SIPURI contact_uri=None):
         cdef PJSIPUA ua = _get_ua()
         if self.state != "INVALID":
             raise SIPCoreError("Invitation.__init__() was already called")
-        if all([credentials, to_uri, route]):
+        if all([from_uri, to_uri, route]):
             self.state = "NULL"
-            self._credentials = credentials
-            self._to_uri = to_uri
-            if self._credentials.uri is None:
-                raise SIPCoreError("No SIP URI set on credentials")
-            self._credentials = self._credentials.copy()
-            if self._credentials.password is not None:
-                self._credentials._to_c()
-            self._from_uri = self._credentials.uri
+            self._from_uri = from_uri.copy()
+            self._to_uri = to_uri.copy()
             self._route = route.copy()
             self.transport = route.transport
             if contact_uri is None:
                 self._local_contact_uri = ua._create_contact_uri(route)
             else:
                 self._local_contact_uri = contact_uri.copy()
-        elif any([credentials, to_uri, route]):
-            raise ValueError("All arguments need to be supplied when creating an outbound Invitation")
+            if credentials is not None:
+                self._credentials = credentials.copy()
+        elif any([from_uri, to_uri, route]):
+            raise ValueError('The "from_uri", "to_uri" and "route" arguments need to be supplied ' +
+                             "when creating an outbound Invitation")
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef pjsip_tx_data *tdata
@@ -372,7 +369,7 @@ cdef class Invitation:
             if status != 0:
                 raise PJSIPError("Could not create outgoing INVITE session", status)
             self._obj.mod_data[ua._module.id] = <void *> self
-            if self._credentials.password is not None:
+            if self._credentials is not None:
                 status = pjsip_auth_clt_set_credentials(&self._dlg.auth_sess, 1, &self._credentials._obj)
                 if status != 0:
                     raise PJSIPError("Could not set credentials for INVITE session", status)

@@ -15,6 +15,7 @@ cdef class Request:
     cdef readonly object state
     cdef PJSTR _method
     cdef Credentials _credentials
+    cdef SIPURI _from_uri
     cdef SIPURI _to_uri
     cdef SIPURI _request_uri
     cdef SIPURI _contact_uri
@@ -44,12 +45,15 @@ cdef class Request:
     property credentials:
 
         def __get__(self):
-            return self._credentials.copy()
+            if self._credentials is None:
+                return None
+            else:
+                return self._credentials.copy()
 
     property from_uri:
 
         def __get__(self):
-            return self._credentials.uri.copy()
+            return self._from_uri.copy()
 
     property to_uri:
 
@@ -118,8 +122,8 @@ cdef class Request:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_timer)
         self._timer_active = 0
 
-    def __init__(self, method, Credentials credentials, SIPURI to_uri, SIPURI request_uri,
-                 Route route, SIPURI contact_uri=None, call_id=None, cseq=None,
+    def __init__(self, method, SIPURI from_uri, SIPURI to_uri, SIPURI request_uri, Route route,
+                 Credentials credentials=None, SIPURI contact_uri=None, call_id=None, cseq=None,
                  dict extra_headers=None, content_type=None, body=None):
         cdef pjsip_method method_pj
         cdef PJSTR from_uri_str
@@ -136,8 +140,8 @@ cdef class Request:
         cdef PJSIPUA ua = _get_ua()
         if self._tsx != NULL or self.state != "INIT":
             raise SIPCoreError("Request.__init__() was already called")
-        if credentials is None:
-            raise ValueError("credentials argument may not be None")
+        if from_uri is None:
+            raise ValueError("from_uri argument may not be None")
         if to_uri is None:
             raise ValueError("to_uri argument may not be None")
         if route is None:
@@ -155,10 +159,10 @@ cdef class Request:
             raise ValueError("Cannot specify a body without a content_type")
         self._method = PJSTR(method)
         pjsip_method_init_np(&method_pj, &self._method.pj_str)
-        self._credentials = credentials.copy()
-        if self._credentials.password is not None:
-            self._credentials._to_c()
-        from_uri_str = PJSTR(credentials.uri._as_str(0))
+        if credentials is not None:
+            self._credentials = credentials.copy()
+        self._from_uri = from_uri.copy()
+        from_uri_str = PJSTR(from_uri._as_str(0))
         self._to_uri = to_uri.copy()
         to_uri_str = PJSTR(to_uri._as_str(0))
         self._request_uri = request_uri.copy()
@@ -205,7 +209,7 @@ cdef class Request:
             hdr = <pjsip_hdr *> (<pj_list *> hdr).next
         pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route._route_hdr)
         _add_headers_to_tdata(self._tdata, self._extra_headers)
-        if self._credentials.password is not None:
+        if self._credentials is not None:
             status = pjsip_auth_clt_init(&self._auth, ua._pjsip_endpoint._obj, self._tdata.pool, 0)
             if status != 0:
                 raise PJSIPError("Could not init authentication credentials", status)

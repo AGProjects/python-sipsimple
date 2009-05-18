@@ -82,8 +82,8 @@ cdef class Route:
 
 cdef class Credentials:
     cdef pjsip_cred_info _obj
-    cdef public SIPURI uri
-    cdef public object password
+    cdef PJSTR _username
+    cdef PJSTR _password
 
     def __cinit__(self, *args, **kwargs):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
@@ -91,26 +91,41 @@ cdef class Credentials:
         self._obj.scheme = _Credentials_scheme_digest.pj_str
         self._obj.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
 
-    def __init__(self, SIPURI uri, password=None):
-        self.uri = uri
+    def __init__(self, username, password):
+        self.username = username
         self.password = password
 
     def __repr__(self):
-        return "<Credentials for '%s'>" % self.uri
+        return '<Credentials for "%s">' % self._username.str
 
     cdef int _to_c(self) except -1:
-        if self.uri is None or self.password is None:
-            raise SIPCoreError("Credentials are not fully set")
-        if self.uri.user is None:
-            raise SIPCoreError("Credentials URI does not have username set")
-        _str_to_pj_str(self.uri.user, &self._obj.username)
+        _str_to_pj_str(self.username, &self._obj.username)
         _str_to_pj_str(self.password, &self._obj.data)
         return 0
 
+    property username:
+
+        def __get__(self):
+            return self._username.str
+
+        def __set__(self, object value):
+            self._username = PJSTR(value)
+            self._obj.username = self._username.pj_str
+
+    property password:
+
+        def __get__(self):
+            return self._password.str
+
+        def __set__(self, object value):
+            self._password = PJSTR(value)
+            self._obj.data = self._password.pj_str
+
+    def __copy__(self):
+        return Credentials(self.username, self.password)
+
     def copy(self):
-        if self.uri is None:
-            raise SIPCoreError("Credentials URI is set to None")
-        return Credentials(self.uri.copy(), self.password)
+        return self.__copy__()
 
 
 cdef class SIPURI:
