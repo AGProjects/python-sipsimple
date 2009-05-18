@@ -16,7 +16,8 @@ def keyword_handler(func):
 
 class Registration(NotificationHandler):
 
-    def __init__(self, credentials, duration=300):
+    def __init__(self, uri, credentials=None, duration=300):
+        self.uri = uri
         self.credentials = credentials
         self.duration = duration
         self._notification_center = NotificationCenter()
@@ -48,8 +49,8 @@ class Registration(NotificationHandler):
         else:
             call_id = None
             cseq = 1
-        request = Request("REGISTER", self.credentials, self.credentials.uri,
-                          SIPURI(self.credentials.uri.host), route, contact_uri=contact_uri, call_id=call_id,
+        request = Request("REGISTER", self.uri, self.uri, SIPURI(self.uri.host), route,
+                          credentials=self.credentials, contact_uri=contact_uri, call_id=call_id,
                           cseq=cseq, extra_headers={"Expires": str(int(self.duration) if do_register else 0)})
         self._notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
