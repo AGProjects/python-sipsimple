@@ -287,7 +287,7 @@ class ActivitiesMenu(Menu):
             self.interface.application.output.put('Note set')
         person.timestamp = PersonTimestamp()
         self.interface.application.publish()
-        self.inteface.show_top_level()
+        self.interface.show_top_level()
 
     def _set_random(self):
         person = self.interface.application.person
