@@ -139,7 +139,8 @@ class Account(SettingsObject):
         username = ''.join(random.sample(string.lowercase, 8))
         settings = SIPSimpleSettings()
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
-        self.credentials = Credentials(SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name), password=self.password)
+        self.uri = SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name)
+        self.credentials = Credentials(self.id.username, self.password)
 
         self.active = False
         self._register_wait = 0.5
@@ -159,7 +160,7 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
 
         if self.enabled:
-            self._registrar = Registration(self.credentials, duration=self.registration.interval)
+            self._registrar = Registration(self.uri, credentials=self.credentials, duration=self.registration.interval)
             notification_center.add_observer(self, sender=self._registrar)
             if engine.is_running:
                 self._activate()
@@ -206,15 +207,15 @@ class Account(SettingsObject):
                         self._registrar.end(timeout=2)
                     self._registrar = None
                 elif engine.is_running:
-                    self._registrar = Registration(self.credentials, duration=self.registration.interval)
+                    self._registrar = Registration(self.uri, credentials=self.credentials, duration=self.registration.interval)
                     notification_center.add_observer(self, sender=self._registrar)
                     self._register()
 
-        # update credentials attribute if needed
+        # update uri and credentials attributes if needed
         if 'password' in notification.data.modified:
             self.credentials.password = self.password
         if 'display_name' in notification.data.modified:
-            self.credentials.display= self.display_name
+            self.uri.display= self.display_name
 
     def _NH_SIPEngineDidStart(self, notification):
         if self.enabled:
@@ -396,7 +397,8 @@ class BonjourAccount(SettingsObject):
         settings = SIPSimpleSettings()
         username = ''.join(random.sample(string.lowercase, 8))
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
-        self.credentials = Credentials(SIPURI(user=self.contact.username, host=self.contact.domain, display=self.display_name), password='')
+        self.uri = SIPURI(user=self.contact.username, host=self.contact.domain, display=self.display_name)
+        self.credentials = None
 
         self.active = False
 
