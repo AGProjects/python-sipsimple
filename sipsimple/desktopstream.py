@@ -54,7 +54,7 @@ class MSRPDesktop(object):
 
     @property
     def from_uri(self):
-        return self.account.credentials.uri
+        return self.account.uri
 
     def get_local_media(self, for_offer=True, on_hold=False):
         if on_hold:
@@ -85,13 +85,13 @@ class MSRPDesktop(object):
                     self.setup = 'passive'
             if (outgoing and self.account.msrp.use_relay_for_outbound) or (not outgoing and self.account.msrp.use_relay_for_inbound):
                 if self.account.msrp.relay is None:
-                    relay = MSRPRelaySettings(domain=self.account.credentials.uri.host,
-                                              username=self.account.credentials.uri.user,
+                    relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                              username=self.account.credentials.username,
                                               password=self.account.credentials.password)
                     self.transport = 'tls'
                 else:
-                    relay = MSRPRelaySettings(domain=self.account.credentials.uri.host,
-                                              username=self.account.credentials.uri.user,
+                    relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                              username=self.account.credentials.username,
                                               password=self.account.credentials.password,
                                               host=self.account.msrp.relay.host,
                                               port=self.account.msrp.relay.port,
