@@ -220,10 +220,10 @@ class InvitationLogger(StateLoggerBase):
         return 'SIP session'
 
     def _format_to(self):
-        return 'to %s' % self.obj.remote_uri
+        return 'to %s' % self.obj.to_uri
 
     def _format_fromtoproxy(self):
-        result = 'from %s to %s' % (self.obj.from_uri, self.obj.remote_uri)
+        result = 'from %s to %s' % (self.obj.from_uri, self.obj.to_uri)
         if self.obj.route:
             result += " via %s:%s:%d" % (self.obj.route.transport, self.obj.route.address, self.obj.route.port)
         return result
