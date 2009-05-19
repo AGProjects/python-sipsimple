@@ -181,7 +181,7 @@ class RegistrationLogger(StateLoggerBase):
 
     def log_state_default(self, notification_data):
         state = notification_data.state
-        x = (state.capitalize(), self.obj.credentials.uri, self.obj.route.address, self.obj.route.port,
+        x = (state.capitalize(), self.obj.uri, self.obj.route.address, self.obj.route.port,
              _format_reason(notification_data))
         self.write('%s %s at %s:%s%s' % x)
 
