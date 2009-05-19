@@ -127,3 +127,35 @@ class SIPURI(str):
         return obj
 
 
+class XCAPURI(str):
+    path_regex = re.compile(r'^(?P<root>/(([^/]+)/)*)(?P<auid>[^/]+)/((?P<globaltree>global)|(users/(?P<userstree>[^/]+)))/(?P<document>~?(([^~]+~)|([^~]+))*)(/~~(?P<node>.*))?$')
+    
+    def __new__(cls, value):
+        obj = str.__new__(cls, value)
+        uri = urlparse.urlparse(obj)
+
+        if uri.scheme not in ('http', 'https'):
+            raise ValueError("illegal scheme for XCAP URI: %s" % uri.scheme)
+        obj.scheme = uri.scheme
+        obj.username = uri.username
+        obj.password = uri.password
+        obj.hostname = uri.hostname
+        obj.port = uri.port
+        obj.__dict__.update(cls.path_regex.match(uri.path).groupdict())
+        obj.globaltree = obj.globaltree is not None
+
+        if uri.query:
+            try:
+                obj.query = dict(header.split('=') for header in uri.query.split('&'))
+            except ValueError:
+                raise ValueError("illegal XCAP URI query string: %s" % uri.query)
+            else:
+                for name, value in obj.query.iteritems():
+                    if not name or not value:
+                        raise ValueError("illegal XCAP URI query parameter: %s=%s" % (name, value))
+        else:
+            obj.query = {}
+
+        return obj
+
+
