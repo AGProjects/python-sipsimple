@@ -83,7 +83,7 @@ class MSRPChat(object):
         self.state = NULL
         self.notification_center = NotificationCenter()
         self.remote_uri = remote_uri
-        self.from_uri = account.credentials.uri
+        self.from_uri = account.uri
 
         settings = SIPSimpleSettings()
         self.accept_types = list(settings.chat.accept_types)
@@ -91,13 +91,13 @@ class MSRPChat(object):
 
         if (outgoing and account.msrp.use_relay_for_outbound) or (not outgoing and account.msrp.use_relay_for_inbound):
             if account.msrp.relay is None:
-                relay = MSRPRelaySettings(domain=account.credentials.uri.host,
-                                          username=account.credentials.uri.user,
+                relay = MSRPRelaySettings(domain=account.uri.host,
+                                          username=account.credentials.username,
                                           password=account.credentials.password)
                 self.transport = 'tls'
             else:
-                relay = MSRPRelaySettings(domain=account.credentials.uri.host,
-                                          username=account.credentials.uri.user,
+                relay = MSRPRelaySettings(domain=account.uri.host,
+                                          username=account.credentials.username,
                                           password=account.credentials.password,
                                           host=account.msrp.relay.host,
                                           port=account.msrp.relay.port,
