@@ -62,7 +62,7 @@ class AudioStream(NotificationHandler):
                 else:
                     dns_lookup = DNSLookup()
                     self.notification_center.add_observer(self, sender=dns_lookup)
-                    dns_lookup.lookup_service(self.account.credentials.uri, "stun")
+                    dns_lookup.lookup_service(self.account.uri, "stun")
             else:
                 self._init_rtp_transport()
 
