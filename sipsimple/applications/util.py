@@ -159,3 +159,13 @@ class XCAPURI(str):
         return obj
 
 
+class Boolean(str):
+    def __new__(cls, value):
+        value = str.__new__(cls, value)
+        if value.lower() not in ('true', 'false', '0', '1'):
+            raise ValueError("illegal value for Boolean: %s" % value)
+        return value
+    def __nonzero__(self):
+        return self.lower() in ('true', '1')
+
+
