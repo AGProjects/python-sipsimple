@@ -134,7 +134,7 @@ class XCAPURI(str):
         obj = str.__new__(cls, value)
         uri = urlparse.urlparse(obj)
 
-        if uri.scheme not in ('http', 'https'):
+        if uri.scheme not in ('http', 'https', ''):
             raise ValueError("illegal scheme for XCAP URI: %s" % uri.scheme)
         obj.scheme = uri.scheme
         obj.username = uri.username
@@ -157,6 +157,8 @@ class XCAPURI(str):
             obj.query = {}
 
         return obj
+
+    relative = property(lambda self: self.scheme == '')
 
 
 class Boolean(str):
