@@ -30,6 +30,9 @@ from sipsimple.lookup import DNSLookup
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 
+from sipsimple.applications import ParserError
+from sipsimple.applications.xcapdiff import XCAPDiff, Document, Element, Attribute
+
 
 class InputThread(Thread):
     def __init__(self, application):
@@ -240,8 +243,13 @@ class SubscriptionApplication(object):
                     self.subscription.subscribe()
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
-        if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) in ('application/xcap-diff+xml'):
-            self.output.put('Received NOTIFY:\n'+notification.data.body)
+        if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) == XCAPDiff.content_type:
+            try:
+                xcap_diff = XCAPDiff.parse(notification.data.body)
+            except ParserError, e:
+                self.output.put("xcap-diff document is invalid: %s" % str(e))
+            else:
+                self._display_xcapdiff(xcap_diff)
             self.print_help()
 
     def _NH_DNSLookupDidSucceed(self, notification):
@@ -310,6 +318,29 @@ class SubscriptionApplication(object):
         else:
             uri = self.target
         lookup.lookup_sip_proxy(uri, settings.sip.transports)
+
+    def _display_xcapdiff(self, xcap_diff):
+        message = []
+        message.append('XCAP diff for XCAP root %s' % xcap_diff.xcap_root)
+        for child in xcap_diff:
+            if isinstance(child, Document):
+                message.append('  %s document %s for AUID %s changed' % ('Global' if child.selector.globaltree is not None else "User's %s" % child.selector.userstree, child.selector.document, child.selector.auid))
+                message.append('    URL: %s/%sx' % (xcap_diff.xcap_root, child.selector))
+                if child.previous_etag:
+                    message.append('    Previous ETag: %s' % child.previous_etag)
+                if child.new_etag:
+                    message.append('    New ETag: %s' % child.new_etag)
+                if child.empty_body:
+                    message.append('    Body did not change')
+            elif isinstance(child, Element):
+                message.append('  %s element %s in document %s for AUID %s changed' % ('Global' if child.selector.globaltree is not None else "User's %s" % child.selector.userstree, child.selector.node, child.selector.document, child.selector.auid))
+                message.append('    URL: %s/%sx' % (xcap_diff.xcap_root, child.selector))
+            elif isinstance(child, Attribute):
+                message.append('  %s attribute %s in document %s for AUID %s changed' % ('Global' if child.selector.globaltree is not None else "User's %s" % child.selector.userstree, child.selector.node, child.selector.document, child.selector.auid))
+                message.append('    URL: %s/%sx' % (xcap_diff.xcap_root, child.selector))
+                if child.value:
+                    message.append('    New value: %s' % child.value)
+        self.output.put('\n'.join(message))
 
 
 if __name__ == "__main__":
