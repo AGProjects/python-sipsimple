@@ -344,7 +344,7 @@ class Session(NotificationHandler):
                 self.start_time = datetime.datetime.now()
                 confirmed_notification, sdp_notification = self.inv.accept_invite()
                 for index, stream in enumerate(streams):
-                    workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, index)
+                    workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, stream.index)
                 workers.waitall()
                 ERROR = None
             except:
