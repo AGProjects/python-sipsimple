@@ -128,7 +128,7 @@ class SIPURI(str):
 
 
 class XCAPURI(str):
-    path_regex = re.compile(r'^(?P<root>/(([^/]+)/)*)(?P<auid>[^/]+)/((?P<globaltree>global)|(users/(?P<userstree>[^/]+)))/(?P<document>~?(([^~]+~)|([^~]+))*)(/~~(?P<node>.*))?$')
+    path_regex = re.compile(r'^(?P<root>/(([^/]+)/)*)?(?P<auid>[^/]+)/((?P<globaltree>global)|(users/(?P<userstree>[^/]+)))/(?P<document>~?(([^~]+~)|([^~]+))*)(/~~(?P<node>.*))?$')
     
     def __new__(cls, value):
         obj = str.__new__(cls, value)
