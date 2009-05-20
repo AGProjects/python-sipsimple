@@ -224,7 +224,7 @@ def read_queue(account):
                     if buddy != '':
                         if '@' not in buddy:
                             buddy = 'sip:%s@%s' % (buddy, account.id.domain)
-                        else:
+                        elif not buddy.startswith('sip:'):
                             buddy = 'sip:%s' % buddy
                         add_buddy(buddy)
                 elif key == 'r':
@@ -232,7 +232,7 @@ def read_queue(account):
                     if buddy != '':
                         if '@' not in buddy:
                             buddy = 'sip:%s@%s' % (buddy, account.id.domain)
-                        else:
+                        elif not buddy.startswith('sip:'):
                             buddy = 'sip:%s' % buddy
                         remove_buddy(buddy)
                 elif key == 's':
