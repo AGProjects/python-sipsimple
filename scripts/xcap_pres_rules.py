@@ -296,22 +296,26 @@ def read_queue(account):
                 if key == 'a':
                     watcher = getstr('watcher')
                     if watcher != '':
-                        watcher = 'sip:' + watcher
+                        if not watcher.startswith('sip:'):
+                            watcher = 'sip:' + watcher
                         allow_watcher(watcher)
                 elif key == 'd':
                     watcher = getstr('watcher')
                     if watcher != '':
-                        watcher = 'sip:' + watcher
+                        if not watcher.startswith('sip:'):
+                            watcher = 'sip:' + watcher
                         block_watcher(watcher)
                 elif key == 'p':
                     watcher = getstr('watcher')
                     if watcher != '':
-                        watcher = 'sip:' + watcher
+                        if not watcher.startswith('sip:'):
+                            watcher = 'sip:' + watcher
                         polite_block_watcher(watcher)
                 elif key == 'r':
                     watcher = getstr('watcher')
                     if watcher != '':
-                        watcher = 'sip:' + watcher
+                        if not watcher.startswith('sip:'):
+                            watcher = 'sip:' + watcher
                         remove_watcher(watcher)
                 elif key == 's':
                     if prules is not None:
