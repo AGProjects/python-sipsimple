@@ -132,10 +132,22 @@ class AutoPublicationApplication(object):
         # startup configuration
         configuration.start()
         account_manager.start()
+        if self.account_name is None:
+            self.account = account_manager.default_account
+        else:
+            possible_accounts = [account for account in account_manager.iter_accounts() if self.account_name in account.id and account.enabled]
+            if len(possible_accounts) > 1:
+                raise RuntimeError("More than one account exists which matches %s: %s" % (self.account_name, ", ".join(sorted(account.id for account in possible_accounts))))
+            if len(possible_accounts) == 0:
+                raise RuntimeError("No enabled account which matches %s was found. Available and enabled accounts: %s" % (self.account_name, ", ".join(sorted(account.id for account in account_manager.get_accounts() if account.enabled))))
+            self.account = possible_accounts[0]
         if self.account is None:
-            raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
-        elif not self.account.enabled:
-            raise RuntimeError("account %s is not enabled" % self.account.id)
+            raise RuntimeError("unknown account %s. Available enabled accounts: %s" % (self.account_name, ', '.join(sorted(account.id for account in account_manager.iter_accounts() if account.enabled))))
+        for account in account_manager.iter_accounts():
+            if account == self.account:
+                account.registration.enabled = False
+            else:
+                account.enabled = False
         self.output.put('Using account %s' % self.account.id)
         settings = SIPSimpleSettings()
 
@@ -245,15 +257,6 @@ class AutoPublicationApplication(object):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification)
-
-    def _NH_SIPAccountManagerDidAddAccount(self, notification):
-        account = notification.data.account
-        account_manager = AccountManager()
-        if account.id == self.account_name or (self.account_name is None and account is account_manager.default_account):
-            self.account = account
-            account.registration.enabled = False
-        else:
-            account.enabled = False
 
     def _NH_SIPPublicationDidSucceed(self, notification):
         with self.publication_lock:
