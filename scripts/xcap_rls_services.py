@@ -266,16 +266,18 @@ def do_xcap_rls_services(account_name, service):
     account_manager = AccountManager()
     account_manager.start()
 
-    for account in account_manager.iter_accounts():
-        if account.id == account_name:
-            break
+    if account_name is None:
+        account = account_manager.default_account
     else:
-        if account_name == None:
-            account = account_manager.default_account
-        else:
-            raise RuntimeError("unknown account %s. Available accounts: %s" % (account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
-
-    if not account.enabled:
+        possible_accounts = [account for account in account_manager.iter_accounts() if account_name in account.id and account.enabled]
+        if len(possible_accounts) > 1:
+            raise RuntimeError("More than one account exists which matches %s: %s" % (account_name, ", ".join(sorted(account.id for account in possible_accounts))))
+        if len(possible_accounts) == 0:
+            raise RuntimeError("No enabled account which matches %s was found. Available and enabled accounts: %s" % (account_name, ", ".join(sorted(account.id for account in account_manager.get_accounts() if account.enabled))))
+        account = possible_accounts[0]
+    if account is None:
+        raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
+    elif not account.enabled:
         raise RuntimeError("account %s is not enabled" % account.id)
     elif account == BonjourAccount():
         raise RuntimeError("cannot use bonjour account for XCAP RLS services management")
