@@ -35,6 +35,7 @@ SIP core
 --------
 
 - Cleanup Subscription to behave more like other SIP primitive classes [RK]
+- Allow presence of body in a SUBDCRIBE requests [RK]
 - Add isfocus attribute for both session parties, present in Contact header [RK]
 - Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 - Prohibit sending negative reply for re-INVITE in Invitation [RK]
@@ -89,7 +90,6 @@ Presence
 - Dialog event package http://tools.ietf.org/html/rfc4235 [LS]
 - Contact information http://tools.ietf.org/html/rfc4482 [LS]
 - Device capabilities http://tools.ietf.org/html/rfc5196 [LS]
-- xcap-diff payload [LS]
 
 
 Other applications
@@ -105,7 +105,6 @@ Command line tools
 
 - xcap_pidf_manipulation script [LS]
 - sip_subscribe_conference script [LS]
-- sip_subscribe_xcap_diff script [LS]
  
 
 
