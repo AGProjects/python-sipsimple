@@ -373,14 +373,15 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
     if account_id is None:
         account = am.default_account
     else:
-        try:
-            account = am.get_account(account_id)
-            if not account.enabled:
-                raise KeyError()
-        except KeyError:
-            print "Account not found: %s" % account_id
+        possible_accounts = [account for account in am.iter_accounts() if account_id in account.id and account.enabled]
+        if len(possible_accounts) > 1:
+            print "More than one account exists which match %s: %s" % (account_id, ", ".join(sorted(account.id for account in possible_accounts)))
+            return
+        if len(possible_accounts) == 0:
+            print "No enabled account which matches %s was found" % account_id
             print "Available and enabled accounts: %s" % ", ".join(sorted(account.id for account in am.get_accounts() if account.enabled))
             return
+        account = possible_accounts[0]
     if account is None:
         raise RuntimeError("No account configured")
     for other_account in am.iter_accounts():
