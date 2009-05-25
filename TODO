@@ -32,8 +32,6 @@ Middleware
 SIP core
 --------
 
-- Cleanup Subscription to behave more like other SIP primitive classes [RK]
-- Allow presence of body in a SUBSCRIBE requests [RK]
 - Set isfocus attribute in Contact header for both requests and responses [RK]
 - Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 - Prohibit sending negative reply for re-INVITE in Invitation [RK]
