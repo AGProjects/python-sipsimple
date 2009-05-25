@@ -29,7 +29,7 @@ cdef class PJSIPUA:
     cdef int _trace_sip
     cdef int _ignore_missing_ack
     cdef PJSTR _user_agent
-    cdef list _events
+    cdef dict _events
     cdef object _sent_messages
     cdef pj_time_val _max_timeout
     cdef int _rtp_port_start
@@ -45,7 +45,7 @@ cdef class PJSIPUA:
             raise SIPCoreError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
         self._threads = []
-        self._events = []
+        self._events = {}
         self._sent_messages = set()
         self._max_timeout.sec = 0
         self._max_timeout.msec = 100
@@ -153,13 +153,27 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self._check_self()
-            return dict([(pkg.event, pkg.accept_types) for pkg in self._events])
+            return self._events.copy()
 
-    def add_event(self, event, accept_types):
-        cdef EventPackage pkg
+    def add_event(self, object event, list accept_types):
+        cdef pj_str_t event_pj
+        cdef pj_str_t accept_types_pj[PJSIP_MAX_ACCEPT_COUNT]
+        cdef int index
+        cdef object accept_type
+        cdef int accept_cnt = len(accept_types)
+        cdef int status
         self._check_self()
-        pkg = EventPackage(self, event, accept_types)
-        self._events.append(pkg)
+        if accept_cnt == 0:
+            raise SIPCoreError("Need at least one of accept_types")
+        if accept_cnt > PJSIP_MAX_ACCEPT_COUNT:
+            raise SIPCoreError("Too many accept_types")
+        _str_to_pj_str(event, &event_pj)
+        for index, accept_type in enumerate(accept_types):
+            _str_to_pj_str(accept_type, &accept_types_pj[index])
+        status = pjsip_evsub_register_pkg(&self._event_module, &event_pj, 300, accept_cnt, accept_types_pj)
+        if status != 0:
+            raise PJSIPError("Could not register event package", status)
+        self._events[event] = accept_types[:]
 
     property playback_devices:
 

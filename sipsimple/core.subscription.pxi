@@ -4,227 +4,368 @@
 # main class
 
 cdef class Subscription:
-    cdef pjsip_evsub *c_obj
-    cdef pjsip_dialog *c_dlg
-    cdef Credentials c_credentials
-    cdef Route c_route
-    cdef readonly unsigned int expires
-    cdef readonly SIPURI c_from_uri
-    cdef readonly SIPURI c_to_uri
-    cdef PJSTR c_event
+    # class attributes
+    expire_warning_time = 30
+
+    # instance attributes
+
+    cdef pjsip_evsub *_obj
+    cdef pjsip_dialog *_dlg
     cdef readonly object state
-    cdef dict c_extra_headers
-    cdef PJSTR c_contact_uri
-
-    def __cinit__(self, SIPURI from_uri, SIPURI to_uri, event, route, expires=300, Credentials credentials=None, SIPURI contact_uri=None, extra_headers=None):
-        cdef int status
-        cdef EventPackage pkg
-        cdef PJSIPUA ua = _get_ua()
-        if from_uri is None:
-            raise SIPCoreError("from_uri parameter cannot be None")
-        if to_uri is None:
-            raise SIPCoreError("to_uri parameter cannot be None")
-        if credentials is not None:
-            self.c_credentials = credentials.copy()
-        self.c_route = route.copy()
-        self.expires = expires
-        self.c_from_uri = from_uri.copy()
-        self.c_to_uri = to_uri.copy()
-        self.c_event = PJSTR(event)
-        if event not in ua.events:
-            raise SIPCoreError('Event "%s" is unknown' % event)
-        if contact_uri is None:
-            self.c_contact_uri = PJSTR(ua._create_contact_uri(route)._as_str(1))
-        else:
-            self.c_contact_uri = PJSTR(contact_uri._as_str(1))
-        self.state = "TERMINATED"
-        if extra_headers is None:
-            self.c_extra_headers = {}
-        else:
-            self.c_extra_headers = extra_headers.copy()
-
-    def __dealloc__(self):
-        cdef PJSIPUA ua
-        try:
-            ua = _get_ua()
-        except SIPCoreError:
-            return
-        if self.c_obj != NULL:
-            if self.state != "TERMINATED":
-                pjsip_evsub_terminate(self.c_obj, 0)
-
-    def __repr__(self):
-        return "<Subscription for '%s' of '%s'>" % (self.c_event.str, self.c_to_uri._as_str(0))
+    cdef pj_timer_entry _timeout_timer
+    cdef int _timeout_timer_active
+    cdef pj_timer_entry _refresh_timer
+    cdef int _refresh_timer_active
+    cdef SIPURI _from_uri
+    cdef SIPURI _to_uri
+    cdef SIPURI _contact_uri
+    cdef readonly object event
+    cdef Route _route
+    cdef Credentials _credentials
+    cdef readonly int refresh
+    cdef dict _extra_headers
+    cdef readonly object body
+    cdef readonly object content_type
+    cdef pj_time_val _subscribe_timeout
+    cdef int _want_end
+    cdef int _is_subscribed
+    cdef int _term_code
+    cdef object _term_reason
+    cdef int _expires
 
     property from_uri:
 
         def __get__(self):
-            return self.c_from_uri.copy()
+            return self._from_uri.copy()
 
     property to_uri:
 
         def __get__(self):
-            return self.c_to_uri.copy()
+            return self._to_uri.copy()
 
-    property event:
-
-        def __get__(self):
-            return self.c_event.str
-
-    property extra_headers:
+    property contact_uri:
 
         def __get__(self):
-            return self.c_extra_headers.copy()
-
-    property credentials:
-
-        def __get__(self):
-            if self.c_credentials is None:
-                return None
-            else:
-                return self.c_credentials.copy()
+            return self._contact_uri.copy()
 
     property route:
 
         def __get__(self):
-            return self.c_route.copy()
+            return self._route.copy()
 
-    cdef int _cb_state(self, pjsip_transaction *tsx) except -1:
-        self.state = pjsip_evsub_get_state_name(self.c_obj)
-        if tsx == NULL:
-            _add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state))
-        else:
-            _add_event("SIPSubscriptionChangedState", dict(obj=self, state=self.state, code=tsx.status_code, reason=_pj_str_to_str(tsx.status_text)))
-        return 0
-
-    cdef int _cb_notify(self, pjsip_rx_data *rdata) except -1:
-        cdef pjsip_msg_body *c_body = rdata.msg_info.msg.body
-        if c_body != NULL:
-            _add_event("SIPSubscriptionGotNotify", dict(obj=self,
-                                                        body=PyString_FromStringAndSize(<char *> c_body.data, c_body.len),
-                                                        content_type=_pj_str_to_str(c_body.content_type.type),
-                                                        content_subtype=_pj_str_to_str(c_body.content_type.subtype)))
-        return 0
-
-    cdef int _cb_refresh(self) except -1:
-        self._do_sub(0, self.expires)
-        return 0
-
-    def subscribe(self):
-        if self.state != "TERMINATED":
-            raise SIPCoreError("A subscription is already active")
-        self._do_sub(1, self.expires)
-
-    def unsubscribe(self):
-        if self.state == "TERMINATED":
-            raise SIPCoreError("No subscribtion is active")
-        self._do_sub(0, 0)
-
-    cdef int _do_sub(self, bint first_subscribe, unsigned int expires) except -1:
-        global _subs_cb
-        cdef pjsip_tx_data *c_tdata
-        cdef int status
-        cdef object transport
-        cdef PJSTR c_from, c_to, c_to_req
-        cdef PJSIPUA ua = _get_ua()
-        try:
-            if first_subscribe:
-                c_from = PJSTR(self.c_from_uri._as_str(0))
-                c_to = PJSTR(self.c_to_uri._as_str(0))
-                c_to_req = PJSTR(self.c_to_uri._as_str(1))
-                transport = self.c_route.transport
-                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &c_from.pj_str, &self.c_contact_uri.pj_str, &c_to.pj_str, &c_to_req.pj_str, &self.c_dlg)
-                if status != 0:
-                    raise PJSIPError("Could not create SUBSCRIBE dialog", status)
-                status = pjsip_evsub_create_uac(self.c_dlg, &_subs_cb, &self.c_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self.c_obj)
-                if status != 0:
-                    raise PJSIPError("Could not create SUBSCRIBE", status)
-                if self.c_credentials is not None:
-                    status = pjsip_auth_clt_set_credentials(&self.c_dlg.auth_sess, 1, &self.c_credentials._obj)
-                    if status != 0:
-                        raise PJSIPError("Could not set SUBSCRIBE credentials", status)
-                status = pjsip_dlg_set_route_set(self.c_dlg, <pjsip_route_hdr *> &self.c_route._route_set)
-                if status != 0:
-                    raise PJSIPError("Could not set route on SUBSCRIBE", status)
-                pjsip_evsub_set_mod_data(self.c_obj, ua._event_module.id, <void *> self)
-            status = pjsip_evsub_initiate(self.c_obj, NULL, expires, &c_tdata)
-            if status != 0:
-                raise PJSIPError("Could not create SUBSCRIBE message", status)
-            _add_headers_to_tdata(c_tdata, self.c_extra_headers)
-            status = pjsip_evsub_send_request(self.c_obj, c_tdata)
-            if status != 0:
-                raise PJSIPError("Could not send SUBSCRIBE message", status)
-        except:
-            if self.c_obj != NULL:
-                pjsip_evsub_terminate(self.c_obj, 0)
-            elif self.c_dlg != NULL:
-                pjsip_dlg_terminate(self.c_dlg)
-            self.c_obj = NULL
-            self.c_dlg = NULL
-            raise
-
-# helper class
-
-cdef class EventPackage:
-    cdef readonly list accept_types
-    cdef PJSTR c_event
-
-    def __cinit__(self, PJSIPUA ua, event, list accept_types):
-        cdef int status
-        cdef pj_str_t c_accept[PJSIP_MAX_ACCEPT_COUNT]
-        cdef int c_index
-        cdef object c_accept_type
-        cdef int c_accept_cnt = len(accept_types)
-        if c_accept_cnt > PJSIP_MAX_ACCEPT_COUNT:
-            raise SIPCoreError("Too many accept_types")
-        if c_accept_cnt == 0:
-            raise SIPCoreError("Need at least one accept_types")
-        self.accept_types = accept_types
-        self.c_event = PJSTR(event)
-        for c_index, c_accept_type in enumerate(accept_types):
-            _str_to_pj_str(c_accept_type, &c_accept[c_index])
-        status = pjsip_evsub_register_pkg(&ua._event_module, &self.c_event.pj_str, 300, c_accept_cnt, c_accept)
-        if status != 0:
-            raise PJSIPError("Could not register event package", status)
-
-    property event:
+    property credentials:
 
         def __get__(self):
-            return self.c_event.str
+            if self._credentials is None:
+                return None
+            else:
+                return self._credentials.copy()
+
+    property extra_headers:
+
+        def __get__(self):
+            return self._extra_headers.copy()
+
+    #public methods
+
+    def __cinit__(self, *args, **kwargs):
+        self.state = "NULL"
+        pj_timer_entry_init(&self._timeout_timer, 0, <void *> self, _Subscription_cb_timer)
+        self._timeout_timer_active = 0
+        pj_timer_entry_init(&self._refresh_timer, 1, <void *> self, _Subscription_cb_timer)
+        self._refresh_timer_active = 0
+        self._extra_headers = {}
+
+    def __init__(self, SIPURI from_uri, SIPURI to_uri, SIPURI contact_uri, object event, Route route,
+                 Credentials credentials=None, int refresh=300):
+        global _subs_cb
+        cdef PJSTR from_uri_str
+        cdef PJSTR to_uri_str
+        cdef PJSTR contact_uri_str
+        cdef PJSTR request_uri_str
+        cdef pj_str_t event_pj
+        cdef PJSIPUA ua = _get_ua()
+        cdef int status
+        if self._obj != NULL or self.state != "NULL":
+            raise SIPCoreError("Subscription.__init__() was already called")
+        if from_uri is None:
+            raise ValueError("from_uri argument may not be None")
+        if to_uri is None:
+            raise ValueError("to_uri argument may not be None")
+        if contact_uri is None:
+            raise ValueError("contact_uri argument may not be None")
+        if route is None:
+            raise ValueError("route argument may not be None")
+        if refresh <= 0:
+            raise ValueError("refresh argument needs to be a non-negative integer")
+        if event not in ua._events.iterkeys():
+            raise ValueError('Unknown event "%s"' % event)
+        self._from_uri = from_uri.copy()
+        self._to_uri = to_uri.copy()
+        self._contact_uri = contact_uri.copy()
+        self.event = event
+        self._route = route.copy()
+        if credentials is not None:
+            self._credentials = credentials.copy()
+        self.refresh = refresh
+        from_uri_str = PJSTR(from_uri._as_str(0))
+        to_uri_str = PJSTR(to_uri._as_str(0))
+        contact_uri_str = PJSTR(contact_uri._as_str(0))
+        request_uri_str = PJSTR(to_uri._as_str(1))
+        _str_to_pj_str(self.event, &event_pj)
+        status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_uri_str.pj_str, &contact_uri_str.pj_str,
+                                      &to_uri_str.pj_str, &request_uri_str.pj_str, &self._dlg)
+        if status != 0:
+            raise PJSIPError("Could not create dialog for SUBSCRIBE", status)
+        status = pjsip_evsub_create_uac(self._dlg, &_subs_cb, &event_pj, PJSIP_EVSUB_NO_EVENT_ID, &self._obj)
+        if status != 0:
+            raise PJSIPError("Could not create SUBSCRIBE", status)
+        pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, <void *> self)
+        status = pjsip_dlg_set_route_set(self._dlg, <pjsip_route_hdr *> &self._route._route_set)
+        if status != 0:
+            raise PJSIPError("Could not set route on SUBSCRIBE", status)
+        if self._credentials is not None:
+            status = pjsip_auth_clt_set_credentials(&self._dlg.auth_sess, 1, &self._credentials._obj)
+            if status != 0:
+                raise PJSIPError("Could not set credentials for SUBSCRIBE", status)
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua = self._get_ua()
+        if self._obj != NULL:
+            pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
+            pjsip_evsub_terminate(self._obj, 0)
+            self._obj = NULL
+            self._dlg = NULL
+        elif self._dlg != NULL:
+            pjsip_dlg_terminate(self._dlg)
+            self._dlg = NULL
+        self._cancel_timers(ua, 1, 1)
+
+    def subscribe(self, dict extra_headers=None, object content_type=None, object body=None, object timeout=None):
+        cdef object prev_state = self.state
+        cdef dict headers = {}
+        cdef PJSIPUA ua = self._get_ua()
+        if self.state == "TERMINATED":
+            raise SIPCoreError('This method may not be called in the "TERMINATED" state')
+        if (content_type is not None and body is None) or (content_type is None and body is not None):
+            raise ValueError("Both or none of content_type and body arguments need to be specified")
+        if timeout is not None:
+            if timeout <= 0:
+                raise ValueError("Timeout value cannot be negative")
+            self._subscribe_timeout.sec = int(timeout)
+            self._subscribe_timeout.msec = (timeout * 1000) % 1000
+        if extra_headers is not None:
+            headers = extra_headers.copy()
+        self._send_subscribe(ua, self.refresh, &self._subscribe_timeout, headers, content_type, body)
+        self._extra_headers = headers
+        self.content_type = content_type
+        self.body = body
+        self._cancel_timers(ua, 0, 1)
+        if prev_state == "NULL":
+            _add_event("SIPSubscriptionWillStart", dict(obj=self))
+
+    def end(self, object timeout=None):
+        cdef pj_time_val end_timeout
+        cdef PJSIPUA ua = self._get_ua()
+        if self.state == "TERMINATED":
+            return
+        if self.state == "NULL":
+            raise SIPCoreError('This method may not be called in the "NULL" state')
+        if timeout is not None:
+            if timeout <= 0:
+                raise ValueError("Timeout value cannot be negative")
+            end_timeout.sec = int(timeout)
+            end_timeout.msec = (timeout * 1000) % 1000
+        self._want_end = 1
+        self._cancel_timers(ua, 1, 1)
+        _add_event("SIPSubscriptionWillEnd", dict(obj=self))
+        try:
+            self._send_subscribe(ua, 0, &end_timeout, None, None, None)
+        except PJSIPError, e:
+            self._term_reason = e.args[0]
+            pjsip_evsub_terminate(self._obj, 1)
+
+    # private methods
+
+    cdef PJSIPUA _get_ua(self):
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            self._obj = NULL
+            self._dlg = NULL
+            self._timeout_timer_active = 0
+            self._refresh_timer_active = 0
+            self.state = "TERMINATED"
+            return None
+        else:
+            return ua
+
+    cdef int _cancel_timers(self, PJSIPUA ua, int cancel_timeout, int cancel_refresh) except -1:
+        if cancel_timeout and self._timeout_timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timeout_timer)
+            self._timeout_timer_active = 0
+        if cancel_refresh and self._refresh_timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._refresh_timer)
+            self._refresh_timer_active = 0
+
+    cdef int _send_subscribe(self, PJSIPUA ua, int expires, pj_time_val *timeout,
+                             dict extra_headers, object content_type, object body) except -1:
+        cdef pjsip_tx_data *tdata
+        cdef pj_str_t body_pj
+        cdef object content_type_spl
+        cdef PJSTR content_type_str
+        cdef PJSTR content_subtype_str
+        cdef int status
+        if body is not None:
+            content_type_spl = content_type.split("/")
+            if len(content_type_spl) != 2:
+                raise ValueError('Supplied content_type argument does not contain a "/" character')
+            content_type_str = PJSTR(content_type_spl[0])
+            content_subtype_str = PJSTR(content_type_spl[1])
+            _str_to_pj_str(body, &body_pj)
+        status = pjsip_evsub_initiate(self._obj, NULL, expires, &tdata)
+        if status != 0:
+            raise PJSIPError("Could not create SUBSCRIBE message", status)
+        try:
+            _add_headers_to_tdata(tdata, self._extra_headers)
+        except:
+            pjsip_tx_data_dec_ref(tdata)
+            raise
+        if body is not None:
+            try:
+                tdata.msg.body = pjsip_msg_body_create(tdata.pool, &content_type_str.pj_str,
+                                                       &content_subtype_str.pj_str, &body_pj)
+            except:
+                pjsip_tx_data_dec_ref(tdata)
+                raise
+        status = pjsip_evsub_send_request(self._obj, tdata)
+        if status != 0:
+            raise PJSIPError("Could not send SUBSCRIBE message", status)
+        self._cancel_timers(ua, 1, 0)
+        if timeout.sec or timeout.msec:
+            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timeout_timer, timeout)
+            if status == 0:
+                self._timeout_timer_active = 1
+        self._expires = self.refresh
+
+    # callback methods
+
+    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason, int got_response) except -1:
+        cdef object prev_state = self.state
+        cdef pj_time_val _refresh
+        cdef int status
+        self.state = state
+        if state == "ACCEPTED" and prev_state == "SENT":
+            _add_event("SIPSubscriptionDidStart", dict(obj=self))
+        elif state == "TERMINATED":
+            pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
+            self._obj = NULL
+            self._dlg = NULL
+            self._cancel_timers(ua, 1, 1)
+            if self._want_end:
+                _add_event("SIPSubscriptionDidEnd", dict(obj=self))
+            else:
+                if self._term_reason is not None:
+                    _add_event("SIPSubscriptionDidFail", dict(obj=self, code=self._term_code, reason=self._term_reason))
+                else:
+                    _add_event("SIPSubscriptionDidFail", dict(obj=self, code=code, reason=reason))
+        if got_response and state != "TERMINATED":
+            self._cancel_timers(ua, 1, 0)
+            _refresh.sec = max(1, min(self._expires - self.expire_warning_time, self._expires/2))
+            _refresh.msec = 0
+            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._refresh_timer, &_refresh)
+            if status == 0:
+                self._refresh_timer_active = 1
+        if prev_state != state:
+            _add_event("SIPSubscriptionChangedState", dict(obj=self, prev_state=prev_state, state=state))
+
+    cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+        cdef dict event_dict = dict(obj=self)
+        _rdata_info_to_dict(rdata, event_dict)
+        _add_event("SIPSubscriptionGotNotify", event_dict)
+
+    cdef int _cb_timeout_timer(self, PJSIPUA ua):
+        global sip_status_messages
+        self._term_code = PJSIP_SC_TSX_TIMEOUT
+        self._term_reason = sip_status_messages[PJSIP_SC_TSX_TIMEOUT]
+        pjsip_evsub_terminate(self._obj, 1)
+
+    cdef int _cb_refresh_timer(self, PJSIPUA ua):
+        try:
+            self._send_subscribe(ua, self.refresh, &self._subscribe_timeout,
+                                 self.extra_headers, self.content_type, self.body)
+        except PJSIPError, e:
+            self._term_reason = e.args[0]
+            pjsip_evsub_terminate(self._obj, 1)
+
 
 # callback functions
 
-cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
+cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
+    cdef void *subscription_void
     cdef Subscription subscription
-    cdef pjsip_transaction *tsx = NULL
+    cdef object state
+    cdef int code = 0
+    cdef object reason = None
+    cdef int got_response = 0
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
     except:
         return
     try:
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua._event_module.id)
-        if event != NULL:
-            if event.type == PJSIP_EVENT_TSX_STATE and event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type in [PJSIP_EVENT_RX_MSG, PJSIP_EVENT_TIMER, PJSIP_EVENT_TRANSPORT_ERROR]:
-                tsx = event.body.tsx_state.tsx
-        subscription._cb_state(tsx)
+        subscription_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if subscription_void == NULL:
+            return
+        subscription = <object> subscription_void
+        state = pjsip_evsub_get_state_name(sub)
+        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            (event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED or
+             event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_TERMINATED)):
+            if state == "TERMINATED":
+                if event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC:
+                    code = event.body.tsx_state.tsx.status_code
+                    reason = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
+                else:
+                    reason = "Subscription has expired"
+            if event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                got_response = 1
+        subscription._cb_state(ua, state, code, reason, got_response)
     except:
         ua._handle_exception(1)
 
-cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
+cdef void _Subscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil:
+    cdef void *subscription_void
     cdef Subscription subscription
+    cdef pjsip_rx_data *rdata
+    cdef pjsip_generic_int_hdr *expires_hdr
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
     except:
         return
     try:
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua._event_module.id)
-        subscription._cb_notify(rdata)
+        subscription_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if subscription_void == NULL:
+            return
+        subscription = <object> subscription_void
+        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and
+            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
+            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
+            event.body.tsx_state.tsx.status_code / 100 == 2):
+            rdata = event.body.rx_msg.rdata
+            expires_hdr = <pjsip_generic_int_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
+            if expires_hdr != NULL:
+                subscription._expires = expires_hdr.ivalue
     except:
         ua._handle_exception(1)
 
-cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil:
+cdef void _Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+                                    pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
+    cdef void *subscription_void
     cdef Subscription subscription
     cdef PJSIPUA ua
     try:
@@ -232,14 +373,41 @@ cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil:
     except:
         return
     try:
-        subscription = <object> pjsip_evsub_get_mod_data(sub, ua._event_module.id)
-        subscription._cb_refresh()
+        subscription_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if subscription_void == NULL:
+            return
+        subscription = <object> subscription_void
+        subscription._cb_notify(ua, rdata)
+    except:
+        ua._handle_exception(1)
+
+cdef void _Subscription_cb_refresh(pjsip_evsub *sub) with gil:
+    # We want to handle the refresh timer oursevles, ignore the PJSIP provided timer
+    pass
+
+cdef void _Subscription_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
+    cdef Subscription subscription
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        if entry.user_data != NULL:
+            subscription = <object> entry.user_data
+            if entry.id == 1:
+                subscription._refresh_timer_active = 0
+                subscription._cb_refresh_timer(ua)
+            else:
+                subscription._timeout_timer_active = 0
+                subscription._cb_timeout_timer(ua)
     except:
         ua._handle_exception(1)
 
 # globals
 
 cdef pjsip_evsub_user _subs_cb
-_subs_cb.on_evsub_state = cb_Subscription_cb_state
-_subs_cb.on_rx_notify = cb_Subscription_cb_notify
-_subs_cb.on_client_refresh = cb_Subscription_cb_refresh
+_subs_cb.on_evsub_state = _Subscription_cb_state
+_subs_cb.on_tsx_state = _Subscription_cb_tsx
+_subs_cb.on_rx_notify = _Subscription_cb_notify
+_subs_cb.on_client_refresh = _Subscription_cb_refresh

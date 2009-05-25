@@ -501,6 +501,7 @@ cdef extern from "pjsip.h":
         PJSIP_H_VIA
         PJSIP_H_CALL_ID
         PJSIP_H_CSEQ
+        PJSIP_H_EXPIRES
     struct pjsip_hdr:
         pjsip_hdr_e type
         pj_str_t name
@@ -707,6 +708,7 @@ cdef extern from "pjsip.h":
     # transaction layer
     enum pjsip_role_e:
         PJSIP_ROLE_UAC
+        PJSIP_ROLE_UAS
     enum pjsip_tsx_state_e:
         PJSIP_TSX_STATE_PROCEEDING
         PJSIP_TSX_STATE_COMPLETED
@@ -718,6 +720,7 @@ cdef extern from "pjsip.h":
         pjsip_tx_data *last_tx
         pjsip_tsx_state_e state
         void **mod_data
+        pjsip_method method
     int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
     int pjsip_tsx_create_key(pj_pool_t *pool, pj_str_t *key, pjsip_role_e role,
                              pjsip_method *method, pjsip_rx_data *rdata)
@@ -793,6 +796,7 @@ cdef extern from "pjsip_simple.h":
     struct pjsip_evsub
     struct pjsip_evsub_user:
         void on_evsub_state(pjsip_evsub *sub, pjsip_event *event) with gil
+        void on_tsx_state(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil
         void on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
                           pj_str_t **p_st_text,pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
         void on_client_refresh(pjsip_evsub *sub) with gil
@@ -927,11 +931,10 @@ cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) 
 # core.subscription
 
 cdef class Subscription
-cdef class EventPackage
-cdef void cb_Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
-cdef void cb_Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
+cdef void _Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
                                     pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
-cdef void cb_Subscription_cb_refresh(pjsip_evsub *sub) with gil
+cdef void _Subscription_cb_refresh(pjsip_evsub *sub) with gil
 
 # core.invitation
 
