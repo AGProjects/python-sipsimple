@@ -192,7 +192,7 @@ class SubscriptionApplication(object):
         account_manager = AccountManager()
         account_manager.stop()
         if self.subscription is not None and self.subscription.state.lower() in ('accepted', 'pending', 'active'):
-            self.subscription.unsubscribe()
+            self.subscription.end(timeout=1)
         else:
             engine = Engine()
             engine.stop()
@@ -211,43 +211,54 @@ class SubscriptionApplication(object):
         if handler is not None:
             handler(notification)
 
+    def _NH_SIPSubscriptionDidStart(self, notification):
+        route = notification.sender.route
+        self._subscription_routes = None
+        self._subscription_wait = 0.5
+        self.output.put('Subscription succeeded at %s:%d;transport=%s' % (route.address, route.port, route.transport))
+        self.success = True
+
     def _NH_SIPSubscriptionChangedState(self, notification):
         route = notification.sender.route
-        if notification.data.state.lower() in ('active', 'accepted'):
-            self._subscription_routes = None
-            self._subscription_wait = 0.5
-            if not self.success:
-                self.output.put('Subscription succeeded at %s:%d;transport=%s' % (route.address, route.port, route.transport))
-                self.success = True
-        elif notification.data.state.lower() == 'pending':
-            self._subscription_routes = None
-            self._subscription_wait = 0.5
-            self.output.put('Subscription is pending at %s:%d;transport=%s' % (route.address, route.port, route.transport))
-        elif notification.data.state.lower() == 'terminated':
-            self.subscription = None
-            if hasattr(notification.data, 'code'):
-                status = ': %d %s' % (notification.data.code, notification.data.reason)
+        if notification.data.state.lower() == "pending":
+            self.output.put('Subscription pending at %s:%d;transport=%s' % (route.address, route.port, route.transport))
+        elif notification.data.state.lower() == "active":
+            self.output.put('Subscription active at %s:%d;transport=%s' % (route.address, route.port, route.transport))
+
+    def _NH_SIPSubscriptionDidEnd(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=notification.sender)
+        self.subscription = None
+        route = notification.sender.route
+        self.output.put('Unsubscribed from %s:%d;transport=%s' % (route.address, route.port, route.transport))
+        self.stop()
+
+    def _NH_SIPSubscriptionDidFail(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=notification.sender)
+        self.subscription = None
+        route = notification.sender.route
+        if notification.data.code:
+            status = ': %d %s' % (notification.data.code, notification.data.reason)
+        else:
+            status = ': %s' % notification.data.reason
+        self.output.put('Subscription failed at %s:%d;transport=%s%s' % (route.address, route.port, route.transport, status))
+        if self.stopping or notification.data.code in (401, 403, 407) or self.success:
+            self.success = False
+            self.stop()
+        else:
+            if not self._subscription_routes or time() > self._subscription_timeout:
+                self._subscription_wait = min(self._subscription_wait*2, 30)
+                timeout = random.uniform(self._subscription_wait, 2*self._subscription_wait)
+                reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
             else:
-                status = ''
-            self.output.put('Unsubscribed from %s:%d;transport=%s%s' % (route.address, route.port, route.transport, status))
-            if self.stopping or notification.data.code in (401, 403, 407):
-                if hasattr(notification.data, 'code') and notification.data.code / 100 == 2:
-                    self.success = True
-                self.stop()
-            else:
-                self.success = False
-                if not self._subscription_routes or time() > self._subscription_timeout:
-                    self._subscription_wait = min(self._subscription_wait*2, 30)
-                    timeout = random.uniform(self._subscription_wait, 2*self._subscription_wait)
-                    reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
-                else:
-                    self.subscription = Subscription(self.account.uri, self.target, "xcap-diff", route=self._subscription_routes.popleft(), credentials=self.account.credentials, expires=self.account.presence.subscribe_interval)
-                    notification_center = NotificationCenter()
-                    notification_center.add_observer(self, sender=self.subscription)
-                    self.subscription.subscribe()
+                route = route=self._subscription_routes.popleft()
+                self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+                notification_center.add_observer(self, sender=self.subscription)
+                self.subscription.subscribe(timeout=5)
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
-        if ('%s/%s' % (notification.data.content_type, notification.data.content_subtype)) == XCAPDiff.content_type:
+        if notification.data.headers.get("Content-Type", (None, None))[0]== XCAPDiff.content_type:
             try:
                 xcap_diff = XCAPDiff.parse(notification.data.body)
             except ParserError, e:
@@ -259,10 +270,11 @@ class SubscriptionApplication(object):
     def _NH_DNSLookupDidSucceed(self, notification):
         # create subscription and register to get notifications from it
         self._subscription_routes = deque(notification.data.result)
-        self.subscription = Subscription(self.account.uri, self.target, "xcap-diff", route=self._subscription_routes.popleft(), credentials=self.account.credentials, expires=self.account.presence.subscribe_interval)
+        route = self._subscription_routes.popleft()
+        self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
-        self.subscription.subscribe()
+        self.subscription.subscribe(timeout=5)
 
     def _NH_DNSLookupDidFail(self, notification):
         self.output.put('DNS lookup failed: %s' % notification.data.error)
