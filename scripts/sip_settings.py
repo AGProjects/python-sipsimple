@@ -221,7 +221,7 @@ class AccountConfigurator(object):
                         print '%s: %s' % (attrname, str(e))
             
             account.save()
-        print 'Account%s updated' % 's' if len(accounts) > 1 else ''
+        print 'Account%s updated' % ('s' if len(accounts) > 1 else '')
 
     def default(self, sip_address):
         possible_accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
