@@ -171,26 +171,42 @@ class AccountConfigurator(object):
                 account.delete()
             print 'Accounts deleted'
 
-    def show(self, sip_address):
-        if sip_address != 'ALL':
-            accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
+    def show(self, sip_address=None):
+        if sip_address is None:
+            accounts = [self.account_manager.default_account]
+            if accounts[0] is None:
+                print "No accounts configured"
+                return
         else:
-            accounts = self.account_manager.get_accounts()
-        if not accounts:
-            print 'No accounts which match %s' % sip_address
-            return
+            if sip_address != 'ALL':
+                accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
+            else:
+                accounts = self.account_manager.get_accounts()
+            if not accounts:
+                print 'No accounts which match %s' % sip_address
+                return
         for account in accounts:
             print 'Account %s:' % account.id
             display_object(account, 'account')
 
-    def set(self, sip_address, *args):
-        if sip_address != 'ALL':
-            accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
+    def set(self, *args):
+        if not args:
+            raise TypeError("set must receive at least one argument")
+        if '=' in args[0]:
+            accounts = [self.account_manager.default_account]
+            if accounts[0] is None:
+                print "No accounts configured"
+                return
         else:
-            accounts = self.account_manager.get_accounts()
-        if not accounts:
-            print 'No accounts which match %s' % sip_address
-            return
+            sip_address = args[0]
+            args = args[1:]
+            if sip_address != 'ALL':
+                accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
+            else:
+                accounts = self.account_manager.get_accounts()
+            if not accounts:
+                print 'No accounts which match %s' % sip_address
+                return
         
         try:
             settings = dict(arg.split('=', 1) for arg in args)
@@ -290,8 +306,8 @@ if __name__ == '__main__':
        %prog --account list
        %prog --account add user@domain password
        %prog --account delete user@domain|ALL
-       %prog --account show user@domain|ALL
-       %prog --account set user@domain|ALL key1=value1 [key2=value2 ...]
+       %prog --account show [user@domain|ALL]
+       %prog --account set [user@domain|ALL] key1=value1 [key2=value2 ...]
        %prog --account default user@domain"""
     parser = OptionParser(usage=usage, description=description)
     parser.add_option("-a", "--account", action="store_true", dest="account", help="Manage SIP accounts' settings")
