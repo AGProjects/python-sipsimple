@@ -114,7 +114,7 @@ class Entry(XMLElement, ListElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    uri = XMLAttribute('uri', type=SIPURI, required=True, test_equal=True)
+    uri = XMLAttribute('uri', type=str, required=True, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
     _xml_id = uri
 
