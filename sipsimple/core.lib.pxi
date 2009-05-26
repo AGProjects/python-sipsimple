@@ -295,5 +295,5 @@ cdef class PJMEDIAEndpoint:
 cdef dict _tls_protocol_mapping = {None: PJSIP_SSL_UNSPECIFIED_METHOD,
                                    "TLSv1": PJSIP_TLSV1_METHOD,
                                    "SSLv2": PJSIP_SSLV2_METHOD,
-                                   "SSlv3": PJSIP_SSLV3_METHOD,
-                                   "SSlv23": PJSIP_SSLV23_METHOD}
+                                   "SSLv3": PJSIP_SSLV3_METHOD,
+                                   "SSLv23": PJSIP_SSLV23_METHOD}
