@@ -278,7 +278,7 @@ class WinfoApplication(object):
                 reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
             else:
                 route = route=self._subscription_routes.popleft()
-                self.subscription = Subscription(self.account.uri, SIPURI(user=self.account.id.username, host=self.account.id.domain), self.account.contact[route.transport], "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+                self.subscription = Subscription(self.account.uri, SIPURI(user=self.account.id.username, host=self.account.id.domain), self.account.contact[route.transport], "presence.winfo", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
                 notification_center.add_observer(self, sender=self.subscription)
                 self.subscription.subscribe(timeout=5)
 
@@ -290,7 +290,7 @@ class WinfoApplication(object):
         # create subscription and register to get notifications from it
         self._subscription_routes = deque(notification.data.result)
         route = self._subscription_routes.popleft()
-        self.subscription = Subscription(self.account.uri, SIPURI(user=self.account.id.username, host=self.account.id.domain), self.account.contact[route.transport], "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+        self.subscription = Subscription(self.account.uri, SIPURI(user=self.account.id.username, host=self.account.id.domain), self.account.contact[route.transport], "presence.winfo", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
         self.subscription.subscribe(timeout=5)
