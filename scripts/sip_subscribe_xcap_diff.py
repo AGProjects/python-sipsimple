@@ -32,6 +32,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 
 from sipsimple.applications import ParserError
 from sipsimple.applications.xcapdiff import XCAPDiff, Document, Element, Attribute
+from sipsimple.applications.resourcelists import ResourceLists, List, Entry
 
 
 class InputThread(Thread):
@@ -88,6 +89,8 @@ class SubscriptionApplication(object):
         self.account = None
         self.subscription = None
         self.stopping = False
+        self.body = None
+        self.content_type = None
 
         self._subscription_routes = None
         self._subscription_timeout = 0.0
@@ -138,6 +141,15 @@ class SubscriptionApplication(object):
                 account.enabled = False
         self.output.put('Using account %s' % self.account.id)
         settings = SIPSimpleSettings()
+
+        # generate the body
+        list = List()
+        resource_lists = ResourceLists([list])
+        list.append(Entry('resource-lists/users/sip:%s/index' % self.account.id))
+        list.append(Entry('rls-services/users/sip:%s/index' % self.account.id))
+        list.append(Entry('pres-rules/users/sip:%s/index' % self.account.id))
+        self.body = resource_lists.toxml(pretty_print=True)
+        self.content_type = ResourceLists.content_type
 
         # start logging
         self.logger.start()
@@ -255,7 +267,7 @@ class SubscriptionApplication(object):
                 route = route=self._subscription_routes.popleft()
                 self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
                 notification_center.add_observer(self, sender=self.subscription)
-                self.subscription.subscribe(timeout=5)
+                self.subscription.subscribe(body=self.body, content_type=self.content_type, timeout=5)
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
         if notification.data.headers.get("Content-Type", (None, None))[0]== XCAPDiff.content_type:
@@ -274,7 +286,7 @@ class SubscriptionApplication(object):
         self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
-        self.subscription.subscribe(timeout=5)
+        self.subscription.subscribe(body=self.body, content_type=self.content_type, timeout=5)
 
     def _NH_DNSLookupDidFail(self, notification):
         self.output.put('DNS lookup failed: %s' % notification.data.error)
