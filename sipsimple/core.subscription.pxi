@@ -228,7 +228,7 @@ cdef class Subscription:
         if status != 0:
             raise PJSIPError("Could not create SUBSCRIBE message", status)
         try:
-            _add_headers_to_tdata(tdata, self._extra_headers)
+            _add_headers_to_tdata(tdata, extra_headers)
         except:
             pjsip_tx_data_dec_ref(tdata)
             raise
@@ -294,7 +294,7 @@ cdef class Subscription:
     cdef int _cb_refresh_timer(self, PJSIPUA ua):
         try:
             self._send_subscribe(ua, self.refresh, &self._subscribe_timeout,
-                                 self.extra_headers, self.content_type, self.body)
+                                 self._extra_headers, self.content_type, self.body)
         except PJSIPError, e:
             self._term_reason = e.args[0]
             pjsip_evsub_terminate(self._obj, 1)
