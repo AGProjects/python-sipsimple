@@ -28,7 +28,6 @@ cdef class Subscription:
     cdef readonly object content_type
     cdef pj_time_val _subscribe_timeout
     cdef int _want_end
-    cdef int _is_subscribed
     cdef int _term_code
     cdef object _term_reason
     cdef int _expires
