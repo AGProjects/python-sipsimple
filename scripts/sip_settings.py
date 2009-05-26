@@ -152,41 +152,45 @@ class AccountConfigurator(object):
         print 'Account added'
 
     def delete(self, sip_address):
-        if sip_address != 'ALL' and not self.account_manager.has_account(sip_address):
-            print 'Account %s does not exist' % sip_address
-            return
-        if sip_address == BonjourAccount.__id__:
-            print 'Cannot delete bonjour account'
-            return
-        if sip_address == 'ALL':
+        if sip_address != 'ALL':
+            possible_accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
+            if len(possible_accounts) > 1:
+                print "More than one account exists which matches %s: %s" % (sip_address, ", ".join(sorted(account.id for account in possible_accounts)))
+                return
+            if len(possible_accounts) == 0:
+                print 'Account %s does not exist' % sip_address
+                return
+            account = possible_accounts[0]
+            if account == BonjourAccount():
+                print 'Cannot delete bonjour account'
+                return
+            account.delete()
+            print 'Account deleted'
+        else:
             for account in self.account_manager.get_accounts():
                 account.delete()
             print 'Accounts deleted'
-        else:
-            account = self.account_manager.get_account(sip_address)
-            account.delete()
-            print 'Account deleted'
 
     def show(self, sip_address):
-        if sip_address != 'ALL' and not self.account_manager.has_account(sip_address):
-            print 'Account %s does not exist' % sip_address
-            return
-        if sip_address == 'ALL':
-            accounts = self.account_manager.get_accounts()
+        if sip_address != 'ALL':
+            accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
         else:
-            accounts = [self.account_manager.get_account(sip_address)]
+            accounts = self.account_manager.get_accounts()
+        if not accounts:
+            print 'No accounts which match %s' % sip_address
+            return
         for account in accounts:
             print 'Account %s:' % account.id
             display_object(account, 'account')
 
     def set(self, sip_address, *args):
-        if sip_address != 'ALL' and not self.account_manager.has_account(sip_address):
-            print 'Account %s does not exist' % sip_address
-            return
-        if sip_address == 'ALL':
-            accounts = self.account_manager.get_accounts()
+        if sip_address != 'ALL':
+            accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
         else:
-            accounts = [self.account_manager.get_account(sip_address)]
+            accounts = self.account_manager.get_accounts()
+        if not accounts:
+            print 'No accounts which match %s' % sip_address
+            return
         
         try:
             settings = dict(arg.split('=', 1) for arg in args)
@@ -220,10 +224,14 @@ class AccountConfigurator(object):
         print 'Account%s updated' % 's' if len(accounts) > 1 else ''
 
     def default(self, sip_address):
-        if not self.account_manager.has_account(sip_address):
+        possible_accounts = [account for account in self.account_manager.iter_accounts() if sip_address in account.id]
+        if len(possible_accounts) > 1:
+            print "More than one account exists which matches %s: %s" % (sip_address, ", ".join(sorted(account.id for account in possible_accounts)))
+            return
+        if len(possible_accounts) == 0:
             print 'Account %s does not exist' % sip_address
             return
-        account = self.account_manager.get_account(sip_address)
+        account = possible_accounts[0]
         try:
             self.account_manager.default_account = account
         except ValueError, e:
