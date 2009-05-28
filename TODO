@@ -1,7 +1,7 @@
 Sessions
 --------
 
-- Video aquisition sub-system []
+- Video aquisition sub-system [AK]
 - Support for H.264 codec []
 
 
@@ -10,17 +10,16 @@ Middleware
 
 - Configuration changes listener [LS]
 - FileTransfer high level class [LS]
-- Desktop sharing high level class [LS]
+- Desktop sharing high level class [AK]
 - Capture MSRP trace as notifications [LS]
 - MediaStream high level class [LS]
 - Buddylist high-level class [LS]
-- Subscribtion high level class [LS]
-- Video sessions high level class [LS]
+- Video sessions high level class [AK]
 - XCAP high level class [LS]
 - Application sharing high level class [LS]
 - Conference audio sessions [RK]
 - Log XCAP messages [LS]
-- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [RK] [LS]
+- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [LS]
 - Auto PUBLISH event=presence with device status when start/end audio session [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [LS]
 - Auto ENUM lookup during session if number looks like E.164 [LS]
@@ -39,8 +38,8 @@ SIP core
 - Handle incoming OPTIONS requests (simple transaction) [RK]
 - Handle sending and receiving of multipart bodies for Invitation [RK]
 - Use STUN to determine the public contact used for REGISTER, low prio []
-- Handle UPDATE for re-INVITE, lowest prio []
-- Handle incoming REFER requests [RK]
+- Handle UPDATE for re-INVITE, low prio []
+- Handle incoming REFER requests, low prio [RK]
 
 
 Notifications
@@ -58,7 +57,7 @@ Notifications
 Audio
 -----
 
-+ Revise conference bridge API to support mute and multiple rooms [RK]
+- Revise conference bridge API to support mute and multiple rooms [RK]
   http://sipsimpleclient.com/wiki/AudioFeatures [RK]
 - Comfort noise generator []
 - zRTP []
@@ -87,9 +86,10 @@ Presence
 Desktop sharing
 ---------------
 
-- Properly re-implement RFB/VNC library [LS]
-- Application (one window) sharing [LS]
-- Past clipboard between parties [LS]
+- Properly re-implement RFB/VNC library [AK]
+- Application (one window) sharing [AK]
+- Past clipboard between parties [AK]
+  See http://sipsimpleclient.com/attachment/wiki/SipContributions/sip_desktop_sharing.pdf
 
 
 Other applications
