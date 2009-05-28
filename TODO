@@ -31,6 +31,7 @@ Middleware
 SIP core
 --------
 
++ Make RTP timeout a setting accessable from configuration framework [RK]
 - Set isfocus attribute in Contact header for both requests and responses [RK]
 - Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
 - Handle incoming SUBSCRIBE and REFER requests, uses dialogs [RK]
