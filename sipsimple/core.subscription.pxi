@@ -153,6 +153,9 @@ cdef class Subscription:
                 raise ValueError("Timeout value cannot be negative")
             self._subscribe_timeout.sec = int(timeout)
             self._subscribe_timeout.msec = (timeout * 1000) % 1000
+        else:
+            self._subscribe_timeout.sec = 0
+            self._subscribe_timeout.msec = 0
         if extra_headers is not None:
             headers = extra_headers.copy()
         self._send_subscribe(ua, self.refresh, &self._subscribe_timeout, headers, content_type, body)
@@ -175,6 +178,9 @@ cdef class Subscription:
                 raise ValueError("Timeout value cannot be negative")
             end_timeout.sec = int(timeout)
             end_timeout.msec = (timeout * 1000) % 1000
+        else:
+            end_timeout.sec = 0
+            end_timeout.msec = 0
         self._want_end = 1
         self._cancel_timers(ua, 1, 1)
         _add_event("SIPSubscriptionWillEnd", dict(obj=self))

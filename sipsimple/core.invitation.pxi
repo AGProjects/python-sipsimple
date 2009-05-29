@@ -388,7 +388,7 @@ cdef class Invitation:
             self._obj = NULL
             self._dlg = NULL
             raise
-        if timeout_pj.sec or timeout_pj.msec:
+        if timeout:
             status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
             if status == 0:
                 self._timer_active = 1
@@ -460,7 +460,7 @@ cdef class Invitation:
         if self._timer_active:
             pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
             self._timer_active = 0
-        if timeout_pj.sec or timeout_pj.msec:
+        if timeout:
             status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
             if status == 0:
                 self._timer_active = 1
