@@ -1155,6 +1155,7 @@ class SessionManager(NotificationHandler):
     def _check_hold_tone(self):
         if self._hold_tone.is_active and not [sess for sess in self.inv_mapping.itervalues() if sess.on_hold]:
             self._hold_tone.stop()
+            Engine().play_tones(self._hold_tone.tones)
 
 
 __all__ = ["SessionManager", "Session"]
