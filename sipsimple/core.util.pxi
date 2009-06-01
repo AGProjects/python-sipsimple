@@ -33,6 +33,72 @@ cdef class SIPStatusMessages:
         return _status
 
 
+cdef class frozenlist:
+    cdef int initialized
+    cdef list list
+    cdef long hash
+    def __cinit__(self, *args, **kw):
+        self.list = list()
+        self.initialized = 0
+        self.hash = 0
+    def __init__(self, *args, **kw):
+        if not self.initialized:
+            self.list = list(*args, **kw)
+            self.initialized = 1
+            self.hash = hash(tuple(self.list))
+    def __repr__(self):
+        return "frozenlist(%r)" % self.list
+    def __len__(self):
+        return self.list.__len__()
+    def __hash__(self):
+        return self.hash
+    def __iter__(self):
+        return self.list.__iter__()
+    def __cmp__(self, frozenlist other):
+        return self.list.__cmp__(other.list)
+    def __richcmp__(frozenlist self, other, op):
+        if isinstance(other, frozenlist):
+            other = (<frozenlist>other).list
+        if op == 0:
+            return self.list.__cmp__(other) < 0
+        elif op == 1:
+            return self.list.__cmp__(other) <= 0
+        elif op == 2:
+            return self.list.__eq__(other) 
+        elif op == 3:
+            return self.list.__ne__(other) 
+        elif op == 4:
+            return self.list.__cmp__(other) > 0
+        elif op == 5:
+            return self.list.__cmp__(other) >= 0
+        else:
+            return NotImplemented
+    def __contains__(self, item):
+        return self.list.__contains__(item)
+    def __getitem__(self, key):
+        return self.list.__getitem__(key)
+    def __getslice__(self, i, j):
+        return self.list.__getslice__(i, j)
+    def __add__(first, second):
+        if isinstance(first, frozenlist):
+            first = (<frozenlist>first).list
+        if isinstance(second, frozenlist):
+            second = (<frozenlist>second).list
+        return frozenlist(first+second)
+    def __mul__(first, second):
+        if isinstance(first, frozenlist):
+            first = (<frozenlist>first).list
+        if isinstance(second, frozenlist):
+            second = (<frozenlist>second).list
+        return frozenlist(first*second)
+    def __reversed__(self):
+        return self.list.__reversed__()
+    def count(self, elem):
+        return self.list.count(elem)
+    def index(self, elem):
+        return self.list.index(elem)
+
+
 cdef class frozendict:
     cdef int initialized
     cdef dict dict

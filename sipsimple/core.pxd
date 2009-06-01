@@ -914,6 +914,7 @@ cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry
 
 # core.util
 
+cdef class frozenlist
 cdef class frozendict
 cdef class PJSTR
 cdef int _str_to_pj_str(object string, pj_str_t *pj_str) except -1
