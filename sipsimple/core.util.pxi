@@ -33,6 +33,69 @@ cdef class SIPStatusMessages:
         return _status
 
 
+cdef class frozendict:
+    cdef int initialized
+    cdef dict dict
+    cdef long hash
+    def __cinit__(self, *args, **kw):
+        self.dict = dict()
+        self.initialized = 0
+    def __init__(self, *args, **kw):
+        if not self.initialized:
+            self.dict = dict(*args, **kw)
+            self.initialized = 1
+            self.hash = hash(tuple(self.dict.iteritems()))
+    def __repr__(self):
+        return "frozendict(%r)" % self.dict
+    def __len__(self):
+        return self.dict.__len__()
+    def __hash__(self):
+        return self.hash
+    def __iter__(self):
+        return self.dict.__iter__()
+    def __cmp__(self, frozendict other):
+        return self.dict.__cmp__(other.dict)
+    def __richcmp__(frozendict self, other, op):
+        if isinstance(other, frozendict):
+            other = (<frozendict>other).dict
+        if op == 0:
+            return self.dict.__cmp__(other) < 0
+        elif op == 1:
+            return self.dict.__cmp__(other) <= 0
+        elif op == 2:
+            return self.dict.__eq__(other) 
+        elif op == 3:
+            return self.dict.__ne__(other) 
+        elif op == 4:
+            return self.dict.__cmp__(other) > 0
+        elif op == 5:
+            return self.dict.__cmp__(other) >= 0
+        else:
+            return NotImplemented
+    def __contains__(self, item):
+        return self.dict.__contains__(item)
+    def __getitem__(self, key):
+        return self.dict.__getitem__(key)
+    def copy(self):
+        return self
+    def get(self, *args):
+        return self.dict.get(*args)
+    def has_key(self, key):
+        return self.dict.has_key(key)
+    def items(self):
+        return self.dict.items()
+    def iteritems(self):
+        return self.dict.iteritems()
+    def iterkeys(self):
+        return self.dict.iterkeys()
+    def itervalues(self):
+        return self.dict.itervalues()
+    def keys(self):
+        return self.dict.keys()
+    def values(self):
+        return self.dict.values()
+
+
 # functions
 
 cdef int _str_to_pj_str(object string, pj_str_t *pj_str) except -1:
