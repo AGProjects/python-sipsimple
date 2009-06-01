@@ -2,11 +2,15 @@
 SIP SIMPLE applications
 -----------------------
 
+For more detailed information see the wiki page:
+
+http://sipsimpleclient.com/wiki/SipPresenceApi
+
 These applications provide non-SIP functionality that are required for
 implementing a feature-rich SIP SIMPLE client.
 
-Some applications are for parsing and generating bodies carried using SIP
-PUBLISH/SUBSCRIBE/NOTIFY methods. These SIP methods have been designed for
+These applications are used for parsing and generating bodies carried using
+SIP PUBLISH/SUBSCRIBE/NOTIFY methods that have been designed for
 asynchronous event notifications to convey in real-time state and other
 information between end-points.
 
@@ -17,9 +21,6 @@ limited to user mood, geo-location, environment, noise level and type of
 communication desired. The information can be disseminated based on a
 granular policy which allows end-users to decide who has access to which
 part of the published information.
-
-Other applications are used for lookup network addresses using DNS or to
-broadcast availability using bonjour.
 
 
 watcherinfo.py (RFC3857 and RFC3858)
@@ -59,7 +60,7 @@ response to a new subscription signaled by a change in the watcherinfo
 application.
 
 
-pidf.py (RFC3863)
+presdm.py (RFC3863 and RFC3379)
 
 This module provides classes to parse and generate PIDF documents, and also
 uses the XML Application extensibility API to allow extensions to PIDF. It
@@ -69,6 +70,12 @@ information and to parse the state of buddy lists entries we have subscribed
 to. A SIP client typically instantiates a new pidf object for itself and for
 each buddy it SUBSCRIBEs to and update each object when a NOTIFY is
 received. The list of buddys is maintained using resourcelists application.
+
+
+rpid.py (RFC4480)
+
+This module provides an extension to PIDF (module
+sipsimple.applications.presdm) to support rich presence.
 
 
 policy.py (RFC4745)
@@ -82,28 +89,8 @@ This module provides an extension to the PIDF (module sipsimple.applications.pid
 to support the data module defined in RFC4479.
 
 
-xcap-diff.py
+xcapdiff.py
 
 Parses NOTIFY body for xcap-diff event. Used to detect changes in XCAP
 documents changed by other device configured for the same presentity.
-
-
-pidf-manipulation.py
-
-Parses and generates pidf-manipulation stored on the XCAP server. Used to
-publish persistent information which remains active after the user agent
-goes off-line.
-
-
-mwi.py
-
-Parses NOTIFY body with message waiting indicator information. Used for
-alerting the user about the presence of voice messages stored on the
-voicemail server.
-
-
-bonjour.py
-
-Maintains state of online neighbours using multicast DNS technology. Used
-for zero-conf functionality on the local LAN.
 
