@@ -41,6 +41,9 @@ SIP core
 - Use STUN to determine the public contact used for REGISTER, low prio []
 - Handle UPDATE for re-INVITE, low prio []
 - Handle incoming REFER requests, low prio [RK]
+- Implement frozen and normal variants of basic core objects to remove need [LS]
+  for copying them on access [LS]
+- Define objects to represent SIP headers [LS]
 
 
 Notifications
