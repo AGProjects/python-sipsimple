@@ -3,7 +3,7 @@
 
 """RPID handling according to RFC4480
 
-This module provides an extension to PIDF (module sipsimple.applications.pidf) to
+This module provides an extension to PIDF (module sipsimple.applications.presdm) to
 support rich presence.
 """
 
