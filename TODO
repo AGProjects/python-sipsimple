@@ -26,7 +26,7 @@ Middleware
 - Handle 301/302 redirect [LS]
 - Detect IP address changes (OS specific) and signal Engine [RK]
 - Enrollment [LS]
-
+- Generate TLS certificate for P2P mode on startup []
 
 SIP core
 --------
