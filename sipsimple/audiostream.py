@@ -194,7 +194,9 @@ class AudioStream(NotificationHandler):
             if self.state != "INITIALIZED":
                 raise RuntimeError("AudioStream.get_local_media() may only be " +
                                    "called in the INITIALIZED or ESTABLISHED states")
-            self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=self.account.audio.media_timeout, media_check_interval=self.account.audio.media_timeout)
+            settings = SIPSimpleSettings()
+            self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout,
+                                        media_check_interval=settings.rtp.timeout)
             self._check_hold(self._audio_transport.direction, True)
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification("MediaStreamDidStart", self, TimestampedNotificationData())

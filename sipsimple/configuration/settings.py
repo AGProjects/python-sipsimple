@@ -70,6 +70,7 @@ class RingtoneSettings(SettingsGroup):
 
 class RTPSettings(SettingsGroup):
     port_range = Setting(type=PortRange, default=PortRange(50000, 50400))
+    timeout = Setting(type=NonNegativeInteger, default=30)
 
 
 class SIPSettings(SettingsGroup):

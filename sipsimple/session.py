@@ -764,7 +764,7 @@ class Session(NotificationHandler):
             # TODO: check for ip/port/codec changes and restart AudioTransport if needed
             pass
         else:
-            self.audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index, no_media_timeout=self.account.audio.media_timeout, media_check_interval=self.account.audio.media_timeout)
+            self.audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index, no_media_timeout=self.settings.rtp.timeout, media_check_interval=self.settings.rtp.timeout)
             Engine().connect_audio_transport(self.audio_transport)
             self.has_audio = True
             if self._ringtone is not None:
