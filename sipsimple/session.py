@@ -914,6 +914,7 @@ class SessionManager(NotificationHandler):
             if len(proposed_media) == 0:
                 inv.end(415)
                 return
+            inv.update_local_contact_uri(account.contact[inv.transport])
             inv.respond_to_invite_provisionally(180)
             session = Session(account)
             session._inv = inv

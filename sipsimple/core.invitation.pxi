@@ -256,6 +256,23 @@ cdef class Invitation:
         else:
             raise SIPCoreError("Cannot set offered local SDP in this state")
 
+    def update_local_contact_uri(self, SIPURI contact_uri):
+        cdef object uri_str
+        cdef pj_str_t uri_str_pj
+        cdef pjsip_uri *uri = NULL
+        if contact_uri is None:
+            raise ValueError("contact_uri argument may not be None")
+        if self._dlg == NULL:
+            raise SIPCoreError("Cannot update local Contact URI while in the NULL or TERMINATED state")
+        uri_str = contact_uri._as_str(1)
+        pj_strdup2_with_null(self._dlg.pool, &uri_str_pj, uri_str)
+        uri = pjsip_parse_uri(self._dlg.pool, uri_str_pj.ptr, uri_str_pj.slen, PJSIP_PARSE_URI_AS_NAMEADDR)
+        if uri == NULL:
+            raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
+        self._dlg.local.contact = pjsip_contact_hdr_create(self._dlg.pool)
+        self._dlg.local.contact.uri = uri
+        self._local_contact_uri = contact_uri.copy()
+
     cdef int _cb_state(self, PJSIPUA ua, object state, pjsip_rx_data *rdata) except -1:
         cdef pjsip_tx_data *tdata
         cdef int status

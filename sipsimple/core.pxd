@@ -82,6 +82,7 @@ cdef extern from "pjlib.h":
     void pj_caching_pool_init(pj_caching_pool *ch_pool, pj_pool_factory_policy *policy, int max_capacity)
     void pj_caching_pool_destroy(pj_caching_pool *ch_pool)
     void *pj_pool_alloc(pj_pool_t *pool, int size)
+    pj_str_t *pj_strdup2_with_null(pj_pool_t *pool, pj_str_t *dst, char *src)
 
     # threads
     enum:
@@ -608,6 +609,7 @@ cdef extern from "pjsip.h":
     void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start)
     void *pjsip_msg_find_hdr_by_name(pjsip_msg *msg, pj_str_t *name, void *start)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
+    pjsip_contact_hdr *pjsip_contact_hdr_create(pj_pool_t *pool)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
@@ -774,9 +776,13 @@ cdef extern from "pjsip.h":
 
     # dialog layer
     ctypedef pjsip_module pjsip_user_agent
+    struct pjsip_dlg_party:
+        pjsip_contact_hdr *contact
     struct pjsip_dialog:
         pjsip_auth_clt_sess auth_sess
         pjsip_cid_hdr *call_id
+        pj_pool_t *pool
+        pjsip_dlg_party local
     struct pjsip_ua_init_param:
         pjsip_dialog *on_dlg_forked(pjsip_dialog *first_set, pjsip_rx_data *res)
     int pjsip_ua_init_module(pjsip_endpoint *endpt, pjsip_ua_init_param *prm)
