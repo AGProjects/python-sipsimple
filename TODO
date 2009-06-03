@@ -23,7 +23,6 @@ Middleware
 - Auto PUBLISH event=presence with device status when start/end audio session [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [LS]
 - Auto ENUM lookup during session if number looks like E.164 [LS]
-- Handle 301/302 redirect [LS]
 - Detect IP address changes (OS specific) and signal Engine [RK]
 - Enrollment [LS]
 - Generate TLS certificate for P2P mode on startup []
