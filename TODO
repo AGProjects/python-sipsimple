@@ -72,6 +72,7 @@ Instant messaging
 -----------------
 
 - Use MSRPServer class to share the listening port [LS]
+- Support for rich text format compatible with XMPP clients []
 - Is-composing payload []
 - Anonymous URI multi-party chat support []
 - Off-the-Record Messaging for IM [LS]
