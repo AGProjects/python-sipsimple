@@ -19,13 +19,14 @@ Middleware
 - Application sharing high level class [LS]
 - Conference audio sessions [RK]
 - Log XCAP messages [LS]
-- Auto SUBSCRIBE event=conference when Contact header has isfocus attribute [LS]
+- Auto SUBSCRIBE event=conference when Contact header of remote party is focus [LS]
 - Auto PUBLISH event=presence with device status when start/end audio session [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [LS]
-- Auto ENUM lookup during session if number looks like E.164 [LS]
+- Auto ENUM lookup during session if number looks like E.164 []
 - Detect IP address changes (OS specific) and signal Engine [RK]
 - Enrollment [LS]
-- Generate TLS certificate for P2P mode on startup []
+- Generate TLS certificate for P2P mode on startup [LS]
+
 
 SIP core
 --------
