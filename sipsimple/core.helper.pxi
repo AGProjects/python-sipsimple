@@ -192,9 +192,11 @@ cdef class SIPURI:
             else:
                 string = "%s@%s" % (self.user, string)
         if self.parameters:
-            string += ";" + ";".join(["%s=%s" % (name, val) for name, val in self.parameters.iteritems()])
+            string += ";" + ";".join(["%s%s" % (name, ("" if val is None else "="+val))
+                                      for name, val in self.parameters.iteritems()])
         if self.headers:
-            string += "?" + "&".join(["%s=%s" % (name, val) for name, val in self.headers.iteritems()])
+            string += "?" + "&".join(["%s%s" % (name, ("" if val is None else "="+val))
+                                      for name, val in self.headers.iteritems()])
         if self.secure:
             string = "sips:" + string
         else:
@@ -240,16 +242,22 @@ cdef SIPURI _make_SIPURI(pjsip_uri *base_uri, int is_named):
     if uri.ttl_param != -1:
         parameters["ttl"] = uri.ttl_param
     if uri.lr_param != 0:
-        parameters["lr"] = uri.lr_param
+        parameters["lr"] = None
     if uri.maddr_param.slen > 0:
         parameters["maddr"] = _pj_str_to_str(uri.maddr_param)
     param = <pjsip_param *> (<pj_list *> &uri.other_param).next
     while param != &uri.other_param:
-        parameters[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
+        if param.value.slen == 0:
+            parameters[_pj_str_to_str(param.name)] = None
+        else:
+            parameters[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
         param = <pjsip_param *> (<pj_list *> param).next
     param = <pjsip_param *> (<pj_list *> &uri.header_param).next
     while param != &uri.header_param:
-        headers[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
+        if param.value.slen == 0:
+            headers[_pj_str_to_str(param.name)] = None
+        else:
+            headers[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
         param = <pjsip_param *> (<pj_list *> param).next
     if is_named and named_uri.display.slen > 0:
         kwargs["display"] = _pj_str_to_str(named_uri.display)
