@@ -54,7 +54,10 @@ cdef dict _pjsip_param_to_dict(pjsip_param *param_list):
     cdef dict retval = {}
     param = <pjsip_param *> (<pj_list *> param_list).next
     while param != param_list:
-        retval[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
+        if param.value.slen == 0:
+            retval[_pj_str_to_str(param.name)] = None
+        else:
+            retval[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
         param = <pjsip_param *> (<pj_list *> param).next
     return retval
 

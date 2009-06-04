@@ -136,6 +136,7 @@ cdef extern from "pjlib.h":
     struct pj_list:
         void *prev
         void *next
+    void pj_list_insert_after(pj_list *pos, pj_list *node)
 
     # random
     void pj_srand(unsigned int seed)

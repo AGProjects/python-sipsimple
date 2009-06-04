@@ -597,7 +597,7 @@ class IncomingHandler(NotificationHandler):
             if not streams:
                 inv.end(415)
                 return
-            inv.update_local_contact_uri(account.contact[inv.transport])
+            inv.update_local_contact(account.contact[inv.transport])
             inv.respond_to_invite_provisionally(180)
             session = Session(account, GreenInvitation(__obj=inv), 'incoming', data.headers.get("User-Agent"), streams)
             self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(data=data))

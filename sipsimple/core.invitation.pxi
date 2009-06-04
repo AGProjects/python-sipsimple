@@ -16,6 +16,7 @@ cdef class Invitation:
     cdef int _has_active_sdp
     cdef readonly object transport
     cdef SIPURI _local_contact_uri
+    cdef dict _local_contact_parameters
     cdef pjsip_transaction *_reinvite_tsx
     cdef pj_timer_entry _timer
     cdef int _timer_active
@@ -24,9 +25,10 @@ cdef class Invitation:
         self._sdp_neg_status = -1
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_disconnect_timer)
         self.state = "INVALID"
+        self._local_contact_parameters = {}
 
     def __init__(self, SIPURI from_uri=None, SIPURI to_uri=None, Route route=None,
-                 Credentials credentials=None, SIPURI contact_uri=None):
+                 Credentials credentials=None, SIPURI contact_uri=None, dict contact_parameters=None):
         cdef PJSIPUA ua = _get_ua()
         if self.state != "INVALID":
             raise SIPCoreError("Invitation.__init__() was already called")
@@ -40,6 +42,9 @@ cdef class Invitation:
                 self._local_contact_uri = ua._create_contact_uri(route)
             else:
                 self._local_contact_uri = contact_uri.copy()
+            if contact_parameters is not None:
+                self._check_contact_parameters(contact_parameters)
+                self._local_contact_parameters = contact_parameters.copy()
             if credentials is not None:
                 self._credentials = credentials.copy()
         elif any([from_uri, to_uri, route]):
@@ -208,6 +213,11 @@ cdef class Invitation:
             else:
                 return self._local_contact_uri.copy()
 
+    property local_contact_parameters:
+
+        def __get__(self):
+            return self._local_contact_parameters.copy()
+
     def get_active_local_sdp(self):
         cdef pjmedia_sdp_session_ptr_const sdp
         self._check_ua()
@@ -256,22 +266,49 @@ cdef class Invitation:
         else:
             raise SIPCoreError("Cannot set offered local SDP in this state")
 
-    def update_local_contact_uri(self, SIPURI contact_uri):
+    cdef int _check_contact_parameters(self, dict parameters) except -1:
+        cdef pj_str_t test
+        cdef object name
+        cdef object value
+        for name, value in parameters.iteritems():
+            _str_to_pj_str(name, &test)
+            if value is not None:
+                _str_to_pj_str(value, &test)
+
+    cdef int _add_contact_parameters(self, dict parameters) except -1:
+        cdef object name
+        cdef object value
+        cdef pjsip_param *param
+        for name, value in parameters.iteritems():
+            param = <pjsip_param *> pj_pool_alloc(self._dlg.pool, sizeof(pjsip_param))
+            _str_to_pj_str(name, &param.name)
+            if value is None:
+                param.value.slen = 0
+            else:
+                _str_to_pj_str(value, &param.value)
+            pj_list_insert_after(<pj_list *> &self._dlg.local.contact.other_param, <pj_list *> param)
+
+    def update_local_contact(self, SIPURI contact_uri, dict parameters=None):
         cdef object uri_str
         cdef pj_str_t uri_str_pj
         cdef pjsip_uri *uri = NULL
+        self._check_ua()
         if contact_uri is None:
             raise ValueError("contact_uri argument may not be None")
-        if self._dlg == NULL:
-            raise SIPCoreError("Cannot update local Contact URI while in the NULL or TERMINATED state")
-        uri_str = contact_uri._as_str(1)
-        pj_strdup2_with_null(self._dlg.pool, &uri_str_pj, uri_str)
-        uri = pjsip_parse_uri(self._dlg.pool, uri_str_pj.ptr, uri_str_pj.slen, PJSIP_PARSE_URI_AS_NAMEADDR)
-        if uri == NULL:
-            raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
-        self._dlg.local.contact = pjsip_contact_hdr_create(self._dlg.pool)
-        self._dlg.local.contact.uri = uri
+        if parameters is None:
+            parameters = {}
+        self._check_contact_parameters(parameters)
+        if self._dlg != NULL:
+            uri_str = contact_uri._as_str(1)
+            pj_strdup2_with_null(self._dlg.pool, &uri_str_pj, uri_str)
+            uri = pjsip_parse_uri(self._dlg.pool, uri_str_pj.ptr, uri_str_pj.slen, PJSIP_PARSE_URI_AS_NAMEADDR)
+            if uri == NULL:
+                raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
+            self._add_contact_parameters(parameters)
+            self._dlg.local.contact = pjsip_contact_hdr_create(self._dlg.pool)
+            self._dlg.local.contact.uri = uri
         self._local_contact_uri = contact_uri.copy()
+        self._local_contact_parameters = parameters.copy()
 
     cdef int _cb_state(self, PJSIPUA ua, object state, pjsip_rx_data *rdata) except -1:
         cdef pjsip_tx_data *tdata
@@ -380,6 +417,7 @@ cdef class Invitation:
                                           &to_uri.pj_str, &callee_target.pj_str, &self._dlg)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
+            self._add_contact_parameters(self._local_contact_parameters)
             self._local_sdp_proposed._to_c()
             local_sdp = &self._local_sdp_proposed._obj
             status = pjsip_inv_create_uac(self._dlg, local_sdp, 0, &self._obj)
