@@ -31,6 +31,8 @@ Middleware
 SIP core
 --------
 
+- Allow bonjour calls to use ICE [RK]
+- Add bonjour.ice.enabled setting [RK]
 - Set isfocus attribute in Contact header for both requests and responses [RK]
 - Get more RTP information about packet-loss, jitter [RK]
   http://trac.pjsip.org/repos/wiki/audio-check-remote-address [RK]
