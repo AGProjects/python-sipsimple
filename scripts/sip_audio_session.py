@@ -84,7 +84,7 @@ def print_control_keys():
     print "  Ctrl-d: quit the program"
     print "  ?: display this help message"
 
-def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, fork):
+def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, no_input):
     global user_quit, lock, queue, return_code
     lock.acquire()
     sess = None
@@ -96,7 +96,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
     try:
         if hasattr(account, "stun_servers") and account.stun_servers:
             e.detect_nat_type(*account.stun_servers[0])
-        if not fork:
+        if not no_input:
             print_control_keys()
         while True:
             sys.stdout.flush()
@@ -341,7 +341,7 @@ def twisted_reactor_thread():
     from eventlet.twistedutil import join_reactor
     reactor.run(installSignalHandlers=False)
 
-def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, trace_notifications, auto_answer, auto_hangup, fork):
+def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, trace_pjsip, trace_notifications, auto_answer, auto_hangup, no_input, fork):
     global user_quit, lock, queue
 
     # deamonize if needed
@@ -457,9 +457,9 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
                     routes_dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
 
         # start thread and process user input
-        if not fork:
+        if not no_input:
             atexit.register(termios_restore)
-        start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, fork))
+        start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, auto_answer, auto_hangup, routes_dns, stun_dns, no_input))
 
     except:
         e.stop()
@@ -467,7 +467,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
 
     try:
         while True:
-            if fork:
+            if no_input:
                 sleep(60)
             else:
                 char = getchar()
@@ -515,12 +515,14 @@ def parse_options():
     parser.add_option("--auto-answer", action="callback", callback=parse_handle_call_option, callback_args=('auto_answer',), help="Interval after which to answer an incoming session (disabled by default). If the option is specified but the interval is not, it defaults to 0 (accept the session as soon as it starts ringing).", metavar="[INTERVAL]")
     parser.set_default("auto_hangup", None)
     parser.add_option("--auto-hangup", action="callback", callback=parse_handle_call_option, callback_args=('auto_hangup',), help="Interval after which to hang up an established session (applies only to outgoing sessions, disabled by default). If the option is specified but the interval is not, it defaults to 0 (hangup the session as soon as it connects).", metavar="[INTERVAL]")
-    parser.add_option("-D", "--daemonize", action="store_true", dest="fork", default=False, help="Enabled running this program as a deamon. Note that this forces --disable-sound and --auto-answer.")
+    parser.add_option("--disable-input", action="store_true", dest="no_input", default=False, help="Disable user input from the console. This is particularly useful when running this script in a non-interactive environment.")
+    parser.add_option("-D", "--daemonize", action="store_true", dest="fork", default=False, help="Enable running this program as a deamon. Note that this forces --disable-sound, --auto-answer and --disable-input.")
     options, args = parser.parse_args()
     retval = options.__dict__.copy()
     if retval["fork"]:
         retval["auto_answer"] = True
         retval["disable_sound"] = True
+        retval["no_input"] = True
     if args:
         retval["target_uri"] = args[0]
     else:
