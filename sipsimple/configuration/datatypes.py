@@ -286,7 +286,10 @@ class STUNServerAddresses(tuple):
         servers = []
         for value in values:
             if not isinstance(value, STUNServerAddress):
-                value = STUNServerAddress(*value)
+                if isinstance(value, str):
+                    value = STUNServerAddress(value)
+                else:
+                    value = STUNServerAddress(*value)
             servers.append(value)
         return tuple(servers)
 
