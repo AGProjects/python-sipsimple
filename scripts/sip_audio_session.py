@@ -92,9 +92,9 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
     auto_answer_timer = None
     routes = None
     is_registered = False
-    got_stun = not hasattr(account, "stun_servers") or account.stun_servers
+    got_stun = stun_dns is None
     try:
-        if hasattr(account, "stun_servers") and account.stun_servers:
+        if got_stun and account.stun_servers:
             e.detect_nat_type(*account.stun_servers[0])
         if not no_input:
             print_control_keys()
@@ -429,8 +429,11 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
         # pre-lookups
 
         routes_dns = DNSLookup()
-        stun_dns = DNSLookup()
+        stun_dns = None
         if isinstance(account, BonjourAccount):
+            # lookup STUN servers, as we don't support doing this asynchronously yet
+            if account.stun_servers:
+                account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
             # print listening addresses
             for transport in settings.sip.transports:
                 local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
@@ -446,6 +449,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
             if account.stun_servers:
                 account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
             else:
+                stun_dns = DNSLookup()
                 stun_dns.lookup_service(SIPURI(host=account.id.domain), "stun")
             # setup routes
             if target_uri is not None:

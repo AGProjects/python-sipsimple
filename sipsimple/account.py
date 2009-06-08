@@ -388,9 +388,11 @@ class BonjourAccount(SettingsObject):
     enabled = Setting(type=bool, default=True)
     display_name = Setting(type=str, default=None, nillable=True)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
+    stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
 
     audio = AudioSettings
     ringtone = RingtoneSettings
+    ice = ICESettings
 
     def __init__(self):
         settings = SIPSimpleSettings()

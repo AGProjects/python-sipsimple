@@ -14,6 +14,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError, PJSIPError, RecordingWaveFile
 from sipsimple.engine import Engine
 from sipsimple.green import GreenBase
+from sipsimple.account import BonjourAccount
 
 class AudioStream(NotificationHandler):
     implements(IMediaStream)
@@ -54,12 +55,12 @@ class AudioStream(NotificationHandler):
                 raise RuntimeError("AudioStream.initialize() may only be called in the NULL state")
             self.state = "INITIALIZING"
             self._session = session
-            if hasattr(self.account, "ice") and self.account.ice.enabled and self.account.ice.use_stun:
+            if self.account.ice.enabled and self.account.ice.use_stun:
                 if self.account.stun_servers:
                     # Assume these are IP addresses
                     stun_servers = list(self.account.stun_servers)
                     self._init_rtp_transport(stun_servers)
-                else:
+                elif not isinstance(self.account, BonjourAccount):
                     dns_lookup = DNSLookup()
                     self.notification_center.add_observer(self, sender=dns_lookup)
                     dns_lookup.lookup_service(self.account.uri, "stun")
