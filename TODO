@@ -31,8 +31,6 @@ Middleware
 SIP core
 --------
 
-- Allow bonjour calls to use ICE [RK]
-- Add bonjour.ice.enabled setting [RK]
 - Get more RTP information about packet-loss, jitter [RK]
   http://trac.pjsip.org/repos/wiki/audio-check-remote-address [RK]
 - Make PJSIPUA.local_ip property writable and survive IP address changes [RK]
