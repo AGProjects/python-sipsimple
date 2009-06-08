@@ -83,7 +83,7 @@ class AudioStream(NotificationHandler):
 
     def _init_rtp_transport(self, stun_servers=None):
         settings = SIPSimpleSettings()
-        self._rtp_args = dict(local_rtp_address=settings.local_ip.normalized)
+        self._rtp_args = dict()
         self._rtp_args["use_srtp"] = ((self._session._inv.transport == "tls" or self.account.audio.use_srtp_without_tls)
                                       and self.account.audio.srtp_encryption != "disabled")
         self._rtp_args["srtp_forced"] = self._rtp_args["use_srtp"] and self.account.audio.srtp_encryption == "mandatory"
