@@ -274,7 +274,7 @@ class Account(SettingsObject):
 
                 self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
                 contact_uri = self.contact[route.transport]
-                self._registrar.register(contact_uri, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)))
+                self._registrar.register(contact_uri, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
     def _NH_SIPRegistrationWillExpire(self, notification):
         self._register()
@@ -293,7 +293,7 @@ class Account(SettingsObject):
         route = self._register_routes.popleft()
         self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
         contact_uri = self.contact[route.transport]
-        self._registrar.register(contact_uri, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)))
+        self._registrar.register(contact_uri, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
     def _NH_DNSLookupDidFail(self, notification):
         notification_center = NotificationCenter()

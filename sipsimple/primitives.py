@@ -5,7 +5,7 @@ from threading import RLock
 from application.python.decorator import decorator
 from application.notification import NotificationCenter, NotificationData
 
-from sipsimple.core import SIPURI, Request
+from sipsimple.core import SIPURI, Request, SIPCoreError
 from sipsimple.util import NotificationHandler
 
 @decorator
@@ -30,9 +30,17 @@ class Registration(NotificationHandler):
     contact_uri = property(lambda self: None if self._last_request is None else self._last_request.contact_uri)
     expires_in = property(lambda self: 0 if self._last_request is None else self._last_request.expires_in)
 
-    def register(self, contact_uri, route, timeout=None):
+    def register(self, contact_uri, route, timeout=None, raise_sipcore_error=True):
         with self._lock:
-            self._make_and_send_request(contact_uri, route, timeout, True)
+            try:
+                self._make_and_send_request(contact_uri, route, timeout, True)
+            except SIPCoreError, e:
+                if raise_sipcore_error:
+                    raise
+                else:
+                    self._notification_center.post_notification("SIPRegistrationDidFail", sender=self,
+                                                            data=NotificationData(code=0, reason=e.args[0],
+                                                                                  route=route))
 
     def end(self, timeout=None):
         with self._lock:
