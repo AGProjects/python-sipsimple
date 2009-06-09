@@ -145,7 +145,7 @@ class WinfoApplication(object):
             raise RuntimeError("cannot use bonjour account for watcherinfo subscription")
         elif not self.account.presence.enabled:
             raise RuntimeError("presence is not enabled for account %s" % self.account.id)
-        elif self.account.xcap_root is None:
+        elif self.account.presence.xcap_root is None:
             raise RuntimeError("XCAP root is not defined for account %s" % self.account.id)
         self.output.put('Using account %s' % self.account.id)
         settings = SIPSimpleSettings()
@@ -176,7 +176,7 @@ class WinfoApplication(object):
             log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
         )
         
-        self.xcap_client = XCAPClient(self.account.xcap_root, self.account.id, password=self.account.password, auth=None)
+        self.xcap_client = XCAPClient(self.account.presence.xcap_root, self.account.id, password=self.account.password, auth=None)
         self._get_prules()
         self.output.put('Allowed list:')
         if self.allow_rule_identities is not None:

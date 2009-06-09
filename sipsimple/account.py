@@ -74,6 +74,7 @@ class MSRPSettings(SettingsGroup):
 
 class PresenceSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
+    xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
     publish_interval = Setting(type=NonNegativeInteger, default=600)
     subscribe_rls_services = Setting(type=bool, default=True)
@@ -119,7 +120,6 @@ class Account(SettingsObject):
     display_name = Setting(type=str, default=None, nillable=True)
 
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
-    xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
 
     audio = AudioSettings
     dialog_event = DialogEventSettings
