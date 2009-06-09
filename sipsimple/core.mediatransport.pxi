@@ -289,6 +289,7 @@ cdef class AudioTransport:
     cdef pj_timer_entry _timer
     cdef int _timer_active
     cdef unsigned int _packets_received
+    cdef dict _cached_statistics
 
     def __cinit__(self, *args, **kwargs):
         cdef object pool_name = "AudioTransport_%d" % id(self)
@@ -395,6 +396,25 @@ cdef class AudioTransport:
         def __get__(self):
             return bool(self._vad)
 
+    property statistics:
+
+        def __get__(self):
+            cdef pjmedia_rtcp_stat stat
+            cdef dict statistics = dict()
+            cdef int status
+            if self._cached_statistics is not None:
+                return self._cached_statistics.copy()
+            self._check_ua()
+            if self._obj == NULL:
+                return None
+            status = pjmedia_stream_get_stat(self._obj, &stat)
+            if status != 0:
+                raise PJSIPError("Could not get RTP statistics", status)
+            statistics["rtt"] = _pj_math_stat_to_dict(&stat.rtt)
+            statistics["rx"] = _pjmedia_rtcp_stream_stat_to_dict(&stat.rx)
+            statistics["tx"] = _pjmedia_rtcp_stream_stat_to_dict(&stat.tx)
+            return statistics
+
     def get_local_media(self, is_offer, direction="sendrecv"):
         cdef SDPAttribute attr
         cdef SDPMedia local_media
@@ -496,6 +516,7 @@ cdef class AudioTransport:
             return
         ua._conf_bridge._disconnect_slot(self._conf_slot)
         pjmedia_conf_remove_port(ua._conf_bridge._obj, self._conf_slot)
+        self._cached_statistics = self.statistics
         pjmedia_stream_destroy(self._obj)
         self._obj = NULL
         self.transport.set_INIT()
@@ -542,6 +563,31 @@ cdef class AudioTransport:
             raise PJSIPError("Could not send DTMF digit on audio stream", status)
         ua._conf_bridge._playback_dtmf(ord(digit))
 
+
+# helper functions
+
+cdef dict _pj_math_stat_to_dict(pj_math_stat *stat):
+    cdef dict retval = dict()
+    retval["count"] = stat.n
+    retval["max"] = stat.max
+    retval["min"] = stat.min
+    retval["last"] = stat.last
+    retval["avg"] = stat.mean
+    return retval
+
+cdef dict _pjmedia_rtcp_stream_stat_to_dict(pjmedia_rtcp_stream_stat *stream_stat):
+    cdef dict retval = dict()
+    retval["packets"] = stream_stat.pkt
+    retval["bytes"] = stream_stat.bytes
+    retval["packets_discarded"] = stream_stat.discard
+    retval["packets_lost"] = stream_stat.loss
+    retval["packets_reordered"] = stream_stat.reorder
+    retval["packets_duplicate"] = stream_stat.dup
+    retval["loss_period"] = _pj_math_stat_to_dict(&stream_stat.loss_period)
+    retval["burst_loss"] = bool(stream_stat.loss_type.burst)
+    retval["random_loss"] = bool(stream_stat.loss_type.random)
+    retval["jitter"] = _pj_math_stat_to_dict(&stream_stat.jitter)
+    return retval
 
 # callback functions
 

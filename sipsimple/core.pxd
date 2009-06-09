@@ -141,6 +141,14 @@ cdef extern from "pjlib.h":
     # random
     void pj_srand(unsigned int seed)
 
+    # maths
+    struct pj_math_stat:
+        int n
+        int max
+        int min
+        int last
+        int mean
+
 cdef extern from "pjlib-util.h":
 
     # init
@@ -381,10 +389,23 @@ cdef extern from "pjmedia.h":
     struct pjmedia_stream_info:
         pjmedia_codec_info fmt
         pjmedia_codec_param *param
+    struct pjmedia_rtcp_stream_stat_loss_type:
+        unsigned int burst
+        unsigned int random
     struct pjmedia_rtcp_stream_stat:
         unsigned int pkt
+        unsigned int bytes
+        unsigned int discard
+        unsigned int loss
+        unsigned int reorder
+        unsigned int dup
+        pj_math_stat loss_period
+        pjmedia_rtcp_stream_stat_loss_type loss_type
+        pj_math_stat jitter
     struct pjmedia_rtcp_stat:
+        pjmedia_rtcp_stream_stat tx
         pjmedia_rtcp_stream_stat rx
+        pj_math_stat rtt
     struct pjmedia_stream
     int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt,
                                      pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
@@ -973,3 +994,5 @@ cdef class AudioTransport
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
 cdef void _AudioTransport_cb_check_rtp(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
+cdef dict _pj_math_stat_to_dict(pj_math_stat *stat)
+cdef dict _pjmedia_rtcp_stream_stat_to_dict(pjmedia_rtcp_stream_stat *stream_stat)
