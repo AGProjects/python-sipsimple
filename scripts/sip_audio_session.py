@@ -94,8 +94,8 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
     is_registered = False
     got_stun = stun_dns is None
     try:
-        if got_stun and account.stun_servers:
-            e.detect_nat_type(*account.stun_servers[0])
+        if got_stun and account.ice.stun_servers:
+            e.detect_nat_type(*account.ice.stun_servers[0])
         if not no_input:
             print_control_keys()
         while True:
@@ -118,9 +118,9 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     else:
                         command = "check_call"
                 elif event_name == "DNSLookupDidSucceed" and obj is stun_dns:
-                    account.stun_servers = args["result"]
-                    if len(account.stun_servers) > 0:
-                        e.detect_nat_type(*account.stun_servers[0])
+                    account.ice.stun_servers = args["result"]
+                    if len(account.ice.stun_servers) > 0:
+                        e.detect_nat_type(*account.ice.stun_servers[0])
                     got_stun = True
                     command = "check_call"
                 elif event_name == "SIPAccountRegistrationDidSucceed":
@@ -446,8 +446,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
                 routes_dns.lookup_sip_proxy(target_uri, settings.sip.transports)
         else:
             # lookup STUN servers, as we don't support doing this asynchronously yet
-            if account.stun_servers:
-                account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
+            if account.ice.stun_servers:
+                account.ice.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.ice.stun_servers)
             else:
                 stun_dns = DNSLookup()
                 stun_dns.lookup_service(SIPURI(host=account.id.domain), "stun")

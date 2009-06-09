@@ -87,7 +87,7 @@ class AccountConfig(ConfigSection):
                     use_ice='ice.enabled',
                     use_stun_for_ice='ice.use_stun',
                     use_stun_for_register='registration.use_stun',
-                    stun_servers='stun_servers',
+                    stun_servers='ice.stun_servers',
                     use_presence_agent='presence.enabled',
                     xcap_root='xcap_root',
                     sip_register_interval='registration.interval',

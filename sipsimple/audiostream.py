@@ -56,9 +56,9 @@ class AudioStream(NotificationHandler):
             self.state = "INITIALIZING"
             self._session = session
             if self.account.ice.enabled and self.account.ice.use_stun:
-                if self.account.stun_servers:
+                if self.account.ice.stun_servers:
                     # Assume these are IP addresses
-                    stun_servers = list(self.account.stun_servers)
+                    stun_servers = list(self.account.ice.stun_servers)
                     self._init_rtp_transport(stun_servers)
                 elif not isinstance(self.account, BonjourAccount):
                     dns_lookup = DNSLookup()

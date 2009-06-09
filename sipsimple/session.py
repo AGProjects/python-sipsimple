@@ -38,8 +38,8 @@ class AccountRTPTransport(RTPTransport):
         kwargs["srtp_forced"] = kwargs["use_srtp"] and account.audio.srtp_encryption == "mandatory"
         kwargs["use_ice"] = account.ice.enabled
         # TODO: look this up, also if not specified
-        if kwargs["use_ice"] and account.ice.use_stun and account.stun_servers:
-            kwargs["ice_stun_address"], kwargs["ice_stun_port"] = account.stun_servers[0]
+        if kwargs["use_ice"] and account.ice.use_stun and account.ice.stun_servers:
+            kwargs["ice_stun_address"], kwargs["ice_stun_port"] = account.ice.stun_servers[0]
         RTPTransport.__init__(self, **kwargs)
 
 

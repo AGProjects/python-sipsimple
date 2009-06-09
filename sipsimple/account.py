@@ -57,6 +57,7 @@ class ENUMSettings(SettingsGroup):
 class ICESettings(SettingsGroup):
     enabled = Setting(type=bool, default=False)
     use_stun = Setting(type=bool, default=True)
+    stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
 
 
 class MessageSummarySettings(SettingsGroup):
@@ -119,7 +120,6 @@ class Account(SettingsObject):
     display_name = Setting(type=str, default=None, nillable=True)
 
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
-    stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
 
     audio = AudioSettings
@@ -388,7 +388,6 @@ class BonjourAccount(SettingsObject):
     enabled = Setting(type=bool, default=True)
     display_name = Setting(type=str, default=None, nillable=True)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
-    stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
 
     audio = AudioSettings
     ringtone = RingtoneSettings

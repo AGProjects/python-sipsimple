@@ -971,8 +971,8 @@ def start(options, console):
             engine.set_sound_devices(playback_device=settings.audio.output_device, recording_device=settings.audio.input_device)
             print "Using audio input device: %s" % engine.current_recording_device
         print "Using audio output device: %s" % engine.current_playback_device
-        if hasattr(options.account, "stun_servers") and len(options.account.stun_servers) > 0:
-            engine.detect_nat_type(*options.account.stun_servers[0])
+        if hasattr(options.account, "ice") and len(options.account.ice.stun_servers) > 0:
+            engine.detect_nat_type(*options.account.ice.stun_servers[0])
         if options.trace_notifications:
             logstate.EngineTracer().start()
         if isinstance(account, BonjourAccount):
@@ -1182,10 +1182,10 @@ def update_settings(options):
     if options.trace_msrp is not None:
         settings.logging.trace_msrp = options.trace_msrp
     if account.id != "bonjour@local":
-        if account.stun_servers:
-            account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
+        if account.ice.stun_servers:
+            account.ice.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.ice.stun_servers)
         else:
-            account.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
+            account.ice.stun_servers = lookup_service_for_sip_uri(SIPURI(host=account.id.domain), "stun")
     if options.no_relay:
         account.msrp.use_relay_for_inbound = False
         account.msrp.use_relay_for_outbound = False
