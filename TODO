@@ -8,6 +8,7 @@ Sessions
 Middleware
 ----------
 
+- Send a re-INVITE with updated offer when ICE negotation is successful [RK]
 - Configuration changes listener [LS]
 - FileTransfer high level class [LS]
 - Desktop sharing high level class [AK]
