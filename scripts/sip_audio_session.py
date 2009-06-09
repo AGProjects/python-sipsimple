@@ -432,8 +432,8 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
         stun_dns = None
         if isinstance(account, BonjourAccount):
             # lookup STUN servers, as we don't support doing this asynchronously yet
-            if account.stun_servers:
-                account.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.stun_servers)
+            if account.ice.stun_servers:
+                account.ice.stun_servers = tuple((gethostbyname(stun_host), stun_port) for stun_host, stun_port in account.ice.stun_servers)
             # print listening addresses
             for transport in settings.sip.transports:
                 local_uri = SIPURI(user=account.contact.username, host=account.contact.domain, port=getattr(e, "local_%s_port" % transport), parameters={"transport": transport} if transport != "udp" else None)
