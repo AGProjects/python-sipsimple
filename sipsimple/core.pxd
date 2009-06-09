@@ -28,6 +28,18 @@ cdef extern from "Python.h":
     object PyString_FromStringAndSize(char *v, int len)
     char* PyString_AsString(object string) except NULL
 
+cdef extern from "stringobject.h":
+    ctypedef class __builtin__.str [object PyStringObject]:
+        pass
+
+cdef extern from "dictobject.h":
+    ctypedef class __builtin__.dict [object PyDictObject]:
+        pass
+
+cdef extern from "listobject.h":
+    ctypedef class __builtin__.list [object PyListObject]:
+        pass
+
 # PJSIP imports
 
 cdef extern from "pjlib.h":

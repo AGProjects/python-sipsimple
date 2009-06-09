@@ -11,7 +11,7 @@ import os
 # classes
 
 cdef class PJSIPUA:
-    cdef list _threads
+    cdef object _threads
     cdef object _event_handler
     cdef PJLIB _pjlib
     cdef PJCachingPool _caching_pool
@@ -29,7 +29,7 @@ cdef class PJSIPUA:
     cdef int _trace_sip
     cdef int _ignore_missing_ack
     cdef PJSTR _user_agent
-    cdef dict _events
+    cdef object _events
     cdef object _sent_messages
     cdef pj_time_val _max_timeout
     cdef int _rtp_port_start

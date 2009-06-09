@@ -180,7 +180,7 @@ cdef object _pj_status_to_def(int status):
 
 cdef dict _pjsip_param_to_dict(pjsip_param *param_list):
     cdef pjsip_param *param
-    cdef dict retval = {}
+    cdef dict retval = dict()
     param = <pjsip_param *> (<pj_list *> param_list).next
     while param != param_list:
         if param.value.slen == 0:
@@ -207,7 +207,7 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
     cdef pjsip_retry_after_hdr *retry_after_hdr
     cdef pjsip_via_hdr *via_hdr
     cdef object hdr_data, hdr_multi
-    cdef dict headers = {}
+    cdef object headers = {}
     info_dict["headers"] = headers
     hdr = <pjsip_hdr *> (<pj_list *> &rdata.msg_info.msg.hdr).next
     while hdr != &rdata.msg_info.msg.hdr:

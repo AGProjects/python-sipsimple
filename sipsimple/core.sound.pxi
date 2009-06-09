@@ -22,10 +22,10 @@ cdef class PJMEDIAConferenceBridge:
         self._pjsip_endpoint = pjsip_endpoint._obj
         self._pjmedia_endpoint = pjmedia_endpoint
         self._do_playback_dtmf = playback_dtmf
-        self._conv_in_slots = [0]
-        self._all_out_slots = [0]
-        self._pb_in_slots = []
-        self._conv_out_slots = []
+        self._conv_in_slots = list([0])
+        self._all_out_slots = list([0])
+        self._pb_in_slots = list()
+        self._conv_out_slots = list()
         status = pjmedia_conf_create(pjsip_endpoint._pool, 254, pjmedia_endpoint._sample_rate * 1000, 1,
                                      pjmedia_endpoint._sample_rate * 20, 16, PJMEDIA_CONF_NO_DEVICE, &self._obj)
         if status != 0:

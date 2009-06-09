@@ -244,8 +244,8 @@ cdef class PJMEDIAEndpoint:
         cdef unsigned int prio[PJMEDIA_CODEC_MGR_MAX_CODECS]
         cdef int i
         cdef object codec
-        cdef list codecs = []
-        cdef list retval = []
+        cdef object codecs = []
+        cdef object retval = []
         cdef int status
         status = pjmedia_codec_mgr_enum_codecs(pjmedia_endpt_get_codec_mgr(self._obj), &count, info, prio)
         if status != 0:
@@ -292,8 +292,8 @@ cdef class PJMEDIAEndpoint:
 
 # globals
 
-cdef dict _tls_protocol_mapping = {None: PJSIP_SSL_UNSPECIFIED_METHOD,
-                                   "TLSv1": PJSIP_TLSV1_METHOD,
-                                   "SSLv2": PJSIP_SSLV2_METHOD,
-                                   "SSLv3": PJSIP_SSLV3_METHOD,
-                                   "SSLv23": PJSIP_SSLV23_METHOD}
+cdef object _tls_protocol_mapping = {None: PJSIP_SSL_UNSPECIFIED_METHOD,
+                                     "TLSv1": PJSIP_TLSV1_METHOD,
+                                     "SSLv2": PJSIP_SSLV2_METHOD,
+                                     "SSLv3": PJSIP_SSLV3_METHOD,
+                                     "SSLv23": PJSIP_SSLV23_METHOD}

@@ -82,9 +82,9 @@ cdef int _event_queue_append(_core_event *event):
 
 cdef list _get_clear_event_queue():
     global _re_log, _event_queue_head, _event_queue_tail, _event_queue_lock
-    cdef list events = []
+    cdef object events = []
     cdef _core_event *event, *event_free
-    cdef tuple event_tup
+    cdef object event_tup
     cdef object event_params, log_msg, log_match
     cdef int locked = 0
     if _event_queue_lock != NULL:
