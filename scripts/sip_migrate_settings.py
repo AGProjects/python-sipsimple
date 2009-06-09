@@ -72,7 +72,7 @@ class AudioConfig(ConfigSection):
 
 class AccountConfig(ConfigSection):
     _datatypes = {"sip_address": str, "password": str, "display_name": str, "outbound_proxy": str,
-                  "use_ice": datatypes.Boolean, "use_stun_for_ice": datatypes.Boolean, "use_stun_for_register": datatypes.Boolean,
+                  "use_ice": datatypes.Boolean, "use_stun_for_ice": datatypes.Boolean,
                   "stun_servers": datatypes.StringList, "xcap_root": str, "use_presence_agent": datatypes.Boolean,
                   "sip_register_interval": int, "sip_publish_interval": int, "sip_subscribe_interval": int,
                   "subscribe_rls_services": datatypes.Boolean, "publish_dialog_state": datatypes.Boolean,
@@ -86,7 +86,6 @@ class AccountConfig(ConfigSection):
                     outbound_proxy='outbound_proxy',
                     use_ice='ice.enabled',
                     use_stun_for_ice='ice.use_stun',
-                    use_stun_for_register='registration.use_stun',
                     stun_servers='ice.stun_servers',
                     use_presence_agent='presence.enabled',
                     xcap_root='xcap_root',
@@ -111,7 +110,6 @@ class AccountConfig(ConfigSection):
     outbound_proxy = None
     use_ice = None
     use_stun_for_ice = None
-    use_stun_for_register = None
     stun_servers = None
     use_presence_agent = None
     xcap_root = None

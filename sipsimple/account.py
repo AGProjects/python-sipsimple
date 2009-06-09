@@ -83,7 +83,6 @@ class PresenceSettings(SettingsGroup):
 class RegistrationSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     interval = Setting(type=NonNegativeInteger, default=600)
-    use_stun = Setting(type=bool, default=False)
 
 
 class RingtoneSettings(SettingsGroup):
