@@ -652,6 +652,10 @@ class Session(NotificationHandler):
                     self._change_state("PROPOSING")
                     self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=["chat"], proposer="local"))
                     break
+                elif command == "update_offer":
+                    if self.audio_transport is None:
+                        continue
+                    local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
             if local_sdp is not None:
                 self._inv.set_offered_local_sdp(local_sdp)
                 self._inv.send_reinvite()
@@ -740,6 +744,7 @@ class Session(NotificationHandler):
         else:
             self.audio_transport = AudioTransport(rtp_transport, remote_sdp, sdp_index, codecs=(list(self.account.audio.codec_list) if self.account.audio.codec_list else None))
         self.session_manager.audio_transport_mapping[self.audio_transport] = self
+        self.session_manager.rtp_transport_mapping[self.audio_transport.transport] = self
         return self.audio_transport.get_local_media(remote_sdp is None)
 
     def _update_media(self, local_sdp, remote_sdp):
@@ -806,6 +811,7 @@ class Session(NotificationHandler):
             if self._audio_rec is not None:
                 self._stop_recording_audio()
         del self.session_manager.audio_transport_mapping[self.audio_transport]
+        del self.session_manager.rtp_transport_mapping[self.audio_transport.transport]
         self.audio_transport = None
         had_audio = self.has_audio
         self.has_audio = False
@@ -853,7 +859,10 @@ class Session(NotificationHandler):
                         direction = ("inactive" if on_hold else "recvonly")
                 else:
                     direction = None
+                print self.audio_transport.get_local_media(is_offer, direction).attributes
                 local_sdp.media[self._audio_sdp_index] = self.audio_transport.get_local_media(is_offer, direction)
+                if self.audio_transport.transport.use_ice:
+                    local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
         if self._chat_sdp_index != -1 and self.chat_transport is None:
             local_sdp.media[self._chat_sdp_index].port = 0
         return local_sdp
@@ -879,6 +888,7 @@ class SessionManager(NotificationHandler):
         """Creates a new SessionManager object."""
         self.inv_mapping = {}
         self.audio_transport_mapping = {}
+        self.rtp_transport_mapping = {}
         self.msrp_chat_mapping = {}
         self.notification_center = NotificationCenter()
         self._hold_tone = PersistentTones([(300, 0, 100), (0,0,100), (300, 0, 100)], 30)
@@ -886,6 +896,7 @@ class SessionManager(NotificationHandler):
         self.notification_center.add_observer(self, "SIPInvitationGotSDPUpdate")
         self.notification_center.add_observer(self, "RTPAudioStreamGotDTMF")
         self.notification_center.add_observer(self, "RTPAudioTransportDidNotGetRTP")
+        self.notification_center.add_observer(self, "RTPTransportCompletedICENegotiation")
         self.notification_center.add_observer(self, "MSRPChatGotMessage")
         self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
         self.notification_center.add_observer(self, "MSRPChatDidNotDeliverMessage")
@@ -1100,6 +1111,15 @@ class SessionManager(NotificationHandler):
         session = self.audio_transport_mapping.get(audio_transport, None)
         if session is not None:
             self.notification_center.post_notification("SIPSessionGotNoAudio", session, data)
+
+    def _NH_RTPTransportCompletedICENegotiation(self, rtp_transport, data):
+        session = self.rtp_transport_mapping.get(rtp_transport, None)
+        if session is not None and data.succeeded and session.direction == "outgoing":
+            local_sdp = session._inv.get_active_local_sdp()
+            if rtp_transport.local_rtp_address != local_sdp.connection.address:
+                session._queue.append("update_offer")
+                if len(session._queue) == 1 and session._inv.state == "CONFIRMED":
+                    session._process_queue()
 
     def _NH_MSRPChatGotMessage(self, msrp_chat, data):
         session = self.msrp_chat_mapping.get(msrp_chat, None)
