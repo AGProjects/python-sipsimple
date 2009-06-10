@@ -39,6 +39,8 @@ cdef extern from "pjlib.h":
         PJ_ERRNO_START_SYS
         PJ_EBUG
         PJ_ETOOMANY
+    enum:
+        PJ_MAX_OBJ_NAME
 
     # init / shutdown
     int pj_init()
@@ -333,9 +335,13 @@ cdef extern from "pjmedia.h":
     char *pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state)
 
     # transport
+    enum pjmedia_transport_type:
+        PJMEDIA_TRANSPORT_TYPE_ICE
     struct pjmedia_sock_info:
         pj_sockaddr rtp_addr_name
-    struct pjmedia_transport
+    struct pjmedia_transport:
+        char *name
+        pjmedia_transport_type type
     enum pjmedia_transport_type:
         PJMEDIA_TRANSPORT_TYPE_SRTP
     struct pjmedia_transport_specific_info:

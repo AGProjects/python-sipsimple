@@ -17,6 +17,7 @@ cdef class RTPTransport:
     cdef readonly object use_ice
     cdef readonly object ice_stun_address
     cdef readonly object ice_stun_port
+    cdef int _ice_active
 
     def __cinit__(self, *args, **kwargs):
         cdef object pool_name = "RTPTransport_%d" % id(self)
@@ -53,8 +54,16 @@ cdef class RTPTransport:
             pjmedia_transport_media_stop(self._obj)
         if self._obj != NULL:
             pjmedia_transport_close(self._obj)
-            self._wrapped_transport = NULL
+            if self._obj.type == PJMEDIA_TRANSPORT_TYPE_ICE:
+                (<void **> (self._obj.name + 1))[0] = NULL
+            if self._wrapped_transport != NULL:
+                if self._wrapped_transport.type == PJMEDIA_TRANSPORT_TYPE_ICE:
+                    (<void **> (self._obj.name + 1))[0] = NULL
+                self._wrapped_transport = NULL
+            self._obj = NULL
         if self._wrapped_transport != NULL:
+            if self._wrapped_transport.type == PJMEDIA_TRANSPORT_TYPE_ICE:
+                (<void **> (self._obj.name + 1))[0] = NULL
             pjmedia_transport_close(self._wrapped_transport)
         if self._pool != NULL:
             pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
@@ -149,6 +158,11 @@ cdef class RTPTransport:
                     return bool(srtp_info.active)
             return False
 
+    property ice_active:
+
+        def __get__(self):
+            return bool(self._ice_active)
+
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
         cdef int status
         if sdp_index < 0:
@@ -202,7 +216,7 @@ cdef class RTPTransport:
         self.state = "ESTABLISHED"
 
     def set_INIT(self):
-        global _RTPTransport_stun_list, _ice_cb
+        global _ice_cb
         cdef pj_str_t local_ip
         cdef pj_str_t *local_ip_p = &local_ip
         cdef pjmedia_srtp_setting srtp_setting
@@ -240,6 +254,7 @@ cdef class RTPTransport:
                 status = pjmedia_ice_create2(ua._pjmedia_endpoint._obj, NULL, 2, &ice_cfg, &_ice_cb, 0, &self._obj)
                 if status != 0:
                     raise PJSIPError("Could not create ICE media transport", status)
+                (<void **> (self._obj.name + 1))[0] = <void *> self
             else:
                 status = PJ_EBUG
                 for i in xrange(ua._rtp_port_index, ua._rtp_port_index + ua._rtp_port_stop - ua._rtp_port_start, 2):
@@ -269,7 +284,6 @@ cdef class RTPTransport:
                 _add_event("RTPTransportDidInitialize", dict(obj=self))
             else:
                 self.state = "WAIT_STUN"
-                _RTPTransport_stun_list.append(self)
         else:
             raise SIPCoreError('set_INIT can only be called in the "NULL", "LOCAL" and "ESTABLISHED" states, ' +
                                'current state is "%s"' % self.state)
@@ -592,7 +606,7 @@ cdef dict _pjmedia_rtcp_stream_stat_to_dict(pjmedia_rtcp_stream_stat *stream_sta
 # callback functions
 
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil:
-    global _RTPTransport_stun_list
+    cdef void *rtp_transport_void = NULL
     cdef RTPTransport rtp_transport
     cdef PJSIPUA ua
     try:
@@ -600,11 +614,18 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
     except:
         return
     try:
-        if op != PJ_ICE_STRANS_OP_INIT:
-            return
-        for rtp_transport in _RTPTransport_stun_list:
-            if ((rtp_transport._wrapped_transport == NULL and rtp_transport._obj == tp) or
-                (rtp_transport._wrapped_transport != NULL and rtp_transport._wrapped_transport == tp)):
+        if tp != NULL:
+            rtp_transport_void = (<void **> (tp.name + 1))[0]
+        if rtp_transport_void != NULL:
+            rtp_transport = <object> rtp_transport_void
+            if op == PJ_ICE_STRANS_OP_NEGOTIATION:
+                if status == 0:
+                    rtp_transport._ice_active = 1
+                    _add_event("RTPTransportCompletedICENegotiation", dict(obj=rtp_transport, succeeded=True))
+                else:
+                    _add_event("RTPTransportCompletedICENegotiation", dict(obj=rtp_transport, succeeded=False,
+                                                                           error=_pj_status_to_str(status)))
+            elif op == PJ_ICE_STRANS_OP_INIT:
                 if status == 0:
                     rtp_transport.state = "INIT"
                 else:
@@ -613,8 +634,6 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
                     _add_event("RTPTransportDidInitialize", dict(obj=rtp_transport))
                 else:
                     _add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
-                _RTPTransport_stun_list.remove(rtp_transport)
-                return
     except:
         ua._handle_exception(1)
 
@@ -666,4 +685,3 @@ cdef void _AudioTransport_cb_check_rtp(pj_timer_heap_t *timer_heap, pj_timer_ent
 
 cdef pjmedia_ice_cb _ice_cb
 _ice_cb.on_ice_complete = _RTPTransport_cb_ice_complete
-_RTPTransport_stun_list = []
