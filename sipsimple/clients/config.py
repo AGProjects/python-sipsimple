@@ -17,7 +17,6 @@ from msrplib.connect import MSRPRelaySettings
 from sipsimple.core import SIPURI, Route
 from sipsimple.clients.dns_lookup import lookup_srv
 from sipsimple.clients import IPAddressOrHostname, format_cmdline_uri
-from sipsimple.clients.cpim import SIPAddress
 
 process._system_config_directory = os.path.expanduser("~/.sipclient")
 config_ini = os.path.join(process._system_config_directory, 'config.ini')
