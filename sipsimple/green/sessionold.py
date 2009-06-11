@@ -13,7 +13,7 @@ from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from sipsimple.core import SDPAttribute, SDPMedia, SDPConnection, SDPSession
 from sipsimple.green.core import Error
-from sipsimple.clients.cpim import MessageCPIM
+from sipsimple.cpim import MessageCPIM
 
 
 MSRPSessionErrors = (Error, DNSLookupError, MSRPError, ConnectError, BindError, ConnectionClosed, GNUTLSError)

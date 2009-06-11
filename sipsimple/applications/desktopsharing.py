@@ -12,7 +12,7 @@ from gnutls.errors import GNUTLSError
 
 from sipsimple.core import SDPSession, SDPConnection, SDPAttribute, SDPMedia
 from sipsimple.green.sessionold import IncomingMSRPHandler
-from sipsimple.clients.cpim import MessageCPIMParser
+from sipsimple.cpim import MessageCPIMParser
 
 AUTO_ANSWER_ALL  = 'all' # Just an object to check if we accept all 
                          # incoming desktop requests.

@@ -16,7 +16,7 @@ from sipsimple.core import SDPAttribute, SDPMedia
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.msrp import LoggerSingleton, get_X509Credentials
-from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
+from sipsimple.cpim import MessageCPIM, MessageCPIMParser
 from sipsimple.clients.sdputil import FileSelector
 
 

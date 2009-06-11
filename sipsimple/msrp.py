@@ -46,7 +46,7 @@ from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.trafficlog import Logger
 from sipsimple.green.sessionold import make_SDPMedia
-from sipsimple.clients.cpim import MessageCPIM, MessageCPIMParser
+from sipsimple.cpim import MessageCPIM, MessageCPIMParser
 from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.util import makedirs, SilenceableWaveFile
