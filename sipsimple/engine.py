@@ -111,7 +111,7 @@ class Engine(Thread):
             tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
             tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
             tls_timeout=settings.tls.timeout,
-            ec_tail_length=settings.audio.echo_delay,
+            ec_tail_length=settings.audio.tail_length,
             user_agent=settings.user_agent,
             log_level=settings.logging.pjsip_level if settings.logging.trace_pjsip else 0,
             sip_trace=settings.logging.trace_sip,

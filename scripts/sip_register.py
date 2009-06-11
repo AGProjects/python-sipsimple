@@ -141,7 +141,7 @@ class RegistrationApplication(object):
             tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
             tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
             tls_timeout=settings.tls.timeout,
-            ec_tail_length=settings.audio.echo_delay,
+            ec_tail_length=settings.audio.tail_length,
             user_agent=settings.user_agent,
             sample_rate=settings.audio.sample_rate,
             playback_dtmf=settings.audio.playback_dtmf,

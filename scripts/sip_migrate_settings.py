@@ -63,7 +63,7 @@ class AudioConfig(ConfigSection):
     _datatypes = {"sample_rate": int, "echo_cancellation_tail_length": int, "disable_sound": datatypes.Boolean}
     # relative to SIPSimpleSettings
     _mapping = dict(sample_rate='audio.sample_rate',
-                    echo_cancellation_tail_length='audio.echo_delay',
+                    echo_cancellation_tail_length='audio.tail_length',
                     disable_sound=None) # cannot be used as it will map to the *_device settings
 
     sample_rate = None
