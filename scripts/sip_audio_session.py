@@ -79,6 +79,7 @@ def print_control_keys():
     print "  t: toggle SIP trace on the console"
     print "  j: toggle PJSIP trace on the console"
     print "  n: toggle notifications trace on the console"
+    print "  p: toggle printing RTP statistics on the console"
     print "  <> : adjust echo cancellation"
     print "  SPACE: hold/on-hold"
     print "  Ctrl-d: quit the program"
@@ -93,6 +94,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
     routes = None
     is_registered = False
     got_stun = stun_dns is None
+    stats_timer = None
     try:
         if got_stun and account.ice.stun_servers:
             e.detect_nat_type(*account.ice.stun_servers[0])
@@ -274,6 +276,16 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                                     sess.hold()
                             except RuntimeError:
                                 pass
+                        elif data.lower() == "p":
+                            if stats_timer is None:
+                                print "Output of RTP statistics on console is now activated"
+                                stats_timer = Timer(0, lambda: queue.put(("print_stats", None)))
+                                stats_timer.start()
+                            else:
+                                print "Output of RTP statistics on console is now dectivated"
+                                if stats_timer.isAlive():
+                                    stats_timer.cancel()
+                                stats_timer = None
                 if data in ",<":
                     if e.ec_tail_length > 0:
                         e.set_sound_devices(tail_length=max(0, e.ec_tail_length - 10))
@@ -302,6 +314,21 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     sess = Session(account)
                     sess.connect(target_uri, routes, audio=True)
                     print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.from_uri, sess.to_uri, routes[0].transport, routes[0].address, routes[0].port)
+            if command == "print_stats":
+                if sess is not None and sess.audio_transport is not None and sess.audio_transport.is_started:
+                    stats = sess.audio_transport.statistics
+                    print "RTP statistics:        min       avg       max     count"
+                    print "RTT (usec)        : %(min)9d %(avg)9d %(max)9d %(count)6d" % stats["rtt"]
+                    for dir_name, dir_stats in [("RECEIVED", stats["rx"]), ("SENT", stats["tx"])]:
+                        print "%s %d packets in %d bytes" % (dir_name, dir_stats["bytes"], dir_stats["packets"])
+                        print "%sursty loss detected, %srandom loss detected" % ("B" if dir_stats["burst_loss"] else "No b", "" if dir_stats["random_loss"] else "no ")
+                        print "Packets:         discarded      lost duplicate reordered"
+                        print "                 %(packets_discarded)9d %(packets_lost)9d %(packets_duplicate)9d %(packets_reordered)9d" % dir_stats
+                        print "                       min       avg       max     count"
+                        print "loss period (usec): %(min)9d %(avg)9d %(max)9d %(count)6d" % dir_stats["loss_period"]
+                        print "jitter (usec)     : %(min)9d %(avg)9d %(max)9d %(count)6d" % dir_stats["jitter"]
+                    stats_timer = Timer(10, lambda: queue.put(("print_stats", None)))
+                    stats_timer.start()
             if command == "eof":
                 if target_uri is None and sess is not None and sess.state != "TERMINATING":
                     sess.end()
