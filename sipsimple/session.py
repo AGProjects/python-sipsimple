@@ -261,7 +261,7 @@ class Session(NotificationHandler):
             if self.state != "CALLING":
                 return
             sdp_index = 0
-            local_ip = self.settings.local_ip.normalized
+            local_ip = self.settings.rtp.local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=self.settings.user_agent)
             if audio_rtp:
                 self._audio_sdp_index = sdp_index
@@ -323,7 +323,7 @@ class Session(NotificationHandler):
             if self.state != "ACCEPTING":
                 return
             remote_sdp = self._inv.get_offered_remote_sdp()
-            local_ip = self.settings.local_ip.normalized
+            local_ip = self.settings.rtp.local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time, name=self.settings.user_agent)
             sdp_media_todo = range(len(remote_sdp.media))
             if audio_rtp:
