@@ -859,7 +859,6 @@ class Session(NotificationHandler):
                         direction = ("inactive" if on_hold else "recvonly")
                 else:
                     direction = None
-                print self.audio_transport.get_local_media(is_offer, direction).attributes
                 local_sdp.media[self._audio_sdp_index] = self.audio_transport.get_local_media(is_offer, direction)
                 if self.audio_transport.transport.use_ice:
                     local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
