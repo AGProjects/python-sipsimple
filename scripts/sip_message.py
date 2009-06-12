@@ -16,7 +16,7 @@ from zope.interface import implements
 from application.notification import IObserver
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPURI, SIPCoreError, Credentials
+from sipsimple.core import Credentials, SIPCoreError, SIPURI, ToHeader
 from sipsimple.primitives import Message
 from sipsimple.session import SessionManager
 from sipsimple.lookup import DNSLookup
@@ -80,7 +80,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                         if sending:
                             command = "send_message"
                 elif event_name == "SIPEngineGotMessage":
-                    print 'Received MESSAGE from "%(from_uri)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
+                    print 'Received MESSAGE from "%(from_header)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
                     print args["body"]
                 elif event_name == "SIPMessageDidSucceed":
                     print "MESSAGE was accepted by remote party."
@@ -93,7 +93,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                 elif event_name == "SIPAccountRegistrationDidSucceed":
                     if not is_registered:
                         route = args['route']
-                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['expires'])
+                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_header'].uri, account.id, route.address, route.port, route.transport, args['expires'])
                         is_registered = True
                 elif event_name == "SIPAccountRegistrationDidFail":
                     if args['registration'] is not None:
@@ -148,7 +148,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                 else:
                     sent = True
                     print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (account.id, target_uri, routes[0].transport, routes[0].address, routes[0].port)
-                    msg = Message(account.uri, target_uri, routes[0], "text/plain", "\n".join(msg_buf), credentials=account.credentials)
+                    msg = Message(account.from_header, ToHeader(target_uri), routes[0], "text/plain", "\n".join(msg_buf), credentials=account.credentials)
                     msg.send()
                     print "Press Ctrl+D to stop the program."
             if command == "quit":
@@ -240,12 +240,12 @@ def do_message(account_id, target_uri, message, trace_sip, trace_pjsip, trace_no
                 # setup routes
                 if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
                     target_uri = "sip:%s" % target_uri
-                target_uri = e.parse_sip_uri(target_uri)
+                target_uri = SIPURI.parse(target_uri)
                 dns.lookup_sip_proxy(target_uri, settings.sip.transports)
         else:
             # setup routes
             if target_uri is not None:
-                target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
+                target_uri = SIPURI.parse(format_cmdline_uri(target_uri, account.id.domain))
                 if account.outbound_proxy is None:
                     dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
                 else:
