@@ -319,7 +319,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                     stats = sess.audio_transport.statistics
                     print "%s RTP statistics: RTT=%d ms, packet loss=%.1f%%, jitter RX/TX=%d/%d ms" % (datetime.now().replace(microsecond=0),
                                                                                                        stats["rtt"]["avg"] / 1000,
-                                                                                                       100.0 * stats["rx"]["packets_lost"] / stats["rx"]["packets"],
+                                                                                                       100.0 * stats["rx"]["packets_lost"] / stats["rx"]["packets"] if stats["rx"]["packets"] else 0,
                                                                                                        stats["rx"]["jitter"]["avg"] / 1000,
                                                                                                        stats["tx"]["jitter"]["avg"] / 1000)
                     stats_timer = Timer(10, lambda: queue.put(("print_stats", None)))
