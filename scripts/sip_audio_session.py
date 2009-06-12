@@ -317,16 +317,11 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
             if command == "print_stats":
                 if sess is not None and sess.audio_transport is not None and sess.audio_transport.is_started:
                     stats = sess.audio_transport.statistics
-                    print "RTP statistics:        min       avg       max     count"
-                    print "RTT (usec)        : %(min)9d %(avg)9d %(max)9d %(count)6d" % stats["rtt"]
-                    for dir_name, dir_stats in [("RECEIVED", stats["rx"]), ("SENT", stats["tx"])]:
-                        print "%s %d packets in %d bytes" % (dir_name, dir_stats["bytes"], dir_stats["packets"])
-                        print "%sursty loss detected, %srandom loss detected" % ("B" if dir_stats["burst_loss"] else "No b", "" if dir_stats["random_loss"] else "no ")
-                        print "Packets:         discarded      lost duplicate reordered"
-                        print "                 %(packets_discarded)9d %(packets_lost)9d %(packets_duplicate)9d %(packets_reordered)9d" % dir_stats
-                        print "                       min       avg       max     count"
-                        print "loss period (usec): %(min)9d %(avg)9d %(max)9d %(count)6d" % dir_stats["loss_period"]
-                        print "jitter (usec)     : %(min)9d %(avg)9d %(max)9d %(count)6d" % dir_stats["jitter"]
+                    print "%s RTP statistics: RTT=%d ms, packet loss=%.1f%%, jitter RX/TX=%d/%d ms" % (datetime.now().replace(microsecond=0),
+                                                                                                       stats["rtt"]["avg"] / 1000,
+                                                                                                       100.0 * stats["rx"]["packets_lost"] / stats["rx"]["packets"],
+                                                                                                       stats["rx"]["jitter"]["avg"] / 1000,
+                                                                                                       stats["tx"]["jitter"]["avg"] / 1000)
                     stats_timer = Timer(10, lambda: queue.put(("print_stats", None)))
                     stats_timer.start()
             if command == "eof":
