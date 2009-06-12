@@ -58,7 +58,7 @@ Notifications
 Audio
 -----
 
-- Put the audio engine in sleep mode when not used to save CPU cycles [RK]
+- Disconnect sound device from conference bridge when idle to save CPU [RK]
 - Revise conference bridge API to support mute and multiple rooms [RK]
   http://sipsimpleclient.com/wiki/AudioFeatures [RK]
 - Comfort noise generator []
