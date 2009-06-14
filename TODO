@@ -65,6 +65,7 @@ Audio
 - zRTP []
 - N810 maemo audio driver [LS]
 - Improve Acoustic Echo Cancellation [TBD]
+- Evaluate AEC from http://www.andreadrian.de/intercom/ [TBD]
 
 
 Instant messaging
