@@ -16,7 +16,7 @@ from sipsimple.core import SDPAttribute, SDPMedia
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.msrp import LoggerSingleton, get_X509Credentials
-from sipsimple.cpim import MessageCPIM, MessageCPIMParser
+from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
 from sipsimple.clients.sdputil import FileSelector
 
 
@@ -42,6 +42,7 @@ class MSRPChat(object):
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
         self.message_queue = deque() # messages stored here until the connection established
         self.session = None
+        self.local_identity = CPIMIdentity(self.account.from_header.uri, self.account.from_header.display_name)
 
     def make_SDPMedia(self, uri_path):
         attributes = []
@@ -59,10 +60,6 @@ class MSRPChat(object):
         else:
             transport = "TCP/MSRP"
         return SDPMedia("message", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
-
-    @property
-    def from_uri(self):
-        return self.account.uri
 
     def get_local_media(self, for_offer=True, on_hold=False):
         if on_hold:
@@ -83,14 +80,14 @@ class MSRPChat(object):
             outgoing = session.direction == 'outgoing'
             if (outgoing and self.account.msrp.use_relay_for_outbound) or (not outgoing and self.account.msrp.use_relay_for_inbound):
                 if self.account.msrp.relay is None:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.credentials.username,
-                                              password=self.account.credentials.password)
+                    relay = MSRPRelaySettings(domain=self.account.from_header.uri.host,
+                                              username=self.account.from_header.uri.user,
+                                              password=self.account.credentials.password if self.account.credentials else '')
                     self.transport = 'tls'
                 else:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.credentials.username,
-                                              password=self.account.credentials.password,
+                    relay = MSRPRelaySettings(domain=self.account.from_header.uri.host,
+                                              username=self.account.from_header.uri.user,
+                                              password=self.account.credentials.password if self.account.credentials else '',
                                               host=self.account.msrp.relay.host,
                                               port=self.account.msrp.relay.port,
                                               use_tls=self.account.msrp.relay.transport=='tls')
@@ -107,7 +104,7 @@ class MSRPChat(object):
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self.make_SDPMedia(full_local_path)
-            self.remote_uri = session.remote_uri
+            self.remote_identity = CPIMIdentity(session.remote_identity.uri, session.remote_identity.display_name)
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
@@ -219,15 +216,15 @@ class MSRPChat(object):
         self.session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return chunk
 
-    def send_message(self, content, content_type='text/plain', to_uri=None, dt=None):
+    def send_message(self, content, content_type='text/plain', remote_identity=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
         queued until MediaStreamDidStart notification.
 
         - content (str) - content of the message;
-        - to_uri (SIPURI) - "To" header of CPIM wrapper;
-          if None, use the default supplied in __init__
-          'to_uri' may only differ from the one supplied in __init__ if the remote
+        - remote_identity (CPIMIdentity) - "To" header of CPIM wrapper;
+          if None, use the default obtained from the session
+          'remote_identity' may only differ from the one obtained from the session if the remote
           party supports private messages. If it does not, MSRPChatError will be raised;
         - content_type (str) - Content-Type of wrapped message;
           (Content-Type of MSRP message is always Message/CPIM in that case)
@@ -241,16 +238,16 @@ class MSRPChat(object):
         Success-Report: yes
         """
         if self.cpim_enabled:
-            if to_uri is None:
-                to_uri = self.remote_uri
-            elif not self.private_messages_allowed and to_uri != self.remote_uri:
+            if remote_identity is None:
+                remote_identity = self.remote_identity
+            elif not self.private_messages_allowed and remote_identity != self.remote_identity:
                 raise MSRPChatError('The remote end does not support private messages')
             if dt is None:
                 dt = datetime.utcnow()
-            msg = MessageCPIM(content, content_type, from_=self.from_uri, to=to_uri, datetime=dt)
+            msg = MessageCPIM(content, content_type, from_=self.local_identity, to=remote_identity, datetime=dt)
             return self._send_raw_message(str(msg), 'message/cpim', failure_report='partial', success_report='yes')
         else:
-            if to_uri is not None and to_uri != self.remote_uri:
+            if remote_identity is not None and remote_identity != self.remote_identity:
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
 
