@@ -24,7 +24,7 @@ from application.process import process, ProcessError
 from application.log import start_syslog
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPURI, SIPCoreError, sip_status_messages
+from sipsimple.core import FromHeader, SIPURI, SIPCoreError, sip_status_messages, ToHeader
 from sipsimple.session import Session, SessionManager
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
@@ -128,7 +128,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                 elif event_name == "SIPAccountRegistrationDidSucceed":
                     if not is_registered:
                         route = args['route']
-                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_uri'], account.id, route.address, route.port, route.transport, args['expires'])
+                        print '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % (datetime.now().replace(microsecond=0), args['contact_header'].uri, account.id, route.address, route.port, route.transport, args['expires'])
                         is_registered = True
                 elif event_name == "SIPAccountRegistrationDidFail":
                     if args['registration'] is not None:
@@ -161,7 +161,7 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                 elif event_name == "SIPSessionNewIncoming":
                     if sess is None:
                         sess = obj
-                        from_whom = SIPURI(obj.from_uri.host, user=obj.from_uri.user, display=obj.from_uri.display, secure=obj.from_uri.secure)
+                        from_whom = FromHeader(SIPURI(obj.from_header.uri.host, user=obj.from_header.uri.user, secure=obj.from_header.uri.secure), display_name=obj.from_header.display_name).body
                         if auto_answer:
                             print 'Incoming audio session from "%s"' % from_whom
                         else:
@@ -312,8 +312,8 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
             if command == "check_call":
                 if target_uri is not None and sess is None and routes is not None and got_stun:
                     sess = Session(account)
-                    sess.connect(target_uri, routes, audio=True)
-                    print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.from_uri, sess.to_uri, routes[0].transport, routes[0].address, routes[0].port)
+                    sess.connect(ToHeader(target_uri), routes, audio=True)
+                    print "Initiating SIP session from %s to %s via %s:%s:%d ..." % (sess.from_header.body, sess.to_header.body, routes[0].transport, routes[0].address, routes[0].port)
             if command == "print_stats":
                 if sess is not None and sess.audio_transport is not None and sess.audio_transport.is_started:
                     stats = sess.audio_transport.statistics
@@ -464,7 +464,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
                 # setup routes
                 if not target_uri.startswith("sip:") and not target_uri.startswith("sips:"):
                     target_uri = "sip:%s" % target_uri
-                target_uri = e.parse_sip_uri(target_uri)
+                target_uri = SIPURI.parse(target_uri)
                 routes_dns.lookup_sip_proxy(target_uri, settings.sip.transports)
         else:
             # lookup STUN servers, as we don't support doing this asynchronously yet
@@ -475,7 +475,7 @@ def do_invite(account_id, config_file, target_uri, disable_sound, trace_sip, tra
                 stun_dns.lookup_service(SIPURI(host=account.id.domain), "stun")
             # setup routes
             if target_uri is not None:
-                target_uri = e.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
+                target_uri = SIPURI.parse(format_cmdline_uri(target_uri, account.id.domain))
                 if account.outbound_proxy is None:
                     routes_dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
                 else:

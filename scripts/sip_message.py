@@ -80,7 +80,8 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                         if sending:
                             command = "send_message"
                 elif event_name == "SIPEngineGotMessage":
-                    print 'Received MESSAGE from "%(from_header)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
+                    args["from"] = args["from_header"].body
+                    print 'Received MESSAGE from "%(from)s", Content-Type: %(content_type)s/%(content_subtype)s' % args
                     print args["body"]
                 elif event_name == "SIPMessageDidSucceed":
                     print "MESSAGE was accepted by remote party."
