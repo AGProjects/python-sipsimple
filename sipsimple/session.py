@@ -15,11 +15,12 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPURI, Invitation
+from sipsimple.core import ContactHeader, Invitation
 from sipsimple.core import SDPSession, SDPMedia, SDPAttribute, SDPConnection
 from sipsimple.core import RTPTransport, AudioTransport
 from sipsimple.core import RecordingWaveFile
 from sipsimple.core import SIPCoreError, PJSIPError
+from sipsimple.cpim import CPIMIdentity
 from sipsimple.msrp import MSRPChat
 from sipsimple.account import AccountManager
 from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile, TimestampedNotificationData, PersistentTones
@@ -170,7 +171,7 @@ class Session(NotificationHandler):
 
     def __getattr__(self, attr):
         if self._inv is not None:
-            if attr in ["from_uri", "to_uri", "local_uri", "remote_uri", "route"]:
+            if attr in ["from_header", "to_header", "local_identity", "remote_identity", "route"]:
                 return getattr(self._inv, attr)
         if self.audio_transport is not None:
             if attr.startswith("audio_"):
@@ -200,7 +201,7 @@ class Session(NotificationHandler):
             return self._audio_rec.file_name
 
     # user interface
-    def connect(self, to_uri, routes, audio=False, chat=False):
+    def connect(self, to_header, routes, audio=False, chat=False):
         """Creates a new SIP session to the callee with the requested stream(s).
            Moves the object from the NULL into the CALLING state."""
         with self._lock:
@@ -209,14 +210,13 @@ class Session(NotificationHandler):
             if not any([audio, chat]):
                 raise ValueError("No media stream requested")
             route = iter(routes).next()
-            contact_uri = SIPURI(user=self.account.contact.username, host=self.account.contact.domain, port=getattr(Engine(), "local_%s_port" % route.transport), parameters={"transport": route.transport} if route.transport != "udp" else None)
-            inv = Invitation(self.account.uri, to_uri, route, self.account.credentials, contact_uri, {"foo": None})
+            inv = Invitation(self.account.from_header, to_header, route, self.account.credentials, ContactHeader(self.account.contact[route.transport]))
             if audio:
                 audio_rtp = AccountRTPTransport(self.account, inv.transport)
             else:
                 audio_rtp = None
             if chat:
-                msrp_chat = MSRPChat(self.account, to_uri, True)
+                msrp_chat = MSRPChat(self.account, CPIMIdentity(to_header.uri, to_header.display_name), True)
             else:
                 msrp_chat = None
             ringtone = self.settings.ringtone.outbound
@@ -274,7 +274,7 @@ class Session(NotificationHandler):
                 sdp_index += 1
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
                 local_sdp.media.append(msrp_chat.local_media)
-            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.offered_local_sdp = local_sdp
             self._inv.send_invite()
         except SIPCoreError, e:
             self._do_fail(e.args[0])
@@ -287,7 +287,7 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state != "INCOMING":
                 raise SessionStateError("This method can only be called while in the INCOMING state")
-            remote_sdp = self._inv.get_offered_remote_sdp()
+            remote_sdp = self._inv.offered_remote_sdp
             for sdp_index, sdp_media in enumerate(remote_sdp.media):
                 if sdp_media.media == "audio":
                     self._audio_sdp_index = sdp_index
@@ -302,7 +302,7 @@ class Session(NotificationHandler):
             if chat:
                 if self._chat_sdp_index == -1:
                     raise ValueError("Use of MSRP chat requested, but MSRP chat was not proposed by remote party")
-                msrp_chat = MSRPChat(self.account, self._inv.remote_uri, False)
+                msrp_chat = MSRPChat(self.account, CPIMIdentity(self._inv.remote_identity.uri, self._inv.remote_identity.display_name), False)
             else:
                 msrp_chat = None
             if not any([audio_rtp, msrp_chat]):
@@ -322,15 +322,13 @@ class Session(NotificationHandler):
         try:
             if self.state != "ACCEPTING":
                 return
-            remote_sdp = self._inv.get_offered_remote_sdp()
+            remote_sdp = self._inv.offered_remote_sdp
             local_ip = self.settings.rtp.local_ip.normalized
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=len(remote_sdp.media)*[None], start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time, name=self.settings.user_agent)
-            sdp_media_todo = range(len(remote_sdp.media))
+            media = len(remote_sdp.media)*[None]
+            sdp_media_todo = range(len(media))
             if audio_rtp:
                 sdp_media_todo.remove(self._audio_sdp_index)
-                local_sdp.media[self._audio_sdp_index] = self._init_audio(audio_rtp, remote_sdp, self._audio_sdp_index)
-                if audio_rtp.use_ice:
-                    local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
+                media[self._audio_sdp_index] = self._init_audio(audio_rtp, remote_sdp, self._audio_sdp_index)
             if msrp_chat:
                 sdp_media_todo.remove(self._chat_sdp_index)
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
@@ -338,7 +336,10 @@ class Session(NotificationHandler):
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
                 local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
-            self._inv.set_offered_local_sdp(local_sdp)
+            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=media, start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time, name=self.settings.user_agent)
+            if audio_rtp and audio_rtp.use_ice:
+                local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
+            self._inv.offered_local_sdp = local_sdp
             self._inv.accept_invite()
         except SIPCoreError, e:
             self._inv.end(500)
@@ -407,14 +408,14 @@ class Session(NotificationHandler):
         with self._lock:
             if self.state != "PROPOSED":
                 raise SessionStateError("This method can only be called while in the PROPOSED state")
-            remote_sdp = self._inv.get_offered_remote_sdp()
+            remote_sdp = self._inv.offered_remote_sdp
             audio_rtp = None
             msrp_chat = None
             for media in remote_sdp.media:
                 if audio and self.audio_transport is None and media.media == "audio" and media.port != 0 and audio_rtp is None:
                     audio_rtp = AccountRTPTransport(self.account, self._inv.transport)
                 elif chat and self.chat_transport is None and media.media == "message" and media.port != 0 and msrp_chat is None:
-                    msrp_chat = MSRPChat(self.account, self._inv.remote_uri, False)
+                    msrp_chat = MSRPChat(self.account, CPIMIdentity(self._inv.remote_identity.uri, self._inv.remote_identity.display_name), False)
             if not any([audio_rtp, msrp_chat]):
                 raise ValueError("None of the streams proposed by the remote party is accepted")
             media_initializer = MediaTransportInitializer(self._accept_proposal_continue, self._accept_proposal_fail, audio_rtp, msrp_chat)
@@ -441,7 +442,7 @@ class Session(NotificationHandler):
         try:
             if self.state != "PROPOSED":
                 return
-            remote_sdp = self._inv.get_offered_remote_sdp()
+            remote_sdp = self._inv.offered_remote_sdp
             local_sdp = self._make_next_sdp(False)
             if len(remote_sdp.media) > len(local_sdp.media):
                 local_sdp.media.extend((len(remote_sdp.media) - len(local_sdp.media))*[None])
@@ -460,7 +461,7 @@ class Session(NotificationHandler):
                 elif local_sdp.media[sdp_index] is None:
                     remote_media = remote_sdp.media[sdp_index]
                     local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
-            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.offered_local_sdp = local_sdp
             self._inv.respond_to_reinvite(200)
             if audio_rtp is not None:
                 self._audio_sdp_index = audio_sdp_index
@@ -531,7 +532,7 @@ class Session(NotificationHandler):
                 raise SessionStateError("Already recording audio to a file")
             if file_name is None:
                 direction = "outgoing" if self._inv.is_outgoing else "incoming"
-                remote = '%s@%s' % (self._inv.remote_uri.user, self._inv.remote_uri.host)
+                remote = '%s@%s' % (self._inv.remote_identity.uri.user, self._inv.remote_identity.uri.host)
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
             recording_path = os.path.join(self.settings.audio.recordings_directory.normalized, self.account.id)
             makedirs(recording_path)
@@ -646,7 +647,7 @@ class Session(NotificationHandler):
                 elif command == "add_chat":
                     if self.chat_transport is not None:
                         continue
-                    self.chat_transport = MSRPChat(self.account, self._inv.remote_uri, True)
+                    self.chat_transport = MSRPChat(self.account, CPIMIdentity(self._inv.remote_identity.uri, self._inv.remote_identity.display_name), True)
                     media_initializer = MediaTransportInitializer(self._add_chat_continue, self._add_chat_fail, None, self.chat_transport)
                     self.proposed_chat = True
                     self._change_state("PROPOSING")
@@ -657,7 +658,7 @@ class Session(NotificationHandler):
                         continue
                     local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
             if local_sdp is not None:
-                self._inv.set_offered_local_sdp(local_sdp)
+                self._inv.offered_local_sdp = local_sdp
                 self._inv.send_reinvite()
                 if not was_on_hold and self.on_hold_by_local:
                     self._check_recording_hold()
@@ -692,7 +693,7 @@ class Session(NotificationHandler):
                 local_sdp.media[audio_sdp_index].attributes.append(SDPAttribute("sendonly", ""))
             if audio_rtp.use_ice:
                 local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
-            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.offered_local_sdp = local_sdp
             self._inv.send_reinvite()
             self._audio_sdp_index = audio_sdp_index
         except SIPCoreError, e:
@@ -725,7 +726,7 @@ class Session(NotificationHandler):
             else:
                 local_sdp.media[chat_sdp_index] = msrp_chat.local_media
             self.session_manager.msrp_chat_mapping[msrp_chat] = self
-            self._inv.set_offered_local_sdp(local_sdp)
+            self._inv.offered_local_sdp = local_sdp
             self._inv.send_reinvite()
             self._chat_sdp_index = chat_sdp_index
         except SIPCoreError, e:
@@ -846,7 +847,7 @@ class Session(NotificationHandler):
 
     def _make_next_sdp(self, is_offer, on_hold=False):
         # This should, in principle, never throw exceptions
-        local_sdp = self._inv.get_active_local_sdp()
+        local_sdp = SDPSession.new(self._inv.active_local_sdp)
         local_sdp.version += 1
         if self._audio_sdp_index != -1:
             if self.audio_transport is None:
@@ -915,16 +916,15 @@ class SessionManager(NotificationHandler):
             if "To" not in data.headers.iterkeys():
                 inv.end(404)
                 return
-            to_uri = data.headers['To'][0]
             account = AccountManager().find_account(data.request_uri)
             if account is None:
                 inv.end(404)
                 return
-            proposed_media = list(set(("chat" if media.media == "message" else media.media) for media in inv.get_offered_remote_sdp().media if media.media in ["audio", "message"] and media.port != 0))
+            proposed_media = list(set(("chat" if media.media == "message" else media.media) for media in inv.offered_remote_sdp.media if media.media in ["audio", "message"] and media.port != 0))
             if len(proposed_media) == 0:
                 inv.end(415)
                 return
-            inv.update_local_contact(account.contact[inv.transport])
+            inv.update_local_contact_header(ContactHeader(account.contact[inv.transport]))
             inv.respond_to_invite_provisionally(180)
             session = Session(account)
             session._inv = inv
@@ -976,7 +976,7 @@ class SessionManager(NotificationHandler):
                                 failure_reason += ": %s" % session._sdpneg_failure_reason
                         else:
                             failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
-                            local_media = [media.media for media in inv.get_active_local_sdp().media]
+                            local_media = [media.media for media in inv.active_local_sdp.media]
                             if "audio" not in local_media:
                                 session._audio_sdp_index = -1
                             if "message" not in local_media:
@@ -989,8 +989,8 @@ class SessionManager(NotificationHandler):
                     if session._queue:
                         session._process_queue()
                 elif data.state == "REINVITED":
-                    current_remote_sdp = inv.get_active_remote_sdp()
-                    proposed_remote_sdp = inv.get_offered_remote_sdp()
+                    current_remote_sdp = inv.active_remote_sdp
+                    proposed_remote_sdp = inv.offered_remote_sdp
 #                    if proposed_remote_sdp.version == current_remote_sdp.version:
 #                        if current_remote_sdp != proposed_remote_sdp:
 #                            inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Same version, but not identical SDP")})
@@ -1034,7 +1034,7 @@ class SessionManager(NotificationHandler):
                             session._change_state("PROPOSED")
                             self.notification_center.post_notification("SIPSessionGotStreamProposal", session, TimestampedNotificationData(streams=[stream for is_added, stream in zip([add_audio, add_chat], ["audio", "chat"]) if is_added], proposer="remote"))
                         else:
-                            inv.set_offered_local_sdp(session._make_next_sdp(False))
+                            inv.offered_local_sdp = session._make_next_sdp(False)
                             inv.respond_to_reinvite(200)
 #                    else:
 #                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
@@ -1114,7 +1114,7 @@ class SessionManager(NotificationHandler):
     def _NH_RTPTransportCompletedICENegotiation(self, rtp_transport, data):
         session = self.rtp_transport_mapping.get(rtp_transport, None)
         if session is not None and data.succeeded and session.direction == "outgoing":
-            local_sdp = session._inv.get_active_local_sdp()
+            local_sdp = session._inv.active_local_sdp
             if rtp_transport.local_rtp_address != local_sdp.connection.address:
                 session._queue.append("update_offer")
                 if len(session._queue) == 1 and session._inv.state == "CONFIRMED":
