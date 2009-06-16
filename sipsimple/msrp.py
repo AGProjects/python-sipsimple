@@ -46,7 +46,7 @@ from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.trafficlog import Logger
 from sipsimple.green.sessionold import make_SDPMedia
-from sipsimple.cpim import MessageCPIM, MessageCPIMParser
+from sipsimple.cpim import MessageCPIM, MessageCPIMParser, CPIMIdentity
 from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.util import makedirs, SilenceableWaveFile
@@ -73,17 +73,17 @@ NULL, INITIALIZING, INITIALIZED, STARTING, STARTED, ENDING, ENDED, ERROR = range
 
 class MSRPChat(object):
 
-    def __init__(self, account, remote_uri, outgoing):
+    def __init__(self, account, remote_identity, outgoing):
         """Initialize MSRPChat instance.
 
         - account (Account)
-        - remote_uri (SIPURI) - what to put in 'To' CPIM header;
+        - remote_identity (CPIMIdentity) - what to put in 'To' CPIM header;
         - outgoing (bool) - True for outgoing connection, False otherwise.
         """
         self.state = NULL
         self.notification_center = NotificationCenter()
-        self.remote_uri = remote_uri
-        self.from_uri = account.uri
+        self.remote_identity = remote_identity
+        self.local_identity = CPIMIdentity(account.from_header.uri, account.from_header.display_name)
 
         settings = SIPSimpleSettings()
         self.accept_types = list(settings.chat.accept_types)
@@ -91,14 +91,14 @@ class MSRPChat(object):
 
         if (outgoing and account.msrp.use_relay_for_outbound) or (not outgoing and account.msrp.use_relay_for_inbound):
             if account.msrp.relay is None:
-                relay = MSRPRelaySettings(domain=account.uri.host,
-                                          username=account.credentials.username,
-                                          password=account.credentials.password)
+                relay = MSRPRelaySettings(domain=account.id.domain,
+                                          username=account.id.username,
+                                          password=account.password)
                 self.transport = 'tls'
             else:
-                relay = MSRPRelaySettings(domain=account.uri.host,
-                                          username=account.credentials.username,
-                                          password=account.credentials.password,
+                relay = MSRPRelaySettings(domain=account.id.domain,
+                                          username=account.id.username,
+                                          password=account.password,
                                           host=account.msrp.relay.host,
                                           port=account.msrp.relay.port,
                                           use_tls=account.msrp.relay.transport=='tls')
@@ -290,15 +290,15 @@ class MSRPChat(object):
         callFromAnyThread(self.msrp.send_chunk, chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return chunk
 
-    def send_message(self, content, content_type='text/plain', to_uri=None, dt=None):
+    def send_message(self, content, content_type='text/plain', remote_identity=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
         queued until MSRPChatDidStart notification.
 
         - content (str) - content of the message;
-        - to_uri (SIPURI) - "To" header of CPIM wrapper;
+        - remote_identity (CPIMIdentity) - "To" header of CPIM wrapper;
           if None, use the default supplied in __init__
-          'to_uri' may only differ from the one supplied in __init__ if the remote
+          'remote_identity' may only differ from the one supplied in __init__ if the remote
           party supports private messages. If it does not, MSRPChatError will be raised;
         - content_type (str) - Content-Type of wrapped message;
           (Content-Type of MSRP message is always Message/CPIM in that case)
@@ -312,16 +312,16 @@ class MSRPChat(object):
         Success-Report: yes
         """
         if self.cpim_enabled:
-            if to_uri is None:
-                to_uri = self.remote_uri
-            elif not self.private_messages_allowed and to_uri != self.remote_uri:
+            if remote_identity is None:
+                remote_identity = self.remote_identity
+            elif not self.private_messages_allowed and remote_identity != self.remote_identity:
                 raise MSRPChatError('The remote end does not support private messages')
             if dt is None:
                 dt = datetime.utcnow()
-            msg = MessageCPIM(content, content_type, from_=self.from_uri, to=to_uri, datetime=dt)
+            msg = MessageCPIM(content, content_type, from_=self.local_identity, to=remote_identity, datetime=dt)
             return self._send_raw_message(str(msg), 'message/cpim', failure_report='partial', success_report='yes')
         else:
-            if to_uri is not None and to_uri != self.remote_uri:
+            if remote_identity is not None and remote_identity != self.remote_identity:
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
 
