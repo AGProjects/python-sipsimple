@@ -14,15 +14,15 @@ cdef class Request:
     # instance attributes
     cdef readonly object state
     cdef PJSTR _method
-    cdef Credentials _credentials
-    cdef SIPURI _from_uri
-    cdef SIPURI _to_uri
-    cdef SIPURI _request_uri
-    cdef SIPURI _contact_uri
-    cdef Route _route
+    cdef readonly FrozenCredentials credentials
+    cdef readonly FrozenFromHeader from_header
+    cdef readonly FrozenToHeader to_header
+    cdef readonly FrozenSIPURI request_uri
+    cdef readonly FrozenContactHeader contact_header
+    cdef readonly FrozenRoute route
     cdef PJSTR _call_id
     cdef readonly int cseq
-    cdef dict _extra_headers
+    cdef readonly frozenlist extra_headers
     cdef PJSTR _content_type
     cdef PJSTR _content_subtype
     cdef PJSTR _body
@@ -42,51 +42,10 @@ cdef class Request:
         def __get__(self):
             return self._method.str
 
-    property credentials:
-
-        def __get__(self):
-            if self._credentials is None:
-                return None
-            else:
-                return self._credentials.copy()
-
-    property from_uri:
-
-        def __get__(self):
-            return self._from_uri.copy()
-
-    property to_uri:
-
-        def __get__(self):
-            return self._to_uri.copy()
-
-    property request_uri:
-
-        def __get__(self):
-            return self._request_uri.copy()
-
-    property contact_uri:
-
-        def __get__(self):
-            if self._contact_uri is None:
-                return None
-            else:
-                return self._contact_uri.copy()
-
-    property route:
-
-        def __get__(self):
-            return self._route.copy()
-
     property call_id:
 
         def __get__(self):
             return self._call_id.str
-
-    property extra_headers:
-
-        def __get__(self):
-            return self._extra_headers.copy()
 
     property content_type:
 
@@ -122,15 +81,15 @@ cdef class Request:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_timer)
         self._timer_active = 0
 
-    def __init__(self, method, SIPURI from_uri, SIPURI to_uri, SIPURI request_uri, Route route,
-                 Credentials credentials=None, SIPURI contact_uri=None, call_id=None, cseq=None,
-                 dict extra_headers=None, content_type=None, body=None):
+    def __init__(self, method, BaseIdentityHeader from_header not None, BaseIdentityHeader to_header not None, BaseSIPURI request_uri not None,
+                 BaseRoute route not None, BaseCredentials credentials=None, BaseContactHeader contact_header=None, call_id=None, cseq=None,
+                 object extra_headers=None, content_type=None, body=None):
         cdef pjsip_method method_pj
-        cdef PJSTR from_uri_str
-        cdef PJSTR to_uri_str
+        cdef PJSTR from_header_str
+        cdef PJSTR to_header_str
         cdef PJSTR request_uri_str
-        cdef PJSTR contact_uri_str
-        cdef pj_str_t *contact_uri_pj = NULL
+        cdef PJSTR contact_header_str
+        cdef pj_str_t *contact_header_pj = NULL
         cdef pj_str_t *call_id_pj = NULL
         cdef object content_type_spl
         cdef pjsip_hdr *hdr
@@ -140,19 +99,16 @@ cdef class Request:
         cdef PJSIPUA ua = _get_ua()
         if self._tsx != NULL or self.state != "INIT":
             raise SIPCoreError("Request.__init__() was already called")
-        if from_uri is None:
-            raise ValueError("from_uri argument may not be None")
-        if to_uri is None:
-            raise ValueError("to_uri argument may not be None")
-        if route is None:
-            raise ValueError("route argument may not be None")
         if cseq is not None and cseq < 0:
             raise ValueError("cseq argument cannot be negative")
         if extra_headers is not None:
-            if "Route" in extra_headers.iterkeys():
+            header_names = set([header.name for header in extra_headers])
+            if "Route" in header_names:
                 raise ValueError("Route should be specified with route argument, not extra_headers")
-            if "Content-Type" in extra_headers.iterkeys():
+            if "Content-Type" in header_names:
                 raise ValueError("Content-Type should be specified with content_type argument, not extra_headers")
+        else:
+            header_names = ()
         if content_type is not None and body is None:
             raise ValueError("Cannot specify a content_type without a body")
         if content_type is None and body is not None:
@@ -160,18 +116,18 @@ cdef class Request:
         self._method = PJSTR(method)
         pjsip_method_init_np(&method_pj, &self._method.pj_str)
         if credentials is not None:
-            self._credentials = credentials.copy()
-        self._from_uri = from_uri.copy()
-        from_uri_str = PJSTR(from_uri._as_str(0))
-        self._to_uri = to_uri.copy()
-        to_uri_str = PJSTR(to_uri._as_str(0))
-        self._request_uri = request_uri.copy()
-        request_uri_str = PJSTR(request_uri._as_str(1))
-        self._route = route.copy()
-        if contact_uri is not None:
-            self._contact_uri = contact_uri.copy()
-            contact_uri_str = PJSTR(contact_uri._as_str(0))
-            contact_uri_pj = &contact_uri_str.pj_str
+            self.credentials = FrozenCredentials.new(credentials)
+        self.from_header = FrozenFromHeader.new(from_header)
+        from_header_str = PJSTR(from_header.body)
+        self.to_header = FrozenToHeader.new(to_header)
+        to_header_str = PJSTR(to_header.body)
+        self.request_uri = FrozenSIPURI.new(request_uri)
+        request_uri_str = PJSTR(str(request_uri))
+        self.route = FrozenRoute.new(route)
+        if contact_header is not None:
+            self.contact_header = FrozenContactHeader.new(contact_header)
+            contact_header_str = PJSTR(contact_header.body)
+            contact_header_pj = &contact_header_str.pj_str
         if call_id is not None:
             self._call_id = PJSTR(call_id)
             call_id_pj = &self._call_id.pj_str
@@ -180,16 +136,16 @@ cdef class Request:
         else:
             self.cseq = cseq
         if extra_headers is None:
-            self._extra_headers = {}
+            self.extra_headers = frozenlist()
         else:
-            self._extra_headers = extra_headers.copy()
+            self.extra_headers = frozenlist([header.frozen_type.new(header) for header in extra_headers])
         if body is not None:
             content_type_spl = content_type.split("/", 1)
             self._content_type = PJSTR(content_type_spl[0])
             self._content_subtype = PJSTR(content_type_spl[1])
             self._body = PJSTR(body)
         status = pjsip_endpt_create_request(ua._pjsip_endpoint._obj, &method_pj, &request_uri_str.pj_str,
-                                            &from_uri_str.pj_str, &to_uri_str.pj_str, contact_uri_pj,
+                                            &from_header_str.pj_str, &to_header_str.pj_str, contact_header_pj,
                                             call_id_pj, self.cseq, NULL, &self._tdata)
         if status != 0:
             raise PJSIPError("Could not create request", status)
@@ -198,7 +154,7 @@ cdef class Request:
                                                          &self._content_subtype.pj_str, &self._body.pj_str)
         hdr = <pjsip_hdr *> (<pj_list *> &self._tdata.msg.hdr).next
         while hdr != &self._tdata.msg.hdr:
-            if _pj_str_to_str(hdr.name) in self._extra_headers.iterkeys():
+            if _pj_str_to_str(hdr.name) in header_names:
                 raise ValueError("Cannot override %s header value in extra_headers" % _pj_str_to_str(hdr.name))
             if hdr.type == PJSIP_H_CALL_ID:
                 cid_hdr = <pjsip_cid_hdr *> hdr
@@ -207,13 +163,13 @@ cdef class Request:
                 cseq_hdr = <pjsip_cseq_hdr *> hdr
                 self.cseq = cseq_hdr.cseq
             hdr = <pjsip_hdr *> (<pj_list *> hdr).next
-        pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route._route_hdr)
-        _add_headers_to_tdata(self._tdata, self._extra_headers)
-        if self._credentials is not None:
+        pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> self.route.get_route_header())
+        _add_headers_to_tdata(self._tdata, self.extra_headers)
+        if self.credentials is not None:
             status = pjsip_auth_clt_init(&self._auth, ua._pjsip_endpoint._obj, self._tdata.pool, 0)
             if status != 0:
                 raise PJSIPError("Could not init authentication credentials", status)
-            status = pjsip_auth_clt_set_credentials(&self._auth, 1, &self._credentials._obj)
+            status = pjsip_auth_clt_set_credentials(&self._auth, 1, self.credentials.get_cred_info())
             if status != 0:
                 raise PJSIPError("Could not set authentication credentials", status)
             self._need_auth = 1
@@ -344,17 +300,20 @@ cdef class Request:
                     _rdata_info_to_dict(rdata, event_dict)
                 if self._tsx.status_code / 100 == 2:
                     if rdata != NULL:
-                        if "Expires" in event_dict["headers"].iterkeys():
+                        if "Expires" in event_dict["headers"]:
                             expires = event_dict["headers"]["Expires"]
                         else:
-                            for contact_uri, contact_params in event_dict["headers"].get("Contact", []):
-                                if contact_uri == self._contact_uri and "expires" in contact_params.iterkeys():
-                                    expires = contact_params["expires"]
-                        if expires == -1 and "Expires" in self._extra_headers.iterkeys():
-                            try:
-                                expires = int(self._extra_headers["Expires"])
-                            except ValueError:
-                                expires = 0
+                            for contact_header in event_dict["headers"].get("Contact", []):
+                                if contact_header.uri == self.contact_header.uri and contact_header.expires is not None:
+                                    expires = contact_header.expires
+                        if expires == -1:
+                            for header in self.extra_headers:
+                                if header.name == "Expires":
+                                    try:
+                                        expires = int(header.body)
+                                    except ValueError:
+                                        expires = 0
+                                    break
                     event_dict["expires"] = expires
                     self._expire_time = datetime.now() + timedelta(seconds=expires)
                     _add_event("SIPRequestDidSucceed", event_dict)
