@@ -190,6 +190,20 @@ cdef dict _pjsip_param_to_dict(pjsip_param *param_list):
         param = <pjsip_param *> (<pj_list *> param).next
     return retval
 
+cdef int _dict_to_pjsip_param(dict params, pjsip_param *param_list, pj_pool_t *pool):
+    cdef pjsip_param *param = NULL
+    for name, value in params.iteritems():
+        param = <pjsip_param *> pj_pool_alloc(pool, sizeof(pjsip_param))
+        if param == NULL:
+            return -1
+        _str_to_pj_str(name, &param.name)
+        if value is None:
+            param.value.slen = 0
+        else:
+            _str_to_pj_str(value, &param.value)
+        pj_list_insert_after(<pj_list *> param_list, <pj_list *> param)
+    return 0
+
 cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
     cdef pjsip_msg_body *body
     cdef pjsip_hdr *hdr
