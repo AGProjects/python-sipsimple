@@ -2,44 +2,65 @@
 #
 
 
-# classes
+# Classes
+#
 
-cdef class Route:
+cdef class BaseRoute:
     cdef pj_list _route_set
-    cdef pjsip_route_hdr _route_hdr
+    cdef pjsip_route_hdr _route_header
     cdef pjsip_sip_uri _sip_uri
-    cdef PJSTR _address
-    cdef PJSTR _transport
 
     def __cinit__(self, *args, **kwargs):
-        pjsip_route_hdr_init(NULL, <void *> &self._route_hdr)
+        pjsip_route_hdr_init(NULL, <void *> &self._route_header)
         pjsip_sip_uri_init(&self._sip_uri, 0)
         self._sip_uri.lr_param = 1
-        self._route_hdr.name_addr.uri = <pjsip_uri *> &self._sip_uri
-        (<pj_list *> &self._route_hdr).next = &self._route_set
-        (<pj_list *> &self._route_hdr).prev = &self._route_set
-        self._route_set.next = &self._route_hdr
-        self._route_set.prev = &self._route_hdr
+        self._route_header.name_addr.uri = <pjsip_uri *> &self._sip_uri
+        (<pj_list *> &self._route_header).next = &self._route_set
+        (<pj_list *> &self._route_header).prev = &self._route_set
+        self._route_set.next = &self._route_header
+        self._route_set.prev = &self._route_header
 
-    def __init__(self, object address, int port=5060, object transport="udp"):
+    def __init__(self, *args, **kwargs):
+        raise TypeError("BaseRoute cannot be instantiated directly")
+
+    def __repr__(self):
+        return "%s(%r, %r, %r)" % (self.__class__.__name__, self.address, self.port, self.transport)
+
+    def __str__(self):
+        string = "sip:%s" % self.address
+        if self.port != 5060:
+            string += ":%d" % self.port
+        if self.transport != "udp":
+            string += ";transport=" % self.transport
+        return string
+
+    cdef pjsip_route_hdr* get_route_header(self):
+        return &self._route_header
+
+    cdef pj_list* get_route_set(self):
+        return &self._route_set
+
+def Route_new(cls, BaseRoute route):
+    return cls(route.address, route.port, route.transport)
+
+cdef class Route(BaseRoute):
+    cdef PJSTR _address
+    cdef PJSTR _transport
+    
+    def __init__(self, str address not None, int port=5060, str transport not None="udp"):
         self.address = address
         self.port = port
         self.transport = transport
-
-    def __repr__(self):
-        return '<Route to "%s:%d" over "%s">' % (self.address, self.port, self.transport)
 
     property address:
 
         def __get__(self):
             return self._address.str
 
-        def __set__(self, object value):
-            if value is None:
-                raise ValueError("None value of transport is not allowed")
-            if not _is_valid_ip(pj_AF_INET(), value):
-                raise ValueError("Not a valid IPv4 address: %s" % value)
-            self._address = PJSTR(value)
+        def __set__(self, str address not None):
+            if not _is_valid_ip(pj_AF_INET(), address):
+                raise ValueError("Not a valid IPv4 address: %s" % address)
+            self._address = PJSTR(address)
             self._sip_uri.host = self._address.pj_str
 
     property port:
@@ -47,141 +68,177 @@ cdef class Route:
         def __get__(self):
             return self._sip_uri.port
 
-        def __set__(self, int value):
-            if value < 0 or value > 65535:
-                raise ValueError("Invalid port: %d" % value)
-            self._sip_uri.port = value
+        def __set__(self, int port):
+            if port <= 0 or port > 65535:
+                raise ValueError("Invalid port: %d" % port)
+            self._sip_uri.port = port
 
     property transport:
 
         def __get__(self):
             return self._transport.str
 
-        def __set__(self, object value):
-            if value is None:
-                raise ValueError("None value of transport is not allowed")
-            value = value.lower()
-            if value not in ["udp", "tcp", "tls"]:
-                raise ValueError("Unknown transport: %s" % value)
-            self._transport = PJSTR(value)
-            if value == "udp":
+        def __set__(self, str transport not None):
+            # this is to keep silly cython happy (otherwise it assigns a PyObject* to a PyStringObject*)
+            if str(transport) not in ("udp", "tcp", "tls"):
+                raise ValueError("Unknown transport: %s" % transport)
+            self._transport = PJSTR(transport)
+            if transport == "udp":
                 self._sip_uri.transport_param.ptr = NULL
                 self._sip_uri.transport_param.slen = 0
             else:
                 self._sip_uri.transport_param = self._transport.pj_str
 
-    def __copy__(self):
-        return Route(self.address, self.port, self.transport)
+    new = classmethod(Route_new)
 
-    def copy(self):
-        return self.__copy__()
+del Route_new
+
+def FrozenRoute_new(cls, BaseRoute route):
+    if isinstance(route, FrozenRoute):
+        return route
+    return cls(route.address, route.port, route.transport)
+
+cdef class FrozenRoute(BaseRoute):
+    cdef int initialized
+    cdef readonly str address
+    cdef readonly int port
+    cdef readonly str transport
+
+    def __init__(self, str address not None, int port=5060, str transport not None="udp"):
+        if not self.initialized:
+            if not _is_valid_ip(pj_AF_INET(), address):
+                raise ValueError("Not a valid IPv4 address: %s" % address)
+            if port < 0 or port > 65535:
+                raise ValueError("Invalid port: %d" % port)
+            if transport not in ("udp", "tcp", "tls"):
+                raise ValueError("Unknown transport: %s" % transport)
+            self.address = address
+            self.port = port
+            self.transport = transport
+            _str_to_pj_str(self.address, &self._sip_uri.host)
+            self._sip_uri.port = self.port
+            if self.transport == "udp":
+                self._sip_uri.transport_param.ptr = NULL
+                self._sip_uri.transport_param.slen = 0
+            else:
+                _str_to_pj_str(self.transport, &self._sip_uri.transport_param)
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.address, self.port, self.transport))
+
+    new = classmethod(FrozenRoute_new)
+
+del FrozenRoute_new
 
 
-cdef class Credentials:
-    cdef pjsip_cred_info _obj
-    cdef PJSTR _username
-    cdef PJSTR _password
+cdef class BaseCredentials:
+    cdef pjsip_cred_info _credentials
 
     def __cinit__(self, *args, **kwargs):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
-        self._obj.realm = _Credentials_realm_wildcard.pj_str
-        self._obj.scheme = _Credentials_scheme_digest.pj_str
-        self._obj.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
+        self._credentials.realm = _Credentials_realm_wildcard.pj_str
+        self._credentials.scheme = _Credentials_scheme_digest.pj_str
+        self._credentials.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
 
-    def __init__(self, username, password):
-        self.username = username
-        self.password = password
+    def __init__(self, *args, **kwargs):
+        raise TypeError("BaseCredentials cannot be instantiated directly")
 
     def __repr__(self):
-        return '<Credentials for "%s">' % self._username.str
+        return "%s(%r, %r)" % (self.__class__.__name__, self.username, self.password)
 
-    cdef int _to_c(self) except -1:
-        _str_to_pj_str(self.username, &self._obj.username)
-        _str_to_pj_str(self.password, &self._obj.data)
-        return 0
+    def __str__(self):
+        return '<%s for "%s">' % (self.__class__.__name__, self.username)
+
+    cdef pjsip_cred_info* get_cred_info(self):
+        return &self._credentials
+
+def Credentials_new(cls, BaseCredentials credentials):
+    return cls(credentials.username, credentials.password)
+
+cdef class Credentials(BaseCredentials):
+    cdef str _username
+    cdef str _password
+
+    def __init__(self, str username not None, str password not None):
+        self.username = username
+        self.password = password
 
     property username:
 
         def __get__(self):
-            return self._username.str
+            return self._username
 
-        def __set__(self, object value):
-            self._username = PJSTR(value)
-            self._obj.username = self._username.pj_str
+        def __set__(self, str username not None):
+            _str_to_pj_str(username, &self._credentials.username)
+            self._username = username
 
     property password:
 
         def __get__(self):
-            return self._password.str
+            return self._password
 
-        def __set__(self, object value):
-            self._password = PJSTR(value)
-            self._obj.data = self._password.pj_str
+        def __set__(self, str password not None):
+            _str_to_pj_str(password, &self._credentials.data)
+            self._password = password
 
-    def __copy__(self):
-        return Credentials(self.username, self.password)
+    new = classmethod(Credentials_new)
 
-    def copy(self):
-        return self.__copy__()
+del Credentials_new
+
+def FrozenCredentials_new(cls, BaseCredentials credentials):
+    if isinstance(credentials, FrozenCredentials):
+        return credentials
+    return cls(credentials.username, credentials.password)
+
+cdef class FrozenCredentials(BaseCredentials):
+    cdef int initialized
+    cdef readonly str username
+    cdef readonly str password
+
+    def __init__(self, str username not None, str password not None):
+        if not self.initialized:
+            self.username = username
+            self.password = password
+            _str_to_pj_str(self.username, &self._credentials.username)
+            _str_to_pj_str(self.password, &self._credentials.data)
+            initialized = 1
+
+    def __hash__(self):
+        return hash((self.username, self.password))
+
+    new = classmethod(FrozenCredentials_new)
+
+del FrozenCredentials_new
 
 
-cdef class SIPURI:
-    cdef public object user
-    cdef public object password
-    cdef public object host
-    cdef public unsigned int port
-    cdef public object display
-    cdef public object secure
-    cdef public dict parameters
-    cdef public dict headers
+cdef object BaseSIPURI_richcmp(object self, object other, int op) with gil:
+    cdef int eq = 1
+    if op not in [2,3]:
+        return NotImplemented
+    if not isinstance(other, BaseSIPURI):
+        return NotImplemented
+    for attr in ("user", "password", "host", "port", "secure", "parameters", "headers"):
+        if getattr(self, attr) != getattr(other, attr):
+            eq = 0
+            break
+    if op == 2:
+        return bool(eq)
+    else:
+        return not eq
 
-    def __init__(self, host, user=None, password=None, port=None,
-                 display=None, secure=False, parameters=None, headers=None):
-        self.host = host
-        self.user = user
-        self.password = password
-        self.port = port or 0
-        self.display = display
-        self.secure = secure
-        if parameters is None:
-            self.parameters = {}
-        else:
-            self.parameters = parameters
-        if headers is None:
-            self.headers = {}
-        else:
-            self.headers = headers
+cdef class BaseSIPURI:
+    def __init__(self, *args, **kwargs):
+        raise TypeError("BaseSIPURI cannot be instantiated directly")
 
     def __repr__(self):
-        return '<SIPURI "%s">' % str(self)
+        return "%s(%r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers)
 
     def __str__(self):
-        return self._as_str(0)
-
-    def __richcmp__(self, other, op):
-        cdef int eq = 1
-        if op not in [2,3]:
-            return NotImplemented
-        if not isinstance(other, SIPURI):
-            return NotImplemented
-        for attr in ["user", "password", "host", "port", "display", "secure", "parameters", "headers"]:
-            if getattr(self, attr) != getattr(other, attr):
-                eq = 0
-                break
-        if op == 2:
-            return bool(eq)
-        else:
-            return not eq
-
-    def copy(self):
-        return SIPURI(self.host, self.user, self.password, self.port, self.display,
-                      self.secure, self.parameters.copy(), self.headers.copy())
-
-    cdef _as_str(self, int skip_display):
         cdef object name
         cdef object val
         cdef object string = self.host
-        if self.port > 0:
+        if self.port != 5060:
             string = "%s:%d" % (string, self.port)
         if self.user is not None:
             if self.password is not None:
@@ -198,26 +255,160 @@ cdef class SIPURI:
             string = "sips:" + string
         else:
             string = "sip:" + string
-        if self.display is None or skip_display:
-            return string
-        else:
-            return '"%s" <%s>' % (self.display, string)
+        return string
+
+    def __richcmp__(self, other, op):
+        return BaseSIPURI_richcmp(self, other, op)
+
+def SIPURI_new(cls, BaseSIPURI sipuri):
+    return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=dict(sipuri.parameters), headers=dict(sipuri.headers))
+
+def SIPURI_parse(cls, str uri_str):
+    cdef pjsip_uri *uri = NULL
+    cdef pj_pool_t *pool = NULL
+    cdef char buffer[4096]
+    pool = pj_pool_create_on_buf("SIPURI_parse", buffer, sizeof(buffer))
+    if pool == NULL:
+        raise SIPCoreError("Could not allocate memory pool")
+    uri = pjsip_parse_uri(pool, uri_str, len(uri_str), 0)
+    if uri == NULL:
+        raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
+    return SIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
+
+cdef class SIPURI(BaseSIPURI):
+    cdef public str user
+    cdef public str password
+    cdef str _host
+    cdef int _port
+    cdef bint _secure
+    cdef dict _parameters
+    cdef dict _headers
+
+    def __init__(self, str host not None, str user=None, str password=None, int port=5060,
+                 bint secure=False, dict parameters=None, dict headers=None):
+        self.host = host
+        self.user = user
+        self.password = password
+        self.port = port
+        self.secure = secure
+        self.parameters = parameters if parameters is not None else {}
+        self.headers = headers if headers is not None else {}
+
+    property host:
+
+        def __get__(self):
+            return self._host
+
+        def __set__(self, str host not None):
+            self._host = host
+
+    property port:
+
+        def __get__(self):
+            return self._port
+
+        def __set__(self, int port):
+            if port <= 0 or port > 65535:
+                raise ValueError("Invalid port: %d" % port)
+            self._port = port
+
+    property parameters:
+
+        def __get__(self):
+            return self._parameters
+
+        def __set__(self, dict parameters not None):
+            self._parameters = parameters
+
+    property headers:
+
+        def __get__(self):
+            return self._headers
+
+        def __set__(self, dict headers not None):
+            self._headers = headers
+
+    property secure:
+
+        def __get__(self):
+            return self._secure
+
+        def __set__(self, bint value):
+            self._secure = value
+
+    new = classmethod(SIPURI_new)
+    parse = classmethod(SIPURI_parse)
+
+del SIPURI_new
+del SIPURI_parse
 
 
-# factory functions
+def FrozenSIPURI_new(cls, BaseSIPURI sipuri):
+    if isinstance(sipuri, FrozenSIPURI):
+        return sipuri
+    return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=frozendict(sipuri.parameters), headers=frozendict(sipuri.headers))
 
-cdef SIPURI _make_SIPURI(pjsip_uri *base_uri, int is_named):
+def FrozenSIPURI_parse(cls, str uri_str):
+    cdef pjsip_uri *uri = NULL
+    cdef pj_pool_t *pool = NULL
+    cdef char buffer[4096]
+    pool = pj_pool_create_on_buf("FrozenSIPURI_parse", buffer, sizeof(buffer))
+    if pool == NULL:
+        raise SIPCoreError("Could not allocate memory pool")
+    uri = pjsip_parse_uri(pool, uri_str, len(uri_str), 0)
+    if uri == NULL:
+        raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
+    return FrozenSIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
+
+cdef class FrozenSIPURI(BaseSIPURI):
+    cdef int initialized
+    cdef readonly str user
+    cdef readonly str password
+    cdef readonly str host
+    cdef readonly unsigned int port
+    cdef readonly bint secure
+    cdef readonly frozendict parameters
+    cdef readonly frozendict headers
+
+    def __init__(self, str host not None, str user=None, str password=None, int port=5060,
+                 bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
+        if not self.initialized:
+            if port <= 0 or port > 65535:
+                raise ValueError("Invalid port: %d" % port)
+            self.host = host
+            self.user = user
+            self.password = password
+            self.port = port
+            self.secure = secure
+            self.parameters = parameters
+            self.headers = headers
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.user, self.password, self.host, self.port, self.secure, self.parameters, self.headers))
+
+    def __richcmp__(self, other, op):
+        return BaseSIPURI_richcmp(self, other, op)
+
+    new = classmethod(FrozenSIPURI_new)
+    parse = classmethod(FrozenSIPURI_parse)
+
+del FrozenSIPURI_new
+del FrozenSIPURI_parse
+
+
+# Factory functions
+#
+
+cdef SIPURI SIPURI_create(pjsip_sip_uri *uri):
     cdef object scheme
     cdef pj_str_t *scheme_str
-    cdef pjsip_sip_uri *uri = <pjsip_sip_uri *> pjsip_uri_get_uri(base_uri)
-    cdef pjsip_name_addr *named_uri = <pjsip_name_addr *> base_uri
     cdef pjsip_param *param
-    cdef list args
-    cdef dict parameters = {}
-    cdef dict headers = {}
-    cdef dict kwargs = dict(parameters=parameters, headers=headers)
-    args = [_pj_str_to_str(uri.host)]
-    scheme = _pj_str_to_str(pjsip_uri_get_scheme(base_uri)[0])
+    cdef object parameters = {}
+    cdef object headers = {}
+    cdef object kwargs = dict(parameters=parameters, headers=headers)
+    kwargs["host"] = _pj_str_to_str(uri.host)
+    scheme = _pj_str_to_str(pjsip_uri_get_scheme(<pjsip_uri *>uri)[0])
     if scheme == "sip":
         kwargs["secure"] = False
     elif scheme == "sips":
@@ -256,28 +447,58 @@ cdef SIPURI _make_SIPURI(pjsip_uri *base_uri, int is_named):
         else:
             headers[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
         param = <pjsip_param *> (<pj_list *> param).next
-    if is_named and named_uri.display.slen > 0:
-        kwargs["display"] = _pj_str_to_str(named_uri.display)
-    return SIPURI(*args, **kwargs)
+    return SIPURI(**kwargs)
 
-cdef SIPURI _parse_SIPURI(object uri_str):
-    cdef SIPURI retval
-    cdef pjsip_uri *uri = NULL
-    cdef pj_pool_t *pool = NULL
-    cdef PJSIPUA ua = _get_ua()
-    pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, "parse_SIPURI", 4096, 4096)
-    if pool == NULL:
-        raise SIPCoreError("Could not allocate memory pool")
-    try:
-        uri = pjsip_parse_uri(pool, uri_str, len(uri_str), PJSIP_PARSE_URI_AS_NAMEADDR)
-        if uri == NULL:
-            raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
-        retval = _make_SIPURI(uri, 1)
-    finally:
-        pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, pool)
-    return retval
+cdef FrozenSIPURI FrozenSIPURI_create(pjsip_sip_uri *uri):
+    cdef object scheme
+    cdef pj_str_t *scheme_str
+    cdef pjsip_param *param
+    cdef object parameters = {}
+    cdef object headers = {}
+    cdef object kwargs = {}
+    kwargs["host"] = _pj_str_to_str(uri.host)
+    scheme = _pj_str_to_str(pjsip_uri_get_scheme(<pjsip_uri *>uri)[0])
+    if scheme == "sip":
+        kwargs["secure"] = False
+    elif scheme == "sips":
+        kwargs["secure"] = True
+    else:
+        raise SIPCoreError("Not a sip(s) URI")
+    if uri.user.slen > 0:
+        kwargs["user"] = _pj_str_to_str(uri.user)
+    if uri.passwd.slen > 0:
+        kwargs["password"] = _pj_str_to_str(uri.passwd)
+    if uri.port > 0:
+        kwargs["port"] = uri.port
+    if uri.user_param.slen > 0:
+        parameters["user"] = _pj_str_to_str(uri.user_param)
+    if uri.method_param.slen > 0:
+        parameters["method"] = _pj_str_to_str(uri.method_param)
+    if uri.transport_param.slen > 0:
+        parameters["transport"] = _pj_str_to_str(uri.transport_param)
+    if uri.ttl_param != -1:
+        parameters["ttl"] = uri.ttl_param
+    if uri.lr_param != 0:
+        parameters["lr"] = uri.lr_param
+    if uri.maddr_param.slen > 0:
+        parameters["maddr"] = _pj_str_to_str(uri.maddr_param)
+    param = <pjsip_param *> (<pj_list *> &uri.other_param).next
+    while param != &uri.other_param:
+        parameters[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
+        param = <pjsip_param *> (<pj_list *> param).next
+    param = <pjsip_param *> (<pj_list *> &uri.header_param).next
+    while param != &uri.header_param:
+        headers[_pj_str_to_str(param.name)] = _pj_str_to_str(param.value)
+        param = <pjsip_param *> (<pj_list *> param).next
+    kwargs["parameters"] = frozendict(parameters)
+    kwargs["headers"] = frozendict(headers)
+    return FrozenSIPURI(**kwargs)
 
-# globals
+
+# Globals
+#
 
 cdef PJSTR _Credentials_scheme_digest = PJSTR("digest")
 cdef PJSTR _Credentials_realm_wildcard = PJSTR("*")
+
+

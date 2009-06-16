@@ -96,6 +96,7 @@ cdef extern from "pjlib.h":
     void pj_caching_pool_init(pj_caching_pool *ch_pool, pj_pool_factory_policy *policy, int max_capacity)
     void pj_caching_pool_destroy(pj_caching_pool *ch_pool)
     void *pj_pool_alloc(pj_pool_t *pool, int size)
+    pj_pool_t *pj_pool_create_on_buf(char *name, void *buf, int size)
     pj_str_t *pj_strdup2_with_null(pj_pool_t *pool, pj_str_t *dst, char *src)
 
     # threads
@@ -942,11 +943,17 @@ cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1
 
 # core.helper
 
+cdef class BaseRoute
 cdef class Route
+cdef class FrozenRoute
+cdef class BaseCredentials
 cdef class Credentials
+cdef class FrozenCredentials
+cdef class BaseSIPURI
 cdef class SIPURI
-cdef SIPURI _make_SIPURI(pjsip_uri *base_uri, int is_named)
-cdef SIPURI _parse_SIPURI(object uri_str)
+cdef class FrozenSIPURI
+cdef SIPURI SIPURI_create(pjsip_sip_uri *base_uri)
+cdef FrozenSIPURI FrozenSIPURI_create(pjsip_sip_uri *base_uri)
 
 # core.ua
 
