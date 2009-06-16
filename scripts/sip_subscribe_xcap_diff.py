@@ -23,7 +23,7 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPCoreError, SIPURI, Subscription
+from sipsimple.core import ContactHeader, SIPCoreError, SIPURI, Subscription, ToHeader
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
@@ -177,8 +177,8 @@ class SubscriptionApplication(object):
             log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
         )
 
-        self.target = SIPURI(user=self.account.id.username, host=self.account.id.domain)
-        self.output.put('Subscribing to %s for the xcap-diff event' % self.target)
+        self.target = ToHeader(SIPURI(user=self.account.id.username, host=self.account.id.domain))
+        self.output.put('Subscribing to %s for the xcap-diff event' % self.target.uri)
 
         # start the input thread
         self.input.start()
@@ -265,7 +265,7 @@ class SubscriptionApplication(object):
                 reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
             else:
                 route = route=self._subscription_routes.popleft()
-                self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+                self.subscription = Subscription(self.account.from_header, self.target, ContactHeader(self.account.contact[route.transport]), "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
                 notification_center.add_observer(self, sender=self.subscription)
                 self.subscription.subscribe(body=self.body, content_type=self.content_type, timeout=5)
 
@@ -283,7 +283,7 @@ class SubscriptionApplication(object):
         # create subscription and register to get notifications from it
         self._subscription_routes = deque(notification.data.result)
         route = self._subscription_routes.popleft()
-        self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+        self.subscription = Subscription(self.account.from_header, self.target, ContactHeader(self.account.contact[route.transport]), "xcap-diff", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
         self.subscription.subscribe(body=self.body, content_type=self.content_type, timeout=5)
