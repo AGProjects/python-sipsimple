@@ -235,7 +235,7 @@ cdef class Invitation:
                 self.offered_remote_sdp = FrozenSDPSession_create(sdp)
             if pjmedia_sdp_neg_get_state(self._obj.neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER:
                 pjmedia_sdp_neg_get_neg_local(self._obj.neg, &sdp)
-                self.offered_remote_sdp = FrozenSDPSession_create(sdp)
+                self._offered_local_sdp = FrozenSDPSession_create(sdp)
         elif self.state in ["REINVITED", "REINVITING"]:
             self._reinvite_tsx = NULL
         if self.state == "CALLING" and rdata != NULL:
