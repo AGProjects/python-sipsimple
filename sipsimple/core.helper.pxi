@@ -308,7 +308,7 @@ cdef class SIPURI(BaseSIPURI):
             return self._port
 
         def __set__(self, int port):
-            if port <= 0 or port > 65535:
+            if port < 0 or port > 65535:
                 raise ValueError("Invalid port: %d" % port)
             self._port = port
 
@@ -373,7 +373,7 @@ cdef class FrozenSIPURI(BaseSIPURI):
     def __init__(self, str host not None, str user=None, str password=None, int port=5060,
                  bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
         if not self.initialized:
-            if port <= 0 or port > 65535:
+            if port < 0 or port > 65535:
                 raise ValueError("Invalid port: %d" % port)
             self.host = host
             self.user = user
