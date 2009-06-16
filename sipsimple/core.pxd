@@ -955,6 +955,52 @@ cdef class FrozenSIPURI
 cdef SIPURI SIPURI_create(pjsip_sip_uri *base_uri)
 cdef FrozenSIPURI FrozenSIPURI_create(pjsip_sip_uri *base_uri)
 
+# core.headers
+
+cdef class BaseHeader
+cdef class Header
+cdef class FrozenHeader
+cdef class BaseContactHeader
+cdef class ContactHeader
+cdef class FrozenContactHeader
+cdef class BaseIdentityHeader
+cdef class IdentityHeader
+cdef class FrozenIdentityHeader
+cdef class FromHeader
+cdef class FrozenFromHeader
+cdef class ToHeader
+cdef class FrozenToHeader
+cdef class RouteHeader
+cdef class FrozenRouteHeader
+cdef class RecordRouteHeader
+cdef class FrozenRecordRouteHeader
+cdef class BaseRetryAfterHeader
+cdef class RetryAfterHeader
+cdef class FrozenRetryAfterHeader
+cdef class BaseViaHeader
+cdef class ViaHeader
+cdef class FrozenViaHeader
+cdef class BaseWarningHeader
+cdef class WarningHeader
+cdef class FrozenWarningHeader
+
+cdef Header Header_create(pjsip_generic_string_hdr *header)
+cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
+cdef ContactHeader ContactHeader_create(pjsip_contact_hdr *header)
+cdef FrozenContactHeader FrozenContactHeader_create(pjsip_contact_hdr *header)
+cdef FromHeader FromHeader_create(pjsip_fromto_hdr *header)
+cdef FrozenFromHeader FrozenFromHeader_create(pjsip_fromto_hdr *header)
+cdef ToHeader ToHeader_create(pjsip_fromto_hdr *header)
+cdef FrozenToHeader FrozenToHeader_create(pjsip_fromto_hdr *header)
+cdef RouteHeader RouteHeader_create(pjsip_routing_hdr *header)
+cdef FrozenRouteHeader FrozenRouteHeader_create(pjsip_routing_hdr *header)
+cdef RecordRouteHeader RecordRouteHeader_create(pjsip_routing_hdr *header)
+cdef FrozenRecordRouteHeader FrozenRecordRouteHeader_create(pjsip_routing_hdr *header)
+cdef RetryAfterHeader RetryAfterHeader_create(pjsip_retry_after_hdr *header)
+cdef FrozenRetryAfterHeader FrozenRetryAfterHeader_create(pjsip_retry_after_hdr *header)
+cdef ViaHeader ViaHeader_create(pjsip_via_hdr *header)
+cdef FrozenViaHeader FrozenViaHeader_create(pjsip_via_hdr *header)
+
 # core.ua
 
 cdef class PJSIPThread
