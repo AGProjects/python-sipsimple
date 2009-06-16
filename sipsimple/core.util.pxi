@@ -235,13 +235,7 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
                 hdr_data.append(_pj_str_to_str(array_hdr.values[i]))
         elif hdr_name == "Contact":
             hdr_multi = True
-            contact_hdr = <pjsip_contact_hdr *> hdr
-            hdr_data = (contact_hdr.star and None or _make_SIPURI(contact_hdr.uri, 1),
-                        _pjsip_param_to_dict(&contact_hdr.other_param))
-            if contact_hdr.q1000 != 0:
-                hdr_data[1]["q"] = contact_hdr.q1000 / 1000.0
-            if contact_hdr.expires != -1:
-                hdr_data[1]["expires"] = contact_hdr.expires
+            hdr_data = FrozenContactHeader_create(<pjsip_contact_hdr *> hdr)
         elif hdr_name == "Content-Length":
             clen_hdr = <pjsip_clen_hdr *> hdr
             hdr_data = clen_hdr.len
@@ -256,43 +250,29 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         elif hdr_name in ["Expires", "Max-Forwards", "Min-Expires"]:
             int_hdr = <pjsip_generic_int_hdr *> hdr
             hdr_data = int_hdr.ivalue
-        elif hdr_name in ["From", "To"]:
-            fromto_hdr = <pjsip_fromto_hdr *> hdr
-            hdr_data = (_make_SIPURI(fromto_hdr.uri, 1), _pj_str_to_str(fromto_hdr.tag),
-                        _pjsip_param_to_dict(&fromto_hdr.other_param))
-        elif hdr_name in ["Record-Route", "Route"]:
+        elif hdr_name == "From":
+            hdr_data = FrozenFromHeader_create(<pjsip_fromto_hdr *> hdr)
+        elif hdr_name == "To":
+            hdr_data = FrozenToHeader_create(<pjsip_fromto_hdr *> hdr)
+        elif hdr_name == "Route":
             hdr_multi = True
-            routing_hdr = <pjsip_routing_hdr *> hdr
-            hdr_data = (_make_SIPURI(<pjsip_uri *> &routing_hdr.name_addr, 1),
-                        _pjsip_param_to_dict(&routing_hdr.other_param))
+            hdr_data = FrozenRouteHeader_create(<pjsip_routing_hdr *> hdr)
+        elif hdr_name == "Record-Route":
+            hdr_multi = True
+            hdr_data = FrozenRecordRouteHeader_create(<pjsip_routing_hdr *> hdr)
         elif hdr_name == "Retry-After":
-            retry_after_hdr = <pjsip_retry_after_hdr *> hdr
-            hdr_data = (retry_after_hdr.ivalue, _pj_str_to_str(retry_after_hdr.comment),
-                        _pjsip_param_to_dict(&retry_after_hdr.param))
+            hdr_data = FrozenRetryAfterHeader_create(<pjsip_retry_after_hdr *> hdr)
         elif hdr_name == "Via":
             hdr_multi = True
-            via_hdr = <pjsip_via_hdr *> hdr
-            hdr_data = (_pj_str_to_str(via_hdr.transport), _pj_str_to_str(via_hdr.sent_by.host), via_hdr.sent_by.port,
-                        _pj_str_to_str(via_hdr.comment), _pjsip_param_to_dict(&via_hdr.other_param))
-            if via_hdr.ttl_param != -1:
-                hdr_data[4]["ttl"] = via_hdr.ttl_param
-            if via_hdr.rport_param != -1:
-                hdr_data[4]["rport"] = via_hdr.rport_param
-            if via_hdr.maddr_param.slen > 0:
-                hdr_data[4]["maddr"] = _pj_str_to_str(via_hdr.maddr_param)
-            if via_hdr.recvd_param.slen > 0:
-                hdr_data[4]["recvd"] = _pj_str_to_str(via_hdr.recvd_param)
-            if via_hdr.branch_param.slen > 0:
-                hdr_data[4]["branch"] = _pj_str_to_str(via_hdr.branch_param)
+            hdr_data = FrozenViaHeader_create(<pjsip_via_hdr *> hdr)
+        elif hdr_name == "Warning":
+            match = _re_warning_hdr.match(_pj_str_to_str((<pjsip_generic_string_hdr *>hdr).hvalue))
+            if match is not None:
+                hdr_data = FrozenWarningHeader(**match.groupdict())
         # skip the following headers:
         elif hdr_name not in ["Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"]:
             string_hdr = <pjsip_generic_string_hdr *> hdr
-            hdr_data = _pj_str_to_str(string_hdr.hvalue)
-            if hdr_name == "Warning":
-                hdr_data = _re_warning_hdr.match(hdr_data)
-                if hdr_data is not None:
-                    hdr_data = hdr_data.groups()
-                    hdr_data = (int(hdr_data[0]), hdr_data[1], hdr_data[2])
+            hdr_data = FrozenHeader(hdr_name, _pj_str_to_str(string_hdr.hvalue))
         if hdr_data is not None:
             if hdr_multi:
                 headers.setdefault(hdr_name, []).append(hdr_data)
@@ -345,5 +325,5 @@ cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1:
 # globals
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
-cdef object _re_warning_hdr = re.compile('([0-9]{3}) (.*?) "(.*?)"')
+cdef object _re_warning_hdr = re.compile('(?P<code>[0-9]{3}) (?P<agent>.*?) "(?P<text>.*?)"')
 sip_status_messages = SIPStatusMessages()

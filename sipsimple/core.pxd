@@ -552,6 +552,7 @@ cdef extern from "pjsip.h":
         unsigned int count
         pj_str_t *values
     struct pjsip_generic_string_hdr:
+        pj_str_t name
         pj_str_t hvalue
     struct pjsip_cid_hdr:
         pj_str_t id
@@ -638,7 +639,7 @@ cdef extern from "pjsip.h":
         int src_port
     struct pjsip_rx_data_msg_info:
         pjsip_msg *msg
-        pjsip_name_addr *from_hdr "from"
+        pjsip_fromto_hdr *from_hdr "from"
         pjsip_fromto_hdr *to_hdr "to"
         pjsip_via_hdr *via
     struct pjsip_rx_data:
