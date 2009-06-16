@@ -5,7 +5,7 @@ from application.notification import NotificationCenter, Any
 from application.python.util import Singleton
 from eventlet import proc, api, coros
 
-from sipsimple.core import SIPURI, SDPSession, SDPConnection
+from sipsimple.core import ContactHeader, SDPConnection, SDPMedia, SDPSession
 from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
 from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
@@ -150,8 +150,8 @@ class Session(NotificationHandler):
                     return
 
     @property
-    def remote_uri(self):
-        return self.inv.remote_uri
+    def remote_identity(self):
+        return self.inv.remote_identity
 
     def _NH_SIPInvitationChangedState(self, inv, data):
         proc.spawn_greenlet(self._on_sip_changed_state, inv, data)
@@ -172,8 +172,8 @@ class Session(NotificationHandler):
                 if stream:
                     proc.spawn_greenlet(stream.end)
         elif data.state == "REINVITED":
-            current_remote_sdp = inv.get_active_remote_sdp()
-            proposed_remote_sdp = inv.get_offered_remote_sdp()
+            current_remote_sdp = inv.active_remote_sdp
+            proposed_remote_sdp = inv.offered_remote_sdp
             for attr in ["user", "net_type", "address_type", "address"]:
                 if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
                     inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Difference in contents of o= line")})
@@ -203,7 +203,7 @@ class Session(NotificationHandler):
                 self._set_state("PROPOSED")
                 self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=streams, proposer="remote"))
             else:
-                inv.set_offered_local_sdp(self._make_next_sdp(False))
+                inv.offered_local_sdp = self._make_next_sdp(False)
                 inv.respond_to_reinvite(200)
         elif data.state == 'CONFIRMED':
             if data.prev_state == 'REINVITING':
@@ -226,7 +226,7 @@ class Session(NotificationHandler):
         finally:
             self.unsubscribe('MediaStreamDidEnd', stream)
 
-    def connect(self, to_uri, routes, streams=None):
+    def connect(self, to_header, routes, streams=None):
         with self.lock:
             assert self.state == 'NULL', self.state
             if streams is not None:
@@ -236,11 +236,7 @@ class Session(NotificationHandler):
             workers = Workers()
             self.direction = 'outgoing'
             route = iter(routes).next()
-            contact_uri = SIPURI(user=self.account.contact.username,
-                                 host=self.account.contact.domain,
-                                 port=getattr(Engine(), "local_%s_port" % route.transport),
-                                 parameters={"transport": route.transport} if route.transport != "udp" else None)
-            self.inv = GreenInvitation(self.account.uri, to_uri, route, self.account.credentials, contact_uri)
+            self.inv = GreenInvitation(self.account.from_header, to_header, route, self.account.credentials, ContactHeader(self.account.contact[route.transport]))
             self.subscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
             ERROR = (500, None, 'local') # code, reason, originator
             self._set_state('CALLING')
@@ -255,7 +251,7 @@ class Session(NotificationHandler):
                 local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=SIPSimpleSettings().user_agent)
                 for stream in self.streams:
                     local_sdp.media.append(stream.get_local_media(True))
-                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv._obj.offered_local_sdp = local_sdp
                 confirmed_notification, sdp_notification = self.inv.send_invite()
                 self.start_time = datetime.datetime.now()
                 remote_sdp = sdp_notification.remote_sdp
@@ -333,14 +329,14 @@ class Session(NotificationHandler):
                 workers.waitall()
                 workers = Workers()
                 media = [stream.get_local_media(False) for stream in streams]
-                remote_sdp = self.inv.get_offered_remote_sdp()
+                remote_sdp = self.inv.offered_remote_sdp
                 local_ip = SIPSimpleSettings().rtp.local_ip.normalized
                 local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
                                        media=media,
                                        start_time=remote_sdp.start_time,
                                        stop_time=remote_sdp.stop_time,
                                        name=SIPSimpleSettings().user_agent)
-                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv._obj.offered_local_sdp = local_sdp
                 self.start_time = datetime.datetime.now()
                 confirmed_notification, sdp_notification = self.inv.accept_invite()
                 for index, stream in enumerate(streams):
@@ -381,12 +377,12 @@ class Session(NotificationHandler):
                 workers.waitall()
                 workers = Workers()
                 media = [stream.get_local_media(False) for stream in streams]
-                remote_sdp = self.inv.get_offered_remote_sdp()
+                remote_sdp = self.inv.offered_remote_sdp
                 local_sdp = self._make_next_sdp(False)
                 offset = len(local_sdp.media)
                 new_local_media = [stream.get_local_media(False) for stream in streams]
                 local_sdp.media.extend(new_local_media)
-                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv._obj.offered_local_sdp = local_sdp
                 confirmed_notification, sdp_notification = self.inv.respond_to_reinvite()
                 for index, stream in enumerate(streams):
                     workers.spawn(stream.start, sdp_notification.local_sdp, sdp_notification.remote_sdp, offset+index)
@@ -417,20 +413,20 @@ class Session(NotificationHandler):
             self._set_state('REJECTING_PROPOSAL')
             try:
                 self.streams.extend([None] * len(self._proposed_streams))
-                remote_sdp = self.inv.get_offered_remote_sdp()
+                remote_sdp = self.inv.offered_remote_sdp
                 local_sdp = self._make_next_sdp(False)
                 offset = len(local_sdp.media)
-                proposed_media = remote_sdp.media[offset:]
+                proposed_media = [SDPMedia.new(m) for m in remote_sdp.media[offset:]]
                 for m in proposed_media:
                     m.port = 0
                 local_sdp.media.extend(proposed_media)
-                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv._obj.offered_local_sdp = local_sdp
                 self.inv.respond_to_reinvite()
             finally:
                 self._set_state('ESTABLISHED')
 
     def _make_next_sdp(self, is_offer, on_hold=False):
-        local_sdp = self._inv.get_active_local_sdp()
+        local_sdp = SDPSession.new(self._inv.active_local_sdp)
         local_sdp.version += 1
 #         new_media = []
 #         for media, stream in zip(local_sdp.media, self.streams):
@@ -467,9 +463,9 @@ class Session(NotificationHandler):
                 media = stream.get_local_media(True)
                 assert index == len(local_sdp.media), (index, local_sdp.media)
                 local_sdp.media.append(media)
-                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv._obj.offered_local_sdp = local_sdp
                 self.inv.send_reinvite()
-                remote_sdp = self._inv.get_active_remote_sdp()
+                remote_sdp = self._inv.active_remote_sdp
                 if len(remote_sdp.media)<len(local_sdp.media):
                     raise InvitationError(code=488, reason='The answerer does not seem to support adding a stream', origin='local')
                 if remote_sdp.media[index].port:
@@ -511,7 +507,7 @@ class Session(NotificationHandler):
                 self.unsubscribe('MediaStreamDidEnd', stream)
                 proc.spawn_greenlet(stream.end)
                 self.streams[index]=None
-            if not self.inv or not self.inv.get_active_local_sdp() or not self.inv.get_active_local_sdp().media[index].port:
+            if not self.inv or not self.inv.active_local_sdp or not self.inv.active_local_sdp.media[index].port:
                 return
             if self.state != 'ESTABLISHED':
                 return
@@ -520,9 +516,9 @@ class Session(NotificationHandler):
             try:
                 local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
                 local_sdp.media[index].port = 0
-                self.inv.set_offered_local_sdp(local_sdp)
+                self.inv._obj.offered_local_sdp = local_sdp
                 self.inv.send_reinvite()
-                remote_sdp = self._inv.get_active_remote_sdp()
+                remote_sdp = self._inv.active_remote_sdp
                 if len(remote_sdp.media)!=len(local_sdp.media):
                     raise InvitationError(code=488, reason='The answerer does not seem to support re-invites', origin='local')
                 ERROR = None
@@ -581,12 +577,11 @@ class IncomingHandler(NotificationHandler):
             if "To" not in data.headers.iterkeys():
                 inv.end(404)
                 return
-            to_uri = data.headers['To'][0]
             account = AccountManager().find_account(data.request_uri)
             if account is None:
                 inv.end(404)
                 return
-            remote_sdp = inv.get_offered_remote_sdp()
+            remote_sdp = inv.offered_remote_sdp
             streams = []
             for index, media in enumerate(remote_sdp.media):
                 if media.port:
@@ -597,7 +592,7 @@ class IncomingHandler(NotificationHandler):
             if not streams:
                 inv.end(415)
                 return
-            inv.update_local_contact(account.contact[inv.transport])
+            inv.update_local_contact_header(ContactHeader(account.contact[inv.transport]))
             inv.respond_to_invite_provisionally(180)
             session = Session(account, GreenInvitation(__obj=inv), 'incoming', data.headers.get("User-Agent"), streams)
             self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(data=data))
