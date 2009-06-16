@@ -27,10 +27,10 @@ class MessageCPIM(object):
 
     @classmethod
     def format_address(cls, address):
-        if address.display is None:
-            return '<%s@%s>' % (address.user, address.host)
+        if address.display_name is None:
+            return '<%s@%s>' % (address.uri.user, address.uri.host)
         else:
-            return '%s <%s@%s>' % (address.display, address.user, address.host)
+            return '%s <%s@%s>' % (address.display_name, address.uri.user, address.uri.host)
 
     def __str__(self):
         result = []
@@ -47,60 +47,43 @@ class MessageCPIM(object):
         return '\r\n'.join(result)
 
 
-class SIPAddress(object):
+class CPIMIdentity(object):
+    _re_format = re.compile('^("?(?P<display_name>[^>]*[^"\s])"?\s*)?<(?P<uri>.*?)>$')
 
-    def __init__(self, username, domain, scheme='sip'):
-        self.username = username
-        self.domain = domain
-        self.scheme = scheme
-
-    @property
-    def secure(self):
-        return self.scheme == 'sips'
+    def __init__(self, uri, display_name=None):
+        self.uri = uri
+        self.display_name = display_name
 
     @classmethod
-    def parse(cls, sip_address, default_domain=None):
-        if '@' in sip_address:
-            username, domain = sip_address.split('@', 1)
-        else:
-            username, domain = sip_address, default_domain
-        scheme = 'sip'
-        if ':' in username:
-            scheme, username = username.split(':')
-            if scheme.lower() not in ['sip', 'sips']:
-                raise ValueError('Invalid scheme: %r' % (scheme, ))
-        return cls(username, domain, scheme)
+    def parse(cls, value):
+        match = cls._re_format.match(value)
+        if not match:
+            raise ValueError('Cannot parse message/cpim identity header value: %r' % value)
+        groupdict =  match.groupdict()
+        display_name = groupdict['display_name']
+        uri = groupdict['uri']
+        if not uri.startswith('sip:') and not uri.startswith('sips:'):
+            uri = 'sip:' + uri
+        uri = SIPURI.parse(uri)
+        return cls(uri, display_name)
+
+    def __eq__(self, other):
+        return isinstance(other, CPIMIdentity) and self.uri == other.uri and self.display_name == other.display_name
 
     def __repr__(self):
-        klass = type(self).__name__
-        return '%s(%r, %r)' % (klass, self.username, self.domain)
+        return '%s(%r, %r)' % (self.__class__.__name__, self.uri, self.display_name)
 
-    def __bool__(self):
-        return self.username and self.domain
+    def __str__(self):
+        if self.display_name:
+            return "%s <%s>" % (self.display_name, self.uri)
+        else:
+            return "<%s>" % self.uri
 
-_re_address = re.compile('^([^>]+)?<(.*?)>$')
-def parse_cpim_address(s, default_domain=None):
-    """
-    >>> alice = parse_cpim_address('<sip:alice@example.com>')
-    >>> alice.user, alice.host, alice.display
-    ('alice', 'example.com', None)
-    >>> alice = parse_cpim_address('Alice The Great <sips:alice@example.com>')
-    >>> print alice
-    "Alice The Great" <sips:alice@example.com>
-    """
-    m = _re_address.match(s)
-    if not m:
-        raise ValueError('Cannot parse message/cpim address: %r' % s)
-    display, uri = m.groups()
-    if display:
-        display = display.strip().strip('"')
-    uri = SIPAddress.parse(uri, default_domain=default_domain)
-    return SIPURI(user=uri.username, host=uri.domain, display=display, secure=uri.secure)
 
 class MessageCPIMParser(object):
-    _mapping = {'From': parse_cpim_address,
-                'To': parse_cpim_address,
-                'cc': parse_cpim_address,
+    _mapping = {'From': CPIMIdentity.parse,
+                'To': CPIMIdentity.parse,
+                'cc': CPIMIdentity.parse,
                 'DateTime': parse_date}
 
     @classmethod
