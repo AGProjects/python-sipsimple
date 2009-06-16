@@ -181,7 +181,7 @@ class RegistrationLogger(StateLoggerBase):
 
     def log_state_default(self, notification_data):
         state = notification_data.state
-        x = (state.capitalize(), self.obj.uri, self.obj.route.address, self.obj.route.port,
+        x = (state.capitalize(), self.obj.from_header, self.obj.route.address, self.obj.route.port,
              _format_reason(notification_data))
         self.write('%s %s at %s:%s%s' % x)
 
@@ -200,7 +200,7 @@ class RegistrationLogger(StateLoggerBase):
     def log_state_registered(self, notification_data):
         if self.registered_count <= 0 or notification_data.code!=200:
             self.registered_count = 0
-            x = (notification_data.contact_uri, notification_data.expires, _format_reason(notification_data))
+            x = (notification_data.contact_header.uri, notification_data.expires, _format_reason(notification_data))
             self.write("Registered SIP contact address: %s (expires in %d seconds)%s" % x)
         self.registered_count += 1
 
@@ -220,10 +220,10 @@ class InvitationLogger(StateLoggerBase):
         return 'SIP session'
 
     def _format_to(self):
-        return 'to %s' % self.obj.to_uri
+        return 'to %s' % self.obj.to_header
 
     def _format_fromtoproxy(self):
-        result = 'from %s to %s' % (self.obj.from_uri, self.obj.to_uri)
+        result = 'from %s to %s' % (self.obj.from_header, self.obj.to_header)
         if self.obj.route:
             result += " via %s:%s:%d" % (self.obj.route.transport, self.obj.route.address, self.obj.route.port)
         return result
@@ -271,7 +271,7 @@ class InvitationLogger(StateLoggerBase):
             pass # we're the party that issued Ringing
         else:
             agent = headers.get('User-Agent', '')
-            contact = str(headers.get('Contact', [['']])[0][0])
+            contact = str(headers.get('Contact')[0].uri) if 'Contact' in headers else ''
             if agent:
                 contact += ' (%s)' % agent
             msg = 'Ringing from %s' % contact
