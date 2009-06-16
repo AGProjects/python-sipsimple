@@ -1006,14 +1006,26 @@ cdef void _Request_cb_disconnect_timer(pj_timer_heap_t *timer_heap, pj_timer_ent
 
 # core.sdp
 
+cdef class BaseSDPSession
 cdef class SDPSession
+cdef class FrozenSDPSession
+cdef class BaseSDPMedia
 cdef class SDPMedia
+cdef class FrozenSDPMedia
+cdef class BaseSDPConnection
 cdef class SDPConnection
+cdef class FrozenSDPConnection
+cdef class BaseSDPAttribute
 cdef class SDPAttribute
-cdef SDPSession _make_SDPSession(pjmedia_sdp_session_ptr_const pj_session)
-cdef SDPMedia _make_SDPMedia(pjmedia_sdp_media *pj_media)
-cdef SDPConnection _make_SDPConnection(pjmedia_sdp_conn *pj_conn)
-cdef SDPAttribute _make_SDPAttribute(pjmedia_sdp_attr *pj_attr)
+cdef class FrozenSDPAttribute
+cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
+cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
+cdef SDPMedia SDPMedia_create(pjmedia_sdp_media *pj_media)
+cdef FrozenSDPMedia FrozenSDPMedia_create(pjmedia_sdp_media *pj_media)
+cdef SDPConnection SDPConnection_create(pjmedia_sdp_conn *pj_conn)
+cdef FrozenSDPConnection FrozenSDPConnection_create(pjmedia_sdp_conn *pj_conn)
+cdef SDPAttribute SDPAttribute_create(pjmedia_sdp_attr *pj_attr)
+cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr)
 
 # core.mediatransport
 
