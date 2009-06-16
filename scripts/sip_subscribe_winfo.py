@@ -147,6 +147,11 @@ class WinfoApplication(object):
             raise RuntimeError("presence is not enabled for account %s" % self.account.id)
         elif self.account.presence.xcap_root is None:
             raise RuntimeError("XCAP root is not defined for account %s" % self.account.id)
+        for account in account_manager.iter_accounts():
+            if account == self.account:
+                account.registration.enabled = False
+            else:
+                account.enabled = False
         self.output.put('Using account %s' % self.account.id)
         settings = SIPSimpleSettings()
 
