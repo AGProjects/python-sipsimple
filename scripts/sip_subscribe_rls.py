@@ -24,7 +24,7 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPCoreError, SIPURI, Subscription
+from sipsimple.core import ContactHeader, Header, SIPCoreError, SIPURI, Subscription, ToHeader
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
@@ -162,19 +162,19 @@ class SubscriptionApplication(object):
         )
 
         if self.target is None:
-            self.target = SIPURI(user='%s-buddies' % self.account.id.username, host=self.account.id.domain)
+            self.target = ToHeader(SIPURI(user='%s-buddies' % self.account.id.username, host=self.account.id.domain))
         else:
             if '@' not in self.target:
                 self.target = '%s@%s' % (self.target, self.account.id.domain)
             if not self.target.startswith('sip:') and not self.target.startswith('sips:'):
                 self.target = 'sip:' + self.target
             try:
-                self.target = engine.parse_sip_uri(self.target)
+                self.target = ToHeader(SIPURI.parse(self.target))
             except SIPCoreError:
                 self.output.put('Illegal SIP URI: %s' % self.target)
                 engine.stop()
                 return 1
-        self.output.put('Subscribing to %s for the presence event' % self.target)
+        self.output.put('Subscribing to %s for the presence event' % self.target.uri)
 
         # start the input thread
         self.input.start()
@@ -261,9 +261,9 @@ class SubscriptionApplication(object):
                 reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
             else:
                 route = route=self._subscription_routes.popleft()
-                self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+                self.subscription = Subscription(self.account.from_header, self.target, ContactHeader(self.account.contact[route.transport]), "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
                 notification_center.add_observer(self, sender=self.subscription)
-                self.subscription.subscribe(extra_headers={'Supported': 'eventlist'}, timeout=5)
+                self.subscription.subscribe(extra_headers=[Header('Supported', 'eventlist')], timeout=5)
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
         if notification.data.headers.get("Content-Type", (None, None))[0] in ('multipart/related', 'application/rlmi+xml', 'application/pidf+xml'):
@@ -274,10 +274,10 @@ class SubscriptionApplication(object):
         # create subscription and register to get notifications from it
         self._subscription_routes = deque(notification.data.result)
         route = self._subscription_routes.popleft()
-        self.subscription = Subscription(self.account.uri, self.target, self.account.contact[route.transport], "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+        self.subscription = Subscription(self.account.from_header, self.target, ContactHeader(self.account.contact[route.transport]), "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
-        self.subscription.subscribe(extra_headers={'Supported': 'eventlist'}, timeout=5)
+        self.subscription.subscribe(extra_headers=[Header('Supported', 'eventlist')], timeout=5)
 
     def _NH_DNSLookupDidFail(self, notification):
         self.output.put('DNS lookup failed: %s' % notification.data.error)
