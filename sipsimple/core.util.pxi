@@ -312,13 +312,13 @@ cdef int _get_ip_version(object ip) except -1:
     else:
         return 0
 
-cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1:
+cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1:
     cdef object name, value
     cdef pj_str_t name_pj, value_pj
     cdef pjsip_hdr *hdr
-    for name, value in headers.iteritems():
-        _str_to_pj_str(name, &name_pj)
-        _str_to_pj_str(value, &value_pj)
+    for header in headers:
+        _str_to_pj_str(header.name, &name_pj)
+        _str_to_pj_str(header.body, &value_pj)
         hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &name_pj, &value_pj)
         pjsip_msg_add_hdr(tdata.msg, hdr)
 

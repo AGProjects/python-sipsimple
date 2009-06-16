@@ -940,7 +940,7 @@ cdef int _dict_to_pjsip_param(dict params, pjsip_param *param_list, pj_pool_t *p
 cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
 cdef int _is_valid_ip(int af, object ip) except -1
 cdef int _get_ip_version(object ip) except -1
-cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, dict headers) except -1
+cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1
 
 # core.helper
 
