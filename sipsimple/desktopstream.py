@@ -11,6 +11,7 @@ from msrplib.transport import make_response
 from msrplib.session import contains_mime_type
 
 from sipsimple.core import SDPAttribute, SDPMedia
+from sipsimple.cpim import CPIMIdentity
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.msrp import LoggerSingleton, get_X509Credentials
@@ -36,6 +37,7 @@ class MSRPDesktop(object):
         if setup is not None:
             self.setup = setup
         self.worker = None
+        self.local_identity = CPIMIdentity(self.account.from_header.uri, self.account.from_header.display_name)
 
     def make_SDPMedia(self, uri_path):
         attributes = []
@@ -51,10 +53,6 @@ class MSRPDesktop(object):
         else:
             transport = 'TCP/MSRP/RFB'
         return SDPMedia("application", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
-
-    @property
-    def from_uri(self):
-        return self.account.uri
 
     def get_local_media(self, for_offer=True, on_hold=False):
         if on_hold:
@@ -85,14 +83,14 @@ class MSRPDesktop(object):
                     self.setup = 'passive'
             if (outgoing and self.account.msrp.use_relay_for_outbound) or (not outgoing and self.account.msrp.use_relay_for_inbound):
                 if self.account.msrp.relay is None:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.credentials.username,
-                                              password=self.account.credentials.password)
+                    relay = MSRPRelaySettings(domain=self.account.id.domain,
+                                              username=self.account.id.username,
+                                              password=self.account.password)
                     self.transport = 'tls'
                 else:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.credentials.username,
-                                              password=self.account.credentials.password,
+                    relay = MSRPRelaySettings(domain=self.account.id.domain,
+                                              username=self.account.id.username,
+                                              password=self.account.password,
                                               host=self.account.msrp.relay.host,
                                               port=self.account.msrp.relay.port,
                                               use_tls=self.account.msrp.relay.transport=='tls')
@@ -109,7 +107,7 @@ class MSRPDesktop(object):
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self.make_SDPMedia(full_local_path)
-            self.remote_uri = session.remote_uri
+            self.remote_identity = CPIMIdentity(session.remote_identity.uri, session.remote_identity.display_name)
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
