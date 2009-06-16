@@ -16,14 +16,14 @@ cdef class Subscription:
     cdef int _timeout_timer_active
     cdef pj_timer_entry _refresh_timer
     cdef int _refresh_timer_active
-    cdef SIPURI _from_uri
-    cdef SIPURI _to_uri
-    cdef SIPURI _contact_uri
+    cdef readonly FrozenFromHeader from_header
+    cdef readonly FrozenToHeader to_header
+    cdef readonly FrozenContactHeader contact_header
     cdef readonly object event
-    cdef Route _route
-    cdef Credentials _credentials
+    cdef readonly FrozenRoute route
+    cdef readonly FrozenCredentials credentials
     cdef readonly int refresh
-    cdef dict _extra_headers
+    cdef readonly frozenlist extra_headers
     cdef readonly object body
     cdef readonly object content_type
     cdef pj_time_val _subscribe_timeout
@@ -31,39 +31,6 @@ cdef class Subscription:
     cdef int _term_code
     cdef object _term_reason
     cdef int _expires
-
-    property from_uri:
-
-        def __get__(self):
-            return self._from_uri.copy()
-
-    property to_uri:
-
-        def __get__(self):
-            return self._to_uri.copy()
-
-    property contact_uri:
-
-        def __get__(self):
-            return self._contact_uri.copy()
-
-    property route:
-
-        def __get__(self):
-            return self._route.copy()
-
-    property credentials:
-
-        def __get__(self):
-            if self._credentials is None:
-                return None
-            else:
-                return self._credentials.copy()
-
-    property extra_headers:
-
-        def __get__(self):
-            return self._extra_headers.copy()
 
     #public methods
 
@@ -73,58 +40,50 @@ cdef class Subscription:
         self._timeout_timer_active = 0
         pj_timer_entry_init(&self._refresh_timer, 1, <void *> self, _Subscription_cb_timer)
         self._refresh_timer_active = 0
-        self._extra_headers = {}
+        self.extra_headers = frozenlist()
 
-    def __init__(self, SIPURI from_uri, SIPURI to_uri, SIPURI contact_uri, object event, Route route,
-                 Credentials credentials=None, int refresh=300):
+    def __init__(self, BaseIdentityHeader from_header not None, BaseIdentityHeader to_header not None, BaseContactHeader contact_header not None,
+                 object event, BaseRoute route not None, BaseCredentials credentials=None, int refresh=300):
         global _subs_cb
-        cdef PJSTR from_uri_str
-        cdef PJSTR to_uri_str
-        cdef PJSTR contact_uri_str
+        cdef PJSTR from_header_str
+        cdef PJSTR to_header_str
+        cdef PJSTR contact_header_str
         cdef PJSTR request_uri_str
         cdef pj_str_t event_pj
         cdef PJSIPUA ua = _get_ua()
         cdef int status
         if self._obj != NULL or self.state != "NULL":
             raise SIPCoreError("Subscription.__init__() was already called")
-        if from_uri is None:
-            raise ValueError("from_uri argument may not be None")
-        if to_uri is None:
-            raise ValueError("to_uri argument may not be None")
-        if contact_uri is None:
-            raise ValueError("contact_uri argument may not be None")
-        if route is None:
-            raise ValueError("route argument may not be None")
         if refresh <= 0:
             raise ValueError("refresh argument needs to be a non-negative integer")
         if event not in ua._events.iterkeys():
             raise ValueError('Unknown event "%s"' % event)
-        self._from_uri = from_uri.copy()
-        self._to_uri = to_uri.copy()
-        self._contact_uri = contact_uri.copy()
+        self.from_header = FrozenFromHeader.new(from_header)
+        self.to_header = FrozenToHeader.new(to_header)
+        self.contact_header = FrozenContactHeader.new(contact_header)
         self.event = event
-        self._route = route.copy()
+        self.route = FrozenRoute.new(route)
         if credentials is not None:
-            self._credentials = credentials.copy()
+            self.credentials = FrozenCredentials.new(credentials)
         self.refresh = refresh
-        from_uri_str = PJSTR(from_uri._as_str(0))
-        to_uri_str = PJSTR(to_uri._as_str(0))
-        contact_uri_str = PJSTR(contact_uri._as_str(0))
-        request_uri_str = PJSTR(to_uri._as_str(1))
+        from_header_str = PJSTR(from_header.body)
+        to_header_str = PJSTR(to_header.body)
+        contact_header_str = PJSTR(contact_header.body)
+        request_uri_str = PJSTR(str(to_header.uri))
         _str_to_pj_str(self.event, &event_pj)
-        status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_uri_str.pj_str, &contact_uri_str.pj_str,
-                                      &to_uri_str.pj_str, &request_uri_str.pj_str, &self._dlg)
+        status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_header_str.pj_str,
+                                      &to_header_str.pj_str, &request_uri_str.pj_str, &self._dlg)
         if status != 0:
             raise PJSIPError("Could not create dialog for SUBSCRIBE", status)
         status = pjsip_evsub_create_uac(self._dlg, &_subs_cb, &event_pj, PJSIP_EVSUB_NO_EVENT_ID, &self._obj)
         if status != 0:
             raise PJSIPError("Could not create SUBSCRIBE", status)
         pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, <void *> self)
-        status = pjsip_dlg_set_route_set(self._dlg, <pjsip_route_hdr *> &self._route._route_set)
+        status = pjsip_dlg_set_route_set(self._dlg, <pjsip_route_hdr *> self.route.get_route_set())
         if status != 0:
             raise PJSIPError("Could not set route on SUBSCRIBE", status)
-        if self._credentials is not None:
-            status = pjsip_auth_clt_set_credentials(&self._dlg.auth_sess, 1, &self._credentials._obj)
+        if self.credentials is not None:
+            status = pjsip_auth_clt_set_credentials(&self._dlg.auth_sess, 1, self.credentials.get_cred_info())
             if status != 0:
                 raise PJSIPError("Could not set credentials for SUBSCRIBE", status)
 
@@ -140,9 +99,8 @@ cdef class Subscription:
             self._dlg = NULL
         self._cancel_timers(ua, 1, 1)
 
-    def subscribe(self, dict extra_headers=None, object content_type=None, object body=None, object timeout=None):
+    def subscribe(self, list extra_headers not None=list(), object content_type=None, object body=None, object timeout=None):
         cdef object prev_state = self.state
-        cdef dict headers = {}
         cdef PJSIPUA ua = self._get_ua()
         if self.state == "TERMINATED":
             raise SIPCoreError('This method may not be called in the "TERMINATED" state')
@@ -157,11 +115,10 @@ cdef class Subscription:
             self._subscribe_timeout.sec = 0
             self._subscribe_timeout.msec = 0
         if extra_headers is not None:
-            headers = extra_headers.copy()
-        self._send_subscribe(ua, self.refresh, &self._subscribe_timeout, headers, content_type, body)
-        self._extra_headers = headers
+            self.extra_headers = frozenlist([header.frozen_type.new(header) for header in extra_headers])
         self.content_type = content_type
         self.body = body
+        self._send_subscribe(ua, self.refresh, &self._subscribe_timeout, self.extra_headers, content_type, body)
         self._cancel_timers(ua, 0, 1)
         if prev_state == "NULL":
             _add_event("SIPSubscriptionWillStart", dict(obj=self))
@@ -185,7 +142,7 @@ cdef class Subscription:
         self._cancel_timers(ua, 1, 1)
         _add_event("SIPSubscriptionWillEnd", dict(obj=self))
         try:
-            self._send_subscribe(ua, 0, &end_timeout, {}, None, None)
+            self._send_subscribe(ua, 0, &end_timeout, [], None, None)
         except PJSIPError, e:
             self._term_reason = e.args[0]
             pjsip_evsub_terminate(self._obj, 1)
@@ -215,7 +172,7 @@ cdef class Subscription:
             self._refresh_timer_active = 0
 
     cdef int _send_subscribe(self, PJSIPUA ua, int expires, pj_time_val *timeout,
-                             dict extra_headers, object content_type, object body) except -1:
+                             object extra_headers, object content_type, object body) except -1:
         cdef pjsip_tx_data *tdata
         cdef pj_str_t body_pj
         cdef object content_type_spl
@@ -299,7 +256,7 @@ cdef class Subscription:
     cdef int _cb_refresh_timer(self, PJSIPUA ua):
         try:
             self._send_subscribe(ua, self.refresh, &self._subscribe_timeout,
-                                 self._extra_headers, self.content_type, self.body)
+                                 self.extra_headers, self.content_type, self.body)
         except PJSIPError, e:
             self._term_reason = e.args[0]
             pjsip_evsub_terminate(self._obj, 1)
