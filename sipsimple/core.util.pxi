@@ -287,7 +287,7 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         info_dict["body"] = PyString_FromStringAndSize(<char *> body.data, body.len)
     if rdata.msg_info.msg.type == PJSIP_REQUEST_MSG:
         info_dict["method"] = _pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
-        info_dict["request_uri"] = _make_SIPURI(rdata.msg_info.msg.line.req.uri, 0)
+        info_dict["request_uri"] = FrozenSIPURI_create(<pjsip_sip_uri*>rdata.msg_info.msg.line.req.uri)
     else:
         info_dict["code"] = rdata.msg_info.msg.line.status.code
         info_dict["reason"] = _pj_str_to_str(rdata.msg_info.msg.line.status.reason)
