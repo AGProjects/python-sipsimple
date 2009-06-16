@@ -5,7 +5,7 @@ from threading import RLock
 from application.python.decorator import decorator
 from application.notification import NotificationCenter, NotificationData
 
-from sipsimple.core import SIPURI, Request, SIPCoreError
+from sipsimple.core import SIPURI, Header, Request, SIPCoreError
 from sipsimple.util import NotificationHandler
 
 @decorator
@@ -16,8 +16,8 @@ def keyword_handler(func):
 
 class Registration(NotificationHandler):
 
-    def __init__(self, uri, credentials=None, duration=300):
-        self.uri = uri
+    def __init__(self, from_header, credentials=None, duration=300):
+        self.from_header = from_header
         self.credentials = credentials
         self.duration = duration
         self._notification_center = NotificationCenter()
@@ -30,10 +30,10 @@ class Registration(NotificationHandler):
     contact_uri = property(lambda self: None if self._last_request is None else self._last_request.contact_uri)
     expires_in = property(lambda self: 0 if self._last_request is None else self._last_request.expires_in)
 
-    def register(self, contact_uri, route, timeout=None, raise_sipcore_error=True):
+    def register(self, contact_header, route, timeout=None, raise_sipcore_error=True):
         with self._lock:
             try:
-                self._make_and_send_request(contact_uri, route, timeout, True)
+                self._make_and_send_request(contact_header, route, timeout, True)
             except SIPCoreError, e:
                 if raise_sipcore_error:
                     raise
@@ -46,10 +46,10 @@ class Registration(NotificationHandler):
         with self._lock:
             if self._last_request is None:
                 return
-            self._make_and_send_request(self._last_request.contact_uri, self._last_request.route, timeout, False)
+            self._make_and_send_request(self._last_request.contact_header, self._last_request.route, timeout, False)
             self._notification_center.post_notification("SIPRegistrationWillEnd", sender=self, data=NotificationData())
 
-    def _make_and_send_request(self, contact_uri, route, timeout, do_register):
+    def _make_and_send_request(self, contact_header, route, timeout, do_register):
         prev_request = self._current_request or self._last_request
         if prev_request is not None:
             call_id = prev_request.call_id
@@ -57,9 +57,9 @@ class Registration(NotificationHandler):
         else:
             call_id = None
             cseq = 1
-        request = Request("REGISTER", self.uri, self.uri, SIPURI(self.uri.host), route,
-                          credentials=self.credentials, contact_uri=contact_uri, call_id=call_id,
-                          cseq=cseq, extra_headers={"Expires": str(int(self.duration) if do_register else 0)})
+        request = Request("REGISTER", self.from_header, self.from_header, SIPURI(self.from_header.uri.host), route,
+                          credentials=self.credentials, contact_header=contact_header, call_id=call_id,
+                          cseq=cseq, extra_headers=[Header("Expires", str(int(self.duration) if do_register else 0))])
         self._notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
             # we are trying to send something already, cancel whatever it is
@@ -88,13 +88,13 @@ class Registration(NotificationHandler):
             else:
                 self._last_request = request
                 try:
-                    contact_uri_list = headers["Contact"]
-                except IndexError:
-                    contact_uri_list = []
+                    contact_header_list = headers["Contact"]
+                except KeyError:
+                    contact_header_list = []
                 self._notification_center.post_notification("SIPRegistrationDidSucceed", sender=self,
                                                             data=NotificationData(code=code, reason=reason,
-                                                                                  contact_uri=request.contact_uri,
-                                                                                  contact_uri_list=contact_uri_list,
+                                                                                  contact_header=request.contact_header,
+                                                                                  contact_header_list=contact_header_list,
                                                                                   expires_in=expires,
                                                                                   route=request.route))
 
@@ -136,14 +136,14 @@ class Registration(NotificationHandler):
 
 class Message(NotificationHandler):
 
-    def __init__(self, from_uri, to_uri, route, content_type, body, credentials=None):
-        self._request = Request("MESSAGE", from_uri, to_uri, to_uri, route,
+    def __init__(self, from_header, to_header, route, content_type, body, credentials=None):
+        self._request = Request("MESSAGE", from_header, to_header, to_header.uri, route,
                                 credentials=credentials, content_type=content_type, body=body)
         self._notification_center = NotificationCenter()
         self._lock = RLock()
 
-    from_uri = property(lambda self: self._request.from_uri)
-    to_uri = property(lambda self: self._request.to_uri)
+    from_header = property(lambda self: self._request.from_header)
+    to_header = property(lambda self: self._request.to_header)
     route = property(lambda self: self._request.route)
     content_type = property(lambda self: self._request.content_type)
     body = property(lambda self: self._request.body)
@@ -191,8 +191,8 @@ class PublicationError(Exception):
 
 class Publication(NotificationHandler):
 
-    def __init__(self, uri, event, content_type, credentials=None, duration=300):
-        self.uri = uri
+    def __init__(self, from_header, event, content_type, credentials=None, duration=300):
+        self.from_header = from_header
         self.event = event
         self.content_type = content_type
         self.credentials = credentials
@@ -224,13 +224,13 @@ class Publication(NotificationHandler):
             self._notification_center.post_notification("SIPPublicationWillEnd", sender=self, data=NotificationData())
 
     def _make_and_send_request(self, body, route, timeout, do_publish):
-        extra_headers = {}
-        extra_headers["Event"] = self.event
-        extra_headers["Expires"] = str(int(self.duration) if do_publish else 0)
+        extra_headers = []
+        extra_headers.append(Header("Event", self.event))
+        extra_headers.append(Header("Expires",  str(int(self.duration) if do_publish else 0)))
         if self._last_etag is not None:
-            extra_headers["SIP-If-Match"] = self._last_etag
+            extra_headers.append(Header("SIP-If-Match", self._last_etag))
         content_type = (self.content_type if body is not None else None)
-        request = Request("PUBLISH", self.uri, self.uri, self.uri, route,
+        request = Request("PUBLISH", self.from_header, self.from_header, self.from_header.uri, route,
                           credentials=self.credentials, cseq=1, extra_headers=extra_headers,
                           content_type=content_type, body=body)
         self._notification_center.add_observer(self, sender=request)
@@ -261,7 +261,7 @@ class Publication(NotificationHandler):
                                                             data=NotificationData(expired=False))
             else:
                 self._last_request = request
-                self._last_etag = headers.get("SIP-ETag", None)
+                self._last_etag = headers["SIP-ETag"].body if "SIP-ETag" in headers else None
                 # TODO: add more data?
                 self._notification_center.post_notification("SIPPublicationDidSucceed", sender=self,
                                                             data=NotificationData(code=code, reason=reason,
