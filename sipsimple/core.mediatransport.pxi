@@ -163,22 +163,22 @@ cdef class RTPTransport:
         def __get__(self):
             return bool(self._ice_active)
 
-    cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
+    cdef int _update_local_sdp(self, BaseSDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
         cdef int status
         if sdp_index < 0:
             raise ValueError("sdp_index argument cannot be negative")
-        if sdp_index >= local_sdp._obj.media_count:
+        if sdp_index >= local_sdp.get_sdp_session().media_count:
             raise ValueError("sdp_index argument out of range")
         status = pjmedia_transport_media_create(self._obj, self._pool, 0, remote_sdp, sdp_index)
         if status != 0:
             raise PJSIPError("Could not create media transport", status)
-        status = pjmedia_transport_encode_sdp(self._obj, self._pool, &local_sdp._obj, remote_sdp, sdp_index)
+        status = pjmedia_transport_encode_sdp(self._obj, self._pool, local_sdp.get_sdp_session(), remote_sdp, sdp_index)
         if status != 0:
             raise PJSIPError("Could not update SDP for media transport", status)
         # TODO: work the changes back into the local_sdp object, but we don't need to do that yet.
         return 0
 
-    def set_LOCAL(self, SDPSession local_sdp, int sdp_index):
+    def set_LOCAL(self, BaseSDPSession local_sdp, int sdp_index):
         self._check_ua()
         if local_sdp is None:
             raise SIPCoreError("local_sdp argument cannot be None")
@@ -186,11 +186,10 @@ cdef class RTPTransport:
             return
         if self.state != "INIT":
             raise SIPCoreError('set_LOCAL can only be called in the "INIT" state, current state is "%s"' % self.state)
-        local_sdp._to_c()
         self._update_local_sdp(local_sdp, sdp_index, NULL)
         self.state = "LOCAL"
 
-    def set_ESTABLISHED(self, SDPSession local_sdp, SDPSession remote_sdp, int sdp_index):
+    def set_ESTABLISHED(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index):
         cdef int status
         self._check_ua()
         if None in [local_sdp, remote_sdp]:
@@ -200,11 +199,9 @@ cdef class RTPTransport:
         if self.state not in ["INIT", "LOCAL"]:
             raise SIPCoreError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states, ' +
                                'current state is "%s"' % self.state)
-        local_sdp._to_c()
-        remote_sdp._to_c()
         if self.state == "INIT":
-            self._update_local_sdp(local_sdp, sdp_index, &remote_sdp._obj)
-        status = pjmedia_transport_media_start(self._obj, self._pool, &local_sdp._obj, &remote_sdp._obj, sdp_index)
+            self._update_local_sdp(local_sdp, sdp_index, remote_sdp.get_sdp_session())
+        status = pjmedia_transport_media_start(self._obj, self._pool, local_sdp.get_sdp_session(), remote_sdp.get_sdp_session(), sdp_index)
         if status != 0:
             raise PJSIPError("Could not start media transport", status)
         if remote_sdp.media[sdp_index].connection is None:
@@ -313,7 +310,7 @@ cdef class AudioTransport:
             raise SIPCoreError("Could not allocate memory pool")
         pj_timer_entry_init(&self._timer, 0, <void *> self, _AudioTransport_cb_check_rtp)
 
-    def __init__(self, RTPTransport transport, SDPSession remote_sdp=None,
+    def __init__(self, RTPTransport transport, BaseSDPSession remote_sdp=None,
                  int sdp_index=0, enable_silence_detection=True, list codecs=None):
         cdef pjmedia_transport_info info
         cdef pjmedia_sdp_session *local_sdp_c
@@ -344,7 +341,7 @@ cdef class AudioTransport:
         finally:
             if codecs is not None:
                 ua._pjmedia_endpoint._set_codecs(global_codecs)
-        local_sdp = _make_SDPSession(local_sdp_c)
+        local_sdp = SDPSession_create(local_sdp_c)
         if remote_sdp is None:
             self._is_offer = 1
             self.transport.set_LOCAL(local_sdp, 0)
@@ -353,7 +350,7 @@ cdef class AudioTransport:
             if sdp_index != 0:
                 local_sdp.media = (sdp_index+1) * local_sdp.media
             self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
-        self._local_media = pjmedia_sdp_media_clone(self._pool, local_sdp._obj.media[sdp_index])
+        self._local_media = pjmedia_sdp_media_clone(self._pool, local_sdp.get_sdp_session().media[sdp_index])
 
     def __dealloc__(self):
         cdef PJSIPUA ua
@@ -435,7 +432,7 @@ cdef class AudioTransport:
         cdef object direction_attr
         if is_offer and direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
             raise SIPCoreError("Unknown direction: %s" % direction)
-        local_media = _make_SDPMedia(self._local_media)
+        local_media = SDPMedia_create(self._local_media)
         local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ["sendrecv",
                                                                                                         "sendonly",
                                                                                                         "recvonly",
@@ -450,7 +447,7 @@ cdef class AudioTransport:
         local_media.attributes.append(SDPAttribute(direction_attr, ""))
         return local_media
 
-    def start(self, SDPSession local_sdp, SDPSession remote_sdp, int sdp_index,
+    def start(self, BaseSDPSession local_sdp, BaseSDPSession remote_sdp, int sdp_index,
               int no_media_timeout=10, int media_check_interval=30):
         cdef pjmedia_port *media_port
         cdef pj_time_val no_media_pj
@@ -477,11 +474,8 @@ cdef class AudioTransport:
         no_media_pj.msec = 0
         if self.transport.state == "LOCAL":
             self.transport.set_ESTABLISHED(local_sdp, remote_sdp, sdp_index)
-        else:
-            local_sdp._to_c()
-            remote_sdp._to_c()
         status = pjmedia_stream_info_from_sdp(&self._stream_info, self._pool, ua._pjmedia_endpoint._obj,
-                                              &local_sdp._obj, &remote_sdp._obj, sdp_index)
+                                              local_sdp.get_sdp_session(), remote_sdp.get_sdp_session(), sdp_index)
         if status != 0:
             raise PJSIPError("Could not parse SDP for audio session", status)
         if self._stream_info.param == NULL:
@@ -513,7 +507,7 @@ cdef class AudioTransport:
             raise PJSIPError("Could not connect audio session to conference bridge", status)
         self.direction = "sendrecv"
         self.update_direction(local_sdp.media[sdp_index].get_direction())
-        self._local_media = pjmedia_sdp_media_clone(self._pool, local_sdp._obj.media[sdp_index])
+        self._local_media = pjmedia_sdp_media_clone(self._pool, local_sdp.get_sdp_session().media[sdp_index])
         self._is_started = 1
         if no_media_pj.sec > 0:
             self._timer.id = media_check_interval
