@@ -192,16 +192,16 @@ class RegistrationApplication(object):
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if not self.success:
             route = notification.data.route
-            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.expires)
-            contact_uri_list = notification.data.contact_uri_list
-            if len(contact_uri_list) > 1:
-                message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %d seconds)" % (str(other_contact_uri), params["expires"]) for other_contact_uri, params in contact_uri_list if other_contact_uri != notification.data.contact_uri])
+            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires)
+            contact_header_list = notification.data.contact_header_list
+            if len(contact_header_list) > 1:
+                message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %s seconds)" % (str(other_contact_header.uri), other_contact_header.expires) for other_contact_header in contact_header_list if other_contact_header.uri != notification.data.contact_header.uri])
             self.output.put(message)
             
             self.success = True
         else:
             route = notification.data.route
-            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_uri, self.account.id, route.address, route.port, route.transport, notification.data.expires))
+            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires))
         
         if self.max_registers is not None:
             self.max_registers -= 1
