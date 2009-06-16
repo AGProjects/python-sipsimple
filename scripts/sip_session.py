@@ -19,7 +19,7 @@ from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
 from msrplib import trafficlog
 
-from sipsimple.core import SIPURI, SIPCoreError
+from sipsimple.core import SIPURI, SIPCoreError, ToHeader
 from sipsimple.clients.console import setup_console, CTRL_D, EOF
 from sipsimple.clients.log import Logger
 from sipsimple.green.core import GreenEngine
@@ -54,14 +54,14 @@ def format_display_user_host(display, user, host):
     else:
         return '%s@%s' % (user, host)
 
-def format_uri(sip_uri, cpim_uri=None):
-    if cpim_uri is not None:
-        if (sip_uri.host, sip_uri.user) == (cpim_uri.host, cpim_uri.user):
-            return format_display_user_host(cpim_uri.display or sip_uri.display, sip_uri.user, sip_uri.host)
+def format_identity(sip_identity, cpim_identity=None):
+    if cpim_identity is not None:
+        if (sip_identity.uri.host, sip_identity.uri.user) == (cpim_identity.uri.host, cpim_identity.uri.user):
+            return format_display_user_host(cpim_identity.display_name or sip_identity.display_name, sip_identity.uri.user, sip_identity.uri.host)
         else:
             # conference, pasting only header from cpim
-            return format_display_user_host(cpim_uri.display, cpim_uri.user, cpim_uri.host)
-    return format_display_user_host(sip_uri.display, sip_uri.user, sip_uri.host)
+            return format_display_user_host(cpim_identity.display_name, cpim_identity.uri.user, cpim_identity.uri.host)
+    return format_display_user_host(sip_identity.display_name, sip_identity.uri.user, sip_identity.uri.host)
 
 def format_datetime(dt):
     """Format time in the local timezone.
@@ -82,14 +82,14 @@ def format_datetime(dt):
     else:
         return repr(dt)
 
-def format_incoming_message(text, uri, cpim_from, dt):
+def format_incoming_message(text, identity, cpim_from, dt):
     if dt is None:
-        return '%s: %s' % (format_uri(uri, cpim_from), text)
+        return '%s: %s' % (format_identity(identity, cpim_from), text)
     else:
-        return '%s %s: %s' % (format_datetime(dt), format_uri(uri, cpim_from), text)
+        return '%s %s: %s' % (format_datetime(dt), format_identity(identity, cpim_from), text)
 
-def format_outgoing_message(uri, message, dt):
-    return '%s %s: %s' % (format_datetime(dt), format_uri(uri), message)
+def format_outgoing_message(identity, message, dt):
+    return '%s %s: %s' % (format_datetime(dt), format_identity(identity), message)
 
 class MessageRenderer(object):
 
@@ -105,7 +105,7 @@ class MessageRenderer(object):
         data = notification.data
         session = notification.sender._green
         try:
-            msg = format_incoming_message(data.content, session._inv.remote_uri,
+            msg = format_incoming_message(data.content, session._inv.remote_identity,
                                           data.cpim_headers.get('From'), data.cpim_headers.get('DateTime'))
         except ValueError:
             chunk = data.message
@@ -118,8 +118,8 @@ class MessageRenderer(object):
                 session.history_file.flush()
 
 def get_history_file(invitation):
-    return _get_history_file('%s@%s' % (invitation.local_uri.user, invitation.local_uri.host),
-                             '%s@%s' % (invitation.remote_uri.user, invitation.remote_uri.host),
+    return _get_history_file('%s@%s' % (invitation.local_identity.uri.user, invitation.local_identity.uri.host),
+                             '%s@%s' % (invitation.remote_identity.uri.user, invitation.remote_identity.uri.host),
                              invitation.is_outgoing)
 
 def _get_history_file(local_uri, remote_uri, is_outgoing):
@@ -156,7 +156,7 @@ class ChatSession(GreenSession, NotificationHandler):
         if self._inv is not None:
             self.history_file = get_history_file(self._inv)
             if self.remote_party is None:
-                self.remote_party = format_uri(self._inv.remote_uri)
+                self.remote_party = format_identity(self._inv.remote_identity)
         self.subscribe_to_all(sender=self._obj)
 
     def _NH_SIPSessionDidStart(self, session, _data):
@@ -177,7 +177,7 @@ class ChatSession(GreenSession, NotificationHandler):
             raise UserCommandError("This SIP session does not have an active MSRP stream to send chat message over")
         dt = datetime.datetime.utcnow()
         chunk = self._obj.send_message(msg, dt=dt)
-        printed_msg = format_outgoing_message(self._inv.local_uri, msg, dt=dt)
+        printed_msg = format_outgoing_message(self._inv.local_identity, msg, dt=dt)
         print printed_msg
         if self.history_file:
             self.history_file.write(printed_msg + '\n')
@@ -250,7 +250,7 @@ class ChatManager(NotificationHandler):
     def _handle_proposal(self, session, data):
         inv = session._inv
         txt = '/'.join(x.capitalize() for x in data.streams)
-        question = '%s wants to add %s, do you accept? (y/n) ' % (format_uri(inv.from_uri), txt)
+        question = '%s wants to add %s, do you accept? (y/n) ' % (format_identity(inv.from_header), txt)
         with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, list('yYnN') + [CTRL_D])
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
@@ -275,7 +275,7 @@ class ChatManager(NotificationHandler):
         if has_chat and has_audio:
             replies += list('aAcC')
             replies_txt += '/a/c'
-        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, inv.from_uri, replies_txt)
+        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, inv.from_header.body, replies_txt)
         with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
@@ -315,8 +315,8 @@ class ChatManager(NotificationHandler):
                 prefix = '%s/%s ' % (1+self.sessions.index(self.current_session), len(self.sessions))
             ps = prefix + self.current_session.format_prompt()
         else:
-            if hasattr(self.account, 'uri'):
-                uri = self.account.uri
+            if hasattr(self.account, 'from_header'):
+                uri = self.account.from_header.uri
                 username, domain, port = uri.user, uri.host, uri.port
                 if port in [None, 0, 5060]:
                     ps = '%s@%s' % (username, domain)
@@ -404,7 +404,7 @@ class ChatManager(NotificationHandler):
                     use_chat = True
         if not isinstance(target_uri, SIPURI):
             try:
-                target_uri = self.engine.parse_sip_uri(format_cmdline_uri(target_uri, self.account.id.domain))
+                target_uri = SIPURI.parse(format_cmdline_uri(target_uri, self.account.id.domain))
             except (ValueError, SIPCoreError), ex:
                 raise UserCommandError(str(ex))
         self.procs.spawn(self._call, target_uri, use_audio, use_chat)
@@ -412,14 +412,14 @@ class ChatManager(NotificationHandler):
     def _call(self, target_uri, use_audio, use_chat):
         session = None
         try:
-            session = ChatSession(self, self.account, remote_party=format_uri(target_uri))
+            session = ChatSession(self, self.account, remote_party=format_identity(ToHeader(target_uri)))
             session.update_info(chat=use_chat, audio=use_audio)
             self.add_session(session)
             routes = get_routes(target_uri, self.engine, self.account)
             if not routes:
                 print 'ERROR: No route found to SIP proxy for "%s"' % target_uri
                 return
-            session.connect(target_uri, routes, chat=use_chat, audio=use_audio)
+            session.connect(ToHeader(target_uri), routes, chat=use_chat, audio=use_audio)
             session = None
         except SessionError:
             pass
@@ -680,7 +680,7 @@ class InfoPrinter(NotificationHandler):
     def _NH_SIPAccountRegistrationDidSucceed(self, account, data):
         route = data.route
         print 'Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds)' % \
-            (data.contact_uri, account.id, route.address, route.port,
+            (data.contact_header.uri, account.id, route.address, route.port,
              route.transport, data.expires)
 
     def _NH_SIPAccountRegistrationDidFail(self, account, data):
