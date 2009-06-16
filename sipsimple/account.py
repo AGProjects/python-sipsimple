@@ -17,7 +17,7 @@ from application.python.util import Singleton
 from zope.interface import implements
 
 from sipsimple.engine import Engine
-from sipsimple.core import Credentials, SIPURI, SIPCoreError
+from sipsimple.core import ContactHeader, Credentials, FromHeader, SIPURI, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
 from sipsimple.configuration.datatypes import AudioCodecs, CountryCode, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -137,7 +137,7 @@ class Account(SettingsObject):
         username = ''.join(random.sample(string.lowercase, 8))
         settings = SIPSimpleSettings()
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
-        self.uri = SIPURI(user=self.id.username, host=self.id.domain, display=self.display_name)
+        self.from_header = FromHeader(SIPURI(user=self.id.username, host=self.id.domain), self.display_name)
         self.credentials = Credentials(self.id.username, self.password)
 
         self.active = False
@@ -158,7 +158,7 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
 
         if self.enabled:
-            self._registrar = Registration(self.uri, credentials=self.credentials, duration=self.registration.interval)
+            self._registrar = Registration(self.from_header, credentials=self.credentials, duration=self.registration.interval)
             notification_center.add_observer(self, sender=self._registrar)
             if engine.is_running:
                 self._activate()
@@ -205,15 +205,15 @@ class Account(SettingsObject):
                         self._registrar.end(timeout=2)
                     self._registrar = None
                 elif engine.is_running:
-                    self._registrar = Registration(self.uri, credentials=self.credentials, duration=self.registration.interval)
+                    self._registrar = Registration(self.from_header, credentials=self.credentials, duration=self.registration.interval)
                     notification_center.add_observer(self, sender=self._registrar)
                     self._register()
 
-        # update uri and credentials attributes if needed
+        # update from_header and credentials attributes if needed
         if 'password' in notification.data.modified:
             self.credentials.password = self.password
         if 'display_name' in notification.data.modified:
-            self.uri.display= self.display_name
+            self.from_header.display_name = self.display_name
 
     def _NH_SIPEngineDidStart(self, notification):
         if self.enabled:
@@ -227,8 +227,8 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self, data=NotificationData(code=notification.data.code,
                                                                                                                     reason=notification.data.reason,
-                                                                                                                    contact_uri=notification.data.contact_uri,
-                                                                                                                    contact_uri_list=notification.data.contact_uri_list,
+                                                                                                                    contact_header=notification.data.contact_header,
+                                                                                                                    contact_header_list=notification.data.contact_header_list,
                                                                                                                     expires=notification.data.expires_in,
                                                                                                                     registration=notification.sender,
                                                                                                                     route=notification.data.route))
@@ -272,8 +272,8 @@ class Account(SettingsObject):
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
 
                 self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
-                contact_uri = self.contact[route.transport]
-                self._registrar.register(contact_uri, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
+                contact_header = ContactHeader(self.contact[route.transport])
+                self._registrar.register(contact_header, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
     def _NH_SIPRegistrationWillExpire(self, notification):
         self._register()
@@ -291,8 +291,8 @@ class Account(SettingsObject):
         self._register_routes = deque(notification.data.result)
         route = self._register_routes.popleft()
         self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
-        contact_uri = self.contact[route.transport]
-        self._registrar.register(contact_uri, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
+        contact_header = ContactHeader(self.contact[route.transport])
+        self._registrar.register(contact_header, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
     def _NH_DNSLookupDidFail(self, notification):
         notification_center = NotificationCenter()
@@ -396,7 +396,7 @@ class BonjourAccount(SettingsObject):
         settings = SIPSimpleSettings()
         username = ''.join(random.sample(string.lowercase, 8))
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
-        self.uri = SIPURI(user=self.contact.username, host=self.contact.domain, display=self.display_name)
+        self.from_header = FromHeader(SIPURI(user=self.contact.username, host=self.contact.domain), self.display_name)
         self.credentials = None
 
         self.active = False
@@ -438,6 +438,10 @@ class BonjourAccount(SettingsObject):
                 self._deactivate()
             elif engine.is_running:
                 self._activate()
+
+        # update from_header attribute if needed
+        if 'display_name' in notification.data.modified:
+            self.from_header.display_name = self.display_name
 
     def _activate(self):
         if self.active:
