@@ -479,7 +479,7 @@ cdef class PJSIPUA:
 
     def parse_sip_uri(self, uri_string):
         # no need for self._check_self(), _get_ua() is called in the function
-        return _parse_SIPURI(uri_string)
+        return SIPURI.parse(uri_string)
 
     def play_tones(self, tones):
         self._check_self()
@@ -537,9 +537,9 @@ cdef class PJSIPUA:
         cdef object exc_type
         cdef object exc_val
         cdef object exc_tb
+        exc_type, exc_val, exc_tb = sys.exc_info()
         if is_fatal:
             self._fatal_error = is_fatal
-        exc_type, exc_val, exc_tb = sys.exc_info()
         _add_event("SIPEngineGotException",
                     dict(type=exc_type, value=exc_val,
                          traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb))))
@@ -609,8 +609,8 @@ cdef class PJSIPUA:
                 inv._init_incoming(self, rdata, options)
         elif method_name == "MESSAGE":
             message_params = dict()
-            message_params["to_uri"] = _make_SIPURI(rdata.msg_info.to_hdr.uri, 1)
-            message_params["from_uri"] = _make_SIPURI(rdata.msg_info.from_hdr.uri, 1)
+            message_params["to_header"] = FrozenToHeader_create(rdata.msg_info.to_hdr)
+            message_params["from_header"] = FrozenFromHeader_create(rdata.msg_info.from_hdr)
             message_params["content_type"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
             message_params["content_subtype"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data,
