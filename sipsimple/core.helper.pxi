@@ -238,7 +238,7 @@ cdef class BaseSIPURI:
         cdef object name
         cdef object val
         cdef object string = self.host
-        if self.port != 5060:
+        if self.port:
             string = "%s:%d" % (string, self.port)
         if self.user is not None:
             if self.password is not None:
@@ -279,12 +279,12 @@ cdef class SIPURI(BaseSIPURI):
     cdef public str user
     cdef public str password
     cdef str _host
-    cdef int _port
+    cdef object _port
     cdef bint _secure
     cdef dict _parameters
     cdef dict _headers
 
-    def __init__(self, str host not None, str user=None, str password=None, int port=5060,
+    def __init__(self, str host not None, str user=None, str password=None, object port=None,
                  bint secure=False, dict parameters=None, dict headers=None):
         self.host = host
         self.user = user
@@ -307,9 +307,11 @@ cdef class SIPURI(BaseSIPURI):
         def __get__(self):
             return self._port
 
-        def __set__(self, int port):
-            if port < 0 or port > 65535:
-                raise ValueError("Invalid port: %d" % port)
+        def __set__(self, object port):
+            if port is not None:
+                port = int(port)
+                if not (0 < port < 65535):
+                    raise ValueError("Invalid port: %d" % port)
             self._port = port
 
     property parameters:
@@ -365,16 +367,18 @@ cdef class FrozenSIPURI(BaseSIPURI):
     cdef readonly str user
     cdef readonly str password
     cdef readonly str host
-    cdef readonly unsigned int port
+    cdef readonly object port
     cdef readonly bint secure
     cdef readonly frozendict parameters
     cdef readonly frozendict headers
 
-    def __init__(self, str host not None, str user=None, str password=None, int port=5060,
+    def __init__(self, str host not None, str user=None, str password=None, object port=None,
                  bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
         if not self.initialized:
-            if port < 0 or port > 65535:
-                raise ValueError("Invalid port: %d" % port)
+            if port is not None:
+                port = int(port)
+                if not (0 < port < 65535):
+                    raise ValueError("Invalid port: %d" % port)
             self.host = host
             self.user = user
             self.password = password

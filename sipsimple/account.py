@@ -321,7 +321,7 @@ class Account(SettingsObject):
         if self.outbound_proxy is not None:
             uri = SIPURI(host=self.outbound_proxy.host, port=self.outbound_proxy.port, parameters={'transport': self.outbound_proxy.transport})
         else:
-            uri = SIPURI(host=self.id.domain, port=0)
+            uri = SIPURI(host=self.id.domain)
         self._lookup.lookup_sip_proxy(uri, settings.sip.transports)
 
     def _activate(self):
