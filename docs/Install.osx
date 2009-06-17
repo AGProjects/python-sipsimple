@@ -145,6 +145,14 @@ make
 sudo make install
 cd ..
 
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/libtasn1-2.2.tar.gz
+tar zxvf libtasn1-2.2.tar.gz 
+cd libtasn1-2.2
+./configure
+make
+sudo make install
+cd ..
+
 curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.1.tar.bz2
 tar -xjvf libgcrypt-1.4.1.tar.bz2
 cd libgcrypt-1.4.1
@@ -184,7 +192,7 @@ sudo easy_install --script-dir /usr/bin -U setuptools
 
 Install python packages using easy_install:
 
-sudo easy_install -U mercurial cython dnspython twisted py
+sudo easy_install -U mercurial cython dnspython twisted py greenlet
 
 Download and install SIP SIMPLE client dependencies available in AG Projects
 repositories:
