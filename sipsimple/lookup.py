@@ -63,7 +63,10 @@ class DNSLookup(object):
             else:
                 for a_answer in a_answers:
                     servers.append((a_answer.address, a_port))
-        notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=servers))
+        if servers:
+            notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=servers))
+        else:
+            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No %s servers found for domain %s" % (service, uri.host)))
 
     _naptr_service_transport_map = {"sips+d2t": "tls",
                                     "sip+d2t": "tcp",
