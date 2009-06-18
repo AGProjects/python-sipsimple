@@ -83,7 +83,7 @@ class MSRPChat(object):
         self.state = NULL
         self.notification_center = NotificationCenter()
         self.remote_identity = remote_identity
-        self.local_identity = CPIMIdentity(account.from_header.uri, account.from_header.display_name)
+        self.local_identity = CPIMIdentity(account.uri, account.display_name)
 
         settings = SIPSimpleSettings()
         self.accept_types = list(settings.chat.accept_types)

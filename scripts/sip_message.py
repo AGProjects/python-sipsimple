@@ -16,7 +16,7 @@ from zope.interface import implements
 from application.notification import IObserver
 
 from sipsimple.engine import Engine
-from sipsimple.core import Credentials, SIPCoreError, SIPURI, ToHeader
+from sipsimple.core import FromHeader, Credentials, SIPCoreError, SIPURI, ToHeader
 from sipsimple.primitives import Message
 from sipsimple.session import SessionManager
 from sipsimple.lookup import DNSLookup
@@ -149,7 +149,7 @@ def read_queue(e, settings, am, account, logger, target_uri, message, dns):
                 else:
                     sent = True
                     print 'Sending MESSAGE from "%s" to "%s" using proxy %s:%s:%d' % (account.id, target_uri, routes[0].transport, routes[0].address, routes[0].port)
-                    msg = Message(account.from_header, ToHeader(target_uri), routes[0], "text/plain", "\n".join(msg_buf), credentials=account.credentials)
+                    msg = Message(FromHeader(account.uri, account.display_name), ToHeader(target_uri), routes[0], "text/plain", "\n".join(msg_buf), credentials=account.credentials)
                     msg.send()
                     print "Press Ctrl+D to stop the program."
             if command == "quit":

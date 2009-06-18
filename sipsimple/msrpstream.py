@@ -42,7 +42,7 @@ class MSRPChat(object):
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
         self.message_queue = deque() # messages stored here until the connection established
         self.session = None
-        self.local_identity = CPIMIdentity(self.account.from_header.uri, self.account.from_header.display_name)
+        self.local_identity = CPIMIdentity(self.account.uri, self.account.display_name)
 
     def make_SDPMedia(self, uri_path):
         attributes = []
@@ -80,13 +80,13 @@ class MSRPChat(object):
             outgoing = session.direction == 'outgoing'
             if (outgoing and self.account.msrp.use_relay_for_outbound) or (not outgoing and self.account.msrp.use_relay_for_inbound):
                 if self.account.msrp.relay is None:
-                    relay = MSRPRelaySettings(domain=self.account.from_header.uri.host,
-                                              username=self.account.from_header.uri.user,
+                    relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                              username=self.account.uri.user,
                                               password=self.account.credentials.password if self.account.credentials else '')
                     self.transport = 'tls'
                 else:
-                    relay = MSRPRelaySettings(domain=self.account.from_header.uri.host,
-                                              username=self.account.from_header.uri.user,
+                    relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                              username=self.account.uri.user,
                                               password=self.account.credentials.password if self.account.credentials else '',
                                               host=self.account.msrp.relay.host,
                                               port=self.account.msrp.relay.port,

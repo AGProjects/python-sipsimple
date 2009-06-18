@@ -5,7 +5,7 @@ from application.notification import NotificationCenter, Any
 from application.python.util import Singleton
 from eventlet import proc, api, coros
 
-from sipsimple.core import ContactHeader, SDPConnection, SDPMedia, SDPSession
+from sipsimple.core import ContactHeader, FromHeader, SDPConnection, SDPMedia, SDPSession
 from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
 from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
@@ -236,7 +236,7 @@ class Session(NotificationHandler):
             workers = Workers()
             self.direction = 'outgoing'
             route = iter(routes).next()
-            self.inv = GreenInvitation(self.account.from_header, to_header, route, self.account.credentials, ContactHeader(self.account.contact[route.transport]))
+            self.inv = GreenInvitation(FromHeader(self.account.uri, self.account.display_name), to_header, route, self.account.credentials, ContactHeader(self.account.contact[route.transport]))
             self.subscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
             ERROR = (500, None, 'local') # code, reason, originator
             self._set_state('CALLING')

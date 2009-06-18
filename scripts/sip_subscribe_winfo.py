@@ -24,7 +24,7 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import ContactHeader, SIPCoreError, SIPURI, Subscription
+from sipsimple.core import ContactHeader, FromHeader, SIPCoreError, SIPURI, Subscription, ToHeader
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
@@ -283,7 +283,7 @@ class WinfoApplication(object):
                 reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
             else:
                 route = route=self._subscription_routes.popleft()
-                self.subscription = Subscription(self.account.from_header, self.account.from_header, ContactHeader(self.account.contact[route.transport]), "presence.winfo", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+                self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), ToHeader(self.account.uri, self.account.display_name), ContactHeader(self.account.contact[route.transport]), "presence.winfo", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
                 notification_center.add_observer(self, sender=self.subscription)
                 self.subscription.subscribe(timeout=5)
 
@@ -295,7 +295,7 @@ class WinfoApplication(object):
         # create subscription and register to get notifications from it
         self._subscription_routes = deque(notification.data.result)
         route = self._subscription_routes.popleft()
-        self.subscription = Subscription(self.account.from_header, self.account.from_header, ContactHeader(self.account.contact[route.transport]), "presence.winfo", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+        self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), ToHeader(self.account.uri, self.account.display_name), ContactHeader(self.account.contact[route.transport]), "presence.winfo", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
         self.subscription.subscribe(timeout=5)

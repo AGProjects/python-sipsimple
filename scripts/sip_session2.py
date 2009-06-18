@@ -466,15 +466,12 @@ class ChatManager(NotificationHandler):
                 prefix = '%s/%s ' % (1+self.sessions.index(self.current_session), len(self.sessions))
             ps = prefix + self.current_session.format_prompt()
         else:
-            if hasattr(self.account, 'from_header'):
-                uri = self.account.from_header.uri
-                username, domain, port = uri.user, uri.host, uri.port
-                if port in [None, 0, 5060]:
-                    ps = '%s@%s' % (username, domain)
-                else:
-                    ps = '%s@%s:%s' % (username, domain, port)
+            uri = self.account.uri
+            username, domain, port = uri.user, uri.host, uri.port
+            if port in [None, 0, 5060]:
+                ps = '%s@%s' % (username, domain)
             else:
-                ps = str(getattr(self.account, 'contact', None))
+                ps = '%s@%s:%s' % (username, domain, port)
             ps += '> '
         self.console.set_prompt(ps)
 

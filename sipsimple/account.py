@@ -137,7 +137,7 @@ class Account(SettingsObject):
         username = ''.join(random.sample(string.lowercase, 8))
         settings = SIPSimpleSettings()
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
-        self.from_header = FromHeader(SIPURI(user=self.id.username, host=self.id.domain), self.display_name)
+        self.uri = SIPURI(user=self.id.username, host=self.id.domain)
         self.credentials = Credentials(self.id.username, self.password)
 
         self.active = False
@@ -158,7 +158,7 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
 
         if self.enabled:
-            self._registrar = Registration(self.from_header, credentials=self.credentials, duration=self.registration.interval)
+            self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
             notification_center.add_observer(self, sender=self._registrar)
             if engine.is_running:
                 self._activate()
@@ -205,15 +205,13 @@ class Account(SettingsObject):
                         self._registrar.end(timeout=2)
                     self._registrar = None
                 elif engine.is_running:
-                    self._registrar = Registration(self.from_header, credentials=self.credentials, duration=self.registration.interval)
+                    self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
                     notification_center.add_observer(self, sender=self._registrar)
                     self._register()
 
-        # update from_header and credentials attributes if needed
+        # update credentials attribute if needed
         if 'password' in notification.data.modified:
             self.credentials.password = self.password
-        if 'display_name' in notification.data.modified:
-            self.from_header.display_name = self.display_name
 
     def _NH_SIPEngineDidStart(self, notification):
         if self.enabled:
@@ -396,7 +394,7 @@ class BonjourAccount(SettingsObject):
         settings = SIPSimpleSettings()
         username = ''.join(random.sample(string.lowercase, 8))
         self.contact = ContactURI('%s@%s' % (username, settings.local_ip.normalized))
-        self.from_header = FromHeader(SIPURI(user=self.contact.username, host=self.contact.domain), self.display_name)
+        self.uri = SIPURI(user=self.contact.username, host=self.contact.domain)
         self.credentials = None
 
         self.active = False
@@ -438,10 +436,6 @@ class BonjourAccount(SettingsObject):
                 self._deactivate()
             elif engine.is_running:
                 self._activate()
-
-        # update from_header attribute if needed
-        if 'display_name' in notification.data.modified:
-            self.from_header.display_name = self.display_name
 
     def _activate(self):
         if self.active:

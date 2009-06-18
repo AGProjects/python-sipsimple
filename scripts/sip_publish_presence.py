@@ -26,7 +26,7 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPCoreError, SIPURI
+from sipsimple.core import FromHeader, SIPCoreError, SIPURI
 from sipsimple.primitives import Publication, PublicationError
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
@@ -553,7 +553,7 @@ class PublicationApplication(object):
         self.interface.start()
 
         # initialize publication object
-        self.publication = Publication(self.account.from_header, "presence", "application/pidf+xml",
+        self.publication = Publication(FromHeader(self.account.uri, self.account.display_name), "presence", "application/pidf+xml",
                                        credentials=self.account.credentials, duration=self.account.presence.publish_interval)
         notification_center.add_observer(self, sender=self.publication)
 

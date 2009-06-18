@@ -37,7 +37,7 @@ class MSRPDesktop(object):
         if setup is not None:
             self.setup = setup
         self.worker = None
-        self.local_identity = CPIMIdentity(self.account.from_header.uri, self.account.from_header.display_name)
+        self.local_identity = CPIMIdentity(self.account.uri, self.account.display_name)
 
     def make_SDPMedia(self, uri_path):
         attributes = []
