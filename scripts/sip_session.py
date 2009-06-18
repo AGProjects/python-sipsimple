@@ -275,7 +275,7 @@ class ChatManager(NotificationHandler):
         if has_chat and has_audio:
             replies += list('aAcC')
             replies_txt += '/a/c'
-        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, inv.from_header.body, replies_txt)
+        question = 'Incoming %s request from %s, do you accept? (%s) ' % (session._green.info, format_identity(inv.from_header), replies_txt)
         with linked_notification(name='SIPSessionChangedState', sender=session) as q:
             p1 = proc.spawn(proc.wrap_errors(proc.ProcExit, self.console.ask_question), question, replies)
             # spawn a greenlet that will wait for a change in session state and kill p1 if there is
