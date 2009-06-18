@@ -16,8 +16,8 @@ Fore more information see the installation guide available at:
 http://sipsimpleclient.com/wiki/SipInstallation
 
 
-I. MAC ports installation
-II. Manual installation
+I. MAC ports installation (last stable version)
+II. Manual installation (development version)
 
 
 I. MAC ports installation
@@ -137,9 +137,9 @@ The following are needed only if you wish to use the desktop sharing application
 Build and install C dependencies:
 
 # gnutls dependencies
-curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.6.tar.bz2
-tar -xjvf libgpg-error-1.6.tar.bz2
-cd libgpg-error-1.6
+curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
+tar -xjvf libgpg-error-1.7.tar.bz2
+cd libgpg-error-1.7
 CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
@@ -153,27 +153,27 @@ make
 sudo make install
 cd ..
 
-curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.1.tar.bz2
-tar -xjvf libgcrypt-1.4.1.tar.bz2
-cd libgcrypt-1.4.1
+curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.4.tar.bz2
+tar -xjvf libgcrypt-1.4.4.tar.bz2
+cd libgcrypt-1.4.4
 CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
 sudo make install
 cd ..
 
 # gnutls:
-curl -O ftp://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.6.2.tar.bz2
-tar -xjvf gnutls-2.6.2.tar.bz2
-cd gnutls-2.6.2
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.1.tar.bz2
+tar -xjvf gnutls-2.8.1.tar.bz2
+cd gnutls-2.8.1
 CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..
 
 # lxml python module
-curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta2.tar.gz
-tar -xzvf lxml-2.2beta2.tar.gz
-cd lxml-2.2beta2
+curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta4.tar.gz
+tar -xzvf lxml-2.2beta4.tar.gz
+cd lxml-2.2beta4
 sudo python setup.py install --static-deps
 cd ..
 
@@ -183,7 +183,7 @@ tar zxvf x11vnc-0.9.7.tar.gz
 cd x11vnc-0.9.7
 ./configure
 make
-make install
+sudo make install
 cd ..
 
 Upgrade python setup tools:
