@@ -293,6 +293,82 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         info_dict["reason"] = _pj_str_to_str(rdata.msg_info.msg.line.status.reason)
     return 0
 
+cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
+    cdef pjsip_msg_body *body
+    cdef pjsip_hdr *header
+    cdef pjsip_generic_array_hdr *array_header
+    cdef pjsip_ctype_hdr *ctype_header
+    cdef pjsip_cseq_hdr *cseq_header
+    cdef int i
+    headers = {}
+    header = <pjsip_hdr *> (<pj_list *> &msg.hdr).next
+    while header != &msg.hdr:
+        header_name = _pj_str_to_str(header.name)
+        header_data = None
+        multi_header = False
+        if header_name in ["Accept", "Allow", "Require", "Supported", "Unsupported"]:
+            array_header = <pjsip_generic_array_hdr *> header
+            header_data = []
+            for i from 0 <= i < array_header.count:
+                header_data.append(_pj_str_to_str(array_header.values[i]))
+        elif header_name == "Contact":
+            multi_header = True
+            header_data = FrozenContactHeader_create(<pjsip_contact_hdr *> header)
+        elif header_name == "Content-Length":
+            header_data = (<pjsip_clen_hdr *> header).len
+        elif header_name == "Content-Type":
+            ctype_header = <pjsip_ctype_hdr *> header
+            header_data = ("%s/%s" % (_pj_str_to_str(ctype_header.media.type),
+                                      _pj_str_to_str(ctype_header.media.subtype)),
+                                      _pj_str_to_str(ctype_header.media.param))
+        elif header_name == "CSeq":
+            cseq_header = <pjsip_cseq_hdr *> header
+            hdr_data = (cseq_header.cseq, _pj_str_to_str(cseq_header.method.name))
+        elif header_name in ["Expires", "Max-Forwards", "Min-Expires"]:
+            header_data = (<pjsip_generic_int_hdr *> header).ivalue
+        elif header_name == "From":
+            header_data = FrozenFromHeader_create(<pjsip_fromto_hdr *> header)
+        elif header_name == "To":
+            header_data = FrozenToHeader_create(<pjsip_fromto_hdr *> header)
+        elif header_name == "Route":
+            multi_header = True
+            header_data = FrozenRouteHeader_create(<pjsip_routing_hdr *> header)
+        elif header_name == "Record-Route":
+            multi_header = True
+            header_data = FrozenRecordRouteHeader_create(<pjsip_routing_hdr *> header)
+        elif header_name == "Retry-After":
+            header_data = FrozenRetryAfterHeader_create(<pjsip_retry_after_hdr *> header)
+        elif header_name == "Via":
+            multi_header = True
+            header_data = FrozenViaHeader_create(<pjsip_via_hdr *> header)
+        elif header_name == "Warning":
+            match = _re_warning_hdr.match(_pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue))
+            if match is not None:
+                header_data = FrozenWarningHeader(**match.groupdict())
+        # skip the following headers:
+        elif header_name not in ["Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"]:
+            header_data = FrozenHeader(header_name, _pj_str_to_str((<pjsip_generic_string_hdr *> header).hvalue))
+        if hdr_data is not None:
+            if multi_header:
+                headers.setdefault(header_name, []).append(header_data)
+            else:
+                if header_name not in headers:
+                    headers[header_name] = header_data
+        header = <pjsip_hdr *> (<pj_list *> header).next
+    info_dict["headers"] = headers
+    body = msg.body
+    if body == NULL:
+        info_dict["body"] = None
+    else:
+        info_dict["body"] = PyString_FromStringAndSize(<char *> body.data, body.len)
+    if msg.type == PJSIP_REQUEST_MSG:
+        info_dict["method"] = _pj_str_to_str(msg.line.req.method.name)
+        info_dict["request_uri"] = FrozenSIPURI_create(<pjsip_sip_uri*>msg.line.req.uri)
+    else:
+        info_dict["code"] = msg.line.status.code
+        info_dict["reason"] = _pj_str_to_str(msg.line.status.reason)
+    return 0
+
 cdef int _is_valid_ip(int af, object ip) except -1:
     cdef char buf[16]
     cdef pj_str_t src
