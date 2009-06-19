@@ -135,7 +135,7 @@ cdef class BaseContactHeader:
                 return '<%s>%s' % (self.uri, parameters)
 
 def ContactHeader_new(cls, BaseContactHeader header):
-    return cls(header.uri, header.display_name, dict(header.parameters))
+    return cls(SIPURI.new(header.uri), header.display_name, dict(header.parameters))
 
 cdef class ContactHeader(BaseContactHeader):
     cdef SIPURI _uri
