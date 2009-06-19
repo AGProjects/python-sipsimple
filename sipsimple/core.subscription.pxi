@@ -42,8 +42,8 @@ cdef class Subscription:
         self._refresh_timer_active = 0
         self.extra_headers = frozenlist()
 
-    def __init__(self, BaseIdentityHeader from_header not None, BaseIdentityHeader to_header not None, BaseContactHeader contact_header not None,
-                 object event, BaseRoute route not None, BaseCredentials credentials=None, int refresh=300):
+    def __init__(self, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
+                 object event, Route route not None, Credentials credentials=None, int refresh=300):
         global _subs_cb
         cdef PJSTR from_header_str
         cdef PJSTR to_header_str

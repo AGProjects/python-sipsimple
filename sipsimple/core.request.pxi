@@ -81,8 +81,8 @@ cdef class Request:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_timer)
         self._timer_active = 0
 
-    def __init__(self, method, BaseIdentityHeader from_header not None, BaseIdentityHeader to_header not None, BaseSIPURI request_uri not None,
-                 BaseRoute route not None, BaseCredentials credentials=None, BaseContactHeader contact_header=None, call_id=None, cseq=None,
+    def __init__(self, method, FromHeader from_header not None, ToHeader to_header not None, SIPURI request_uri not None,
+                 Route route not None, Credentials credentials=None, ContactHeader contact_header=None, call_id=None, cseq=None,
                  object extra_headers=None, content_type=None, body=None):
         cdef pjsip_method method_pj
         cdef PJSTR from_header_str

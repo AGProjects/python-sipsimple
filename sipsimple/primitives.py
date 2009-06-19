@@ -5,7 +5,7 @@ from threading import RLock
 from application.python.decorator import decorator
 from application.notification import NotificationCenter, NotificationData
 
-from sipsimple.core import SIPURI, Header, Request, SIPCoreError
+from sipsimple.core import ContactHeader, Header, Request, Route, SIPCoreError, SIPURI, ToHeader
 from sipsimple.util import NotificationHandler
 
 @decorator
@@ -46,7 +46,7 @@ class Registration(NotificationHandler):
         with self._lock:
             if self._last_request is None:
                 return
-            self._make_and_send_request(self._last_request.contact_header, self._last_request.route, timeout, False)
+            self._make_and_send_request(ContactHeader.new(self._last_request.contact_header), Route.new(self._last_request.route), timeout, False)
             self._notification_center.post_notification("SIPRegistrationWillEnd", sender=self, data=NotificationData())
 
     def _make_and_send_request(self, contact_header, route, timeout, do_register):
@@ -57,7 +57,7 @@ class Registration(NotificationHandler):
         else:
             call_id = None
             cseq = 1
-        request = Request("REGISTER", self.from_header, self.from_header, SIPURI(self.from_header.uri.host), route,
+        request = Request("REGISTER", self.from_header, ToHeader.new(self.from_header), SIPURI(self.from_header.uri.host), route,
                           credentials=self.credentials, contact_header=contact_header, call_id=call_id,
                           cseq=cseq, extra_headers=[Header("Expires", str(int(self.duration) if do_register else 0))])
         self._notification_center.add_observer(self, sender=request)
@@ -220,7 +220,7 @@ class Publication(NotificationHandler):
         with self._lock:
             if self._last_request is None:
                 raise PublicationError("Nothing is currently published")
-            self._make_and_send_request(None, self._last_request.route, timeout, False)
+            self._make_and_send_request(None, Route.new(self._last_request.route), timeout, False)
             self._notification_center.post_notification("SIPPublicationWillEnd", sender=self, data=NotificationData())
 
     def _make_and_send_request(self, body, route, timeout, do_publish):
@@ -230,7 +230,7 @@ class Publication(NotificationHandler):
         if self._last_etag is not None:
             extra_headers.append(Header("SIP-If-Match", self._last_etag))
         content_type = (self.content_type if body is not None else None)
-        request = Request("PUBLISH", self.from_header, self.from_header, self.from_header.uri, route,
+        request = Request("PUBLISH", self.from_header, ToHeader.new(self.from_header), self.from_header.uri, route,
                           credentials=self.credentials, cseq=1, extra_headers=extra_headers,
                           content_type=content_type, body=body)
         self._notification_center.add_observer(self, sender=request)

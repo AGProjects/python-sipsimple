@@ -28,8 +28,8 @@ cdef class Invitation:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_disconnect_timer)
         self.state = "INVALID"
 
-    def __init__(self, BaseIdentityHeader from_header=None, BaseIdentityHeader to_header=None, BaseRoute route=None,
-                 BaseCredentials credentials=None, BaseContactHeader contact_header=None):
+    def __init__(self, FromHeader from_header=None, ToHeader to_header=None, Route route=None,
+                 Credentials credentials=None, ContactHeader contact_header=None):
         cdef PJSIPUA ua = _get_ua()
         if self.state != "INVALID":
             raise SIPCoreError("Invitation.__init__() was already called")
