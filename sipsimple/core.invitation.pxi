@@ -332,6 +332,7 @@ cdef class Invitation:
                                           &to_header.pj_str, &callee_target.pj_str, &self._dlg)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
+            self.from_header = FrozenFromHeader_create(self._dlg.local.info)
             local_sdp = self._offered_local_sdp.get_sdp_session()
             status = pjsip_inv_create_uac(self._dlg, local_sdp, 0, &self._obj)
             if status != 0:

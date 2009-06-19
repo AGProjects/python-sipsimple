@@ -58,8 +58,6 @@ cdef class Subscription:
             raise ValueError("refresh argument needs to be a non-negative integer")
         if event not in ua._events.iterkeys():
             raise ValueError('Unknown event "%s"' % event)
-        self.from_header = FrozenFromHeader.new(from_header)
-        self.to_header = FrozenToHeader.new(to_header)
         self.contact_header = FrozenContactHeader.new(contact_header)
         self.event = event
         self.route = FrozenRoute.new(route)
@@ -75,6 +73,8 @@ cdef class Subscription:
                                       &to_header_str.pj_str, &request_uri_str.pj_str, &self._dlg)
         if status != 0:
             raise PJSIPError("Could not create dialog for SUBSCRIBE", status)
+        self.from_header = FrozenFromHeader_create(self._dlg.local.info)
+        self.to_header = FrozenToHeader.new(to_header)
         status = pjsip_evsub_create_uac(self._dlg, &_subs_cb, &event_pj, PJSIP_EVSUB_NO_EVENT_ID, &self._obj)
         if status != 0:
             raise PJSIPError("Could not create SUBSCRIBE", status)
@@ -293,6 +293,7 @@ cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
                     reason = "Subscription has expired"
             if event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
                 got_response = 1
+                subscription.to_header = FrozenToHeader_create(event.body.tsx_state.src.rdata.msg_info.to_hdr)
         subscription._cb_state(ua, state, code, reason, got_response)
     except:
         ua._handle_exception(1)

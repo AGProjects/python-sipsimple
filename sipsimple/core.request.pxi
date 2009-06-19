@@ -117,7 +117,6 @@ cdef class Request:
         pjsip_method_init_np(&method_pj, &self._method.pj_str)
         if credentials is not None:
             self.credentials = FrozenCredentials.new(credentials)
-        self.from_header = FrozenFromHeader.new(from_header)
         from_header_str = PJSTR(from_header.body)
         self.to_header = FrozenToHeader.new(to_header)
         to_header_str = PJSTR(to_header.body)
@@ -162,6 +161,8 @@ cdef class Request:
             elif hdr.type == PJSIP_H_CSEQ:
                 cseq_hdr = <pjsip_cseq_hdr *> hdr
                 self.cseq = cseq_hdr.cseq
+            elif hdr.type == PJSIP_H_FROM:
+                self.from_header = FrozenFromHeader_create(<pjsip_fromto_hdr*> hdr)
             hdr = <pjsip_hdr *> (<pj_list *> hdr).next
         pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> self.route.get_route_header())
         _add_headers_to_tdata(self._tdata, self.extra_headers)
@@ -250,6 +251,8 @@ cdef class Request:
         cdef dict contact_params
         cdef pj_time_val expire_warning
         cdef int status
+        if rdata != NULL:
+            self.to_header = FrozenToHeader_create(rdata.msg_info.to_hdr)
         if self._tsx.state == PJSIP_TSX_STATE_PROCEEDING:
             if rdata == NULL:
                 return 0

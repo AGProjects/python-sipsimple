@@ -544,6 +544,7 @@ cdef extern from "pjsip.h":
         PJSIP_H_CALL_ID
         PJSIP_H_CSEQ
         PJSIP_H_EXPIRES
+        PJSIP_H_FROM
     struct pjsip_hdr:
         pjsip_hdr_e type
         pj_str_t name
@@ -820,6 +821,7 @@ cdef extern from "pjsip.h":
     ctypedef pjsip_module pjsip_user_agent
     struct pjsip_dlg_party:
         pjsip_contact_hdr *contact
+        pjsip_fromto_hdr *info
     struct pjsip_dialog:
         pjsip_auth_clt_sess auth_sess
         pjsip_cid_hdr *call_id
