@@ -335,7 +335,7 @@ class SubscriptionApplication(object):
         if self.account.outbound_proxy is not None:
             uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
         else:
-            uri = self.target
+            uri = self.target.uri
         lookup.lookup_sip_proxy(uri, settings.sip.transports)
 
 
