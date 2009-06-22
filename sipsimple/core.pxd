@@ -939,7 +939,7 @@ cdef object _pj_str_to_str(pj_str_t pj_str)
 cdef object _pj_status_to_str(int status)
 cdef object _pj_status_to_def(int status)
 cdef dict _pjsip_param_to_dict(pjsip_param *param_list)
-cdef int _dict_to_pjsip_param(dict params, pjsip_param *param_list, pj_pool_t *pool)
+cdef int _dict_to_pjsip_param(object params, pjsip_param *param_list, pj_pool_t *pool)
 cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
 cdef int _is_valid_ip(int af, object ip) except -1
 cdef int _get_ip_version(object ip) except -1

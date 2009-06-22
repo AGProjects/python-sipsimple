@@ -190,7 +190,7 @@ cdef dict _pjsip_param_to_dict(pjsip_param *param_list):
         param = <pjsip_param *> (<pj_list *> param).next
     return retval
 
-cdef int _dict_to_pjsip_param(dict params, pjsip_param *param_list, pj_pool_t *pool):
+cdef int _dict_to_pjsip_param(object params, pjsip_param *param_list, pj_pool_t *pool):
     cdef pjsip_param *param = NULL
     for name, value in params.iteritems():
         param = <pjsip_param *> pj_pool_alloc(pool, sizeof(pjsip_param))
