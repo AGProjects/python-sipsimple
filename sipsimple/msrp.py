@@ -45,7 +45,7 @@ from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.trafficlog import Logger
-from sipsimple.green.sessionold import make_SDPMedia
+from sipsimple.green.sessionold import make_SDPMediaStream
 from sipsimple.cpim import MessageCPIM, MessageCPIMParser, CPIMIdentity
 from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -137,7 +137,7 @@ class MSRPChat(object):
     def initialize(self):
         """Initialize the MSRP connection; connect to the relay if necessary.
         When done, fire MSRPChatDidInitialize (with 'sdpmedia' attribute,
-        containing the appropriate 'SDPMedia' instance)
+        containing the appropriate 'SDPMediaStream' instance)
         """
         assert self.state == NULL, self.state
         spawn_from_thread(self._do_initialize)
@@ -151,7 +151,7 @@ class MSRPChat(object):
                             use_tls=self.transport=='tls',
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
-            self.local_media = make_SDPMedia(full_local_path, self.accept_types, self.accept_wrapped_types)
+            self.local_media = make_SDPMediaStream(full_local_path, self.accept_types, self.accept_wrapped_types)
         except Exception, ex:
             self.state = ERROR
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))

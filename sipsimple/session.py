@@ -16,7 +16,7 @@ from application.python.util import Singleton
 
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, FromHeader, Invitation
-from sipsimple.core import SDPSession, SDPMedia, SDPAttribute, SDPConnection
+from sipsimple.core import SDPSession, SDPMediaStream, SDPAttribute, SDPConnection
 from sipsimple.core import RTPTransport, AudioTransport
 from sipsimple.core import RecordingWaveFile
 from sipsimple.core import SIPCoreError, PJSIPError
@@ -335,7 +335,7 @@ class Session(NotificationHandler):
                 local_sdp.media[self._chat_sdp_index] = msrp_chat.local_media
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
-                local_sdp.media[reject_media_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
+                local_sdp.media[reject_media_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=media, start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time, name=self.settings.user_agent)
             if audio_rtp and audio_rtp.use_ice:
                 local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
@@ -460,7 +460,7 @@ class Session(NotificationHandler):
                     local_sdp.media[sdp_index] = msrp_chat.local_media
                 elif local_sdp.media[sdp_index] is None:
                     remote_media = remote_sdp.media[sdp_index]
-                    local_sdp.media[sdp_index] = SDPMedia(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
+                    local_sdp.media[sdp_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
             self._inv.offered_local_sdp = local_sdp
             self._inv.respond_to_reinvite(200)
             if audio_rtp is not None:
@@ -739,7 +739,7 @@ class Session(NotificationHandler):
 
     def _init_audio(self, rtp_transport, remote_sdp=None, sdp_index=-1):
         """Initialize everything needed for an audio RTP stream and return a
-           SDPMedia object describing it. Called internally."""
+           SDPMediaStream object describing it. Called internally."""
         if remote_sdp is None:
             self.audio_transport = AudioTransport(rtp_transport, codecs=(list(self.account.audio.codec_list) if self.account.audio.codec_list else None))
         else:

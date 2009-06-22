@@ -11,14 +11,14 @@ from msrplib import protocol as msrp_protocol
 from msrplib import session
 from eventlet import api, proc
 from eventlet.green.socket import gethostbyname
-from sipsimple.core import SDPAttribute, SDPMedia, SDPConnection, SDPSession
+from sipsimple.core import SDPAttribute, SDPMediaStream, SDPConnection, SDPSession
 from sipsimple.green.core import Error
 from sipsimple.cpim import MessageCPIM
 
 
 MSRPSessionErrors = (Error, DNSLookupError, MSRPError, ConnectError, BindError, ConnectionClosed, GNUTLSError)
 
-def make_SDPMedia(uri_path, accept_types=['text/plain'], accept_wrapped_types=None):
+def make_SDPMediaStream(uri_path, accept_types=['text/plain'], accept_wrapped_types=None):
     attributes = []
     attributes.append(SDPAttribute("path", " ".join([str(uri) for uri in uri_path])))
     if accept_types is not None:
@@ -29,16 +29,16 @@ def make_SDPMedia(uri_path, accept_types=['text/plain'], accept_wrapped_types=No
         transport = "TCP/TLS/MSRP"
     else:
         transport = "TCP/MSRP"
-    return SDPMedia("message", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
+    return SDPMediaStream("message", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
 
-def invite(inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
+def invite(inv, msrp_connector, SDPMediaStream_factory, ringer=None, local_uri=None):
     # ringer is ignored because GreenInvitation does not do that anymore
     full_local_path = msrp_connector.prepare(local_uri)
     try:
         local_ip = gethostbyname(msrp_connector.getHost().host)
         local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip),
-                               media=[SDPMedia_factory(full_local_path)])
+                               media=[SDPMediaStream_factory(full_local_path)])
         inv.set_offered_local_sdp(local_sdp)
         invite_response = inv.send_invite()
         remote_sdp = inv.get_active_remote_sdp()
@@ -83,8 +83,8 @@ class MSRPSession(object):
         return result
 
     @classmethod
-    def invite(cls, inv, msrp_connector, SDPMedia_factory, ringer=None, local_uri=None):
-        invite_response, msrp = invite(inv, msrp_connector, SDPMedia_factory, ringer, local_uri)
+    def invite(cls, inv, msrp_connector, SDPMediaStream_factory, ringer=None, local_uri=None):
+        invite_response, msrp = invite(inv, msrp_connector, SDPMediaStream_factory, ringer, local_uri)
         return cls(inv, msrp)
 
     @property

@@ -5,7 +5,7 @@ from application.notification import NotificationCenter, Any
 from application.python.util import Singleton
 from eventlet import proc, api, coros
 
-from sipsimple.core import ContactHeader, FromHeader, SDPConnection, SDPMedia, SDPSession
+from sipsimple.core import ContactHeader, FromHeader, SDPConnection, SDPMediaStream, SDPSession
 from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
 from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
@@ -416,7 +416,7 @@ class Session(NotificationHandler):
                 remote_sdp = self.inv.offered_remote_sdp
                 local_sdp = self._make_next_sdp(False)
                 offset = len(local_sdp.media)
-                proposed_media = [SDPMedia.new(m) for m in remote_sdp.media[offset:]]
+                proposed_media = [SDPMediaStream.new(m) for m in remote_sdp.media[offset:]]
                 for m in proposed_media:
                     m.port = 0
                 local_sdp.media.extend(proposed_media)

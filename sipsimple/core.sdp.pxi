@@ -41,7 +41,7 @@ cdef class BaseSDPSession:
     cdef pjmedia_sdp_session* get_sdp_session(self):
         self._sdp_session.media_count = len(self.media)
         for index, m in enumerate(self.media):
-            self._sdp_session.media[index] = (<BaseSDPMedia>m).get_sdp_media()
+            self._sdp_session.media[index] = (<BaseSDPMediaStream>m).get_sdp_media()
         self._sdp_session.attr_count = len(self.attributes)
         for index, attr in enumerate(self.attributes):
             self._sdp_session.attr[index] = (<BaseSDPAttribute>attr).get_sdp_attribute()
@@ -50,7 +50,7 @@ cdef class BaseSDPSession:
 def SDPSession_new(cls, BaseSDPSession sdp_session):
     connection = SDPConnection.new(sdp_session.connection) if (sdp_session.connection is not None) else None
     attributes = [SDPAttribute.new(attr) for attr in sdp_session.attributes]
-    media = [SDPMedia.new(m) for m in sdp_session.media]
+    media = [SDPMediaStream.new(m) for m in sdp_session.media]
     return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
                sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
 
@@ -210,8 +210,8 @@ cdef class SDPSession(BaseSDPSession):
             if len(media) > PJMEDIA_MAX_SDP_MEDIA:
                 raise SIPCoreError("Too many media objects")
             for m in media:
-                if not isinstance(m, SDPMedia):
-                    raise TypeError("Items in SDPSession media list must be SDPMedia instancess")
+                if not isinstance(m, SDPMediaStream):
+                    raise TypeError("Items in SDPSession media list must be SDPMediaStream instancess")
             self._media = media
 
     new = classmethod(SDPSession_new)
@@ -223,7 +223,7 @@ def FrozenSDPSession_new(cls, BaseSDPSession sdp_session):
         return sdp_session
     connection = FrozenSDPConnection.new(sdp_session.connection) if (sdp_session.connection is not None) else None
     attributes = frozenlist([FrozenSDPAttribute.new(attr) for attr in sdp_session.attributes])
-    media = frozenlist([FrozenSDPMedia.new(m) for m in sdp_session.media])
+    media = frozenlist([FrozenSDPMediaStream.new(m) for m in sdp_session.media])
     return cls(sdp_session.address, sdp_session.id, sdp_session.version, sdp_session.user, sdp_session.net_type, sdp_session.address_type, sdp_session.name,
                sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
 
@@ -257,8 +257,8 @@ cdef class FrozenSDPSession(BaseSDPSession):
             if len(media) > PJMEDIA_MAX_SDP_MEDIA:
                 raise SIPCoreError("Too many media objects")
             for m in media:
-                if not isinstance(m, FrozenSDPMedia):
-                    raise TypeError("Items in FrozenSDPSession media list must be FrozenSDPMedia instancess")
+                if not isinstance(m, FrozenSDPMediaStream):
+                    raise TypeError("Items in FrozenSDPSession media list must be FrozenSDPMediaStream instancess")
             
             pj_gettimeofday(&tv)
             version_id += tv.sec
@@ -306,11 +306,11 @@ cdef class FrozenSDPSession(BaseSDPSession):
 del FrozenSDPSession_new
 
 
-cdef object BaseSDPMedia_richcmp(object self, object other, int op) with gil:
+cdef object BaseSDPMediaStream_richcmp(object self, object other, int op) with gil:
     cdef int eq = 1
     if op not in [2,3]:
         return NotImplemented
-    if not isinstance(other, BaseSDPMedia):
+    if not isinstance(other, BaseSDPMediaStream):
         return NotImplemented
     for attr in ("media", "port", "port_count", "transport", "formats", "connection", "attributes"):
         if getattr(self, attr) != getattr(other, attr):
@@ -321,11 +321,11 @@ cdef object BaseSDPMedia_richcmp(object self, object other, int op) with gil:
     else:
         return not eq
 
-cdef class BaseSDPMedia:
+cdef class BaseSDPMediaStream:
     cdef pjmedia_sdp_media _sdp_media
 
     def __init__(self, *args, **kwargs):
-        raise TypeError("BaseSDPMedia cannot be instantiated directly")
+        raise TypeError("BaseSDPMediaStream cannot be instantiated directly")
 
     def __repr__(self):
         return "%s(%r, %r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.media, self.port, self.transport,
@@ -335,7 +335,7 @@ cdef class BaseSDPMedia:
         return '<%s "%s %d %s">' % (self.__class__.__name__, str(self.media), self._sdp_media.desc.port, str(self.transport))
 
     def __richcmp__(self, other, op):
-        return BaseSDPMedia_richcmp(self, other, op)
+        return BaseSDPMediaStream_richcmp(self, other, op)
 
     def get_direction(self):
         for attribute in self.attributes:
@@ -349,13 +349,13 @@ cdef class BaseSDPMedia:
             self._sdp_media.attr[index] = (<BaseSDPAttribute>attr).get_sdp_attribute()
         return &self._sdp_media
 
-def SDPMedia_new(cls, BaseSDPMedia sdp_media):
+def SDPMediaStream_new(cls, BaseSDPMediaStream sdp_media):
     connection = SDPConnection.new(sdp_media.connection) if (sdp_media.connection is not None) else None
     attributes = [SDPAttribute.new(attr) for attr in sdp_media.attributes]
     return cls(sdp_media.media, sdp_media.port, sdp_media.transport, sdp_media.port_count, list(sdp_media.formats),
                sdp_media.info, connection, attributes)
 
-cdef class SDPMedia(BaseSDPMedia):
+cdef class SDPMediaStream(BaseSDPMediaStream):
     cdef str _media
     cdef str _transport
     cdef list _formats
@@ -455,22 +455,22 @@ cdef class SDPMedia(BaseSDPMedia):
                 raise SIPCoreError("Too many attributes")
             for attr in attributes:
                 if not isinstance(attr, SDPAttribute):
-                    raise TypeError("Items in SDPMedia attribute list must be SDPAttribute instances")
+                    raise TypeError("Items in SDPMediaStream attribute list must be SDPAttribute instances")
             self._attributes = attributes
 
-    new = classmethod(SDPMedia_new)
+    new = classmethod(SDPMediaStream_new)
 
-del SDPMedia_new
+del SDPMediaStream_new
 
-def FrozenSDPMedia_new(cls, BaseSDPMedia sdp_media):
-    if isinstance(sdp_media, FrozenSDPMedia):
+def FrozenSDPMediaStream_new(cls, BaseSDPMediaStream sdp_media):
+    if isinstance(sdp_media, FrozenSDPMediaStream):
         return sdp_media
     connection = FrozenSDPConnection.new(sdp_media.connection) if (sdp_media.connection is not None) else None
     attributes = frozenlist([FrozenSDPAttribute.new(attr) for attr in sdp_media.attributes])
     return cls(sdp_media.media, sdp_media.port, sdp_media.transport, sdp_media.port_count,
                frozenlist(sdp_media.formats), sdp_media.info, connection, attributes)
 
-cdef class FrozenSDPMedia(BaseSDPMedia):
+cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
     cdef int initialized
     cdef readonly str media
     cdef readonly int port
@@ -490,7 +490,7 @@ cdef class FrozenSDPMedia(BaseSDPMedia):
                 raise SIPCoreError("Too many attributes")
             for attr in attributes:
                 if not isinstance(attr, FrozenSDPAttribute):
-                    raise TypeError("Items in FrozenSDPMedia attribute list must be FrozenSDPAttribute instances")
+                    raise TypeError("Items in FrozenSDPMediaStream attribute list must be FrozenSDPAttribute instances")
             
             self.media = media
             _str_to_pj_str(media, &self._sdp_media.desc.media)
@@ -521,11 +521,11 @@ cdef class FrozenSDPMedia(BaseSDPMedia):
         return hash((self.media, self.port, self.transport, self.port_count, self.formats, self.info, self.connection, self.attributes))
 
     def __richcmp__(self, other, op):
-        return BaseSDPMedia_richcmp(self, other, op)
+        return BaseSDPMediaStream_richcmp(self, other, op)
 
-    new = classmethod(FrozenSDPMedia_new)
+    new = classmethod(FrozenSDPMediaStream_new)
 
-del FrozenSDPMedia_new
+del FrozenSDPMediaStream_new
 
 
 cdef object BaseSDPConnection_richcmp(object self, object other, int op) with gil:
@@ -752,7 +752,7 @@ cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
                        pj_session.time.start,
                        pj_session.time.stop,
                        [SDPAttribute_create(pj_session.attr[i]) for i in range(pj_session.attr_count)],
-                       [SDPMedia_create(pj_session.media[i]) for i in range(pj_session.media_count)])
+                       [SDPMediaStream_create(pj_session.media[i]) for i in range(pj_session.media_count)])
 
 cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session):
     cdef FrozenSDPConnection connection
@@ -771,28 +771,28 @@ cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_s
                             pj_session.time.start,
                             pj_session.time.stop,
                             frozenlist([FrozenSDPAttribute_create(pj_session.attr[i]) for i in range(pj_session.attr_count)]),
-                            frozenlist([FrozenSDPMedia_create(pj_session.media[i]) for i in range(pj_session.media_count)]))
+                            frozenlist([FrozenSDPMediaStream_create(pj_session.media[i]) for i in range(pj_session.media_count)]))
 
-cdef SDPMedia SDPMedia_create(pjmedia_sdp_media *pj_media):
+cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media):
     cdef SDPConnection connection
     cdef int i
     if pj_media.conn != NULL:
         connection = SDPConnection_create(pj_media.conn)
-    return SDPMedia(_pj_str_to_str(pj_media.desc.media),
-                     pj_media.desc.port,
-                     _pj_str_to_str(pj_media.desc.transport),
-                     pj_media.desc.port_count,
-                     [_pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)],
-                     _pj_str_to_str(pj_media.info) or None,
-                     connection,
-                     [SDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)])
+    return SDPMediaStream(_pj_str_to_str(pj_media.desc.media),
+                          pj_media.desc.port,
+                          _pj_str_to_str(pj_media.desc.transport),
+                          pj_media.desc.port_count,
+                          [_pj_str_to_str(pj_media.desc.fmt[i]) for i in range(pj_media.desc.fmt_count)],
+                          _pj_str_to_str(pj_media.info) or None,
+                          connection,
+                          [SDPAttribute_create(pj_media.attr[i]) for i in range(pj_media.attr_count)])
 
-cdef FrozenSDPMedia FrozenSDPMedia_create(pjmedia_sdp_media *pj_media):
+cdef FrozenSDPMediaStream FrozenSDPMediaStream_create(pjmedia_sdp_media *pj_media):
     cdef FrozenSDPConnection connection
     cdef int i
     if pj_media.conn != NULL:
         connection = FrozenSDPConnection_create(pj_media.conn)
-    return FrozenSDPMedia(_pj_str_to_str(pj_media.desc.media),
+    return FrozenSDPMediaStream(_pj_str_to_str(pj_media.desc.media),
                           pj_media.desc.port,
                           _pj_str_to_str(pj_media.desc.transport),
                           pj_media.desc.port_count,

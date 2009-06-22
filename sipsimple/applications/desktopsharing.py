@@ -10,7 +10,7 @@ from twisted.internet.error import ConnectionDone
 from select import error as select_error
 from gnutls.errors import GNUTLSError
 
-from sipsimple.core import SDPSession, SDPConnection, SDPAttribute, SDPMedia
+from sipsimple.core import SDPSession, SDPConnection, SDPAttribute, SDPMediaStream
 from sipsimple.green.sessionold import IncomingMSRPHandler
 from sipsimple.cpim import MessageCPIMParser
 
@@ -50,7 +50,7 @@ class MSRPSocketAdapter:
     def close(self):
         return self.session.end()
 
-def make_RFB_SDPMedia(uri_path, desktop_request=True):
+def make_RFB_SDPMediaStream(uri_path, desktop_request=True):
     attributes = []
     attributes.append(
         SDPAttribute("path", 
@@ -78,7 +78,7 @@ def make_RFB_SDPMedia(uri_path, desktop_request=True):
     else:
         transport = "TCP/MSRP/RFB"
 
-    return SDPMedia(
+    return SDPMediaStream(
         "application", 
         uri_path[-1].port, 
         transport, 
@@ -162,7 +162,7 @@ class IncomingDesktopSessionHandler(IncomingMSRPHandler):
         return accept
 
     def make_local_SDPSession(self, inv, full_local_path, local_ip):
-        sdpmedia = make_RFB_SDPMedia(
+        sdpmedia = make_RFB_SDPMediaStream(
             full_local_path, 
             not inv.desktop_request
         )

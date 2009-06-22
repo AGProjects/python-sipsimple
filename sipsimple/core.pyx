@@ -23,7 +23,7 @@ include "core.mediatransport.pxi"
 
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-CORE_REVISION = 60
+CORE_REVISION = 61
 
 # exports
 
@@ -35,5 +35,5 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "Request",
            "Subscription",
            "Invitation",
-           "SDPSession", "SDPMedia", "SDPConnection", "SDPAttribute",
+           "SDPSession", "SDPMediaStream", "SDPConnection", "SDPAttribute",
            "RTPTransport", "AudioTransport"]

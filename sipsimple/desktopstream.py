@@ -10,7 +10,7 @@ from msrplib.protocol import URI, FailureReportHeader, parse_uri, ContentTypeHea
 from msrplib.transport import make_response
 from msrplib.session import contains_mime_type
 
-from sipsimple.core import SDPAttribute, SDPMedia
+from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.cpim import CPIMIdentity
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -39,7 +39,7 @@ class MSRPDesktop(object):
         self.worker = None
         self.local_identity = CPIMIdentity(self.account.uri, self.account.display_name)
 
-    def make_SDPMedia(self, uri_path):
+    def make_SDPMediaStream(self, uri_path):
         attributes = []
         attributes.append(SDPAttribute("path", " ".join([str(uri) for uri in uri_path])))
         if self.direction not in [None, 'sendrecv']:
@@ -52,7 +52,7 @@ class MSRPDesktop(object):
             transport = 'TCP/TLS/MSRP/RFB'
         else:
             transport = 'TCP/MSRP/RFB'
-        return SDPMedia("application", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
+        return SDPMediaStream("application", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
     def get_local_media(self, for_offer=True, on_hold=False):
         if on_hold:
@@ -106,7 +106,7 @@ class MSRPDesktop(object):
                             use_tls=self.transport=='tls',
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
-            self.local_media = self.make_SDPMedia(full_local_path)
+            self.local_media = self.make_SDPMediaStream(full_local_path)
             self.remote_identity = CPIMIdentity(session.remote_identity.uri, session.remote_identity.display_name)
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))

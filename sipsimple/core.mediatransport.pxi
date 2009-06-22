@@ -428,11 +428,11 @@ cdef class AudioTransport:
 
     def get_local_media(self, is_offer, direction="sendrecv"):
         cdef SDPAttribute attr
-        cdef SDPMedia local_media
+        cdef SDPMediaStream local_media
         cdef object direction_attr
         if is_offer and direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
             raise SIPCoreError("Unknown direction: %s" % direction)
-        local_media = SDPMedia_create(self._local_media)
+        local_media = SDPMediaStream_create(self._local_media)
         local_media.attributes = [<object> attr for attr in local_media.attributes if attr.name not in ["sendrecv",
                                                                                                         "sendonly",
                                                                                                         "recvonly",
