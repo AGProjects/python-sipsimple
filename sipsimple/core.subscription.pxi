@@ -11,6 +11,8 @@ cdef class Subscription:
 
     cdef pjsip_evsub *_obj
     cdef pjsip_dialog *_dlg
+    cdef pjsip_route_hdr _route_header
+    cdef pj_list _route_set
     cdef readonly object state
     cdef pj_timer_entry _timeout_timer
     cdef int _timeout_timer_active
@@ -20,7 +22,7 @@ cdef class Subscription:
     cdef readonly FrozenToHeader to_header
     cdef readonly FrozenContactHeader contact_header
     cdef readonly object event
-    cdef readonly FrozenRoute route
+    cdef readonly FrozenRouteHeader route_header
     cdef readonly FrozenCredentials credentials
     cdef readonly int refresh
     cdef readonly frozenlist extra_headers
@@ -43,7 +45,7 @@ cdef class Subscription:
         self.extra_headers = frozenlist()
 
     def __init__(self, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
-                 object event, Route route not None, Credentials credentials=None, int refresh=300):
+                 object event, RouteHeader route_header not None, Credentials credentials=None, int refresh=300):
         global _subs_cb
         cdef PJSTR from_header_str
         cdef PJSTR to_header_str
@@ -60,7 +62,8 @@ cdef class Subscription:
             raise ValueError('Unknown event "%s"' % event)
         self.contact_header = FrozenContactHeader.new(contact_header)
         self.event = event
-        self.route = FrozenRoute.new(route)
+        self.route_header = FrozenRouteHeader.new(route_header)
+        self.route_header.uri.parameters.dict["lr"] = None # always send lr parameter in Route header
         if credentials is not None:
             self.credentials = FrozenCredentials.new(credentials)
         self.refresh = refresh
@@ -79,7 +82,10 @@ cdef class Subscription:
         if status != 0:
             raise PJSIPError("Could not create SUBSCRIBE", status)
         pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, <void *> self)
-        status = pjsip_dlg_set_route_set(self._dlg, <pjsip_route_hdr *> self.route.get_route_set())
+        _BaseRouteHeader_to_pjsip_route_hdr(self.route_header, &self._route_header, self._dlg.pool)
+        pj_list_init(<pj_list *> &self._route_set)
+        pj_list_insert_after(<pj_list *> &self._route_set, <pj_list *> &self._route_header)
+        status = pjsip_dlg_set_route_set(self._dlg, <pjsip_route_hdr *> &self._route_set)
         if status != 0:
             raise PJSIPError("Could not set route on SUBSCRIBE", status)
         if self.credentials is not None:
