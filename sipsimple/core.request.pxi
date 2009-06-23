@@ -19,7 +19,7 @@ cdef class Request:
     cdef readonly FrozenToHeader to_header
     cdef readonly FrozenSIPURI request_uri
     cdef readonly FrozenContactHeader contact_header
-    cdef readonly FrozenRoute route
+    cdef readonly FrozenRouteHeader route_header
     cdef PJSTR _call_id
     cdef readonly int cseq
     cdef readonly frozenlist extra_headers
@@ -29,6 +29,7 @@ cdef class Request:
     cdef pjsip_tx_data *_tdata
     cdef pjsip_transaction *_tsx
     cdef pjsip_auth_clt_sess _auth
+    cdef pjsip_route_hdr _route_header
     cdef int _need_auth
     cdef pj_timer_entry _timer
     cdef int _timer_active
@@ -82,7 +83,7 @@ cdef class Request:
         self._timer_active = 0
 
     def __init__(self, method, FromHeader from_header not None, ToHeader to_header not None, SIPURI request_uri not None,
-                 Route route not None, Credentials credentials=None, ContactHeader contact_header=None, call_id=None, cseq=None,
+                 RouteHeader route_header not None, Credentials credentials=None, ContactHeader contact_header=None, call_id=None, cseq=None,
                  object extra_headers=None, content_type=None, body=None):
         cdef pjsip_method method_pj
         cdef PJSTR from_header_str
@@ -104,7 +105,7 @@ cdef class Request:
         if extra_headers is not None:
             header_names = set([header.name for header in extra_headers])
             if "Route" in header_names:
-                raise ValueError("Route should be specified with route argument, not extra_headers")
+                raise ValueError("Route should be specified with route_header argument, not extra_headers")
             if "Content-Type" in header_names:
                 raise ValueError("Content-Type should be specified with content_type argument, not extra_headers")
         else:
@@ -122,7 +123,8 @@ cdef class Request:
         to_header_str = PJSTR(to_header.body)
         self.request_uri = FrozenSIPURI.new(request_uri)
         request_uri_str = PJSTR(str(request_uri))
-        self.route = FrozenRoute.new(route)
+        self.route_header = FrozenRouteHeader.new(route_header)
+        self.route_header.uri.parameters.dict["lr"] = None # always send lr parameter in Route header
         if contact_header is not None:
             self.contact_header = FrozenContactHeader.new(contact_header)
             contact_header_str = PJSTR(contact_header.body)
@@ -164,7 +166,8 @@ cdef class Request:
             elif hdr.type == PJSIP_H_FROM:
                 self.from_header = FrozenFromHeader_create(<pjsip_fromto_hdr*> hdr)
             hdr = <pjsip_hdr *> (<pj_list *> hdr).next
-        pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> self.route.get_route_header())
+        _BaseRouteHeader_to_pjsip_route_hdr(self.route_header, &self._route_header, self._tdata.pool)
+        pjsip_msg_add_hdr(self._tdata.msg, <pjsip_hdr *> &self._route_header)
         _add_headers_to_tdata(self._tdata, self.extra_headers)
         if self.credentials is not None:
             status = pjsip_auth_clt_init(&self._auth, ua._pjsip_endpoint._obj, self._tdata.pool, 0)
