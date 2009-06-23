@@ -931,9 +931,6 @@ cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry
 
 # core.helper
 
-cdef class BaseRoute
-cdef class Route
-cdef class FrozenRoute
 cdef class BaseCredentials
 cdef class Credentials
 cdef class FrozenCredentials
