@@ -357,6 +357,18 @@ cdef int _BaseSIPURI_to_pjsip_sip_uri(BaseSIPURI uri, pjsip_sip_uri *pj_uri, pj_
     _dict_to_pjsip_param(uri.headers, &pj_uri.header_param, pool)
     return 0
 
+cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_route_hdr *pj_header, pj_pool_t *pool) except -1:
+    cdef pjsip_param *param
+    cdef pjsip_sip_uri *sip_uri
+    pjsip_route_hdr_init(NULL, <void *> pj_header)
+    sip_uri = <pjsip_sip_uri *> pj_pool_alloc(pool, sizeof(pjsip_sip_uri))
+    _BaseSIPURI_to_pjsip_sip_uri(header.uri, sip_uri, pool)
+    pj_header.name_addr.uri = <pjsip_uri *> sip_uri
+    if header.display_name:
+        _str_to_pj_str(header.display_name, &pj_header.name_addr.display)
+    _dict_to_pjsip_param(header.parameters, &pj_header.other_param, pool)
+    return 0
+
 # globals
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")

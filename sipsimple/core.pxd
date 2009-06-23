@@ -1005,6 +1005,7 @@ cdef int _is_valid_ip(int af, object ip) except -1
 cdef int _get_ip_version(object ip) except -1
 cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1
 cdef int _BaseSIPURI_to_pjsip_sip_uri(BaseSIPURI uri, pjsip_sip_uri *pj_uri, pj_pool_t *pool) except -1
+cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_route_hdr *pj_header, pj_pool_t *pool) except -1
 
 # core.ua
 
