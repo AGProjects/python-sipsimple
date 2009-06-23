@@ -556,13 +556,6 @@ cdef class PJSIPUA:
             self._threads.append(PJSIPThread())
         return 0
 
-    cdef SIPURI _create_contact_uri(self, Route route):
-        cdef object local_port
-        local_port = getattr(self, "local_%s_port" % route.transport)
-        if local_port is None:
-            raise SIPCoreError("Transport %s is not enabled" % route.transport)
-        return SIPURI(host=self.local_ip, port=local_port, parameters={"transport": route.transport})
-
     cdef int _cb_rx_request(self, pjsip_rx_data *rdata) except 0:
         cdef int status
         cdef pjsip_tx_data *tdata = NULL
