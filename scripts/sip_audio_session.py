@@ -107,10 +107,14 @@ def read_queue(e, settings, am, account, logger, target_uri, auto_answer, auto_h
                 print data
             if command == "core_event":
                 event_name, obj, args = data
-                if event_name == "DNSLookupDidFail" and (obj is routes_dns or obj is stun_dns):
+                if event_name == "DNSLookupDidFail" and obj is routes_dns:
                     print "DNS lookup failed: %(error)s" % args
                     user_quit = False
                     command = "quit"
+                elif event_name == "DNSLookupDidFail" and obj is stun_dns:
+                    account.ice.stun_servers = []
+                    got_stun = True
+                    command = "check_call"
                 elif event_name == "DNSLookupDidSucceed" and obj is routes_dns:
                     routes = args["result"]
                     if len(routes) == 0:
