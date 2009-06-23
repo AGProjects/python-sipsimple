@@ -929,22 +929,6 @@ cdef class WaveFile
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
-# core.util
-
-cdef class frozenlist
-cdef class frozendict
-cdef class PJSTR
-cdef int _str_to_pj_str(object string, pj_str_t *pj_str) except -1
-cdef object _pj_str_to_str(pj_str_t pj_str)
-cdef object _pj_status_to_str(int status)
-cdef object _pj_status_to_def(int status)
-cdef dict _pjsip_param_to_dict(pjsip_param *param_list)
-cdef int _dict_to_pjsip_param(object params, pjsip_param *param_list, pj_pool_t *pool)
-cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
-cdef int _is_valid_ip(int af, object ip) except -1
-cdef int _get_ip_version(object ip) except -1
-cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1
-
 # core.helper
 
 cdef class BaseRoute
@@ -1004,6 +988,23 @@ cdef RetryAfterHeader RetryAfterHeader_create(pjsip_retry_after_hdr *header)
 cdef FrozenRetryAfterHeader FrozenRetryAfterHeader_create(pjsip_retry_after_hdr *header)
 cdef ViaHeader ViaHeader_create(pjsip_via_hdr *header)
 cdef FrozenViaHeader FrozenViaHeader_create(pjsip_via_hdr *header)
+
+# core.util
+
+cdef class frozenlist
+cdef class frozendict
+cdef class PJSTR
+cdef int _str_to_pj_str(object string, pj_str_t *pj_str) except -1
+cdef object _pj_str_to_str(pj_str_t pj_str)
+cdef object _pj_status_to_str(int status)
+cdef object _pj_status_to_def(int status)
+cdef dict _pjsip_param_to_dict(pjsip_param *param_list)
+cdef int _dict_to_pjsip_param(object params, pjsip_param *param_list, pj_pool_t *pool)
+cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1
+cdef int _is_valid_ip(int af, object ip) except -1
+cdef int _get_ip_version(object ip) except -1
+cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1
+cdef int _BaseSIPURI_to_pjsip_sip_uri(BaseSIPURI uri, pjsip_sip_uri *pj_uri, pj_pool_t *pool) except -1
 
 # core.ua
 

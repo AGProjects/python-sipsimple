@@ -322,6 +322,41 @@ cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1:
         hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &name_pj, &value_pj)
         pjsip_msg_add_hdr(tdata.msg, hdr)
 
+cdef int _BaseSIPURI_to_pjsip_sip_uri(BaseSIPURI uri, pjsip_sip_uri *pj_uri, pj_pool_t *pool) except -1:
+    cdef pjsip_param *param
+    pjsip_sip_uri_init(pj_uri, uri.secure)
+    if uri.user:
+        _str_to_pj_str(uri.user, &pj_uri.user)
+    if uri.password:
+        _str_to_pj_str(uri.password, &pj_uri.passwd)
+    if uri.host:
+        _str_to_pj_str(uri.host, &pj_uri.host)
+    if uri.port:
+        pj_uri.port = uri.port
+    for name, value in uri.parameters.iteritems():
+        if name == "lr":
+            pj_uri.lr_param = 1
+        elif name == "maddr":
+            _str_to_pj_str(value, &pj_uri.maddr_param)
+        elif name == "method":
+            _str_to_pj_str(value, &pj_uri.method_param)
+        elif name == "transport":
+            _str_to_pj_str(value, &pj_uri.transport_param)
+        elif name == "ttl":
+            pj_uri.ttl_param = int(value)
+        elif name == "user":
+            _str_to_pj_str(value, &pj_uri.user_param)
+        else:
+            param = <pjsip_param *> pj_pool_alloc(pool, sizeof(pjsip_param))
+            _str_to_pj_str(name, &param.name)
+            if value is None:
+                param.value.slen = 0
+            else:
+                _str_to_pj_str(value, &param.value)
+            pj_list_insert_after(<pj_list *> &pj_uri.other_param, <pj_list *> param)
+    _dict_to_pjsip_param(uri.headers, &pj_uri.header_param, pool)
+    return 0
+
 # globals
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
