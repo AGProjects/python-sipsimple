@@ -6,10 +6,12 @@
 cdef class Invitation:
     cdef pjsip_inv_session *_obj
     cdef pjsip_dialog *_dlg
+    cdef pjsip_route_hdr _route_header
+    cdef pj_list _route_set
     cdef readonly FrozenCredentials credentials
     cdef readonly FrozenFromHeader from_header
     cdef readonly FrozenToHeader to_header
-    cdef readonly FrozenRoute route
+    cdef readonly FrozenRouteHeader route_header
     cdef readonly FrozenContactHeader local_contact_header
     cdef readonly object state
     cdef FrozenSDPSession _offered_local_sdp
@@ -28,25 +30,23 @@ cdef class Invitation:
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_disconnect_timer)
         self.state = "INVALID"
 
-    def __init__(self, FromHeader from_header=None, ToHeader to_header=None, Route route=None,
-                 Credentials credentials=None, ContactHeader contact_header=None):
+    def __init__(self, FromHeader from_header=None, ToHeader to_header=None, RouteHeader route_header=None,
+                ContactHeader contact_header=None, Credentials credentials=None):
         cdef PJSIPUA ua = _get_ua()
         if self.state != "INVALID":
             raise SIPCoreError("Invitation.__init__() was already called")
-        if all([from_header, to_header, route]):
+        if all([from_header, to_header, route_header]):
             self.state = "NULL"
             self.from_header = FrozenFromHeader.new(from_header)
             self.to_header = FrozenToHeader.new(to_header)
-            self.route = FrozenRoute.new(route)
-            self.transport = route.transport
-            if contact_header is None:
-                self.local_contact_header = FrozenContactHeader(ua._create_contact_uri(route))
-            else:
-                self.local_contact_header = FrozenContactHeader.new(contact_header)
+            self.route_header = FrozenRouteHeader.new(route_header)
+            self.route_header.uri.parameters.dict["lr"] = None # always send lr parameter in Route header
+            self.transport = route_header.uri.parameters.get("transport", "udp")
+            self.local_contact_header = FrozenContactHeader.new(contact_header)
             if credentials is not None:
                 self.credentials = FrozenCredentials.new(credentials)
-        elif any([from_header, to_header, route]):
-            raise ValueError('The "from_header", "to_header" and "route" arguments need to be supplied ' +
+        elif any([from_header, to_header, route_header]):
+            raise ValueError('The "from_header", "to_header" and "route_header" arguments need to be supplied ' +
                              "when creating an outbound Invitation")
 
     cdef int _init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
@@ -342,7 +342,10 @@ cdef class Invitation:
                 status = pjsip_auth_clt_set_credentials(&self._dlg.auth_sess, 1, self.credentials.get_cred_info())
                 if status != 0:
                     raise PJSIPError("Could not set credentials for INVITE session", status)
-            status = pjsip_dlg_set_route_set(self._dlg, <pjsip_route_hdr *> self.route.get_route_set())
+            _BaseRouteHeader_to_pjsip_route_hdr(self.route_header, &self._route_header, self._dlg.pool)
+            pj_list_init(<pj_list *> &self._route_set)
+            pj_list_insert_after(<pj_list *> &self._route_set, <pj_list *> &self._route_header)
+            status = pjsip_dlg_set_route_set(self._dlg, <pjsip_route_hdr *> &self._route_set)
             if status != 0:
                 raise PJSIPError("Could not set route for INVITE session", status)
             status = pjsip_inv_invite(self._obj, &tdata)
