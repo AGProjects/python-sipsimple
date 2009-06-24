@@ -17,7 +17,7 @@ from application.python.decorator import decorator, preserve_signature
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
-from sipsimple.core import Route
+from sipsimple.util import Route
 
 
 @decorator
