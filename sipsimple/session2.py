@@ -5,7 +5,7 @@ from application.notification import NotificationCenter, Any
 from application.python.util import Singleton
 from eventlet import proc, api, coros
 
-from sipsimple.core import ContactHeader, FromHeader, SDPConnection, SDPMediaStream, SDPSession
+from sipsimple.core import ContactHeader, FromHeader, RouteHeader, SDPConnection, SDPMediaStream, SDPSession, SIPURI
 from sipsimple.engine import Engine
 from sipsimple.green.core import GreenInvitation, InvitationError
 from sipsimple.green.notification import linked_notification, NotifyFromThreadObserver
@@ -117,6 +117,7 @@ class Session(NotificationHandler):
             self.state = 'INCOMING'
         else:
             self.state = 'NULL'
+        self.route = None
         self._proposed_streams = []
         self._proposed_media = None
         self.lock = Lock()
@@ -235,8 +236,9 @@ class Session(NotificationHandler):
                 raise ValueError('Must provide streams')
             workers = Workers()
             self.direction = 'outgoing'
-            route = iter(routes).next()
-            self.inv = GreenInvitation(FromHeader(self.account.uri, self.account.display_name), to_header, route, self.account.credentials, ContactHeader(self.account.contact[route.transport]))
+            self.route = iter(routes).next()
+            route_header = RouteHeader(self.route.get_uri())
+            self.inv = GreenInvitation(FromHeader(self.account.uri, self.account.display_name), to_header, route_header, ContactHeader(self.account.contact[self.route.transport]), self.account.credentials)
             self.subscribe(name='SIPInvitationChangedState', sender=self.inv._obj)
             ERROR = (500, None, 'local') # code, reason, originator
             self._set_state('CALLING')
