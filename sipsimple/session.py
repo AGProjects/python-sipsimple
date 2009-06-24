@@ -15,7 +15,7 @@ from application.notification import IObserver, NotificationCenter, Notification
 from application.python.util import Singleton
 
 from sipsimple.engine import Engine
-from sipsimple.core import ContactHeader, FromHeader, Invitation
+from sipsimple.core import ContactHeader, FromHeader, Invitation, RouteHeader, SIPURI
 from sipsimple.core import SDPSession, SDPMediaStream, SDPAttribute, SDPConnection
 from sipsimple.core import RTPTransport, AudioTransport
 from sipsimple.core import RecordingWaveFile
@@ -157,6 +157,7 @@ class Session(NotificationHandler):
         self.chat_transport = None
         self.has_audio = False
         self.has_chat = False
+        self.route = None
         # TODO: make the following two attributes reflect the current proposal in all states, not just PROPOSING
         self.proposed_audio = False
         self.proposed_chat = False
@@ -171,7 +172,7 @@ class Session(NotificationHandler):
 
     def __getattr__(self, attr):
         if self._inv is not None:
-            if attr in ["from_header", "to_header", "local_identity", "remote_identity", "route"]:
+            if attr in ["from_header", "to_header", "local_identity", "remote_identity", "route_header"]:
                 return getattr(self._inv, attr)
         if self.audio_transport is not None:
             if attr.startswith("audio_"):
@@ -209,8 +210,9 @@ class Session(NotificationHandler):
                 raise SessionStateError("This method can only be called while in the NULL state")
             if not any([audio, chat]):
                 raise ValueError("No media stream requested")
-            route = iter(routes).next()
-            inv = Invitation(FromHeader(self.account.uri, self.account.display_name), to_header, route, self.account.credentials, ContactHeader(self.account.contact[route.transport]))
+            self.route = iter(routes).next()
+            route_header = RouteHeader(self.route.get_uri())
+            inv = Invitation(FromHeader(self.account.uri, self.account.display_name), to_header, route_header, ContactHeader(self.account.contact[self.route.transport]), self.account.credentials)
             if audio:
                 audio_rtp = AccountRTPTransport(self.account, inv.transport)
             else:
