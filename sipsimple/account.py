@@ -17,12 +17,13 @@ from application.python.util import Singleton
 from zope.interface import implements
 
 from sipsimple.engine import Engine
-from sipsimple.core import ContactHeader, Credentials, FromHeader, SIPURI, SIPCoreError
+from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
 from sipsimple.configuration.datatypes import AudioCodecs, CountryCode, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.primitives import Registration
+from sipsimple.util import Route
 
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
@@ -222,14 +223,16 @@ class Account(SettingsObject):
             self._deactivate()
 
     def _NH_SIPRegistrationDidSucceed(self, notification):
+        old_route_header = notification.data.route_header
+        old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get("transport", "udp"))
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self, data=NotificationData(code=notification.data.code,
-                                                                                                                    reason=notification.data.reason,
-                                                                                                                    contact_header=notification.data.contact_header,
-                                                                                                                    contact_header_list=notification.data.contact_header_list,
-                                                                                                                    expires=notification.data.expires_in,
-                                                                                                                    registration=notification.sender,
-                                                                                                                    route=notification.data.route))
+                                                                                                                     reason=notification.data.reason,
+                                                                                                                     contact_header=notification.data.contact_header,
+                                                                                                                     contact_header_list=notification.data.contact_header_list,
+                                                                                                                     expires=notification.data.expires_in,
+                                                                                                                     registration=notification.sender,
+                                                                                                                     route=old_route))
         self._register_routes = None
         self._register_wait = 0.5
 
@@ -254,24 +257,28 @@ class Account(SettingsObject):
                     self._register_wait = min(self._register_wait*2, 30)
                     timeout = random.uniform(self._register_wait, 2*self._register_wait)
 
+                old_route_header = notification.data.route_header
+                old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get('transport', 'udp'))
                 data = NotificationData(reason=notification.data.reason, registration=notification.sender,
                                         code=notification.data.code, next_route=None, delay=timeout,
-                                        route=notification.data.route)
+                                        route=old_route)
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
 
                 from twisted.internet import reactor
                 reactor.callFromThread(reactor.callLater, timeout, self._register)
             else:
+                old_route_header = notification.data.route_header
+                old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get('transport', 'udp'))
                 route = self._register_routes.popleft()
+                route_header = RouteHeader(route.get_uri())
 
                 data = NotificationData(reason=notification.data.reason, registration=notification.sender,
-                                        code=notification.data.code, next_route=route, delay=0,
-                                        route=notification.data.route)
+                                        code=notification.data.code, next_route=route, delay=0, route=old_route)
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
 
                 self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
                 contact_header = ContactHeader(self.contact[route.transport])
-                self._registrar.register(contact_header, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
+                self._registrar.register(contact_header, route_header, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
     def _NH_SIPRegistrationWillExpire(self, notification):
         self._register()
@@ -288,9 +295,10 @@ class Account(SettingsObject):
 
         self._register_routes = deque(notification.data.result)
         route = self._register_routes.popleft()
+        route_header = RouteHeader(route.get_uri())
         self.contact = ContactURI('%s@%s' % (self.contact.username, settings.local_ip.normalized))
         contact_header = ContactHeader(self.contact[route.transport])
-        self._registrar.register(contact_header, route, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
+        self._registrar.register(contact_header, route_header, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
     def _NH_DNSLookupDidFail(self, notification):
         notification_center = NotificationCenter()
