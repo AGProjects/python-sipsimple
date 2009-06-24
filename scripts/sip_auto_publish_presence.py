@@ -29,13 +29,14 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import FromHeader, SIPCoreError, SIPURI
+from sipsimple.core import FromHeader, RouteHeader, SIPCoreError, SIPURI
 from sipsimple.primitives import Publication, PublicationError
 from sipsimple.account import AccountManager
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.util import Route
 
 from sipsimple.applications import BuilderError
 from sipsimple.applications.presdm import Contact, Device, DeviceNote, DeviceTimestamp, Person, PersonNote, PersonTimestamp, PIDF, Service, ServiceTimestamp, Status
@@ -263,7 +264,7 @@ class AutoPublicationApplication(object):
             self._publication_routes = None
             self._publication_wait = 0.5
             self.success = True
-            route = notification.data.route
+            route = Route(notification.data.route_header.uri.host, notification.data.route_header.uri.port, notification.data.route_header.uri.parameters.get("transport", "udp"))
             self.output.put('PUBLISH was successful at %s:%d;transport=%s' % (route.address, route.port, route.transport))
             if self._republish:
                 self._republish = False
@@ -288,10 +289,7 @@ class AutoPublicationApplication(object):
                     self._auto_publish(route)
 
     def _NH_SIPPublicationWillExpire(self, notification):
-        with self.publication_lock:
-            if not self.publishing:
-                self.publication.publish(None, route=self.publication._last_request.route)
-                self.publishing = True
+        self._publish()
 
     def _NH_SIPPublicationDidNotEnd(self, notification):
         self.success = False
@@ -470,7 +468,8 @@ class AutoPublicationApplication(object):
         # publish new pidf
         self._republish = True
         try:
-            self.publication.publish(self.pidf.toxml(), route, timeout=5)
+            route_header = RouteHeader(route.get_uri())
+            self.publication.publish(self.pidf.toxml(), route_header, timeout=5)
         except BuilderError, e:
             print "PIDF as currently defined is invalid: %s" % str(e)
         except:

@@ -24,12 +24,13 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import ContactHeader, FromHeader, Header, SIPCoreError, SIPURI, Subscription, ToHeader
+from sipsimple.core import ContactHeader, FromHeader, Header, RouteHeader, SIPCoreError, SIPURI, Subscription, ToHeader
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.util import Route
 
 
 class InputThread(Thread):
@@ -220,14 +221,14 @@ class SubscriptionApplication(object):
             handler(notification)
 
     def _NH_SIPSubscriptionDidStart(self, notification):
-        route = notification.sender.route
+        route = Route(notification.sender.route_header.uri.host, notification.sender.route_header.uri.port, notification.sender.route_header.uri.parameters.get('transport', 'udp'))
         self._subscription_routes = None
         self._subscription_wait = 0.5
         self.output.put('Subscription succeeded at %s:%d;transport=%s' % (route.address, route.port, route.transport))
         self.success = True
 
     def _NH_SIPSubscriptionChangedState(self, notification):
-        route = notification.sender.route
+        route = Route(notification.sender.route_header.uri.host, notification.sender.route_header.uri.port, notification.sender.route_header.uri.parameters.get('transport', 'udp'))
         if notification.data.state.lower() == "pending":
             self.output.put('Subscription pending at %s:%d;transport=%s' % (route.address, route.port, route.transport))
         elif notification.data.state.lower() == "active":
@@ -237,7 +238,7 @@ class SubscriptionApplication(object):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=notification.sender)
         self.subscription = None
-        route = notification.sender.route
+        route = Route(notification.sender.route_header.uri.host, notification.sender.route_header.uri.port, notification.sender.route_header.uri.parameters.get('transport', 'udp'))
         self.output.put('Unsubscribed from %s:%d;transport=%s' % (route.address, route.port, route.transport))
         self.stop()
 
@@ -245,7 +246,7 @@ class SubscriptionApplication(object):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=notification.sender)
         self.subscription = None
-        route = notification.sender.route
+        route = Route(notification.sender.route_header.uri.host, notification.sender.route_header.uri.port, notification.sender.route_header.uri.parameters.get('transport', 'udp'))
         if notification.data.code:
             status = ': %d %s' % (notification.data.code, notification.data.reason)
         else:
@@ -260,8 +261,9 @@ class SubscriptionApplication(object):
                 timeout = random.uniform(self._subscription_wait, 2*self._subscription_wait)
                 reactor.callFromThread(reactor.callLater, timeout, self._subscribe)
             else:
-                route = route=self._subscription_routes.popleft()
-                self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), self.target, ContactHeader(self.account.contact[route.transport]), "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+                route = self._subscription_routes.popleft()
+                route_header = RouteHeader(route.get_uri())
+                self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), self.target, ContactHeader(self.account.contact[route.transport]), "presence", route_header, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
                 notification_center.add_observer(self, sender=self.subscription)
                 self.subscription.subscribe(extra_headers=[Header('Supported', 'eventlist')], timeout=5)
 
@@ -274,7 +276,8 @@ class SubscriptionApplication(object):
         # create subscription and register to get notifications from it
         self._subscription_routes = deque(notification.data.result)
         route = self._subscription_routes.popleft()
-        self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), self.target, ContactHeader(self.account.contact[route.transport]), "presence", route, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+        route_header = RouteHeader(route.get_uri())
+        self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), self.target, ContactHeader(self.account.contact[route.transport]), "presence", route_header, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
         self.subscription.subscribe(extra_headers=[Header('Supported', 'eventlist')], timeout=5)

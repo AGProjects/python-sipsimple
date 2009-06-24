@@ -26,7 +26,7 @@ from twisted.internet import reactor
 from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import FromHeader, SIPCoreError, SIPURI
+from sipsimple.core import FromHeader, RouteHeader, SIPCoreError, SIPURI
 from sipsimple.primitives import Publication, PublicationError
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
@@ -716,7 +716,8 @@ class PublicationApplication(object):
 
     def _do_publish(self, route):
         try:
-            self.publication.publish(self.pidf.toxml(), route, timeout=5)
+            route_header = RouteHeader(route.get_uri())
+            self.publication.publish(self.pidf.toxml(), route_header, timeout=5)
         except BuilderError, e:
             self.output.put("PIDF as currently defined is invalid: %s" % str(e))
             self.publishing = False
