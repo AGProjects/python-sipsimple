@@ -119,3 +119,38 @@ class Logger(object):
             self._pjsiptrace_file.write(message+'\n')
             self._pjsiptrace_file.flush()
 
+    def _LH_DNSLookupTrace(self, event_name, event_data):
+        if event_data.context != 'lookup_sip_proxy':
+            return
+        settings = SIPSimpleSettings()
+        if not self.sip_to_stdout and not settings.logging.trace_sip:
+            return
+        message = '%(timestamp)s: DNS lookup %(query_type)s %(query_name)s' % event_data.__dict__
+        if event_data.error is None:
+            message += ' succeeded: '
+            if event_data.query_type == 'A':
+                message += ", ".join(record.address for record in event_data.answer)
+            elif event_data.query_type == 'SRV':
+                message += ", ".join('%d %d %d %s' % (record.priority, record.weight, record.port, record.target) for record in event_data.answer)
+            elif event_data.query_type == 'NAPTR':
+                message += ", ".join('%d %d "%s" "%s" "%s" %s' % (record.order, record.preference, record.flags, record.service, record.regexp, record.replacement) for record in event_data.answer)
+        else:
+            import dns.resolver
+            message_map = {dns.resolver.NXDOMAIN: 'the record name does not exist',
+                           dns.resolver.NoAnswer: 'the response did not contain an answer',
+                           dns.resolver.NoNameservers: 'no nameservers could be reached',
+                           dns.resolver.Timeout: 'the query timedout'}
+            message += ' failed: %s' % message_map.get(event_data.error.__class__, '')
+        if self.sip_to_stdout:
+            print message
+        if settings.logging.trace_sip:
+            if self._siptrace_file is None:
+                try:
+                    self._siptrace_file = open(self._siptrace_filename, 'a')
+                except IOError, e:
+                    print "failed to create log file '%s': %s" % (self._siptrace_filename, e)
+                    return
+            self._siptrace_file.write(message+'\n')
+            self._siptrace_file.flush()
+
+
