@@ -120,14 +120,12 @@ class Logger(object):
             self._pjsiptrace_file.flush()
 
     def _LH_DNSLookupTrace(self, event_name, event_data):
-        if event_data.context != 'lookup_sip_proxy':
-            return
         settings = SIPSimpleSettings()
         if not self.sip_to_stdout and not settings.logging.trace_sip:
             return
         message = '%(timestamp)s: DNS lookup %(query_type)s %(query_name)s' % event_data.__dict__
         if event_data.error is None:
-            message += ' succeeded: '
+            message += ' succeeded, ttl=%d: ' % event_data.answer.ttl
             if event_data.query_type == 'A':
                 message += ", ".join(record.address for record in event_data.answer)
             elif event_data.query_type == 'SRV':
