@@ -17,7 +17,7 @@ from application.python.decorator import decorator, preserve_signature
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
-from sipsimple.util import Route
+from sipsimple.util import Route, TimestampedNotificationData
 
 
 @decorator
@@ -48,19 +48,22 @@ class DNSLookup(object):
         servers = []
         try:
             srv_answers = dns.resolver.query("%s.%s" % (service_prefix, uri.host), "SRV")
-        except:
+        except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
+            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_service', uri=uri, service=service, query_type='SRV', query_name='%s.%s' % (service_prefix, uri.host), answer=None, error=e))
             if service_fallback:
                 a_candidates.append((uri.host, service_port))
         else:
+            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_service', uri=uri, service=service, query_type='SRV', query_name='%s.%s' % (service_prefix, uri.host), answer=srv_answers, error=None))
             srv_answers = sorted(srv_answers, key=lambda x: x.priority)
             srv_answers.sort(key=lambda x: x.weight, reverse=True)
             a_candidates = [(srv_answer.target, srv_answer.port) for srv_answer in srv_answers]
         for a_host, a_port in a_candidates:
             try:
                 a_answers = dns.resolver.query(a_host, "A")
-            except:
-                pass
+            except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_service', uri=uri, service=service, query_type='A', query_name=a_host, answer=None, error=e))
             else:
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_service', uri=uri, service=service, query_type='A', query_name=a_host, answer=a_answers, error=None))
                 for a_answer in a_answers:
                     servers.append((a_answer.address, a_port))
         if servers:
@@ -119,11 +122,13 @@ class DNSLookup(object):
                 try:
                     naptr_answers = dns.resolver.query(uri.host, "NAPTR")
                 except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='NAPTR', query_name=uri.host, answer=None, error=e))
                     error_type = e.__class__
                     # If NAPTR lookup fails for some reason, try SRV lookup for all supported transports.
                     # Only the transports of those lookups that succeed are supported by the server.
                     srv_candidates = [(transport, "%s.%s" % (self._transport_srv_service_map[transport], uri.host)) for transport in supported_transports]
                 else:
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='NAPTR', query_name=uri.host, answer=naptr_answers, error=None))
                     # If NAPTR lookup succeeds, order those entries that are applicable for SIP based on server prefernce.
                     naptr_answers = [answer for answer in naptr_answers if answer.flags.lower() == "s" and answer.service.lower() in self._naptr_service_transport_map and self._naptr_service_transport_map[answer.service.lower()] in supported_transports]
                     naptr_answers.sort(key=lambda x: x.preference)
@@ -139,6 +144,7 @@ class DNSLookup(object):
                 try:
                     srv_answers = dns.resolver.query(srv_qname, "SRV")
                 except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='SRV', query_name=srv_qname, answer=None, error=e))
                     error_type = e.__class__
                     # If SRV lookup fails, try A record directly for a transport that was requested,
                     # otherwise UDP for a SIP URI, TLS for a SIPS URI.
@@ -149,6 +155,7 @@ class DNSLookup(object):
                         if transport == srv_transport:
                             a_candidates.append((transport, uri.host, 5061 if transport == "tls" else 5060))
                 else:
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='SRV', query_name=srv_qname, answer=srv_answers, error=None))
                     # If SRV lookup succeeds, sort the resulting hosts based on server preference.
                     srv_answers = sorted(srv_answers, key=lambda x: x.priority)
                     srv_answers.sort(key=lambda x: x.weight, reverse=True)
@@ -175,18 +182,21 @@ class DNSLookup(object):
         # Keep results in a dictionary so we don't do double A record lookups
         a_cache = {}
         for a_transport, a_qname, a_port in a_candidates:
-            try:
-                if a_qname in a_cache:
-                    a_answers = a_cache[a_qname]
-                else:
-                    a_answers = dns.resolver.query(a_qname, "A")
-                    a_cache[a_qname] = a_answers
-            except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
-                # If lookup fails then don't return this value
-                error_type = e.__class__
+            if a_qname in a_cache:
+                a_answers = a_cache[a_qname]
             else:
-                for answer in a_answers:
-                    routes.append(Route(answer.address, port=a_port, transport=a_transport))
+                try:
+                    a_answers = dns.resolver.query(a_qname, "A")
+                except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='A', query_name=a_qname, answer=None, error=e))
+                    # If lookup fails then don't return this value
+                    error_type = e.__class__
+                    a_answers = []
+                else:
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='A', query_name=a_qname, answer=a_answers, error=None))
+                    a_cache[a_qname] = a_answers
+            for answer in a_answers:
+                routes.append(Route(answer.address, port=a_port, transport=a_transport))
         if routes:
             notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=routes))
         else:
