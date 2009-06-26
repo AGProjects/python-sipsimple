@@ -86,7 +86,7 @@ class Logger(object):
         else:
             direction = "SENDING"
         buf = ["%s: Packet %d, +%s" % (direction, self._siptrace_packet_count, (event_data.timestamp - self._siptrace_start_time))]
-        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d -(%(transport)s)-> %(destination_ip)s:%(destination_port)d" % event_data.__dict__)
+        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d -(SIP over %(transport)s)-> %(destination_ip)s:%(destination_port)d" % event_data.__dict__)
         buf.append(event_data.data)
         buf.append('--\n')
         message = "\n".join(buf)
