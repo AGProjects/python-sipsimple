@@ -134,10 +134,10 @@ class Logger(object):
                 message += ", ".join('%d %d "%s" "%s" "%s" %s' % (record.order, record.preference, record.flags, record.service, record.regexp, record.replacement) for record in event_data.answer)
         else:
             import dns.resolver
-            message_map = {dns.resolver.NXDOMAIN: 'the record name does not exist',
-                           dns.resolver.NoAnswer: 'the response did not contain an answer',
-                           dns.resolver.NoNameservers: 'no nameservers could be reached',
-                           dns.resolver.Timeout: 'the query timedout'}
+            message_map = {dns.resolver.NXDOMAIN: 'DNS record does not exist',
+                           dns.resolver.NoAnswer: 'DNS response contains no answer',
+                           dns.resolver.NoNameservers: 'no DNS name servers could be reached',
+                           dns.resolver.Timeout: 'no DNS response received, the query has timed out'}
             message += ' failed: %s' % message_map.get(event_data.error.__class__, '')
         if self.sip_to_stdout:
             print message
