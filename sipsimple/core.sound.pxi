@@ -751,20 +751,22 @@ cdef class PJMEDIAConferenceBridge:
 cdef class RecordingWaveFile:
     cdef pj_pool_t *_pool
     cdef pjmedia_port *_port
-    cdef unsigned int _conf_slot
-    cdef readonly object file_name
+    cdef int _slot
+    cdef readonly ConferenceBridge conference_bridge
+    cdef readonly str file_name
     cdef int _was_started
-    cdef int _is_paused
 
     def __cinit__(self, *args, **kwargs):
-        self._was_started = 0
-        self._is_paused = 0
+        self._slot = -1
 
-    def __init__(self, file_name):
+    def __init__(self, ConferenceBridge conference_bridge, str file_name):
         if self.file_name is not None:
             raise SIPCoreError("RecordingWaveFile.__init__() was already called")
+        if conference_bridge is None:
+            raise ValueError("conference_bridge argument may not be None")
         if file_name is None:
             raise ValueError("file_name argument may not be None")
+        self.conference_bridge = conference_bridge
         self.file_name = file_name
 
     cdef PJSIPUA _check_ua(self):
@@ -775,8 +777,7 @@ cdef class RecordingWaveFile:
         except:
             self._pool = NULL
             self._port = NULL
-            self._conf_slot = 0
-            self._is_paused = 0
+            self._slot = -1
 
     property is_active:
 
@@ -784,15 +785,17 @@ cdef class RecordingWaveFile:
             self._check_ua()
             return self._port != NULL
 
-    property is_paused:
+    property slot:
 
         def __get__(self):
-            self._check_ua()
-            return bool(self._is_paused)
+            if self._slot == -1:
+                return None
+            else:
+                return self._slot
 
     def start(self):
         cdef int status
-        cdef object pool_name = "recwav_%s" % self.file_name
+        cdef str pool_name = "RecordingWaveFile_%d" % id(self)
         cdef PJSIPUA ua = _get_ua()
         if self._was_started:
             raise SIPCoreError("This RecordingWaveFile was already started once")
@@ -801,54 +804,31 @@ cdef class RecordingWaveFile:
             raise SIPCoreError("Could not allocate memory pool")
         try:
             status = pjmedia_wav_writer_port_create(self._pool, self.file_name,
-                                                    ua._pjmedia_endpoint._sample_rate * 1000, 1,
-                                                    ua._pjmedia_endpoint._sample_rate * 20, 16,
+                                                    self.conference_bridge.sample_rate, 1,
+                                                    self.conference_bridge.sample_rate / 50, 16,
                                                     PJMEDIA_FILE_WRITE_PCM, 0, &self._port)
             if status != 0:
                 raise PJSIPError("Could not create WAV file", status)
-            status = pjmedia_conf_add_port(ua._conf_bridge._obj, self._pool, self._port, NULL, &self._conf_slot)
-            if status != 0:
-                raise PJSIPError("Could not connect WAV playback to conference bridge", status)
-            ua._conf_bridge._connect_output_slot(self._conf_slot)
+            self._slot = self.conference_bridge._add_port(ua, self._pool, self._port)
         except:
             self.stop()
             raise
         self._was_started = 1
-
-    def pause(self):
-        cdef PJSIPUA ua = self._check_ua()
-        if self._conf_slot == 0:
-            raise SIPCoreError("This RecordingWaveFile is not active")
-        if self._is_paused:
-            raise SIPCoreError("This RecordingWaveFile is already paused")
-        ua._conf_bridge._disconnect_slot(self._conf_slot)
-        self._is_paused = 1
-
-    def resume(self):
-        cdef PJSIPUA ua = self._check_ua()
-        if self._conf_slot == 0:
-            raise SIPCoreError("This RecordingWaveFile is not active")
-        if not self._is_paused:
-            raise SIPCoreError("This RecordingWaveFile is not paused")
-        ua._conf_bridge._connect_output_slot(self._conf_slot)
-        self._is_paused = 0
 
     def stop(self):
         cdef PJSIPUA ua = self._check_ua()
         self._stop(ua)
 
     cdef int _stop(self, PJSIPUA ua) except -1:
-        if self._conf_slot != 0:
-            ua._conf_bridge._disconnect_slot(self._conf_slot)
-            pjmedia_conf_remove_port(ua._conf_bridge._obj, self._conf_slot)
-            self._conf_slot = 0
+        if self._slot != -1:
+            self.conference_bridge._remove_port(ua, self._slot)
+            self._slot = -1
         if self._port != NULL:
             pjmedia_port_destroy(self._port)
             self._port = NULL
         if self._pool != NULL:
             pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
             self._pool = NULL
-        self._is_paused = 0
         return 0
 
     def __dealloc__(self):
