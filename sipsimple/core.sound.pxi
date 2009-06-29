@@ -322,6 +322,173 @@ cdef class ConferenceBridge:
         return 0
 
 
+cdef class ToneGenerator:
+    # instance attributes
+    cdef pjmedia_port *_obj
+    cdef pj_pool_t *_pool
+    cdef readonly ConferenceBridge conference_bridge
+    cdef int _slot
+    cdef int _volume
+    cdef pj_timer_entry _timer
+    cdef int _timer_active
+
+    # properties
+
+    property volume:
+
+        def __get__(self):
+            return self._volume
+
+        def __set__(self, value):
+            cdef int status
+            cdef PJSIPUA ua = self._get_ua(0)
+            if value < 0:
+                raise ValueError("volume attribute cannot be negative")
+            if ua is not None and self._slot != -1:
+                status = pjmedia_conf_adjust_rx_level(self.conference_bridge._obj, self._slot, int(value * 1.28 - 128))
+                if status != 0:
+                    raise PJSIPError("Could not set volume of tone generator", status)
+            self._volume = value
+
+    property slot:
+
+        def __get__(self):
+            if self._slot == -1:
+                return None
+            else:
+                return self._slot
+
+    property is_active:
+
+        def __get__(self):
+            return bool(self._slot != -1)
+
+    property is_busy:
+
+        def __get__(self):
+            if self._obj == NULL:
+                return False
+            return bool(pjmedia_tonegen_is_busy(self._obj))
+
+    # public methods
+
+    def __cinit__(self, *args, **kwargs):
+        cdef str pool_name
+        cdef PJSIPUA ua = _get_ua()
+        self._volume = 100
+        self._slot = -1
+        pool_name = "ToneGenerator_%d" % id(self)
+        pj_timer_entry_init(&self._timer, 0, <void *> self, _ToneGenerator_cb_check_done)
+        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
+        if self._pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+
+    def __init__(self, ConferenceBridge conference_bridge):
+        cdef int status
+        cdef PJSIPUA ua = _get_ua()
+        if self._obj != NULL:
+            raise SIPCoreError("ToneGenerator.__init__() was already called")
+        if conference_bridge is None:
+            raise ValueError("conference_bridge argument may not be None")
+        self.conference_bridge = conference_bridge
+        status = pjmedia_tonegen_create(self._pool, conference_bridge.sample_rate, 1,
+                                        conference_bridge.sample_rate / 50, 16, 0, &self._obj)
+        if status != 0:
+            raise PJSIPError("Could not create tone generator", status)
+
+    def start(self):
+        cdef PJSIPUA ua = self._get_ua(1)
+        self._slot = self.conference_bridge._add_port(ua, self._pool, self._obj)
+        if self._volume != 100:
+            self.volume = self._volume
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua = self._get_ua(0)
+        if self._timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
+            self._timer_active = 0
+        if self._obj != NULL:
+            self.conference_bridge._remove_port(ua, self._slot)
+            pjmedia_tonegen_stop(self._obj)
+            self._obj = NULL
+        if self._pool != NULL:
+            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
+            self._pool = NULL
+
+    def play_tones(self, object tones):
+        cdef int freq1, freq2, duration
+        cdef pjmedia_tone_desc tones_arr[PJMEDIA_TONEGEN_MAX_DIGITS]
+        cdef unsigned int count = 0
+        cdef int status
+        cdef PJSIPUA ua = self._get_ua(1)
+        if self._slot == -1:
+            raise SIPCoreError("ToneGenerator has not yet been started")
+        for freq1, freq2, duration in tones:
+            if freq1 == 0 and count > 0:
+                tones_arr[count-1].off_msec += duration
+            else:
+                if count >= PJMEDIA_TONEGEN_MAX_DIGITS:
+                    raise SIPCoreError("Too many tones")
+                tones_arr[count].freq1 = freq1
+                tones_arr[count].freq2 = freq2
+                tones_arr[count].on_msec = duration
+                tones_arr[count].off_msec = 0
+                tones_arr[count].volume = 0
+                tones_arr[count].flags = 0
+                count += 1
+        if count > 0:
+            status = pjmedia_tonegen_play(self._obj, count, tones_arr, 0)
+            if status != 0:
+                raise PJSIPError("Could not playback tones", status)
+        if not self._timer_active:
+            self._start_timer(ua)
+
+    def play_dtmf(self, str digit):
+        cdef pjmedia_tone_digit tone
+        cdef int status
+        cdef PJSIPUA ua = self._get_ua(1)
+        if self._slot == -1:
+            raise SIPCoreError("ToneGenerator has not yet been started")
+        tone.digit = ord(digit)
+        tone.on_msec = 200
+        tone.off_msec = 50
+        tone.volume = 0
+        status = pjmedia_tonegen_play_digits(self._obj, 1, &tone, 0)
+        if status != 0 and status != PJ_ETOOMANY:
+            raise PJSIPError("Could not playback DTMF tone", status)
+        if not self._timer_active:
+            self._start_timer(ua)
+
+    # private methods
+
+    cdef PJSIPUA _get_ua(self, int raise_exception):
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            self._obj = NULL
+            self._pool = NULL
+            self._slot = -1
+            self._timer_active = 0
+            if raise_exception:
+                raise
+            else:
+                return None
+        else:
+            return ua
+
+    cdef int _start_timer(self, PJSIPUA ua) except -1:
+        cdef pj_time_val timeout
+        cdef int status
+        timeout.sec = 0
+        timeout.msec = 250
+        status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout)
+        if status != 0:
+            raise PJSIPError("Could not set completion check timer", status)
+        self._timer_active = 1
+        return 0
+
+
 cdef class PJMEDIAConferenceBridge:
     cdef pjmedia_conf *_obj
     cdef pjsip_endpoint *_pjsip_endpoint
@@ -823,33 +990,24 @@ cdef int _ConferenceBridge_stop_sound_post(object obj) except -1:
     if conf_bridge.used_slot_count == 0:
         conf_bridge._stop_sound_device(ua)
 
-cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
-    cdef WaveFile wav_file
-    cdef int status
+cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef PJSIPUA ua
+    cdef ToneGenerator tone_generator
+    cdef int status
     try:
         ua = _get_ua()
     except:
-        return 0
+        return
     try:
-        ua = _get_ua()
-        wav_file = <object> user_data
-        if wav_file._loop_count == 1:
-            wav_file._stop(ua, 0, 1)
-        else:
-            if wav_file._loop_count:
-                wav_file._loop_count -= 1
-            if wav_file._pause_time.sec or wav_file._pause_time.msec:
-                wav_file._stop(ua, 1, 1)
+        if entry.user_data != NULL:
+            tone_generator = <object> entry.user_data
+            tone_generator._timer_active = 0
+            if pjmedia_tonegen_is_busy(tone_generator._obj):
+                tone_generator._start_timer(ua)
             else:
-                try:
-                    wav_file._rewind()
-                except:
-                    ua._handle_exception(0)
-                    wav_file._stop(ua, 0, 1)
+                _add_event("ToneGeneratorDidFinishPlaying", dict(obj=tone_generator))
     except:
         ua._handle_exception(1)
-    return 0
 
 cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef WaveFile wav_file

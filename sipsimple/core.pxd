@@ -496,6 +496,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_tonegen_play_digits(pjmedia_port *tonegen, unsigned int count,
                                     pjmedia_tone_digit *digits, unsigned int options)
     int pjmedia_tonegen_stop(pjmedia_port *tonegen)
+    int pjmedia_tonegen_is_busy(pjmedia_port *tonegen)
 
 cdef extern from "pjmedia-codec.h":
 
@@ -938,11 +939,12 @@ cdef class PJMEDIAEndpoint
 # core.sound
 
 cdef class ConferenceBridge
+cdef class ToneGenerator
 cdef class PJMEDIAConferenceBridge
 cdef class RecordingWaveFile
 cdef class WaveFile
+cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
-cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 cdef int _ConferenceBridge_stop_sound_post(object obj) except -1
 
 # core.helper

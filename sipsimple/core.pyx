@@ -29,7 +29,7 @@ CORE_REVISION = 62
 
 __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "SIPCoreError", "PJSIPError",
-           "ConferenceBridge", "RecordingWaveFile", "WaveFile",
+           "ConferenceBridge", "ToneGenerator", "RecordingWaveFile", "WaveFile",
            "sip_status_messages",
            "BaseCredentials", "Credentials", "FrozenCredentials", "BaseSIPURI", "SIPURI", "FrozenSIPURI",
            "BaseHeader", "Header", "FrozenHeader", "BaseContactHeader", "ContactHeader", "FrozenContactHeader",
