@@ -291,10 +291,11 @@ cdef class RTPTransport:
 cdef class AudioTransport:
     cdef pjmedia_stream *_obj
     cdef pjmedia_stream_info _stream_info
+    cdef readonly ConferenceBridge conference_bridge
     cdef readonly RTPTransport transport
     cdef pj_pool_t *_pool
     cdef pjmedia_sdp_media *_local_media
-    cdef unsigned int _conf_slot
+    cdef int _slot
     cdef readonly object direction
     cdef int _is_started
     cdef int _is_offer
@@ -303,6 +304,7 @@ cdef class AudioTransport:
     cdef int _timer_active
     cdef unsigned int _packets_received
     cdef dict _cached_statistics
+    cdef int _volume
 
     def __cinit__(self, *args, **kwargs):
         cdef object pool_name = "AudioTransport_%d" % id(self)
@@ -311,9 +313,11 @@ cdef class AudioTransport:
         if self._pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         pj_timer_entry_init(&self._timer, 0, <void *> self, _AudioTransport_cb_check_rtp)
+        self._slot = -1
+        self._volume = 100
 
-    def __init__(self, RTPTransport transport, BaseSDPSession remote_sdp=None,
-                 int sdp_index=0, enable_silence_detection=True, list codecs=None):
+    def __init__(self, ConferenceBridge conference_bridge, RTPTransport transport,
+                 BaseSDPSession remote_sdp=None, int sdp_index=0, enable_silence_detection=True, list codecs=None):
         cdef pjmedia_transport_info info
         cdef pjmedia_sdp_session *local_sdp_c
         cdef SDPSession local_sdp
@@ -322,6 +326,8 @@ cdef class AudioTransport:
         cdef PJSIPUA ua = _get_ua()
         if self.transport is not None:
             raise SIPCoreError("AudioTransport.__init__() was already called")
+        if conference_bridge is None:
+            raise ValueError("conference_bridge argument may not be None")
         if transport is None:
             raise ValueError("transport argument cannot be None")
         if sdp_index < 0:
@@ -330,19 +336,19 @@ cdef class AudioTransport:
             raise SIPCoreError('RTPTransport object provided is not in the "INIT" state, but in the "%s" state' %
                                transport.state)
         self._vad = int(bool(enable_silence_detection))
+        self.conference_bridge = conference_bridge
         self.transport = transport
         transport._get_info(&info)
-        if codecs is not None:
-            global_codecs = ua._pjmedia_endpoint._get_codecs()
+        global_codecs = ua._pjmedia_endpoint._get_current_codecs()
+        if codecs is None:
+            codecs = global_codecs
         try:
-            if codecs is not None:
-                ua._pjmedia_endpoint._set_codecs(codecs)
+            ua._pjmedia_endpoint._set_codecs(codecs, self.conference_bridge.sample_rate)
             status = pjmedia_endpt_create_sdp(ua._pjmedia_endpoint._obj, self._pool, 1, &info.sock_info, &local_sdp_c)
             if status != 0:
                 raise PJSIPError("Could not generate SDP for audio session", status)
         finally:
-            if codecs is not None:
-                ua._pjmedia_endpoint._set_codecs(global_codecs)
+            ua._pjmedia_endpoint._set_codecs(global_codecs, 32000)
         local_sdp = SDPSession_create(local_sdp_c)
         if remote_sdp is None:
             self._is_offer = 1
@@ -428,6 +434,30 @@ cdef class AudioTransport:
             statistics["tx"] = _pjmedia_rtcp_stream_stat_to_dict(&stat.tx)
             return statistics
 
+    property volume:
+
+        def __get__(self):
+            return self._volume
+
+        def __set__(self, value):
+            cdef int status
+            cdef PJSIPUA ua = self._check_ua()
+            if value < 0:
+                raise ValueError("volume attribute cannot be negative")
+            if ua is not None and self._obj != NULL:
+                status = pjmedia_conf_adjust_rx_level(self.conference_bridge._obj, self._slot, int(value * 1.28 - 128))
+                if status != 0:
+                    raise PJSIPError("Could not set volume of audio transport", status)
+            self._volume = value
+
+    property slot:
+
+        def __get__(self):
+            if self._slot == -1:
+                return None
+            else:
+                return self._slot
+
     def get_local_media(self, is_offer, direction="sendrecv"):
         cdef SDPAttribute attr
         cdef SDPMediaStream local_media
@@ -502,11 +532,14 @@ cdef class AudioTransport:
             pjmedia_stream_destroy(self._obj)
             self._obj = NULL
             raise PJSIPError("Could not get audio port for audio session", status)
-        status = pjmedia_conf_add_port(ua._conf_bridge._obj, self._pool, media_port, NULL, &self._conf_slot)
-        if status != 0:
+        try:
+            self._slot = self.conference_bridge._add_port(ua, self._pool, media_port)
+            if self._volume != 100:
+                self.volume = self._volume
+        except:
             pjmedia_stream_destroy(self._obj)
             self._obj = NULL
-            raise PJSIPError("Could not connect audio session to conference bridge", status)
+            raise
         self.direction = "sendrecv"
         self.update_direction(local_sdp.media[sdp_index].get_direction())
         self._local_media = pjmedia_sdp_media_clone(self._pool, local_sdp.get_sdp_session().media[sdp_index])
@@ -524,8 +557,7 @@ cdef class AudioTransport:
             self._timer_active = 0
         if self._obj == NULL:
             return
-        ua._conf_bridge._disconnect_slot(self._conf_slot)
-        pjmedia_conf_remove_port(ua._conf_bridge._obj, self._conf_slot)
+        self.conference_bridge._remove_port(ua, self._slot)
         self._cached_statistics = self.statistics
         pjmedia_stream_destroy(self._obj)
         self._obj = NULL
@@ -571,7 +603,6 @@ cdef class AudioTransport:
         status = pjmedia_stream_dial_dtmf(self._obj, &digit_pj)
         if status != 0:
             raise PJSIPError("Could not send DTMF digit on audio stream", status)
-        ua._conf_bridge._playback_dtmf(ord(digit))
 
 
 # helper functions
@@ -642,10 +673,6 @@ cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int d
         return
     try:
         _add_event("RTPAudioStreamGotDTMF", dict(obj=audio_stream, digit=chr(digit)))
-        try:
-            ua._conf_bridge._playback_dtmf(digit)
-        except:
-            ua._handle_exception(0)
     except:
         ua._handle_exception(1)
 
