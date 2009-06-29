@@ -17,7 +17,6 @@ cdef class PJSIPUA:
     cdef PJCachingPool _caching_pool
     cdef PJSIPEndpoint _pjsip_endpoint
     cdef PJMEDIAEndpoint _pjmedia_endpoint
-    cdef PJMEDIAConferenceBridge _conf_bridge
     cdef pjsip_module _module
     cdef PJSTR _module_name
     cdef pjsip_module _trace_module
@@ -35,7 +34,6 @@ cdef class PJSIPUA:
     cdef int _rtp_port_start
     cdef int _rtp_port_stop
     cdef int _rtp_port_index
-    cdef readonly unsigned int ec_tail_length
     cdef pj_stun_config _stun_cfg
     cdef int _fatal_error
 
@@ -54,8 +52,6 @@ cdef class PJSIPUA:
         global _event_queue_lock
         cdef int status
         cdef PJSTR message_method = PJSTR("MESSAGE")
-        if kwargs["sample_rate"] not in [8, 16, 32]:
-            raise SIPCoreError("Sample rate should be one of 8, 16 or 32kHz")
         self._event_handler = event_handler
         if kwargs["log_level"] < 0 or kwargs["log_level"] > PJ_LOG_MAX_LEVEL:
             raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
@@ -66,7 +62,7 @@ cdef class PJSIPUA:
         self._pjlib = PJLIB()
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self._caching_pool = PJCachingPool()
-        self._pjmedia_endpoint = PJMEDIAEndpoint(self._caching_pool, kwargs["sample_rate"])
+        self._pjmedia_endpoint = PJMEDIAEndpoint(self._caching_pool)
         self._pjsip_endpoint = PJSIPEndpoint(self._caching_pool, kwargs["local_ip"], kwargs["local_udp_port"],
                                              kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_protocol"],
                                              kwargs["tls_verify_server"], kwargs["tls_ca_file"],
@@ -75,9 +71,6 @@ cdef class PJSIPUA:
         if status != 0:
             raise PJSIPError("Could not initialize event queue mutex", status)
         self.codecs = kwargs["codecs"]
-        self._conf_bridge = PJMEDIAConferenceBridge(self._pjsip_endpoint, self._pjmedia_endpoint, int(bool(kwargs["playback_dtmf"])))
-        self.ec_tail_length = kwargs["ec_tail_length"]
-        self._conf_bridge._set_sound_devices(-2, -2, 0)
         self._module_name = PJSTR("mod-core")
         self._module.name = self._module_name.pj_str
         self._module.id = -1
@@ -175,46 +168,32 @@ cdef class PJSIPUA:
             raise PJSIPError("Could not register event package", status)
         self._events[event] = accept_types[:]
 
-    property playback_devices:
+    cdef object _get_sound_devices(self, int is_output):
+        cdef int i
+        cdef int count
+        cdef pjmedia_snd_dev_info_ptr_const info
+        cdef list retval = list()
+        for i from 0 <= i < pjmedia_snd_get_dev_count():
+            info = pjmedia_snd_get_dev_info(i)
+            if is_output:
+                count = info.output_count
+            else:
+                count = info.input_count
+            if count:
+                retval.append(info.name)
+        return retval
+
+    property output_devices:
 
         def __get__(self):
             self._check_self()
-            return self._conf_bridge._get_sound_devices(1)
+            return self._get_sound_devices(1)
 
-    property recording_devices:
-
-        def __get__(self):
-            self._check_self()
-            return self._conf_bridge._get_sound_devices(0)
-
-    property current_playback_device:
+    property input_devices:
 
         def __get__(self):
             self._check_self()
-            return self._conf_bridge._get_current_device(1)
-
-    property current_recording_device:
-
-        def __get__(self):
-            self._check_self()
-            return self._conf_bridge._get_current_device(0)
-
-    def set_sound_devices(self, object playback_device=None, object recording_device=None, object tail_length=None):
-        cdef int playback_device_id = -1
-        cdef int recording_device_id = -1
-        cdef unsigned int ec_tail_length = self.ec_tail_length
-        self._check_self()
-        if tail_length is not None:
-            if tail_length < 0:
-                raise ValueError("tail_length parameters may not be negative")
-            ec_tail_length = tail_length
-        if playback_device is not None:
-            playback_device_id = self._conf_bridge._find_sound_device(playback_device, 1)
-        if recording_device is not None:
-            recording_device_id = self._conf_bridge._find_sound_device(recording_device, 0)
-        self._conf_bridge._set_sound_devices(playback_device_id, recording_device_id, ec_tail_length)
-        if tail_length is not None:
-            self.ec_tail_length = ec_tail_length
+            return self._get_sound_devices(0)
 
     property available_codecs:
 
@@ -226,11 +205,11 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self._check_self()
-            return self._pjmedia_endpoint._get_codecs()
+            return self._pjmedia_endpoint._get_current_codecs()
 
         def __set__(self, value):
             self._check_self()
-            self._pjmedia_endpoint._set_codecs(value)
+            self._pjmedia_endpoint._set_codecs(value, 32000)
 
     property local_ip:
 
@@ -323,17 +302,6 @@ cdef class PJSIPUA:
             self._rtp_port_start = _rtp_port_start
             self._rtp_port_stop = _rtp_port_stop
             self._rtp_port_index = random.randrange(_rtp_port_start, _rtp_port_stop, 2) - 50
-
-    property playback_dtmf:
-
-        def __get__(self):
-            self._check_self()
-            return bool(self._conf_bridge._do_playback_dtmf)
-
-        def __set__(self, value):
-            self._check_self()
-            value = int(bool(value))
-            self._conf_bridge._do_playback_dtmf = int(bool(value))
 
     property user_agent:
 
@@ -444,23 +412,6 @@ cdef class PJSIPUA:
             self._pjsip_endpoint._tls_timeout = timeout
             self._pjsip_endpoint._start_tls_transport(port)
 
-    property sample_rate:
-
-        def __get__(self):
-            return self._pjmedia_endpoint._sample_rate
-
-    def connect_audio_transport(self, AudioTransport transport):
-        self._check_self()
-        if transport._obj == NULL:
-            raise SIPCoreError("Cannot connect an AudioTransport that was not started yet")
-        self._conf_bridge._connect_conv_slot(transport._conf_slot)
-
-    def disconnect_audio_transport(self, AudioTransport transport):
-        self._check_self()
-        if transport._obj == NULL:
-            raise SIPCoreError("Cannot disconnect an AudioTransport that was not started yet")
-        self._conf_bridge._disconnect_slot(transport._conf_slot)
-
     def detect_nat_type(self, stun_server_address, stun_server_port=PJ_STUN_PORT, object user_data=None):
         cdef pj_str_t stun_server_address_pj
         cdef pj_sockaddr_in stun_server
@@ -481,10 +432,6 @@ cdef class PJSIPUA:
         # no need for self._check_self(), _get_ua() is called in the function
         return SIPURI.parse(uri_string)
 
-    def play_tones(self, tones):
-        self._check_self()
-        self._conf_bridge._play_tones(tones)
-
     def __dealloc__(self):
         self.dealloc()
 
@@ -494,7 +441,6 @@ cdef class PJSIPUA:
             return
         _RTPTransport_stun_list = []
         self._check_thread()
-        self._conf_bridge = None
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)
             pj_mutex_destroy(_event_queue_lock)

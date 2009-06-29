@@ -185,24 +185,18 @@ cdef class PJSIPEndpoint:
 
 cdef class PJMEDIAEndpoint:
     cdef pjmedia_endpt *_obj
-    cdef unsigned int _sample_rate
     cdef int _has_speex
     cdef int _has_g722
     cdef int _has_g711
     cdef int _has_ilbc
     cdef int _has_gsm
 
-    def __cinit__(self, PJCachingPool caching_pool, unsigned int sample_rate):
+    def __cinit__(self, PJCachingPool caching_pool):
         cdef int status
         cdef int speex_options = 0
         status = pjmedia_endpt_create(&caching_pool._obj.factory, NULL, 1, &self._obj)
         if status != 0:
             raise PJSIPError("Could not create PJMEDIA endpoint", status)
-        self._sample_rate = sample_rate
-        if sample_rate < 32:
-            speex_options |= PJMEDIA_SPEEX_NO_UWB
-        if sample_rate < 16:
-            speex_options |= PJMEDIA_SPEEX_NO_WB
         status = pjmedia_codec_speex_init(self._obj, speex_options, -1, -1)
         if status != 0:
             raise PJSIPError("Could not initialize speex codec", status)
@@ -238,56 +232,77 @@ cdef class PJMEDIAEndpoint:
         if self._obj != NULL:
             pjmedia_endpt_destroy(self._obj)
 
-    cdef list _get_prio_codecs(self):
+    cdef list _get_codecs(self):
         cdef unsigned int count = PJMEDIA_CODEC_MGR_MAX_CODECS
         cdef pjmedia_codec_info info[PJMEDIA_CODEC_MGR_MAX_CODECS]
         cdef unsigned int prio[PJMEDIA_CODEC_MGR_MAX_CODECS]
         cdef int i
-        cdef object codec
-        cdef object codecs = []
-        cdef object retval = []
+        cdef list retval
         cdef int status
         status = pjmedia_codec_mgr_enum_codecs(pjmedia_endpt_get_codec_mgr(self._obj), &count, info, prio)
         if status != 0:
             raise PJSIPError("Could not get available codecs", status)
+        retval = list()
         for i from 0 <= i < count:
-            codec = _pj_str_to_str(info[i].encoding_name)
-            if codec not in codecs:
-                codecs.append(codec)
-                retval.append((prio[i], codec))
+            retval.append((prio[i], _pj_str_to_str(info[i].encoding_name), info[i].channel_cnt, info[i].clock_rate))
         return retval
 
     cdef list _get_all_codecs(self):
-        cdef object codec_prio
-        cdef list codecs = self._get_prio_codecs()
-        return [codec_prio[1] for codec_prio in codecs]
+        cdef list codecs
+        cdef tuple codec_data
+        codecs = self._get_codecs()
+        return list(set([codec_data[1] for codec_data in codecs]))
 
-    cdef list _get_codecs(self):
-        cdef object codec_prio
-        cdef list codecs = [codec_prio for codec_prio in self._get_prio_codecs() if codec_prio[0] > 0]
-        return [codec_prio[1] for codec_prio in sorted(codecs, reverse=True)]
+    cdef list _get_current_codecs(self):
+        cdef list codecs
+        cdef tuple codec_data
+        cdef list retval
+        codecs = [codec_data for codec_data in self._get_codecs() if codec_data[0] > 0]
+        codecs.sort(reverse=True)
+        retval = list(set([codec_data[1] for codec_data in codecs]))
+        return retval
 
-    cdef int _set_codecs(self, list codecs) except -1:
-        cdef object codec
-        cdef unsigned int prio
-        cdef pj_str_t codec_pj
+    cdef int _set_codecs(self, list req_codecs, int max_sample_rate) except -1:
+        cdef object new_codecs
+        cdef object all_codecs
         cdef object codec_set
-        cdef object new_codecs = set([codec.lower() for codec in codecs])
-        cdef object all_codecs = set([codec.lower() for codec in self._get_all_codecs()])
+        cdef list codecs
+        cdef tuple codec_data
+        cdef str codec
+        cdef int sample_rate
+        cdef int channel_count
+        cdef str codec_name
+        cdef int prio
+        cdef list codec_prio
+        cdef pj_str_t codec_pj
+        new_codecs = set(req_codecs)
+        if len(new_codecs) != len(req_codecs):
+            raise ValueError("Requested codec list contains doubles")
+        all_codecs = set(self._get_all_codecs())
         codec_set = new_codecs.difference(all_codecs)
         if len(codec_set) > 0:
             raise SIPCoreError("Unknown codec(s): %s" % ", ".join(codec_set))
-        for prio, codec in enumerate(reversed(codecs)):
+        # reverse the codec data tuples so that we can easily sort on sample rate
+        # to make sure that bigger sample rates get higher priority
+        codecs = [list(reversed(codec_data)) for codec_data in self._get_codecs()]
+        codecs.sort(reverse=True)
+        codec_prio = list()
+        for codec in req_codecs:
+            for sample_rate, channel_count, codec_name, prio in codecs:
+                if codec == codec_name and channel_count == 1 and sample_rate <= max_sample_rate:
+                    codec_prio.append("%s/%d/%d" % (codec_name, sample_rate, channel_count))
+        for prio, codec in enumerate(reversed(codec_prio)):
             _str_to_pj_str(codec, &codec_pj)
             status = pjmedia_codec_mgr_set_codec_priority(pjmedia_endpt_get_codec_mgr(self._obj), &codec_pj, prio + 1)
             if status != 0:
                 raise PJSIPError("Could not set codec priority", status)
-        codec_set = all_codecs.difference(new_codecs)
-        for codec in codec_set:
-            _str_to_pj_str(codec, &codec_pj)
-            status = pjmedia_codec_mgr_set_codec_priority(pjmedia_endpt_get_codec_mgr(self._obj), &codec_pj, 0)
-            if status != 0:
-                raise PJSIPError("Could not set codec priority", status)
+        for sample_rate, channel_count, codec_name, prio in codecs:
+            if codec_name not in req_codecs or channel_count == 2 or sample_rate > max_sample_rate:
+                codec = "%s/%d/%d" % (codec_name, sample_rate, channel_count)
+                _str_to_pj_str(codec, &codec_pj)
+                status = pjmedia_codec_mgr_set_codec_priority(pjmedia_endpt_get_codec_mgr(self._obj), &codec_pj, 0)
+                if status != 0:
+                    raise PJSIPError("Could not set codec priority", status)
         return 0
 
 # globals
