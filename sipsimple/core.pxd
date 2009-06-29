@@ -211,6 +211,11 @@ cdef extern from "pjnath.h":
 
 cdef extern from "pjmedia.h":
 
+    # constants
+    enum:
+        PJMEDIA_ENOSNDREC
+        PJMEDIA_ENOSNDPLAY
+
     # codec manager
     struct pjmedia_codec_mgr
     enum:
@@ -218,6 +223,7 @@ cdef extern from "pjmedia.h":
     struct pjmedia_codec_info:
         pj_str_t encoding_name
         unsigned int clock_rate
+        unsigned int channel_cnt
     int pjmedia_codec_mgr_enum_codecs(pjmedia_codec_mgr *mgr, unsigned int *count,
                                       pjmedia_codec_info *info, unsigned int *prio)
     int pjmedia_codec_mgr_set_codec_priority(pjmedia_codec_mgr *mgr, pj_str_t *codec_id, unsigned int prio)
@@ -250,8 +256,15 @@ cdef extern from "pjmedia.h":
     # sound port
     struct pjmedia_port
     struct pjmedia_snd_port
-    int pjmedia_snd_port_create(pj_pool_t *pool, int rec_id, int play_id, int clock_rate, int channel_count,
-                                int samples_per_frame, int bits_per_sample, int options, pjmedia_snd_port **p_port)
+    int pjmedia_snd_port_create(pj_pool_t *pool, int rec_id, int play_id, unsigned int clock_rate,
+                                unsigned int channel_count, unsigned int samples_per_frame,
+                                unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port)
+    int pjmedia_snd_port_create_rec(pj_pool_t *pool, int index, unsigned int clock_rate, unsigned int channel_count,
+                                    unsigned int samples_per_frame, unsigned int bits_per_sample, unsigned int options,
+                                    pjmedia_snd_port **p_port)
+    int pjmedia_snd_port_create_player(pj_pool_t *pool, unsigned int index, unsigned int clock_rate,
+                                       unsigned int channel_count, unsigned int samples_per_frame,
+                                       unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port)
     int pjmedia_snd_port_connect(pjmedia_snd_port *snd_port, pjmedia_port *port)
     int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port)
     int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options)
@@ -281,6 +294,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_conf_connect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot, int level)
     int pjmedia_conf_disconnect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot)
     int pjmedia_conf_adjust_rx_level(pjmedia_conf *conf, unsigned slot, int adj_level)
+    int pjmedia_conf_adjust_tx_level(pjmedia_conf *conf, unsigned slot, int adj_level)
 
     # sdp
     enum:
@@ -923,11 +937,13 @@ cdef class PJMEDIAEndpoint
 
 # core.sound
 
+cdef class ConferenceBridge
 cdef class PJMEDIAConferenceBridge
 cdef class RecordingWaveFile
 cdef class WaveFile
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 cdef void cb_play_wav_restart(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
+cdef int _ConferenceBridge_stop_sound_post(object obj) except -1
 
 # core.helper
 

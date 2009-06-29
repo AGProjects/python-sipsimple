@@ -3,6 +3,325 @@
 
 # classes
 
+cdef class ConferenceBridge:
+    # instance attributes
+    cdef pjmedia_conf *_obj
+    cdef pj_pool_t *_conf_pool
+    cdef pjmedia_snd_port *_snd
+    cdef pj_pool_t *_snd_pool
+    cdef pjmedia_port *_null_port
+    cdef pjmedia_master_port *_master_port
+    cdef readonly str input_device
+    cdef readonly str output_device
+    cdef readonly int sample_rate
+    cdef readonly int ec_tail_length
+    cdef readonly int slot_count
+    cdef int _disconnect_when_idle
+    cdef int _volume
+    cdef list _connected_slots
+    cdef readonly int used_slot_count
+    cdef int _is_muted
+
+    # properties
+
+    property volume:
+
+        def __get__(self):
+            return self._volume
+
+        def __set__(self, int value):
+            cdef int status
+            cdef PJSIPUA ua = self._get_ua(1)
+            if value < 0:
+                raise ValueError("volume attribute cannot be negative")
+            if ua is not None:
+                status = pjmedia_conf_adjust_tx_level(self._obj, 0, int(value * 1.28 - 128))
+                if status != 0:
+                    raise PJSIPError("Could not set output volume of sound device", status)
+            self._volume = value
+
+    property connected_slots:
+
+        def __get__(self):
+            cdef PJSIPUA ua = self._get_ua(0)
+            return sorted(self._connected_slots)
+
+    property is_muted:
+
+        def __get__(self):
+            return bool(self._is_muted)
+
+        def __set__(self, value):
+            cdef int is_muted
+            cdef PJSIPUA ua = self._get_ua(0)
+            if self._obj == NULL:
+                raise SIPCoreError("Conference bridge is already deallocated")
+            is_muted = int(bool(value))
+            if is_muted == self._is_muted:
+                return
+            if is_muted:
+                status = pjmedia_conf_adjust_rx_level(self._obj, 0, 0)
+            else:
+                status = pjmedia_conf_adjust_rx_level(self._obj, 0, 128)
+            if status != 0:
+                raise PJSIPError("Could not set output volume of sound device", status)
+            self._is_muted = is_muted
+
+    # public methods
+
+    def __cinit__(self, *args, **kwargs):
+        self._disconnect_when_idle = 1
+        self._volume = 100
+        self._connected_slots = list()
+
+    def __init__(self, str input_device, str output_device, int sample_rate,
+                 int ec_tail_length=200, int slot_count=254):
+        cdef str conf_pool_name
+        cdef int status
+        cdef PJSIPUA ua = _get_ua()
+        if self._obj != NULL:
+            raise SIPCoreError("ConferenceBridge.__init__() was already called")
+        if sample_rate <= 0:
+            raise ValueError("sample_rate argument should be a non-negative integer")
+        if ec_tail_length < 0:
+            raise ValueError("ec_tail_length argument cannot be negative")
+        if sample_rate <= 0:
+            raise ValueError("sample_rate argument should be a non-negative integer")
+        if sample_rate % 50:
+            raise ValueError("sample_rate argument should be dividable by 50")
+        self.sample_rate = sample_rate
+        self.slot_count = slot_count
+        conf_pool_name = "ConferenceBridge_%d" % id(self)
+        self._conf_pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, conf_pool_name, 4096, 4096)
+        if self._conf_pool == NULL:
+            raise SIPCoreError("Could not allocate memory pool")
+        status = pjmedia_conf_create(self._conf_pool, slot_count+1, sample_rate, 1,
+                                     sample_rate / 50, 16, PJMEDIA_CONF_NO_DEVICE, &self._obj)
+        if status != 0:
+            raise PJSIPError("Could not create conference bridge", status)
+        self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
+        if self._disconnect_when_idle:
+            self._stop_sound_device(ua)
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua = self._get_ua(0)
+        self._stop_sound_device(ua)
+        if self._master_port != NULL:
+            pjmedia_master_port_destroy(self._master_port, 0)
+            self._master_port = NULL
+        if self._null_port != NULL:
+            pjmedia_port_destroy(self._null_port)
+            self._null_port = NULL
+        if self._obj != NULL:
+            pjmedia_conf_destroy(self._obj)
+            self._obj = NULL
+        if self._conf_pool != NULL:
+            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._conf_pool)
+            self._conf_pool = NULL
+
+    def set_sound_devices(self, str input_device, str output_device, int ec_tail_length):
+        cdef PJSIPUA ua = self._get_ua(1)
+        if ec_tail_length < 0:
+            raise ValueError("ec_tail_length argument cannot be negative")
+        if (input_device == self.input_device and output_device == self.output_device and
+            ec_tail_length == self.ec_tail_length):
+            return
+        self._stop_sound_device(ua)
+        self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
+        if self._disconnect_when_idle and self.used_slot_count == 0:
+            self._stop_sound_device(ua)
+
+    def connect_slots(self, int src_slot, int dst_slot):
+        cdef tuple connection
+        cdef int status
+        cdef PJSIPUA ua = self._get_ua(1)
+        if src_slot < 0:
+            raise ValueError("src_slot argument cannot be negative")
+        if dst_slot < 0:
+            raise ValueError("d_slot argument cannot be negative")
+        connection = (src_slot, dst_slot)
+        if connection in self._connected_slots:
+            return
+        status = pjmedia_conf_connect_port(self._obj, src_slot, dst_slot, 0)
+        if status != 0:
+            raise PJSIPError("Could not connect slots on conference bridge", status)
+        self._connected_slots.append(connection)
+
+    def disconnect_slots(self, int src_slot, int dst_slot):
+        cdef tuple connection
+        cdef int status
+        cdef PJSIPUA ua = self._get_ua(1)
+        if src_slot < 0:
+            raise ValueError("src_slot argument cannot be negative")
+        if dst_slot < 0:
+            raise ValueError("d_slot argument cannot be negative")
+        connection = (src_slot, dst_slot)
+        if connection not in self._connected_slots:
+            return
+        status = pjmedia_conf_disconnect_port(self._obj, src_slot, dst_slot)
+        if status != 0:
+            raise PJSIPError("Could not disconnect slots on conference bridge", status)
+        self._connected_slots.remove(connection)
+
+    # private methods
+
+    cdef PJSIPUA _get_ua(self, int raise_exception):
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            self._connected_slots = list()
+            self.used_slot_count = 0
+            self._snd = NULL
+            self._snd_pool = NULL
+            self._master_port = NULL
+            self._null_port = NULL
+            self._obj = NULL
+            self._conf_pool = NULL
+            if raise_exception:
+                raise
+            else:
+                return None
+        else:
+            return ua
+
+    cdef int _start_sound_device(self, PJSIPUA ua, str input_device, str output_device,
+                                 int ec_tail_length, int revert_to_default) except -1:
+        cdef int input_device_i = -2
+        cdef int output_device_i = -2
+        cdef int i
+        cdef pjmedia_snd_stream_info snd_info
+        cdef pjmedia_snd_dev_info_ptr_const dev_info
+        cdef str sound_pool_name
+        cdef int status
+        if input_device == "default":
+            input_device_i = -1
+        if output_device == "default":
+            output_device_i = -1
+        if ((input_device_i == -2 and input_device is not None) or
+            (output_device_i == -2 and output_device is not None)):
+            for i from 0 <= i < pjmedia_snd_get_dev_count():
+                dev_info = pjmedia_snd_get_dev_info(i)
+                if (input_device is not None and input_device_i == -2 and
+                    dev_info.input_count > 0 and dev_info.name == input_device):
+                    input_device_i = i
+                if (output_device is not None and output_device_i == -2 and
+                    dev_info.output_count > 0 and dev_info.name == output_device):
+                    output_device_i = i
+            if input_device_i == -2 and input_device is not None:
+                if revert_to_default:
+                    input_device_i = -1
+                else:
+                    raise SIPCoreError('Audio input device "%s" not found' % input_device)
+            if output_device_i == -2 and output_device is not None:
+                if revert_to_default:
+                    output_device_i = -1
+                else:
+                    raise SIPCoreError('Audio output device "%s" not found' % output_device)
+        if input_device is None and output_device is None:
+            status = pjmedia_null_port_create(self._conf_pool, self.sample_rate, 1,
+                                              self.sample_rate / 50, 16, &self._null_port)
+            if status != 0:
+                raise PJSIPError("Could not create dummy audio port", status)
+            status = pjmedia_master_port_create(self._conf_pool, self._null_port,
+                                                pjmedia_conf_get_master_port(self._obj), 0, &self._master_port)
+            if status != 0:
+                raise PJSIPError("Could not create master port for dummy sound device", status)
+            status = pjmedia_master_port_start(self._master_port)
+            if status != 0:
+                raise PJSIPError("Could not start master port for dummy sound device", status)
+        else:
+            snd_pool_name = "ConferenceBridge_snd_%d" % id(self)
+            self._snd_pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, snd_pool_name, 4096, 4096)
+            if self._snd_pool == NULL:
+                raise SIPCoreError("Could not allocate memory pool")
+            if input_device is None:
+                status = pjmedia_snd_port_create_player(self._snd_pool, output_device_i, self.sample_rate,
+                                                        1, self.sample_rate / 50, 16, 0, &self._snd)
+            elif output_device is None:
+                status = pjmedia_snd_port_create_rec(self._snd_pool, input_device_i, self.sample_rate,
+                                                     1, self.sample_rate / 50, 16, 0, &self._snd)
+            else:
+                status = pjmedia_snd_port_create(self._snd_pool, input_device_i, output_device_i,
+                                                 self.sample_rate, 1, self.sample_rate / 50, 16, 0, &self._snd)
+            if status == PJMEDIA_ENOSNDPLAY:
+                pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
+                self._snd_pool = NULL
+                self.start_sound_device(ua, None, output_device)
+                return 0
+            elif status == PJMEDIA_ENOSNDREC:
+                pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
+                self._snd_pool = NULL
+                self.start_sound_device(ua, input_device, None)
+                return 0
+            elif status != 0:
+                raise PJSIPError("Could not create sound device", status)
+            if input_device is not None and output_device is not None:
+                status = pjmedia_snd_port_set_ec(self._snd, self._snd_pool, ec_tail_length, 0)
+                if status != 0:
+                    self._stop_sound_device(ua)
+                    raise PJSIPError("Could not set echo cancellation", status)
+            status = pjmedia_snd_port_connect(self._snd, pjmedia_conf_get_master_port(self._obj))
+            if status != 0:
+                self._stop_sound_device(ua)
+                raise PJSIPError("Could not connect sound device", status)
+            if input_device_i == -1 or output_device_i == -1:
+                status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(self._snd), &snd_info)
+                if status != 0:
+                    self._stop_sound_device(ua)
+                    raise PJSIPError("Could not get sounds device info", status)
+                if input_device_i == -1:
+                    dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
+                    self.input_device = dev_info.name
+                if output_device_i == -1:
+                    dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
+                    self.output_device = dev_info.name
+            if input_device_i != -1:
+                self.input_device = input_device
+            if output_device_i != -1:
+                self.output_device = output_device
+            self.ec_tail_length = ec_tail_length
+        return 0
+
+    cdef int _stop_sound_device(self, PJSIPUA ua) except -1:
+        if self._snd != NULL:
+            pjmedia_snd_port_destroy(self._snd)
+            self._snd = NULL
+        if self._snd_pool != NULL:
+            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
+            self._snd_pool = NULL
+        return 0
+
+    cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1:
+        cdef unsigned int slot
+        cdef int input_device_i
+        cdef int output_device_i
+        cdef int status
+        status = pjmedia_conf_add_port(self._obj, pool, port, NULL, &slot)
+        if status != 0:
+            raise PJSIPError("Could not add audio object to conference bridge", status)
+        self.used_slot_count += 1
+        if (self.used_slot_count == 1 and self._disconnect_when_idle and
+            not (self.input_device is None and self.output_device is None) and
+            self._snd == NULL):
+            self._start_sound_device(ua, self.input_device, self.output_device, self.ec_tail_length, 1)
+        return slot
+
+    cdef int _remove_port(self, PJSIPUA ua, unsigned int slot) except -1:
+        cdef int status
+        cdef tuple connection
+        status = pjmedia_conf_remove_port(self._obj, slot)
+        if status != 0:
+            raise PJSIPError("Could not remove audio object from conference bridge", status)
+        self._connected_slots = [connection for connection in self._connected_slots if slot not in connection]
+        self.used_slot_count -= 1
+        if (self.used_slot_count == 0 and self._disconnect_when_idle and
+            not (self.input_device is None and self.output_device is None)):
+            #self._stop_sound_device(ua)
+            _add_post_handler(_ConferenceBridge_stop_sound_post, self)
+        return 0
+
+
 cdef class PJMEDIAConferenceBridge:
     cdef pjmedia_conf *_obj
     cdef pjsip_endpoint *_pjsip_endpoint
@@ -497,6 +816,12 @@ cdef class WaveFile:
 
 
 # callback functions
+
+cdef int _ConferenceBridge_stop_sound_post(object obj) except -1:
+    cdef ConferenceBridge conf_bridge = obj
+    cdef PJSIPUA ua = conf_bridge._get_ua(0)
+    if conf_bridge.used_slot_count == 0:
+        conf_bridge._stop_sound_device(ua)
 
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
     cdef WaveFile wav_file
