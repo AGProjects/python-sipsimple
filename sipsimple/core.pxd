@@ -940,7 +940,6 @@ cdef class PJMEDIAEndpoint
 
 cdef class ConferenceBridge
 cdef class ToneGenerator
-cdef class PJMEDIAConferenceBridge
 cdef class RecordingWaveFile
 cdef class WaveFile
 cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
