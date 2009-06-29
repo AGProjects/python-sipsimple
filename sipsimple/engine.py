@@ -17,8 +17,7 @@ from sipsimple import __version__
 
 class Engine(Thread):
     __metaclass__ = Singleton
-    default_start_options = {"auto_sound": True,
-                             "local_ip": None,
+    default_start_options = {"local_ip": None,
                              "local_udp_port": 0,
                              "local_tcp_port": None,
                              "local_tls_port": None,
@@ -28,13 +27,10 @@ class Engine(Thread):
                              "tls_cert_file": None,
                              "tls_privkey_file": None,
                              "tls_timeout": 1000,
-                             "ec_tail_length": 50,
                              "user_agent": "sip2sip-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
                              "log_level": 5,
                              "trace_sip": False,
                              "ignore_missing_ack": False,
-                             "sample_rate": 32,
-                             "playback_dtmf": True,
                              "rtp_port_range": (40000, 40100),
                              "codecs": ["speex", "G722", "PCMU", "PCMA", "iLBC", "GSM"],
                              "events": {"presence": ["application/pidf+xml"],
@@ -67,7 +63,7 @@ class Engine(Thread):
             return
         object.__setattr__(self, attr, value)
 
-    def start(self, auto_sound=True, local_ip=None, **kwargs):
+    def start(self, local_ip=None, **kwargs):
         if self._thread_started:
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
@@ -77,8 +73,6 @@ class Engine(Thread):
             try:
                 self._thread_started = True
                 self._ua = PJSIPUA(self._handle_event, **init_options)
-                if auto_sound:
-                    self._ua.set_sound_devices()
                 Thread.start(self)
             except:
                 self._thread_started = False
@@ -90,7 +84,7 @@ class Engine(Thread):
             else:
                 self._post_notification("SIPEngineDidStart")
 
-    def start_cfg(self, enable_sound=True, local_ip=None, **kwargs):
+    def start_cfg(self, local_ip=None, **kwargs):
         # Take the default values for the arguments from SIPSimpleSettings
         from sipsimple.configuration.settings import SIPSimpleSettings
         settings = SIPSimpleSettings()
@@ -109,19 +103,13 @@ class Engine(Thread):
             tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
             tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
             tls_timeout=settings.tls.timeout,
-            ec_tail_length=settings.audio.tail_length,
             user_agent=settings.user_agent,
             log_level=settings.logging.pjsip_level if settings.logging.trace_pjsip else 0,
             sip_trace=settings.logging.trace_sip,
             ignore_missing_ack=settings.sip.ignore_missing_ack,
-            sample_rate=settings.audio.sample_rate,
-            playback_dtmf=settings.audio.playback_dtmf,
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
             codecs=list(settings.audio.codec_list))
-        self.start(auto_sound=False, local_ip=local_ip, **kwargs)
-        if enable_sound:
-            self._ua.set_sound_devices(playback_device=settings.audio.output_device,
-                                       recording_device=settings.audio.input_device)
+        self.start(local_ip=local_ip, **kwargs)
 
     def stop(self):
         if self._thread_stopping:
