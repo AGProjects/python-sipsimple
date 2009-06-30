@@ -68,7 +68,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2553-sip_inv-dont_disconnect_on_408_reply_to_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-terminate-reinvite-tsx-on-cancel.patch",
                    "patches/pjsip-2553-sip_inv-improved_missing_ack_handling.patch",
-                   "patches/pjsip-2425-sdp_media_line.patch"]
+                   "patches/pjsip-2425-sdp_media_line.patch",
+                   "patches/pjsip-2394-sip_dialog-no_totag_check_on_dialog_state_update.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     trunk_overrides = [("pjsip/src/pjsip-ua/sip_inv.c", 2697),
