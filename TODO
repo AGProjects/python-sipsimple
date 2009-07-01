@@ -19,7 +19,6 @@ Middleware
 - Application sharing high level class [LS]
 - Conference audio sessions [RK]
 - Log XCAP messages [LS]
-- Log DNS requests [LS]
 - Auto SUBSCRIBE event=conference when Contact header of remote party is focus [LS]
 - Auto PUBLISH event=presence with device status when start/end audio session [LS]
 - Auto PUBLISH event=dialog when enter/exit audio session [LS]
@@ -113,7 +112,6 @@ Command line tools
 - xcap_pidf_manipulation script [LS]
 - sip_subscribe_conference script [LS]
  
-
 
 Porting
 -------
