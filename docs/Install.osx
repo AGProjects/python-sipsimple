@@ -127,6 +127,7 @@ SIP SIMPLE client depends on the following packages:
  * dnspython           http://www.dnspython.org                          >=1.6.0
  * twisted             http://twistedmatrix.com/trac                     >=8.1.0
  * pylib               http://codespeak.net/py                           >=0.9.2
+ * eventlet            http://pypi.python.org/pypi/eventlet/             >=0.8.11
  * zope-interface      http://www.zope.org                               >=3.3.1
 
 The following are needed only if you wish to use the desktop sharing application:
@@ -136,6 +137,7 @@ The following are needed only if you wish to use the desktop sharing application
 
 Build and install C dependencies:
 
+cd ~/work
 # gnutls dependencies
 curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
 tar -xjvf libgpg-error-1.7.tar.bz2
@@ -192,50 +194,13 @@ sudo easy_install --script-dir /usr/bin -U setuptools
 
 Install python packages using easy_install:
 
-sudo easy_install -U mercurial cython dnspython twisted py greenlet
+sudo easy_install -U mercurial python-gnutls cython dnspython twisted py \
+greenlet eventlet
 
 Download and install SIP SIMPLE client dependencies available in AG Projects
 repositories:
 
 cd ~/work
-# python-application
-if [ -d python-application ]; then 
-	cd python-application
-	darcs pull -a
-	sudo python setup.py install
-else
-	darcs get http://devel.ag-projects.com/repositories/python-application
-	cd python-application
-	sudo python setup.py install
-fi
-cd ..
-
-# python-gnutls
-if [ -d python-gnutls ]; then 
-	cd python-gnutls
-	darcs pull -a
-	sudo python setup.py install
-else
-	darcs get http://devel.ag-projects.com/repositories/python-gnutls
-	cd python-gnutls
-	sudo python setup.py install
-fi
-cd ..
-
-# python-eventlet
-export LC_CTYPE=
-if [ -d python-eventlet ]; then
-        cd python-eventlet
-        hg pull
-        hg update
-        sudo python setup.py install
-else
-        hg clone http://devel.ag-projects.com/~denis/cgi-bin/hgweb.cgi/eventlet_twisted python-eventlet
-        cd python-eventlet
-        sudo python setup.py install
-fi
-cd ..
-
 # python-xcaplib
 if [ -d python-xcaplib ]; then
 	cd python-xcaplib
