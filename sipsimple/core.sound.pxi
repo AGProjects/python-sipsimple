@@ -31,7 +31,7 @@ cdef class ConferenceBridge:
 
         def __set__(self, int value):
             cdef int status
-            cdef PJSIPUA ua = self._get_ua(1)
+            cdef PJSIPUA ua = self._get_ua(0)
             if value < 0:
                 raise ValueError("volume attribute cannot be negative")
             if ua is not None:
@@ -353,6 +353,7 @@ cdef class ToneGenerator:
     property slot:
 
         def __get__(self):
+            cdef PJSIPUA ua = self._get_ua(0)
             if self._slot == -1:
                 return None
             else:
@@ -361,11 +362,13 @@ cdef class ToneGenerator:
     property is_active:
 
         def __get__(self):
+            cdef PJSIPUA ua = self._get_ua(0)
             return bool(self._slot != -1)
 
     property is_busy:
 
         def __get__(self):
+            cdef PJSIPUA ua = self._get_ua(0)
             if self._obj == NULL:
                 return False
             return bool(pjmedia_tonegen_is_busy(self._obj))
@@ -519,6 +522,7 @@ cdef class RecordingWaveFile:
             self._pool = NULL
             self._port = NULL
             self._slot = -1
+            return None
 
     property is_active:
 
@@ -529,6 +533,7 @@ cdef class RecordingWaveFile:
     property slot:
 
         def __get__(self):
+            self._check_ua()
             if self._slot == -1:
                 return None
             else:
@@ -612,6 +617,7 @@ cdef class WaveFile:
             self._pool = NULL
             self._port = NULL
             self._slot = -1
+            return None
 
     property is_active:
 
@@ -622,6 +628,7 @@ cdef class WaveFile:
     property slot:
 
         def __get__(self):
+            self._check_ua()
             if self._slot == -1:
                 return None
             else:
@@ -733,7 +740,3 @@ cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
     except:
         ua._handle_exception(1)
     return 0
-
-# globals
-
-cdef object _dummy_sound_dev_name = "Dummy"
