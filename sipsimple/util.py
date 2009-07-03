@@ -12,6 +12,9 @@ from thread import allocate_lock
 
 from zope.interface import implements
 from application.notification import IObserver, Any, NotificationCenter, NotificationData
+from application.python.decorator import decorator, preserve_signature
+from eventlet.twistedutil import callInGreenThread
+from twisted.python import threadable
 
 from sipsimple.core import WaveFile, SIPCoreError, SIPURI
 from sipsimple.engine import Engine
@@ -147,6 +150,18 @@ class Route(object):
         return 'sip:%s:%d;transport=%s' % (self.address, self.port, self.transport)
 
 
+@decorator
+def run_in_twisted(func):
+    @preserve_signature(func)
+    def wrapper(*args, **kwargs):
+        from twisted.internet import reactor
+        if threadable.isInIOThread():
+            callInGreenThread(func, *args, **kwargs)
+        else:
+            reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
+    return wrapper
+
+
 def classproperty(function):
     class Descriptor(object):
         def __get__(self, instance, owner):
@@ -167,4 +182,4 @@ def makedirs(path):
         raise
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "Route", "classproperty", "makedirs"]
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "Route", "run_in_twisted", "classproperty", "makedirs"]
