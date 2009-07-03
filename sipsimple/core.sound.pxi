@@ -271,11 +271,11 @@ cdef class ConferenceBridge:
                 if output_device_i == -1:
                     dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
                     self.output_device = dev_info.name
-            if input_device_i != -1:
-                self.input_device = input_device
-            if output_device_i != -1:
-                self.output_device = output_device
-            self.ec_tail_length = ec_tail_length
+        if input_device_i != -1:
+            self.input_device = input_device
+        if output_device_i != -1:
+            self.output_device = output_device
+        self.ec_tail_length = ec_tail_length
         return 0
 
     cdef int _stop_sound_device(self, PJSIPUA ua) except -1:
