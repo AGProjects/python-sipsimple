@@ -18,6 +18,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.msrp import LoggerSingleton, get_X509Credentials
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
 from sipsimple.clients.sdputil import FileSelector
+from sipsimple.util import run_in_twisted
 
 
 class MSRPChatError(Exception):
@@ -74,6 +75,7 @@ class MSRPChat(object):
             return False
         return True
 
+    @run_in_twisted
     def initialize(self, session):
         try:
             settings = SIPSimpleSettings()
@@ -112,6 +114,7 @@ class MSRPChat(object):
         else:
             self.notification_center.post_notification('MediaStreamDidInitialize', self)
 
+    @run_in_twisted
     def start(self, local_sdp, remote_sdp, stream_index):
         context = 'sdp_negotiation'
         try:
@@ -145,6 +148,7 @@ class MSRPChat(object):
     def _on_start(self):
         pass
 
+    @run_in_twisted
     def end(self):
         if self.session is None and self.msrp_connector is None:
             return
@@ -216,6 +220,7 @@ class MSRPChat(object):
         self.session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return chunk
 
+    @run_in_twisted
     def send_message(self, content, content_type='text/plain', remote_identity=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
@@ -251,6 +256,7 @@ class MSRPChat(object):
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
             return self._send_raw_message(content, content_type)
 
+    @run_in_twisted
     def send_file(self, outgoing_file):
         self.session.send_file(outgoing_file)
 
