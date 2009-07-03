@@ -100,18 +100,12 @@ cdef class ConferenceBridge:
         if status != 0:
             raise PJSIPError("Could not create conference bridge", status)
         self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
-        if self._disconnect_when_idle:
+        if self._disconnect_when_idle and not (input_device is None and output_device is None):
             self._stop_sound_device(ua)
 
     def __dealloc__(self):
         cdef PJSIPUA ua = self._get_ua(0)
         self._stop_sound_device(ua)
-        if self._master_port != NULL:
-            pjmedia_master_port_destroy(self._master_port, 0)
-            self._master_port = NULL
-        if self._null_port != NULL:
-            pjmedia_port_destroy(self._null_port)
-            self._null_port = NULL
         if self._obj != NULL:
             pjmedia_conf_destroy(self._obj)
             self._obj = NULL
@@ -128,7 +122,8 @@ cdef class ConferenceBridge:
             return
         self._stop_sound_device(ua)
         self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
-        if self._disconnect_when_idle and self.used_slot_count == 0:
+        if (self._disconnect_when_idle and self.used_slot_count == 0 and not
+            (input_device is None and output_device is None)):
             self._stop_sound_device(ua)
 
     def connect_slots(self, int src_slot, int dst_slot):
@@ -290,6 +285,12 @@ cdef class ConferenceBridge:
         if self._snd_pool != NULL:
             pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
             self._snd_pool = NULL
+        if self._master_port != NULL:
+            pjmedia_master_port_destroy(self._master_port, 0)
+            self._master_port = NULL
+        if self._null_port != NULL:
+            pjmedia_port_destroy(self._null_port)
+            self._null_port = NULL
         return 0
 
     cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1:
@@ -317,8 +318,7 @@ cdef class ConferenceBridge:
         self.used_slot_count -= 1
         if (self.used_slot_count == 0 and self._disconnect_when_idle and
             not (self.input_device is None and self.output_device is None)):
-            #self._stop_sound_device(ua)
-            _add_post_handler(_ConferenceBridge_stop_sound_post, self)
+            self._stop_sound_device(ua)
         return 0
 
 
@@ -698,12 +698,6 @@ cdef class WaveFile:
 
 
 # callback functions
-
-cdef int _ConferenceBridge_stop_sound_post(object obj) except -1:
-    cdef ConferenceBridge conf_bridge = obj
-    cdef PJSIPUA ua = conf_bridge._get_ua(0)
-    if conf_bridge.used_slot_count == 0:
-        conf_bridge._stop_sound_device(ua)
 
 cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef PJSIPUA ua
