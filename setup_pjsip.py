@@ -72,11 +72,7 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2394-sip_dialog-no_totag_check_on_dialog_state_update.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
-    trunk_overrides = [("pjsip/src/pjsip-ua/sip_inv.c", 2697),
-                       ("pjsip/include/pjsip-ua/sip_inv.h", 2647),
-                       ("pjmedia/src/pjmedia/sdp_neg.c", 2643),
-                       ("pjsip/src/pjsip/sip_transaction.c", 2646),
-                       ("pjsip/include/pjsip/sip_transaction.h", 2646)]
+    trunk_overrides = []
 
     user_options = build_ext.user_options
     user_options.extend([
