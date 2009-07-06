@@ -7,7 +7,7 @@ import sys
 import traceback
 import atexit
 from datetime import datetime
-from threading import Thread, Lock, currentThread
+from threading import Thread, RLock, currentThread
 
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData
@@ -46,7 +46,7 @@ class Engine(Thread):
         self.notification_center = NotificationCenter()
         self._thread_started = False
         atexit.register(self.stop)
-        self._lock = Lock()
+        self._lock = RLock()
         Thread.__init__(self)
         self.setDaemon(True)
 
