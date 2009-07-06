@@ -401,17 +401,22 @@ cdef class ToneGenerator:
 
     def start(self):
         cdef PJSIPUA ua = self._get_ua(1)
+        if self._slot != -1:
+            return
         self._slot = self.conference_bridge._add_port(ua, self._pool, self._obj)
         if self._volume != 100:
             self.volume = self._volume
 
+    def stop(self):
+        cdef PJSIPUA ua = self._get_ua(0)
+        if self._slot == -1:
+            return
+        self._stop(ua)
+
     def __dealloc__(self):
         cdef PJSIPUA ua = self._get_ua(0)
-        if self._timer_active:
-            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
-            self._timer_active = 0
+        self._stop(ua)
         if self._obj != NULL:
-            self.conference_bridge._remove_port(ua, self._slot)
             pjmedia_tonegen_stop(self._obj)
             self._obj = NULL
         if self._pool != NULL:
@@ -489,6 +494,15 @@ cdef class ToneGenerator:
         if status != 0:
             raise PJSIPError("Could not set completion check timer", status)
         self._timer_active = 1
+        return 0
+
+    cdef int _stop(self, PJSIPUA ua) except -1:
+        if self._timer_active:
+            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
+            self._timer_active = 0
+        if self._slot != -1:
+            self.conference_bridge._remove_port(ua, self._slot)
+            self._slot = -1
         return 0
 
 
