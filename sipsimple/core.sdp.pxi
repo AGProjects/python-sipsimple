@@ -214,6 +214,33 @@ cdef class SDPSession(BaseSDPSession):
                     raise TypeError("Items in SDPSession media list must be SDPMediaStream instancess")
             self._media = media
 
+    cdef int _update(self) except -1:
+        cdef SDPSession session
+        cdef SDPMediaStream media, old_media
+        session = SDPSession_create(&(<BaseSDPSession>self)._sdp_session)
+        if len(self._media) != len(session._media):
+            raise ValueError("Number of media streams in SDPSession got changed")
+        if len(self._attributes) > len(session._attributes):
+            raise ValueError("Number of attributes in SDPSession got reduced")
+        for attr in ("id", "version", "user", "net_type", "address_type",
+                     "address", "name", "start_time", "stop_time"):
+            setattr(self, attr, getattr(session, attr))
+        if session._connection is None:
+            self.connection = None
+        elif self._connection is None or self._connection != session._connection:
+            self.connection = session._connection
+        for index, attribute in enumerate(session._attributes):
+            try:
+                old_attribute = self._attributes[index]
+            except IndexError:
+                self._attributes.append(attribute)
+            else:
+                if old_attribute != attribute:
+                    self._attributes[index] = attribute
+        for index, media in enumerate(session._media):
+            old_media = self._media[index]
+            old_media._update(media)
+
     new = classmethod(SDPSession_new)
 
 del SDPSession_new
@@ -457,6 +484,24 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
                 if not isinstance(attr, SDPAttribute):
                     raise TypeError("Items in SDPMediaStream attribute list must be SDPAttribute instances")
             self._attributes = attributes
+
+    cdef int _update(self, SDPMediaStream media) except -1:
+        if len(self._attributes) > len(media._attributes):
+            raise ValueError("Number of attributes in SDPMediaStream got reduced")
+        for attr in ("media", "port", "transport", "port_count", "info", "formats"):
+            setattr(self, attr, getattr(media, attr))
+        if media._connection is None:
+            self.connection = None
+        elif self._connection is None or self._connection != media.connection:
+            self.connection = media._connection
+        for index, attribute in enumerate(media._attributes):
+            try:
+                old_attribute = self._attributes[index]
+            except IndexError:
+                self._attributes.append(attribute)
+            else:
+                if old_attribute != attribute:
+                    self._attributes[index] = attribute
 
     new = classmethod(SDPMediaStream_new)
 

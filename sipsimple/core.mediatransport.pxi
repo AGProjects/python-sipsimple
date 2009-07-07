@@ -163,7 +163,7 @@ cdef class RTPTransport:
         def __get__(self):
             return bool(self._ice_active)
 
-    cdef int _update_local_sdp(self, BaseSDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
+    cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
         cdef int status
         if sdp_index < 0:
             raise ValueError("sdp_index argument cannot be negative")
@@ -175,10 +175,10 @@ cdef class RTPTransport:
         status = pjmedia_transport_encode_sdp(self._obj, self._pool, local_sdp.get_sdp_session(), remote_sdp, sdp_index)
         if status != 0:
             raise PJSIPError("Could not update SDP for media transport", status)
-        # TODO: work the changes back into the local_sdp object, but we don't need to do that yet.
+        local_sdp._update()
         return 0
 
-    def set_LOCAL(self, BaseSDPSession local_sdp, int sdp_index):
+    def set_LOCAL(self, SDPSession local_sdp, int sdp_index):
         self._check_ua()
         if local_sdp is None:
             raise SIPCoreError("local_sdp argument cannot be None")
@@ -200,7 +200,9 @@ cdef class RTPTransport:
             raise SIPCoreError('set_ESTABLISHED can only be called in the "INIT" and "LOCAL" states, ' +
                                'current state is "%s"' % self.state)
         if self.state == "INIT":
-            self._update_local_sdp(local_sdp, sdp_index, remote_sdp.get_sdp_session())
+            if not isinstance(local_sdp, SDPSession):
+                raise TypeError('local_sdp argument should be of type SDPSession when going from the "INIT" to the "ESTABLISHED" state')
+            self._update_local_sdp(<SDPSession>local_sdp, sdp_index, remote_sdp.get_sdp_session())
         status = pjmedia_transport_media_start(self._obj, self._pool, local_sdp.get_sdp_session(), remote_sdp.get_sdp_session(), sdp_index)
         if status != 0:
             raise PJSIPError("Could not start media transport", status)
