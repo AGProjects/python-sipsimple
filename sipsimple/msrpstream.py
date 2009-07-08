@@ -43,6 +43,7 @@ class MSRPChat(object):
         self.private_messages_allowed = None # Boolean value. None means it was not negotiated yet
         self.message_queue = deque() # messages stored here until the connection established
         self.session = None
+        self.msrp_session = None
         self.local_identity = CPIMIdentity(self.account.uri, self.account.display_name)
 
     def make_SDPMediaStream(self, uri_path):
@@ -78,6 +79,7 @@ class MSRPChat(object):
     @run_in_twisted
     def initialize(self, session):
         try:
+            self.session = session
             settings = SIPSimpleSettings()
             outgoing = session.direction == 'outgoing'
             if (outgoing and self.account.msrp.use_relay_for_outbound) or (not outgoing and self.account.msrp.use_relay_for_inbound):
@@ -106,7 +108,6 @@ class MSRPChat(object):
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self.make_SDPMediaStream(full_local_path)
-            self.remote_identity = CPIMIdentity(session.remote_identity.uri, session.remote_identity.display_name)
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
@@ -118,6 +119,7 @@ class MSRPChat(object):
     def start(self, local_sdp, remote_sdp, stream_index):
         context = 'sdp_negotiation'
         try:
+            self.remote_identity = CPIMIdentity(self.session.remote_identity.uri, self.session.remote_identity.display_name)
             remote_media = remote_sdp.media[stream_index]
             media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
             remote_accept_types = media_attributes.get('accept-types')
@@ -131,7 +133,7 @@ class MSRPChat(object):
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
-            self.session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
+            self.msrp_session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._on_incoming)
             self.msrp_connector = None
             self._on_start()
         except Exception, ex:
@@ -150,14 +152,14 @@ class MSRPChat(object):
 
     @run_in_twisted
     def end(self):
-        if self.session is None and self.msrp_connector is None:
+        if self.msrp_session is None and self.msrp_connector is None:
             return
-        session, self.session = self.session, None
+        msrp_session, self.msrp_session = self.msrp_session, None
         msrp_connector, self.msrp_connector = self.msrp_connector, None
         self.notification_center.post_notification('MediaStreamWillEnd', self)
         try:
-            if session is not None:
-                session.shutdown()
+            if msrp_session is not None:
+                msrp_session.shutdown()
             if msrp_connector is not None:
                 msrp_connector.cleanup()
         finally:
@@ -206,18 +208,18 @@ class MSRPChat(object):
         """
         if self.direction=='recvonly':
             raise MSRPChatError('Cannot send message on recvonly stream')
-        if self.session is None:
+        if self.msrp_session is None:
             self.message_queue.append((message, content_type, failure_report, success_report))
             return
         if not contains_mime_type(self.accept_types, content_type):
             raise MSRPChatError('Invalid content_type for outgoing message: %r' % (content_type, ))
         message_id = '%x' % random.getrandbits(64)
-        chunk = self.session.make_message(message, content_type=content_type, message_id=message_id)
+        chunk = self.msrp_session.make_message(message, content_type=content_type, message_id=message_id)
         if failure_report is not None:
             chunk.add_header(FailureReportHeader(failure_report))
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
-        self.session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
+        self.msrp_session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         return chunk
 
     @run_in_twisted
@@ -258,7 +260,7 @@ class MSRPChat(object):
 
     @run_in_twisted
     def send_file(self, outgoing_file):
-        self.session.send_file(outgoing_file)
+        self.msrp_session.send_file(outgoing_file)
 
 
 class MSRPOutgoingFileStream(MSRPChat):
