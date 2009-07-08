@@ -545,7 +545,7 @@ cdef class PJSIPUA:
             status = pjsip_inv_verify_request(rdata, &options, NULL, NULL, self._pjsip_endpoint._obj, &tdata)
             if status == 0:
                 inv = Invitation()
-                inv._init_incoming(self, rdata, options)
+                inv.init_incoming(self, rdata, options)
         elif method_name == "MESSAGE":
             message_params = dict()
             message_params["to_header"] = FrozenToHeader_create(rdata.msg_info.to_hdr)
