@@ -83,7 +83,7 @@ class AudioStream(NotificationHandler):
 
     def _init_rtp_transport(self, stun_servers=None):
         self._rtp_args = dict()
-        self._rtp_args["use_srtp"] = ((self._session._inv.transport == "tls" or self.account.audio.use_srtp_without_tls)
+        self._rtp_args["use_srtp"] = ((self._session.transport == "tls" or self.account.audio.use_srtp_without_tls)
                                       and self.account.audio.srtp_encryption != "disabled")
         self._rtp_args["srtp_forced"] = self._rtp_args["use_srtp"] and self.account.audio.srtp_encryption == "mandatory"
         self._rtp_args["use_ice"] = hasattr(self.account, "ice") and self.account.ice.enabled
@@ -226,8 +226,8 @@ class AudioStream(NotificationHandler):
                 raise RuntimeError("Already recording audio to a file")
             settings = SIPSimpleSettings()
             if file_name is None:
-                direction = "outgoing" if self._session._inv.is_outgoing else "incoming"
-                remote = "%s@%s" % (self._session._inv.remote_uri.user, self._session._inv.remote_uri.host)
+                direction = self._session.direction
+                remote = "%s@%s" % (self._session.remote_identity.uri.user, self._session.remote_identity.uri.host)
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
             recording_path = os.path.join(settings.audio.recordings_directory.normalized, self.account.id)
             makedirs(recording_path)
