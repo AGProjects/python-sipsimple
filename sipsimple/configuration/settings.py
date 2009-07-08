@@ -98,7 +98,7 @@ class SIPSimpleSettings(SettingsObject):
     user_data_directory = Setting(type=Path, default=os.path.expanduser('~/.sipclient'))
     resources_directory = Setting(type=Path, default=None, nillable=True)
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
-    local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
+    local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress(), nillable=True)
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)
 
     audio = AudioSettings
