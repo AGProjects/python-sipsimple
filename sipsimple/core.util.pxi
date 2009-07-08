@@ -306,7 +306,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         header_name = _pj_str_to_str(header.name)
         header_data = None
         multi_header = False
-        if header_name in ["Accept", "Allow", "Require", "Supported", "Unsupported"]:
+        if header_name in ("Accept", "Allow", "Require", "Supported", "Unsupported"):
             array_header = <pjsip_generic_array_hdr *> header
             header_data = []
             for i from 0 <= i < array_header.count:
@@ -324,7 +324,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         elif header_name == "CSeq":
             cseq_header = <pjsip_cseq_hdr *> header
             hdr_data = (cseq_header.cseq, _pj_str_to_str(cseq_header.method.name))
-        elif header_name in ["Expires", "Max-Forwards", "Min-Expires"]:
+        elif header_name in ("Expires", "Max-Forwards", "Min-Expires"):
             header_data = (<pjsip_generic_int_hdr *> header).ivalue
         elif header_name == "From":
             header_data = FrozenFromHeader_create(<pjsip_fromto_hdr *> header)
@@ -346,7 +346,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
             if match is not None:
                 header_data = FrozenWarningHeader(**match.groupdict())
         # skip the following headers:
-        elif header_name not in ["Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"]:
+        elif header_name not in ("Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"):
             header_data = FrozenHeader(header_name, _pj_str_to_str((<pjsip_generic_string_hdr *> header).hvalue))
         if hdr_data is not None:
             if multi_header:
@@ -363,7 +363,9 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         info_dict["body"] = PyString_FromStringAndSize(<char *> body.data, body.len)
     if msg.type == PJSIP_REQUEST_MSG:
         info_dict["method"] = _pj_str_to_str(msg.line.req.method.name)
-        info_dict["request_uri"] = FrozenSIPURI_create(<pjsip_sip_uri*>msg.line.req.uri)
+        # You need to call pjsip_uri_get_uri on the request URI if the message is for transmitting,
+        # but it isn't required if message is one received. Otherwise, a seg fault occurs. Don't ask.
+        info_dict["request_uri"] = FrozenSIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(msg.line.req.uri))
     else:
         info_dict["code"] = msg.line.status.code
         info_dict["reason"] = _pj_str_to_str(msg.line.status.reason)
