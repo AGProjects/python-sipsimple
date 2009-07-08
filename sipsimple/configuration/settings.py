@@ -18,6 +18,7 @@ __all__ = ['SIPSimpleSettings']
 
 
 class AudioSettings(SettingsGroup):
+    alert_device = Setting(type=str, default=None, nillable=True)
     input_device = Setting(type=str, default=None, nillable=True)
     output_device = Setting(type=str, default=None, nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
