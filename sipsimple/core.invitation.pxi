@@ -69,7 +69,7 @@ cdef class Invitation:
             else:
                 self.local_contact_header = FrozenContactHeader(FrozenSIPURI(host=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                                              user=request_uri.user, port=rdata.tp_info.transport.local_name.port,
-                                                                             parameters=({"transport":self.transport} if self.transport != "udp" else {})))
+                                                                             parameters=(frozendict(transport=self.transport) if self.transport != "udp" else frozendict())))
             contact_header = PJSTR(self.local_contact_header.body)
             status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_header.pj_str, &self._dialog)
             if status != 0:
