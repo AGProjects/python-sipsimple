@@ -61,7 +61,7 @@ cdef class PJSIPEndpoint:
         status = pjsip_endpt_create(&caching_pool._obj.factory, "core",  &self._obj)
         if status != 0:
             raise PJSIPError("Could not initialize PJSIP endpoint", status)
-        self._pool = pjsip_endpt_create_pool(self._obj, "lifetime", 4096, 4096)
+        self._pool = pjsip_endpt_create_pool(self._obj, "PJSIPEndpoint", 4096, 4096)
         if self._pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
         status = pjsip_tsx_layer_init_module(self._obj)
@@ -179,6 +179,8 @@ cdef class PJSIPEndpoint:
             self._stop_tcp_transport()
         if self._tls_transport != NULL:
             self._stop_tls_transport()
+        if self._pool != NULL:
+            pjsip_endpt_release_pool(self._obj, self._pool)
         if self._obj != NULL:
             pjsip_endpt_destroy(self._obj)
 
