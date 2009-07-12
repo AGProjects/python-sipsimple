@@ -1,7 +1,7 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 _revision_required = 62
 from core import CORE_REVISION
