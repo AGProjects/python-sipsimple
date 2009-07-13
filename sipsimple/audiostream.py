@@ -19,9 +19,10 @@ class AudioStream(NotificationHandler):
     implements(IMediaStream)
 
     def __init__(self, account):
+        from sipsimple.api import SIPApplication
         self.state = "NULL"
         self.account = account
-        self.conference_bridge = None
+        self.conference_bridge = SIPApplication.voice_conference_bridge
         self.notification_center = NotificationCenter()
         self.on_hold_by_local = False
         self.on_hold_by_remote = False
