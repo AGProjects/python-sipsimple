@@ -43,16 +43,10 @@ class AudioSettings(SettingsGroup):
     use_srtp_without_tls = Setting(type=bool, default=False)
 
 
-class DialogEventSettings(SettingsGroup):
+class DialogSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     publish_interval = Setting(type=NonNegativeInteger, default=600)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
-
-
-class ENUMSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
-    country_code = Setting(type=CountryCode, default=None, nillable=True)
-    tld_list = Setting(type=DomainList, default=('e164.arpa',))
 
 
 class ICESettings(SettingsGroup):
@@ -123,8 +117,7 @@ class Account(SettingsObject):
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
 
     audio = AudioSettings
-    dialog_event = DialogEventSettings
-    enum = ENUMSettings
+    dialog = DialogSettings
     ice = ICESettings
     message_summary = MessageSummarySettings
     msrp = MSRPSettings
