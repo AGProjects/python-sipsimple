@@ -242,13 +242,11 @@ cdef class ConferenceBridge:
             if status == PJMEDIA_ENOSNDPLAY:
                 pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
                 self._snd_pool = NULL
-                self.start_sound_device(ua, None, output_device)
-                return 0
+                return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
             elif status == PJMEDIA_ENOSNDREC:
                 pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
                 self._snd_pool = NULL
-                self.start_sound_device(ua, input_device, None)
-                return 0
+                return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
             elif status != 0:
                 raise PJSIPError("Could not create sound device", status)
             if input_device is not None and output_device is not None:
