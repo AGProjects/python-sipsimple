@@ -219,9 +219,8 @@ cdef class Subscription:
 
     # callback methods
 
-    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason, int got_response) except -1:
+    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason) except -1:
         cdef object prev_state = self.state
-        cdef pj_time_val _refresh
         cdef int status
         self.state = state
         if state == "ACCEPTED" and prev_state == "SENT":
@@ -238,15 +237,25 @@ cdef class Subscription:
                     _add_event("SIPSubscriptionDidFail", dict(obj=self, code=self._term_code, reason=self._term_reason))
                 else:
                     _add_event("SIPSubscriptionDidFail", dict(obj=self, code=code, reason=reason))
-        if got_response and state != "TERMINATED":
-            self._cancel_timers(ua, 1, 0)
-            _refresh.sec = max(1, min(self._expires - self.expire_warning_time, self._expires/2))
-            _refresh.msec = 0
-            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._refresh_timer, &_refresh)
-            if status == 0:
-                self._refresh_timer_active = 1
         if prev_state != state:
             _add_event("SIPSubscriptionChangedState", dict(obj=self, prev_state=prev_state, state=state))
+
+    cdef int _cb_got_response(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+        cdef int expires = self._expires
+        cdef pj_time_val refresh
+        cdef int status
+        cdef pjsip_generic_int_hdr *expires_hdr
+        self.to_header = FrozenToHeader_create(rdata.msg_info.to_hdr)
+        expires_hdr = <pjsip_generic_int_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
+        if expires_hdr != NULL:
+            expires = expires_hdr.ivalue
+        if self.state != "TERMINATED":
+            self._cancel_timers(ua, 1, 0)
+            refresh.sec = max(1, min(expires - self.expire_warning_time, expires/2))
+            refresh.msec = 0
+            status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._refresh_timer, &refresh)
+            if status == 0:
+                self._refresh_timer_active = 1
 
     cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         cdef dict event_dict = dict(obj=self)
@@ -276,7 +285,6 @@ cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
     cdef object state
     cdef int code = 0
     cdef object reason = None
-    cdef int got_response = 0
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
@@ -297,10 +305,7 @@ cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
                     reason = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
                 else:
                     reason = "Subscription has expired"
-            if event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                got_response = 1
-                subscription.to_header = FrozenToHeader_create(event.body.tsx_state.src.rdata.msg_info.to_hdr)
-        subscription._cb_state(ua, state, code, reason, got_response)
+        subscription._cb_state(ua, state, code, reason)
     except:
         ua._handle_exception(1)
 
@@ -308,7 +313,6 @@ cdef void _Subscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_e
     cdef void *subscription_void
     cdef Subscription subscription
     cdef pjsip_rx_data *rdata
-    cdef pjsip_generic_int_hdr *expires_hdr
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
@@ -326,9 +330,7 @@ cdef void _Subscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_e
             _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
             event.body.tsx_state.tsx.status_code / 100 == 2):
             rdata = event.body.rx_msg.rdata
-            expires_hdr = <pjsip_generic_int_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
-            if expires_hdr != NULL:
-                subscription._expires = expires_hdr.ivalue
+            subscription._cb_got_response(ua, rdata)
     except:
         ua._handle_exception(1)
 
