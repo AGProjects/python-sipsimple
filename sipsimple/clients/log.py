@@ -70,7 +70,7 @@ class Logger(object):
             handler = getattr(self, '_LH_%s' % notification.name, None)
             if handler is not None:
                 handler(notification.name, notification.data)
-            if self.notifications_to_stdout:
+            if notification.name not in ('SIPEngineLog', 'SIPEngineSIPTrace') and self.notifications_to_stdout:
                 print '%s Notification name=%s sender=%s\n%s' % (datetime.datetime.now(), notification.name, notification.sender, pformat(notification.data.__dict__))
 
     # log handlers
