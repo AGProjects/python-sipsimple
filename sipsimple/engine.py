@@ -45,6 +45,7 @@ class Engine(Thread):
     def __init__(self):
         self.notification_center = NotificationCenter()
         self._thread_started = False
+        self._thread_stopping = False
         atexit.register(self.stop)
         self._lock = RLock()
         Thread.__init__(self)
@@ -74,7 +75,6 @@ class Engine(Thread):
         self._post_notification("SIPEngineWillStart")
         with self._lock:
             try:
-                self._thread_stopping = False
                 self._thread_started = True
                 self._ua = PJSIPUA(self._handle_event, **init_options)
                 if auto_sound:
@@ -82,8 +82,6 @@ class Engine(Thread):
                 Thread.start(self)
             except:
                 self._thread_started = False
-                if hasattr(self, "_thread_stopping"):
-                    del self._thread_stopping
                 if hasattr(self, "_ua"):
                     self._ua.dealloc()
                     del self._ua
@@ -126,6 +124,8 @@ class Engine(Thread):
                                        recording_device=settings.audio.input_device)
 
     def stop(self):
+        if self._thread_stopping:
+            return
         with self._lock:
             if self._thread_started:
                 self._thread_stopping = True
