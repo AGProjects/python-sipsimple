@@ -49,7 +49,7 @@ class DialogSettings(SettingsGroup):
 
 
 class ICESettings(SettingsGroup):
-    enabled = Setting(type=bool, default=False)
+    enabled = Setting(type=bool, default=True)
     use_stun = Setting(type=bool, default=True)
     stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
 
