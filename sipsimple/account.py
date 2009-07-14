@@ -146,14 +146,12 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
-        engine = Engine()
-        notification_center.add_observer(self, name='SIPEngineDidStart', sender=engine)
-        notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
+        notification_center.add_observer(self, name='SIPApplicationDidStart')
+        notification_center.add_observer(self, name='SIPApplicationWillEnd')
 
         if self.enabled:
-            self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
-            notification_center.add_observer(self, sender=self._registrar)
-            if engine.is_running:
+            from sipsimple.api import SIPApplication
+            if SIPApplication.running:
                 self._activate()
 
     def delete(self):
@@ -182,25 +180,25 @@ class Account(SettingsObject):
             handler(notification)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
+        from sipsimple.api import SIPApplication
         enabled_value = notification.data.modified.get('enabled', None)
-        if enabled_value is not None:
-            engine = Engine()
+        if 'enabled' in notification.data.modified:
             if not self.enabled:
                 self._deactivate()
-            elif engine.is_running:
+            elif SIPApplication.running:
                 self._activate()
-        else:
-            if 'registration.enabled' in notification.data.modified:
-                notification_center = NotificationCenter()
-                if not self.registration.enabled:
-                    notification_center.remove_observer(self, sender=self._registrar)
-                    if self._registrar.is_registered:
-                        self._registrar.end(timeout=2)
-                    self._registrar = None
-                elif engine.is_running:
-                    self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
-                    notification_center.add_observer(self, sender=self._registrar)
-                    self._register()
+
+        if self.enabled and 'registration.enabled' in notification.data.modified:
+            notification_center = NotificationCenter()
+            if not self.registration.enabled:
+                notification_center.remove_observer(self, sender=self._registrar)
+                if self._registrar.is_registered:
+                    self._registrar.end(timeout=2)
+                self._registrar = None
+            elif SIPApplication.running:
+                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
+                notification_center.add_observer(self, sender=self._registrar)
+                self._register()
 
         # update credentials attribute if needed
         if 'password' in notification.data.modified:
@@ -211,11 +209,11 @@ class Account(SettingsObject):
                 notification_center.add_observer(self, sender=self._registrar)
                 self._register()
 
-    def _NH_SIPEngineDidStart(self, notification):
+    def _NH_SIPApplicationDidStart(self, notification):
         if self.enabled:
             self._activate()
 
-    def _NH_SIPEngineWillEnd(self, notification):
+    def _NH_SIPApplicationWillEnd(self, notification):
         if self.enabled:
             self._deactivate()
 
@@ -239,7 +237,11 @@ class Account(SettingsObject):
         data = NotificationData(registration=notification.sender, expired=notification.data.expired)
         notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=data)
 
-        self._register()
+        if self.active:
+            self._register()
+        else:
+            notification_center.remove_observer(self, sender=self._registrar)
+            self._registrar = None
 
     def _NH_SIPRegistrationDidFail(self, notification):
         settings = SIPSimpleSettings()
@@ -331,15 +333,14 @@ class Account(SettingsObject):
         if self.active:
             return
         self.active = True
+        
+        notification_center = NotificationCenter()
 
         if self.registration.enabled:
-            try:
-                self._register()
-            except:
-                self.active = False
-                raise
+            self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
+            notification_center.add_observer(self, sender=self._registrar)
+            self._register()
 
-        notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self)
 
     def _deactivate(self):
@@ -347,13 +348,15 @@ class Account(SettingsObject):
             return
         self.active = False
 
+        notification_center = NotificationCenter()
+
         if self.registration.enabled:
             try:
                 self._registrar.end(timeout=2)
             except SIPCoreError:
-                pass
+                notification_center.remove_observer(self, sender=self._registrar)
+                self._registrar = None
 
-        notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
 
     def __repr__(self):
@@ -413,11 +416,11 @@ class BonjourAccount(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
-        engine = Engine()
-        notification_center.add_observer(self, name='SIPEngineDidStart', sender=engine)
-        notification_center.add_observer(self, name='SIPEngineWillEnd', sender=engine)
+        notification_center.add_observer(self, name='SIPApplicationDidStart')
+        notification_center.add_observer(self, name='SIPApplicationWillEnd')
 
-        if self.enabled and engine.is_running:
+        from sipsimple.api import SIPApplication
+        if self.enabled and SIPApplication.running:
             self._activate()
 
     def handle_notification(self, notification):
@@ -425,21 +428,21 @@ class BonjourAccount(SettingsObject):
         if handler is not None:
             handler(notification)
 
-    def _NH_SIPEngineDidStart(self, notification):
+    def _NH_SIPApplicationDidStart(self, notification):
         if self.enabled:
             self._activate()
 
-    def _NH_SIPEngineWillEnd(self, notification):
+    def _NH_SIPApplicationWillEnd(self, notification):
         if self.enabled:
             self._deactivate()
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
         enabled_value = notification.data.modified.get('enabled', None)
         if enabled_value is not None:
-            engine = Engine()
+            from sipsimple.api import SIPApplication
             if not self.enabled:
                 self._deactivate()
-            elif engine.is_running:
+            elif SIPApplication.running:
                 self._activate()
 
     def _activate(self):
@@ -495,7 +498,7 @@ class AccountManager(object):
         self.state = 'starting'
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=Engine())
+        notification_center.add_observer(self, name='SIPApplicationWillEnd')
         notification_center.add_observer(self, name='SIPAccountDidActivate')
         notification_center.add_observer(self, name='SIPAccountDidDeactivate')
         # initialize bonjour account
@@ -544,7 +547,7 @@ class AccountManager(object):
         if handler is not None:
             handler(notification)
 
-    def _NH_SIPEngineWillEnd(self, notification):
+    def _NH_SIPApplicationWillEnd(self, notification):
         self.state = 'stopping'
 
     def _NH_SIPAccountDidActivate(self, notification):
