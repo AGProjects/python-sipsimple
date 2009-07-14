@@ -205,6 +205,11 @@ class Account(SettingsObject):
         # update credentials attribute if needed
         if 'password' in notification.data.modified:
             self.credentials.password = self.password
+            if self._registrar is not None:
+                notification_center.remove_observer(self, sender=self._registrar)
+                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
+                notification_center.add_observer(self, sender=self._registrar)
+                self._register()
 
     def _NH_SIPEngineDidStart(self, notification):
         if self.enabled:
