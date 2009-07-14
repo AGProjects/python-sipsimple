@@ -1,0 +1,44 @@
+Index: pjmedia/src/pjmedia/sdp.c
+===================================================================
+--- pjmedia/src/pjmedia/sdp.c	(revision 2832)
++++ pjmedia/src/pjmedia/sdp.c	(working copy)
+@@ -1242,7 +1242,6 @@
+ PJ_DEF(pj_status_t) pjmedia_sdp_validate(const pjmedia_sdp_session *sdp)
+ {
+     unsigned i;
+-    const pj_str_t STR_RTPMAP = { "rtpmap", 6 };
+ 
+     CHECK( sdp != NULL, PJ_EINVAL);
+ 
+@@ -1304,17 +1303,6 @@
+ 		/* Payload type is between 0 and 127. 
+ 		 */
+ 		CHECK( pt <= 127, PJMEDIA_SDP_EINPT);
+-
+-		/* If port is not zero, then for each dynamic payload type, an
+-		 * rtpmap attribute must be specified.
+-		 */
+-		if (m->desc.port != 0 && pt >= 96) {
+-		    const pjmedia_sdp_attr *a;
+-
+-		    a = pjmedia_sdp_media_find_attr(m, &STR_RTPMAP, 
+-						    &m->desc.fmt[j]);
+-		    CHECK( a != NULL, PJMEDIA_SDP_EMISSINGRTPMAP);
+-		}
+ 	    }
+ 	}
+     }
+Index: pjmedia/src/pjmedia/sdp_neg.c
+===================================================================
+--- pjmedia/src/pjmedia/sdp_neg.c	(revision 2832)
++++ pjmedia/src/pjmedia/sdp_neg.c	(working copy)
+@@ -1065,8 +1065,7 @@
+ 		a = pjmedia_sdp_media_find_attr2(master, "rtpmap", 
+ 						 &master->desc.fmt[i]);
+ 		if (!a) {
+-		    pj_assert(!"Bug! Offer should have been validated");
+-		    return PJMEDIA_SDP_EMISSINGRTPMAP;
++            continue;
+ 		}
+ 		pjmedia_sdp_attr_get_rtpmap(a, &or_);
+ 
