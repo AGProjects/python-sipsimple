@@ -334,10 +334,10 @@ class Session(NotificationHandler):
             if msrp_chat:
                 sdp_media_todo.remove(self._chat_sdp_index)
                 self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                local_sdp.media[self._chat_sdp_index] = msrp_chat.local_media
+                media[self._chat_sdp_index] = msrp_chat.local_media
             for reject_media_index in sdp_media_todo:
                 remote_media = remote_sdp.media[reject_media_index]
-                local_sdp.media[reject_media_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
+                media[reject_media_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=list(remote_media.formats))
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=media, start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time, name=self.settings.user_agent)
             if audio_rtp and audio_rtp.use_ice:
                 local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
@@ -462,7 +462,7 @@ class Session(NotificationHandler):
                     local_sdp.media[sdp_index] = msrp_chat.local_media
                 elif local_sdp.media[sdp_index] is None:
                     remote_media = remote_sdp.media[sdp_index]
-                    local_sdp.media[sdp_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=remote_media.formats)
+                    local_sdp.media[sdp_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=list(remote_media.formats))
             self._inv.offered_local_sdp = local_sdp
             self._inv.respond_to_reinvite(200)
             if audio_rtp is not None:
