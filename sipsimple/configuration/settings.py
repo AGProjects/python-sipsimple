@@ -11,16 +11,20 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import Path, ContentTypeList, UserDataPath, ImageDepth, LocalIPAddress, MSRPTransport, NonNegativeInteger, Port, PortRange, Resolution, SampleRate, SoundFile, TLSProtocol, Transports, AudioCodecs
+from sipsimple.configuration.datatypes import ContentTypeList, NonNegativeInteger
+from sipsimple.configuration.datatypes import AudioCodecs, AudioInputDevice, AudioOutputDevice, SampleRate
+from sipsimple.configuration.datatypes import LocalIPAddress, MSRPTransport, Port, PortRange, TLSProtocol, Transports
+from sipsimple.configuration.datatypes import ImageDepth, Resolution
+from sipsimple.configuration.datatypes import Path, SoundFile , UserDataPath
 
 
 __all__ = ['SIPSimpleSettings']
 
 
 class AudioSettings(SettingsGroup):
-    alert_device = Setting(type=str, default=None, nillable=True)
-    input_device = Setting(type=str, default=None, nillable=True)
-    output_device = Setting(type=str, default=None, nillable=True)
+    alert_device = Setting(type=AudioOutputDevice, default=None, nillable=True)
+    input_device = Setting(type=AudioInputDevice, default=None, nillable=True)
+    output_device = Setting(type=AudioOutputDevice, default=None, nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
     recordings_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32000)

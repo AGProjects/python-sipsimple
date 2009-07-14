@@ -13,10 +13,11 @@ import urlparse
 from sipsimple.util import classproperty
 
 
-__all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'AudioCodecs', 'SampleRate',
-           'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress', 'MSRPTransport', 'Port', 'PortRange',
-           'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress', 'STUNServerAddresses', 'TLSProtocol',
-           'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'Path', 'ResourcePath', 'UserDataPath', 'SoundFile']
+__all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'AudioCodecs', 'AudioInputDevice',
+           'AudioOutputDevice', 'SampleRate', 'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress',
+           'MSRPTransport', 'Port', 'PortRange', 'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress',
+           'STUNServerAddresses', 'TLSProtocol', 'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'Path',
+           'ResourcePath', 'UserDataPath', 'SoundFile']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -69,6 +70,16 @@ class AudioCodecs(tuple):
         if not set(values).issubset(cls.available_codecs):
             raise ValueError("illegal codec values: %s" % ', '.join(values))
         return values
+
+
+class AudioInputDevice(str):
+    def __new__(cls, value):
+        return str(value)
+
+
+class AudioOutputDevice(str):
+    def __new__(cls, value):
+        return str(value)
 
 
 class SampleRate(int):
