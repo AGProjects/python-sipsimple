@@ -28,6 +28,8 @@ class MSRPChatError(Exception):
 class MSRPChat(object):
     implements(IMediaStream)
 
+    hold_supported = False
+
     def __init__(self, account, direction='sendrecv', file_selector=None):
         self.account = account
         self.direction = direction

@@ -18,6 +18,8 @@ from sipsimple.account import BonjourAccount
 class AudioStream(NotificationHandler):
     implements(IMediaStream)
 
+    hold_supported = True
+
     def __init__(self, account):
         from sipsimple.api import SIPApplication
         self.state = "NULL"

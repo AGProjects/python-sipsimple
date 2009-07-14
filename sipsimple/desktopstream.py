@@ -23,6 +23,7 @@ from sipsimple.applications.desktopsharing import vncviewer, pygamevncviewer, gv
 class MSRPDesktop(object):
     implements(IMediaStream)
 
+    hold_supported = False
     setup = None
 
     def __init__(self, account, setup=None):
