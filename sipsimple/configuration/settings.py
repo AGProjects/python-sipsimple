@@ -23,7 +23,7 @@ class AudioSettings(SettingsGroup):
     output_device = Setting(type=str, default=None, nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
     recordings_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
-    sample_rate = Setting(type=SampleRate, default=32)
+    sample_rate = Setting(type=SampleRate, default=32000)
     silent = Setting(type=bool, default=False)
     codec_list = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
 
