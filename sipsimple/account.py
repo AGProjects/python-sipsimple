@@ -174,6 +174,10 @@ class Account(SettingsObject):
         manager = AccountManager()
         manager._internal_remove_account(self)
 
+    @property
+    def registered(self):
+        return self._registrar is not None and self._registrar.is_registered
+
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
@@ -355,6 +359,7 @@ class Account(SettingsObject):
                 self._registrar.end(timeout=2)
             except SIPCoreError:
                 notification_center.remove_observer(self, sender=self._registrar)
+                notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=NotificationData(registration=self._registrar, expired=False))
                 self._registrar = None
 
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
@@ -422,6 +427,10 @@ class BonjourAccount(SettingsObject):
         from sipsimple.api import SIPApplication
         if self.enabled and SIPApplication.running:
             self._activate()
+
+    @property
+    def registered(self):
+        return False
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
@@ -498,9 +507,11 @@ class AccountManager(object):
         self.state = 'starting'
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='SIPApplicationWillEnd')
         notification_center.add_observer(self, name='SIPAccountDidActivate')
         notification_center.add_observer(self, name='SIPAccountDidDeactivate')
+        notification_center.add_observer(self, name='SIPAccountRegistrationDidEnd')
+        notification_center.add_observer(self, name='SIPAccountRegistrationDidFail')
+        notification_center.post_notification('SIPAccountManagerWillStart', sender=self)
         # initialize bonjour account
         bonjour_account = BonjourAccount()
         self.accounts[bonjour_account.id] = bonjour_account
@@ -513,13 +524,19 @@ class AccountManager(object):
         else:
             [Account(id) for id in names if id != bonjour_account.id]
         self.state = 'started'
+        notification_center.post_notification('SIPAccountManagerDidStart', sender=self)
 
     def stop(self):
         self.state = 'stopping'
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPAccountManagerWillEnd', sender=self)
         for account in self.accounts.itervalues():
             if account.enabled:
                 account._deactivate()
-        self.state = 'stopped'
+        registered_accounts = [account for account in self.accounts.itervalues() if account.registered]
+        if not registered_accounts:
+            self.state = 'stopped'
+            notification_center.post_notification('SIPAccountManagerDidEnd', sender=self)
 
     def has_account(self, id):
         return id in self.accounts
@@ -547,9 +564,6 @@ class AccountManager(object):
         if handler is not None:
             handler(notification)
 
-    def _NH_SIPApplicationWillEnd(self, notification):
-        self.state = 'stopping'
-
     def _NH_SIPAccountDidActivate(self, notification):
         if self.state != 'started':
             return
@@ -565,6 +579,15 @@ class AccountManager(object):
                 self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
             except StopIteration:
                 self.default_account = None
+
+    def _NH_SIPAccountRegistrationDidEnd(self, notification):
+        if self.state == 'stopping':
+            registered_accounts = [account for account in self.accounts.itervalues() if account.registered]
+            if not registered_accounts:
+                self.state = 'stopped'
+                notification_center = NotificationCenter()
+                notification_center.post_notification('SIPAccountManagerDidEnd', sender=self)
+    _NH_SIPAccountRegistrationDidFail = _NH_SIPAccountRegistrationDidEnd
 
     def _internal_add_account(self, account):
         """
