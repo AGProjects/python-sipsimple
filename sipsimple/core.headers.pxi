@@ -600,7 +600,7 @@ cdef class FrozenRetryAfterHeader(BaseRetryAfterHeader):
         if not self.initialized:
             self.seconds = seconds
             self.comment = comment
-            self.paramters = parameters
+            self.parameters = parameters
             self.initialized = 1
 
     def __hash__(self):
