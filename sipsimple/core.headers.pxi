@@ -1115,7 +1115,7 @@ cdef FrozenRetryAfterHeader FrozenRetryAfterHeader_create(pjsip_retry_after_hdr 
         comment = _pj_str_to_str(header.comment)
     else:
         comment = None
-    parameters = _pjsip_param_to_dict(&header.param)
+    parameters = frozendict(_pjsip_param_to_dict(&header.param))
     return FrozenRetryAfterHeader(seconds, comment, parameters)
 
 cdef ViaHeader ViaHeader_create(pjsip_via_hdr *header):
