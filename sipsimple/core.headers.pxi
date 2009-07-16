@@ -1074,6 +1074,151 @@ cdef class FrozenEventHeader(BaseEventHeader):
 
 del FrozenEventHeader_new
 
+
+cdef object BaseSubscriptionStateHeader_richcmp(object self, object other, object op) with gil:
+    cdef int eq = 1
+    if op not in [2,3]:
+        return NotImplemented
+    if not isinstance(other, BaseSubscriptionStateHeader):
+        return NotImplemented
+    if op == 2:
+        return self.state == other.state and self.parameters == other.parameters
+    else:
+        return self.state != other.state or self.parameters != other.parameters
+
+cdef class BaseSubscriptionStateHeader:
+    normal_type = SubscriptionStateHeader
+    frozen_type = FrozenSubscriptionStateHeader
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("%s cannot be instantiated directly" % self.__class__.__name__)
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.state, self.parameters)
+
+    def __str__(self):
+        return "%s: %s" % (self.name, self.body)
+
+    def __richcmp__(self, other, op):
+        return BaseSubscriptionStateHeader_richcmp(self, other, op)
+
+    property name:
+
+        def __get__(self):
+            return "SubscriptionState"
+
+    property body:
+
+        def __get__(self):
+            if self.parameters:
+                parameters = ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                             for name, value in self.parameters.iteritems()])
+            else:
+                parameters = ""
+            return self.state + parameters
+
+def SubscriptionStateHeader_new(cls, BaseSubscriptionStateHeader header):
+    return cls(header.state, dict(header.parameters))
+
+cdef class SubscriptionStateHeader(BaseSubscriptionStateHeader):
+    cdef public state
+    cdef dict _parameters
+
+    def __init__(self, str state not None, dict parameters=None):
+        self.state = state
+        self.parameters = parameters if parameters is not None else {}
+
+    property reason:
+
+        def __get__(self):
+            return self._parameters.get("reason", None)
+
+        def __set__(self, str reason):
+            if reason is None:
+                self._parameters.pop("reason", None)
+            else:
+                self._parameters["reason"] = reason
+
+    property expires:
+
+        def __get__(self):
+            return int(self._parameters.get("expires", None))
+
+        def __set__(self, object expires):
+            cdef int expires_i
+            if expires is None:
+                self._parameters.pop("expires", None)
+            else:
+                expires_i = expires
+                self._parameters["expires"] = str(expires_i)
+
+    property retry_after:
+
+        def __get__(self):
+            return int(self._parameters.get("retry-after", None))
+
+        def __set__(self, object retry_after):
+            cdef int retry_after_i
+            if retry_after is None:
+                self._parameters.pop("retry-after", None)
+            else:
+                retry_after_i = retry_after
+                self._parameters["retry-after"] = str(retry_after_i)
+
+    property parameters:
+
+        def __get__(self):
+            return self._parameters.copy()
+
+        def __set__(self, dict parameters not None):
+            self._parameters = parameters
+
+    new = classmethod(SubscriptionStateHeader_new)
+
+del SubscriptionStateHeader_new
+
+def FrozenSubscriptionStateHeader_new(cls, BaseSubscriptionStateHeader header):
+    if isinstance(header, cls):
+        return header
+    return cls(header.state, frozendict(header.parameters))
+
+cdef class FrozenSubscriptionStateHeader(BaseSubscriptionStateHeader):
+    cdef int initialized
+    cdef readonly str state
+    cdef readonly frozendict parameters
+
+    def __init__(self, str state not None, frozendict parameters not None=frozendict()):
+        if not self.initialized:
+            self.state = state
+            self.parameters = parameters
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.state, self.parameters))
+
+    def __richcmp__(self, other, op):
+        return BaseSubscriptionStateHeader_richcmp(self, other, op)
+
+    property reason:
+
+        def __get__(self):
+            return self.parameters.get("reason", None)
+
+    property expires:
+
+        def __get__(self):
+            return int(self._parameters.get("expires", None))
+
+    property retry_after:
+
+        def __get__(self):
+            return int(self._parameters.get("retry-after", None))
+
+    new = classmethod(FrozenSubscriptionStateHeader_new)
+
+del FrozenSubscriptionStateHeader_new
+
+
 # Factory functions
 #
 
@@ -1272,3 +1417,25 @@ cdef FrozenEventHeader FrozenEventHeader_create(pjsip_event_hdr *header):
     if header.id_param.slen != 0:
         parameters["id"] = _pj_str_to_str(header.id_param)
     return FrozenEventHeader(_pj_str_to_str(header.event_type), frozendict(parameters))
+
+cdef SubscriptionStateHeader SubscriptionStateHeader_create(pjsip_sub_state_hdr *header):
+    cdef dict parameters
+    parameters = _pjsip_param_to_dict(&header.other_param)
+    if header.reason_param.slen != 0:
+        parameters["reason"] = _pj_str_to_str(header.reason_param)
+    if header.expires_param != -1:
+        parameters["expires"] = str(header.expires_param)
+    if header.retry_after != -1:
+        parameters["retry-after"] = str(header.retry_after)
+    return SubscriptionStateHeader(_pj_str_to_str(header.sub_state), parameters)
+
+cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_sub_state_hdr *header):
+    cdef dict parameters
+    parameters = _pjsip_param_to_dict(&header.other_param)
+    if header.reason_param.slen != 0:
+        parameters["reason"] = _pj_str_to_str(header.reason_param)
+    if header.expires_param != -1:
+        parameters["expires"] = str(header.expires_param)
+    if header.retry_after != -1:
+        parameters["retry-after"] = str(header.retry_after)
+    return FrozenSubscriptionStateHeader(_pj_str_to_str(header.sub_state), frozendict(parameters))

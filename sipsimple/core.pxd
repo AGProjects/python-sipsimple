@@ -859,6 +859,12 @@ cdef extern from "pjsip-simple/evsub_msg.h":
         pj_str_t event_type
         pj_str_t id_param
         pjsip_param other_param
+    struct pjsip_sub_state_hdr:
+        pj_str_t sub_state
+        pj_str_t reason_param
+        int expires_param
+        int retry_after
+        pjsip_param other_param
 
 cdef extern from "pjsip_simple.h":
 
@@ -993,6 +999,9 @@ cdef class FrozenWarningHeader
 cdef class BaseEventHeader
 cdef class EventHeader
 cdef class FrozenEventHeader
+cdef class BaseSubscriptionStateHeader
+cdef class SubscriptionStateHeader
+cdef class FrozenSubscriptionStateHeader
 
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
@@ -1012,6 +1021,8 @@ cdef ViaHeader ViaHeader_create(pjsip_via_hdr *header)
 cdef FrozenViaHeader FrozenViaHeader_create(pjsip_via_hdr *header)
 cdef EventHeader EventHeader_create(pjsip_event_hdr *header)
 cdef FrozenEventHeader FrozenEventHeader_create(pjsip_event_hdr *header)
+cdef SubscriptionStateHeader SubscriptionStateHeader_create(pjsip_sub_state_hdr *header)
+cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_sub_state_hdr *header)
 
 # core.util
 
