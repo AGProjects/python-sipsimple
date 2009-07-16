@@ -323,7 +323,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
                                       _pj_str_to_str(ctype_header.media.param))
         elif header_name == "CSeq":
             cseq_header = <pjsip_cseq_hdr *> header
-            hdr_data = (cseq_header.cseq, _pj_str_to_str(cseq_header.method.name))
+            header_data = (cseq_header.cseq, _pj_str_to_str(cseq_header.method.name))
         elif header_name in ("Expires", "Max-Forwards", "Min-Expires"):
             header_data = (<pjsip_generic_int_hdr *> header).ivalue
         elif header_name == "From":
@@ -348,7 +348,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         # skip the following headers:
         elif header_name not in ("Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"):
             header_data = FrozenHeader(header_name, _pj_str_to_str((<pjsip_generic_string_hdr *> header).hvalue))
-        if hdr_data is not None:
+        if header_data is not None:
             if multi_header:
                 headers.setdefault(header_name, []).append(header_data)
             else:
