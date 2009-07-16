@@ -45,6 +45,14 @@ class AudioStream(NotificationHandler):
             else:
                 return self._audio_rec.file_name
 
+    @property
+    def codec(self):
+        return self._audio_transport.codec if self._audio_transport is not None else None
+
+    @property
+    def sample_rate(self):
+        return self._audio_transport.sample_rate if self._audio_transport is not None else None
+
     def validate_incoming(self, remote_sdp, stream_index):
         with self._lock:
             # TODO: actually validate the SDP
