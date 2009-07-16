@@ -854,6 +854,12 @@ cdef extern from "pjsip.h":
     int pjsip_dlg_terminate(pjsip_dialog *dlg)
     int pjsip_dlg_set_transport(pjsip_dialog *dlg, pjsip_tpselector *sel)
 
+cdef extern from "pjsip-simple/evsub_msg.h":
+    struct pjsip_event_hdr:
+        pj_str_t event_type
+        pj_str_t id_param
+        pjsip_param other_param
+
 cdef extern from "pjsip_simple.h":
 
     # subscribe / notify
@@ -984,6 +990,9 @@ cdef class FrozenViaHeader
 cdef class BaseWarningHeader
 cdef class WarningHeader
 cdef class FrozenWarningHeader
+cdef class BaseEventHeader
+cdef class EventHeader
+cdef class FrozenEventHeader
 
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
@@ -1001,6 +1010,8 @@ cdef RetryAfterHeader RetryAfterHeader_create(pjsip_retry_after_hdr *header)
 cdef FrozenRetryAfterHeader FrozenRetryAfterHeader_create(pjsip_retry_after_hdr *header)
 cdef ViaHeader ViaHeader_create(pjsip_via_hdr *header)
 cdef FrozenViaHeader FrozenViaHeader_create(pjsip_via_hdr *header)
+cdef EventHeader EventHeader_create(pjsip_event_hdr *header)
+cdef FrozenEventHeader FrozenEventHeader_create(pjsip_event_hdr *header)
 
 # core.util
 

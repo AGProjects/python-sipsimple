@@ -269,6 +269,8 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
             match = _re_warning_hdr.match(_pj_str_to_str((<pjsip_generic_string_hdr *>hdr).hvalue))
             if match is not None:
                 hdr_data = FrozenWarningHeader(**match.groupdict())
+        elif hdr_name == "Event":
+            hdr_data = FrozenEventHeader_create(<pjsip_event_hdr *> hdr)
         # skip the following headers:
         elif hdr_name not in ["Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"]:
             string_hdr = <pjsip_generic_string_hdr *> hdr
@@ -345,6 +347,8 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
             match = _re_warning_hdr.match(_pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue))
             if match is not None:
                 header_data = FrozenWarningHeader(**match.groupdict())
+        elif header_name == "Event":
+            header_data = FrozenEventHeader_create(<pjsip_event_hdr *> header)
         # skip the following headers:
         elif header_name not in ("Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"):
             header_data = FrozenHeader(header_name, _pj_str_to_str((<pjsip_generic_string_hdr *> header).hvalue))

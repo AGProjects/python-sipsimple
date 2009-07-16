@@ -967,6 +967,113 @@ cdef class FrozenWarningHeader(BaseWarningHeader):
 del FrozenWarningHeader_new
 
 
+cdef object BaseEventHeader_richcmp(object self, object other, object op) with gil:
+    cdef int eq = 1
+    if op not in [2,3]:
+        return NotImplemented
+    if not isinstance(other, BaseEventHeader):
+        return NotImplemented
+    if op == 2:
+        return self.event == other.event and self.parameters == other.parameters
+    else:
+        return self.event != other.event or self.parameters != other.parameters
+
+cdef class BaseEventHeader:
+    normal_type = EventHeader
+    frozen_type = FrozenEventHeader
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("%s cannot be instantiated directly" % self.__class__.__name__)
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.event, self.parameters)
+
+    def __str__(self):
+        return "%s: %s" % (self.name, self.body)
+
+    def __richcmp__(self, other, op):
+        return BaseEventHeader_richcmp(self, other, op)
+
+    property name:
+
+        def __get__(self):
+            return "Event"
+
+    property body:
+
+        def __get__(self):
+            if self.parameters:
+                parameters = ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                             for name, value in self.parameters.iteritems()])
+            else:
+                parameters = ""
+            return self.event + parameters
+
+def EventHeader_new(cls, BaseEventHeader header):
+    return cls(header.event, dict(header.parameters))
+
+cdef class EventHeader(BaseEventHeader):
+    cdef public event
+    cdef dict _parameters
+
+    def __init__(self, str event not None, dict parameters=None):
+        self.event = event
+        self.parameters = parameters if parameters is not None else {}
+
+    property id:
+
+        def __get__(self):
+            return self._parameters.get("id", None)
+
+        def __set__(self, str id):
+            if id is None:
+                self._parameters.pop("id", None)
+            else:
+                self._parameters["id"] = id
+
+    property parameters:
+
+        def __get__(self):
+            return self._parameters.copy()
+
+        def __set__(self, dict parameters not None):
+            self._parameters = parameters
+
+    new = classmethod(EventHeader_new)
+
+del EventHeader_new
+
+def FrozenEventHeader_new(cls, BaseEventHeader header):
+    if isinstance(header, cls):
+        return header
+    return cls(header.event, frozendict(header.parameters))
+
+cdef class FrozenEventHeader(BaseEventHeader):
+    cdef int initialized
+    cdef readonly str event
+    cdef readonly frozendict parameters
+
+    def __init__(self, str event not None, frozendict parameters not None=frozendict()):
+        if not self.initialized:
+            self.event = event
+            self.parameters = parameters
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.event, self.parameters))
+
+    def __richcmp__(self, other, op):
+        return BaseEventHeader_richcmp(self, other, op)
+
+    property id:
+
+        def __get__(self):
+            return self.parameters.get("id", None)
+
+    new = classmethod(FrozenEventHeader_new)
+
+del FrozenEventHeader_new
+
 # Factory functions
 #
 
@@ -1152,4 +1259,16 @@ cdef FrozenViaHeader FrozenViaHeader_create(pjsip_via_hdr *header):
         parameters["branch"] = _pj_str_to_str(header.branch_param)
     return FrozenViaHeader(transport, host, port, frozendict(parameters))
 
+cdef EventHeader EventHeader_create(pjsip_event_hdr *header):
+    cdef dict parameters
+    parameters = _pjsip_param_to_dict(&header.other_param)
+    if header.id_param.slen != 0:
+        parameters["id"] = _pj_str_to_str(header.id_param)
+    return EventHeader(_pj_str_to_str(header.event_type), parameters)
 
+cdef FrozenEventHeader FrozenEventHeader_create(pjsip_event_hdr *header):
+    cdef dict parameters
+    parameters = _pjsip_param_to_dict(&header.other_param)
+    if header.id_param.slen != 0:
+        parameters["id"] = _pj_str_to_str(header.id_param)
+    return FrozenEventHeader(_pj_str_to_str(header.event_type), frozendict(parameters))
