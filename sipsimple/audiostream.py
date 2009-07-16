@@ -53,6 +53,22 @@ class AudioStream(NotificationHandler):
     def sample_rate(self):
         return self._audio_transport.sample_rate if self._audio_transport is not None else None
 
+    @property
+    def local_rtp_address(self):
+        return self._rtp_transport.local_rtp_address if self._rtp_transport is not None else None
+
+    @property
+    def local_rtp_port(self):
+        return self._rtp_transport.local_rtp_port if self._rtp_transport is not None else None
+
+    @property
+    def remote_rtp_address(self):
+        return self._rtp_transport.remote_rtp_address_sdp if self._rtp_transport is not None else None
+
+    @property
+    def remote_rtp_port(self):
+        return self._rtp_transport.remote_rtp_port_sdp if self._rtp_transport is not None else None
+
     def validate_incoming(self, remote_sdp, stream_index):
         with self._lock:
             # TODO: actually validate the SDP
