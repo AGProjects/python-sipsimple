@@ -92,7 +92,7 @@ cdef object BaseContactHeader_richcmp(object self, object other, object op) with
     cdef int eq = 1
     if op not in [2,3]:
         return NotImplemented
-    if not isinstance(other, BaseIdentityHeader):
+    if not isinstance(other, BaseContactHeader):
         return NotImplemented
     if op == 2:
         return self.name == other.name and self.uri == other.uri and self.display_name == other.display_name and self.parameters == other.parameters
@@ -626,7 +626,7 @@ cdef object BaseViaHeader_richcmp(object self, object other, int op) with gil:
     cdef int eq = 1
     if op not in [2,3]:
         return NotImplemented
-    if not isinstance(other, BaseIdentityHeader):
+    if not isinstance(other, BaseViaHeader):
         return NotImplemented
     if op == 2:
         return self.transport == other.transport and self.host == other.host and self.port == other.port and self.parameters == other.parameters
@@ -860,7 +860,7 @@ cdef object BaseWarningHeader_richcmp(object self, object other, int op) with gi
     cdef int eq = 1
     if op not in [2,3]:
         return NotImplemented
-    if not isinstance(other, BaseIdentityHeader):
+    if not isinstance(other, BaseWarningHeader):
         return NotImplemented
     if op == 2:
         return self.code == other.code and self.agent == other.agent and self.text == other.text
