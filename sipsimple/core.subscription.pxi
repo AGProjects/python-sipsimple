@@ -259,7 +259,7 @@ cdef class Subscription:
 
     cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         cdef dict event_dict = dict(obj=self)
-        _rdata_info_to_dict(rdata, event_dict)
+        _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
         _add_event("SIPSubscriptionGotNotify", event_dict)
 
     cdef int _cb_timeout_timer(self, PJSIPUA ua):
@@ -329,7 +329,7 @@ cdef void _Subscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_e
             event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED and
             _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
             event.body.tsx_state.tsx.status_code / 100 == 2):
-            rdata = event.body.rx_msg.rdata
+            rdata = event.body.tsx_state.src.rdata
             subscription._cb_got_response(ua, rdata)
     except:
         ua._handle_exception(1)
