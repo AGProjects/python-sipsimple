@@ -444,7 +444,7 @@ cdef class ToneGenerator:
                 count += 1
         if count > 0:
             status = pjmedia_tonegen_play(self._obj, count, tones_arr, 0)
-            if status != 0:
+            if status != 0 and status != PJ_ETOOMANY:
                 raise PJSIPError("Could not playback tones", status)
         if not self._timer_active:
             self._start_timer(ua)
