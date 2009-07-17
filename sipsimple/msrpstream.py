@@ -264,6 +264,14 @@ class MSRPChat(object):
     def send_file(self, outgoing_file):
         self.msrp_session.send_file(outgoing_file)
 
+    def validate_update(self, remote_sdp, stream_index):
+        #TODO
+        return True
+
+    def update(self, local_sdp, remote_sdp, stream_index):
+        #TODO
+        return
+
 
 class MSRPOutgoingFileStream(MSRPChat):
 
