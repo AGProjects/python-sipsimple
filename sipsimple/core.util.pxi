@@ -228,7 +228,7 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         hdr_data = None
         hdr_multi = False
         hdr_name = _pj_str_to_str(hdr.name)
-        if hdr_name in ["Accept", "Allow", "Require", "Supported", "Unsupported"]:
+        if hdr_name in ["Accept", "Allow", "Require", "Supported", "Unsupported", "Allow-Events"]:
             array_hdr = <pjsip_generic_array_hdr *> hdr
             hdr_data = []
             for i from 0 <= i < array_hdr.count:
@@ -310,7 +310,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         header_name = _pj_str_to_str(header.name)
         header_data = None
         multi_header = False
-        if header_name in ("Accept", "Allow", "Require", "Supported", "Unsupported"):
+        if header_name in ("Accept", "Allow", "Require", "Supported", "Unsupported", "Allow-Events"):
             array_header = <pjsip_generic_array_hdr *> header
             header_data = []
             for i from 0 <= i < array_header.count:
