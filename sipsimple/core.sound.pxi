@@ -70,7 +70,10 @@ cdef class ConferenceBridge:
     # public methods
 
     def __cinit__(self, *args, **kwargs):
-        self._disconnect_when_idle = 1
+        IF UNAME_SYSNAME == "Darwin":
+            self._disconnect_when_idle = 1
+        ELSE:
+            self._disconnect_when_idle = 0
         self._volume = 100
         self._connected_slots = list()
 
