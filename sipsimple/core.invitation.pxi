@@ -28,6 +28,7 @@ cdef class Invitation:
     cdef readonly FrozenContactHeader local_contact_header
     cdef readonly FrozenCredentials credentials
     cdef readonly SDPPayloads sdp
+    cdef readonly str remote_user_agent
     cdef readonly str state
     cdef readonly str sub_state
     cdef readonly str transport
@@ -48,6 +49,7 @@ cdef class Invitation:
         self.local_contact_header = None
         self.credentials = None
         self.sdp = SDPPayloads()
+        self.remote_user_agent = None
         self.state = None
         self.sub_state = None
         self.transport = None
@@ -94,6 +96,7 @@ cdef class Invitation:
             event_dict = dict(obj=self, prev_state=self.state, state="incoming", originator="remote")
             _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
             self.state = "incoming"
+            self.remote_user_agent = event_dict['headers']['User-Agent'].body if 'User-Agent' in event_dict['headers'] else None
             _add_event("SIPInvitationChangedState", event_dict)
         except:
             if self._invite_session != NULL:
@@ -414,6 +417,9 @@ cdef class Invitation:
         if tdata != NULL:
             _pjsip_msg_to_dict(tdata.msg, event_dict)
         
+        if self.remote_user_agent is None and rdata != NULL and 'User-Agent' in event_dict['headers']:
+            self.remote_user_agent = event_dict['headers']['User-Agent'].body
+
         if state == "connected":
             if sub_state == "received_proposal":
                 self._reinvite_transaction = self._invite_session.invite_tsx
