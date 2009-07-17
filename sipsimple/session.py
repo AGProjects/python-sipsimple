@@ -2,1182 +2,1117 @@
 #
 
 from __future__ import with_statement
-from thread import allocate_lock
-from datetime import datetime
-from collections import deque
-from threading import Timer
-import os.path
-import traceback
 
+from datetime import datetime
+from threading import RLock
+
+from application.notification import IObserver, Notification, NotificationCenter
+from application.python.decorator import decorator, preserve_signature
+from application.python.util import Singleton
+from eventlet import api
+from eventlet.coros import queue
 from zope.interface import implements
 
-from application.notification import IObserver, NotificationCenter, NotificationData
-from application.python.util import Singleton
-
+from sipsimple.core import Invitation, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
+from sipsimple.core import ContactHeader, FromHeader, RouteHeader, WarningHeader
+from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 from sipsimple.engine import Engine
-from sipsimple.core import ContactHeader, FromHeader, Invitation, RouteHeader, SIPURI
-from sipsimple.core import SDPSession, SDPMediaStream, SDPAttribute, SDPConnection
-from sipsimple.core import RTPTransport, AudioTransport
-from sipsimple.core import RecordingWaveFile
-from sipsimple.core import SIPCoreError, PJSIPError
-from sipsimple.cpim import CPIMIdentity
-from sipsimple.msrp import MSRPChat
+
 from sipsimple.account import AccountManager
-from sipsimple.util import makedirs, NotificationHandler, SilenceableWaveFile, TimestampedNotificationData, PersistentTones
+from sipsimple.audiostream import AudioStream
 from sipsimple.configuration.settings import SIPSimpleSettings
-
-class SessionStateError(Exception):
-    pass
-
-
-class AccountRTPTransport(RTPTransport):
-
-    def __init__(self, account, transport):
-        settings = SIPSimpleSettings()
-        kwargs = dict()
-        kwargs["use_srtp"] = (transport == "tls" or account.audio.use_srtp_without_tls) and account.audio.srtp_encryption != "disabled"
-        kwargs["srtp_forced"] = kwargs["use_srtp"] and account.audio.srtp_encryption == "mandatory"
-        kwargs["use_ice"] = account.ice.enabled
-        # TODO: look this up, also if not specified
-        if kwargs["use_ice"] and account.ice.use_stun and account.ice.stun_servers:
-            kwargs["ice_stun_address"], kwargs["ice_stun_port"] = account.ice.stun_servers[0]
-        RTPTransport.__init__(self, **kwargs)
+from sipsimple.msrpstream import MSRPChat, MSRPIncomingFileStream
+from sipsimple.util import TimestampedNotificationData, run_in_twisted
 
 
-class MediaTransportInitializer(NotificationHandler):
+class MediaStreamDidFailError(Exception):
+    def __init__(self, stream, data):
+        self.stream = stream
+        self.data = data
+
+class InvitationDidFailError(Exception):
+    def __init__(self, invitation, data):
+        self.invitation = invitation
+        self.data = data
+
+
+@decorator
+def transition_state(required_state, new_state):
+    def state_transitioner(func):
+        @preserve_signature(func)
+        def wrapper(obj, *args, **kwargs):
+            with obj._lock:
+                if obj.state != required_state:
+                    raise RuntimeError('cannot call %s in %s state' % (func.__name__, obj.state))
+                obj.state = new_state
+            return func(obj, *args, **kwargs)
+        return wrapper
+    return state_transitioner
+
+
+class Session(object):
     implements(IObserver)
 
-    def __init__(self, continuation_func, failure_func, audio_rtp, msrp_chat):
-        self.continuation_func = continuation_func
-        self.failure_func = failure_func
-        self.audio_rtp = audio_rtp
-        self.msrp_chat = msrp_chat
-        self.notification_center = NotificationCenter()
-        self.waiting_for = []
-        self._lock = allocate_lock()
-        with self._lock:
-            for rtp in [audio_rtp]:
-                if rtp is not None:
-                    self.waiting_for.append(rtp)
-                    self.notification_center.add_observer(self, "RTPTransportDidInitialize", rtp)
-                    self.notification_center.add_observer(self, "RTPTransportDidFail", rtp)
-                    rtp.set_INIT()
-            if msrp_chat is not None:
-                self.waiting_for.append(msrp_chat)
-                self.notification_center.add_observer(self, "MSRPChatDidInitialize", msrp_chat)
-                self.notification_center.add_observer(self, "MSRPChatDidFail", msrp_chat)
-                msrp_chat.initialize()
-            self._check_done()
-
-    def _remove_observer(self, obj):
-        self.waiting_for.remove(obj)
-        if obj is self.msrp_chat:
-            self.notification_center.remove_observer(self, "MSRPChatDidInitialize", obj)
-            self.notification_center.remove_observer(self, "MSRPChatDidFail", obj)
-        else:
-            self.notification_center.remove_observer(self, "RTPTransportDidInitialize", obj)
-            self.notification_center.remove_observer(self, "RTPTransportDidFail", obj)
-
-    def _check_done(self):
-        if len(self.waiting_for) == 0:
-            self.continuation_func(self.audio_rtp, self.msrp_chat)
-
-    def _fail(self, sender, reason):
-        for obj in self.waiting_for[:]:
-            self._remove_observer(obj)
-        if sender is self.audio_rtp:
-            reason = "Failed to initialize audio RTP transport: %s" % reason
-        elif sender is self.msrp_chat:
-            reason = "Failed to initialize MSRP chat transport: %s" % reason
-        self.failure_func(reason)
-
-    def _NH_RTPTransportDidInitialize(self, rtp, data):
-        with self._lock:
-            if len(self.waiting_for) == 0:
-                return
-            self._remove_observer(rtp)
-            self._check_done()
-
-    def _NH_RTPTransportDidFail(self, rtp, data):
-        with self._lock:
-            if len(self.waiting_for) == 0:
-                return
-            try:
-                new_rtp = RTPTransport(rtp.local_rtp_address, rtp.use_srtp, rtp.srtp_forced, rtp.use_ice)
-            except SIPCoreError:
-                self._fail(rtp, data.reason)
-            self._remove_observer(rtp)
-            if rtp is self.audio_rtp:
-                self.audio_rtp = new_rtp
-            self.waiting_for.append(new_rtp)
-            self.notification_center.add_observer(self, "RTPTransportDidInitialize", new_rtp)
-            self.notification_center.add_observer(self, "RTPTransportDidFail", new_rtp)
-            try:
-                new_rtp.set_INIT()
-            except SIPCoreError, e:
-                self._fail(new_rtp, e.args[0])
-
-    def _NH_MSRPChatDidInitialize(self, msrp, data):
-        with self._lock:
-            if len(self.waiting_for) == 0:
-                return
-            self._remove_observer(msrp)
-            self._check_done()
-
-    def _NH_MSRPChatDidFail(self, msrp, data):
-        with self._lock:
-            if len(self.waiting_for) == 0:
-                return
-            self._fail(msrp, data.reason)
-
-
-class Session(NotificationHandler):
-    """Represents a SIP session.
-       Attributes:
-       state: The state of the object as a string
-       remote_user_agent: The user agent of the remote party, once detected
-       rtp_options: the RTPTransport options fetched from the SessionManager
-           at object creation."""
-
     def __init__(self, account):
-        """Instatiates a new Session object for an incoming or outgoing
-           SIP session. Initially the object is in the NULL state."""
-        self.session_manager = SessionManager()
-        self.notification_center = NotificationCenter()
-        self.settings = SIPSimpleSettings()
         self.account = account
-        self.state = "NULL"
-        self.remote_user_agent = None
-        self.on_hold_by_local = False
-        self.on_hold_by_remote = False
-        self.start_time = None
-        self.stop_time = None
         self.direction = None
-        self.audio_transport = None
-        self.chat_transport = None
-        self.has_audio = False
-        self.has_chat = False
+        self.end_time = None
+        self.on_hold = False
+        self.proposed_streams = None
         self.route = None
-        # TODO: make the following two attributes reflect the current proposal in all states, not just PROPOSING
-        self.proposed_audio = False
-        self.proposed_chat = False
-        self._lock = allocate_lock()
-        self._inv = None
-        self._audio_sdp_index = -1
-        self._chat_sdp_index = -1
-        self._queue = deque()
-        self._ringtone = None
-        self._sdpneg_failure_reason = None
-        self._audio_rec = None
+        self.state = None
+        self.start_time = None
+        self.streams = None
+        self.transport = None
+        self.greenlet = None
+        self._channel = queue()
+        self._invitation = None
+        self._local_identity = None
+        self._remote_identity = None
+        self._lock = RLock()
 
-    def __getattr__(self, attr):
-        if self._inv is not None:
-            if attr in ["from_header", "to_header", "local_identity", "remote_identity", "route_header"]:
-                return getattr(self._inv, attr)
-        if self.audio_transport is not None:
-            if attr.startswith("audio_"):
-                attr = attr.split("audio_", 1)[1]
-                if attr in ["sample_rate", "codec"]:
-                    return getattr(self.audio_transport, attr)
-                elif attr in ["srtp_active", "local_rtp_port", "local_rtp_address", "remote_rtp_port_received", "remote_rtp_address_received", "remote_rtp_port_sdp", "remote_rtp_address_sdp"]:
-                    return getattr(self.audio_transport.transport, attr)
-        raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, attr))
-
-    @property
-    def audio_was_received(self):
-        if self.audio_transport is None or not self.audio_transport.is_active:
-            return False
+    def init_incoming(self, invitation):
+        notification_center = NotificationCenter()
+        remote_sdp = invitation.sdp.proposed_remote
+        self.proposed_streams = []
+        if remote_sdp:
+            for index, media_stream in enumerate(remote_sdp.media):
+                if media_stream.port != 0:
+                    stream = None
+                    if media_stream.media == 'audio':
+                        stream = AudioStream(self.account)
+                    elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
+                        stream = MSRPIncomingFileStream(self.account)
+                    elif media_stream.media == 'message':
+                        stream = MSRPChat(self.account)
+                    if stream is not None and stream.validate_incoming(remote_sdp, index):
+                        stream.index = index
+                        self.proposed_streams.append(stream)
+        if self.proposed_streams:
+            self.direction = 'incoming'
+            self.state = 'incoming'
+            self.transport = invitation.transport
+            self._invitation = invitation
+            notification_center.add_observer(self, sender=invitation)
+            notification_center.post_notification('SIPSessionNewIncoming', self, TimestampedNotificationData(streams=self.proposed_streams))
         else:
-            return self.audio_transport.transport.remote_rtp_address_received is not None
+            invitation.send_response(488)
 
-    @property
-    def on_hold(self):
-        return self.on_hold_by_local or self.on_hold_by_remote
+    @transition_state(None, 'connecting')
+    @run_in_twisted
+    def connect(self, to_header, routes, streams):
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
 
-    @property
-    def audio_recording_file_name(self):
-        if self._audio_rec is None:
-            return None
-        else:
-            return self._audio_rec.file_name
+        connected = False
+        received_code = 0
+        received_reason = None
+        unhandled_notifications = []
 
-    # user interface
-    def connect(self, to_header, routes, audio=False, chat=False):
-        """Creates a new SIP session to the callee with the requested stream(s).
-           Moves the object from the NULL into the CALLING state."""
-        with self._lock:
-            if self.state != "NULL":
-                raise SessionStateError("This method can only be called while in the NULL state")
-            if not any([audio, chat]):
-                raise ValueError("No media stream requested")
-            self.route = iter(routes).next()
-            route_header = RouteHeader(self.route.get_uri())
-            inv = Invitation(FromHeader(self.account.uri, self.account.display_name), to_header, route_header, ContactHeader(self.account.contact[self.route.transport]), self.account.credentials)
-            if audio:
-                audio_rtp = AccountRTPTransport(self.account, inv.transport)
-            else:
-                audio_rtp = None
-            if chat:
-                msrp_chat = MSRPChat(self.account, CPIMIdentity(to_header.uri, to_header.display_name), True)
-            else:
-                msrp_chat = None
-            ringtone = self.settings.ringtone.outbound
-            if ringtone is not None:
-                ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume, force_playback=True)
-            media_initializer = MediaTransportInitializer(self._connect_continue, self._connect_fail, audio_rtp, msrp_chat)
-            self._inv = inv
-            self.chat_transport = msrp_chat
-            self.session_manager.inv_mapping[inv] = self
-            if ringtone is not None:
-                self._ringtone = ringtone
-            self.direction = "outgoing"
-            self._change_state("CALLING")
-            self.notification_center.post_notification("SIPSessionNewOutgoing", self, TimestampedNotificationData(streams=[stream for is_added, stream in zip([audio, chat], ["audio", "chat"]) if is_added]))
+        self.direction = 'outgoing'
+        self.proposed_streams = streams
+        self.route = routes[0]
+        self.transport = self.route.transport
+        self._invitation = Invitation()
+        self._local_identity = FromHeader(self.account.uri, self.account.display_name)
+        self._remote_identity = to_header
+        notification_center.add_observer(self, sender=self._invitation)
+        notification_center.post_notification('SIPSessionNewOutgoing', self, TimestampedNotificationData(streams=streams))
+        for stream in self.proposed_streams:
+            notification_center.add_observer(self, sender=stream)
+            stream.initialize(self)
 
-    def _do_fail(self, reason):
         try:
-            self._stop_media()
-        except SIPCoreError:
-            traceback.print_exc()
-        originator = "local"
-        del self.session_manager.inv_mapping[self._inv]
-        if self._inv.state != "NULL":
-            try:
-                self._inv.end(500)
-            except SIPCoreError:
-                traceback.print_exc()
-        self._inv = None
-        self._change_state("TERMINATED")
-        self.notification_center.post_notification("SIPSessionDidFail", self, TimestampedNotificationData(originator=originator, code=0, reason=reason))
-        self.notification_center.post_notification("SIPSessionDidEnd", self, TimestampedNotificationData(originator=originator))
+            wait_count = len(self.proposed_streams)
+            while wait_count > 0:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidInitialize':
+                    wait_count -= 1
 
-    def _connect_fail(self, reason):
-        with self._lock:
-            if self.state != "CALLING":
-                return
-            self._do_fail(reason)
-
-    def _connect_continue(self, audio_rtp, msrp_chat):
-        self._lock.acquire()
-        try:
-            if self.state != "CALLING":
-                return
-            sdp_index = 0
-            local_ip = self.settings.rtp.local_ip.normalized
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=self.settings.user_agent)
-            if audio_rtp:
-                self._audio_sdp_index = sdp_index
-                sdp_index += 1
-                local_sdp.media.append(self._init_audio(audio_rtp))
-                if audio_rtp.use_ice:
-                    local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
-            if msrp_chat:
-                self._chat_sdp_index = sdp_index
-                sdp_index += 1
-                self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                local_sdp.media.append(msrp_chat.local_media)
-            self._inv.offered_local_sdp = local_sdp
-            self._inv.send_invite()
-        except SIPCoreError, e:
-            self._do_fail(e.args[0])
-        finally:
-            self._lock.release()
-
-    def accept(self, audio=False, chat=False):
-        """Accept an incoming SIP session, using the requested stream(s).
-           Moves the object from the INCOMING to the ACCEPTING state."""
-        with self._lock:
-            if self.state != "INCOMING":
-                raise SessionStateError("This method can only be called while in the INCOMING state")
-            remote_sdp = self._inv.offered_remote_sdp
-            for sdp_index, sdp_media in enumerate(remote_sdp.media):
-                if sdp_media.media == "audio":
-                    self._audio_sdp_index = sdp_index
-                elif sdp_media.media == "message":
-                    self._chat_sdp_index = sdp_index
-            if audio:
-                if self._audio_sdp_index == -1:
-                    raise ValueError("Use of audio requested, but audio was not proposed by remote party")
-                audio_rtp = AccountRTPTransport(self.account, self._inv.transport)
-            else:
-                audio_rtp = None
-            if chat:
-                if self._chat_sdp_index == -1:
-                    raise ValueError("Use of MSRP chat requested, but MSRP chat was not proposed by remote party")
-                msrp_chat = MSRPChat(self.account, CPIMIdentity(self._inv.remote_identity.uri, self._inv.remote_identity.display_name), False)
-            else:
-                msrp_chat = None
-            if not any([audio_rtp, msrp_chat]):
-                raise ValueError("None of the streams proposed by the remote party is accepted")
-            media_initializer = MediaTransportInitializer(self._accept_continue, self._accept_fail, audio_rtp, msrp_chat)
-            self.chat_transport = msrp_chat
-            self._change_state("ACCEPTING")
-
-    def _accept_fail(self, reason):
-        with self._lock:
-            if self.state != "ACCEPTING":
-                return
-            self._do_fail(reason)
-
-    def _accept_continue(self, audio_rtp, msrp_chat):
-        self._lock.acquire()
-        try:
-            if self.state != "ACCEPTING":
-                return
-            remote_sdp = self._inv.offered_remote_sdp
-            local_ip = self.settings.rtp.local_ip.normalized
-            media = len(remote_sdp.media)*[None]
-            sdp_media_todo = range(len(media))
-            if audio_rtp:
-                sdp_media_todo.remove(self._audio_sdp_index)
-                media[self._audio_sdp_index] = self._init_audio(audio_rtp, remote_sdp, self._audio_sdp_index)
-            if msrp_chat:
-                sdp_media_todo.remove(self._chat_sdp_index)
-                self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                media[self._chat_sdp_index] = msrp_chat.local_media
-            for reject_media_index in sdp_media_todo:
-                remote_media = remote_sdp.media[reject_media_index]
-                media[reject_media_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=list(remote_media.formats))
-            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), media=media, start_time=remote_sdp.start_time, stop_time=remote_sdp.stop_time, name=self.settings.user_agent)
-            if audio_rtp and audio_rtp.use_ice:
-                local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
-            self._inv.offered_local_sdp = local_sdp
-            self._inv.accept_invite()
-        except SIPCoreError, e:
-            self._inv.end(500)
-            self._do_fail(e.args[0])
-        finally:
-            self._lock.release()
-
-    def reject(self, code=603):
-        """Rejects an incoming SIP session. Moves the object from the INCOMING to
-           the TERMINATING state."""
-        with self._lock:
-            if self.state == "TERMINATED":
-                return
-            if self.state != "INCOMING":
-                raise SessionStateError("This method can only be called while in the INCOMING state")
-            self._do_end(code)
-
-    def add_audio(self):
-        """Add an audio RTP stream to an already established SIP session."""
-        with self._lock:
-            if self.state != "ESTABLISHED":
-                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
-            if self.audio_transport is not None:
-                raise SessionStateError("An audio RTP stream is already active within this SIP session")
-            self._queue.append("add_audio")
-            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
-                self._process_queue()
-
-    def remove_audio(self):
-        with self._lock:
-            if self.state != "ESTABLISHED":
-                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
-            if self.audio_transport is None:
-                raise SessionStateError("No audio RTP stream is active within this SIP session")
-            if not any([self.chat_transport]):
-                raise SessionStateError("Removing audio would leave the SIP session without active media")
-            self._queue.append("remove_audio")
-            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
-                self._process_queue()
-
-    def add_chat(self):
-        with self._lock:
-            if self.state != "ESTABLISHED":
-                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
-            if self.chat_transport is not None:
-                raise SessionStateError("An MSRP chat stream is already active within this SIP session")
-            self._queue.append("add_chat")
-            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
-                self._process_queue()
-
-    def remove_chat(self):
-        with self._lock:
-            if self.state != "ESTABLISHED":
-                raise SessionStateError("This method can only be called while in the ESTABLISHED state")
-            if self.chat_transport is None:
-                raise SessionStateError("No MSRP chat stream is active within this SIP session")
-            if not any([self.audio_transport]):
-                raise SessionStateError("Removing MSRP chat would leave the SIP session without active media")
-            self._queue.append("remove_chat")
-            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
-                self._process_queue()
-
-    def accept_proposal(self, audio=False, chat=False):
-        """Accept a proposal of stream(s) being added. Moves the object from
-           the PROPOSED state to the ESTABLISHED state."""
-        with self._lock:
-            if self.state != "PROPOSED":
-                raise SessionStateError("This method can only be called while in the PROPOSED state")
-            remote_sdp = self._inv.offered_remote_sdp
-            audio_rtp = None
-            msrp_chat = None
-            for media in remote_sdp.media:
-                if audio and self.audio_transport is None and media.media == "audio" and media.port != 0 and audio_rtp is None:
-                    audio_rtp = AccountRTPTransport(self.account, self._inv.transport)
-                elif chat and self.chat_transport is None and media.media == "message" and media.port != 0 and msrp_chat is None:
-                    msrp_chat = MSRPChat(self.account, CPIMIdentity(self._inv.remote_identity.uri, self._inv.remote_identity.display_name), False)
-            if not any([audio_rtp, msrp_chat]):
-                raise ValueError("None of the streams proposed by the remote party is accepted")
-            media_initializer = MediaTransportInitializer(self._accept_proposal_continue, self._accept_proposal_fail, audio_rtp, msrp_chat)
-            if chat:
-                self.chat_transport = msrp_chat
-
-    def _do_reject_proposal(self, code=488, reason=None):
-        self._change_state("ESTABLISHED")
-        self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="remote", reason=reason))
-        self._inv.respond_to_reinvite(code)
-
-    def _accept_proposal_fail(self, reason):
-        with self._lock:
-            if self.state != "PROPOSED":
-                return
-            self._cancel_media()
-            try:
-                self._do_reject_proposal(500, reason)
-            except SIPCoreError:
-                traceback.print_exc()
-
-    def _accept_proposal_continue(self, audio_rtp, msrp_chat):
-        self._lock.acquire()
-        try:
-            if self.state != "PROPOSED":
-                return
-            remote_sdp = self._inv.offered_remote_sdp
-            local_sdp = self._make_next_sdp(False)
-            if len(remote_sdp.media) > len(local_sdp.media):
-                local_sdp.media.extend((len(remote_sdp.media) - len(local_sdp.media))*[None])
-            audio_sdp_index = -1
-            chat_sdp_index = -1
-            for sdp_index, media in enumerate(remote_sdp.media):
-                if audio_rtp is not None and media.media == "audio" and media.port != 0 and audio_sdp_index == -1:
-                    audio_sdp_index = sdp_index
-                    local_sdp.media[sdp_index] = self._init_audio(audio_rtp, remote_sdp, audio_sdp_index)
-                    if audio_rtp.use_ice:
-                        local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
-                elif msrp_chat is not None and media.media == "message" and media.port != 0 and chat_sdp_index == -1:
-                    chat_sdp_index = sdp_index
-                    self.session_manager.msrp_chat_mapping[msrp_chat] = self
-                    local_sdp.media[sdp_index] = msrp_chat.local_media
-                elif local_sdp.media[sdp_index] is None:
-                    remote_media = remote_sdp.media[sdp_index]
-                    local_sdp.media[sdp_index] = SDPMediaStream(remote_media.media, 0, remote_media.transport, formats=list(remote_media.formats))
-            self._inv.offered_local_sdp = local_sdp
-            self._inv.respond_to_reinvite(200)
-            if audio_rtp is not None:
-                self._audio_sdp_index = audio_sdp_index
-            if msrp_chat is not None:
-                self._chat_sdp_index = chat_sdp_index
-            self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", self, TimestampedNotificationData(proposer="remote"))
-        except SIPCoreError, e:
-            self._cancel_media()
-            try:
-                self._do_reject_proposal(500, e.args[0])
-            except SIPCoreError:
-                traceback.print_exc()
-        finally:
-            self._lock.release()
-
-    def reject_proposal(self):
-        """Reject a proposal of stream(s) being added. Moves the object from
-           the PROPOSED state to the ESTABLISHED state."""
-        with self._lock:
-            if self.state != "PROPOSED":
-                raise SessionStateError("This method can only be called while in the PROPOSED state")
-            self._do_reject_proposal(reason="Rejected by user")
-
-    def hold(self):
-        """Put an established SIP session on hold. This moves the object from the
-           ESTABLISHED state to the ONHOLD state."""
-        with self._lock:
-            if self.state != "ESTABLISHED":
-                raise SessionStateError("Session is not active")
-            self._queue.append("hold")
-            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
-                self._process_queue()
-
-    def unhold(self):
-        """Takes a SIP session that was previous put on hold out of hold. This
-           moves the object from the ONHOLD state to the ESTABLISHED state."""
-        with self._lock:
-            if self.state != "ESTABLISHED":
-                raise SessionStateError("Session is not active")
-            self._queue.append("unhold")
-            if len(self._queue) == 1 and self._inv.state == "CONFIRMED":
-                self._process_queue()
-
-    def end(self, code=603):
-        """Terminates the SIP session from whatever state it is in.
-           Moves the object to the TERMINATING state."""
-        with self._lock:
-            if self.state in ["NULL", "TERMINATING", "TERMINATED"]:
-                return
-            self._do_end(code)
-
-    def _do_end(self, code):
-        self._change_state("TERMINATING")
-        self.notification_center.post_notification("SIPSessionWillEnd", self, TimestampedNotificationData())
-        if self._inv.state != "DISCONNECTING":
-            try:
-                self._inv.end(code)
-            except SIPCoreError:
-                self._change_state("TERMINATED")
-                self.notification_center.post_notification("SIPSessionDidEnd", self, TimestampedNotificationData(originator="local"))
-
-    def start_recording_audio(self, file_name=None):
-        with self._lock:
-            if self.audio_transport is None or not self.audio_transport.is_active:
-                raise SessionStateError("No audio RTP stream is active on this SIP session")
-            if self._audio_rec is not None:
-                raise SessionStateError("Already recording audio to a file")
-            if file_name is None:
-                direction = "outgoing" if self._inv.is_outgoing else "incoming"
-                remote = '%s@%s' % (self._inv.remote_identity.uri.user, self._inv.remote_identity.uri.host)
-                file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
-            recording_path = os.path.join(self.settings.audio.recordings_directory.normalized, self.account.id)
-            makedirs(recording_path)
-            self._audio_rec = RecordingWaveFile(os.path.join(recording_path, file_name))
-            if not self.on_hold:
-                self.notification_center.post_notification("SIPSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
-                try:
-                    self._audio_rec.start()
-                except SIPCoreError:
-                    self.notification_center.post_notification("SIPSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
-                    self._audio_rec = None
-                    raise
-                else:
-                    self.notification_center.post_notification("SIPSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
-
-    def stop_recording_audio(self):
-        with self._lock:
-            if self._audio_rec is None:
-                raise SessionStateError("Not recording any audio")
-            self._stop_recording_audio()
-
-    def _stop_recording_audio(self):
-        self.notification_center.post_notification("SIPSessionWillStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
-        try:
-            self._audio_rec.stop()
-        finally:
-            self.notification_center.post_notification("SIPSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=self._audio_rec.file_name))
-            self._audio_rec = None
-
-    def _check_recording_hold(self):
-        if self._audio_rec is None:
-            return
-        if self.on_hold:
-            if self._audio_rec.is_active and not self._audio_rec.is_paused:
-                self._audio_rec.pause()
-        else:
-            if self._audio_rec.is_active:
-                if self._audio_rec.is_paused:
-                    self._audio_rec.resume()
-            else:
-                file_name = self.audio_recording_file_name
-                self.notification_center.post_notification("SIPSessionWillStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
-                try:
-                    self._audio_rec.start()
-                except SIPCoreError:
-                    self._audio_rec = None
-                    self.notification_center.post_notification("SIPSessionDidStopRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
-                else:
-                    self.notification_center.post_notification("SIPSessionDidStartRecordingAudio", self, TimestampedNotificationData(file_name=file_name))
-
-    def _start_ringtone(self):
-        try:
-            self._ringtone.start(loop_count=0, pause_time=2)
-        except SIPCoreError:
-            traceback.print_exc()
-
-    def _change_state(self, new_state):
-        prev_state = self.state
-        self.state = new_state
-        if prev_state != new_state:
-            if new_state == "INCOMING":
-                if self._ringtone is not None:
-                    self._start_ringtone()
-            if prev_state == "INCOMING" or prev_state == "CALLING":
-                if self._ringtone is not None:
-                    self._ringtone.stop()
-                    self._ringtone = None
-            self.notification_center.post_notification("SIPSessionChangedState", self, TimestampedNotificationData(prev_state=prev_state, state=new_state))
-
-    def _process_queue(self):
-        try:
-            was_on_hold = self.on_hold_by_local
-            local_sdp = None
-            while self._queue:
-                command = self._queue.popleft()
-                if command == "hold":
-                    if self.on_hold_by_local:
-                        continue
-                    if self.audio_transport is not None and self.audio_transport.is_active:
-                        Engine().disconnect_audio_transport(self.audio_transport)
-                    local_sdp = self._make_next_sdp(True, True)
-                    self.on_hold_by_local = True
-                    break
-                elif command == "unhold":
-                    if not self.on_hold_by_local:
-                        continue
-                    if self.audio_transport is not None and self.audio_transport.is_active:
-                        Engine().connect_audio_transport(self.audio_transport)
-                    local_sdp = self._make_next_sdp(True, False)
-                    self.on_hold_by_local = False
-                    break
-                elif command == "remove_audio":
-                    if self.audio_transport is None:
-                        continue
-                    self._stop_audio()
-                    local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-                    break
-                elif command == "remove_chat":
-                    if self.chat_transport is None:
-                        continue
-                    self._stop_chat()
-                    local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-                    break
-                elif command == "add_audio":
-                    if self.audio_transport is not None:
-                        continue
-                    media_initializer = MediaTransportInitializer(self._add_audio_continue, self._add_audio_fail, AccountRTPTransport(self.account, self._inv.transport), None)
-                    self.proposed_audio = True
-                    self._change_state("PROPOSING")
-                    self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=["audio"], proposer="local"))
-                    break
-                elif command == "add_chat":
-                    if self.chat_transport is not None:
-                        continue
-                    self.chat_transport = MSRPChat(self.account, CPIMIdentity(self._inv.remote_identity.uri, self._inv.remote_identity.display_name), True)
-                    media_initializer = MediaTransportInitializer(self._add_chat_continue, self._add_chat_fail, None, self.chat_transport)
-                    self.proposed_chat = True
-                    self._change_state("PROPOSING")
-                    self.notification_center.post_notification("SIPSessionGotStreamProposal", self, TimestampedNotificationData(streams=["chat"], proposer="local"))
-                    break
-                elif command == "update_offer":
-                    if self.audio_transport is None:
-                        continue
-                    local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-            if local_sdp is not None:
-                self._inv.offered_local_sdp = local_sdp
-                self._inv.send_reinvite()
-                if not was_on_hold and self.on_hold_by_local:
-                    self._check_recording_hold()
-                    self.notification_center.post_notification("SIPSessionGotHoldRequest", self, TimestampedNotificationData(originator="local"))
-                elif was_on_hold and not self.on_hold_by_local:
-                    self._check_recording_hold()
-                    self.notification_center.post_notification("SIPSessionGotUnholdRequest", self, TimestampedNotificationData(originator="local"))
-        except SIPCoreError, e:
-            self._do_fail(e.args[0])
-
-    def _add_audio_fail(self, reason):
-        with self._lock:
-            if self.state != "PROPOSING":
-                return
-            self.proposed_audio = False
-            self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
-
-    def _add_audio_continue(self, audio_rtp, msrp_chat):
-        self._lock.acquire()
-        try:
-            if self.state != "PROPOSING":
-                return
-            local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-            audio_sdp_index = self._audio_sdp_index
-            if audio_sdp_index == -1:
-                audio_sdp_index = len(local_sdp.media)
-                local_sdp.media.append(self._init_audio(audio_rtp))
-            else:
-                local_sdp.media[audio_sdp_index] = self._init_audio(audio_rtp)
-            if self.on_hold_by_local:
-                local_sdp.media[audio_sdp_index].attributes.append(SDPAttribute("sendonly", ""))
-            if audio_rtp.use_ice:
-                local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
-            self._inv.offered_local_sdp = local_sdp
-            self._inv.send_reinvite()
-            self._audio_sdp_index = audio_sdp_index
-        except SIPCoreError, e:
-            self.proposed_audio = False
-            self._cancel_media()
-            self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
-        finally:
-            self._lock.release()
-
-    def _add_chat_fail(self, reason):
-        with self._lock:
-            if self.state != "PROPOSING":
-                return
-            self.proposed_chat = False
-            self._stop_chat()
-            self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=reason))
-
-    def _add_chat_continue(self, audio_rtp, msrp_chat):
-        self._lock.acquire()
-        try:
-            if self.state != "PROPOSING":
-                return
-            local_sdp = self._make_next_sdp(True, self.on_hold_by_local)
-            chat_sdp_index = self._chat_sdp_index
-            if chat_sdp_index == -1:
-                chat_sdp_index = len(local_sdp.media)
-                local_sdp.media.append(msrp_chat.local_media)
-            else:
-                local_sdp.media[chat_sdp_index] = msrp_chat.local_media
-            self.session_manager.msrp_chat_mapping[msrp_chat] = self
-            self._inv.offered_local_sdp = local_sdp
-            self._inv.send_reinvite()
-            self._chat_sdp_index = chat_sdp_index
-        except SIPCoreError, e:
-            self.proposed_chat = False
-            self._cancel_media()
-            self._change_state("ESTABLISHED")
-            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", self, TimestampedNotificationData(proposer="local", reason=e.args[0]))
-        finally:
-            self._lock.release()
-
-    def _init_audio(self, rtp_transport, remote_sdp=None, sdp_index=-1):
-        """Initialize everything needed for an audio RTP stream and return a
-           SDPMediaStream object describing it. Called internally."""
-        if remote_sdp is None:
-            self.audio_transport = AudioTransport(rtp_transport, codecs=(list(self.account.audio.codec_list) if self.account.audio.codec_list else None))
-        else:
-            self.audio_transport = AudioTransport(rtp_transport, remote_sdp, sdp_index, codecs=(list(self.account.audio.codec_list) if self.account.audio.codec_list else None))
-        self.session_manager.audio_transport_mapping[self.audio_transport] = self
-        self.session_manager.rtp_transport_mapping[self.audio_transport.transport] = self
-        return self.audio_transport.get_local_media(remote_sdp is None)
-
-    def _update_media(self, local_sdp, remote_sdp):
-        """Update the media stream(s) according to the newly negotiated SDP.
-           This will start, stop or change the stream(s). Called by
-           SessionManager."""
-        if self.audio_transport:
-            if local_sdp.media[self._audio_sdp_index].port and remote_sdp.media[self._audio_sdp_index].port:
-                self._update_audio(local_sdp, remote_sdp)
-            else:
-                self._stop_audio()
-        if self.chat_transport:
-            if local_sdp.media[self._chat_sdp_index].port and remote_sdp.media[self._chat_sdp_index].port:
-                self._update_chat(remote_sdp)
-            else:
-                self._stop_chat()
-
-    def _update_audio(self, local_sdp, remote_sdp):
-        """Update the audio RTP stream. Will be called locally from
-           _update_media()."""
-        if self.audio_transport.is_active:
-            # TODO: check for ip/port/codec changes and restart AudioTransport if needed
-            pass
-        else:
-            self.audio_transport.start(local_sdp, remote_sdp, self._audio_sdp_index, no_media_timeout=self.settings.rtp.timeout, media_check_interval=self.settings.rtp.timeout)
-            Engine().connect_audio_transport(self.audio_transport)
-            self.has_audio = True
-            if self._ringtone is not None:
-                self._ringtone.stop()
-                self._ringtone = None
-            self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
-        was_on_hold = self.on_hold_by_remote
-        new_direction = local_sdp.media[self._audio_sdp_index].get_direction()
-        self.on_hold_by_remote = "send" not in new_direction
-        self.audio_transport.update_direction(new_direction)
-        if not was_on_hold and self.on_hold_by_remote:
-            self._check_recording_hold()
-            self.notification_center.post_notification("SIPSessionGotHoldRequest", self, TimestampedNotificationData(originator="remote"))
-        elif was_on_hold and not self.on_hold_by_remote:
-            self._check_recording_hold()
-            self.notification_center.post_notification("SIPSessionGotUnholdRequest", self, TimestampedNotificationData(originator="remote"))
-
-    def _update_chat(self, remote_sdp):
-        if self.chat_transport.is_active:
-            # TODO: what do we do with new SDP?
-            pass
-        else:
-            self.chat_transport.start(remote_sdp.media[self._chat_sdp_index])
-
-    def _stop_media(self):
-        """Stop all media streams. This will be called by SessionManager when
-           the SIP session ends."""
-        if self.audio_transport:
-            self._stop_audio()
-        if self.chat_transport:
-            self._stop_chat()
-
-    def _stop_audio(self):
-        """Stop the audio RTP stream. This will be called locally, either from
-        _update_media() or _stop_media()."""
-        if self.audio_transport.is_active:
-            Engine().disconnect_audio_transport(self.audio_transport)
-            self.audio_transport.stop()
-            if self._audio_rec is not None:
-                self._stop_recording_audio()
-        del self.session_manager.audio_transport_mapping[self.audio_transport]
-        del self.session_manager.rtp_transport_mapping[self.audio_transport.transport]
-        self.audio_transport = None
-        had_audio = self.has_audio
-        self.has_audio = False
-        if had_audio:
-            self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
-
-    def _stop_chat(self):
-        msrp_chat = self.chat_transport
-        had_chat = self.has_chat
-        self.chat_transport = None
-        self.session_manager.msrp_chat_mapping.pop(msrp_chat, None)
-        self.has_chat = False
-        if had_chat:
-            self.notification_center.post_notification("SIPSessionGotStreamUpdate", self, TimestampedNotificationData(streams=[key for key, val in dict(audio=self.has_audio, chat=self.has_chat).iteritems() if val]))
-        msrp_chat.end()
-
-    def _cancel_media(self):
-        # This should, in principle, never throw exceptions
-        if self.audio_transport is not None and not self.audio_transport.is_active:
-            self._stop_audio()
-        if self.chat_transport is not None and not self.chat_transport.is_active:
-            self._stop_chat()
-
-    def send_dtmf(self, digit):
-        if self.audio_transport is None or not self.audio_transport.is_active:
-            raise SessionStateError("This SIP session does not have an active audio RTP stream to transmit DMTF over")
-        try:
-            self.audio_transport.send_dtmf(digit)
-        except PJSIPError, e:
-            if not e.args[0].endswith("(PJ_ETOOMANY)"):
-                raise
-
-    def _make_next_sdp(self, is_offer, on_hold=False):
-        # This should, in principle, never throw exceptions
-        local_sdp = SDPSession.new(self._inv.active_local_sdp)
-        local_sdp.version += 1
-        if self._audio_sdp_index != -1:
-            if self.audio_transport is None:
-                local_sdp.media[self._audio_sdp_index].port = 0
-            else:
-                if is_offer:
-                    if "send" in self.audio_transport.direction:
-                        direction = ("sendonly" if on_hold else "sendrecv")
+            local_ip = settings.local_ip.normalized
+            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
+            for index, stream in enumerate(self.proposed_streams):
+                stream.index = index
+                local_sdp.media.append(stream.get_local_media(for_offer=True, on_hold=False))
+            self._invitation.send_invite(FromHeader(self.account.uri, self.account.display_name), to_header, RouteHeader(self.route.get_uri()),
+                                         ContactHeader(self.account.contact[self.route.transport]), local_sdp, self.account.credentials)
+            while True:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationGotSDPUpdate':
+                    if notification.data.succeeded:
+                        local_sdp = notification.data.local_sdp
+                        remote_sdp = notification.data.remote_sdp
+                        break
                     else:
-                        direction = ("inactive" if on_hold else "recvonly")
+                        for stream in self.proposed_streams:
+                            notification_center.remove_observer(self, sender=stream)
+                            stream.end()
+                        self._fail(originator='remote', code=received_code, reason=received_reason, error='SDP negotiation failed: %s' % notification.data.error)
+                        return
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'early' and notification.data.code == 180:
+                        notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                    elif notification.data.state == 'connecting':
+                        received_code = notification.data.code
+                        received_reason = notification.data.reason
+                    elif notification.data.state == 'connected':
+                        if not connected:
+                            connected = True
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                  TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
+                        else:
+                            unhandled_notifications.append(notification)
+
+            notification_center.post_notification('SIPSessionWillStart', self, TimestampedNotificationData())
+            stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
+            for index, local_media in enumerate(local_sdp.media):
+                remote_media = remote_sdp.media[index]
+                stream = stream_map[index]
+                if remote_media.port:
+                    stream.start(local_sdp, remote_sdp, index)
                 else:
-                    direction = None
-                local_sdp.media[self._audio_sdp_index] = self.audio_transport.get_local_media(is_offer, direction)
-                if self.audio_transport.transport.use_ice:
-                    local_sdp.connection.address = self.audio_transport.transport.local_rtp_address
-        if self._chat_sdp_index != -1 and self.chat_transport is None:
-            local_sdp.media[self._chat_sdp_index].port = 0
-        return local_sdp
+                    notification_center.remove_observer(self, sender=stream)
+                    self.proposed_streams.remove(stream)
+                    del stream_map[stream.index]
+                    stream.end()
+            removed_streams = [stream for stream in self.proposed_streams if stream.index >= len(local_sdp.media)]
+            for stream in removed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                self.proposed_streams.remove(stream)
+                del stream_map[stream.index]
+                stream.end()
+            wait_count = len(self.proposed_streams)
+            while wait_count > 0 or not connected or self._channel:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidStart':
+                    wait_count -= 1
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'early' and notification.data.code == 180:
+                        notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                    elif notification.data.state == 'connecting':
+                        received_code = notification.data.code
+                        received_reason = notification.data.reason
+                    elif notification.data.state == 'connected':
+                        if not connected:
+                            connected = True
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                  TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
+                        else:
+                            unhandled_notifications.append(notification)
+        except MediaStreamDidFailError, e:
+            for stream in self.proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.end()
+            self._fail(originator='local', code=received_code, reason=received_reason, error='media stream failed: %s' % e.data.reason)
+        except InvitationDidFailError, e:
+            notification_center.remove_observer(self, sender=self._invitation)
+            for stream in self.proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.end()
+            self.state = 'terminated'
+            if e.data.prev_state in ('connecting', 'connected'):
+                notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator=e.data.originator))
+                if e.data.originator == 'remote':
+                    notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method=e.data.method, code=200, reason=sip_status_messages[200]))
+                self.end_time = datetime.now()
+                notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator=e.data.originator, end_reason=e.data.disconnect_reason))
+            else:
+                if e.data.originator == 'remote':
+                    notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=e.data.code, reason=e.data.reason))
+                code = e.data.code if e.data.originator == 'remote' else 0
+                reason = e.data.reason if e.data.originator == 'remote' else None
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator=e.data.originator, code=code, reason=reason, failure_reason=e.data.disconnect_reason))
+            self.greenlet = None
+        except SIPCoreError, e:
+            for stream in self.proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.end()
+            self._fail(originator='local', code=received_code, reason=received_reason, error='SIP core error: %s' % str(e))
+        else:
+            self.greenlet = None
+            self.state = 'connected'
+            self.streams = self.proposed_streams
+            self.proposed_streams = None
+            self.start_time = datetime.now()
+            notification_center.post_notification('SIPSessionDidStart', self, TimestampedNotificationData(streams=self.streams))
+            for notification in unhandled_notifications:
+                self.handle_notification(notification)
 
-    def send_message(self, content, content_type="text/plain", to_uri=None, dt=None):
-        if self.chat_transport is None:
-            raise SessionStateError("This SIP session does not have an active MSRP stream to send chat message over")
-        return self.chat_transport.send_message(content, content_type, to_uri, dt=dt)
+    @transition_state('incoming', 'incoming')
+    @run_in_twisted
+    def send_ring_indication(self):
+        try:
+            self._invitation.send_response(180)
+        except SIPCoreInvalidStateError:
+            pass # The INVITE session might have already been canceled; ignore the error
+
+    @transition_state('incoming', 'accepting')
+    @run_in_twisted
+    def accept(self, streams):
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+
+        connected = False
+        unhandled_notifications = []
+
+        if self.proposed_streams:
+            for stream in self.proposed_streams:
+                if stream in streams:
+                    notification_center.add_observer(self, sender=stream)
+                    stream.initialize(self)
+                else:
+                    stream.end()
+        else:
+            for index, stream in enumerate(streams):
+                notification_center.add_observer(self, sender=stream)
+                stream.index = index
+                stream.initialize(self)
+        self.proposed_streams = streams
+
+        try:
+            wait_count = len(self.proposed_streams)
+            while wait_count > 0:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidInitialize':
+                    wait_count -= 1
+
+            local_ip = settings.local_ip.normalized
+            local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
+            if self._invitation.sdp.proposed_remote:
+                stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
+                for index, media in enumerate(self._invitation.sdp.proposed_remote.media):
+                    stream = stream_map.get(index, None)
+                    if stream is not None:
+                        local_sdp.media.append(stream.get_local_media(for_offer=False, on_hold=False))
+                    else:
+                        media = SDPMediaStream.new(media)
+                        media.port = 0
+                        local_sdp.media.append(media)
+            else:
+                for stream in self.proposed_streams:
+                    local_sdp.media.append(stream.get_local_media(for_offer=True, on_hold=False))
+            self._invitation.send_response(200, sdp=local_sdp)
+            notification_center.post_notification('SIPSessionWillStart', self, TimestampedNotificationData())
+            local_sdp = self._invitation.sdp.active_local
+            remote_sdp = self._invitation.sdp.active_remote
+            # while entered only if initial INVITE did not contain SDP and we are waiting for the ACK which should contain it
+            while remote_sdp is None or local_sdp is None:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationGotSDPUpdate':
+                    if notification.data.succeeded:
+                        local_sdp = notification.data.local_sdp
+                        remote_sdp = notification.data.remote_sdp
+                        break
+                    else:
+                        if not connected:
+                            # we could not have got a SIPInvitationGotSDPUpdate if we did not get an ACK
+                            connected = True
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                  TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received=True))
+                        for stream in self.proposed_streams:
+                            notification_center.remove_observer(self, sender=stream)
+                            stream.end()
+                        self._fail(originator='remote', code=200, reason=sip_status_messages[200], error='SDP negotiation failed: %s' % notification.data.error)
+                        return
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected':
+                        if not connected:
+                            connected = True
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received=True))
+                        elif notification.data.prev_state == 'connected':
+                            unhandled_notifications.append(notification)
+            wait_count = 0
+            stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
+            for index, local_media in enumerate(local_sdp.media):
+                remote_media = remote_sdp.media[index]
+                stream = stream_map.get(index, None)
+                if stream is not None:
+                    if remote_media.port:
+                        wait_count += 1
+                        stream.start(local_sdp, remote_sdp, index)
+                    else:
+                        notification_center.remove_observer(self, sender=stream)
+                        self.proposed_streams.remove(stream)
+                        del stream_map[stream.index]
+                        stream.end()
+            removed_streams = [stream for stream in self.proposed_streams if stream.index >= len(local_sdp.media)]
+            for stream in removed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                self.proposed_streams.remove(stream)
+                del stream_map[stream.index]
+                stream.end()
+            while wait_count > 0 or not connected or self._channel:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidStart':
+                    wait_count -= 1
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected':
+                        if not connected:
+                            connected = True
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=True))
+                        elif notification.data.prev_state == 'connected':
+                            unhandled_notifications.append(notification)
+                else:
+                    unhandled_notifications.append(notification)
+        except MediaStreamDidFailError, e:
+            if self._invitation.state == 'connecting':
+                # pjsip's invite session object does not inform us whether the ACK was received or not
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received='unknown'))
+            elif self._invitation.state == 'connected' and not connected:
+                # we didn't yet get to process the SIPInvitationChangedState (state -> connected) notification
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=True))
+            for stream in self.proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.end()
+            code = 200 if self._invitation.state not in ('incoming', 'early') else 0
+            reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
+            self._fail(originator='local', code=code, reason=reason, error='media stream failed: %s' % e.data.reason)
+        except InvitationDidFailError, e:
+            notification_center.remove_observer(self, sender=self._invitation)
+            for stream in self.proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.end()
+            self.state = 'terminated'
+            if e.data.prev_state in ('incoming', 'early'):
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Canceled', ack_received='unknown'))
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Canceled', failure_reason=e.data.disconnect_reason))
+            elif e.data.prev_state == 'connecting' and e.data.disconnect_reason == 'missing ACK':
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=False))
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=200, reason=sip_status_messages[200], failure_reason=e.data.disconnect_reason))
+            else:
+                notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator='remote'))
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method=e.data.method, code=200, reason='OK'))
+                self.end_time = datetime.now()
+                notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='remote', end_reason=e.data.disconnect_reason))
+            self.greenlet = None
+        except SIPCoreInvalidStateError:
+            # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was canceled by the remote party
+            notification_center.remove_observer(self, sender=self._invitation)
+            for stream in self.proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.end()
+            self.state = 'terminated'
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Canceled', ack_received='unknown'))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Canceled', failure_reason='user request'))
+        except SIPCoreError, e:
+            for stream in self.proposed_streams:
+                notification_center.remove_observer(self, sender=stream)
+                stream.end()
+            code = 200 if self._invitation.state not in ('incoming', 'early') else 0
+            reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
+            self._fail(originator='local', code=code, reason=reason, error='SIP core error: %s' % str(e))
+        else:
+            self.greenlet = None
+            self.state = 'connected'
+            self.streams = self.proposed_streams
+            self.proposed_streams = None
+            self.start_time = datetime.now()
+            notification_center.post_notification('SIPSessionDidStart', self, TimestampedNotificationData(streams=self.streams))
+            for notification in unhandled_notifications:
+                self.handle_notification(notification)
+
+    @transition_state('incoming', 'terminating')
+    @run_in_twisted
+    def reject(self, code=603):
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+
+        for stream in self.proposed_streams:
+            stream.end()
+
+        try:
+            self._invitation.send_response(code)
+            with api.timeout(1):
+                while True:
+                    notification = self._channel.wait()
+                    if notification.name == 'SIPInvitationChangedState':
+                        if notification.data.state == 'disconnected':
+                            ack_received = notification.data.disconnect_reason != 'missing ACK'
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                  TimestampedNotificationData(originator='remote', method='INVITE', code=code, reason=sip_status_messages[code], ack_received=ack_received))
+                            break
+        except SIPCoreInvalidStateError:
+            # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was canceled by the remote party
+            notification_center.remove_observer(self, sender=self._invitation)
+            self.state = 'terminated'
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Canceled', ack_received='unknown'))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Canceled', failure_reason='user request'))
+        except SIPCoreError, e:
+            code = 200 if self._invitation.state not in ('incoming', 'early') else 0
+            reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
+            self._fail(originator='local', code=code, reason=reason, error='SIP core error: %s' % str(e))
+        except api.TimeoutError:
+            notification_center.remove_observer(self, sender=self._invitation)
+            self.greenlet = None
+            self.state = 'terminated'
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=code, reason=sip_status_messages[code], ack_received=False))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='user request'))
+        else:
+            notification_center.remove_observer(self, sender=self._invitation)
+            self.greenlet = None
+            self.state = 'terminated'
+            self.proposed_streams = None
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='user request'))
+
+    @transition_state('received_proposal', 'accepting_proposal')
+    @run_in_twisted
+    def accept_proposal(self, streams):
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+
+        unhandled_notifications = []
+
+        for stream in self.proposed_streams:
+            if stream in streams:
+                notification_center.add_observer(self, sender=stream)
+                stream.initialize(self)
+            else:
+                stream.end()
+
+        try:
+            wait_count = len(self.proposed_streams)
+            while wait_count > 0:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidInitialize':
+                    wait_count -= 1
+
+            local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+            local_sdp.version += 1
+            stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
+            for index, media in enumerate(self._invitation.sdp.proposed_remote.media):
+                stream = stream_map.get(index, None)
+                if stream is not None:
+                    local_sdp.media.append(stream.get_local_media(for_offer=False, on_hold=False))
+                else:
+                    media = SDPMediaStream.new(media)
+                    media.port = 0
+                    local_sdp.media.append(media)
+            self._invitation.send_response(200, sdp=local_sdp)
+
+            prev_on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
+
+            received_invitation_state = False
+            received_sdp_update = False
+            while not received_invitation_state or not received_sdp_update:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationGotSDPUpdate':
+                    received_sdp_update = True
+                    if notification.data.succeeded:
+                        local_sdp = notification.data.local_sdp
+                        remote_sdp = notification.data.remote_sdp
+                        for stream in self.streams:
+                            stream.update(local_sdp, remote_sdp, stream.index)
+                    else:
+                        self._fail_proposal(originator='remote', error='SDP negotiation failed: %s' % notification.data.error)
+                        return
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
+                        received_invitation_state = True
+
+            on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
+            if on_hold_streams != prev_on_hold_streams:
+                hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
+                notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='remote', on_hold=bool(on_hold_streams),
+                                                      partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
+
+            for stream in self.proposed_streams:
+                stream.start(local_sdp, remote_sdp, stream.index)
+            wait_count = len(self.proposed_streams)
+            while wait_count > 0 or self._channel:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidStart':
+                    wait_count -= 1
+                else:
+                    unhandled_notifications.append(notification)
+        except MediaStreamDidFailError, e:
+            self._fail_proposal(originator='remote', error='media stream failed: %s' % e.data.reason)
+        except InvitationDidFailError, e:
+            self._fail_proposal(originator='remote', error='session ended')
+            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+        except SIPCoreError, e:
+            self._fail_proposal(originator='remote', error='SIP core error: %s' % str(e))
+        else:
+            self.greenlet = None
+            self.state = 'connected'
+            notification_center.post_notification('SIPSessionGotAcceptProposal', self, TimestampedNotificationData(originator='remote', streams=self.proposed_streams))
+            self.streams = self.streams + self.proposed_streams
+            proposed_streams = self.proposed_streams
+            self.proposed_streams = None
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='add', streams=proposed_streams))
+            for notification in unhandled_notifications:
+                self.handle_notification(notification)
+
+    @run_in_twisted
+    def reject_proposal(self, code=488):
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+
+        for stream in self.proposed_streams:
+            stream.end()
+
+        try:
+            self._invitation.send_response(code)
+            with api.timeout(1, None):
+                while True:
+                    notification = self._channel.wait()
+                    if notification.name == 'SIPInvitationChangedState':
+                        if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=code, reason=sip_status_messages[code], ack_received='unknown'))
+        except SIPCoreError, e:
+            self._fail_proposal(originator='remote', error='SIP core error: %s' % str(e))
+        else:
+            self.greenlet = None
+            self.state = 'connected'
+            notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='remote', code=code, reason=sip_status_messages[code], streams=self.proposed_streams))
+            self.proposed_streams = None
+
+    @transition_state('connected', 'sending_proposal')
+    @run_in_twisted
+    def add_stream(self, stream):
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+
+        received_code = None
+        received_reason = None
+        unhandled_notifications = []
+
+        self.proposed_streams = [stream]
+        notification_center.add_observer(self, sender=stream)
+        stream.initialize(self)
+
+        try:
+            while True:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidInitialize':
+                    break
+                elif notification.name == 'SIPInvitationChangedState':
+                    # This is actually the only reason for which this notification could be received
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal':
+                        self._fail_proposal(originator='local', error='received stream proposal')
+                        self.handle_notification(notification)
+                        return
+
+            local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+            local_sdp.version += 1
+            stream.index = len(local_sdp.media)
+            local_sdp.media.append(stream.get_local_media(for_offer=True, on_hold=False))
+            self._invitation.send_reinvite(sdp=local_sdp)
+            notification_center.post_notification('SIPSessionGotProposal', self, TimestampedNotificationData(originator='local', streams=self.proposed_streams))
+
+            received_invitation_state = False
+            received_sdp_update = False
+            while not received_invitation_state or not received_sdp_update:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationGotSDPUpdate':
+                    received_sdp_update = True
+                    if notification.data.succeeded:
+                        local_sdp = notification.data.local_sdp
+                        remote_sdp = notification.data.remote_sdp
+                    else:
+                        self._fail_proposal(originator='local', error='SDP negotiation failed: %s' % notification.data.error)
+                        return
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                        received_invitation_state = True
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                        if 200 <= notification.data.code < 300:
+                            received_code = notification.data.code
+                            received_reason = notification.data.reason
+                        else:
+                            notification_center.remove_observer(self, sender=stream)
+                            stream.end()
+                            notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='local', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
+                            self.state = 'connected'
+                            self.proposed_streams = None
+                            self.greenlet = None
+                            return
+
+            try:
+                remote_media = remote_sdp.media[stream.index]
+            except IndexError:
+                self._fail_proposal(originator='local', error='SDP media missing in answer')
+                return
+            else:
+                if remote_media.port:
+                    stream.start(local_sdp, remote_sdp, stream.index)
+                else:
+                    notification_center.remove_observer(self, sender=stream)
+                    stream.end()
+                    notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='local', code=received_code, reason=received_reason, streams=self.proposed_streams))
+                    self.state = 'connected'
+                    self.proposed_streams = None
+                    self.greenlet = None
+                    return
+
+            wait_count = 1
+            while wait_count > 0 or self._channel:
+                notification = self._channel.wait()
+                if notification.name == 'MediaStreamDidStart':
+                    wait_count -= 1
+        except MediaStreamDidFailError, e:
+            self._fail_proposal(originator='local', error='media stream failed: %s' % e.data.reason)
+        except InvitationDidFailError, e:
+            self._fail_proposal(originator='local', error='session ended')
+            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+        except SIPCoreError, e:
+            self._fail_proposal(originator='local', error='SIP core error: %s' % str(e))
+        else:
+            self.greenlet = None
+            self.state = 'connected'
+            notification_center.post_notification('SIPSessionGotAcceptProposal', self, TimestampedNotificationData(originator='local', streams=self.proposed_streams))
+            self.streams = self.streams + self.proposed_streams
+            proposed_streams = self.proposed_streams
+            self.proposed_streams = None
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='local', action='add', streams=proposed_streams))
+            for notification in unhandled_notifications:
+                self.handle_notification(notification)
+
+    @transition_state('connected', 'sending_proposal')
+    @run_in_twisted
+    def remove_stream(self, stream):
+        if stream not in self.streams:
+            self.state = 'connected'
+            return
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+
+        unhandled_notifications = []
+
+        try:
+            local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+            local_sdp.version += 1
+            local_sdp.media[stream.index].port = 0
+            self._invitation.send_reinvite(sdp=local_sdp)
+
+            received_invitation_state = False
+            received_sdp_update = False
+            while not received_invitation_state or not received_sdp_update:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationGotSDPUpdate':
+                    received_sdp_update = True
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                        received_invitation_state = True
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+        except InvitationDidFailError, e:
+            self.greenlet = None
+            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+        except SIPCoreError:
+            raise #FIXME
+        else:
+            self.greenlet = None
+            self.state = 'connected'
+            notification_center.remove_observer(self, sender=stream)
+            stream.end()
+            self.streams.remove(stream)
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='local', action='remove', streams=[stream]))
+            for notification in unhandled_notifications:
+                self.handle_notification(notification)
+
+    @transition_state('connected', 'sending_proposal')
+    @run_in_twisted
+    def hold(self):
+        if self.on_hold:
+            self.state = 'connected'
+            return
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+
+        unhandled_notifications = []
+
+        try:
+            local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+            local_sdp.version += 1
+            for stream in self.streams:
+                local_sdp.media[stream.index] = stream.get_local_media(for_offer=True, on_hold=True)
+            self._invitation.send_reinvite(sdp=local_sdp)
+
+            received_invitation_state = False
+            received_sdp_update = False
+            while not received_invitation_state or not received_sdp_update:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationGotSDPUpdate':
+                    received_sdp_update = True
+                    if notification.data.succeeded:
+                        local_sdp = notification.data.local_sdp
+                        remote_sdp = notification.data.remote_sdp
+
+                        for stream in self.streams:
+                            stream.update(local_sdp, remote_sdp, stream.index)
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                        received_invitation_state = True
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+        except InvitationDidFailError, e:
+            self.greenlet = None
+            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+        except SIPCoreError, e:
+            raise #FIXME
+        else:
+            self.greenlet = None
+            self.on_hold = True
+            self.state = 'connected'
+            hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
+            notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='local', on_hold=True, partial=any(not stream.on_hold_by_local for stream in hold_supported_streams)))
+            for notification in unhandled_notifications:
+                self.handle_notification(notification)
+
+    @transition_state('connected', 'sending_proposal')
+    @run_in_twisted
+    def unhold(self):
+        if not self.on_hold:
+            self.state = 'connected'
+            return
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+
+        unhandled_notifications = []
+
+        try:
+            local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+            local_sdp.version += 1
+            for stream in self.streams:
+                local_sdp.media[stream.index] = stream.get_local_media(for_offer=True, on_hold=False)
+            self._invitation.send_reinvite(sdp=local_sdp)
+
+            received_invitation_state = False
+            received_sdp_update = False
+            while not received_invitation_state or not received_sdp_update:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationGotSDPUpdate':
+                    received_sdp_update = True
+                    if notification.data.succeeded:
+                        local_sdp = notification.data.local_sdp
+                        remote_sdp = notification.data.remote_sdp
+
+                        for stream in self.streams:
+                            stream.update(local_sdp, remote_sdp, stream.index)
+                elif notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                        received_invitation_state = True
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+        except InvitationDidFailError, e:
+            self.greenlet = None
+            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+        except SIPCoreError, e:
+            raise #FIXME
+        else:
+            self.greenlet = None
+            self.on_hold = False
+            self.state = 'connected'
+            notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='local', on_hold=False, partial=False))
+            for notification in unhandled_notifications:
+                self.handle_notification(notification)
+
+    @run_in_twisted
+    def end(self):
+        if self.greenlet is not None:
+            api.kill(self.greenlet, api.GreenletExit())
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+        if self._invitation.state in ('disconnecting', 'disconnected'):
+            return
+        self.state = 'terminating'
+        if self._invitation.state == 'connected':
+            notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator='local'))
+        for stream in ((self.streams or []) + (self.proposed_streams or [])):
+            notification_center.remove_observer(self, sender=stream)
+            stream.end()
+        cancelling = self._invitation.state != 'connected'
+        try:
+            self._invitation.end(timeout=1)
+            while True:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'disconnected':
+                    if cancelling:
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                              TimestampedNotificationData(originator='local', method='INVITE', code=487, reason='Canceled'))
+                    else:
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                              TimestampedNotificationData(originator='local', method='BYE', code=notification.data.code, reason=notification.data.reason))
+                    break
+        except SIPCoreError, e:
+            if cancelling:
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e)))
+            else:
+                self.end_time = datetime.now()
+                notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='SIP core error: %s' % str(e)))
+            return
+        notification_center.remove_observer(self, sender=self._invitation)
+        self.greenlet = None
+        self.state = 'terminated'
+        if cancelling:
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Canceled', failure_reason='user request'))
+        else:
+            self.end_time = datetime.now()
+            notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='user request'))
 
 
-class SessionManager(NotificationHandler):
-    """The one and only SessionManager, a singleton.
-       The application needs to create this and then pass its handle_event
-       method to the Engine as event_handler.
-       Attributes:
-       rtp_config: RTPConfiguration object
-       inv_mapping: A dictionary mapping Invitation objects to Session
-           objects."""
+    @property
+    def local_identity(self):
+        if self._invitation is not None and self._invitation.local_identity is not None:
+            return self._invitation.local_identity
+        else:
+            return self._local_identity
+
+    @property
+    def remote_identity(self):
+        if self._invitation is not None and self._invitation.remote_identity is not None:
+            return self._invitation.remote_identity
+        else:
+            return self._remote_identity
+
+    @property
+    def remote_user_agent(self):
+        return self._invitation.remote_user_agent if self._invitation is not None else None
+
+    def _fail(self, originator, code, reason, error):
+        notification_center = NotificationCenter()
+        prev_inv_state = self._invitation.state
+        self.state = 'terminating'
+        if prev_inv_state not in (None, 'incoming', 'outgoing', 'early', 'connecting'):
+            notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator=originator))
+        if self._invitation.state not in (None, 'disconnecting', 'disconnected'):
+            try:
+                if self._invitation.direction == 'incoming' and self._invitation.state in ('incoming', 'early'):
+                    self._invitation.send_response(500)
+                else:
+                    self._invitation.end()
+                with api.timeout(1):
+                    while True:
+                        notification = self._channel.wait()
+                        if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'disconnected':
+                            if prev_inv_state in ('connecting', 'connected'):
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                      TimestampedNotificationData(originator='local', method='BYE', code=notification.data.code, reason=notification.data.reason))
+                            elif self._invitation.direction == 'incoming' and prev_inv_state in ('incoming', 'early'):
+                                ack_received = notification.data.disconnect_reason != 'missing ACK'
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received=ack_received))
+                            elif self._invitation.direction == 'outgoing' and prev_inv_state in ('outgoing', 'early'):
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=487, reason='Canceled'))
+            except SIPCoreError:
+                pass
+            except api.TimeoutError:
+                if prev_inv_state in ('connecting', 'connected'):
+                    notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='BYE', code=408, reason=sip_status_messages[408]))
+        notification_center.remove_observer(self, sender=self._invitation)
+        self.state = 'terminated'
+        if prev_inv_state in (None, 'incoming', 'outgoing', 'early', 'connecting'):
+            if self._invitation.direction == 'incoming':
+                code = code or 500
+                reason = reason or sip_status_messages[500]
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator=originator, code=code, reason=reason, failure_reason=error))
+        else:
+            self.end_time = datetime.now()
+            notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator=originator, end_reason=error))
+        self.greenlet = None
+
+    def _fail_proposal(self, originator, error):
+        notification_center = NotificationCenter()
+        for stream in self.proposed_streams:
+            notification_center.remove_observer(self, sender=stream)
+            stream.end()
+        if originator == 'remote' and self._invitation.sub_state != 'normal':
+            self._invitation.send_response(500)
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received='unknown'))
+        notification_center.post_notification('SIPSessionHadProposalFailure', self, TimestampedNotificationData(originator=originator, failure_reaon=error, streams=self.proposed_streams))
+        self.state = 'connected'
+        self.proposed_streams = None
+        self.greenlet = None
+
+    @run_in_twisted
+    def handle_notification(self, notification):
+        if self.greenlet is None:
+            self.greenlet = initial_greenlet = api.getcurrent()
+        else:
+            initial_greenlet = None
+        try:
+            handler = getattr(self, '_NH_%s' % notification.name, None)
+            if handler is not None:
+                handler(notification)
+        finally:
+            if self.greenlet is initial_greenlet:
+                self.greenlet = None
+
+    def _NH_SIPInvitationChangedState(self, notification):
+        notification_center = NotificationCenter()
+        if self.greenlet is not None and self.greenlet is not api.getcurrent():
+            if notification.data.state == 'disconnected' and notification.data.prev_state != 'disconnecting':
+                self._channel.send_exception(InvitationDidFailError(notification.sender, notification.data))
+            else:
+                self._channel.send(notification)
+        else:
+            if notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal':
+                self.state = 'received_proposal'
+                try:
+                    if self._invitation.sdp.proposed_remote.version > self._invitation.sdp.active_remote.version:
+                        proposed_remote_sdp = self._invitation.sdp.proposed_remote
+                        active_remote_sdp = self._invitation.sdp.active_remote
+                        for stream in self.streams:
+                            if not stream.validate_update(proposed_remote_sdp, stream.index):
+                                engine = Engine()
+                                self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Failed to update media stream index %d' % stream.index)])
+                                self.state = 'connected'
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                                return
+                        for attr in ('user', 'net_type', 'address_type', 'address'):
+                            if getattr(proposed_remote_sdp, attr) != getattr(active_remote_sdp, attr):
+                                engine = Engine()
+                                self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Difference in contents of o= line')])
+                                self.state = 'connected'
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                                return
+                        added_media_indexes = set()
+                        removed_media_indexes = set()
+                        for index, media_stream in enumerate(proposed_remote_sdp.media):
+                            if index >= len(active_remote_sdp.media):
+                                added_media_indexes.add(index)
+                            elif media_stream.media != active_remote_sdp.media[index].media:
+                                added_media_indexes.add(index)
+                                removed_media_indexes.add(index)
+                            elif not media_stream.port and active_remote_sdp.media[index].port:
+                                removed_media_indexes.add(index)
+                        removed_media_indexes.update(xrange(len(proposed_remote_sdp.media), len(active_remote_sdp.media)))
+                        if added_media_indexes and removed_media_indexes:
+                            engine = Engine()
+                            self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Both removing AND adding a media stream is currently not supported')])
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                        elif added_media_indexes:
+                            self.proposed_streams = []
+                            for index in added_media_indexes:
+                                media_stream = proposed_remote_sdp.media[index]
+                                if media_stream.port != 0:
+                                    stream = None
+                                    if media_stream.media == 'audio':
+                                        stream = AudioStream(self.account)
+                                    elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
+                                        stream = MSRPIncomingFileStream(self.account)
+                                    elif media_stream.media == 'message':
+                                        stream = MSRPChat(self.account)
+                                    if stream is not None and stream.validate_incoming(proposed_remote_sdp, index):
+                                        stream.index = index
+                                        self.proposed_streams.append(stream)
+                            if self.proposed_streams:
+                                notification_center.post_notification('SIPSessionGotProposal', sender=self, data=TimestampedNotificationData(originator='remote', streams=self.proposed_streams))
+                                return
+                            else:
+                                self._invitation.send_response(488)
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                        else:
+                            local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+                            local_sdp.version += 1
+                            removed_streams = [stream for stream in self.streams if stream.index in removed_media_indexes]
+                            prev_on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
+                            for stream in removed_streams:
+                                notification_center.remove_observer(self, sender=stream)
+                                stream.end()
+                                self.streams.remove(stream)
+                                local_sdp.media[stream.index].port = 0
+                            for stream in self.streams:
+                                local_sdp.media[stream.index] = stream.get_local_media(for_offer=False, on_hold=stream.on_hold_by_local)
+                            self._invitation.send_response(200, sdp=local_sdp)
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
+
+
+                            received_invitation_state = False
+                            received_sdp_update = False
+                            while not received_sdp_update or not received_invitation_state:
+                                notification = self._channel.wait()
+                                if notification.name == 'SIPInvitationGotSDPUpdate':
+                                    received_sdp_update = True
+                                    if notification.data.succeeded:
+                                        local_sdp = notification.data.local_sdp
+                                        remote_sdp = notification.data.remote_sdp
+                                        for stream in self.streams:
+                                            stream.update(local_sdp, remote_sdp, stream.index)
+                                elif notification.name == 'SIPInvitationChangedState':
+                                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                                        received_invitation_state = True
+                            on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
+                            if on_hold_streams != prev_on_hold_streams:
+                                hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
+                                notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='remote', on_hold=bool(on_hold_streams),
+                                                                      partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
+                            if removed_media_indexes:
+                                notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=removed_streams))
+                    else:
+                        self._invitation.send_response(200, sdp=self._invitation.sdp.active_local)
+                except InvitationDidFailError, e:
+                    self.greenlet = None
+                    self.state == 'connected'
+                    self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+                except SIPCoreError:
+                    raise #FIXME
+                else:
+                    self.state = 'connected'
+            elif notification.data.state == 'disconnected':
+                if self.state == 'incoming':
+                    self.state = 'terminated'
+                    if notification.data.originator == 'remote':
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Canceled', ack_received='unknown'))
+                        notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Canceled', failure_reason='user request'))
+                    else:
+                        # There must have been an error involved
+                        notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=0, reason=None, failure_reason=notification.data.disconnect_reason))
+                else:
+                    notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator=notification.data.originator))
+                    for stream in self.streams:
+                        notification_center.remove_observer(self, sender=stream)
+                        stream.end()
+                    self.state = 'terminated'
+                    if notification.data.originator == 'remote':
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator=notification.data.originator, method=notification.data.method, code=200, reason=sip_status_messages[200]))
+                    self.end_time = datetime.now()
+                    notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator=notification.data.originator, end_reason=notification.data.disconnect_reason))
+
+    def _NH_SIPInvitationGotSDPUpdate(self, notification):
+        if self.greenlet is not None:
+            self._channel.send(notification)
+
+    def _NH_MediaStreamDidInitialize(self, notification):
+        if self.greenlet is not None:
+            self._channel.send(notification)
+
+    def _NH_MediaStreamDidStart(self, notification):
+        if self.greenlet is not None:
+            self._channel.send(notification)
+
+    def _NH_MediaStreamDidFail(self, notification):
+        if self.greenlet is not None:
+            self._channel.send_exception(MediaStreamDidFailError(notification.sender, notification.data))
+
+
+class SessionManager(object):
     __metaclass__ = Singleton
     implements(IObserver)
 
     def __init__(self):
-        """Creates a new SessionManager object."""
-        self.inv_mapping = {}
-        self.audio_transport_mapping = {}
-        self.rtp_transport_mapping = {}
-        self.msrp_chat_mapping = {}
-        self.notification_center = NotificationCenter()
-        self._hold_tone = PersistentTones([(300, 0, 100), (0,0,100), (300, 0, 100)], 30)
-        self.notification_center.add_observer(self, "SIPInvitationChangedState")
-        self.notification_center.add_observer(self, "SIPInvitationGotSDPUpdate")
-        self.notification_center.add_observer(self, "RTPAudioStreamGotDTMF")
-        self.notification_center.add_observer(self, "RTPAudioTransportDidNotGetRTP")
-        self.notification_center.add_observer(self, "RTPTransportCompletedICENegotiation")
-        self.notification_center.add_observer(self, "MSRPChatGotMessage")
-        self.notification_center.add_observer(self, "MSRPChatDidDeliverMessage")
-        self.notification_center.add_observer(self, "MSRPChatDidNotDeliverMessage")
-        self.notification_center.add_observer(self, "MSRPChatDidStart")
-        self.notification_center.add_observer(self, "MSRPChatDidFail")
-        self.notification_center.add_observer(self, "MSRPChatDidEnd")
-        self.notification_center.add_observer(self, "SIPSessionGotHoldRequest")
-        self.notification_center.add_observer(self, "SIPSessionGotUnholdRequest")
-        self.notification_center.add_observer(self, "SIPSessionDidEnd")
+        self.sessions = []
 
-    @property
-    def sessions(self):
-        return self.inv_mapping.values()
+    def start(self):
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, 'SIPInvitationChangedState')
+        notification_center.add_observer(self, 'SIPSessionNewIncoming')
+        notification_center.add_observer(self, 'SIPSessionNewOutgoing')
+        notification_center.add_observer(self, 'SIPSessionDidFail')
+        notification_center.add_observer(self, 'SIPSessionDidEnd')
 
-    def _NH_SIPInvitationChangedState(self, inv, data):
-        if data.state == "INCOMING":
-            if "To" not in data.headers.iterkeys():
-                inv.end(404)
-                return
-            account = AccountManager().find_account(data.request_uri)
+    def handle_notification(self, notification):
+        if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'incoming':
+            account_manager = AccountManager()
+            account = account_manager.find_account(notification.data.request_uri)
             if account is None:
-                inv.end(404)
+                notification.sender.send_response(404)
                 return
-            proposed_media = list(set(("chat" if media.media == "message" else media.media) for media in inv.offered_remote_sdp.media if media.media in ["audio", "message"] and media.port != 0))
-            if len(proposed_media) == 0:
-                inv.end(415)
-                return
-            inv.update_local_contact_header(ContactHeader(account.contact[inv.transport]))
-            inv.respond_to_invite_provisionally(180)
+            notification.sender.send_response(100)
             session = Session(account)
-            session._inv = inv
-            session.remote_user_agent = data.headers.get("User-Agent", None)
-            self.inv_mapping[inv] = session
-            if [other_sess for other_sess in self.inv_mapping.itervalues() if (other_sess is not session and
-                                                                               other_sess.state in ["CALLING", "ESTABLISHED", "PROPOSING", "PROPOSED"] and
-                                                                               other_sess.has_audio and
-                                                                               not other_sess.on_hold_by_local)]:
-                session._ringtone = PersistentTones([(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
-            else:
-                ringtone = account.ringtone.inbound or SIPSimpleSettings().ringtone.inbound
-                if ringtone is not None:
-                    session._ringtone = SilenceableWaveFile(ringtone.path.normalized, ringtone.volume)
-            session.direction = "incoming"
-            session._change_state("INCOMING")
-            self.notification_center.post_notification("SIPSessionNewIncoming", session, TimestampedNotificationData(streams=proposed_media))
-        else:
-            session = self.inv_mapping.get(inv, None)
-            if session is None:
-                return
-            with session._lock:
-                prev_session_state = session.state
-                if data.state == "EARLY" and inv.is_outgoing and hasattr(data, "code") and data.code == 180:
-                    if session._ringtone is not None and not session._ringtone.is_active:
-                        session._start_ringtone()
-                    self.notification_center.post_notification("SIPSessionGotRingIndication", session, TimestampedNotificationData())
-                elif data.state == "CONNECTING":
-                    session.start_time = datetime.now()
-                    self.notification_center.post_notification("SIPSessionWillStart", session, TimestampedNotificationData())
-                    if inv.is_outgoing:
-                        session.remote_user_agent = data.headers.get("Server", None)
-                        if session.remote_user_agent is None:
-                            session.remote_user_agent = data.headers.get("User-Agent", None)
-                elif data.state == "CONFIRMED":
-                    session._change_state("ESTABLISHED")
-                    if data.prev_state == "CONNECTING":
-                        self.notification_center.post_notification("SIPSessionDidStart", session, TimestampedNotificationData())
-                    elif prev_session_state == "PROPOSING":
-                        failure_reason = None
-                        if data.code / 100 == 2:
-                            if session.proposed_audio:
-                                if session.audio_transport is None or not session.audio_transport.is_active:
-                                    failure_reason = "Audio SDP negotation failed"
-                            elif session.proposed_chat:
-                                if session.chat_transport is None:
-                                    failure_reason = "MSRP chat SDP negotation failed"
-                            if failure_reason is not None and session._sdpneg_failure_reason is not None:
-                                failure_reason += ": %s" % session._sdpneg_failure_reason
-                        else:
-                            failure_reason = "Proposal rejected with: %d %s" % (data.code, data.reason)
-                            local_media = [media.media for media in inv.active_local_sdp.media]
-                            if "audio" not in local_media:
-                                session._audio_sdp_index = -1
-                            if "message" not in local_media:
-                                session._chat_sdp_index = -1
-                        if failure_reason is None:
-                            self.notification_center.post_notification("SIPSessionAcceptedStreamProposal", session, TimestampedNotificationData(proposer="local"))
-                        else:
-                            session._cancel_media()
-                            self.notification_center.post_notification("SIPSessionRejectedStreamProposal", session, TimestampedNotificationData(proposer="local", reason=failure_reason))
-                    if session._queue:
-                        session._process_queue()
-                elif data.state == "REINVITED":
-                    current_remote_sdp = inv.active_remote_sdp
-                    proposed_remote_sdp = inv.offered_remote_sdp
-#                    if proposed_remote_sdp.version == current_remote_sdp.version:
-#                        if current_remote_sdp != proposed_remote_sdp:
-#                            inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Same version, but not identical SDP")})
-#                        else:
-#                            # same version, same SDP, respond with the already present local SDP
-#                            inv.set_offered_local_sdp(inv.get_active_local_sdp())
-#                            inv.respond_to_reinvite(200)
-#                    elif proposed_remote_sdp.version == current_remote_sdp.version + 1:
-                    if True:
-#                        for attr in ["user", "id", "net_type", "address_type", "address"]:
-                        for attr in ["user", "net_type", "address_type", "address"]:
-                            if getattr(proposed_remote_sdp, attr) != getattr(current_remote_sdp, attr):
-                                inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Difference in contents of o= line")})
-                                return
-                        if len(proposed_remote_sdp.media) < len(current_remote_sdp.media):
-                            inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Reduction in number of media streams")})
-                            return
-                        add_audio, remove_audio, add_chat, remove_chat = False, False, False, False
-                        for sdp_index, media in enumerate(proposed_remote_sdp.media):
-                            if sdp_index == session._audio_sdp_index and session.audio_transport is not None:
-                                if media.media != "audio":
-                                    inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, 'Media at index %d changed from "%s" to "%s"' % (sdp_index, "audio", media.media))})
-                                    return
-                                if media.port == 0:
-                                    remove_audio = True
-                            elif sdp_index == session._chat_sdp_index and session.chat_transport is not None:
-                                if media.media != "message":
-                                    inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, 'Media at index %d changed from "%s" to "%s"' % (sdp_index, "message", media.media))})
-                                    return
-                                if media.port == 0:
-                                    remove_chat = True
-                            elif media.media == "audio" and session.audio_transport is None and media.port != 0:
-                                add_audio = True
-                            elif media.media == "message" and session.chat_transport is None and media.port != 0:
-                                add_chat = True
-                        if any([add_audio, add_chat]):
-                            if any([remove_audio, remove_chat]):
-                                inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Both removing AND adding a media stream is currently not supported")})
-                                return
-                            inv.respond_to_reinvite(180)
-                            session._change_state("PROPOSED")
-                            self.notification_center.post_notification("SIPSessionGotStreamProposal", session, TimestampedNotificationData(streams=[stream for is_added, stream in zip([add_audio, add_chat], ["audio", "chat"]) if is_added], proposer="remote"))
-                        else:
-                            inv.offered_local_sdp = session._make_next_sdp(False)
-                            inv.respond_to_reinvite(200)
-#                    else:
-#                        inv.respond_to_reinvite(488, extra_headers={"Warning": '%03d %s "%s"' % (399, Engine().user_agent, "Version increase is not exactly one more")})
-                elif data.state == "DISCONNECTING":
-                    if data.prev_state == "CONFIRMED":
-                        try:
-                            Engine().play_tones([(800,400,100),(0,0,100),(400,0,200)])
-                        except SIPCoreError:
-                            pass
-                elif data.state == "DISCONNECTED":
-                    if data.prev_state == "CONFIRMED":
-                        try:
-                            Engine().play_tones([(800,400,100),(0,0,100),(400,0,200)])
-                        except SIPCoreError:
-                            pass
-                    if session.start_time is not None:
-                        session.stop_time = datetime.now()
-                    del self.inv_mapping[inv]
-                    if hasattr(data, "headers"):
-                        if session.remote_user_agent is None:
-                            session.remote_user_agent = data.headers.get("Server", None)
-                        if session.remote_user_agent is None:
-                            session.remote_user_agent = data.headers.get("User-Agent", None)
-                    try:
-                        session._stop_media()
-                    except SIPCoreError:
-                        traceback.print_exc()
-                    session._inv = None
-                    session._change_state("TERMINATED")
-                    if data.prev_state == "DISCONNECTING" or (hasattr(data, "code") and not hasattr(data, "headers")):
-                        originator = "local"
-                    else:
-                        originator = "remote"
-                    if prev_session_state != "TERMINATING" and data.prev_state != "CONFIRMED":
-                        failure_data = TimestampedNotificationData(originator=originator, code=0)
-                        if hasattr(data, "code"):
-                            failure_data.code = data.code
-                            if data.prev_state == "CONNECTING" and data.code == 408:
-                                failure_data.reason = "No ACK received"
-                            elif hasattr(data, "headers") and "Warning" in data.headers:
-                                failure_data.reason = "%s (%s)" % (data.reason, data.headers["Warning"][2])
-                            else:
-                                failure_data.reason = data.reason
-                        elif hasattr(data, "method") and data.method == "CANCEL":
-                                failure_data.reason = "Request cancelled"
-                        else:
-                            failure_data.reason = session._sdpneg_failure_reason
-                        self.notification_center.post_notification("SIPSessionDidFail", session, failure_data)
-                    self.notification_center.post_notification("SIPSessionDidEnd", session, TimestampedNotificationData(originator=originator))
-
-    def _NH_SIPInvitationGotSDPUpdate(self, inv, data):
-        session = self.inv_mapping.get(inv, None)
-        if session is None:
-            return
-        with session._lock:
-            if data.succeeded:
-                try:
-                    session._update_media(data.local_sdp, data.remote_sdp)
-                    session._sdpneg_failure_reason = None
-                except SIPCoreError, e:
-                    # TODO: find a better way to deal with this
-                    session._do_fail(e.args[0])
-            else:
-                session._cancel_media()
-                session._sdpneg_failure_reason = data.error
-
-    def _NH_RTPAudioStreamGotDTMF(self, audio_transport, data):
-        session = self.audio_transport_mapping.get(audio_transport, None)
-        if session is not None:
-            self.notification_center.post_notification("SIPSessionGotDTMF", session, data)
-
-    def _NH_RTPAudioTransportDidNotGetRTP(self, audio_transport, data):
-        session = self.audio_transport_mapping.get(audio_transport, None)
-        if session is not None:
-            self.notification_center.post_notification("SIPSessionGotNoAudio", session, data)
-
-    def _NH_RTPTransportCompletedICENegotiation(self, rtp_transport, data):
-        session = self.rtp_transport_mapping.get(rtp_transport, None)
-        if session is not None and data.succeeded and session.direction == "outgoing":
-            local_sdp = session._inv.active_local_sdp
-            if rtp_transport.local_rtp_address != local_sdp.connection.address:
-                session._queue.append("update_offer")
-                if len(session._queue) == 1 and session._inv.state == "CONFIRMED":
-                    session._process_queue()
-
-    def _NH_MSRPChatGotMessage(self, msrp_chat, data):
-        session = self.msrp_chat_mapping.get(msrp_chat, None)
-        if session is not None:
-            self.notification_center.post_notification("SIPSessionGotMessage", session, data)
-
-    def _NH_MSRPChatDidDeliverMessage(self, msrp_chat, data):
-        session = self.msrp_chat_mapping.get(msrp_chat, None)
-        if session is not None:
-            self.notification_center.post_notification("SIPSessionDidDeliverMessage", session, data)
-
-    def _NH_MSRPChatDidNotDeliverMessage(self, msrp_chat, data):
-        session = self.msrp_chat_mapping.get(msrp_chat, None)
-        if session is not None:
-            self.notification_center.post_notification("SIPSessionDidNotDeliverMessage", session, data)
-
-    def _NH_MSRPChatDidStart(self, msrp_chat, data):
-        session = self.msrp_chat_mapping.get(msrp_chat, None)
-        if session is not None:
-            with session._lock:
-                session.has_chat = True
-                self.notification_center.post_notification("SIPSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
-
-    def _NH_MSRPChatDidFail(self, msrp_chat, data):
-        session = self.msrp_chat_mapping.get(msrp_chat, None)
-        if session is not None:
-            with session._lock:
-                session.chat_transport = None
-                del self.msrp_chat_mapping[msrp_chat]
-                had_chat = session.has_chat
-                session.has_chat = False
-                if had_chat:
-                    self.notification_center.post_notification("SIPSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
-
-    def _NH_MSRPChatDidEnd(self, msrp_chat, data):
-        session = self.msrp_chat_mapping.get(msrp_chat, None)
-        if session is not None:
-            with session._lock:
-                session.chat_transport = None
-                del self.msrp_chat_mapping[msrp_chat]
-                session.has_chat = False
-                self.notification_center.post_notification("SIPSessionGotStreamUpdate", session, TimestampedNotificationData(streams=[key for key, val in dict(audio=session.has_audio, chat=session.has_chat).iteritems() if val]))
-
-    def _NH_SIPSessionGotHoldRequest(self, session, data):
-        if not self._hold_tone.is_active:
-            self._hold_tone.start()
-
-    def _NH_SIPSessionGotUnholdRequest(self, session, data):
-        self._check_hold_tone()
-
-    def _NH_SIPSessionDidEnd(self, session, data):
-        self._check_hold_tone()
-
-    def _check_hold_tone(self):
-        if self._hold_tone.is_active and not [sess for sess in self.inv_mapping.itervalues() if sess.on_hold]:
-            self._hold_tone.stop()
-            Engine().play_tones(self._hold_tone.tones)
+            session.init_incoming(notification.sender)
+        elif notification.name in ('SIPSessionNewIncoming', 'SIPSessionNewOutgoing'):
+            self.sessions.append(notification.sender)
+        elif notification.name in ('SIPSessionDidFail', 'SIPSessionDidEnd'):
+            self.sessions.remove(notification.sender)
 
 
-__all__ = ["SessionManager", "Session"]
