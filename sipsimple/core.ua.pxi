@@ -36,6 +36,7 @@ cdef class PJSIPUA:
     cdef int _rtp_port_index
     cdef pj_stun_config _stun_cfg
     cdef int _fatal_error
+    cdef set _incoming_events
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -44,12 +45,15 @@ cdef class PJSIPUA:
         _ua = <void *> self
         self._threads = []
         self._events = {}
+        self._incoming_events = set()
         self._sent_messages = set()
         self._max_timeout.sec = 0
         self._max_timeout.msec = 100
 
     def __init__(self, event_handler, *args, **kwargs):
         global _event_queue_lock
+        cdef str event
+        cdef list accept_types
         cdef int status
         cdef PJSTR message_method = PJSTR("MESSAGE")
         self._event_handler = event_handler
@@ -116,6 +120,10 @@ cdef class PJSIPUA:
         self._user_agent = PJSTR(kwargs["user_agent"])
         for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
+        for event in kwargs["incoming_events"]:
+            if event not in self._events.iterkeys():
+                raise ValueError('Event "%s" is not known' % event)
+            self._incoming_events.add(event)
         self.rtp_port_range = kwargs["rtp_port_range"]
         pj_stun_config_init(&self._stun_cfg, &self._caching_pool._obj.factory, 0,
                             pjmedia_endpt_get_ioqueue(self._pjmedia_endpoint._obj),
@@ -163,10 +171,27 @@ cdef class PJSIPUA:
         _str_to_pj_str(event, &event_pj)
         for index, accept_type in enumerate(accept_types):
             _str_to_pj_str(accept_type, &accept_types_pj[index])
-        status = pjsip_evsub_register_pkg(&self._event_module, &event_pj, 300, accept_cnt, accept_types_pj)
+        status = pjsip_evsub_register_pkg(&self._event_module, &event_pj, 3600, accept_cnt, accept_types_pj)
         if status != 0:
             raise PJSIPError("Could not register event package", status)
         self._events[event] = accept_types[:]
+
+    property incoming_events:
+
+        def __get__(self):
+            self._check_self()
+            return self._incoming_events.copy()
+
+    def add_incoming_event(self, str event):
+        if event not in self._events.iterkeys():
+            raise ValueError('Event "%s" is not known' % event)
+        self._incoming_events.add(event)
+
+    def remove_incoming_event(self, str event):
+        if event not in self._events.iterkeys():
+            raise ValueError('Event "%s" is not known' % event)
+        if event in self._incoming_events:
+            self._incoming_events.remove(event)
 
     cdef object _get_sound_devices(self, int is_output):
         cdef int i
@@ -436,10 +461,9 @@ cdef class PJSIPUA:
         self.dealloc()
 
     def dealloc(self):
-        global _ua, _event_queue_lock, _RTPTransport_stun_list
+        global _ua, _event_queue_lock
         if _ua == NULL:
             return
-        _RTPTransport_stun_list = []
         self._check_thread()
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)
@@ -503,15 +527,18 @@ cdef class PJSIPUA:
         return 0
 
     cdef int _cb_rx_request(self, pjsip_rx_data *rdata) except 0:
+        global _event_hdr_name
         cdef int status
         cdef pjsip_tx_data *tdata = NULL
         cdef pjsip_hdr_ptr_const hdr_add
         cdef Invitation inv
+        cdef IncomingSubscription sub
         cdef dict message_params
         cdef pj_str_t tsx_key
         cdef pjsip_via_hdr *top_via, *via
         cdef pjsip_transaction *tsx = NULL
         cdef unsigned int options = PJSIP_INV_SUPPORT_100REL
+        cdef pjsip_event_hdr *event_hdr
         cdef object method_name = _pj_str_to_str(rdata.msg_info.msg.line.req.method.name)
         # Temporarily trick PJSIP into believing the last Via header is actually the first
         if method_name != "ACK":
@@ -546,6 +573,15 @@ cdef class PJSIPUA:
             if status == 0:
                 inv = Invitation()
                 inv.init_incoming(self, rdata, options)
+        elif method_name == "SUBSCRIBE":
+            event_hdr = <pjsip_event_hdr *> pjsip_msg_find_hdr_by_name(rdata.msg_info.msg, &_event_hdr_name.pj_str, NULL)
+            if event_hdr == NULL or _pj_str_to_str(event_hdr.event_type) not in self._incoming_events:
+                status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 489, NULL, &tdata)
+                if status != 0:
+                    raise PJSIPError("Could not create response", status)
+            else:
+                sub = IncomingSubscription()
+                sub._init(self, rdata, _pj_str_to_str(event_hdr.event_type))
         elif method_name == "MESSAGE":
             message_params = dict()
             message_params["to_header"] = FrozenToHeader_create(rdata.msg_info.to_hdr)
@@ -709,3 +745,4 @@ cdef PJSIPUA _get_ua():
 cdef void *_ua = NULL
 cdef PJSTR _user_agent_hdr_name = PJSTR("User-Agent")
 cdef PJSTR _server_hdr_name = PJSTR("Server")
+cdef PJSTR _event_hdr_name = PJSTR("Event")

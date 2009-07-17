@@ -588,6 +588,7 @@ cdef extern from "pjsip.h":
         pjsip_method method
     struct pjsip_generic_int_hdr:
         int ivalue
+    ctypedef pjsip_generic_int_hdr pjsip_expires_hdr
     struct pjsip_fromto_hdr:
         pjsip_uri *uri
         pj_str_t tag
@@ -669,6 +670,7 @@ cdef extern from "pjsip.h":
     void *pjsip_msg_find_hdr_by_name(pjsip_msg *msg, pj_str_t *name, void *start)
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
     pjsip_contact_hdr *pjsip_contact_hdr_create(pj_pool_t *pool)
+    pjsip_expires_hdr *pjsip_expires_hdr_create(pj_pool_t *pool, int value)
     pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
     pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
     void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
@@ -789,6 +791,7 @@ cdef extern from "pjsip.h":
     int pjsip_tsx_create_uac(pjsip_module *tsx_user, pjsip_tx_data *tdata, pjsip_transaction **p_tsx)
     int pjsip_tsx_terminate(pjsip_transaction *tsx, int code)
     int pjsip_tsx_send_msg(pjsip_transaction *tsx, pjsip_tx_data *tdata)
+    pjsip_transaction *pjsip_rdata_get_tsx(pjsip_rx_data *rdata)
 
     # event
     enum pjsip_event_id_e:
@@ -853,6 +856,12 @@ cdef extern from "pjsip.h":
     int pjsip_dlg_create_uas(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg)
     int pjsip_dlg_terminate(pjsip_dialog *dlg)
     int pjsip_dlg_set_transport(pjsip_dialog *dlg, pjsip_tpselector *sel)
+    int pjsip_dlg_respond(pjsip_dialog *dlg, pjsip_rx_data *rdata, int st_code,
+                          pj_str_t *st_text, pjsip_hdr *hdr_list, pjsip_msg_body *body)
+    int pjsip_dlg_create_response(pjsip_dialog *dlg, pjsip_rx_data *rdata,
+                                  int st_code, pj_str_t *st_text, pjsip_tx_data **tdata)
+    int pjsip_dlg_modify_response(pjsip_dialog *dlg, pjsip_tx_data *tdata, int st_code, pj_str_t *st_text)
+    int pjsip_dlg_send_response(pjsip_dialog *dlg, pjsip_transaction *tsx, pjsip_tx_data *tdata)
 
 cdef extern from "pjsip-simple/evsub_msg.h":
     struct pjsip_event_hdr:
@@ -871,18 +880,27 @@ cdef extern from "pjsip_simple.h":
     # subscribe / notify
     enum:
         PJSIP_EVSUB_NO_EVENT_ID
+    enum pjsip_evsub_state:
+        PJSIP_EVSUB_STATE_PENDING
+        PJSIP_EVSUB_STATE_ACTIVE
+        PJSIP_EVSUB_STATE_TERMINATED
     struct pjsip_evsub
     struct pjsip_evsub_user:
         void on_evsub_state(pjsip_evsub *sub, pjsip_event *event) with gil
         void on_tsx_state(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil
+        void on_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text,
+                           pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
         void on_rx_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
                           pj_str_t **p_st_text,pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
         void on_client_refresh(pjsip_evsub *sub) with gil
+        void on_server_timeout(pjsip_evsub *sub) with gil
     int pjsip_evsub_init_module(pjsip_endpoint *endpt)
     int pjsip_evsub_register_pkg(pjsip_module *pkg_mod, pj_str_t *event_name,
                                  unsigned int expires, unsigned int accept_cnt, pj_str_t *accept)
     int pjsip_evsub_create_uac(pjsip_dialog *dlg, pjsip_evsub_user *user_cb,
                                pj_str_t *event, int option, pjsip_evsub **p_evsub)
+    int pjsip_evsub_create_uas(pjsip_dialog *dlg, pjsip_evsub_user *user_cb,
+                               pjsip_rx_data *rdata, unsigned int option, pjsip_evsub **p_evsub)
     int pjsip_evsub_initiate(pjsip_evsub *sub, void *method, unsigned int expires, pjsip_tx_data **p_tdata)
     int pjsip_evsub_send_request(pjsip_evsub *sub, pjsip_tx_data *tdata)
     int pjsip_evsub_terminate(pjsip_evsub *sub, int notify)
@@ -890,6 +908,8 @@ cdef extern from "pjsip_simple.h":
     void pjsip_evsub_set_mod_data(pjsip_evsub *sub, int mod_id, void *data)
     void *pjsip_evsub_get_mod_data(pjsip_evsub *sub, int mod_id)
     pjsip_hdr *pjsip_evsub_get_allow_events_hdr(pjsip_module *m)
+    int pjsip_evsub_notify(pjsip_evsub *sub, pjsip_evsub_state state,
+                           pj_str_t *state_str, pj_str_t *reason, pjsip_tx_data **p_tdata)
 
 cdef extern from "pjsip_ua.h":
 
@@ -1074,10 +1094,16 @@ cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) 
 # core.subscription
 
 cdef class Subscription
+cdef class IncomingSubscription
 cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
 cdef void _Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
                                     pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
 cdef void _Subscription_cb_refresh(pjsip_evsub *sub) with gil
+cdef void _IncomingSubscription_cb_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata,
+                                              int *p_st_code, pj_str_t **p_st_text,
+                                              pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+cdef void _IncomingSubscription_cb_server_timeout(pjsip_evsub *sub) with gil
+cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil
 
 # core.invitation
 

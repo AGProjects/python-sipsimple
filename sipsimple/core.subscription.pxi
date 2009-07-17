@@ -1,6 +1,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+import re
+
 # main class
 
 cdef class Subscription:
@@ -277,6 +279,303 @@ cdef class Subscription:
             pjsip_evsub_terminate(self._obj, 1)
 
 
+cdef class IncomingSubscription:
+    # instance attributes
+    cdef pjsip_evsub *_obj
+    cdef pjsip_dialog *_dlg
+    cdef readonly str state
+    cdef PJSTR _content_type
+    cdef PJSTR _content_subtype
+    cdef PJSTR _content
+    cdef pjsip_tx_data *_initial_response
+    cdef pjsip_transaction *_initial_tsx
+    cdef int _expires
+    cdef readonly str event
+    # TODO: add usefull attributes?
+
+    # properties
+
+    property content_type:
+
+        def __get__(self):
+            if self._content_type is None:
+                return None
+            return "%s/%s" % (self._content_type.str, self._content_subtype.str)
+
+    property content:
+
+        def __get__(self):
+            if self._content is None:
+                return None
+            return self._content.str
+
+    # public methods
+
+    def __cinit__(self):
+        self.state = None
+
+    def __dealloc__(self):
+        cdef PJSIPUA ua = self._get_ua(0)
+        if self._initial_response != NULL:
+            pjsip_dlg_send_response(self._dlg, self._initial_tsx, self._initial_response)
+            self._initial_response = NULL
+            self._initial_tsx = NULL
+        if self._obj != NULL:
+            pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
+            pjsip_evsub_terminate(self._obj, 1)
+            self._obj = NULL
+            self._dlg = NULL
+
+    def reject(self, int code):
+        cdef PJSIPUA ua = self._get_ua(1)
+        if self.state != "incoming":
+            SIPCoreInvalidStateError('Can only reject an incoming SUBSCRIBE in the "incoming" state, '+
+                                     'object is currently in the "%s" state' % self.state)
+        if code < 300 or code >= 700:
+            raise ValueError("Invalid negative SIP response code: %d" % code)
+        self._send_initial_response(code)
+        pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
+        pjsip_evsub_terminate(self._obj, 1)
+        self._obj = NULL
+        self._dlg = NULL
+        self._set_state("terminated")
+        _add_event("SIPIncomingSubscriptionDidEnd", dict(obj=self))
+
+    def accept_pending(self):
+        cdef int status
+        cdef PJSIPUA ua = self._get_ua(1)
+        if self.state != "incoming":
+            SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE as pending in the "incoming" state, '+
+                                     'object is currently in the "%s" state' % self.state)
+        self._send_initial_response(202)
+        self._set_state("pending")
+        self._send_notify()
+
+    def accept(self, str content_type=None, str content=None):
+        global _re_content_type
+        cdef object content_type_match
+        cdef PJSIPUA ua = self._get_ua(1)
+        if self.state != "incoming":
+            SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE in the "incoming" state, '+
+                                     'object is currently in the "%s" state' % self.state)
+        if (content_type is None and content is not None) or (content_type is not None and content is None):
+            raise ValueError('Either both or neither of the "content_type" and "content" arguments should be specified')
+        if content_type is not None:
+            content_type_match = _re_content_type.match(content_type)
+            if content_type_match is None:
+                raise ValueError("content_type parameter is not properly formatted")
+        if self.state == "incoming":
+            self._send_initial_response(200)
+        self._content_type = PJSTR(content_type_match.group(1))
+        self._content_subtype = PJSTR(content_type_match.group(2))
+        self._content = PJSTR(content)
+        self._set_state("active")
+        self._send_notify()
+
+    def push_content(self, str content_type not None, str content not None):
+        global _re_content_type
+        cdef object content_type_match
+        cdef PJSIPUA ua = self._get_ua(1)
+        if self.state != "active":
+            raise SIPCoreInvalidStateError('Can only push the content for a SUBSCRIBE session in the "active" state, '
+                                           'object is currently in the "%s" state' % self.state)
+        content_type_match = _re_content_type.match(content_type)
+        if content_type_match is None:
+            raise ValueError("content_type parameter is not properly formatted")
+        self._content_type = PJSTR(content_type_match.group(1))
+        self._content_subtype = PJSTR(content_type_match.group(2))
+        self._content = PJSTR(content)
+        self._send_notify()
+
+    def end(self, reason="noresource"):
+        cdef PJSIPUA ua = self._get_ua(0)
+        if self.state == "terminated":
+            return
+        if self.state not in ("pending", "active"):
+            SIPCoreInvalidStateError('Can only end an incoming SUBSCRIBE session in the "pending" or '+
+                                     '"active" state, object is currently in the "%s" state' % self.state)
+        self._terminate(ua, reason, 1)
+
+    # private methods
+
+    cdef int _set_state(self, str state) except -1:
+        cdef str prev_state
+        prev_state = self.state
+        self.state = state
+        if prev_state != state and prev_state is not None:
+            _add_event("SIPIncomingSubscriptionChangedState", dict(obj=self, prev_state=prev_state, state=state))
+
+    cdef PJSIPUA _get_ua(self, int raise_exception):
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            self._obj = NULL
+            self._dlg = NULL
+            self._initial_response = NULL
+            self._initial_tsx = NULL
+            self._set_state("terminated")
+            if raise_exception:
+                raise
+            else:
+                return None
+        else:
+            return ua
+
+    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata, str event) except -1:
+        global _incoming_subs_cb
+        cdef str transport
+        cdef FrozenSIPURI request_uri
+        cdef FrozenContactHeader contact_header
+        cdef PJSTR contact_header_str
+        cdef dict event_dict
+        cdef pjsip_expires_hdr *expires_header
+        expires_header = <pjsip_expires_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
+        if expires_header == NULL:
+            self._expires = 3600
+        else:
+            if expires_header.ivalue == 0:
+                status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 423, NULL, &self._initial_response)
+                if status != 0:
+                    raise PJSIPError("Could not create response", status)
+                status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, self._initial_response, NULL, NULL)
+                if status != 0:
+                    pjsip_tx_data_dec_ref(self._initial_response)
+                    raise PJSIPError("Could not send response", status)
+                return 0
+            else:
+                self._expires = min(expires_header.ivalue, 3600)
+        self._set_state("incoming")
+        self.event = event
+        event_dict = dict(obj=self)
+        _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+        transport = rdata.tp_info.transport.type_name.lower()
+        request_uri = event_dict["request_uri"]
+        if _is_valid_ip(pj_AF_INET(), request_uri.host):
+            contact_header = FrozenContactHeader(request_uri)
+        else:
+            contact_header = FrozenContactHeader(FrozenSIPURI(host=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
+                                                              user=request_uri.user, port=rdata.tp_info.transport.local_name.port,
+                                                              parameters=(frozendict(transport=transport) if transport != "udp" else frozendict())))
+        contact_header_str = PJSTR(contact_header.body)
+        status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_header_str.pj_str, &self._dlg)
+        if status != 0:
+            raise PJSIPError("Could not create dialog for incoming SUBSCRIBE", status)
+        self._initial_tsx = pjsip_rdata_get_tsx(rdata)
+        status = pjsip_evsub_create_uas(self._dlg, &_incoming_subs_cb, rdata, 0, &self._obj)
+        if status != 0:
+            pjsip_tsx_terminate(self._initial_tsx, 500)
+            self._initial_tsx = NULL
+            self._dlg = NULL
+            raise PJSIPError("Could not create incoming SUBSCRIBE session", status)
+        pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, <void *> self)
+        status = pjsip_dlg_create_response(self._dlg, rdata, 500, NULL, &self._initial_response)
+        if status != 0:
+            pjsip_tsx_terminate(self._initial_tsx, 500)
+            self._initial_tsx = NULL
+            raise PJSIPError("Could not create response for incoming SUBSCRIBE", status)
+        _add_event("SIPIncomingSubscriptionGotSubscribe", event_dict)
+        return 0
+
+    cdef int _send_initial_response(self, int code) except -1:
+        cdef int status
+        status = pjsip_dlg_modify_response(self._dlg, self._initial_response, code, NULL)
+        if status != 0:
+            raise PJSIPError("Could not modify response", status)
+        # pjsip_dlg_modify_response() increases ref count unncessarily
+        pjsip_tx_data_dec_ref(self._initial_response)
+        if code / 100 == 2:
+            pjsip_msg_add_hdr(self._initial_response.msg,
+                              <pjsip_hdr *> pjsip_expires_hdr_create(self._initial_response.pool, self._expires))
+        status = pjsip_dlg_send_response(self._dlg, self._initial_tsx, self._initial_response)
+        if status != 0:
+            raise PJSIPError("Could not send response", status)
+        self._initial_response = NULL
+        self._initial_tsx = NULL
+
+    cdef int _send_notify(self, str reason=None) except -1:
+        cdef pjsip_evsub_state state
+        cdef pj_str_t reason_pj
+        cdef pj_str_t *reason_p
+        cdef pjsip_tx_data *tdata
+        cdef int status
+        if reason is None:
+            reason_p = NULL
+        else:
+            _str_to_pj_str(reason, &reason_pj)
+            reason_p = &reason_pj
+        if self.state == "pending":
+            state = PJSIP_EVSUB_STATE_PENDING
+        elif self.state == "active":
+            state = PJSIP_EVSUB_STATE_ACTIVE
+        else:
+            state = PJSIP_EVSUB_STATE_TERMINATED
+        status = pjsip_evsub_notify(self._obj, state, NULL, reason_p, &tdata)
+        if status != 0:
+            raise PJSIPError("Could not create NOTIFY request", status)
+        if self.state == "active":
+            tdata.msg.body = pjsip_msg_body_create(tdata.pool, &self._content_type.pj_str,
+                                                   &self._content_subtype.pj_str, &self._content.pj_str)
+        status = pjsip_evsub_send_request(self._obj, tdata)
+        if status != 0:
+            pjsip_tx_data_dec_ref(tdata)
+            raise PJSIPError("Could not send NOTIFY request", status)
+        event_dict = dict(obj=self)
+        _pjsip_msg_to_dict(tdata.msg, event_dict)
+        _add_event("SIPIncomingSubscriptionSentNotify", event_dict)
+        return 0
+
+    cdef int _terminate(self, PJSIPUA ua, str reason, int do_cleanup) except -1:
+        cdef int do_terminate
+        do_terminate = 0
+        self._set_state("terminated")
+        try:
+            self._send_notify(reason)
+        except SIPCoreError, e:
+            _add_event("SIPIncomingSubscriptionNotifyDidFail", dict(obj=self, code=0, reason=e.args[0]))
+            do_terminate = 1
+        if do_cleanup:
+            pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
+        if do_terminate:
+            pjsip_evsub_terminate(self._obj, 1)
+        if do_cleanup:
+            self._obj = NULL
+            self._dlg = NULL
+        _add_event("SIPIncomingSubscriptionDidEnd", dict(obj=self))
+
+    # callback methods
+
+    cdef int _cb_rx_refresh(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+        cdef pjsip_expires_hdr *expires_header
+        cdef int expires
+        cdef dict event_dict
+        event_dict = dict(obj=self)
+        _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+        expires_header = <pjsip_expires_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
+        if expires_header == NULL:
+            self._expires = 3600
+        else:
+            if expires_header.ivalue == 0:
+                _add_event("SIPIncomingSubscriptionGotUnsubscribe", event_dict)
+                # cleanup will be done by _cb_tsx
+                self._terminate(ua, None, 0)
+                return 200
+            else:
+                self._expires = min(expires_header.ivalue, 3600)
+        _add_event("SIPIncomingSubscriptionGotRefreshingSubscribe", event_dict)
+        try:
+            self._send_notify()
+        except SIPCoreError, e:
+            _add_event("SIPIncomingSubscriptionNotifyDidFail", dict(obj=self, code=0, reason=e.args[0]))
+        if self.state == "active":
+            return 200
+        else:
+            return 202
+
+    cdef int _cb_server_timeout(self, PJSIPUA ua) except -1:
+        self._terminate(ua, "timeout", 1)
+
+
 # callback functions
 
 cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
@@ -375,6 +674,88 @@ cdef void _Subscription_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *en
     except:
         ua._handle_exception(1)
 
+cdef void _IncomingSubscription_cb_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata,
+                                              int *p_st_code, pj_str_t **p_st_text,
+                                              pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
+    cdef void *subscription_void
+    cdef IncomingSubscription subscription
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        subscription_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if subscription_void == NULL:
+            p_st_code[0] = 481
+            return
+        subscription = <object> subscription_void
+        p_st_code[0] = subscription._cb_rx_refresh(ua, rdata)
+    except:
+        ua._handle_exception(1)
+
+cdef void _IncomingSubscription_cb_server_timeout(pjsip_evsub *sub) with gil:
+    cdef void *subscription_void
+    cdef IncomingSubscription subscription
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        subscription_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if subscription_void == NULL:
+            return
+        subscription = <object> subscription_void
+        subscription._cb_server_timeout(ua)
+    except:
+        ua._handle_exception(1)
+
+cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil:
+    cdef void *subscription_void
+    cdef IncomingSubscription subscription
+    cdef dict event_dict
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        subscription_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if subscription_void == NULL:
+            return
+        subscription = <object> subscription_void
+        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY" and
+            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED):
+            event_dict = dict(obj=subscription)
+            if (event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and
+                event.body.tsx_state.tsx.status_code / 100 == 2):
+                _pjsip_msg_to_dict(event.body.tsx_state.src.rdata.msg_info.msg, event_dict)
+                _add_event("SIPIncomingSubscriptionNotifyDidSucceed", event_dict)
+            else:
+                if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                    _pjsip_msg_to_dict(event.body.tsx_state.src.rdata.msg_info.msg, event_dict)
+                else:
+                    event_dict["code"] = event.body.tsx_state.tsx.status_code
+                    event_dict["reason"] = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
+                _add_event("SIPIncomingSubscriptionNotifyDidFail", event_dict)
+        elif (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAS and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
+            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED and
+            event.body.tsx_state.type == PJSIP_EVENT_TX_MSG):
+            event_dict = dict(obj=subscription)
+            _pjsip_msg_to_dict(event.body.tsx_state.src.tdata.msg, event_dict)
+            _add_event("SIPIncomingSubscriptionAnsweredSubscribe", event_dict)
+            if subscription.state == "terminated" and subscription._obj != NULL:
+                pjsip_evsub_set_mod_data(subscription._obj, ua._event_module.id, NULL)
+                subscription._obj = NULL
+                subscription._dlg = NULL
+    except:
+        ua._handle_exception(1)
+
 # globals
 
 cdef pjsip_evsub_user _subs_cb
@@ -382,3 +763,8 @@ _subs_cb.on_evsub_state = _Subscription_cb_state
 _subs_cb.on_tsx_state = _Subscription_cb_tsx
 _subs_cb.on_rx_notify = _Subscription_cb_notify
 _subs_cb.on_client_refresh = _Subscription_cb_refresh
+cdef pjsip_evsub_user _incoming_subs_cb
+_incoming_subs_cb.on_rx_refresh = _IncomingSubscription_cb_rx_refresh
+_incoming_subs_cb.on_server_timeout = _IncomingSubscription_cb_server_timeout
+_incoming_subs_cb.on_tsx_state = _IncomingSubscription_cb_tsx
+_re_content_type = re.compile("^([a-zA-Z0-9\-.!%*_+`'~]+)\/([a-zA-Z0-9\-.!%*_+`'~]+)$")

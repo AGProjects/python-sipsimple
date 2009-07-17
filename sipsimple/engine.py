@@ -36,7 +36,8 @@ class Engine(Thread):
                              "events": {"presence": ["application/pidf+xml"],
                                         "message-summary": ["application/simple-message-summary"],
                                         "presence.winfo": ["application/watcherinfo+xml"],
-                                        "xcap-diff": ["application/xcap-diff+xml"]}}
+                                        "xcap-diff": ["application/xcap-diff+xml"]},
+                             "incoming_events": []}
 
     def __init__(self):
         self.notification_center = NotificationCenter()
