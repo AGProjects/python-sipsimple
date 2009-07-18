@@ -24,7 +24,6 @@ class AudioSettings(SettingsGroup):
     recordings_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32)
     silent = Setting(type=bool, default=False)
-    playback_dtmf = Setting(type=bool, default=True)
     codec_list = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
 
 
