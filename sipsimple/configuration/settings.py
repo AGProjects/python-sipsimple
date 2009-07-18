@@ -54,6 +54,7 @@ class LoggingSettings(SettingsGroup):
     trace_pjsip = Setting(type=bool, default=False)
     trace_msrp = Setting(type=bool, default=False)
     trace_xcap = Setting(type=bool, default=False)
+    trace_notifications = Setting(type=bool, default=False)
     pjsip_level = Setting(type=NonNegativeInteger, default=5)
 
 
