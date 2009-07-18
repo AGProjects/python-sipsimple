@@ -40,13 +40,13 @@ class ContactURI(SIPAddress):
 class AudioSettings(SettingsGroup):
     codec_list = Setting(type=AudioCodecs, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
-    use_srtp_without_tls = Setting(type=bool, default=False)
+    use_srtp_without_tls = Setting(type=bool, default=True)
 
 
-class DialogSettings(SettingsGroup):
+class DialogEventSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
-
+    publish_interval = Setting(type=NonNegativeInteger, default=600)
 
 class ICESettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
@@ -55,7 +55,7 @@ class ICESettings(SettingsGroup):
 
 
 class MessageSummarySettings(SettingsGroup):
-    enabled = Setting(type=bool, default=False)
+    enabled = Setting(type=bool, default=True)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
     voicemail_uri = Setting(type=str, default=None, nillable=True)
 
@@ -116,7 +116,7 @@ class Account(SettingsObject):
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
 
     audio = AudioSettings
-    dialog = DialogSettings
+    dialog_event = DialogEventSettings
     ice = ICESettings
     message_summary = MessageSummarySettings
     msrp = MSRPSettings
