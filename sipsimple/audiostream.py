@@ -282,10 +282,10 @@ class AudioStream(NotificationHandler):
             try:
                 self._audio_rec.start()
             except SIPCoreError, e:
+                file_name = self._audio_rec.file_name
                 self._audio_rec = None
                 self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
-                                                           TimestampedNotificationData(file_name=
-                                                                                       self._audio_rec.file_name,
+                                                           TimestampedNotificationData(file_name=file_name,
                                                                                        reason=e.args[0]))
                 return
             self.notification_center.post_notification("AudioStreamDidStartRecordingAudio", self,
@@ -304,9 +304,10 @@ class AudioStream(NotificationHandler):
         try:
             self._audio_rec.stop()
         finally:
+            file_name = self._audio_rec.file_name
             self._audio_rec = None
             self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
-                                                       TimestampedNotificationData(file_name=self._audio_rec.file_name))
+                                                       TimestampedNotificationData(file_name=file_name))
 
     def validate_update(self, remote_sdp, stream_index):
         with self._lock:
