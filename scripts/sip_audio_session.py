@@ -160,7 +160,7 @@ class SIPAudioApplication(SIPApplication):
 
     def print_help(self):
         message  = 'Available control keys:\n'
-        message += '  t: toggle SIP trace on the console\n'
+        message += '  s: toggle SIP trace on the console\n'
         message += '  j: toggle PJSIP trace on the console\n'
         message += '  n: toggle notifications trace on the console\n'
         message += '  p: toggle printing RTP statistics on the console\n'
@@ -381,7 +381,7 @@ class SIPAudioApplication(SIPApplication):
         elif notification.data.input == 'n':
             self.logger.notifications_to_stdout = not self.logger.notifications_to_stdout
             self.output.put('Notification tracing to console is now %s.\n' % ('activated' if self.logger.notifications_to_stdout else 'deactivated'))
-        elif notification.data.input == 't':
+        elif notification.data.input == 's':
             self.logger.sip_to_stdout = not self.logger.sip_to_stdout
             engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
             self.output.put('SIP tracing to console is now %s\n' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
