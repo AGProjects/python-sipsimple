@@ -89,23 +89,14 @@ class SIPApplication(object):
                     )
         
         alert_device = settings.audio.alert_device if not settings.audio.silent else None
-        if alert_device not in engine.output_devices:
-            if 'default' in engine.output_devices:
-                alert_device = 'default'
-            else:
-                alert_device = None
+        if alert_device not in (None, 'default') and alert_device not in engine.output_devices:
+            alert_device = 'default'
         input_device = settings.audio.input_device if not settings.audio.silent else None
-        if input_device not in engine.input_devices:
-            if 'default' in engine.input_devices:
-                input_device = 'default'
-            else:
-                input_device = None
+        if input_device not in (None, 'default') and input_device not in engine.input_devices:
+            input_device = 'default'
         output_device = settings.audio.output_device if not settings.audio.silent else None
-        if output_device not in engine.output_devices:
-            if 'default' in engine.output_devices:
-                output_device = 'default'
-            else:
-                output_device = None
+        if output_device not in (None, 'default') and output_device not in engine.output_devices:
+            output_device = 'default'
         self.voice_conference_bridge = ConferenceBridge(input_device, output_device, settings.audio.sample_rate, settings.audio.tail_length)
         self.alert_conference_bridge = ConferenceBridge(None, alert_device, settings.audio.sample_rate, settings.audio.tail_length)
         
