@@ -209,17 +209,17 @@ class AudioStream(NotificationHandler):
             self.conference_bridge.connect_slots(0, self._audio_transport.slot)
             self.conference_bridge.connect_slots(self._audio_transport.slot, 0)
         if not was_on_hold_by_local and self.on_hold_by_local:
-            self.notification_center.post_notification("AudioStreamGotHoldRequest", self,
-                                                       TimestampedNotificationData(originator="local"))
+            self.notification_center.post_notification("AudioStreamDidChangeHoldState", self,
+                                                       TimestampedNotificationData(originator="local", on_hold=True))
         if was_on_hold_by_local and not self.on_hold_by_local:
-            self.notification_center.post_notification("AudioStreamGotUnholdRequest", self,
-                                                       TimestampedNotificationData(originator="local"))
+            self.notification_center.post_notification("AudioStreamDidChangeHoldState", self,
+                                                       TimestampedNotificationData(originator="local", on_hold=False))
         if not was_on_hold_by_remote and self.on_hold_by_remote:
-            self.notification_center.post_notification("AudioStreamGotHoldRequest", self,
-                                                       TimestampedNotificationData(originator="remote"))
+            self.notification_center.post_notification("AudioStreamDidChangeHoldState", self,
+                                                       TimestampedNotificationData(originator="remote", on_hold=True))
         if was_on_hold_by_remote and not self.on_hold_by_remote:
-            self.notification_center.post_notification("AudioStreamGotUnholdRequest", self,
-                                                       TimestampedNotificationData(originator="remote"))
+            self.notification_center.post_notification("AudioStreamDidChangeHoldState", self,
+                                                       TimestampedNotificationData(originator="remote", on_hold=False))
         if self._audio_rec is not None:
             self._check_recording()
 
