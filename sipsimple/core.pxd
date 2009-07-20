@@ -974,6 +974,7 @@ cdef class ConferenceBridge
 cdef class ToneGenerator
 cdef class RecordingWaveFile
 cdef class WaveFile
+cdef int _ConferenceBridge_stop_sound_post(object obj) except -1
 cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 

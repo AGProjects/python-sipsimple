@@ -319,7 +319,7 @@ cdef class ConferenceBridge:
         self.used_slot_count -= 1
         if (self.used_slot_count == 0 and self._disconnect_when_idle and
             not (self.input_device is None and self.output_device is None)):
-            self._stop_sound_device(ua)
+            _add_post_handler(_ConferenceBridge_stop_sound_post, self)
         return 0
 
 
@@ -720,6 +720,12 @@ cdef class WaveFile:
 
 
 # callback functions
+
+cdef int _ConferenceBridge_stop_sound_post(object obj) except -1:
+    cdef ConferenceBridge conf_bridge = obj
+    cdef PJSIPUA ua = conf_bridge._get_ua(0)
+    if conf_bridge.used_slot_count == 0:
+        conf_bridge._stop_sound_device(ua)
 
 cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef PJSIPUA ua
