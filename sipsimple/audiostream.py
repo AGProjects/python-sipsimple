@@ -73,6 +73,10 @@ class AudioStream(NotificationHandler):
     def srtp_active(self):
         return self._rtp_transport.srtp_active if self._rtp_transport is not None else False
 
+    @property
+    def statistics(self):
+        return self._audio_transport.statistics if self._audio_transport is not None else None
+
     def validate_incoming(self, remote_sdp, stream_index):
         with self._lock:
             # TODO: actually validate the SDP
