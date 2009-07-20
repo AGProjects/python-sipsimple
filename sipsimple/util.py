@@ -7,8 +7,7 @@ import errno
 import os
 import socket
 from datetime import datetime
-from threading import Timer
-from thread import allocate_lock
+from threading import Lock, Timer
 
 from zope.interface import implements
 from application.notification import IObserver, Any, NotificationCenter, NotificationData
@@ -16,7 +15,7 @@ from application.python.decorator import decorator, preserve_signature
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
-from sipsimple.core import WaveFile, SIPCoreError, SIPURI
+from sipsimple.core import SIPCoreError, SIPURI, ToneGenerator, WaveFile
 from sipsimple.engine import Engine
 
 
@@ -27,28 +26,71 @@ class TimestampedNotificationData(NotificationData):
         NotificationData.__init__(self, **kwargs)
 
 
-class SilenceableWaveFile(WaveFile):
+class SilenceableWaveFile(object):
+    implements(IObserver)
 
-    def __init__(self, file_name, volume, force_playback=False):
-        WaveFile.__init__(self, file_name)
+    def __init__(self, conference_bridge, file_name, volume=100, loop_count=1, pause_time=0, force_playback=False):
+        self.conference_bridge = conference_bridge
+        self.file_name = file_name
         self.volume = volume
         self.force_playback = force_playback
+        self.loop_count = loop_count
+        self.pause_time = 0
+        self._current_loop = 0
+        self._lock = Lock()
+        self._state = 'stopped'
+        self._wave_file = None
         if not os.path.exists(file_name):
             raise ValueError("File not found: %s" % file_name)
 
-    def start(self, *args, **kwargs):
+    def start(self):
+        with self._lock:
+            if self._state != 'stopped':
+                return
+            self._state = 'started'
+        self._stopped = False
+        self._current_loop = 0
         from sipsimple.configuration.settings import SIPSimpleSettings
         if self.force_playback or not SIPSimpleSettings().audio.silent:
-            WaveFile.start(self, level=self.volume, *args, **kwargs)
+            self._play_wave()
+
+    def stop(self):
+        with self._lock:
+            if self._state != 'started':
+                return
+            self._state = 'stopped'
+        if self._wave_file is not None:
+            self._wave_file.stop()
+
+    def _play_wave(self):
+        if self._state == 'stopped':
+            return
+        self._current_loop += 1
+        notification_center = NotificationCenter()
+        self._wave_file = WaveFile(self.conference_bridge, self.file_name)
+        notification_center.add_observer(self, sender=self._wave_file)
+        self._wave_file.volume = self.volume
+        self._wave_file.start()
+        self.conference_bridge.connect_slots(self._wave_file.slot, 0)
+
+    def handle_notification(self, notification):
+        if notification.name == 'WaveFileDidFinishPlaying':
+            notification_center = NotificationCenter()
+            notification_center.remove_observer(self, sender=self._wave_file)
+            if self.loop_count == 0 or self._current_loop < self.loop_count:
+                self.timer = Timer(self.pause_time, self._play_wave)
+                self.timer.setDaemon(True)
+                self.timer.start()
 
 
 class PersistentTones(object):
 
-    def __init__(self, tones, interval):
+    def __init__(self, conference_bridge, tones, interval):
         self.tones = tones
         self.interval = interval
+        self._lock = Lock()
         self._timer = None
-        self._lock = allocate_lock()
+        self._tone_generator = ToneGenerator(conference_bridge)
 
     @property
     def is_active(self):
@@ -58,7 +100,7 @@ class PersistentTones(object):
     def _play_tones(self):
         with self._lock:
             try:
-                Engine().play_tones(self.tones)
+                self._tone_generator.play_tones(self.tones)
             except SIPCoreError:
                 pass
             self._timer = Timer(self.interval, self._play_tones)
@@ -67,6 +109,9 @@ class PersistentTones(object):
 
     def start(self, *args, **kwargs):
         if self._timer is None:
+            if not self._tone_generator.is_active:
+                self._tone_generator.start()
+                self._tone_generator.conference_bridge.connect_slots(self._tone_generator.slot, 0)
             self._play_tones()
 
     def stop(self):
@@ -74,6 +119,8 @@ class PersistentTones(object):
             if self._timer is not None:
                 self._timer.cancel()
                 self._timer = None
+                if self._tone_generator.is_active:
+                    self._tone_generator.stop()
 
 
 class NotificationHandler(object):
