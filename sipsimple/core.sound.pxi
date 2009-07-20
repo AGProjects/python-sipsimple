@@ -686,7 +686,7 @@ cdef class WaveFile:
             if self._volume != 100:
                 self.volume = self._volume
         except:
-            self.stop(ua, 0)
+            self._stop(ua, 0)
             raise
 
     cdef int _stop(self, PJSIPUA ua, int notify) except -1:
