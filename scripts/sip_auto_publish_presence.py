@@ -171,7 +171,6 @@ class AutoPublicationApplication(object):
             ec_tail_length=settings.audio.tail_length,
             user_agent=settings.user_agent,
             sample_rate=settings.audio.sample_rate,
-            playback_dtmf=settings.audio.playback_dtmf,
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
             trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
             log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
