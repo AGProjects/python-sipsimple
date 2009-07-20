@@ -46,6 +46,10 @@ class AudioStream(NotificationHandler):
                 return self._audio_rec.file_name
 
     @property
+    def recording_active(self):
+        return self._audio_rec is not None
+
+    @property
     def codec(self):
         return self._audio_transport.codec if self._audio_transport is not None else None
 
