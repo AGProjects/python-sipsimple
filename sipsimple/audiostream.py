@@ -38,7 +38,7 @@ class AudioStream(NotificationHandler):
         return self.on_hold_by_local or self.on_hold_by_remote
 
     @property
-    def audio_recording_file_name(self):
+    def recording_file_name(self):
         with self._lock:
             if self._audio_rec is None:
                 return None
@@ -257,10 +257,10 @@ class AudioStream(NotificationHandler):
         self.notification_center.post_notification("AudioStreamGotDTMF", self,
                                                    NotificationData(timestamp=data.timestamp, digit=data.digit))
 
-    def start_recording_audio(self, file_name=None):
+    def start_recording(self, file_name=None):
         with self._lock:
             if self.state != "ESTABLISHED":
-                raise RuntimeError("AudioStream.start_recording_audio() may only be called in the ESTABLISHED state")
+                raise RuntimeError("AudioStream.start_recording() may only be called in the ESTABLISHED state")
             if self._audio_rec is not None:
                 raise RuntimeError("Already recording audio to a file")
             settings = SIPSimpleSettings()
@@ -273,7 +273,7 @@ class AudioStream(NotificationHandler):
             self._audio_rec = RecordingWaveFile(self.conference_bridge, os.path.join(recording_path, file_name))
             self._check_recording()
 
-    def stop_recording_audio(self):
+    def stop_recording(self):
         with self._lock:
             if self._audio_rec is None:
                 raise RuntimeError("Not recording any audio")
