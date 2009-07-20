@@ -507,8 +507,6 @@ class AccountManager(object):
         self.state = 'starting'
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='SIPAccountDidActivate')
-        notification_center.add_observer(self, name='SIPAccountDidDeactivate')
         notification_center.add_observer(self, name='SIPAccountRegistrationDidEnd')
         notification_center.add_observer(self, name='SIPAccountRegistrationDidFail')
         notification_center.post_notification('SIPAccountManagerWillStart', sender=self)
@@ -564,21 +562,17 @@ class AccountManager(object):
         if handler is not None:
             handler(notification)
 
-    def _NH_SIPAccountDidActivate(self, notification):
-        if self.state != 'started':
-            return
-        settings = SIPSimpleSettings()
-        if settings.default_account is None:
-            self.default_account = notification.sender
-
-    def _NH_SIPAccountDidDeactivate(self, notification):
-        if self.state != 'started':
-            return
-        if self.default_account is notification.sender:
-            try:
-                self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
-            except StopIteration:
-                self.default_account = None
+    def _NH_CFGSettingsObjectDidChange(self, notification):
+        if isinstance(notification.sender, Account):
+            account = notification.sender
+            if 'enabled' in notification.data.modified:
+                if account.enabled and self.default_account is None:
+                    self.default_account = account
+                elif not account.enabled and self.default_account is account:
+                    try:
+                        self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+                    except StopIteration:
+                        self.default_account = None
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
         if self.state == 'stopping':
@@ -595,6 +589,7 @@ class AccountManager(object):
         """
         self.accounts[account.id] = account
         notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
         notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=NotificationData(account=account))
 
     def _internal_remove_account(self, account):
@@ -603,6 +598,7 @@ class AccountManager(object):
         """
         del self.accounts[account.id]
         notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
         notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=NotificationData(account=account))
 
     def _get_default_account(self):
