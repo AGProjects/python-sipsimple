@@ -342,6 +342,20 @@ class SIPAudioApplication(SIPApplication):
             if self.active_session.remote_identity.display_name:
                 identity = '"%s" <%s>' % (self.active_session.remote_identity.display_name, identity)
             self.output.put('Active audio session: "%s" (%d/%d)\n' % (identity, self.started_sessions.index(self.active_session)+1, len(self.started_sessions)))
+        elif notification.data.input in ('<', ','):
+            new_tail_length = self.voice_conference_bridge.ec_tail_length - 10
+            if new_tail_length < 0:
+                new_tail_length = 0
+            if new_tail_length != self.voice_conference_bridge.ec_tail_length:
+                self.voice_conference_bridge.set_sound_devices(self.voice_conference_bridge.input_device, self.voice_conference_bridge.output_device, new_tail_length)
+            self.output.put('Set echo cancellation tail length to %d ms\n' % self.voice_conference_bridge.ec_tail_length)
+        elif notification.data.input in ('>', '.'):
+            new_tail_length = self.voice_conference_bridge.ec_tail_length + 10
+            if new_tail_length > 500:
+                new_tail_length = 500
+            if new_tail_length != self.voice_conference_bridge.ec_tail_length:
+                self.voice_conference_bridge.set_sound_devices(self.voice_conference_bridge.input_device, self.voice_conference_bridge.output_device, new_tail_length)
+            self.output.put('Set echo cancellation tail length to %d ms\n' % self.voice_conference_bridge.ec_tail_length)
         elif notification.data.input == 'r':
             if self.active_session is None or not self.active_session.streams:
                 return
