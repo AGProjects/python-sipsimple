@@ -163,5 +163,6 @@ cd..
 Build and install the library system wide:
 
 cd python-sipsimple
-sudo python setup.py build_ext --pjsip-clean-compile install
+sudo python setup.py build_ext --pjsip-clean-compile
+sudo python setup.py install
 
