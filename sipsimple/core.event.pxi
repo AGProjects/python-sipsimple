@@ -137,6 +137,26 @@ cdef int _add_handler(int func(object obj) except -1, object obj, _handler_queue
         queue.tail = handler
     return 0
 
+cdef int _remove_handler(object obj, _handler_queue *queue) except -1:
+    cdef _handler *handler, *handler_free
+    handler = queue.head
+    while handler != NULL:
+        if handler.obj == <void *> obj:
+            if handler.prev != NULL:
+                handler.prev.next = handler.next
+            if handler.next != NULL:
+                handler.next.prev = handler.prev
+            if queue.head == handler:
+                queue.head = handler.next
+            if queue.tail == handler:
+                queue.tail = handler.prev
+            handler_free = handler
+            handler = handler.next
+            free(handler_free)
+        else:
+            handler = handler.next
+    return 0
+
 cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1:
     cdef _handler *handler, *handler_free
     handler = queue.head

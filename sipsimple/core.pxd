@@ -1084,6 +1084,7 @@ cdef void _cb_log(int level, char_ptr_const data, int len)
 cdef int _add_event(object event_name, dict params) except -1
 cdef list _get_clear_event_queue()
 cdef int _add_handler(int func(object obj) except -1, object obj, _handler_queue *queue) except -1
+cdef int _remove_handler(object obj, _handler_queue *queue) except -1
 cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1
 
 # core.request
