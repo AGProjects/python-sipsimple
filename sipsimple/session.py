@@ -132,9 +132,14 @@ class Session(object):
 
             local_ip = settings.local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
+            stun_addresses = []
             for index, stream in enumerate(self.proposed_streams):
                 stream.index = index
-                local_sdp.media.append(stream.get_local_media(for_offer=True, on_hold=False))
+                media = stream.get_local_media(for_offer=True, on_hold=False)
+                local_sdp.media.append(media)
+                stun_addresses.extend((attr.value.split(' ', 5)[4] for attr in media.attributes if attr.name == 'candidate' and attr.value.startswith('S ')))
+            if stun_addresses:
+                local_sdp.connection.address = stun_addresses[0]
             self._invitation.send_invite(FromHeader(self.account.uri, self.account.display_name), to_header, RouteHeader(self.route.get_uri()),
                                          ContactHeader(self.account.contact[self.route.transport]), local_sdp, self.account.credentials)
             while True:
@@ -280,19 +285,26 @@ class Session(object):
 
             local_ip = settings.local_ip.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
+            stun_addresses = []
             if self._invitation.sdp.proposed_remote:
                 stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
                 for index, media in enumerate(self._invitation.sdp.proposed_remote.media):
                     stream = stream_map.get(index, None)
                     if stream is not None:
-                        local_sdp.media.append(stream.get_local_media(for_offer=False, on_hold=False))
+                        media = stream.get_local_media(for_offer=False, on_hold=False)
+                        local_sdp.media.append(media)
+                        stun_addresses.extend((attr.value.split(' ', 5)[4] for attr in media.attributes if attr.name == 'candidate' and attr.value.startswith('S ')))
                     else:
                         media = SDPMediaStream.new(media)
                         media.port = 0
                         local_sdp.media.append(media)
             else:
                 for stream in self.proposed_streams:
-                    local_sdp.media.append(stream.get_local_media(for_offer=True, on_hold=False))
+                    media = stream.get_local_media(for_offer=True, on_hold=False)
+                    local_sdp.media.append(media)
+                    stun_addresses.extend((attr.value.split(' ', 5)[4] for attr in media.attributes if attr.name == 'candidate' and attr.value.startswith('S ')))
+            if stun_addresses:
+                local_sdp.connection.address = stun_addresses[0]
             self._invitation.send_response(200, sdp=local_sdp)
             notification_center.post_notification('SIPSessionWillStart', self, TimestampedNotificationData())
             local_sdp = self._invitation.sdp.active_local
