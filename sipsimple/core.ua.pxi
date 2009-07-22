@@ -485,6 +485,7 @@ cdef class PJSIPUA:
             self._event_handler(event_name, **event_params)
 
     def poll(self):
+        global _post_poll_handler_queue
         cdef int status
         cdef object retval = None
         self._check_self()
@@ -496,7 +497,7 @@ cdef class PJSIPUA:
         ELSE:
             if status != 0:
                 raise PJSIPError("Error while handling events", status)
-        _handle_post_queue(self)
+        _process_handler_queue(self, &_post_poll_handler_queue)
         self._poll_log()
         if self._fatal_error:
             return True

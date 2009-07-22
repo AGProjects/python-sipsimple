@@ -310,6 +310,7 @@ cdef class ConferenceBridge:
         return slot
 
     cdef int _remove_port(self, PJSIPUA ua, unsigned int slot) except -1:
+        global _post_poll_handler_queue
         cdef int status
         cdef tuple connection
         status = pjmedia_conf_remove_port(self._obj, slot)
@@ -319,7 +320,7 @@ cdef class ConferenceBridge:
         self.used_slot_count -= 1
         if (self.used_slot_count == 0 and self._disconnect_when_idle and
             not (self.input_device is None and self.output_device is None)):
-            _add_post_handler(_ConferenceBridge_stop_sound_post, self)
+            _add_handler(_ConferenceBridge_stop_sound_post, self, &_post_poll_handler_queue)
         return 0
 
 

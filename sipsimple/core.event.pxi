@@ -16,11 +16,15 @@ cdef struct _core_event:
     void *data
     int len
 
-cdef struct _post_handler:
-    _post_handler *next
-    _post_handler *prev
+cdef struct _handler:
+    _handler *next
+    _handler *prev
     int func(object obj) except -1
     void *obj
+
+cdef struct _handler_queue:
+    _handler *head
+    _handler *tail
 
 # callback functions
 
@@ -115,37 +119,37 @@ cdef list _get_clear_event_queue():
         free(event_free)
     return events
 
-cdef int _add_post_handler(int func(object obj) except -1, object obj) except -1:
-    global _post_queue_head, _post_queue_tail
-    cdef _post_handler *post
-    post = <_post_handler *> malloc(sizeof(_post_handler))
-    if post == NULL:
+cdef int _add_handler(int func(object obj) except -1, object obj, _handler_queue *queue) except -1:
+    cdef _handler *handler
+    handler = <_handler *> malloc(sizeof(_handler))
+    if handler == NULL:
         raise MemoryError()
-    post.func = func
-    post.obj = <void *> obj
-    post.next = NULL
-    if _post_queue_head == NULL:
-        post.prev = NULL
-        _post_queue_head = post
-        _post_queue_tail = post
+    handler.func = func
+    handler.obj = <void *> obj
+    handler.next = NULL
+    if queue.head == NULL:
+        handler.prev = NULL
+        queue.head = handler
+        queue.tail = handler
     else:
-        _post_queue_tail.next = post
-        post.prev = _post_queue_tail
-        _post_queue_tail = post
+        queue.tail.next = handler
+        handler.prev = queue.tail
+        queue.tail = handler
+    return 0
 
-cdef int _handle_post_queue(PJSIPUA ua) except -1:
-    global _post_queue_head, _post_queue_tail
-    cdef _post_handler *post, *post_free
-    post = _post_queue_head
-    _post_queue_head = _post_queue_tail = NULL
-    while post != NULL:
+cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1:
+    cdef _handler *handler, *handler_free
+    handler = queue.head
+    queue.head = queue.tail = NULL
+    while handler != NULL:
         try:
-            post.func(<object> post.obj)
+            handler.func(<object> handler.obj)
         except:
             ua._handle_exception(1)
-        post_free = post
-        post = post.next
-        free(post_free)
+        handler_free = handler
+        handler = handler.next
+        free(handler_free)
+    return 0
 
 # globals
 
@@ -154,5 +158,6 @@ cdef object _re_log = re.compile(r"^\s+(?P<year>\d+)-(?P<month>\d+)-(?P<day>\d+)
 cdef pj_mutex_t *_event_queue_lock = NULL
 cdef _core_event *_event_queue_head = NULL
 cdef _core_event *_event_queue_tail = NULL
-cdef _post_handler *_post_queue_head = NULL
-cdef _post_handler *_post_queue_tail = NULL
+cdef _handler_queue _post_poll_handler_queue
+_post_poll_handler_queue.head = NULL
+_post_poll_handler_queue.tail = NULL

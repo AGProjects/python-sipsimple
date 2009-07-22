@@ -370,6 +370,7 @@ cdef class Invitation:
         return 0
 
     cdef int _fail(self, PJSIPUA ua) except -1:
+        global _post_poll_handler_queue
         ua._handle_exception(0)
         self._invite_session.mod_data[ua._module.id] = NULL
         if self.state != "disconnected":
@@ -380,8 +381,8 @@ cdef class Invitation:
             self.sub_state = None
             _add_event("SIPInvitationChangedState", event_dict)
         # calling do_dealloc from within a callback makes PJSIP crash
-        # post_handlers will be executed after pjsip_endpt_handle_events returns
-        _add_post_handler(_Invitation_cb_fail_post, self)
+        # the handler will be executed after pjsip_endpt_handle_events returns
+        _add_handler(_Invitation_cb_fail_post, self, &_post_poll_handler_queue)
         return 0
 
     cdef int _cb_state(self, PJSIPUA ua, object state, object sub_state, pjsip_rx_data *rdata, pjsip_tx_data *tdata) except -1:
