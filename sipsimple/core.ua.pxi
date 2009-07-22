@@ -461,10 +461,11 @@ cdef class PJSIPUA:
         self.dealloc()
 
     def dealloc(self):
-        global _ua, _event_queue_lock
+        global _ua, _dealloc_handler_queue, _event_queue_lock
         if _ua == NULL:
             return
         self._check_thread()
+        _process_handler_queue(self, &_dealloc_handler_queue)
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)
             pj_mutex_destroy(_event_queue_lock)

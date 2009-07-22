@@ -181,3 +181,6 @@ cdef _core_event *_event_queue_tail = NULL
 cdef _handler_queue _post_poll_handler_queue
 _post_poll_handler_queue.head = NULL
 _post_poll_handler_queue.tail = NULL
+cdef _handler_queue _dealloc_handler_queue
+_dealloc_handler_queue.head = NULL
+_dealloc_handler_queue.tail = NULL
