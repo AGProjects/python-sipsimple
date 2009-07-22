@@ -31,7 +31,11 @@ cdef class ConferenceBridge:
 
         def __set__(self, int value):
             cdef int status
-            cdef PJSIPUA ua = self._get_ua(0)
+            cdef PJSIPUA ua
+            try:
+                ua = _get_ua()
+            except SIPCoreError:
+                pass
             if value < 0:
                 raise ValueError("volume attribute cannot be negative")
             if ua is not None:
@@ -43,7 +47,6 @@ cdef class ConferenceBridge:
     property connected_slots:
 
         def __get__(self):
-            cdef PJSIPUA ua = self._get_ua(0)
             return sorted(self._connected_slots)
 
     property is_muted:
@@ -53,18 +56,21 @@ cdef class ConferenceBridge:
 
         def __set__(self, value):
             cdef int is_muted
-            cdef PJSIPUA ua = self._get_ua(0)
-            if self._obj == NULL:
-                raise SIPCoreError("Conference bridge is already deallocated")
+            cdef PJSIPUA ua
+            try:
+                ua = _get_ua()
+            except SIPCoreError:
+                pass
             is_muted = int(bool(value))
             if is_muted == self._is_muted:
                 return
-            if is_muted:
-                status = pjmedia_conf_adjust_rx_level(self._obj, 0, 0)
-            else:
-                status = pjmedia_conf_adjust_rx_level(self._obj, 0, 128)
-            if status != 0:
-                raise PJSIPError("Could not set output volume of sound device", status)
+            if ua is not None:
+                if is_muted:
+                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, 0)
+                else:
+                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, 128)
+                if status != 0:
+                    raise PJSIPError("Could not set output volume of sound device", status)
             self._is_muted = is_muted
 
     # public methods
@@ -79,6 +85,7 @@ cdef class ConferenceBridge:
 
     def __init__(self, str input_device, str output_device, int sample_rate,
                  int ec_tail_length=200, int slot_count=254):
+        global _dealloc_handler_queue
         cdef str conf_pool_name
         cdef int status
         cdef PJSIPUA ua = _get_ua()
@@ -105,9 +112,16 @@ cdef class ConferenceBridge:
         self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
         if self._disconnect_when_idle and not (input_device is None and output_device is None):
             self._stop_sound_device(ua)
+        _add_handler(_ConferenceBridge_dealloc_handler, self, &_dealloc_handler_queue)
 
     def __dealloc__(self):
-        cdef PJSIPUA ua = self._get_ua(0)
+        global _dealloc_handler_queue
+        cdef PJSIPUA ua
+        _remove_handler(self, &_dealloc_handler_queue)
+        try:
+            ua = _get_ua()
+        except:
+            return
         self._stop_sound_device(ua)
         if self._obj != NULL:
             pjmedia_conf_destroy(self._obj)
@@ -117,7 +131,7 @@ cdef class ConferenceBridge:
             self._conf_pool = NULL
 
     def set_sound_devices(self, str input_device, str output_device, int ec_tail_length):
-        cdef PJSIPUA ua = self._get_ua(1)
+        cdef PJSIPUA ua = _get_ua()
         if ec_tail_length < 0:
             raise ValueError("ec_tail_length argument cannot be negative")
         if (input_device == self.input_device and output_device == self.output_device and
@@ -132,7 +146,11 @@ cdef class ConferenceBridge:
     def connect_slots(self, int src_slot, int dst_slot):
         cdef tuple connection
         cdef int status
-        cdef PJSIPUA ua = self._get_ua(1)
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            pass
         if src_slot < 0:
             raise ValueError("src_slot argument cannot be negative")
         if dst_slot < 0:
@@ -148,7 +166,11 @@ cdef class ConferenceBridge:
     def disconnect_slots(self, int src_slot, int dst_slot):
         cdef tuple connection
         cdef int status
-        cdef PJSIPUA ua = self._get_ua(1)
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            pass
         if src_slot < 0:
             raise ValueError("src_slot argument cannot be negative")
         if dst_slot < 0:
@@ -162,26 +184,6 @@ cdef class ConferenceBridge:
         self._connected_slots.remove(connection)
 
     # private methods
-
-    cdef PJSIPUA _get_ua(self, int raise_exception):
-        cdef PJSIPUA ua
-        try:
-            ua = _get_ua()
-        except SIPCoreError:
-            self._connected_slots = list()
-            self.used_slot_count = 0
-            self._snd = NULL
-            self._snd_pool = NULL
-            self._master_port = NULL
-            self._null_port = NULL
-            self._obj = NULL
-            self._conf_pool = NULL
-            if raise_exception:
-                raise
-            else:
-                return None
-        else:
-            return ua
 
     cdef int _start_sound_device(self, PJSIPUA ua, str input_device, str output_device,
                                  int ec_tail_length, int revert_to_default) except -1:
@@ -727,6 +729,13 @@ cdef int _ConferenceBridge_stop_sound_post(object obj) except -1:
     cdef PJSIPUA ua = conf_bridge._get_ua(0)
     if conf_bridge.used_slot_count == 0:
         conf_bridge._stop_sound_device(ua)
+
+cdef int _ConferenceBridge_dealloc_handler(object obj) except -1:
+    cdef ConferenceBridge conf_bridge = obj
+    cdef PJSIPUA ua = _get_ua()
+    conf_bridge._stop_sound_device(ua)
+    conf_bridge._connected_slots = list()
+    conf_bridge.used_slot_count = 0
 
 cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
     cdef PJSIPUA ua
