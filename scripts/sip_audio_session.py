@@ -16,6 +16,7 @@ from application import log
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.process import process
 from application.python.queue import EventQueue
+from application.python.util import Null
 from zope.interface import implements
 from twisted.internet import reactor
 
@@ -107,20 +108,22 @@ class RTPStatisticsThread(Thread):
 class NATDetector(object):
     implements(IObserver)
 
-    def __init__(self, application):
-        self.application = application
+    def __init__(self):
+        self.application = None
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='SIPApplicationDidStart')
 
-    def start(self):
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_SIPApplicationDidStart(self, notification):
+        self.application = notification.sender
         notification_center = NotificationCenter()
         lookup = DNSLookup()
         notification_center.add_observer(self, name='SIPEngineDetectedNATType')
         notification_center.add_observer(self, sender=lookup)
         lookup.lookup_service(SIPURI(host=self.application.account.id.domain), 'stun')
-
-    def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
 
     def _NH_SIPEngineDetectedNATType(self, notification):
         if notification.data.succeeded:
@@ -150,7 +153,7 @@ class SIPAudioApplication(SIPApplication):
         self.output = None
         self.logger = None
         self.rtp_statistics = None
-        self.nat_detector = NATDetector(self)
+        self.nat_detector = NATDetector()
 
         self.alert_tone_generator = None
         self.voice_tone_generator = None
@@ -264,8 +267,6 @@ class SIPAudioApplication(SIPApplication):
         if not settings.audio.silent:
             self.tone_ringtone = PersistentTones(self.alert_conference_bridge, [(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
             self.hold_tone = PersistentTones(self.voice_conference_bridge, [(300, 0, 100), (0,0,100), (300, 0, 100)], 30)
-
-        self.nat_detector.start()
 
         if self.target is not None:
             if '@' not in self.target:
