@@ -9,7 +9,7 @@ class IMediaStream(Interface):
     def __init__(self, account):
         pass
 
-    def get_local_media(self, for_offer, on_hold):
+    def get_local_media(self, for_offer):
         pass
 
     def validate_incoming(self, remote_sdp, stream_index):
@@ -28,6 +28,12 @@ class IMediaStream(Interface):
         pass
 
     def update(self, local_sdp, remote_sdp, stream_index):
+        pass
+
+    def hold(self):
+        pass
+
+    def unhold(self):
         pass
 
 
