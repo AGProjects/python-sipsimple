@@ -151,7 +151,7 @@ class AudioStream(NotificationHandler):
                                                        TimestampedNotificationData(reason=failure_reason))
 
     def _NH_RTPTransportDidFail(self, rtp_transport, data):
-        with self._lock():
+        with self._lock:
             self.notification_center.remove_observer(self, sender=rtp_transport)
             if self.state == "ENDED":
                 return
