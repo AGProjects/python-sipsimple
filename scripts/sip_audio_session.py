@@ -627,7 +627,7 @@ class SIPAudioApplication(SIPApplication):
             duration_text = '%02d:%02d' % (minutes, seconds)
         else:
             duration_text = '%02d:%02d:%02d' % (hours, minutes, seconds)
-        self.output.put('Call duration was %s\n' % duration_text)
+        self.output.put('Session duration was %s\n' % duration_text)
         
         self.started_sessions.remove(session)
         if session is self.active_session:
@@ -647,12 +647,12 @@ class SIPAudioApplication(SIPApplication):
             if notification.data.originator == 'remote':
                 self.output.put('Remote party has put the call on hold\n')
             else:
-                self.output.put('Call is put on hold\n')
+                self.output.put('Session is put on hold\n')
         else:
             if notification.data.originator == 'remote':
                 self.output.put('Remote party has taken the call out of hold\n')
             elif not self.ignore_local_unhold:
-                self.output.put('Call is taken out of hold\n')
+                self.output.put('Session is taken out of hold\n')
             else:
                 self.ignore_local_unhold = False
 
