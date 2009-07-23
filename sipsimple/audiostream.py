@@ -31,6 +31,7 @@ class AudioStream(NotificationHandler):
         self._audio_transport = None
         self._rtp_transport = None
         self._audio_rec = None
+        self._hold_request = None
         self._lock = RLock()
 
     @property
@@ -188,22 +189,19 @@ class AudioStream(NotificationHandler):
             self.state = "INITIALIZED"
             self.notification_center.post_notification("MediaStreamDidInitialize", self, TimestampedNotificationData())
 
-    def get_local_media(self, for_offer, on_hold=False):
+    def get_local_media(self, for_offer):
         with self._lock:
             if self.state not in ["INITIALIZED", "ESTABLISHED"]:
                 raise RuntimeError("AudioStream.get_local_media() may only be " +
                                    "called in the INITIALIZED or ESTABLISHED states")
-            if on_hold and self.state == "ESTABLISHED" and not self.on_hold_by_local:
-                self.conference_bridge.disconnect_slots(0, self._audio_transport.slot)
-                self.conference_bridge.disconnect_slots(self._audio_transport.slot, 0)
             if for_offer:
                 old_direction = self._audio_transport.direction
                 if old_direction is None:
                     new_direction = "sendrecv"
                 elif "send" in old_direction:
-                    new_direction = ("sendonly" if on_hold else "sendrecv")
+                    new_direction = ("sendonly" if (self._hold_request == 'hold' or (self._hold_request is None and self.on_hold_by_local)) else "sendrecv")
                 else:
-                    new_direction = ("inactive" if on_hold else "recvonly")
+                    new_direction = ("inactive" if (self._hold_request == 'hold' or (self._hold_request is None and self.on_hold_by_local)) else "recvonly")
             else:
                 new_direction = None
             return self._audio_transport.get_local_media(for_offer, new_direction)
@@ -213,7 +211,7 @@ class AudioStream(NotificationHandler):
         was_on_hold_by_remote = self.on_hold_by_remote
         self.on_hold_by_local = "recv" not in direction
         self.on_hold_by_remote = "send" not in direction
-        if (is_initial or was_on_hold_by_local) and not self.on_hold_by_local:
+        if (is_initial or was_on_hold_by_local) and not self.on_hold_by_local and self._hold_request != 'hold':
             self.conference_bridge.connect_slots(0, self._audio_transport.slot)
             self.conference_bridge.connect_slots(self._audio_transport.slot, 0)
         if not was_on_hold_by_local and self.on_hold_by_local:
@@ -323,6 +321,25 @@ class AudioStream(NotificationHandler):
             new_direction = local_sdp.media[stream_index].get_direction()
             self._audio_transport.update_direction(new_direction)
             self._check_hold(new_direction, False)
+            self._hold_request = None
+
+    def hold(self):
+        with self._lock:
+            if self.on_hold_by_local or self._hold_request == 'hold':
+                return
+            if self.state == "ESTABLISHED":
+                self.conference_bridge.disconnect_slots(0, self._audio_transport.slot)
+                self.conference_bridge.disconnect_slots(self._audio_transport.slot, 0)
+            self._hold_request = 'hold'
+
+    def unhold(self):
+        with self._lock:
+            if not self.on_hold_by_local or self._hold_request == 'unhold':
+                return
+            if self.state == "ESTABLISHED" and self._hold_request == 'hold':
+                self.conference_bridge.connect_slots(0, self._audio_transport.slot)
+                self.conference_bridge.connect_slots(self._audio_transport.slot, 0)
+            self._hold_request = None if self._hold_request == 'hold' else 'unhold'
 
     def end(self):
         with self._lock:
