@@ -65,9 +65,7 @@ class MSRPChat(object):
             transport = "TCP/MSRP"
         return SDPMediaStream("message", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
-    def get_local_media(self, for_offer=True, on_hold=False):
-        if on_hold:
-            raise NotImplementedError
+    def get_local_media(self, for_offer=True):
         return self.local_media
 
     def validate_incoming(self, remote_sdp, stream_index):
@@ -271,6 +269,12 @@ class MSRPChat(object):
     def update(self, local_sdp, remote_sdp, stream_index):
         #TODO
         return
+
+    def hold(self):
+        return # MSRPChat stream does not support hold
+
+    def unhold(self):
+        return # MSRPChat stream does not support hold
 
 
 class MSRPOutgoingFileStream(MSRPChat):
