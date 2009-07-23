@@ -308,16 +308,17 @@ class SIPSimpleConfigurator(object):
 
 if __name__ == '__main__':
     description = "This script is used to manage the SIP SIMPLE middleware settings."
-    usage = """%prog [--general|--account] command [arguments]
+    usage = """%prog [--general|--account] [options] command [arguments]
        %prog --general show
        %prog --general set key1=value1 [key2=value2 ...]
        %prog --account list
        %prog --account add user@domain password
        %prog --account delete user@domain|ALL
        %prog --account show [user@domain|ALL]
-       %prog --account set [user@domain|ALL] key1=value1 [key2=value2 ...]
+       %prog --account set [user@domain|ALL] key1=value1|DEFAULT [key2=value2|DEFAULT ...]
        %prog --account default user@domain"""
     parser = OptionParser(usage=usage, description=description)
+    parser.print_usage = parser.print_help
     parser.add_option('-c', '--config-file', type='string', dest='config_file', help='The path to a configuration file to use. This overrides the default location of the configuration file.', metavar='FILE')
     parser.add_option("-a", "--account", action="store_true", dest="account", help="Manage SIP accounts' settings")
     parser.add_option("-g", "--general", action="store_true", dest="general", help="Manage general SIP SIMPLE middleware settings")
