@@ -478,7 +478,7 @@ class SIPAudioApplication(SIPApplication):
             if isinstance(stream, AudioStream):
                 break
         else:
-            session.reject(488)
+            session.reject(415)
             return
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=session)
