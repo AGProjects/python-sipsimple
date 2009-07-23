@@ -726,13 +726,21 @@ cdef class WaveFile:
 
 cdef int _ConferenceBridge_stop_sound_post(object obj) except -1:
     cdef ConferenceBridge conf_bridge = obj
-    cdef PJSIPUA ua = conf_bridge._get_ua(0)
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except SIPCoreError:
+        pass
     if conf_bridge.used_slot_count == 0:
         conf_bridge._stop_sound_device(ua)
 
 cdef int _ConferenceBridge_dealloc_handler(object obj) except -1:
     cdef ConferenceBridge conf_bridge = obj
-    cdef PJSIPUA ua = _get_ua()
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except SIPCoreError:
+        pass
     conf_bridge._stop_sound_device(ua)
     conf_bridge._connected_slots = list()
     conf_bridge.used_slot_count = 0
