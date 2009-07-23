@@ -265,7 +265,7 @@ class SIPAudioApplication(SIPApplication):
         if outbound_ringtone:
             self.wave_outbound_ringtone = SilenceableWaveFile(self.alert_conference_bridge, outbound_ringtone.path.normalized, volume=outbound_ringtone.volume, loop_count=0, pause_time=2)
         if not settings.audio.silent:
-            self.tone_ringtone = PersistentTones(self.alert_conference_bridge, [(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
+            self.tone_ringtone = PersistentTones(self.voice_conference_bridge, [(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
             self.hold_tone = PersistentTones(self.voice_conference_bridge, [(300, 0, 100), (0,0,100), (300, 0, 100)], 30)
 
         if self.target is not None:
