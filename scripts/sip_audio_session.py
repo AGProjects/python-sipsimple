@@ -199,6 +199,7 @@ class SIPAudioApplication(SIPApplication):
         message += '  p: toggle printing RTP statistics on the console\n'
         message += '  h: hang-up the active session\n'
         message += '  r: toggle audio recording\n'
+        message += '  m: mute the microphone\n'
         message += '  <>: adjust echo cancellation\n'
         message += '  SPACE: hold/unhold\n'
         message += '  Ctrl-d: quit the program\n'
@@ -316,6 +317,9 @@ class SIPAudioApplication(SIPApplication):
                 session.accept([stream for stream in session.proposed_streams if isinstance(stream, AudioStream)])
             else:
                 session.reject()
+        elif notification.data.input == 'm':
+            self.voice_conference_bridge.muted = not self.voice_conference_bridge.muted
+            self.output.put('The microphone is now %s\n' % ('muted' if self.voice_conference_bridge.muted else 'unmuted'))
         elif notification.data.input == 'h':
             if self.active_session is not None:
                 self.output.put('Ending audio session...\n')
