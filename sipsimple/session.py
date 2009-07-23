@@ -747,7 +747,7 @@ class Session(object):
             return
         for stream in streams:
             stream.hold()
-        if self.greenlet is None:
+        if self.state == 'connected':
             self._send_hold()
 
     @run_in_twisted
@@ -760,7 +760,7 @@ class Session(object):
             return
         for stream in streams:
             stream.unhold()
-        if self.greenlet is None:
+        if self.state == 'connected':
             self._send_unhold()
 
     @run_in_twisted
