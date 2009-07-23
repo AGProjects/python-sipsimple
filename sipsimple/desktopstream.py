@@ -55,9 +55,7 @@ class MSRPDesktop(object):
             transport = 'TCP/MSRP/RFB'
         return SDPMediaStream("application", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
-    def get_local_media(self, for_offer=True, on_hold=False):
-        if on_hold:
-            raise NotImplementedError
+    def get_local_media(self, for_offer=True):
         return self.local_media
 
     def validate_incoming(self, remote_sdp, stream_index):
@@ -163,6 +161,12 @@ class MSRPDesktop(object):
         ex = p.exc_info()[1]
         ndata = NotificationData(reason=str(ex) or type(ex).__name__)
         self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
+
+    def hold(self):
+        return # MSRPDesktop stream does not support hold
+
+    def unhold(self):
+        return # MSRPDesktop stream does not support hold
 
     def end(self):
         if self.msrp is None and self.msrp_connector is None:
