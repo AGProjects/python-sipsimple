@@ -419,6 +419,9 @@ class SIPAudioApplication(SIPApplication):
             engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
             self.output.put('SIP tracing to console is now %s\n' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
 
+    def _NH_SIPEngineGotException(self, notification):
+        self.output.put('An exception occured within the SIP core:\n%s\n' % notification.data.traceback)
+
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if self.registration_succeeded:
             return
