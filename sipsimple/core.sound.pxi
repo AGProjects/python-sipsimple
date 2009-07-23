@@ -17,17 +17,19 @@ cdef class ConferenceBridge:
     cdef readonly int ec_tail_length
     cdef readonly int slot_count
     cdef int _disconnect_when_idle
-    cdef int _volume
+    cdef int _input_volume
+    cdef int _output_volume
+    cdef bint _muted
     cdef list _connected_slots
     cdef readonly int used_slot_count
     cdef int _is_muted
 
     # properties
 
-    property volume:
+    property input_volume:
 
         def __get__(self):
-            return self._volume
+            return self._input_volume
 
         def __set__(self, int value):
             cdef int status
@@ -37,41 +39,61 @@ cdef class ConferenceBridge:
             except SIPCoreError:
                 pass
             if value < 0:
-                raise ValueError("volume attribute cannot be negative")
+                raise ValueError("input_volume attribute cannot be negative")
+            if value > 0 and self._muted:
+                self._muted = False
             if ua is not None:
-                status = pjmedia_conf_adjust_tx_level(self._obj, 0, int(value * 1.28 - 128))
+                status = pjmedia_conf_adjust_rx_level(self._obj, 0, int(value * 1.28 - 128))
                 if status != 0:
-                    raise PJSIPError("Could not set output volume of sound device", status)
-            self._volume = value
+                    raise PJSIPError("Could not set input volume of sound device", status)
+            self._input_volume = value
 
-    property connected_slots:
-
-        def __get__(self):
-            return sorted(self._connected_slots)
-
-    property is_muted:
+    property output_volume:
 
         def __get__(self):
-            return bool(self._is_muted)
+            return self._output_volume
 
-        def __set__(self, value):
-            cdef int is_muted
+        def __set__(self, int value):
+            cdef int status
             cdef PJSIPUA ua
             try:
                 ua = _get_ua()
             except SIPCoreError:
                 pass
-            is_muted = int(bool(value))
-            if is_muted == self._is_muted:
-                return
+            if value < 0:
+                raise ValueError("output_volume attribute cannot be negative")
             if ua is not None:
-                if is_muted:
-                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, 0)
-                else:
-                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, 128)
+                status = pjmedia_conf_adjust_tx_level(self._obj, 0, int(value * 1.28 - 128))
                 if status != 0:
                     raise PJSIPError("Could not set output volume of sound device", status)
-            self._is_muted = is_muted
+            self._output_volume = value
+
+    property muted:
+
+        def __get__(self):
+            return self._muted
+
+        def __set__(self, bint muted):
+            cdef PJSIPUA ua
+            try:
+                ua = _get_ua()
+            except SIPCoreError:
+                pass
+            if muted == self._muted:
+                return
+            if ua is not None:
+                if muted:
+                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, -128)
+                else:
+                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, int(self._input_volume * 1.28 - 128))
+                if status != 0:
+                    raise PJSIPError("Could not set input volume of sound device", status)
+            self._muted = muted
+
+    property connected_slots:
+
+        def __get__(self):
+            return sorted(self._connected_slots)
 
     # public methods
 
@@ -80,7 +102,8 @@ cdef class ConferenceBridge:
             self._disconnect_when_idle = 1
         ELSE:
             self._disconnect_when_idle = 0
-        self._volume = 100
+        self._input_volume = 100
+        self._output_volume = 100
         self._connected_slots = list()
 
     def __init__(self, str input_device, str output_device, int sample_rate,
