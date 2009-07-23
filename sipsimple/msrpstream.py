@@ -29,6 +29,9 @@ class MSRPChat(object):
     implements(IMediaStream)
 
     hold_supported = False
+    on_hold = False
+    on_hold_by_local = False
+    on_hold_by_remote = False
 
     def __init__(self, account, direction='sendrecv', file_selector=None):
         self.account = account

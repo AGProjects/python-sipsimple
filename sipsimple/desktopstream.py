@@ -24,6 +24,9 @@ class MSRPDesktop(object):
     implements(IMediaStream)
 
     hold_supported = False
+    on_hold = False
+    on_hold_by_local = False
+    on_hold_by_remote = False
     setup = None
 
     def __init__(self, account, setup=None):
@@ -167,6 +170,14 @@ class MSRPDesktop(object):
 
     def unhold(self):
         return # MSRPDesktop stream does not support hold
+
+    def validate_update(self, remote_sdp, stream_index):
+        # TODO
+        return True
+
+    def update(self, local_sdp, remote_sdp, stream_index):
+        # TODO
+        return
 
     def end(self):
         if self.msrp is None and self.msrp_connector is None:
