@@ -3,6 +3,7 @@
 #
 
 import fcntl
+import os
 import re
 import struct
 import sys
@@ -13,6 +14,7 @@ from optparse import OptionParser
 
 from sipsimple.account import Account, BonjourAccount, AccountManager
 from sipsimple.configuration import Setting, SettingsGroupMeta, ConfigurationManager, DefaultValue
+from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 
@@ -122,9 +124,12 @@ class SettingsParser(object):
 
 
 class AccountConfigurator(object):
-    def __init__(self):
+    def __init__(self, config_file):
         self.configuration_manager = ConfigurationManager()
-        self.configuration_manager.start()
+        if config_file is not None:
+            self.configuration_manager.start(ConfigFileBackend(os.path.realpath(config_file)))
+        else:
+            self.configuration_manager.start()
         self.account_manager = AccountManager()
         self.account_manager.start()
 
@@ -257,9 +262,12 @@ class AccountConfigurator(object):
 
 
 class SIPSimpleConfigurator(object):
-    def __init__(self):
+    def __init__(self, config_file):
         self.configuration_manager = ConfigurationManager()
-        self.configuration_manager.start()
+        if config_file is not None:
+            self.configuration_manager.start(ConfigFileBackend(os.path.realpath(config_file)))
+        else:
+            self.configuration_manager.start()
 
     def show(self):
         print 'SIP SIMPLE settings:'
@@ -310,6 +318,7 @@ if __name__ == '__main__':
        %prog --account set [user@domain|ALL] key1=value1 [key2=value2 ...]
        %prog --account default user@domain"""
     parser = OptionParser(usage=usage, description=description)
+    parser.add_option('-c', '--config-file', type='string', dest='config_file', help='The path to a configuration file to use. This overrides the default location of the configuration file.', metavar='FILE')
     parser.add_option("-a", "--account", action="store_true", dest="account", help="Manage SIP accounts' settings")
     parser.add_option("-g", "--general", action="store_true", dest="general", help="Manage general SIP SIMPLE middleware settings")
     options, args = parser.parse_args()
@@ -326,9 +335,9 @@ if __name__ == '__main__':
 
     # execute the handlers
     if options.account:
-        object = AccountConfigurator()
+        object = AccountConfigurator(options.config_file)
     else:
-        object = SIPSimpleConfigurator()
+        object = SIPSimpleConfigurator(options.config_file)
     command, args = args[0], args[1:]
     handler = getattr(object, command, None)
     if handler is None or not callable(handler):
