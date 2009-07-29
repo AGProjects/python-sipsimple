@@ -48,7 +48,7 @@ class MessageCPIM(object):
 
 
 class CPIMIdentity(object):
-    _re_format = re.compile('^("?(?P<display_name>[^>]*[^"\s])"?\s*)?<(?P<uri>.*?)>$')
+    _re_format = re.compile('^("?(?P<display_name>[^<]*[^"\s])"?)?\s*<(?P<uri>.+)>$')
 
     def __init__(self, uri, display_name=None):
         self.uri = uri
