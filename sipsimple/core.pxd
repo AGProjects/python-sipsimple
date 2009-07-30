@@ -792,6 +792,8 @@ cdef extern from "pjsip.h":
     int pjsip_tsx_terminate(pjsip_transaction *tsx, int code)
     int pjsip_tsx_send_msg(pjsip_transaction *tsx, pjsip_tx_data *tdata)
     pjsip_transaction *pjsip_rdata_get_tsx(pjsip_rx_data *rdata)
+    int pjsip_tsx_create_uas(pjsip_module *tsx_user, pjsip_rx_data *rdata, pjsip_transaction **p_tsx)
+    void pjsip_tsx_recv_msg(pjsip_transaction *tsx, pjsip_rx_data *rdata)
 
     # event
     enum pjsip_event_id_e:
@@ -1091,6 +1093,7 @@ cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1
 # core.request
 
 cdef class Request
+cdef class IncomingRequest
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 

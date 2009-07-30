@@ -37,6 +37,7 @@ cdef class PJSIPUA:
     cdef pj_stun_config _stun_cfg
     cdef int _fatal_error
     cdef set _incoming_events
+    cdef set _incoming_requests
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -46,6 +47,7 @@ cdef class PJSIPUA:
         self._threads = []
         self._events = {}
         self._incoming_events = set()
+        self._incoming_requests = set()
         self._sent_messages = set()
         self._max_timeout.sec = 0
         self._max_timeout.msec = 100
@@ -53,6 +55,7 @@ cdef class PJSIPUA:
     def __init__(self, event_handler, *args, **kwargs):
         global _event_queue_lock
         cdef str event
+        cdef str method
         cdef list accept_types
         cdef int status
         cdef PJSTR message_method = PJSTR("MESSAGE")
@@ -124,6 +127,11 @@ cdef class PJSIPUA:
             if event not in self._events.iterkeys():
                 raise ValueError('Event "%s" is not known' % event)
             self._incoming_events.add(event)
+        for method in kwargs["incoming_requests"]:
+            method = method.upper()
+            if method in ("ACK", "BYE", "INVITE", "SUBSCRIBE"):
+                raise ValueError('Handling incoming "%s" requests is not allowed' % method)
+            self._incoming_requests.add(method)
         self.rtp_port_range = kwargs["rtp_port_range"]
         pj_stun_config_init(&self._stun_cfg, &self._caching_pool._obj.factory, 0,
                             pjmedia_endpt_get_ioqueue(self._pjmedia_endpoint._obj),
@@ -192,8 +200,29 @@ cdef class PJSIPUA:
         self._check_self()
         if event not in self._events.iterkeys():
             raise ValueError('Event "%s" is not known' % event)
-        if event in self._incoming_events:
-            self._incoming_events.remove(event)
+        self._incoming_events.discard(event)
+
+    property incoming_requests:
+
+        def __get__(self):
+            self._check_self()
+            return self._incoming_requests.copy()
+
+    def add_incoming_request(self, object value):
+        cdef str method
+        self._check_self()
+        method = value.upper()
+        if method in ("ACK", "BYE", "INVITE", "SUBSCRIBE"):
+            raise ValueError('Handling incoming "%s" requests is not allowed' % method)
+        self._incoming_requests.add(method)
+
+    def remove_incoming_request(self, object value):
+        cdef str method
+        self._check_self()
+        method = value.upper()
+        if method in ("ACK", "BYE", "INVITE", "SUBSCRIBE"):
+            raise ValueError('Handling incoming "%s" requests is not allowed' % method)
+        self._incoming_requests.discard(method)
 
     cdef object _get_sound_devices(self, int is_output):
         cdef int i
@@ -535,6 +564,7 @@ cdef class PJSIPUA:
         cdef int status
         cdef pjsip_tx_data *tdata = NULL
         cdef pjsip_hdr_ptr_const hdr_add
+        cdef IncomingRequest request
         cdef Invitation inv
         cdef IncomingSubscription sub
         cdef dict message_params
@@ -562,6 +592,9 @@ cdef class PJSIPUA:
             status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 482, NULL, &tdata)
             if status != 0:
                 raise PJSIPError("Could not create response", status)
+        elif method_name in self._incoming_requests:
+            request = IncomingRequest()
+            request._init(self, rdata)
         elif method_name == "OPTIONS":
             status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
             if status != 0:

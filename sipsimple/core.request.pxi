@@ -5,7 +5,7 @@
 
 from datetime import datetime, timedelta
 
-# main class
+# main classes
 
 cdef class Request:
     # class attributes
@@ -376,6 +376,70 @@ cdef class Request:
         return 0
 
 
+cdef class IncomingRequest:
+    # instance attributes
+    cdef readonly str state
+    cdef pjsip_transaction *_tsx
+    cdef pjsip_tx_data *_tdata
+
+    # public methods
+
+    def __dealloc__(self):
+        cdef int status
+        if self._tdata != NULL:
+            status = pjsip_tsx_send_msg(self._tsx, self._tdata)
+            if status != 0:
+                pjsip_tsx_terminate(self._tsx, 500)
+            self._tdata = NULL
+            self._tsx = NULL
+
+    def answer(self, int code, str reason=None, object extra_headers=None):
+        cdef dict event_dict
+        cdef int status
+        cdef PJSIPUA ua = _get_ua()
+        if self.state != "incoming":
+            SIPCoreInvalidStateError('Can only answer an incoming request in the "incoming" state, '
+                                     'object is currently in the "%s" state' % self.state)
+        if code < 200 or code >= 700:
+            raise ValueError("Invalid SIP final response code: %d" % code)
+        self._tdata.msg.line.status.code = code
+        if reason is None:
+            self._tdata.msg.line.status.reason = pjsip_get_status_text(code)[0]
+        else:
+            pj_strdup2_with_null(self._tdata.pool, &self._tdata.msg.line.status.reason, reason)
+        if extra_headers is not None:
+            _add_headers_to_tdata(self._tdata, extra_headers)
+        event_dict = dict(obj=self)
+        _pjsip_msg_to_dict(self._tdata.msg, event_dict)
+        status = pjsip_tsx_send_msg(self._tsx, self._tdata)
+        if status != 0:
+            raise PJSIPError("Could not send response", status)
+        self.state = "answered"
+        self._tdata = NULL
+        self._tsx = NULL
+        _add_event("SIPIncomingRequestSentResponse", event_dict)
+
+    # private methods
+
+    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+        cdef dict event_dict
+        cdef int status
+        status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 500, NULL, &self._tdata)
+        if status != 0:
+            raise PJSIPError("Could not create response", status)
+        status = pjsip_tsx_create_uas(&ua._module, rdata, &self._tsx)
+        if status != 0:
+            pjsip_tx_data_dec_ref(self._tdata)
+            self._tdata = NULL
+            raise PJSIPError("Could not create transaction for incoming request", status)
+        pjsip_tsx_recv_msg(self._tsx, rdata)
+        _add_handler(_IncomingRequest_dealloc_handler, self, &_dealloc_handler_queue)
+        self.state = "incoming"
+        event_dict = dict(obj=self)
+        _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+        _add_event("SIPIncomingRequestGotRequest", event_dict)
+
+
 # callback functions
 
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil:
@@ -413,3 +477,13 @@ cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) 
             req._cb_timer(ua)
     except:
         ua._handle_exception(1)
+
+cdef int _IncomingRequest_dealloc_handler(object obj) except -1:
+    cdef IncomingRequest req = obj
+    cdef PJSIPUA ua = _get_ua()
+    if req._tdata != NULL:
+        pjsip_tsx_terminate(req._tsx, 500)
+        pjsip_tx_data_dec_ref(req._tdata)
+        req._tsx = NULL
+        req._tdata = NULL
+    req.state = "answered"
