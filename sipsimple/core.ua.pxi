@@ -183,11 +183,13 @@ cdef class PJSIPUA:
             return self._incoming_events.copy()
 
     def add_incoming_event(self, str event):
+        self._check_self()
         if event not in self._events.iterkeys():
             raise ValueError('Event "%s" is not known' % event)
         self._incoming_events.add(event)
 
     def remove_incoming_event(self, str event):
+        self._check_self()
         if event not in self._events.iterkeys():
             raise ValueError('Event "%s" is not known' % event)
         if event in self._incoming_events:
