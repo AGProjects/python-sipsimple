@@ -313,12 +313,13 @@ cdef class Request:
                                 if contact_header.uri == self.contact_header.uri and contact_header.expires is not None:
                                     expires = contact_header.expires
                         if expires == -1:
+                            expires = 0
                             for header in self.extra_headers:
                                 if header.name == "Expires":
                                     try:
                                         expires = int(header.body)
                                     except ValueError:
-                                        expires = 0
+                                        pass
                                     break
                     event_dict["expires"] = expires
                     self._expire_time = datetime.now() + timedelta(seconds=expires)
