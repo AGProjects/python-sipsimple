@@ -120,10 +120,10 @@ Step 2. Install dependencies
 
 SIP SIMPLE client depends on the following packages:
 
- * python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.6
+ * python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.9
+ * python-application  http://pypi.python.org/simple/python-application  >=1.1.5
  * python-lxml         http://codespeak.net/lxml                         >=2.1.2
  * cython              http://www.cython.org                             >=0.10
- * python-application  http://pypi.python.org/simple/python-application  >=1.1.0
  * dnspython           http://www.dnspython.org                          >=1.6.0
  * twisted             http://twistedmatrix.com/trac                     >=8.1.0
  * pylib               http://codespeak.net/py                           >=0.9.2
@@ -194,7 +194,8 @@ sudo easy_install --script-dir /usr/bin -U setuptools
 
 Install python packages using easy_install:
 
-sudo easy_install -U python-gnutls cython dnspython twisted py greenlet eventlet
+sudo easy_install -U python-gnutls cython dnspython twisted py greenlet \
+eventlet python-application
 
 Download and install SIP SIMPLE client dependencies available in AG Projects
 repositories:
