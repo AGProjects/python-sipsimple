@@ -47,7 +47,7 @@ Debian package building instructions
 Install Debian development tools
 
 sudo apt-get install build-essential dpkg-dev fakeroot devscripts \
-python-setuptools darcs mercurial subversion libssl-dev
+python-setuptools darcs subversion libssl-dev
 
 Install the building dependencies and sources of each package
 
@@ -92,7 +92,7 @@ packages:
  * libxslt >=1.1.24
  * python-setuptools =>0.6c9.
 
-Install subversion, mercurial and darcs version control tools.
+Install subversion and darcs version control tools.
 
 Step 2. Install dependencies
 
