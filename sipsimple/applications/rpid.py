@@ -110,7 +110,7 @@ class Activities(XMLListElement, PersonExtension):
     values = set(('appointment', 'away', 'breakfast', 'busy', 'dinner',
                   'holiday', 'in-transit', 'looking-for-work', 'meal', 'meeting',
                   'on-the-phone', 'performance', 'permanent-absence', 'playing',
-                  'presentation', 'shopping', 'sleeping', 'spectator', 'sterring',
+                  'presentation', 'shopping', 'sleeping', 'spectator', 'steering',
                   'travel', 'tv', 'vacation', 'working', 'worship', 'unknown'))
 
     def __init__(self, id=None, since=None, until=None, notes=[], activities=[]):
