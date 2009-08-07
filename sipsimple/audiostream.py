@@ -95,10 +95,10 @@ class AudioStream(NotificationHandler):
                 raise RuntimeError("AudioStream.initialize() may only be called in the NULL state")
             self.state = "INITIALIZING"
             self._session = session
-            if self.account.ice.enabled and self.account.ice.use_stun:
-                if self.account.ice.stun_servers:
+            if self.account.nat_traversal.enable_ice:
+                if self.account.nat_traversal.stun_servers:
                     # Assume these are IP addresses
-                    stun_servers = list(self.account.ice.stun_servers)
+                    stun_servers = list(self.account.nat_traversal.stun_servers)
                     self._init_rtp_transport(stun_servers)
                 elif not isinstance(self.account, BonjourAccount):
                     dns_lookup = DNSLookup()
@@ -126,7 +126,7 @@ class AudioStream(NotificationHandler):
         self._rtp_args["use_srtp"] = ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls)
                                       and self.account.rtp.srtp_encryption != "disabled")
         self._rtp_args["srtp_forced"] = self._rtp_args["use_srtp"] and self.account.rtp.srtp_encryption == "mandatory"
-        self._rtp_args["use_ice"] = hasattr(self.account, "ice") and self.account.ice.enabled
+        self._rtp_args["use_ice"] = hasattr(self.account, "ice") and self.account.nat_traversal.enable_ice
         self._stun_servers = [(None, None)]
         if stun_servers:
             self._stun_servers.extend(reversed(stun_servers))

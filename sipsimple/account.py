@@ -48,9 +48,8 @@ class DialogEventSettings(SettingsGroup):
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
     publish_interval = Setting(type=NonNegativeInteger, default=600)
 
-class ICESettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
-    use_stun = Setting(type=bool, default=True)
+class NatTraversalSettings(SettingsGroup):
+    enable_ice = Setting(type=bool, default=True)
     stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
 
 
@@ -117,7 +116,7 @@ class Account(SettingsObject):
 
     rtp = RTPSettings
     dialog_event = DialogEventSettings
-    ice = ICESettings
+    nat_traversal = NatTraversalSettings
     message_summary = MessageSummarySettings
     msrp = MSRPSettings
     presence = PresenceSettings
@@ -401,7 +400,7 @@ class BonjourAccount(SettingsObject):
 
     rtp = RTPSettings
     sounds = SoundsSettings
-    ice = ICESettings
+    nat_traversal = NatTraversalSettings
 
     def __init__(self):
         settings = SIPSimpleSettings()
