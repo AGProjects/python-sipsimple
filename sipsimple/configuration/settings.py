@@ -29,7 +29,6 @@ class AudioSettings(SettingsGroup):
     recordings_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32000)
     silent = Setting(type=bool, default=False)
-    codec_list = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
 
 
 class ChatSettings(SettingsGroup):
