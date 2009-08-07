@@ -284,7 +284,7 @@ class WinfoApplication(object):
             else:
                 route = self._subscription_routes.popleft()
                 route_header = RouteHeader(route.get_uri())
-                self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), ToHeader(self.account.uri, self.account.display_name), ContactHeader(self.account.contact[route.transport]), "presence.winfo", route_header, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+                self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), ToHeader(self.account.uri, self.account.display_name), ContactHeader(self.account.contact[route.transport]), "presence.winfo", route_header, credentials=self.account.credentials, refresh=self.account.sip.subscribe_interval)
                 notification_center.add_observer(self, sender=self.subscription)
                 self.subscription.subscribe(timeout=5)
 
@@ -297,7 +297,7 @@ class WinfoApplication(object):
         self._subscription_routes = deque(notification.data.result)
         route = self._subscription_routes.popleft()
         route_header = RouteHeader(route.get_uri())
-        self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), ToHeader(self.account.uri, self.account.display_name), ContactHeader(self.account.contact[route.transport]), "presence.winfo", route_header, credentials=self.account.credentials, refresh=self.account.presence.subscribe_interval)
+        self.subscription = Subscription(FromHeader(self.account.uri, self.account.display_name), ToHeader(self.account.uri, self.account.display_name), ContactHeader(self.account.contact[route.transport]), "presence.winfo", route_header, credentials=self.account.credentials, refresh=self.account.sip.subscribe_interval)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.subscription)
         self.subscription.subscribe(timeout=5)
@@ -367,8 +367,8 @@ class WinfoApplication(object):
         lookup = DNSLookup()
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=lookup)
-        if self.account.outbound_proxy is not None:
-            uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
+        if self.account.sip.outbound_proxy is not None:
+            uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
         else:
             uri = SIPURI(host=self.account.id.domain)
         lookup.lookup_sip_proxy(uri, settings.sip.transports)

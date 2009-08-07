@@ -855,7 +855,7 @@ def get_routes(target_uri, engine, account):
         target_uri = engine.parse_sip_uri(format_cmdline_uri(target_uri, account.id.domain))
     if account.id == "bonjour@local":
         routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
-    elif account.outbound_proxy is None:
+    elif account.sip.outbound_proxy is None:
         routes = lookup_routes_for_sip_uri(target_uri, settings.sip.transports)
     else:
         proxy_uri = SIPURI(host=account.outbound_proxy.host, port=account.outbound_proxy.port,

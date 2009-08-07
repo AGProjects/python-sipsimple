@@ -553,7 +553,7 @@ class PublicationApplication(object):
 
         # initialize publication object
         self.publication = Publication(FromHeader(self.account.uri, self.account.display_name), "presence", "application/pidf+xml",
-                                       credentials=self.account.credentials, duration=self.account.presence.publish_interval)
+                                       credentials=self.account.credentials, duration=self.account.sip.publish_interval)
         notification_center.add_observer(self, sender=self.publication)
 
         reactor.callLater(0, self.publish)
@@ -603,8 +603,8 @@ class PublicationApplication(object):
 
             self._publication_timeout = time() + 30
 
-            if self.account.outbound_proxy is not None:
-                uri = SIPURI(host=self.account.outbound_proxy.host, port=self.account.outbound_proxy.port, parameters={'transport': self.account.outbound_proxy.transport})
+            if self.account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
             else:
                 uri = SIPURI(host=self.account.id.domain)
             self.lookup.lookup_sip_proxy(uri, settings.sip.transports)

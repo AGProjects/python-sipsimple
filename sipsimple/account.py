@@ -36,6 +36,12 @@ class ContactURI(SIPAddress):
             return SIPURI(user=self.username, host=self.domain, port=getattr(Engine(), 'local_%s_port' % transport), parameters=parameters)
         return SIPAddress.__getitem__(self, transport)
 
+class SIPSettings(SettingsGroup):
+    outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
+    register_interval = Setting(type=NonNegativeInteger, default=600)
+    subscribe_interval = Setting(type=NonNegativeInteger, default=600)
+    publish_interval = Setting(type=NonNegativeInteger, default=600)
+
 
 class RTPSettings(SettingsGroup):
     audio_codec_list = Setting(type=AudioCodecs, default=None, nillable=True)
@@ -45,8 +51,6 @@ class RTPSettings(SettingsGroup):
 
 class DialogEventSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    subscribe_interval = Setting(type=NonNegativeInteger, default=600)
-    publish_interval = Setting(type=NonNegativeInteger, default=600)
 
 class NatTraversalSettings(SettingsGroup):
     enable_ice = Setting(type=bool, default=True)
@@ -55,7 +59,6 @@ class NatTraversalSettings(SettingsGroup):
 
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    subscribe_interval = Setting(type=NonNegativeInteger, default=600)
     voicemail_uri = Setting(type=str, default=None, nillable=True)
 
 
@@ -68,15 +71,12 @@ class MSRPSettings(SettingsGroup):
 class PresenceSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
-    subscribe_interval = Setting(type=NonNegativeInteger, default=600)
-    publish_interval = Setting(type=NonNegativeInteger, default=600)
     subscribe_rls_services = Setting(type=bool, default=True)
     subscribe_xcap_diff = Setting(type=bool, default=True)
 
 
 class RegistrationSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    interval = Setting(type=NonNegativeInteger, default=600)
 
 
 class SoundsSettings(SettingsGroup):
@@ -112,8 +112,7 @@ class Account(SettingsObject):
     password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)
 
-    outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
-
+    sip = SIPSettings
     rtp = RTPSettings
     dialog_event = DialogEventSettings
     nat_traversal = NatTraversalSettings
@@ -199,7 +198,7 @@ class Account(SettingsObject):
                     self._registrar.end(timeout=2)
                 self._registrar = None
             elif SIPApplication.running:
-                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
+                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.sip.register_interval)
                 notification_center.add_observer(self, sender=self._registrar)
                 self._register()
 
@@ -208,7 +207,7 @@ class Account(SettingsObject):
             self.credentials.password = self.password
             if self._registrar is not None:
                 notification_center.remove_observer(self, sender=self._registrar)
-                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
+                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.sip.register_interval)
                 notification_center.add_observer(self, sender=self._registrar)
                 self._register()
 
@@ -326,8 +325,8 @@ class Account(SettingsObject):
             notification_center.remove_observer(self, sender=self._lookup)
         self._lookup = DNSLookup()
         notification_center.add_observer(self, sender=self._lookup)
-        if self.outbound_proxy is not None:
-            uri = SIPURI(host=self.outbound_proxy.host, port=self.outbound_proxy.port, parameters={'transport': self.outbound_proxy.transport})
+        if self.sip.outbound_proxy is not None:
+            uri = SIPURI(host=self.sip.outbound_proxy.host, port=self.sip.outbound_proxy.port, parameters={'transport': self.sip.outbound_proxy.transport})
         else:
             uri = SIPURI(host=self.id.domain)
         self._lookup.lookup_sip_proxy(uri, settings.sip.transports)
@@ -340,7 +339,7 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
 
         if self.registration.enabled:
-            self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.registration.interval)
+            self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.sip.register_interval)
             notification_center.add_observer(self, sender=self._registrar)
             self._register()
 
@@ -398,6 +397,7 @@ class BonjourAccount(SettingsObject):
     display_name = Setting(type=str, default=None, nillable=True)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
+    sip = SIPSettings
     rtp = RTPSettings
     sounds = SoundsSettings
     nat_traversal = NatTraversalSettings
