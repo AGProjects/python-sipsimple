@@ -68,6 +68,7 @@ class RTPSettings(SettingsGroup):
     port_range = Setting(type=PortRange, default=PortRange(50000, 50400))
     timeout = Setting(type=NonNegativeInteger, default=30)
     local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
+    audio_codec_list = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
 
 
 class SIPSettings(SettingsGroup):

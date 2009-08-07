@@ -37,8 +37,8 @@ class ContactURI(SIPAddress):
         return SIPAddress.__getitem__(self, transport)
 
 
-class AudioSettings(SettingsGroup):
-    codec_list = Setting(type=AudioCodecs, default=None, nillable=True)
+class RTPSettings(SettingsGroup):
+    audio_codec_list = Setting(type=AudioCodecs, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
     use_srtp_without_tls = Setting(type=bool, default=True)
 
@@ -115,7 +115,7 @@ class Account(SettingsObject):
 
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
 
-    audio = AudioSettings
+    rtp = RTPSettings
     dialog_event = DialogEventSettings
     ice = ICESettings
     message_summary = MessageSummarySettings
@@ -399,7 +399,7 @@ class BonjourAccount(SettingsObject):
     display_name = Setting(type=str, default=None, nillable=True)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
-    audio = AudioSettings
+    rtp = RTPSettings
     sounds = SoundsSettings
     ice = ICESettings
 

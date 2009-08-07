@@ -123,9 +123,9 @@ class AudioStream(NotificationHandler):
 
     def _init_rtp_transport(self, stun_servers=None):
         self._rtp_args = dict()
-        self._rtp_args["use_srtp"] = ((self._session.transport == "tls" or self.account.audio.use_srtp_without_tls)
-                                      and self.account.audio.srtp_encryption != "disabled")
-        self._rtp_args["srtp_forced"] = self._rtp_args["use_srtp"] and self.account.audio.srtp_encryption == "mandatory"
+        self._rtp_args["use_srtp"] = ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls)
+                                      and self.account.rtp.srtp_encryption != "disabled")
+        self._rtp_args["srtp_forced"] = self._rtp_args["use_srtp"] and self.account.rtp.srtp_encryption == "mandatory"
         self._rtp_args["use_ice"] = hasattr(self.account, "ice") and self.account.ice.enabled
         self._stun_servers = [(None, None)]
         if stun_servers:
@@ -170,15 +170,15 @@ class AudioStream(NotificationHandler):
                     try:
                         audio_transport = AudioTransport(self.conference_bridge, rtp_transport,
                                                          self._incoming_remote_sdp, self._incoming_stream_index,
-                                                         codecs=(list(self.account.audio.codec_list)
-                                                                 if self.account.audio.codec_list else None))
+                                                         codecs=(list(self.account.rtp.audio_codec_list)
+                                                                 if self.account.rtp.audio_codec_list else None))
                     finally:
                         del self._incoming_remote_sdp
                         del self._incoming_stream_index
                 else:
                     audio_transport = AudioTransport(self.conference_bridge, rtp_transport,
-                                                     codecs=(list(self.account.audio.codec_list) 
-                                                             if self.account.audio.codec_list else None))
+                                                     codecs=(list(self.account.rtp.audio_codec_list) 
+                                                             if self.account.rtp.audio_codec_list else None))
             except SIPCoreError, e:
                 self.state = "ENDED"
                 self.notification_center.post_notification("MediaStreamDidFail", self,

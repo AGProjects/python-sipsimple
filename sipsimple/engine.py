@@ -110,7 +110,7 @@ class Engine(Thread):
             sip_trace=settings.logging.trace_sip,
             ignore_missing_ack=settings.sip.ignore_missing_ack,
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
-            codecs=list(settings.audio.codec_list))
+            codecs=list(settings.rtp.audio_codec_list))
         self.start(local_ip=local_ip, **kwargs)
 
     def stop(self):
