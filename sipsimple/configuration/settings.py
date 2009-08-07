@@ -33,8 +33,6 @@ class AudioSettings(SettingsGroup):
 
 
 class ChatSettings(SettingsGroup):
-    message_received_sound = Setting(type=SoundFile, default=None, nillable=True)
-    message_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
     history_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     accept_types = Setting(type=ContentTypeList, default=('message/cpim', 'text/*'))
     accept_wrapped_types = Setting(type=ContentTypeList, default=('*',))
@@ -49,8 +47,6 @@ class DesktopSharingSettings(SettingsGroup):
 
 class FileTransferSettings(SettingsGroup):
     directory = Setting(type=UserDataPath, default=UserDataPath('file_transfers'))
-    file_received_sound = Setting(type=SoundFile, default=None, nillable=True)
-    file_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class LoggingSettings(SettingsGroup):
@@ -66,11 +62,6 @@ class LoggingSettings(SettingsGroup):
 class MSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tls')
     local_port = Setting(type=Port, default=0)
-
-
-class RingtoneSettings(SettingsGroup):
-    inbound = Setting(type=SoundFile, default=None, nillable=True)
-    outbound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class RTPSettings(SettingsGroup):
@@ -95,6 +86,14 @@ class TLSSettings(SettingsGroup):
     verify_server = Setting(type=bool, default=False)
     timeout = Setting(type=NonNegativeInteger, default=1000)
 
+class SoundsSettings(SettingsGroup):
+    audio_inbound_sound = Setting(type=SoundFile, default=None, nillable=True)
+    audio_outbound_sound = Setting(type=SoundFile, default=None, nillable=True)
+    message_received_sound = Setting(type=SoundFile, default=None, nillable=True)
+    message_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
+    file_received_sound = Setting(type=SoundFile, default=None, nillable=True)
+    file_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
+
 
 class SIPSimpleSettings(SettingsObject):
     __section__ = 'Global'
@@ -110,9 +109,9 @@ class SIPSimpleSettings(SettingsObject):
     chat = ChatSettings
     desktop_sharing = DesktopSharingSettings
     file_transfer = FileTransferSettings
+    sounds = SoundsSettings 
     logging = LoggingSettings
     msrp = MSRPSettings
-    ringtone = RingtoneSettings
     rtp = RTPSettings
     sip = SIPSettings
     tls = TLSSettings

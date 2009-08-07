@@ -80,8 +80,8 @@ class RegistrationSettings(SettingsGroup):
     interval = Setting(type=NonNegativeInteger, default=600)
 
 
-class RingtoneSettings(SettingsGroup):
-    inbound = Setting(type=SoundFile, default=None, nillable=True)
+class SoundsSettings(SettingsGroup):
+    audio_inbound_sound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class Account(SettingsObject):
@@ -122,7 +122,7 @@ class Account(SettingsObject):
     msrp = MSRPSettings
     presence = PresenceSettings
     registration = RegistrationSettings
-    ringtone = RingtoneSettings
+    sounds = SoundsSettings
 
     def __init__(self, id):
         self.id = id
@@ -400,7 +400,7 @@ class BonjourAccount(SettingsObject):
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
     audio = AudioSettings
-    ringtone = RingtoneSettings
+    sounds = SoundsSettings
     ice = ICESettings
 
     def __init__(self):
