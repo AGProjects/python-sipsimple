@@ -2,12 +2,14 @@ import os
 import random
 from datetime import datetime
 from collections import deque
-from zope.interface import implements
-from application.notification import NotificationCenter, NotificationData
-from twisted.python.failure import Failure
-from twisted.internet.error import ConnectionDone
 
-from eventlet import proc
+from application.notification import NotificationCenter, NotificationData
+from twisted.internet.error import ConnectionDone
+from twisted.python import threadable
+from twisted.python.failure import Failure
+from zope.interface import implements
+
+from eventlet.twistedutil import callInGreenThread
 from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
@@ -145,9 +147,8 @@ class MSRPChat(object):
             raise
         else:
             self.notification_center.post_notification('MediaStreamDidStart', self)
-            for send_args in self.message_queue:
-                proc.spawn_greenlet(self._send_raw_message, *send_args)
-            self.message_queue.clear()
+            while self.message_queue:
+                self._send_raw_message(*self.message_queue.popleft())
         # what if starting has failed? should I generate MSRPChatDidNotDeliver per each message?
 
     def _on_start(self):
@@ -202,30 +203,24 @@ class MSRPChat(object):
             data = NotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
             self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, data)
 
-    def _send_raw_message(self, message, content_type, failure_report=None, success_report=None):
+    def _send_raw_message(self, message_id, message, content_type, failure_report=None, success_report=None):
         """Send raw MSRP message. For IM prefer send_message.
         If called before the connection was established, the messages will be
         queued until MediaStreamDidStart notification.
 
         Return generated MSRP chunk (MSRPData); to get Message-ID use its 'message_id' attribute.
         """
-        if self.direction=='recvonly':
-            raise MSRPChatError('Cannot send message on recvonly stream')
         if self.msrp_session is None:
-            self.message_queue.append((message, content_type, failure_report, success_report))
+            self.message_queue.append((message_id, message, content_type, failure_report, success_report))
             return
-        if not contains_mime_type(self.accept_types, content_type):
-            raise MSRPChatError('Invalid content_type for outgoing message: %r' % (content_type, ))
-        message_id = '%x' % random.getrandbits(64)
         chunk = self.msrp_session.make_message(message, content_type=content_type, message_id=message_id)
         if failure_report is not None:
             chunk.add_header(FailureReportHeader(failure_report))
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
         self.msrp_session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
-        return chunk
+        self.notification_center.post_notification('MSRPChatDidSendMessage', self, NotificationData(chunk=chunk))
 
-    @run_in_twisted
     def send_message(self, content, content_type='text/plain', remote_identity=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
@@ -247,6 +242,11 @@ class MSRPChat(object):
         Failure-Report: partial
         Success-Report: yes
         """
+        if self.direction=='recvonly':
+            raise MSRPChatError('Cannot send message on recvonly stream')
+        if not contains_mime_type(self.accept_types, content_type):
+            raise MSRPChatError('Invalid content_type for outgoing message: %r' % (content_type, ))
+        message_id = '%x' % random.getrandbits(64)
         if self.cpim_enabled:
             if remote_identity is None:
                 remote_identity = self.remote_identity
@@ -255,11 +255,20 @@ class MSRPChat(object):
             if dt is None:
                 dt = datetime.utcnow()
             msg = MessageCPIM(content, content_type, from_=self.local_identity, to=remote_identity, datetime=dt)
-            return self._send_raw_message(str(msg), 'message/cpim', failure_report='partial', success_report='yes')
+            if threadable.isInIOThread():
+                callInGreenThread(self._send_raw_message, message_id, str(msg), 'message/cpim', failure_report='partial', success_report='yes')
+            else:
+                from twisted.internet import reactor
+                reactor.callFromThread(callInGreenThread, self._send_raw_message, message_id, str(msg), 'message/cpim', failure_report='partial', success_report='yes')
         else:
             if remote_identity is not None and remote_identity != self.remote_identity:
                 raise MSRPChatError('Private messages are not available, because CPIM wrapper is not used')
-            return self._send_raw_message(content, content_type)
+            if threadable.isInIOThread():
+                callInGreenThread(self._send_raw_message, message_id, content, content_type)
+            else:
+                from twisted.internet import reactor
+                reactor.callFromThread(callInGreenThread, self._send_raw_message, message_id, content, content_type)
+        return message_id
 
     @run_in_twisted
     def send_file(self, outgoing_file):
