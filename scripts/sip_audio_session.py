@@ -23,7 +23,7 @@ from twisted.internet import reactor
 from sipsimple.core import SIPCoreError, SIPURI, ToHeader, ToneGenerator
 from sipsimple.engine import Engine
 
-from sipsimple.account import Account, AccountManager
+from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.api import SIPApplication
 from sipsimple.audiostream import AudioStream
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
@@ -257,6 +257,14 @@ class SIPAudioApplication(SIPApplication):
         self.output.put('Using audio output device: %s\n' % self.voice_conference_bridge.output_device)
         self.output.put('Using audio alert device: %s\n' % self.alert_conference_bridge.output_device)
 
+        if isinstance(self.account, BonjourAccount) and self.target is None:
+            contacts = []
+            for transport in self.account.transports:
+                if transport in settings.sip.transports:
+                    contacts.append(self.account.contact[transport])
+            for contact in contacts:
+                self.output.put('Listening on: sip:%s@%s:%d;transport=%s\n' % (contact.user, contact.host, contact.port, contact.parameters['transport'] if 'transport' in contact.parameters else 'udp'))
+
         self.print_help()
         
         inbound_ringtone = self.account.sounds.audio_inbound_sound or settings.sounds.audio_inbound_sound
@@ -284,7 +292,7 @@ class SIPAudioApplication(SIPApplication):
                 notification_center = NotificationCenter()
                 settings = SIPSimpleSettings()
                 notification_center.add_observer(self, sender=lookup)
-                if self.account.sip.outbound_proxy is not None:
+                if isinstance(self.account, Account) and self.account.sip.outbound_proxy is not None:
                     uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
                 else:
                     uri = self.target
