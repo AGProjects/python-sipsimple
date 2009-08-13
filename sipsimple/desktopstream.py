@@ -84,7 +84,7 @@ class MSRPDesktop(object):
                 else:
                     self.setup = 'passive'
             if (outgoing and self.account.msrp.use_relay_for_outbound) or (not outgoing and self.account.msrp.use_relay_for_inbound):
-                if self.account.msrp.relay is None:
+                if self.account.nat_traversal.msrp_relay is None:
                     relay = MSRPRelaySettings(domain=self.account.id.domain,
                                               username=self.account.id.username,
                                               password=self.account.password)
@@ -93,10 +93,10 @@ class MSRPDesktop(object):
                     relay = MSRPRelaySettings(domain=self.account.id.domain,
                                               username=self.account.id.username,
                                               password=self.account.password,
-                                              host=self.account.msrp.relay.host,
-                                              port=self.account.msrp.relay.port,
-                                              use_tls=self.account.msrp.relay.transport=='tls')
-                    self.transport = self.account.msrp.relay.transport
+                                              host=self.account.nat_traversal.msrp_relay.host,
+                                              port=self.account.nat_traversal.msrp_relay.port,
+                                              use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
+                    self.transport = self.account.nat_traversal.msrp_relay.transport
             else:
                 relay = None
                 self.transport = settings.msrp.transport

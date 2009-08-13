@@ -55,6 +55,7 @@ class DialogEventSettings(SettingsGroup):
 class NatTraversalSettings(SettingsGroup):
     enable_ice = Setting(type=bool, default=True)
     stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
+    msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
 
 
 class MessageSummarySettings(SettingsGroup):
@@ -63,7 +64,6 @@ class MessageSummarySettings(SettingsGroup):
 
 
 class MSRPSettings(SettingsGroup):
-    relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
     use_relay_for_inbound = Setting(type=bool, default=True)
     use_relay_for_outbound = Setting(type=bool, default=False)
 
@@ -413,7 +413,7 @@ class BonjourAccount(SettingsObject):
 
         # initialize msrp settings
         self.msrp = MSRPSettings()
-        self.msrp.relay = None
+        self.nat_traversal.msrp_relay = None
         self.msrp.use_relay_for_inbound = False
         self.msrp.use_relay_for_outbound = False
 
