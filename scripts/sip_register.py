@@ -2,48 +2,45 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+import atexit
 import os
 import select
+import signal
 import sys
 import termios
+from time import sleep
 
 from application import log
-from application.notification import IObserver, NotificationCenter, NotificationData
+from application.notification import NotificationCenter, NotificationData
 from application.python.queue import EventQueue
 from datetime import datetime
 from optparse import OptionParser
 from threading import Thread
-from twisted.internet.error import ReactorNotRunning
-from twisted.python import threadable
-from zope.interface import implements
-
-from twisted.internet import reactor
-from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
-from sipsimple.core import SIPCoreError
-from sipsimple.account import AccountManager, BonjourAccount
+
+from sipsimple.account import Account, AccountManager, BonjourAccount
+from sipsimple.api import SIPApplication
 from sipsimple.clients.log import Logger
-from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 
 class InputThread(Thread):
-    def __init__(self, application):
+    def __init__(self):
         Thread.__init__(self)
-        self.application = application
         self.daemon = True
         self._old_terminal_settings = None
+
+    def start(self):
+        atexit.register(self._termios_restore)
+        Thread.start(self)
 
     def run(self):
         notification_center = NotificationCenter()
         while True:
             for char in self._getchars():
-                if char == "\x04":
-                    self.application.stop()
-                    return
-                else:
-                    notification_center.post_notification('SAInputWasReceived', sender=self, data=NotificationData(input=char))
+                notification_center.post_notification('SIPApplicationGotInput', sender=self, data=NotificationData(input=char))
 
     def stop(self):
         self._termios_restore()
@@ -69,138 +66,137 @@ class InputThread(Thread):
             return os.read(fd, 4192)
 
 
-class RegistrationApplication(object):
-    implements(IObserver)
-
-    def __init__(self, account_name, trace_sip, trace_pjsip, trace_notifications, max_registers):
-        self.account_name = account_name
-        self.input = InputThread(self)
-        self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
-        self.logger = Logger(trace_sip, trace_pjsip, trace_notifications)
-        self.max_registers = max_registers if max_registers > 0 else None
-        self.success = False
+class RegistrationApplication(SIPApplication):
+    def __init__(self):
         self.account = None
-        self.old_state = 'unregistered'
+        self.options = None
 
-        account_manager = AccountManager()
-        engine = Engine()
+        self.input = None
+        self.output = None
+        self.logger = None
+        self.max_registers = None
+        self.success = False
+
+    def start(self, options):
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=account_manager)
-        notification_center.add_observer(self, sender=engine)
+        
+        self.options = options
+        self.max_registers = options.max_registers if options.max_registers > 0 else None
+
+        self.input = InputThread() if not options.batch_mode else None
+        self.output = EventQueue(lambda message: (sys.stdout.write(message), sys.stdout.flush()))
+        self.logger = Logger(options.trace_sip, options.trace_pjsip, options.trace_notifications)
+        
+        notification_center.add_observer(self, sender=self)
         notification_center.add_observer(self, sender=self.input)
+        notification_center.add_observer(self, name='SIPSessionNewIncoming')
 
-        log.level.current = log.level.WARNING
-
-    def run(self):
-        account_manager = AccountManager()
-        configuration = ConfigurationManager()
-        engine = Engine()
-        notification_center = NotificationCenter()
-        
-        # start output thread
+        if self.input:
+            self.input.start()
         self.output.start()
-    
-        # startup configuration
-        configuration.start()
-        account_manager.start()
-        if self.account_name is None:
-            self.account = account_manager.default_account
+
+        log.level.current = log.level.WARNING # get rid of twisted messages
+
+        if options.config_file:
+            config_file = os.path.realpath(options.configfile)
+            self.output.put("Using configuration file '%s'\n" % config_file)
+            SIPApplication.start(self, ConfigFileBackend(config_file))
         else:
-            possible_accounts = [account for account in account_manager.iter_accounts() if self.account_name in account.id and account.enabled]
-            if len(possible_accounts) > 1:
-                raise RuntimeError("More than one account exists which matches %s: %s" % (self.account_name, ", ".join(sorted(account.id for account in possible_accounts))))
-            if len(possible_accounts) == 0:
-                raise RuntimeError("No enabled account which matches %s was found. Available and enabled accounts: %s" % (self.account_name, ", ".join(sorted(account.id for account in account_manager.get_accounts() if account.enabled))))
-            self.account = possible_accounts[0]
-        if self.account is None:
-            raise RuntimeError("unknown account %s. Available enabled accounts: %s" % (self.account_name, ', '.join(sorted(account.id for account in account_manager.iter_accounts() if account.enabled))))
-        elif self.account == BonjourAccount():
-            raise RuntimeError("cannot use bonjour account for registration")
-        for account in account_manager.iter_accounts():
-            if account == self.account:
-                account.registration.enabled = True
-            else:
-                account.enabled = False
-        self.output.put('Using account %s' % self.account.id)
-        notification_center.add_observer(self, sender=self.account)
-
-        # start logging
-        self.logger.start()
-
-        # start the engine
-        settings = SIPSimpleSettings()
-        engine.start(
-            auto_sound=False,
-            local_ip=settings.local_ip.normalized,
-            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
-            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
-            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
-            tls_protocol=settings.tls.protocol,
-            tls_verify_server=settings.tls.verify_server,
-            tls_ca_file=settings.tls.ca_list_file.normalized if settings.tls.ca_list_file is not None else None,
-            tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
-            tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
-            tls_timeout=settings.tls.timeout,
-            ec_tail_length=settings.audio.tail_length,
-            user_agent=settings.user_agent,
-            sample_rate=settings.audio.sample_rate,
-            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
-            trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
-            log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
-        )
-
-        # start getting input
-        self.input.start()
-        
-        if self.max_registers != 1:
-            self.print_help()
-
-        # start twisted
-        try:
-            reactor.run()
-        finally:
-            self.input.stop()
-        
-        # stop the output
-        self.output.stop()
-        self.output.join()
-        
-        self.logger.stop()
-
-        return 0 if self.success else 1
-
-    def stop(self):
-        account_manager = AccountManager()
-
-        account_manager.stop()
+            self.output.put("Using default configuration file\n")
+            SIPApplication.start(self)
 
     def print_help(self):
         message  = 'Available control keys:\n'
-        message += '  t: toggle SIP trace on the console\n'
+        message += '  s: toggle SIP trace on the console\n'
         message += '  j: toggle PJSIP trace on the console\n'
         message += '  n: toggle notifications trace on the console\n'
         message += '  Ctrl-d: quit the program\n'
         message += '  ?: display this help message\n'
         self.output.put('\n'+message)
-        
-    def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
+
+    def _NH_SIPApplicationWillStart(self, notification):
+        account_manager = AccountManager()
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+    
+        for account in account_manager.iter_accounts():
+            if isinstance(account, Account):
+                account.registration.enabled = False
+        if self.options.account is None:
+            self.account = account_manager.default_account
+        else:
+            possible_accounts = [account for account in account_manager.iter_accounts() if self.options.account in account.id and account.enabled]
+            if len(possible_accounts) > 1:
+                self.output.put('More than one account exists which matches %s: %s\n' % (self.options.account, ', '.join(sorted(account.id for account in possible_accounts))))
+                self.output.stop()
+                self.stop()
+                return
+            elif len(possible_accounts) == 0:
+                self.output.put('No enabled account which matches %s was found. Available and enabled accounts: %s\n' % (self.options.account, ', '.join(sorted(account.id for account in account_manager.get_accounts() if account.enabled))))
+                self.output.stop()
+                self.stop()
+                return
+            else:
+                self.account = possible_accounts[0]
+        if isinstance(self.account, BonjourAccount):
+            self.output.put('Cannot use bonjour account for registration\n')
+            self.output.stop()
+            self.stop()
+            return
+        self.account.registration.enabled = True
+        self.output.put('Using account %s\n' % self.account.id)
+        notification_center.add_observer(self, sender=self.account)
+
+        # start logging
+        self.logger.start()
+        if settings.logging.trace_sip:
+            self.output.put('Logging SIP trace to file "%s"\n' % self.logger._siptrace_filename)
+        if settings.logging.trace_pjsip:
+            self.output.put('Logging PJSIP trace to file "%s"\n' % self.logger._pjsiptrace_filename)
+
+    def _NH_SIPApplicationDidStart(self, notification):
+        if self.max_registers != 1 and not self.options.batch_mode:
+            self.print_help()
+
+    def _NH_SIPApplicationDidEnd(self, notification):
+        if self.input:
+            self.input.stop()
+        self.output.stop()
+        self.output.join()
+
+    def _NH_SIPApplicationGotInput(self, notification):
+        engine = Engine()
+        settings = SIPSimpleSettings()
+        key = notification.data.input
+        if key == '\x04':
+            self.stop()
+        elif key == 's':
+            self.logger.sip_to_stdout = not self.logger.sip_to_stdout
+            engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+            self.output.put('SIP tracing to console is now %s.\n' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
+        elif key == 'j':
+            self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
+            engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+            self.output.put('PJSIP tracing to console is now %s.\n' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
+        elif key == 'n':
+            self.logger.notifications_to_stdout = not self.logger.notifications_to_stdout
+            self.output.put('Notification tracing to console is now %s.\n' % ('activated' if self.logger.notifications_to_stdout else 'deactivated'))
+        elif key == '?':
+            self.print_help()
     
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if not self.success:
             route = notification.data.route
-            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires)
+            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).\n' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires)
             contact_header_list = notification.data.contact_header_list
             if len(contact_header_list) > 1:
-                message += "\nOther registered contacts:\n%s" % "\n".join(["  %s (expires in %s seconds)" % (str(other_contact_header.uri), other_contact_header.expires) for other_contact_header in contact_header_list if other_contact_header.uri != notification.data.contact_header.uri])
+                message += 'Other registered contacts:\n%s\n' % '\n'.join(['  %s (expires in %s seconds)' % (str(other_contact_header.uri), other_contact_header.expires) for other_contact_header in contact_header_list if other_contact_header.uri != notification.data.contact_header.uri])
             self.output.put(message)
             
             self.success = True
         else:
             route = notification.data.route
-            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires))
+            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).\n' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires))
         
         if self.max_registers is not None:
             self.max_registers -= 1
@@ -212,19 +208,19 @@ class RegistrationApplication(object):
             route = notification.data.route
             if notification.data.next_route:
                 next_route = notification.data.next_route
-                next_route = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
+                next_route = 'Trying next route %s:%d;transport=%s.\n' % (next_route.address, next_route.port, next_route.transport)
             else:
                 if notification.data.delay:
-                    next_route = 'No more routes to try; retrying in %.2f seconds.' % (notification.data.delay)
+                    next_route = 'No more routes to try; retrying in %.2f seconds.\n' % (notification.data.delay)
                 else:
-                    next_route = 'No more routes to try'
+                    next_route = 'No more routes to try\n'
             if notification.data.code:
                 status = '%d %s' % (notification.data.code, notification.data.reason)
             else:
                 status = notification.data.reason
-            self.output.put('%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status, next_route))
+            self.output.put('%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s\n' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status, next_route))
         else:
-            self.output.put('%s Failed to register contact for sip:%s: %s' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
+            self.output.put('%s Failed to register contact for sip:%s: %s\n' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
         
         self.success = False
         
@@ -232,78 +228,34 @@ class RegistrationApplication(object):
             self.max_registers -= 1
             if self.max_registers == 0:
                 self.stop()
-                engine = Engine()
-                engine.stop()
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
-        self.output.put('%s Registration %s.' % (datetime.now().replace(microsecond=0), ("expired" if notification.data.expired else "ended")))
-        
-        engine = Engine()
-        engine.stop()
-
-    def _NH_SAInputWasReceived(self, notification):
-        engine = Engine()
-        settings = SIPSimpleSettings()
-        key = notification.data.input
-        if key == 't':
-            self.logger.sip_to_stdout = not self.logger.sip_to_stdout
-            engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
-            self.output.put('SIP tracing to console is now %s.' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
-        elif key == 'j':
-            self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
-            engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
-            self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
-        elif key == 'n':
-            self.logger.notifications_to_stdout = not self.logger.notifications_to_stdout
-            self.output.put('Notification tracing to console is now %s.' % ('activated' if self.logger.notifications_to_stdout else 'deactivated'))
-        elif key == '?':
-            self.print_help()
-
-    def _NH_SIPEngineDidEnd(self, notification):
-        if threadable.isInIOThread():
-            self._stop_reactor()
-        else:
-            reactor.callFromThread(self._stop_reactor)
-
-    def _NH_SIPEngineDidFail(self, notification):
-        self.output.put('%s Engine failed.'% (datetime.now().replace(microsecond=0),))
-        if threadable.isInIOThread():
-            self._stop_reactor()
-        else:
-            reactor.callFromThread(self._stop_reactor)
+        self.output.put('%s Registration %s.\n' % (datetime.now().replace(microsecond=0), ('expired' if notification.data.expired else 'ended')))
 
     def _NH_SIPEngineGotException(self, notification):
-        self.output.put('%s An exception occured within the SIP core:\n%s' % (datetime.now().replace(microsecond=0), notification.data.traceback))
-
-    def _stop_reactor(self):
-        try:
-            reactor.stop()
-        except ReactorNotRunning:
-            pass
+        self.output.put('%s An exception occured within the SIP core:\n%s\n' % (datetime.now().replace(microsecond=0), notification.data.traceback))
 
 
 if __name__ == "__main__":
-    description = "This script will register a SIP account to a SIP registrar and refresh it while the program is running. When Ctrl+D is pressed it will unregister."
-    usage = "%prog [options]"
+    description = 'This script will register a SIP account to a SIP registrar and refresh it while the program is running. When Ctrl+D is pressed it will unregister.'
+    usage = '%prog [options]'
     parser = OptionParser(usage=usage, description=description)
     parser.print_usage = parser.print_help
-    parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
-    parser.add_option("-s", "--trace-sip", action="store_true", dest="trace_sip", default=False, help="Dump the raw contents of incoming and outgoing SIP messages (disabled by default).")
-    parser.add_option("-j", "--trace-pjsip", action="store_true", dest="trace_pjsip", default=False, help="Print PJSIP logging output (disabled by default).")
-    parser.add_option("-n", "--trace-notifications", action="store_true", dest="trace_notifications", default=False, help="Print all notifications (disabled by default).")
-    parser.add_option("-r", "--max-registers", type="int", dest="max_registers", default=1, help="Max number of REGISTERs sent (default 1, set to 0 for infinite).")
+    parser.add_option('-a', '--account', type='string', dest='account', help='The name of the account to use. If not supplied, the default account will be used.', metavar='NAME')
+    parser.add_option('-c', '--config-file', type='string', dest='config_file', help='The path to a configuration file to use. This overrides the default location of the configuration file.', metavar='FILE')
+    parser.add_option('-s', '--trace-sip', action='store_true', dest='trace_sip', default=False, help='Dump the raw contents of incoming and outgoing SIP messages (disabled by default).')
+    parser.add_option('-j', '--trace-pjsip', action='store_true', dest='trace_pjsip', default=False, help='Print PJSIP logging output (disabled by default).')
+    parser.add_option('-n', '--trace-notifications', action='store_true', dest='trace_notifications', default=False, help='Print all notifications (disabled by default).')
+    parser.add_option('-r', '--max-registers', type='int', dest='max_registers', default=1, help='Max number of REGISTERs sent (default 1, set to 0 for infinite).')
+    parser.add_option('-b', '--batch', action='store_true', dest='batch_mode', default=False, help='Run the program in batch mode: reading input from the console is disabled. This is particularly useful when running this script in a non-interactive environment.')
     options, args = parser.parse_args()
 
-    try:
-        application = RegistrationApplication(options.account_name, options.trace_sip, options.trace_pjsip, options.trace_notifications, options.max_registers)
-        return_code = application.run()
-    except RuntimeError, e:
-        print "Error: %s" % str(e)
-        sys.exit(1)
-    except SIPCoreError, e:
-        print "Error: %s" % str(e)
-        sys.exit(1)
-    else:
-        sys.exit(return_code)
+    application = RegistrationApplication()
+    application.start(options)
+    
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    application.output.join()
+    sleep(0.1)
+    sys.exit(0 if application.success else 1)
 
 
