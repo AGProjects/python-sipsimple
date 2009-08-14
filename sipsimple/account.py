@@ -397,7 +397,6 @@ class BonjourAccount(SettingsObject):
     display_name = Setting(type=str, default=None, nillable=True)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
-    sip = SIPSettings
     rtp = RTPSettings
     sounds = SoundsSettings
     nat_traversal = NatTraversalSettings

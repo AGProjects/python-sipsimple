@@ -24,7 +24,7 @@ from sipsimple.clients import format_cmdline_uri
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.account import AccountManager, BonjourAccount
+from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 
 queue = Queue()
@@ -248,11 +248,11 @@ def do_message(account_id, target_uri, message, trace_sip, trace_pjsip, trace_no
             # setup routes
             if target_uri is not None:
                 target_uri = SIPURI.parse(format_cmdline_uri(target_uri, account.id.domain))
-                if account.sip.outbound_proxy is None:
-                    dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
-                else:
+                if isinstance(account, Account) and account.sip.outbound_proxy is not None:
                     proxy_uri = SIPURI(host=account.sip.outbound_proxy.host, port=account.sip.outbound_proxy.port, parameters={"transport": account.sip.outbound_proxy.transport})
                     dns.lookup_sip_proxy(proxy_uri, settings.sip.transports)
+                else:
+                    dns.lookup_sip_proxy(SIPURI(host=account.id.domain), settings.sip.transports)
 
         # start thread and process user input
         start_new_thread(read_queue, (e, settings, am, account, logger, target_uri, message, dns))
