@@ -305,7 +305,7 @@ class SettingsState(object):
             if isinstance(attribute, (SettingsGroupMeta, Setting)):
                 try:
                     setattr(self, name, value)
-                except ValueError:
+                except Exception:
                     pass #FIXME: add log message saying that stored value could not be used. -Luci
             if isinstance(attribute, Setting):
                 attribute.clear_dirty(self)
