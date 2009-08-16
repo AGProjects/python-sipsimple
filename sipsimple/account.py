@@ -19,7 +19,7 @@ from zope.interface import implements
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AudioCodecs, CountryCode, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
+from sipsimple.configuration.datatypes import AudioCodecs, CountryCode, DomainList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot, Hostname
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.primitives import Registration
@@ -66,6 +66,10 @@ class MessageSummarySettings(SettingsGroup):
 class MSRPSettings(SettingsGroup):
     use_relay_for_inbound = Setting(type=bool, default=True)
     use_relay_for_outbound = Setting(type=bool, default=False)
+
+
+class ChatSettings(SettingsGroup):
+    server=Setting(type=Hostname, default=None, nillable=True)
 
 
 class PresenceSettings(SettingsGroup):
@@ -118,6 +122,7 @@ class Account(SettingsObject):
     nat_traversal = NatTraversalSettings
     message_summary = MessageSummarySettings
     msrp = MSRPSettings
+    chat = ChatSettings
     presence = PresenceSettings
     registration = RegistrationSettings
     sounds = SoundsSettings
