@@ -162,6 +162,7 @@ class SIPAudioApplication(SIPApplication):
         self.tone_ringtone = None
         self.hold_tone = None
 
+        self.ignore_local_hold = False
         self.ignore_local_unhold = False
 
     def start(self, target, options):
@@ -364,6 +365,7 @@ class SIPAudioApplication(SIPApplication):
                 self.active_session.hold()
                 self.active_session = self.started_sessions[self.started_sessions.index(self.active_session)-1]
                 self.active_session.unhold()
+                self.ignore_local_hold = True
                 self.ignore_local_unhold = True
             else:
                 return
@@ -380,6 +382,7 @@ class SIPAudioApplication(SIPApplication):
                 self.active_session.hold()
                 self.active_session = self.started_sessions[(self.started_sessions.index(self.active_session)+1) % len(self.started_sessions)]
                 self.active_session.unhold()
+                self.ignore_local_hold = True
                 self.ignore_local_unhold = True
             else:
                 return
@@ -590,6 +593,15 @@ class SIPAudioApplication(SIPApplication):
         if self.active_session is not None:
             self.active_session.hold()
         self.active_session = session
+        if len(self.started_sessions) > 1:
+            message = 'Connected sessions:\n'
+            for session in self.started_sessions:
+                identity = str(session.remote_identity.uri)
+                if session.remote_identity.display_name:
+                    identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
+                message += '  Audio session %s (%d/%d) - %s\n' % (identity, self.started_sessions.index(session)+1, len(self.started_sessions), 'active' if session is self.active_session else 'on hold')
+            message += 'Press arrow keys to switch the active session\n'
+            self.output.put(message)
         if self.incoming_sessions:
             if self.tone_ringtone:
                 self.tone_ringtone.start()
@@ -620,10 +632,16 @@ class SIPAudioApplication(SIPApplication):
 
     def _NH_SIPSessionDidEnd(self, notification):
         session = notification.sender
-        if notification.data.end_reason == 'user request':
-            self.output.put('Audio session ended by %s party\n' % notification.data.originator)
+        if session is not self.active_session:
+            identity = str(session.remote_identity.uri)
+            if session.remote_identity.display_name:
+                identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
         else:
-            self.output.put('Audio session ended due to error: %s\n' % notification.data.end_reason)
+            identity = '\b'
+        if notification.data.end_reason == 'user request':
+            self.output.put('Audio session %s ended by %s party\n' % (identity, notification.data.originator))
+        else:
+            self.output.put('Audio session %s ended due to error: %s\n' % (identity, notification.data.end_reason))
         duration = session.end_time - session.start_time
         seconds = duration.seconds if duration.microseconds < 500000 else duration.seconds+1
         minutes, seconds = seconds / 60, seconds % 60
@@ -639,7 +657,16 @@ class SIPAudioApplication(SIPApplication):
         
         self.started_sessions.remove(session)
         if session is self.active_session:
-            self.active_session = None
+            if self.started_sessions:
+                self.active_session = self.started_sessions[0]
+                self.active_session.unhold()
+                self.ignore_local_unhold = True
+                identity = str(self.active_session.remote_identity.uri)
+                if self.active_session.remote_identity.display_name:
+                    identity = '"%s" <%s>' % (self.active_session.remote_identity.display_name, identity)
+                self.output.put('Active audio session: "%s" (%d/%d)\n' % (identity, self.started_sessions.index(self.active_session)+1, len(self.started_sessions)))
+            else:
+                self.active_session = None
 
         if session is self.outgoing_session:
             self.stop()
@@ -649,20 +676,45 @@ class SIPAudioApplication(SIPApplication):
             self.hold_tone.stop()
 
     def _NH_SIPSessionDidChangeHoldState(self, notification):
-        if notification.sender is not self.active_session:
-            return
+        session = notification.sender
         if notification.data.on_hold:
             if notification.data.originator == 'remote':
-                self.output.put('Remote party has put the call on hold\n')
+                if session is self.active_session:
+                    self.output.put('Remote party has put the audio session on hold\n')
+                else:
+                    identity = str(session.remote_identity.uri)
+                    if session.remote_identity.display_name:
+                        identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
+                    self.output.put('%s has put the audio session on hold\n' % identity)
+            elif not self.ignore_local_hold:
+                if session is self.active_session:
+                    self.output.put('Audio session is put on hold\n')
+                else:
+                    identity = str(session.remote_identity.uri)
+                    if session.remote_identity.display_name:
+                        identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
+                    self.output.put('Audio session %s is put on hold\n' % identity)
             else:
-                self.output.put('Session is put on hold\n')
+                self.ignore_local_hold = False
         else:
             if notification.data.originator == 'remote':
-                self.output.put('Remote party has taken the call out of hold\n')
+                if session is self.active_session:
+                    self.output.put('Remote party has taken the audio session out of hold\n')
+                else:
+                    identity = str(session.remote_identity.uri)
+                    if session.remote_identity.display_name:
+                        identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
+                    self.output.put('%s has taken the audio session out of hold\n' % identity)
             elif not self.ignore_local_unhold:
-                self.output.put('Session is taken out of hold\n')
+                if session is self.active_session:
+                    self.output.put('Audio session is taken out of hold\n')
+                else:
+                    identity = str(session.remote_identity.uri)
+                    if session.remote_identity.display_name:
+                        identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
+                    self.output.put('Audio session %s is taken out of hold\n' % identity)
             else:
-                self.ignore_local_unhold = False
+                self.ignore_local_hold = False
 
     def _NH_SIPSessionGotProposal(self, notification):
         session = notification.sender
