@@ -32,7 +32,7 @@ class AudioSettings(SettingsGroup):
 
 
 class ChatSettings(SettingsGroup):
-    history_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
+    directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     accept_types = Setting(type=ContentTypeList, default=('message/cpim', 'text/*'))
     accept_wrapped_types = Setting(type=ContentTypeList, default=('*',))
 
