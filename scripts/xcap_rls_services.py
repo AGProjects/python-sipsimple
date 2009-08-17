@@ -81,7 +81,7 @@ def add_buddy(buddy):
             if buddy not in buddy_service.list:
                 buddy_service.list.append(Entry(buddy))
                 try:
-                    res = xcap_client.put('rls-services', rls_services.toxml(pretty_print=True), etag=rls_services_etag)
+                    res = xcap_client.put('rls-services', rls_services.toxml(pretty_print=True), etag=rls_services_etag, headers={'Content-Type': 'application/rls-services+xml'})
                 except HTTPError, e:
                     print "Cannot PUT 'rls-services' document: %s" % str(e)
                     rls_services = None
@@ -108,7 +108,7 @@ def remove_buddy(buddy):
             if buddy in buddy_service.list:
                 buddy_service.list.remove(buddy)
                 try:
-                    res = xcap_client.put('rls-services', rls_services.toxml(pretty_print=True), etag=rls_services_etag)
+                    res = xcap_client.put('rls-services', rls_services.toxml(pretty_print=True), etag=rls_services_etag, headers={'Content-Type': 'application/rls-services+xml'})
                 except HTTPError, e:
                     print "Cannot PUT 'rls-services' document: %s" % str(e)
                     rls_services = None
@@ -135,7 +135,7 @@ def delete_service():
             if buddy_service.uri in rls_services:
                 rls_services.remove(buddy_service.uri)
                 try:
-                    res = xcap_client.put('rls-services', rls_services.toxml(pretty_print=True), etag=rls_services_etag)
+                    res = xcap_client.put('rls-services', rls_services.toxml(pretty_print=True), etag=rls_services_etag, headers={'Content-Type': 'application/rls-services+xml'})
                 except HTTPError, e:
                     print "Cannot PUT 'rls-services' document: %s" % str(e)
                     rls_services = None
