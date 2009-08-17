@@ -68,7 +68,7 @@ class SIPApplication(object):
                      local_ip=settings.local_ip.normalized if settings.local_ip is not None else None,
                      user_agent=settings.user_agent,
                      # SIP
-                     ignore_missing_ack=settings.sip.ignore_missing_ack,
+                     ignore_missing_ack=False,
                      local_udp_port=settings.sip.local_udp_port if 'udp' in settings.sip.transports else None,
                      local_tcp_port=settings.sip.local_tcp_port if 'tcp' in settings.sip.transports else None,
                      local_tls_port=settings.sip.local_tls_port if 'tls' in settings.sip.transports else None,
