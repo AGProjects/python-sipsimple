@@ -404,7 +404,6 @@ class BonjourAccount(SettingsObject):
 
     rtp = RTPSettings
     sounds = SoundsSettings
-    nat_traversal = NatTraversalSettings
 
     def __init__(self):
         settings = SIPSimpleSettings()
@@ -417,9 +416,13 @@ class BonjourAccount(SettingsObject):
 
         # initialize msrp settings
         self.msrp = MSRPSettings()
-        self.nat_traversal.msrp_relay = None
         self.msrp.use_relay_for_inbound = False
         self.msrp.use_relay_for_outbound = False
+
+        # initialize nat settings
+        self.nat_traversal = NatTraversalSettings()
+        self.nat_traversal.enable_ice = False
+        self.nat_traversal.msrp_relay = None
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
