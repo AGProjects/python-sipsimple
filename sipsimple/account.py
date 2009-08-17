@@ -187,6 +187,8 @@ class Account(SettingsObject):
             handler(notification)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
+        notification_center = NotificationCenter()
+
         from sipsimple.api import SIPApplication
         enabled_value = notification.data.modified.get('enabled', None)
         if 'enabled' in notification.data.modified:
@@ -196,7 +198,6 @@ class Account(SettingsObject):
                 self._activate()
 
         if self.enabled and 'registration.enabled' in notification.data.modified:
-            notification_center = NotificationCenter()
             if not self.registration.enabled:
                 notification_center.remove_observer(self, sender=self._registrar)
                 if self._registrar.is_registered:
