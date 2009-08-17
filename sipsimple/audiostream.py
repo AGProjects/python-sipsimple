@@ -266,7 +266,7 @@ class AudioStream(NotificationHandler):
                 direction = self._session.direction
                 remote = "%s@%s" % (self._session.remote_identity.uri.user, self._session.remote_identity.uri.host)
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
-            recording_path = os.path.join(settings.audio.recordings_directory.normalized, self.account.id)
+            recording_path = os.path.join(settings.audio.directory.normalized, self.account.id)
             makedirs(recording_path)
             self._audio_rec = RecordingWaveFile(self.conference_bridge, os.path.join(recording_path, file_name))
             self._check_recording()

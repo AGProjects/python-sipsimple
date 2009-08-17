@@ -26,7 +26,7 @@ class AudioSettings(SettingsGroup):
     input_device = Setting(type=AudioInputDevice, default='default', nillable=True)
     output_device = Setting(type=AudioOutputDevice, default='default', nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
-    recordings_directory = Setting(type=UserDataPath, default=UserDataPath('history'))
+    directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32000)
     silent = Setting(type=bool, default=False)
 
