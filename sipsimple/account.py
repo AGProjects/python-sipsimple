@@ -84,7 +84,7 @@ class RegistrationSettings(SettingsGroup):
 
 
 class SoundsSettings(SettingsGroup):
-    audio_inbound_sound = Setting(type=SoundFile, default=None, nillable=True)
+    audio_inbound = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class Account(SettingsObject):

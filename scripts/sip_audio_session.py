@@ -267,8 +267,8 @@ class SIPAudioApplication(SIPApplication):
 
         self.print_help()
         
-        inbound_ringtone = self.account.sounds.audio_inbound_sound or settings.sounds.audio_inbound_sound
-        outbound_ringtone = settings.sounds.audio_outbound_sound
+        inbound_ringtone = self.account.sounds.audio_inbound or settings.sounds.audio_inbound
+        outbound_ringtone = settings.sounds.audio_outbound
         if inbound_ringtone:
             self.wave_inbound_ringtone = SilenceableWaveFile(self.alert_conference_bridge, inbound_ringtone.path.normalized, volume=inbound_ringtone.volume, loop_count=0, pause_time=2)
         if outbound_ringtone:

@@ -87,12 +87,12 @@ class TLSSettings(SettingsGroup):
     timeout = Setting(type=NonNegativeInteger, default=1000)
 
 class SoundsSettings(SettingsGroup):
-    audio_inbound_sound = Setting(type=SoundFile, default=None, nillable=True)
-    audio_outbound_sound = Setting(type=SoundFile, default=None, nillable=True)
-    message_received_sound = Setting(type=SoundFile, default=None, nillable=True)
-    message_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
-    file_received_sound = Setting(type=SoundFile, default=None, nillable=True)
-    file_sent_sound = Setting(type=SoundFile, default=None, nillable=True)
+    audio_inbound = Setting(type=SoundFile, default=None, nillable=True)
+    audio_outbound = Setting(type=SoundFile, default=None, nillable=True)
+    message_received = Setting(type=SoundFile, default=None, nillable=True)
+    message_sent = Setting(type=SoundFile, default=None, nillable=True)
+    file_received = Setting(type=SoundFile, default=None, nillable=True)
+    file_sent = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class SIPSimpleSettings(SettingsObject):
