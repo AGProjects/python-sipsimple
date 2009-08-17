@@ -114,7 +114,7 @@ def allow_watcher(watcher):
             if str(watcher) not in allow_rule_identities:
                 allow_rule_identities.append(IdentityOne(str(watcher)))
             try:
-                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
+                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag, headers={'Content-Type': 'application/auth-policy+xml'})
             except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
                 prules = None
@@ -143,7 +143,7 @@ def block_watcher(watcher):
             if str(watcher) not in block_rule_identities:
                 block_rule_identities.append(IdentityOne(str(watcher)))
             try:
-                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
+                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag, headers={'Content-Type': 'application/auth-policy+xml'})
             except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
                 prules = None
@@ -172,7 +172,7 @@ def polite_block_watcher(watcher):
             if str(watcher) not in polite_block_rule_identities:
                 polite_block_rule_identities.append(IdentityOne(str(watcher)))
             try:
-                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
+                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag, headers={'Content-Type': 'application/auth-policy+xml'})
             except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
                 prules = None
@@ -206,7 +206,7 @@ def remove_watcher(watcher):
                 if len(polite_block_rule_identities) == 0:
                     prules.remove(polite_block_rule)
             try:
-                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag)
+                res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag, headers={'Content-Type': 'application/auth-policy+xml'})
             except HTTPError, e:
                 print "Cannot PUT 'pres-rules' document: %s" % str(e)
                 prules = None
