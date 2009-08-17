@@ -82,7 +82,7 @@ class SIPApplication(object):
                      # rtp
                      rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
                      # audio
-                     codecs=list(settings.rtp.audio_codec_list),
+                     codecs=list(settings.rtp.audio_codecs),
                      # logging
                      log_level=settings.logging.pjsip_level,
                      trace_sip=True,
