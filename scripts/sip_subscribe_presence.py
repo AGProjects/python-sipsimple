@@ -147,7 +147,7 @@ class SubscriptionApplication(object):
         engine.start(
             auto_sound=False,
             events={'presence': [PIDF.content_type]},
-            local_ip=settings.local_ip.normalized,
+            local_ip=settings.sip.local_ip.normalized,
             local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
             local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
             local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
