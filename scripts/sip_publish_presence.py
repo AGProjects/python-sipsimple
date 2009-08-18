@@ -523,8 +523,8 @@ class PublicationApplication(object):
             user_agent=settings.user_agent,
             sample_rate=settings.audio.sample_rate,
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
-            trace_sip=settings.logging.trace_sip or self.logger.sip_to_stdout,
-            log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or self.logger.pjsip_to_stdout) else 0
+            trace_sip=settings.logs.trace_sip or self.logger.sip_to_stdout,
+            log_level=settings.logs.pjsip_level if (settings.logs.trace_pjsip or self.logger.pjsip_to_stdout) else 0
         )
 
         # initialize pidf
@@ -679,11 +679,11 @@ class PublicationApplication(object):
         key = notification.data.input
         if key == 't':
             self.logger.sip_to_stdout = not self.logger.sip_to_stdout
-            engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+            engine.trace_sip = self.logger.sip_to_stdout or settings.logs.trace_sip
             self.output.put('SIP tracing to console is now %s.' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
         elif key == 'j':
             self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
-            engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+            engine.log_level = settings.logs.pjsip_level if (self.logger.pjsip_to_stdout or settings.logs.trace_pjsip) else 0
             self.output.put('PJSIP tracing to console is now %s.' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
         elif key == 'n':
             self.logger.notifications_to_stdout = not self.logger.notifications_to_stdout

@@ -62,9 +62,9 @@ class LoggerSingleton(object):
     def __init__(self):
         self.logger = None
         self.msrptrace_filename = None
-        if SIPSimpleSettings().logging.trace_msrp:
-            makedirs(SIPSimpleSettings().logging.directory.normalized)
-            log_directory = SIPSimpleSettings().logging.directory.normalized
+        if SIPSimpleSettings().logs.trace_msrp:
+            makedirs(SIPSimpleSettings().logs.directory.normalized)
+            log_directory = SIPSimpleSettings().logs.directory.normalized
             self.msrptrace_filename = os.path.join(log_directory, 'msrp_trace.txt')
             self.logger = Logger(fileobj=file(self.msrptrace_filename, 'a+'))
 

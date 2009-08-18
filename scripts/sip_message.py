@@ -212,17 +212,17 @@ def do_message(account_id, target_uri, message, trace_sip, trace_pjsip, trace_no
     # set up logger
     logger = Logger(trace_sip, trace_pjsip, trace_notifications)
     logger.start()
-    if settings.logging.trace_sip:
+    if settings.logs.trace_sip:
         print "Logging SIP trace to file '%s'" % logger._siptrace_filename
-    if settings.logging.trace_pjsip:
+    if settings.logs.trace_pjsip:
         print "Logging PJSIP trace to file '%s'" % logger._pjsiptrace_filename
 
     # start engine
 
     e = Engine()
     handler = EventHandler(e)
-    e.start_cfg(log_level=settings.logging.pjsip_level if (settings.logging.trace_pjsip or trace_pjsip) else 0,
-                trace_sip=settings.logging.trace_sip or trace_sip)
+    e.start_cfg(log_level=settings.logs.pjsip_level if (settings.logs.trace_pjsip or trace_pjsip) else 0,
+                trace_sip=settings.logs.trace_sip or trace_sip)
 
     try:
 

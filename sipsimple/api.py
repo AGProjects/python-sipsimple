@@ -84,7 +84,7 @@ class SIPApplication(object):
                      # audio
                      codecs=list(settings.rtp.audio_codecs),
                      # logging
-                     log_level=settings.logging.pjsip_level,
+                     log_level=settings.logs.pjsip_level,
                      trace_sip=True,
                     )
         

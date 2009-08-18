@@ -48,7 +48,7 @@ class FileTransferSettings(SettingsGroup):
     directory = Setting(type=UserDataPath, default=UserDataPath('file_transfers'))
 
 
-class LoggingSettings(SettingsGroup):
+class LogsSettings(SettingsGroup):
     directory = Setting(type=UserDataPath, default=UserDataPath('logs'))
     trace_sip = Setting(type=bool, default=False)
     trace_pjsip = Setting(type=bool, default=False)
@@ -109,7 +109,7 @@ class SIPSimpleSettings(SettingsObject):
     desktop_sharing = DesktopSharingSettings
     file_transfer = FileTransferSettings
     sounds = SoundsSettings 
-    logging = LoggingSettings
+    logs = LoggingSettings
     msrp = MSRPSettings
     rtp = RTPSettings
     sip = SIPSettings

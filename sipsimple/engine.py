@@ -106,8 +106,8 @@ class Engine(Thread):
             tls_privkey_file=settings.tls.private_key.normalized if settings.tls.private_key is not None else None,
             tls_timeout=settings.tls.timeout,
             user_agent=settings.user_agent,
-            log_level=settings.logging.pjsip_level if settings.logging.trace_pjsip else 0,
-            sip_trace=settings.logging.trace_sip,
+            log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
+            sip_trace=settings.logs.trace_sip,
             ignore_missing_ack=settings.sip.ignore_missing_ack,
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
             codecs=list(settings.rtp.audio_codecs))

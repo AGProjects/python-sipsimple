@@ -238,9 +238,9 @@ class SIPAudioApplication(SIPApplication):
 
         
         self.logger.start()
-        if settings.logging.trace_sip:
+        if settings.logs.trace_sip:
             self.output.put('Logging SIP trace to file "%s"\n' % self.logger._siptrace_filename)
-        if settings.logging.trace_pjsip:
+        if settings.logs.trace_pjsip:
             self.output.put('Logging PJSIP trace to file "%s"\n' % self.logger._pjsiptrace_filename)
 
         if self.options.disable_sound:
@@ -424,14 +424,14 @@ class SIPAudioApplication(SIPApplication):
                 self.output.put('Output of RTP statistics on console is now dectivated\n')
         elif notification.data.input == 'j':
             self.logger.pjsip_to_stdout = not self.logger.pjsip_to_stdout
-            engine.log_level = settings.logging.pjsip_level if (self.logger.pjsip_to_stdout or settings.logging.trace_pjsip) else 0
+            engine.log_level = settings.logs.pjsip_level if (self.logger.pjsip_to_stdout or settings.logs.trace_pjsip) else 0
             self.output.put('PJSIP tracing to console is now %s\n' % ('activated' if self.logger.pjsip_to_stdout else 'deactivated'))
         elif notification.data.input == 'n':
             self.logger.notifications_to_stdout = not self.logger.notifications_to_stdout
             self.output.put('Notification tracing to console is now %s.\n' % ('activated' if self.logger.notifications_to_stdout else 'deactivated'))
         elif notification.data.input == 's':
             self.logger.sip_to_stdout = not self.logger.sip_to_stdout
-            engine.trace_sip = self.logger.sip_to_stdout or settings.logging.trace_sip
+            engine.trace_sip = self.logger.sip_to_stdout or settings.logs.trace_sip
             self.output.put('SIP tracing to console is now %s\n' % ('activated' if self.logger.sip_to_stdout else 'deactivated'))
 
     def _NH_SIPEngineGotException(self, notification):

@@ -40,7 +40,7 @@ class Logger(object):
             notification_center.add_observer(self)
 
             settings = SIPSimpleSettings()
-            log_directory = settings.logging.directory.normalized
+            log_directory = settings.logs.directory.normalized
             makedirs(log_directory)
 
             # sip trace
@@ -76,7 +76,7 @@ class Logger(object):
     # log handlers
     def _LH_SIPEngineSIPTrace(self, event_name, event_data):
         settings = SIPSimpleSettings()
-        if not self.sip_to_stdout and not settings.logging.trace_sip:
+        if not self.sip_to_stdout and not settings.logs.trace_sip:
             return
         if self._siptrace_start_time is None:
             self._siptrace_start_time = event_data.timestamp
@@ -92,7 +92,7 @@ class Logger(object):
         message = "\n".join(buf)
         if self.sip_to_stdout:
             print message
-        if settings.logging.trace_sip:
+        if settings.logs.trace_sip:
             if self._siptrace_file is None:
                 try:
                     self._siptrace_file = open(self._siptrace_filename, 'a')
@@ -104,12 +104,12 @@ class Logger(object):
     
     def _LH_SIPEngineLog(self, event_name, event_data):
         settings = SIPSimpleSettings()
-        if not self.pjsip_to_stdout and not settings.logging.trace_pjsip:
+        if not self.pjsip_to_stdout and not settings.logs.trace_pjsip:
             return
         message = "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % event_data.__dict__
         if self.pjsip_to_stdout:
             print message
-        if settings.logging.trace_pjsip:
+        if settings.logs.trace_pjsip:
             if self._pjsiptrace_file is None:
                 try:
                     self._pjsiptrace_file = open(self._pjsiptrace_filename, 'a')
@@ -121,7 +121,7 @@ class Logger(object):
 
     def _LH_DNSLookupTrace(self, event_name, event_data):
         settings = SIPSimpleSettings()
-        if not self.sip_to_stdout and not settings.logging.trace_sip:
+        if not self.sip_to_stdout and not settings.logs.trace_sip:
             return
         message = '%(timestamp)s: DNS lookup %(query_type)s %(query_name)s' % event_data.__dict__
         if event_data.error is None:
@@ -141,7 +141,7 @@ class Logger(object):
             message += ' failed: %s' % message_map.get(event_data.error.__class__, '')
         if self.sip_to_stdout:
             print message
-        if settings.logging.trace_sip:
+        if settings.logs.trace_sip:
             if self._siptrace_file is None:
                 try:
                     self._siptrace_file = open(self._siptrace_filename, 'a')
