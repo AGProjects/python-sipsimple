@@ -75,9 +75,9 @@ class SIPApplication(object):
                      # TLS
                      tls_protocol=settings.tls.protocol,
                      tls_verify_server=settings.tls.verify_server,
-                     tls_ca_file=settings.tls.ca_list_file.normalized if settings.tls.ca_list_file is not None else None,
-                     tls_cert_file=settings.tls.certificate_file.normalized if settings.tls.certificate_file is not None else None,
-                     tls_privkey_file=settings.tls.private_key_file.normalized if settings.tls.private_key_file is not None else None,
+                     tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
+                     tls_cert_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
+                     tls_privkey_file=settings.tls.private_key.normalized if settings.tls.private_key is not None else None,
                      tls_timeout=settings.tls.timeout,
                      # rtp
                      rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),

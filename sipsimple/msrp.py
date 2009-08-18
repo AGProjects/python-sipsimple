@@ -328,12 +328,12 @@ class MSRPChat(object):
 
 def get_X509Credentials():
     settings = SIPSimpleSettings()
-    if settings.tls.certificate_file is not None:
-        cert = X509Certificate(file(settings.tls.certificate_file.normalized).read())
+    if settings.tls.certificate is not None:
+        cert = X509Certificate(file(settings.tls.certificate.normalized).read())
     else:
         cert = None
-    if settings.tls.private_key_file is not None:
-        key = X509PrivateKey(file(settings.tls.private_key_file.normalized).read())
+    if settings.tls.private_key is not None:
+        key = X509PrivateKey(file(settings.tls.private_key.normalized).read())
     else:
         key = None
     cred = X509Credentials(cert, key)
