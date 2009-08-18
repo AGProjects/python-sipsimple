@@ -401,7 +401,6 @@ class BonjourAccount(SettingsObject):
     id = property(lambda self: self.__id__)
     enabled = Setting(type=bool, default=True)
     display_name = Setting(type=str, default=None, nillable=True)
-    transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
     rtp = RTPSettings
     sounds = SoundsSettings

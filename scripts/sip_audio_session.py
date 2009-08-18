@@ -260,9 +260,8 @@ class SIPAudioApplication(SIPApplication):
 
         if isinstance(self.account, BonjourAccount) and self.target is None:
             contacts = []
-            for transport in self.account.transports:
-                if transport in settings.sip.transports:
-                    contacts.append(self.account.contact[transport])
+            for transport in settings.sip.transports:
+                contacts.append(self.account.contact[transport])
             for contact in contacts:
                 self.output.put('Listening on: sip:%s@%s:%d;transport=%s\n' % (contact.user, contact.host, contact.port, contact.parameters['transport'] if 'transport' in contact.parameters else 'udp'))
 
