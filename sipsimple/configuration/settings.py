@@ -109,7 +109,7 @@ class SIPSimpleSettings(SettingsObject):
     desktop_sharing = DesktopSharingSettings
     file_transfer = FileTransferSettings
     sounds = SoundsSettings 
-    logs = LoggingSettings
+    logs = LogsSettings
     msrp = MSRPSettings
     rtp = RTPSettings
     sip = SIPSettings
