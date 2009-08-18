@@ -65,7 +65,7 @@ class SIPApplication(object):
         engine = Engine()
         notification_center.add_observer(self, sender=engine)
         engine.start(# general
-                     local_ip=settings.sip.local_ip.normalized if settings.sip.local_ip is not None else None,
+                     local_ip=settings.sip.local_ip.normalized,
                      user_agent=settings.user_agent,
                      # SIP
                      ignore_missing_ack=False,
