@@ -146,7 +146,7 @@ class MSRPChat(object):
         self.state = INITIALIZING
         try:
             settings = SIPSimpleSettings()
-            local_uri = URI(host=settings.local_ip.normalized,
+            local_uri = URI(host=settings.sip.local_ip.normalized,
                             port=settings.msrp.local_port,
                             use_tls=self.transport=='tls',
                             credentials=get_X509Credentials())

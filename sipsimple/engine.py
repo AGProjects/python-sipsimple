@@ -91,10 +91,10 @@ class Engine(Thread):
         from sipsimple.configuration.settings import SIPSimpleSettings
         settings = SIPSimpleSettings()
         if local_ip is None:
-            if settings.local_ip is settings.local_ip.DefaultHostIP:
+            if settings.sip.local_ip is settings.sip.local_ip.DefaultHostIP:
                 local_ip = None
             else:
-                local_ip = settings.local_ip.normalized
+                local_ip = settings.sip.local_ip.normalized
         setdefault(kwargs,
             local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
             local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,

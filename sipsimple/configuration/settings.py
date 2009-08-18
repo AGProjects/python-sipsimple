@@ -71,6 +71,7 @@ class RTPSettings(SettingsGroup):
 
 
 class SIPSettings(SettingsGroup):
+    local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress(), nillable=True)
     local_udp_port = Setting(type=Port, default=0)
     local_tcp_port = Setting(type=Port, default=0)
     local_tls_port = Setting(type=Port, default=0)
@@ -101,7 +102,6 @@ class SIPSimpleSettings(SettingsObject):
     user_data_directory = Setting(type=Path, default=os.path.expanduser('~/.sipclient'))
     resources_directory = Setting(type=Path, default=None, nillable=True)
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
-    local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress(), nillable=True)
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)
 
     audio = AudioSettings
