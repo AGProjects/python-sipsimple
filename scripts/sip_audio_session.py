@@ -364,7 +364,6 @@ class SIPAudioApplication(SIPApplication):
                 self.active_session.hold()
                 self.active_session = self.started_sessions[self.started_sessions.index(self.active_session)-1]
                 self.active_session.unhold()
-                self.ignore_local_hold = True
                 self.ignore_local_unhold = True
             else:
                 return
@@ -381,7 +380,6 @@ class SIPAudioApplication(SIPApplication):
                 self.active_session.hold()
                 self.active_session = self.started_sessions[(self.started_sessions.index(self.active_session)+1) % len(self.started_sessions)]
                 self.active_session.unhold()
-                self.ignore_local_hold = True
                 self.ignore_local_unhold = True
             else:
                 return
@@ -713,7 +711,7 @@ class SIPAudioApplication(SIPApplication):
                         identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
                     self.output.put('Audio session %s is taken out of hold\n' % identity)
             else:
-                self.ignore_local_hold = False
+                self.ignore_local_unhold = False
 
     def _NH_SIPSessionGotProposal(self, notification):
         session = notification.sender
