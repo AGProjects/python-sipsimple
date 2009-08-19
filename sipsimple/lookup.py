@@ -39,6 +39,7 @@ class DNSLookup(object):
     @run_in_twisted
     def lookup_service(self, uri, service):
         notification_center = NotificationCenter()
+        resolver = dns.resolver.Resolver()
         try:
             service_prefix, service_port, service_fallback = self._service_srv_record_map[service]
         except KeyError:
@@ -47,7 +48,7 @@ class DNSLookup(object):
         a_candidates = []
         servers = []
         try:
-            srv_answers = dns.resolver.query("%s.%s" % (service_prefix, uri.host), "SRV")
+            srv_answers = resolver.query("%s.%s" % (service_prefix, uri.host), "SRV")
         except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
             notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_service', uri=uri, service=service, query_type='SRV', query_name='%s.%s' % (service_prefix, uri.host), answer=None, error=e))
             if service_fallback:
@@ -59,7 +60,7 @@ class DNSLookup(object):
             a_candidates = [(srv_answer.target, srv_answer.port) for srv_answer in srv_answers]
         for a_host, a_port in a_candidates:
             try:
-                a_answers = dns.resolver.query(a_host, "A")
+                a_answers = resolver.query(a_host, "A")
             except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
                 notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_service', uri=uri, service=service, query_type='A', query_name=a_host, answer=None, error=e))
             else:
@@ -85,6 +86,7 @@ class DNSLookup(object):
         and a list of supported transports, in order of preference of the application.
         It returns a list of Route objects that can be used in order of preference."""
         notification_center = NotificationCenter()
+        resolver = dns.resolver.Resolver()
         if len(supported_transports) == 0:
             notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No transports are supported"))
             return
@@ -120,7 +122,7 @@ class DNSLookup(object):
             # Only do the NAPTR part if the transport was not specified as a URI parameter.
             if transport is None:
                 try:
-                    naptr_answers = dns.resolver.query(uri.host, "NAPTR")
+                    naptr_answers = resolver.query(uri.host, "NAPTR")
                 except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
                     notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='NAPTR', query_name=uri.host, answer=None, error=e))
                     error_type = e.__class__
@@ -142,7 +144,7 @@ class DNSLookup(object):
                 srv_candidates = [(transport, "%s.%s" % (self._transport_srv_service_map[transport], uri.host))]
             for srv_transport, srv_qname in srv_candidates:
                 try:
-                    srv_answers = dns.resolver.query(srv_qname, "SRV")
+                    srv_answers = resolver.query(srv_qname, "SRV")
                 except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
                     notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='SRV', query_name=srv_qname, answer=None, error=e))
                     error_type = e.__class__
@@ -186,7 +188,7 @@ class DNSLookup(object):
                 a_answers = a_cache[a_qname]
             else:
                 try:
-                    a_answers = dns.resolver.query(a_qname, "A")
+                    a_answers = resolver.query(a_qname, "A")
                 except (dns.resolver.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers), e:
                     notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(context='lookup_sip_proxy', uri=uri, query_type='A', query_name=a_qname, answer=None, error=e))
                     # If lookup fails then don't return this value
