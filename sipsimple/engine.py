@@ -108,7 +108,7 @@ class Engine(Thread):
             user_agent=settings.user_agent,
             log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
             sip_trace=settings.logs.trace_sip,
-            ignore_missing_ack=settings.sip.ignore_missing_ack,
+            ignore_missing_ack=False,
             rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
             codecs=list(settings.rtp.audio_codecs))
         self.start(local_ip=local_ip, **kwargs)
