@@ -40,6 +40,8 @@ class DNSLookup(object):
     def lookup_service(self, uri, service):
         notification_center = NotificationCenter()
         resolver = dns.resolver.Resolver()
+        resolver.timeout = 3.0
+        resolver.lifetime = 15.0
         try:
             service_prefix, service_port, service_fallback = self._service_srv_record_map[service]
         except KeyError:
@@ -87,6 +89,8 @@ class DNSLookup(object):
         It returns a list of Route objects that can be used in order of preference."""
         notification_center = NotificationCenter()
         resolver = dns.resolver.Resolver()
+        resolver.timeout = 3.0
+        resolver.lifetime = 15.0
         if len(supported_transports) == 0:
             notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No transports are supported"))
             return
