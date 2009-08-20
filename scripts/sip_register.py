@@ -121,7 +121,7 @@ class RegistrationApplication(SIPApplication):
     
         for account in account_manager.iter_accounts():
             if isinstance(account, Account):
-                account.registration.enabled = False
+                account.sip.enable_register = False
         if self.options.account is None:
             self.account = account_manager.default_account
         else:
@@ -143,7 +143,7 @@ class RegistrationApplication(SIPApplication):
             self.output.stop()
             self.stop()
             return
-        self.account.registration.enabled = True
+        self.account.sip.enable_register = True
         self.output.put('Using account %s\n' % self.account.id)
         notification_center.add_observer(self, sender=self.account)
 

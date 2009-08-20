@@ -214,7 +214,7 @@ class SIPAudioApplication(SIPApplication):
 
         for account in account_manager.iter_accounts():
             if isinstance(account, Account):
-                account.registration.enabled = False
+                account.sip.enable_register = False
         if self.options.account is None:
             self.account = account_manager.default_account
         else:
@@ -232,7 +232,7 @@ class SIPAudioApplication(SIPApplication):
             else:
                 self.account = possible_accounts[0]
         if isinstance(self.account, Account) and self.target is None:
-            self.account.registration.enabled = True
+            self.account.sip.enable_register = True
             notification_center.add_observer(self, sender=self.account)
         self.output.put('Using account %s\n' % self.account.id)
 

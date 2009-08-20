@@ -38,6 +38,7 @@ class ContactURI(SIPAddress):
 
 class SIPSettings(SettingsGroup):
     outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
+    enable_register = Setting(type=bool, default=True)
     register_interval = Setting(type=NonNegativeInteger, default=600)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
     publish_interval = Setting(type=NonNegativeInteger, default=600)
@@ -77,10 +78,6 @@ class PresenceSettings(SettingsGroup):
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
     subscribe_rls_services = Setting(type=bool, default=True)
     subscribe_xcap_diff = Setting(type=bool, default=True)
-
-
-class RegistrationSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
 
 
 class SoundsSettings(SettingsGroup):
@@ -124,7 +121,6 @@ class Account(SettingsObject):
     msrp = MSRPSettings
     chat = ChatSettings
     presence = PresenceSettings
-    registration = RegistrationSettings
     sounds = SoundsSettings
 
     def __init__(self, id):
@@ -197,8 +193,8 @@ class Account(SettingsObject):
             elif SIPApplication.running:
                 self._activate()
 
-        if self.enabled and 'registration.enabled' in notification.data.modified:
-            if not self.registration.enabled:
+        if self.enabled and 'sip.enable_register' in notification.data.modified:
+            if not self.sip.enable_register:
                 notification_center.remove_observer(self, sender=self._registrar)
                 if self._registrar.is_registered:
                     self._registrar.end(timeout=2)
@@ -344,7 +340,7 @@ class Account(SettingsObject):
         
         notification_center = NotificationCenter()
 
-        if self.registration.enabled:
+        if self.sip.enable_register:
             self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.sip.register_interval)
             notification_center.add_observer(self, sender=self._registrar)
             self._register()
@@ -358,7 +354,7 @@ class Account(SettingsObject):
 
         notification_center = NotificationCenter()
 
-        if self.registration.enabled:
+        if self.sip.enable_register:
             try:
                 self._registrar.end(timeout=2)
             except SIPCoreError:

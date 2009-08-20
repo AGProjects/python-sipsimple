@@ -150,7 +150,7 @@ class WinfoApplication(object):
             raise RuntimeError("XCAP root is not defined for account %s" % self.account.id)
         for account in account_manager.iter_accounts():
             if account == self.account:
-                account.registration.enabled = False
+                account.sip.enable_register = False
             else:
                 account.enabled = False
         self.output.put('Using account %s' % self.account.id)

@@ -146,7 +146,7 @@ class AutoPublicationApplication(object):
             raise RuntimeError("unknown account %s. Available enabled accounts: %s" % (self.account_name, ', '.join(sorted(account.id for account in account_manager.iter_accounts() if account.enabled))))
         for account in account_manager.iter_accounts():
             if account == self.account:
-                account.registration.enabled = False
+                account.sip.enable_register = False
             else:
                 account.enabled = False
         self.output.put('Using account %s' % self.account.id)
