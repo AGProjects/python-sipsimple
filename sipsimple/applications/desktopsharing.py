@@ -74,15 +74,15 @@ def make_RFB_SDPMediaStream(uri_path, desktop_request=True):
         attributes.append(SDPAttribute("setup", "passive"))
 
     if uri_path[-1].use_tls:
-        transport = "TCP/TLS/MSRP/RFB"
+        transport = "TCP/TLS/MSRP"
     else:
-        transport = "TCP/MSRP/RFB"
+        transport = "TCP/MSRP"
 
     return SDPMediaStream(
-        "application", 
-        uri_path[-1].port, 
-        transport, 
-        formats=["*"], 
+        "application",
+        uri_path[-1].port,
+        transport,
+        formats=["*"],
         attributes=attributes
     )
 
@@ -101,9 +101,9 @@ class IncomingDesktopSessionHandler(IncomingMSRPHandler):
            sdp.media[0].media != 'application':
             return False
         if self.use_tls:
-            if sdp.media[0].transport != 'TCP/TLS/MSRP/RFB':
+            if sdp.media[0].transport != 'TCP/TLS/MSRP':
                 return False
-        elif sdp.media[0].transport != 'TCP/MSRP/RFB':
+        elif sdp.media[0].transport != 'TCP/MSRP':
             return False
 
         inv._attrdict = attrs = \

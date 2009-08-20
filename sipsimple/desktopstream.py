@@ -53,9 +53,9 @@ class MSRPDesktop(object):
         assert self.setup is not None
         attributes.append(SDPAttribute("setup", self.setup))
         if uri_path[-1].use_tls:
-            transport = 'TCP/TLS/MSRP/RFB'
+            transport = 'TCP/TLS/MSRP'
         else:
-            transport = 'TCP/MSRP/RFB'
+            transport = 'TCP/MSRP'
         return SDPMediaStream("application", uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
     def get_local_media(self, for_offer=True):
