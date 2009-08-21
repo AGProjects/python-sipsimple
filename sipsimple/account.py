@@ -53,20 +53,18 @@ class RTPSettings(SettingsGroup):
 class DialogEventSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
 
+
 class NatTraversalSettings(SettingsGroup):
     enable_ice = Setting(type=bool, default=True)
     stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
+    use_msrp_relay_for_inbound = Setting(type=bool, default=True)
+    use_msrp_relay_for_outbound = Setting(type=bool, default=False)
 
 
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     voicemail_uri = Setting(type=str, default=None, nillable=True)
-
-
-class MSRPSettings(SettingsGroup):
-    use_relay_for_inbound = Setting(type=bool, default=True)
-    use_relay_for_outbound = Setting(type=bool, default=False)
 
 
 class ChatSettings(SettingsGroup):
@@ -118,7 +116,6 @@ class Account(SettingsObject):
     dialog_event = DialogEventSettings
     nat_traversal = NatTraversalSettings
     message_summary = MessageSummarySettings
-    msrp = MSRPSettings
     chat = ChatSettings
     presence = PresenceSettings
     sounds = SoundsSettings
@@ -410,15 +407,13 @@ class BonjourAccount(SettingsObject):
 
         self.active = False
 
-        # initialize msrp settings
-        self.msrp = MSRPSettings()
-        self.msrp.use_relay_for_inbound = False
-        self.msrp.use_relay_for_outbound = False
 
         # initialize nat settings
         self.nat_traversal = NatTraversalSettings()
         self.nat_traversal.enable_ice = False
         self.nat_traversal.msrp_relay = None
+        self.nat_traversal.use_msrp_relay_for_inbound = False
+        self.nat_traversal.use_msrp_relay_for_outbound = False
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)

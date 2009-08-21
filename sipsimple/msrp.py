@@ -89,7 +89,7 @@ class MSRPChat(object):
         self.accept_types = list(settings.chat.accept_types)
         self.accept_wrapped_types = list(settings.chat.accept_wrapped_types)
 
-        if (outgoing and account.msrp.use_relay_for_outbound) or (not outgoing and account.msrp.use_relay_for_inbound):
+        if (outgoing and account.nat_traversal.use_relay_for_outbound) or (not outgoing and account.nat_traversal.use_msrp_relay_for_inbound):
             if account.nat_traversal.msrp_relay is None:
                 relay = MSRPRelaySettings(domain=account.id.domain,
                                           username=account.id.username,
