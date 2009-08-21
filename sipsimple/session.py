@@ -21,6 +21,7 @@ from sipsimple.engine import Engine
 from sipsimple.account import AccountManager
 from sipsimple.audiostream import AudioStream
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.desktopstream import MSRPDesktop
 from sipsimple.msrpstream import MSRPChat, MSRPIncomingFileStream
 from sipsimple.util import TimestampedNotificationData, run_in_twisted
 
@@ -86,6 +87,10 @@ class Session(object):
                         stream = MSRPIncomingFileStream(self.account)
                     elif media_stream.media == 'message':
                         stream = MSRPChat(self.account)
+                    elif media_stream.media == 'application':
+                        for attribute in media_stream.attributes:
+                            if attribute.name == 'accept-types' and 'application/x-rfb' in attribute.value.split():
+                                stream = MSRPDesktop(self.account)
                     if stream is not None and stream.validate_incoming(remote_sdp, index):
                         stream.index = index
                         self.proposed_streams.append(stream)
