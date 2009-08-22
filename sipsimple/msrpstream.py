@@ -87,7 +87,7 @@ class MSRPChat(object):
             self.session = session
             settings = SIPSimpleSettings()
             outgoing = session.direction == 'outgoing'
-            if (outgoing and self.account.msrp.use_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
+            if (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
                 if self.account.nat_traversal.msrp_relay is None:
                     relay = MSRPRelaySettings(domain=self.account.uri.host,
                                               username=self.account.uri.user,
