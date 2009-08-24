@@ -100,7 +100,7 @@ class SIPApplication(object):
         self.voice_conference_bridge = ConferenceBridge(input_device, output_device, settings.audio.sample_rate, settings.audio.tail_length)
         self.alert_conference_bridge = ConferenceBridge(None, alert_device, settings.audio.sample_rate, settings.audio.tail_length)
         if settings.audio.silent:
-            self.alert_conference_bridge.volume = 0
+            self.alert_conference_bridge.output_volume = 0
         
         Thread(name='Reactor Thread', target=self._run_reactor).start()
 
@@ -177,5 +177,65 @@ class SIPApplication(object):
             reactor.stop()
         else:
             reactor.callFromThread(reactor.stop)
+
+    def _NH_CFGSettingsObjectDidChange(self, notification):
+        engine = Engine()
+        settings = SIPSimpleSettings()
+
+        if notification.sender is settings:
+            if 'audio.sample_rate' in notification.data.modified:
+                alert_device = settings.audio.alert_device
+                if alert_device not in (None, 'default') and alert_device not in engine.output_devices:
+                    alert_device = 'default'
+                input_device = settings.audio.input_device
+                if input_device not in (None, 'default') and input_device not in engine.input_devices:
+                    input_device = 'default'
+                output_device = settings.audio.output_device
+                if output_device not in (None, 'default') and output_device not in engine.output_devices:
+                    output_device = 'default'
+                self.voice_conference_bridge = ConferenceBridge(input_device, output_device, settings.audio.sample_rate, settings.audio.tail_length)
+                self.alert_conference_bridge = ConferenceBridge(None, alert_device, settings.audio.sample_rate, settings.audio.tail_length)
+                if settings.audio.silent:
+                    self.alert_conference_bridge.output_volume = 0
+            else:
+                if 'audio.input_device' in notification.data.modified or 'audio.output_device' in notification.data.modified or 'audio.tail_length' in notification.data.modified:
+                    input_device = settings.audio.input_device
+                    if input_device not in (None, 'default') and input_device not in engine.input_devices:
+                        input_device = 'default'
+                    output_device = settings.audio.output_device
+                    if output_device not in (None, 'default') and output_device not in engine.output_devices:
+                        output_device = 'default'
+                    self.voice_conference_bridge.set_sound_devices(input_device, output_device, settings.audio.tail_length)
+                if 'audio.alert_device' in notification.data.modified or 'audio.tail_length' in notification.data.modified:
+                    alert_device = settings.audio.alert_device
+                    if alert_device not in (None, 'default') and alert_device not in engine.output_devices:
+                        alert_device = 'default'
+                    self.alert_conference_bridge.set_sound_devices(None, alert_device, settings.audio.tail_length)
+                if 'audio.silent' in notification.data.modified:
+                    if settings.audio.silent:
+                        self.alert_conference_bridge.output_volume = 0
+                    else:
+                        self.alert_conference_bridge.output_volume = 100
+            if 'user_agent' in notification.data.modified:
+                engine.user_agent = settings.user_agent
+            if 'sip.local_udp_port' in notification.data.modified:
+                engine.set_local_udp_port(settings.sip.local_udp_port)
+            if 'sip.local_tcp_port' in notification.data.modified:
+                engine.set_local_tcp_port(settings.sip.local_tcp_port)
+            if set(('sip.local_tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list',
+                    'tls.certificate', 'tls.private_key', 'tls.timeout')).intersection(notification.data.modified):
+                engine.set_tls_options(local_port=settings.sip.local_tls_port,
+                                       protocol=settings.tls.protocol,
+                                       verify_server=settings.tls.verify_server,
+                                       ca_file=settings.tls.ca_list.normalized,
+                                       cert_file=settings.tls.certificate.normalized,
+                                       privkey_file=settings.tls.private_key.normalized,
+                                       timeout=settings.tls.timeout)
+            if 'rtp.port_range' in notification.data.modified:
+                engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
+            if 'rtp.audio_codecs' in notification.data.modified:
+                engine.codecs = list(settings.rtp.audio_codecs)
+            if 'logs.pjsip_level' in notification.data.modified:
+                engine.log_level = settings.logs.pjsip_level
 
 
