@@ -150,6 +150,7 @@ class SIPAudioApplication(SIPApplication):
         self.incoming_sessions = []
         self.outgoing_session = None
         self.registration_succeeded = False
+        self.success = False
         
         self.input =  None
         self.output = None
@@ -562,6 +563,8 @@ class SIPAudioApplication(SIPApplication):
             if self.tone_ringtone:
                 self.tone_ringtone.stop()
 
+        self.success = False
+
     def _NH_SIPSessionWillStart(self, notification):
         session = notification.sender
         if session.direction == 'incoming':
@@ -673,6 +676,8 @@ class SIPAudioApplication(SIPApplication):
         on_hold_streams = [stream for stream in chain(*(session.streams for session in self.started_sessions)) if stream.on_hold]
         if not on_hold_streams and self.hold_tone is not None and self.hold_tone.is_active:
             self.hold_tone.stop()
+
+        self.success = True
 
     def _NH_SIPSessionDidChangeHoldState(self, notification):
         session = notification.sender
@@ -816,4 +821,6 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     application.output.join()
     sleep(0.1)
+
+    sys.exit(0 if application.success else 1)
 
