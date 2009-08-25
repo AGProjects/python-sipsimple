@@ -31,6 +31,9 @@ class Logger(object):
         self._pjsiptrace_filename = None
         self._pjsiptrace_file = None
 
+        self._notifications_filename = None
+        self._notifications_file = None
+
         self._lock = RLock()
         
     def start(self):
@@ -49,6 +52,9 @@ class Logger(object):
             # pjsip trace
             self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
 
+            # notifications trace
+            self._notifications_filename = os.path.join(log_directory, 'notifications_trace.txt')
+
     def stop(self):
         with self._lock:
             # sip trace
@@ -61,17 +67,35 @@ class Logger(object):
                 self._pjsiptrace_file.close()
                 self._pjsiptrace_file = None
 
+            # notifications trace
+            if self._notifications_file is not None:
+                self._notifications_file.close()
+                self._notifications_file = None
+
             # unregister from receiving notifications
             notification_center = NotificationCenter()
             notification_center.remove_observer(self)
 
     def handle_notification(self, notification):
+        settings = SIPSimpleSettings()
         with self._lock:
             handler = getattr(self, '_LH_%s' % notification.name, None)
             if handler is not None:
                 handler(notification.name, notification.data)
-            if notification.name not in ('SIPEngineLog', 'SIPEngineSIPTrace') and self.notifications_to_stdout:
-                print '%s Notification name=%s sender=%s\n%s' % (datetime.datetime.now(), notification.name, notification.sender, pformat(notification.data.__dict__))
+
+            if notification.name not in ('SIPEngineLog', 'SIPEngineSIPTrace') and (self.notifications_to_stdout or settings.logs.trace_notifications):
+                message = '%s Notification name=%s sender=%s\n%s' % (datetime.datetime.now(), notification.name, notification.sender, pformat(notification.data.__dict__))
+                if self.notifications_to_stdout:
+                    print message
+                if settings.logs.trace_notifications:
+                    if self._notifications_file is None:
+                        try:
+                            self._notifications_file = open(self._notifications_filename, 'a')
+                        except IOError, e:
+                            print "failed to create log file '%s': %s" % (self._notifications_filename, e)
+                            return
+                    self._notifications_file.write(message+'\n')
+                    self._notifications_file.flush()
 
     # log handlers
     def _LH_SIPEngineSIPTrace(self, event_name, event_data):
