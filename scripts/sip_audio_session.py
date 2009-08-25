@@ -204,9 +204,9 @@ class SIPAudioApplication(SIPApplication):
         message += '  h: hang-up the active session\n'
         message += '  r: toggle audio recording\n'
         message += '  m: mute the microphone\n'
-        message += '  i: change input device\n'
-        message += '  o: change output device\n'
-        message += '  a: enable/disable sound alerts\n'
+        message += '  i: change audio input device\n'
+        message += '  o: change audio output device\n'
+        message += '  a: change audio alert device\n'
         message += '  <>: adjust echo cancellation\n'
         message += '  SPACE: hold/unhold\n'
         message += '  Ctrl-d: quit the program\n'
@@ -258,11 +258,20 @@ class SIPAudioApplication(SIPApplication):
         engine = Engine()
         settings = SIPSimpleSettings()
 
-        self.output.put('Available audio input devices: %s\n' % ', '.join(sorted(engine.input_devices)))
-        self.output.put('Available audio output devices: %s\n' % ', '.join(sorted(engine.output_devices)))
-        self.output.put('Using audio input device: %s\n' % self.voice_conference_bridge.input_device)
-        self.output.put('Using audio output device: %s\n' % self.voice_conference_bridge.output_device)
-        self.output.put('Using audio alert device: %s\n' % self.alert_conference_bridge.output_device)
+        self.output.put('Available audio input devices: %s\n' % ', '.join(['None', 'system_default'] + sorted(engine.input_devices)))
+        self.output.put('Available audio output devices: %s\n' % ', '.join(['None', 'system_default'] + sorted(engine.output_devices)))
+        if self.voice_conference_bridge.input_device == 'system_default':
+            self.output.put('Using audio input device: %s (system default device)\n' % self.voice_conference_bridge.real_input_device)
+        else:
+            self.output.put('Using audio input device: %s\n' % self.voice_conference_bridge.input_device)
+        if self.voice_conference_bridge.output_device == 'system_default':
+            self.output.put('Using audio output device: %s (system default device)\n' % self.voice_conference_bridge.real_output_device)
+        else:
+            self.output.put('Using audio output device: %s\n' % self.voice_conference_bridge.output_device)
+        if self.alert_conference_bridge.output_device == 'system_default':
+            self.output.put('Using audio alert device: %s (system default device)\n' % self.alert_conference_bridge.real_output_device)
+        else:
+            self.output.put('Using audio alert device: %s\n' % self.alert_conference_bridge.output_device)
 
         if isinstance(self.account, BonjourAccount) and self.target is None:
             contacts = []
@@ -334,7 +343,7 @@ class SIPAudioApplication(SIPApplication):
             self.voice_conference_bridge.muted = not self.voice_conference_bridge.muted
             self.output.put('The microphone is now %s\n' % ('muted' if self.voice_conference_bridge.muted else 'unmuted'))
         elif notification.data.input == 'i':
-            input_devices = [None, 'default'] + engine.input_devices
+            input_devices = [None, 'system_default'] + sorted(engine.input_devices)
             if self.voice_conference_bridge.input_device in input_devices:
                 old_input_device = self.voice_conference_bridge.input_device
             else:
@@ -349,10 +358,13 @@ class SIPAudioApplication(SIPApplication):
                     old_input_device = new_input_device
                     self.output.put('Failed to set input device to %s: %s\n' % (new_input_device, str(e)))
                 else:
-                    self.output.put('Input device changed to %s\n' % new_input_device)
+                    if new_input_device == 'system_default':
+                        self.output.put('Input device changed to %s (system default device)\n' % self.voice_conference_bridge.real_input_device)
+                    else:
+                        self.output.put('Input device changed to %s\n' % new_input_device)
                     break
         elif notification.data.input == 'o':
-            output_devices = [None, 'default'] + engine.output_devices
+            output_devices = [None, 'system_default'] + sorted(engine.output_devices)
             if self.voice_conference_bridge.output_device in output_devices:
                 old_output_device = self.voice_conference_bridge.output_device
             else:
@@ -367,15 +379,32 @@ class SIPAudioApplication(SIPApplication):
                     old_output_device = new_output_device
                     self.output.put('Failed to set output device to %s: %s\n' % (new_output_device, str(e)))
                 else:
-                    self.output.put('Output device changed to %s\n' % new_output_device)
+                    if new_output_device == 'system_default':
+                        self.output.put('Output device changed to %s (system default device)\n' % self.voice_conference_bridge.real_output_device)
+                    else:
+                        self.output.put('Output device changed to %s\n' % new_output_device)
                     break
         elif notification.data.input == 'a':
-            if self.alert_conference_bridge.output_volume == 0:
-                self.alert_conference_bridge.output_volume = 100
-                self.output.put('Enabled sound alerts\n')
+            output_devices = [None, 'system_default'] + sorted(engine.output_devices)
+            if self.alert_conference_bridge.output_device in output_devices:
+                old_output_device = self.alert_conference_bridge.output_device
             else:
-                self.alert_conference_bridge.output_volume = 0
-                self.output.put('Disabled sound alerts\n')
+                old_output_device = None
+            tries = 0
+            while tries < len(output_devices):
+                new_output_device = output_devices[(output_devices.index(old_output_device)+1) % len(output_devices)]
+                try:
+                    self.alert_conference_bridge.set_sound_devices(self.alert_conference_bridge.input_device, new_output_device, self.alert_conference_bridge.ec_tail_length)
+                except SIPCoreError, e:
+                    tries += 1
+                    old_output_device = new_output_device
+                    self.output.put('Failed to set alert device to %s: %s\n' % (new_output_device, str(e)))
+                else:
+                    if new_output_device == 'system_default':
+                        self.output.put('Alert device changed to %s (system default device)\n' % self.alert_conference_bridge.real_output_device)
+                    else:
+                        self.output.put('Alert device changed to %s\n' % new_output_device)
+                    break
         elif notification.data.input == 'h':
             if self.active_session is not None:
                 self.output.put('Ending audio session...\n')
