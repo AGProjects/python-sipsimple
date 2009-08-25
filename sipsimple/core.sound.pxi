@@ -13,6 +13,8 @@ cdef class ConferenceBridge:
     cdef pjmedia_master_port *_master_port
     cdef readonly str input_device
     cdef readonly str output_device
+    cdef readonly str real_input_device
+    cdef readonly str real_output_device
     cdef readonly int sample_rate
     cdef readonly int ec_tail_length
     cdef readonly int slot_count
@@ -217,9 +219,9 @@ cdef class ConferenceBridge:
         cdef pjmedia_snd_dev_info_ptr_const dev_info
         cdef str sound_pool_name
         cdef int status
-        if input_device == "default":
+        if input_device == "system_default":
             input_device_i = -1
-        if output_device == "default":
+        if output_device == "system_default":
             output_device_i = -1
         if ((input_device_i == -2 and input_device is not None) or
             (output_device_i == -2 and output_device is not None)):
@@ -293,14 +295,16 @@ cdef class ConferenceBridge:
                     raise PJSIPError("Could not get sounds device info", status)
                 if input_device_i == -1:
                     dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
-                    self.input_device = dev_info.name
+                    self.real_input_device = dev_info.name
                 if output_device_i == -1:
                     dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
-                    self.output_device = dev_info.name
+                    self.real_output_device = dev_info.name
         if input_device_i != -1:
-            self.input_device = input_device
+            self.real_input_device = input_device
         if output_device_i != -1:
-            self.output_device = output_device
+            self.real_output_device = output_device
+        self.input_device = input_device
+        self.output_device = output_device
         self.ec_tail_length = ec_tail_length
         return 0
 

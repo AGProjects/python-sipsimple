@@ -22,9 +22,9 @@ __all__ = ['SIPSimpleSettings']
 
 
 class AudioSettings(SettingsGroup):
-    alert_device = Setting(type=AudioOutputDevice, default='default', nillable=True)
-    input_device = Setting(type=AudioInputDevice, default='default', nillable=True)
-    output_device = Setting(type=AudioOutputDevice, default='default', nillable=True)
+    alert_device = Setting(type=AudioOutputDevice, default='system_default', nillable=True)
+    input_device = Setting(type=AudioInputDevice, default='system_default', nillable=True)
+    output_device = Setting(type=AudioOutputDevice, default='system_default', nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
     directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     sample_rate = Setting(type=SampleRate, default=32000)

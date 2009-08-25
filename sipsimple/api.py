@@ -185,14 +185,14 @@ class SIPApplication(object):
         if notification.sender is settings:
             if 'audio.sample_rate' in notification.data.modified:
                 alert_device = settings.audio.alert_device
-                if alert_device not in (None, 'default') and alert_device not in engine.output_devices:
-                    alert_device = 'default'
+                if alert_device not in (None, 'system_default') and alert_device not in engine.output_devices:
+                    alert_device = 'system_default'
                 input_device = settings.audio.input_device
-                if input_device not in (None, 'default') and input_device not in engine.input_devices:
-                    input_device = 'default'
+                if input_device not in (None, 'system_default') and input_device not in engine.input_devices:
+                    input_device = 'system_default'
                 output_device = settings.audio.output_device
-                if output_device not in (None, 'default') and output_device not in engine.output_devices:
-                    output_device = 'default'
+                if output_device not in (None, 'system_default') and output_device not in engine.output_devices:
+                    output_device = 'system_default'
                 self.voice_conference_bridge = ConferenceBridge(input_device, output_device, settings.audio.sample_rate, settings.audio.tail_length)
                 self.alert_conference_bridge = ConferenceBridge(None, alert_device, settings.audio.sample_rate, settings.audio.tail_length)
                 if settings.audio.silent:
@@ -200,16 +200,16 @@ class SIPApplication(object):
             else:
                 if 'audio.input_device' in notification.data.modified or 'audio.output_device' in notification.data.modified or 'audio.tail_length' in notification.data.modified:
                     input_device = settings.audio.input_device
-                    if input_device not in (None, 'default') and input_device not in engine.input_devices:
-                        input_device = 'default'
+                    if input_device not in (None, 'system_default') and input_device not in engine.input_devices:
+                        input_device = 'system_default'
                     output_device = settings.audio.output_device
-                    if output_device not in (None, 'default') and output_device not in engine.output_devices:
-                        output_device = 'default'
+                    if output_device not in (None, 'system_default') and output_device not in engine.output_devices:
+                        output_device = 'system_default'
                     self.voice_conference_bridge.set_sound_devices(input_device, output_device, settings.audio.tail_length)
                 if 'audio.alert_device' in notification.data.modified or 'audio.tail_length' in notification.data.modified:
                     alert_device = settings.audio.alert_device
-                    if alert_device not in (None, 'default') and alert_device not in engine.output_devices:
-                        alert_device = 'default'
+                    if alert_device not in (None, 'system_default') and alert_device not in engine.output_devices:
+                        alert_device = 'system_default'
                     self.alert_conference_bridge.set_sound_devices(None, alert_device, settings.audio.tail_length)
                 if 'audio.silent' in notification.data.modified:
                     if settings.audio.silent:
