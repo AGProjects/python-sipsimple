@@ -279,9 +279,8 @@ class SIPAudioApplication(SIPApplication):
             self.wave_inbound_ringtone = SilenceableWaveFile(self.alert_conference_bridge, inbound_ringtone.path.normalized, volume=inbound_ringtone.volume, loop_count=0, pause_time=2)
         if outbound_ringtone:
             self.wave_outbound_ringtone = SilenceableWaveFile(self.alert_conference_bridge, outbound_ringtone.path.normalized, volume=outbound_ringtone.volume, loop_count=0, pause_time=2)
-        if not settings.audio.silent:
-            self.tone_ringtone = PersistentTones(self.voice_conference_bridge, [(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
-            self.hold_tone = PersistentTones(self.voice_conference_bridge, [(300, 0, 100), (0,0,100), (300, 0, 100)], 30, volume=50)
+        self.tone_ringtone = PersistentTones(self.voice_conference_bridge, [(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
+        self.hold_tone = PersistentTones(self.voice_conference_bridge, [(300, 0, 100), (0,0,100), (300, 0, 100)], 30, volume=50)
 
         if self.target is not None:
             if '@' not in self.target:
@@ -557,8 +556,7 @@ class SIPAudioApplication(SIPApplication):
                 if self.wave_inbound_ringtone:
                     self.wave_inbound_ringtone.start()
             else:
-                if self.tone_ringtone:
-                    self.tone_ringtone.start()
+                self.tone_ringtone.start()
 
     def _NH_SIPSessionNewOutgoing(self, notification):
         session = notification.sender
@@ -579,8 +577,7 @@ class SIPAudioApplication(SIPApplication):
         if not self.incoming_sessions and session.direction == 'incoming':
             if self.wave_inbound_ringtone:
                 self.wave_inbound_ringtone.stop()
-            if self.tone_ringtone:
-                self.tone_ringtone.stop()
+            self.tone_ringtone.stop()
         elif session.direction == 'outgoing':
             if self.wave_outbound_ringtone:
                 self.wave_outbound_ringtone.stop()
@@ -606,8 +603,7 @@ class SIPAudioApplication(SIPApplication):
         elif session.direction == 'incoming':
             if self.wave_inbound_ringtone:
                 self.wave_inbound_ringtone.stop()
-            if self.tone_ringtone:
-                self.tone_ringtone.stop()
+            self.tone_ringtone.stop()
 
         self.success = False
 
@@ -616,7 +612,7 @@ class SIPAudioApplication(SIPApplication):
         if session.direction == 'incoming':
             if self.wave_inbound_ringtone:
                 self.wave_inbound_ringtone.stop()
-            if not self.incoming_sessions and self.tone_ringtone:
+            if not self.incoming_sessions:
                 self.tone_ringtone.stop()
         else:
             if self.wave_outbound_ringtone:
@@ -651,8 +647,7 @@ class SIPAudioApplication(SIPApplication):
             message += 'Press arrow keys to switch the active session\n'
             self.output.put(message)
         if self.incoming_sessions:
-            if self.tone_ringtone:
-                self.tone_ringtone.start()
+            self.tone_ringtone.start()
             self._print_new_session()
         for stream in notification.data.streams:
             notification_center.add_observer(self, sender=stream)
@@ -720,7 +715,7 @@ class SIPAudioApplication(SIPApplication):
             self.stop()
             
         on_hold_streams = [stream for stream in chain(*(session.streams for session in self.started_sessions)) if stream.on_hold]
-        if not on_hold_streams and self.hold_tone is not None and self.hold_tone.is_active:
+        if not on_hold_streams and self.hold_tone.is_active:
             self.hold_tone.stop()
 
         self.success = True
@@ -784,8 +779,6 @@ class SIPAudioApplication(SIPApplication):
         self.voice_tone_generator.play_dtmf(notification.data.digit)
 
     def _NH_AudioStreamDidChangeHoldState(self, notification):
-        if self.hold_tone is None:
-            return
         if notification.data.on_hold:
             if not self.hold_tone.is_active:
                 self.hold_tone.start()
