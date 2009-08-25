@@ -126,7 +126,7 @@ class AudioStream(NotificationHandler):
         self._rtp_args["use_srtp"] = ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls)
                                       and self.account.rtp.srtp_encryption != "disabled")
         self._rtp_args["srtp_forced"] = self._rtp_args["use_srtp"] and self.account.rtp.srtp_encryption == "mandatory"
-        self._rtp_args["use_ice"] = hasattr(self.account, "ice") and self.account.nat_traversal.enable_ice
+        self._rtp_args["use_ice"] = self.account.nat_traversal.enable_ice
         self._stun_servers = [(None, None)]
         if stun_servers:
             self._stun_servers.extend(reversed(stun_servers))
