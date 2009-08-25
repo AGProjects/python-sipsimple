@@ -6,12 +6,12 @@ from __future__ import with_statement
 import datetime
 import os
 
-from application.notification import IObserver
 from pprint import pformat
 from threading import RLock
+
+from application.notification import IObserver, NotificationCenter
 from zope.interface import implements
 
-from sipsimple.engine import Engine
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.util import makedirs
 
@@ -36,7 +36,7 @@ class Logger(object):
     def start(self):
         with self._lock:
             # register to receive log notifications
-            notification_center = Engine().notification_center
+            notification_center = NotificationCenter()
             notification_center.add_observer(self)
 
             settings = SIPSimpleSettings()
@@ -62,7 +62,7 @@ class Logger(object):
                 self._pjsiptrace_file = None
 
             # unregister from receiving notifications
-            notification_center = Engine().notification_center
+            notification_center = NotificationCenter()
             notification_center.remove_observer(self)
 
     def handle_notification(self, notification):
