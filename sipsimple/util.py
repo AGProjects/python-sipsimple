@@ -85,12 +85,13 @@ class SilenceableWaveFile(object):
 
 class PersistentTones(object):
 
-    def __init__(self, conference_bridge, tones, interval):
+    def __init__(self, conference_bridge, tones, interval, volume=100):
         self.tones = tones
         self.interval = interval
         self._lock = Lock()
         self._timer = None
         self._tone_generator = ToneGenerator(conference_bridge)
+        self._tone_generator.volume = volume
 
     @property
     def is_active(self):
