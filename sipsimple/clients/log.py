@@ -5,6 +5,7 @@ from __future__ import with_statement
 
 import datetime
 import os
+import sys
 
 from pprint import pformat
 from threading import RLock
@@ -84,9 +85,9 @@ class Logger(object):
                 handler(notification.name, notification.data)
 
             if notification.name not in ('SIPEngineLog', 'SIPEngineSIPTrace') and (self.notifications_to_stdout or settings.logs.trace_notifications):
-                message = '%s Notification name=%s sender=%s\n%s' % (datetime.datetime.now(), notification.name, notification.sender, pformat(notification.data.__dict__))
+                message = 'Notification name=%s sender=%s\n%s' % (notification.name, notification.sender, pformat(notification.data.__dict__))
                 if self.notifications_to_stdout:
-                    print message
+                    print '%s: %s' % (datetime.datetime.now(), message)
                 if settings.logs.trace_notifications:
                     if self._notifications_file is None:
                         try:
@@ -94,7 +95,7 @@ class Logger(object):
                         except IOError, e:
                             print "failed to create log file '%s': %s" % (self._notifications_filename, e)
                             return
-                    self._notifications_file.write(message+'\n')
+                    self._notifications_file.write('%s [%s %d]: %s\n' % (datetime.datetime.now(), os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
                     self._notifications_file.flush()
 
     # log handlers
@@ -110,12 +111,12 @@ class Logger(object):
         else:
             direction = "SENDING"
         buf = ["%s: Packet %d, +%s" % (direction, self._siptrace_packet_count, (event_data.timestamp - self._siptrace_start_time))]
-        buf.append("%(timestamp)s: %(source_ip)s:%(source_port)d -(SIP over %(transport)s)-> %(destination_ip)s:%(destination_port)d" % event_data.__dict__)
+        buf.append("%(source_ip)s:%(source_port)d -(SIP over %(transport)s)-> %(destination_ip)s:%(destination_port)d" % event_data.__dict__)
         buf.append(event_data.data)
-        buf.append('--\n')
-        message = "\n".join(buf)
+        buf.append('--')
+        message = '\n'.join(buf)
         if self.sip_to_stdout:
-            print message
+            print '%s: %s\n' % (event_data.timestamp, message)
         if settings.logs.trace_sip:
             if self._siptrace_file is None:
                 try:
@@ -123,16 +124,16 @@ class Logger(object):
                 except IOError, e:
                     print "failed to create log file '%s': %s" % (self._siptrace_filename, e)
                     return
-            self._siptrace_file.write(message)
+            self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
             self._siptrace_file.flush()
     
     def _LH_SIPEngineLog(self, event_name, event_data):
         settings = SIPSimpleSettings()
         if not self.pjsip_to_stdout and not settings.logs.trace_pjsip:
             return
-        message = "%(timestamp)s (%(level)d) %(sender)14s: %(message)s" % event_data.__dict__
+        message = "(%(level)d) %(sender)14s: %(message)s" % event_data.__dict__
         if self.pjsip_to_stdout:
-            print message
+            print '%s %s' % (event_data.timestamp, message)
         if settings.logs.trace_pjsip:
             if self._pjsiptrace_file is None:
                 try:
@@ -140,14 +141,14 @@ class Logger(object):
                 except IOError, e:
                     print "failed to create log file '%s': %s" % (self._pjsiptrace_filename, e)
                     return
-            self._pjsiptrace_file.write(message+'\n')
+            self._pjsiptrace_file.write('%s [%s %d] %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
             self._pjsiptrace_file.flush()
 
     def _LH_DNSLookupTrace(self, event_name, event_data):
         settings = SIPSimpleSettings()
         if not self.sip_to_stdout and not settings.logs.trace_sip:
             return
-        message = '%(timestamp)s: DNS lookup %(query_type)s %(query_name)s' % event_data.__dict__
+        message = 'DNS lookup %(query_type)s %(query_name)s' % event_data.__dict__
         if event_data.error is None:
             message += ' succeeded, ttl=%d: ' % event_data.answer.ttl
             if event_data.query_type == 'A':
@@ -164,7 +165,7 @@ class Logger(object):
                            dns.resolver.Timeout: 'no DNS response received, the query has timed out'}
             message += ' failed: %s' % message_map.get(event_data.error.__class__, '')
         if self.sip_to_stdout:
-            print message
+            print '%s: %s' % (event_data.timestamp, message)
         if settings.logs.trace_sip:
             if self._siptrace_file is None:
                 try:
@@ -172,7 +173,7 @@ class Logger(object):
                 except IOError, e:
                     print "failed to create log file '%s': %s" % (self._siptrace_filename, e)
                     return
-            self._siptrace_file.write(message+'\n')
+            self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
             self._siptrace_file.flush()
 
 
