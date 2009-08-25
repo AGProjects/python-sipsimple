@@ -160,6 +160,8 @@ class SIPMessageApplication(SIPApplication):
             self.output.put('Logging SIP trace to file "%s"\n' % self.logger._siptrace_filename)
         if settings.logs.trace_pjsip:
             self.output.put('Logging PJSIP trace to file "%s"\n' % self.logger._pjsiptrace_filename)
+        if settings.logs.trace_notifications:
+            self.output.put('Logging notifications trace to file "%s"\n' % self.logger._notifications_filename)
 
     def _NH_SIPApplicationDidStart(self, notification):
         engine = Engine()

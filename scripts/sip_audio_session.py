@@ -248,6 +248,8 @@ class SIPAudioApplication(SIPApplication):
             self.output.put('Logging SIP trace to file "%s"\n' % self.logger._siptrace_filename)
         if settings.logs.trace_pjsip:
             self.output.put('Logging PJSIP trace to file "%s"\n' % self.logger._pjsiptrace_filename)
+        if settings.logs.trace_notifications:
+            self.output.put('Logging notifications trace to file "%s"\n' % self.logger._notifications_filename)
 
         if self.options.disable_sound:
             settings.audio.input_device = None
