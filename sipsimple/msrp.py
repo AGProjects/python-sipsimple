@@ -86,8 +86,8 @@ class MSRPChat(object):
         self.local_identity = CPIMIdentity(account.uri, account.display_name)
 
         settings = SIPSimpleSettings()
-        self.accept_types = list(settings.chat.accept_types)
-        self.accept_wrapped_types = list(settings.chat.accept_wrapped_types)
+        self.accept_types = ['message/cpim', 'text/*']
+        self.accept_wrapped_types = ['*']
 
         if (outgoing and account.nat_traversal.use_relay_for_outbound) or (not outgoing and account.nat_traversal.use_msrp_relay_for_inbound):
             if account.nat_traversal.msrp_relay is None:

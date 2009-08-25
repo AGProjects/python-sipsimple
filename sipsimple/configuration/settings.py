@@ -33,8 +33,6 @@ class AudioSettings(SettingsGroup):
 
 class ChatSettings(SettingsGroup):
     directory = Setting(type=UserDataPath, default=UserDataPath('history'))
-    accept_types = Setting(type=ContentTypeList, default=('message/cpim', 'text/*'))
-    accept_wrapped_types = Setting(type=ContentTypeList, default=('*',))
 
 
 class DesktopSharingSettings(SettingsGroup):
