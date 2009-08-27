@@ -331,7 +331,7 @@ cdef class Request:
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
                 else:
-                    expire_warning.sec = max(1, min(expires - self.expire_warning_time, expires/2))
+                    expire_warning.sec = max(1, expires - self.expire_warning_time, expires/2)
                     expire_warning.msec = 0
                     status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &expire_warning)
                     if status == 0:
