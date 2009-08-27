@@ -80,6 +80,10 @@ class Logger(object):
     def handle_notification(self, notification):
         settings = SIPSimpleSettings()
         with self._lock:
+            handler = getattr(self, '_NH_%s' % notification.name, None)
+            if handler is not None:
+                handler(notification)
+
             handler = getattr(self, '_LH_%s' % notification.name, None)
             if handler is not None:
                 handler(notification.name, notification.data)
@@ -98,7 +102,37 @@ class Logger(object):
                     self._notifications_file.write('%s [%s %d]: %s\n' % (datetime.datetime.now(), os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
                     self._notifications_file.flush()
 
+    # notification handlers
+    #
+
+    def _NH_CFGSettingsObjectDidChange(self, notification):
+        settings = SIPSimpleSettings()
+        if notification.sender is settings:
+            if 'logs.directory' in notification.data.modified:
+                log_directory = settings.logs.directory.normalized
+                makedirs(log_directory)
+
+                # sip trace
+                if self._siptrace_file is not None:
+                    self._siptrace_file.close()
+                    self._siptrace_file = None
+                self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
+
+                # pjsip trace
+                if self._pjsiptrace_file is not None:
+                    self._pjsiptrace_file.close()
+                    self._pjsiptrace_file = None
+                self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
+
+                # notifications trace
+                if self._notifications_file is not None:
+                    self._notifications_file.close()
+                    self._notifications_file = None
+                self._notifications_filename = os.path.join(log_directory, 'notifications_trace.txt')
+
     # log handlers
+    #
+
     def _LH_SIPEngineSIPTrace(self, event_name, event_data):
         settings = SIPSimpleSettings()
         if not self.sip_to_stdout and not settings.logs.trace_sip:
