@@ -156,11 +156,11 @@ class SIPMessageApplication(SIPApplication):
         self.output.put('Using account %s\n' % self.account.id)
 
         self.logger.start()
-        if settings.logs.trace_sip:
+        if settings.logs.trace_sip and self.logger._siptrace_filename is not None:
             self.output.put('Logging SIP trace to file "%s"\n' % self.logger._siptrace_filename)
-        if settings.logs.trace_pjsip:
+        if settings.logs.trace_pjsip and self.logger._pjsiptrace_filename is not None:
             self.output.put('Logging PJSIP trace to file "%s"\n' % self.logger._pjsiptrace_filename)
-        if settings.logs.trace_notifications:
+        if settings.logs.trace_notifications and self.logger._notifications_filename is not None:
             self.output.put('Logging notifications trace to file "%s"\n' % self.logger._notifications_filename)
 
     def _NH_SIPApplicationDidStart(self, notification):

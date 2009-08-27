@@ -18,7 +18,7 @@ from sipsimple.util import makedirs
 
 class Logger(object):
     implements(IObserver)
-    
+
     def __init__(self, sip_to_stdout=False, pjsip_to_stdout=False, notifications_to_stdout=False):
         self.sip_to_stdout = sip_to_stdout
         self.pjsip_to_stdout = pjsip_to_stdout
@@ -26,35 +26,32 @@ class Logger(object):
 
         self._siptrace_filename = None
         self._siptrace_file = None
+        self._siptrace_error = False
         self._siptrace_start_time = None
         self._siptrace_packet_count = 0
-        
+
         self._pjsiptrace_filename = None
         self._pjsiptrace_file = None
+        self._pjsiptrace_error = False
 
         self._notifications_filename = None
         self._notifications_file = None
+        self._notifications_error = False
 
+        self._log_directory_error = False
         self._lock = RLock()
-        
+
     def start(self):
         with self._lock:
             # register to receive log notifications
             notification_center = NotificationCenter()
             notification_center.add_observer(self)
 
-            settings = SIPSimpleSettings()
-            log_directory = settings.logs.directory.normalized
-            makedirs(log_directory)
-
-            # sip trace
-            self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
-
-            # pjsip trace
-            self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
-
-            # notifications trace
-            self._notifications_filename = os.path.join(log_directory, 'notifications_trace.txt')
+            # try to create the log directory
+            try:
+                self._init_log_directory()
+            except Exception:
+                pass
 
     def stop(self):
         with self._lock:
@@ -62,7 +59,7 @@ class Logger(object):
             if self._siptrace_file is not None:
                 self._siptrace_file.close()
                 self._siptrace_file = None
-            
+
             # pjsip trace
             if self._pjsiptrace_file is not None:
                 self._pjsiptrace_file.close()
@@ -93,14 +90,13 @@ class Logger(object):
                 if self.notifications_to_stdout:
                     print '%s: %s' % (datetime.datetime.now(), message)
                 if settings.logs.trace_notifications:
-                    if self._notifications_file is None:
-                        try:
-                            self._notifications_file = open(self._notifications_filename, 'a')
-                        except IOError, e:
-                            print "failed to create log file '%s': %s" % (self._notifications_filename, e)
-                            return
-                    self._notifications_file.write('%s [%s %d]: %s\n' % (datetime.datetime.now(), os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
-                    self._notifications_file.flush()
+                    try:
+                        self._init_log_file('notifications')
+                    except Exception:
+                        pass
+                    else:
+                        self._notifications_file.write('%s [%s %d]: %s\n' % (datetime.datetime.now(), os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                        self._notifications_file.flush()
 
     # notification handlers
     #
@@ -109,26 +105,23 @@ class Logger(object):
         settings = SIPSimpleSettings()
         if notification.sender is settings:
             if 'logs.directory' in notification.data.modified:
-                log_directory = settings.logs.directory.normalized
-                makedirs(log_directory)
-
                 # sip trace
                 if self._siptrace_file is not None:
                     self._siptrace_file.close()
                     self._siptrace_file = None
-                self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
-
                 # pjsip trace
                 if self._pjsiptrace_file is not None:
                     self._pjsiptrace_file.close()
                     self._pjsiptrace_file = None
-                self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
-
                 # notifications trace
                 if self._notifications_file is not None:
                     self._notifications_file.close()
                     self._notifications_file = None
-                self._notifications_filename = os.path.join(log_directory, 'notifications_trace.txt')
+                # try to create the log directory
+                try:
+                    self._init_log_directory()
+                except Exception:
+                    pass
 
     # log handlers
     #
@@ -152,15 +145,14 @@ class Logger(object):
         if self.sip_to_stdout:
             print '%s: %s\n' % (event_data.timestamp, message)
         if settings.logs.trace_sip:
-            if self._siptrace_file is None:
-                try:
-                    self._siptrace_file = open(self._siptrace_filename, 'a')
-                except IOError, e:
-                    print "failed to create log file '%s': %s" % (self._siptrace_filename, e)
-                    return
-            self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
-            self._siptrace_file.flush()
-    
+            try:
+                self._init_log_file('siptrace')
+            except Exception:
+                pass
+            else:
+                self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._siptrace_file.flush()
+
     def _LH_SIPEngineLog(self, event_name, event_data):
         settings = SIPSimpleSettings()
         if not self.pjsip_to_stdout and not settings.logs.trace_pjsip:
@@ -169,14 +161,13 @@ class Logger(object):
         if self.pjsip_to_stdout:
             print '%s %s' % (event_data.timestamp, message)
         if settings.logs.trace_pjsip:
-            if self._pjsiptrace_file is None:
-                try:
-                    self._pjsiptrace_file = open(self._pjsiptrace_filename, 'a')
-                except IOError, e:
-                    print "failed to create log file '%s': %s" % (self._pjsiptrace_filename, e)
-                    return
-            self._pjsiptrace_file.write('%s [%s %d] %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
-            self._pjsiptrace_file.flush()
+            try:
+                self._init_log_file('pjsiptrace')
+            except Exception:
+                pass
+            else:
+                self._pjsiptrace_file.write('%s [%s %d] %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._pjsiptrace_file.flush()
 
     def _LH_DNSLookupTrace(self, event_name, event_data):
         settings = SIPSimpleSettings()
@@ -201,13 +192,56 @@ class Logger(object):
         if self.sip_to_stdout:
             print '%s: %s' % (event_data.timestamp, message)
         if settings.logs.trace_sip:
-            if self._siptrace_file is None:
-                try:
-                    self._siptrace_file = open(self._siptrace_filename, 'a')
-                except IOError, e:
-                    print "failed to create log file '%s': %s" % (self._siptrace_filename, e)
-                    return
-            self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
-            self._siptrace_file.flush()
+            try:
+                self._init_log_file('siptrace')
+            except Exception:
+                pass
+            else:
+                self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._siptrace_file.flush()
+
+    def _init_log_directory(self):
+        settings = SIPSimpleSettings()
+        log_directory = settings.logs.directory.normalized
+        try:
+            makedirs(log_directory)
+        except Exception, e:
+            if not self._log_directory_error:
+                print "failed to create logs directory '%s': %s" % (log_directory, e)
+                self._log_directory_error = True
+            self._siptrace_error = True
+            self._pjsiptrace_error = True
+            self._notifications_error = True
+            raise
+        else:
+            self._log_directory_error = False
+            # sip trace
+            if self._siptrace_filename is None:
+                self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
+                self._siptrace_error = False
+
+            # pjsip trace
+            if self._pjsiptrace_filename is None:
+                self._pjsiptrace_filename = os.path.join(log_directory, 'pjsip_trace.txt')
+                self._pjsiptrace_error = False
+
+            # notifications trace
+            if self._notifications_filename is None:
+                self._notifications_filename = os.path.join(log_directory, 'notifications_trace.txt')
+                self._notifications_error = False
+
+    def _init_log_file(self, type):
+        if getattr(self, '_%s_file' % type) is None:
+            self._init_log_directory()
+            filename = getattr(self, '_%s_filename' % type)
+            try:
+                setattr(self, '_%s_file' % type, open(filename, 'a'))
+            except Exception, e:
+                if not getattr(self, '_%s_error' % type):
+                    print "failed to create log file '%s': %s" % (filename, e)
+                    setattr(self, '_%s_error' % type, True)
+                raise
+            else:
+                setattr(self, '_%s_error' % type, False)
 
 
