@@ -793,7 +793,10 @@ class Session(object):
                 if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'disconnected':
                     if cancelling:
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self,
-                                                              TimestampedNotificationData(originator='local', method='INVITE', code=487, reason='Canceled'))
+                                                              TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                    elif hasattr(notification.data, 'method'):
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                              TimestampedNotificationData(originator='remote', method=notification.data.method, code=200, reason=sip_status_messages[200]))
                     else:
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self,
                                                               TimestampedNotificationData(originator='local', method='BYE', code=notification.data.code, reason=notification.data.reason))
