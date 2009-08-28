@@ -999,98 +999,95 @@ class Session(object):
             if notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal':
                 self.state = 'received_proposal'
                 try:
-                    if self._invitation.sdp.proposed_remote.version > self._invitation.sdp.active_remote.version:
-                        proposed_remote_sdp = self._invitation.sdp.proposed_remote
-                        active_remote_sdp = self._invitation.sdp.active_remote
-                        for stream in self.streams:
-                            if not stream.validate_update(proposed_remote_sdp, stream.index):
-                                engine = Engine()
-                                self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Failed to update media stream index %d' % stream.index)])
-                                self.state = 'connected'
-                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
-                                return
-                        for attr in ('user', 'net_type', 'address_type', 'address'):
-                            if getattr(proposed_remote_sdp, attr) != getattr(active_remote_sdp, attr):
-                                engine = Engine()
-                                self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Difference in contents of o= line')])
-                                self.state = 'connected'
-                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
-                                return
-                        added_media_indexes = set()
-                        removed_media_indexes = set()
-                        for index, media_stream in enumerate(proposed_remote_sdp.media):
-                            if index >= len(active_remote_sdp.media):
-                                added_media_indexes.add(index)
-                            elif media_stream.media != active_remote_sdp.media[index].media:
-                                added_media_indexes.add(index)
-                                removed_media_indexes.add(index)
-                            elif not media_stream.port and active_remote_sdp.media[index].port:
-                                removed_media_indexes.add(index)
-                        removed_media_indexes.update(xrange(len(proposed_remote_sdp.media), len(active_remote_sdp.media)))
-                        if added_media_indexes and removed_media_indexes:
+                    proposed_remote_sdp = self._invitation.sdp.proposed_remote
+                    active_remote_sdp = self._invitation.sdp.active_remote
+                    for stream in self.streams:
+                        if not stream.validate_update(proposed_remote_sdp, stream.index):
                             engine = Engine()
-                            self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Both removing AND adding a media stream is currently not supported')])
+                            self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Failed to update media stream index %d' % stream.index)])
+                            self.state = 'connected'
                             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
-                        elif added_media_indexes:
-                            self.proposed_streams = []
-                            for index in added_media_indexes:
-                                media_stream = proposed_remote_sdp.media[index]
-                                if media_stream.port != 0:
-                                    stream = None
-                                    if media_stream.media == 'audio':
-                                        stream = AudioStream(self.account)
-                                    elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
-                                        stream = MSRPIncomingFileStream(self.account)
-                                    elif media_stream.media == 'message':
-                                        stream = MSRPChat(self.account)
-                                    if stream is not None and stream.validate_incoming(proposed_remote_sdp, index):
-                                        stream.index = index
-                                        self.proposed_streams.append(stream)
-                            if self.proposed_streams:
-                                notification_center.post_notification('SIPSessionGotProposal', sender=self, data=TimestampedNotificationData(originator='remote', streams=self.proposed_streams))
-                                return
-                            else:
-                                self._invitation.send_response(488)
-                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                            return
+                    for attr in ('user', 'net_type', 'address_type', 'address'):
+                        if getattr(proposed_remote_sdp, attr) != getattr(active_remote_sdp, attr):
+                            engine = Engine()
+                            self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Difference in contents of o= line')])
+                            self.state = 'connected'
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                            return
+                    added_media_indexes = set()
+                    removed_media_indexes = set()
+                    for index, media_stream in enumerate(proposed_remote_sdp.media):
+                        if index >= len(active_remote_sdp.media):
+                            added_media_indexes.add(index)
+                        elif media_stream.media != active_remote_sdp.media[index].media:
+                            added_media_indexes.add(index)
+                            removed_media_indexes.add(index)
+                        elif not media_stream.port and active_remote_sdp.media[index].port:
+                            removed_media_indexes.add(index)
+                    removed_media_indexes.update(xrange(len(proposed_remote_sdp.media), len(active_remote_sdp.media)))
+                    if added_media_indexes and removed_media_indexes:
+                        engine = Engine()
+                        self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Both removing AND adding a media stream is currently not supported')])
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                    elif added_media_indexes:
+                        self.proposed_streams = []
+                        for index in added_media_indexes:
+                            media_stream = proposed_remote_sdp.media[index]
+                            if media_stream.port != 0:
+                                stream = None
+                                if media_stream.media == 'audio':
+                                    stream = AudioStream(self.account)
+                                elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
+                                    stream = MSRPIncomingFileStream(self.account)
+                                elif media_stream.media == 'message':
+                                    stream = MSRPChat(self.account)
+                                if stream is not None and stream.validate_incoming(proposed_remote_sdp, index):
+                                    stream.index = index
+                                    self.proposed_streams.append(stream)
+                        if self.proposed_streams:
+                            notification_center.post_notification('SIPSessionGotProposal', sender=self, data=TimestampedNotificationData(originator='remote', streams=self.proposed_streams))
+                            return
                         else:
-                            local_sdp = SDPSession.new(self._invitation.sdp.active_local)
-                            local_sdp.version += 1
-                            removed_streams = [stream for stream in self.streams if stream.index in removed_media_indexes]
-                            prev_on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
-                            for stream in removed_streams:
-                                notification_center.remove_observer(self, sender=stream)
-                                stream.end()
-                                self.streams.remove(stream)
-                                local_sdp.media[stream.index].port = 0
-                            for stream in self.streams:
-                                local_sdp.media[stream.index] = stream.get_local_media(for_offer=False)
-                            self._invitation.send_response(200, sdp=local_sdp)
-                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
-
-
-                            received_invitation_state = False
-                            received_sdp_update = False
-                            while not received_sdp_update or not received_invitation_state:
-                                notification = self._channel.wait()
-                                if notification.name == 'SIPInvitationGotSDPUpdate':
-                                    received_sdp_update = True
-                                    if notification.data.succeeded:
-                                        local_sdp = notification.data.local_sdp
-                                        remote_sdp = notification.data.remote_sdp
-                                        for stream in self.streams:
-                                            stream.update(local_sdp, remote_sdp, stream.index)
-                                elif notification.name == 'SIPInvitationChangedState':
-                                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
-                                        received_invitation_state = True
-                            on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
-                            if on_hold_streams != prev_on_hold_streams:
-                                hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
-                                notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='remote', on_hold=bool(on_hold_streams),
-                                                                      partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
-                            if removed_media_indexes:
-                                notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=removed_streams))
+                            self._invitation.send_response(488)
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
                     else:
-                        self._invitation.send_response(200, sdp=self._invitation.sdp.active_local)
+                        local_sdp = SDPSession.new(self._invitation.sdp.active_local)
+                        local_sdp.version += 1
+                        removed_streams = [stream for stream in self.streams if stream.index in removed_media_indexes]
+                        prev_on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
+                        for stream in removed_streams:
+                            notification_center.remove_observer(self, sender=stream)
+                            stream.end()
+                            self.streams.remove(stream)
+                            local_sdp.media[stream.index].port = 0
+                        for stream in self.streams:
+                            local_sdp.media[stream.index] = stream.get_local_media(for_offer=False)
+                        self._invitation.send_response(200, sdp=local_sdp)
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
+
+
+                        received_invitation_state = False
+                        received_sdp_update = False
+                        while not received_sdp_update or not received_invitation_state:
+                            notification = self._channel.wait()
+                            if notification.name == 'SIPInvitationGotSDPUpdate':
+                                received_sdp_update = True
+                                if notification.data.succeeded:
+                                    local_sdp = notification.data.local_sdp
+                                    remote_sdp = notification.data.remote_sdp
+                                    for stream in self.streams:
+                                        stream.update(local_sdp, remote_sdp, stream.index)
+                            elif notification.name == 'SIPInvitationChangedState':
+                                if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                                    received_invitation_state = True
+                        on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
+                        if on_hold_streams != prev_on_hold_streams:
+                            hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
+                            notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='remote', on_hold=bool(on_hold_streams),
+                                                                  partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
+                        if removed_media_indexes:
+                            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=removed_streams))
                 except InvitationDidFailError, e:
                     self.greenlet = None
                     self.state == 'connected'
