@@ -20,9 +20,6 @@ __all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger'
            'ResourcePath', 'UserDataPath', 'SoundFile', 'AccountSoundFile']
 
 
-#FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
-
-
 ## General datatypes
 
 class ContentType(str):
