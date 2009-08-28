@@ -114,6 +114,14 @@ class SettingsParser(object):
         return type(path, volume)
 
     @classmethod
+    def parse_AccountSoundFile(cls, type, value):
+        if ',' in value:
+            path, volume = value.split(',', 1)
+        else:
+            path, volume = value, 100
+        return type(path, volume)
+
+    @classmethod
     def parse(cls, type, value):
         if value == 'None':
             return None

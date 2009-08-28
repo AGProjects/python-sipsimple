@@ -17,7 +17,7 @@ __all__ = ['ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger'
            'AudioOutputDevice', 'SampleRate', 'DomainList', 'Hostname', 'LocalIPAddress', 'MSRPRelayAddress',
            'MSRPTransport', 'Port', 'PortRange', 'SIPAddress', 'SIPProxy', 'SRTPEncryption', 'STUNServerAddress',
            'STUNServerAddresses', 'TLSProtocol', 'Transports', 'XCAPRoot', 'ImageDepth', 'Resolution', 'Path',
-           'ResourcePath', 'UserDataPath', 'SoundFile']
+           'ResourcePath', 'UserDataPath', 'SoundFile', 'AccountSoundFile']
 
 
 #FIXME: this path is unix-specific and probably more related to the command-line clients than to the middleware -Luci
@@ -458,5 +458,44 @@ class SoundFile(object):
     
     def __str__(self):
         return '%s,%d' % (self.path, self.volume)
+
+class AccountSoundFile(object):
+    class DefaultSoundFile(object):
+        def __init__(self, setting):
+            self.setting = setting
+        def __repr__(self):
+            return 'AccountSoundFile.DefaultSoundFile(%s)' % self.setting
+        __str__ = __repr__
+    
+    def __init__(self, sound_file, *args, **kwargs):
+        if isinstance(sound_file, self.DefaultSoundFile):
+            self._sound_file = sound_file
+            if args or kwargs:
+                raise ValueError("other parameters cannot be specified if sound file is instance of DefaultSoundFile")
+        else:
+            self._sound_file = SoundFile(sound_file, *args, **kwargs)
+
+    @property
+    def sound_file(self):
+        if isinstance(self._sound_file, self.DefaultSoundFile):
+            from sipsimple.configuration.settings import SIPSimpleSettings
+            setting = SIPSimpleSettings()
+            for comp in self._sound_file.setting.split('.'):
+                setting = getattr(setting, comp)
+            return setting
+        else:
+            return self._sound_file
+
+    def __repr__(self):
+        if isinstance(self._sound_file, self.DefaultSoundFile):
+            return '%s(%r)' % (self.__class__.__name__, self._sound_file)
+        else:
+            return '%s(%r, volume=%d)' % (self.__class__.__name__, self._sound_file.path, self._sound_file.volume)
+
+    def __str__(self):
+        if isinstance(self._sound_file, self.DefaultSoundFile):
+            return 'DEFAULT'
+        else:
+            return '%s,%d' % (self._sound_file.path, self._sound_file.volume)
 
 
