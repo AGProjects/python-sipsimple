@@ -159,6 +159,7 @@ class AudioStream(NotificationHandler):
             self._try_next_rtp_transport(data.reason)
 
     def _NH_RTPTransportDidInitialize(self, rtp_transport, data):
+        settings = SIPSimpleSettings()
         with self._lock:
             self.notification_center.remove_observer(self, sender=rtp_transport)
             if self.state == "ENDED":
@@ -171,14 +172,14 @@ class AudioStream(NotificationHandler):
                         audio_transport = AudioTransport(self.conference_bridge, rtp_transport,
                                                          self._incoming_remote_sdp, self._incoming_stream_index,
                                                          codecs=(list(self.account.rtp.audio_codecs)
-                                                                 if self.account.rtp.audio_codecs else None))
+                                                                 if self.account.rtp.audio_codecs else list(settings.rtp.audio_codecs)))
                     finally:
                         del self._incoming_remote_sdp
                         del self._incoming_stream_index
                 else:
                     audio_transport = AudioTransport(self.conference_bridge, rtp_transport,
                                                      codecs=(list(self.account.rtp.audio_codecs) 
-                                                             if self.account.rtp.audio_codecs else None))
+                                                             if self.account.rtp.audio_codecs else list(settings.rtp.audio_codecs)))
             except SIPCoreError, e:
                 self.state = "ENDED"
                 self.notification_center.post_notification("MediaStreamDidFail", self,
