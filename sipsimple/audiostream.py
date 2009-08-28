@@ -296,7 +296,7 @@ class AudioStream(NotificationHandler):
         if not self.on_hold and self._audio_rec.slot not in output_slots:
             self.conference_bridge.connect_slots(0, self._audio_rec.slot)
             self.conference_bridge.connect_slots(self._audio_transport.slot, self._audio_rec.slot)
-        elif self.on_hold and self._audio_rec.slots in output_slots:
+        elif self.on_hold and self._audio_rec.slot in output_slots:
             self.conference_bridge.disconnect_slots(0, self._audio_rec.slot)
             self.conference_bridge.disconnect_slots(self._audio_transport.slot, self._audio_rec.slot)
 
