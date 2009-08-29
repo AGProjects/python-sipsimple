@@ -20,8 +20,8 @@ I. MAC ports installation (last stable version)
 II. Manual installation (development version)
 
 
-I. MAC ports installation
--------------------------
+I. MAC ports installation (last stable version)
+-----------------------------------------------
 
 The installation procedure consists of the steps described below:
 
@@ -99,8 +99,8 @@ sudo port upgrade py25-sipsimple # make sure dependencies are upgraded too
 sip_migrate_settings # also migrate the configuration to the new format
 
 
-II. Manual installation
------------------------
+II. Manual installation (development version)
+---------------------------------------------
 
 The installation procedure consists of the steps described below:
 
