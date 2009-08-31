@@ -110,6 +110,7 @@ class Account(SettingsObject):
     enabled = Setting(type=bool, default=False)
     password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)
+    order = Setting(type=int, default=0)
 
     sip = SIPSettings
     rtp = RTPSettings
@@ -394,6 +395,7 @@ class BonjourAccount(SettingsObject):
     id = property(lambda self: self.__id__)
     enabled = Setting(type=bool, default=True)
     display_name = Setting(type=str, default=None, nillable=True)
+    order = Setting(type=int, default=0)
 
     rtp = RTPSettings
     sounds = SoundsSettings
