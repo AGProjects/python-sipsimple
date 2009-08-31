@@ -268,7 +268,9 @@ cdef int _rdata_info_to_dict(pjsip_rx_data *rdata, dict info_dict) except -1:
         elif hdr_name == "Warning":
             match = _re_warning_hdr.match(_pj_str_to_str((<pjsip_generic_string_hdr *>hdr).hvalue))
             if match is not None:
-                hdr_data = FrozenWarningHeader(**match.groupdict())
+                warning_params = match.groupdict()
+                warning_params['code'] = int(warning_params['code'])
+                hdr_data = FrozenWarningHeader(**warning_params)
         elif hdr_name == "Event":
             hdr_data = FrozenEventHeader_create(<pjsip_event_hdr *> hdr)
         elif hdr_name == "Subscription-State":
