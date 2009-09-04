@@ -59,7 +59,7 @@ class SIPApplication(object):
         notification_center.add_observer(self, sender=settings)
 
         notification_center.post_notification('SIPApplicationWillStart', sender=self)
-        if self.state == 'stopping':
+        if self.state in ('stopping', 'stopped'):
             return
 
         engine = Engine()
@@ -128,9 +128,11 @@ class SIPApplication(object):
         self.end_reason = 'application request'
         prev_state = self.state
         self.state = 'stopping'
-        if prev_state == 'starting':
-            return
         notification_center.post_notification('SIPApplicationWillEnd', sender=self)
+        if prev_state == 'starting':
+            self.state = 'stopped'
+            notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=NotificationData(end_reason=self.end_reason))
+            return
         if engine.is_running:
             if account_manager.state == 'started':
                 account_manager.stop()
