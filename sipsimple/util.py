@@ -29,11 +29,10 @@ class TimestampedNotificationData(NotificationData):
 class SilenceableWaveFile(object):
     implements(IObserver)
 
-    def __init__(self, conference_bridge, file_name, volume=100, loop_count=1, pause_time=0, force_playback=False):
+    def __init__(self, conference_bridge, file_name, volume=100, loop_count=1, pause_time=0):
         self.conference_bridge = conference_bridge
         self.file_name = file_name
         self.volume = volume
-        self.force_playback = force_playback
         self.loop_count = loop_count
         self.pause_time = 0
         self._current_loop = 0
@@ -50,9 +49,7 @@ class SilenceableWaveFile(object):
             self._state = 'started'
         self._stopped = False
         self._current_loop = 0
-        from sipsimple.configuration.settings import SIPSimpleSettings
-        if self.force_playback or not SIPSimpleSettings().audio.silent:
-            self._play_wave()
+        self._play_wave()
 
     @property
     def is_active(self):
@@ -66,6 +63,7 @@ class SilenceableWaveFile(object):
             self._state = 'stopped'
         if self._wave_file is not None:
             self._wave_file.stop()
+
 
     def _play_wave(self):
         if self._state == 'stopped':
