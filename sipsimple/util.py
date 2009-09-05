@@ -54,6 +54,11 @@ class SilenceableWaveFile(object):
         if self.force_playback or not SIPSimpleSettings().audio.silent:
             self._play_wave()
 
+    @property
+    def is_active(self):
+        with self._lock:
+            return self._state == "started"
+
     def stop(self):
         with self._lock:
             if self._state != 'started':
