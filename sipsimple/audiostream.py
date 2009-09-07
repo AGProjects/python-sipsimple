@@ -89,7 +89,7 @@ class AudioStream(NotificationHandler):
             self._incoming_stream_index = stream_index
             return True
 
-    def initialize(self, session):
+    def initialize(self, session, direction):
         with self._lock:
             if self.state != "NULL":
                 raise RuntimeError("AudioStream.initialize() may only be called in the NULL state")

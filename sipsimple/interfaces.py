@@ -15,7 +15,7 @@ class IMediaStream(Interface):
     def validate_incoming(self, remote_sdp, stream_index):
         pass
 
-    def initialize(self, session):
+    def initialize(self, session, direction):
         pass
 
     def start(self, local_sdp, remote_sdp, stream_index):

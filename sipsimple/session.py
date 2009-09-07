@@ -130,7 +130,7 @@ class Session(object):
         notification_center.post_notification('SIPSessionNewOutgoing', self, TimestampedNotificationData(streams=streams))
         for stream in self.proposed_streams:
             notification_center.add_observer(self, sender=stream)
-            stream.initialize(self)
+            stream.initialize(self, direction='outgoing')
 
         try:
             wait_count = len(self.proposed_streams)
@@ -277,14 +277,14 @@ class Session(object):
             for stream in self.proposed_streams:
                 if stream in streams:
                     notification_center.add_observer(self, sender=stream)
-                    stream.initialize(self)
+                    stream.initialize(self, direction='incoming')
                 else:
                     stream.end()
         else:
             for index, stream in enumerate(streams):
                 notification_center.add_observer(self, sender=stream)
                 stream.index = index
-                stream.initialize(self)
+                stream.initialize(self, direction='outgoing')
         self.proposed_streams = streams
 
         try:
@@ -492,7 +492,7 @@ class Session(object):
         for stream in self.proposed_streams:
             if stream in streams:
                 notification_center.add_observer(self, sender=stream)
-                stream.initialize(self)
+                stream.initialize(self, direction='incoming')
             else:
                 stream.end()
 
@@ -610,7 +610,7 @@ class Session(object):
 
         self.proposed_streams = [stream]
         notification_center.add_observer(self, sender=stream)
-        stream.initialize(self)
+        stream.initialize(self, direction='outgoing')
 
         try:
             while True:

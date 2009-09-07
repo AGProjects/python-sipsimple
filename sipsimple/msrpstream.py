@@ -82,11 +82,11 @@ class MSRPChat(object):
         return True
 
     @run_in_twisted
-    def initialize(self, session):
+    def initialize(self, session, direction):
         try:
             self.session = session
             settings = SIPSimpleSettings()
-            outgoing = session.direction == 'outgoing'
+            outgoing = direction == 'outgoing'
             if (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
                 if self.account.nat_traversal.msrp_relay is None:
                     relay = MSRPRelaySettings(domain=self.account.uri.host,

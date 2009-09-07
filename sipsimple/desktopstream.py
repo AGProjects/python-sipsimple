@@ -74,10 +74,10 @@ class MSRPDesktop(object):
         else:
             return False
 
-    def initialize(self, session):
+    def initialize(self, session, direction):
         try:
             settings = SIPSimpleSettings()
-            outgoing = session.direction == 'outgoing'
+            outgoing = direction == 'outgoing'
             if self.setup is None:
                 if outgoing:
                     self.setup = 'active'
