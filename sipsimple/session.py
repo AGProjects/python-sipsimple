@@ -784,14 +784,18 @@ class Session(object):
             api.kill(self.greenlet, api.GreenletExit())
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
-        if self._invitation.state in ('disconnecting', 'disconnected'):
+        if self._invitation is None or self._invitation.state in ('disconnecting', 'disconnected'):
             return
         self.state = 'terminating'
         if self._invitation.state == 'connected':
             notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator='local'))
         for stream in ((self.streams or []) + (self.proposed_streams or [])):
-            notification_center.remove_observer(self, sender=stream)
-            stream.end()
+            try:
+                notification_center.remove_observer(self, sender=stream)
+            except KeyError:
+                pass
+            else:
+                stream.end()
         cancelling = self._invitation.state != 'connected'
         try:
             self._invitation.end(timeout=1)
