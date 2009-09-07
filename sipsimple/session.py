@@ -60,6 +60,8 @@ def transition_state(required_state, new_state):
 class Session(object):
     implements(IObserver)
 
+    media_stream_timeout = 15
+
     def __init__(self, account):
         self.account = account
         self.direction = None
@@ -199,29 +201,34 @@ class Session(object):
                 self.proposed_streams.remove(stream)
                 del stream_map[stream.index]
                 stream.end()
-            wait_count = len(self.proposed_streams)
-            while wait_count > 0 or not connected or self._channel:
-                notification = self._channel.wait()
-                if notification.name == 'MediaStreamDidStart':
-                    wait_count -= 1
-                elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'early' and notification.data.code == 180:
-                        notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
-                    elif notification.data.state == 'connecting':
-                        received_code = notification.data.code
-                        received_reason = notification.data.reason
-                    elif notification.data.state == 'connected':
-                        if not connected:
-                            connected = True
-                            notification_center.post_notification('SIPSessionDidProcessTransaction', self,
-                                                                  TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
-                        else:
-                            unhandled_notifications.append(notification)
-        except MediaStreamDidFailError, e:
+            with api.timeout(self.media_stream_timeout):
+                wait_count = len(self.proposed_streams)
+                while wait_count > 0 or not connected or self._channel:
+                    notification = self._channel.wait()
+                    if notification.name == 'MediaStreamDidStart':
+                        wait_count -= 1
+                    elif notification.name == 'SIPInvitationChangedState':
+                        if notification.data.state == 'early' and notification.data.code == 180:
+                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                        elif notification.data.state == 'connecting':
+                            received_code = notification.data.code
+                            received_reason = notification.data.reason
+                        elif notification.data.state == 'connected':
+                            if not connected:
+                                connected = True
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                      TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
+                            else:
+                                unhandled_notifications.append(notification)
+        except (MediaStreamDidFailError, api.TimeoutError), e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
                 stream.end()
-            self._fail(originator='local', code=received_code, reason=received_reason, error='media stream failed: %s' % e.data.reason)
+            if isinstance(e, api.TimeoutError):
+                error = 'media stream timed out while starting'
+            else:
+                error = 'media stream failed: %s' % e.data.reason
+            self._fail(originator='local', code=received_code, reason=received_reason, error=error)
         except InvitationDidFailError, e:
             notification_center.remove_observer(self, sender=self._invitation)
             for stream in self.proposed_streams:
@@ -369,20 +376,21 @@ class Session(object):
                 self.proposed_streams.remove(stream)
                 del stream_map[stream.index]
                 stream.end()
-            while wait_count > 0 or not connected or self._channel:
-                notification = self._channel.wait()
-                if notification.name == 'MediaStreamDidStart':
-                    wait_count -= 1
-                elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'connected':
-                        if not connected:
-                            connected = True
-                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=True))
-                        elif notification.data.prev_state == 'connected':
-                            unhandled_notifications.append(notification)
-                else:
-                    unhandled_notifications.append(notification)
-        except MediaStreamDidFailError, e:
+            with api.timeout(self.media_stream_timeout):
+                while wait_count > 0 or not connected or self._channel:
+                    notification = self._channel.wait()
+                    if notification.name == 'MediaStreamDidStart':
+                        wait_count -= 1
+                    elif notification.name == 'SIPInvitationChangedState':
+                        if notification.data.state == 'connected':
+                            if not connected:
+                                connected = True
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=True))
+                            elif notification.data.prev_state == 'connected':
+                                unhandled_notifications.append(notification)
+                    else:
+                        unhandled_notifications.append(notification)
+        except (MediaStreamDidFailError, api.TimeoutError), e:
             if self._invitation.state == 'connecting':
                 # pjsip's invite session object does not inform us whether the ACK was received or not
                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received='unknown'))
@@ -394,7 +402,11 @@ class Session(object):
                 stream.end()
             code = 200 if self._invitation.state not in ('incoming', 'early') else 0
             reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
-            self._fail(originator='local', code=code, reason=reason, error='media stream failed: %s' % e.data.reason)
+            if isinstance(e, api.TimeoutError):
+                error = 'media stream timed out while starting'
+            else:
+                error = 'media stream failed: %s' % e.data.reason
+            self._fail(originator='local', code=code, reason=reason, error=error)
         except InvitationDidFailError, e:
             notification_center.remove_observer(self, sender=self._invitation)
             for stream in self.proposed_streams:
@@ -552,15 +564,20 @@ class Session(object):
 
             for stream in self.proposed_streams:
                 stream.start(local_sdp, remote_sdp, stream.index)
-            wait_count = len(self.proposed_streams)
-            while wait_count > 0 or self._channel:
-                notification = self._channel.wait()
-                if notification.name == 'MediaStreamDidStart':
-                    wait_count -= 1
-                else:
-                    unhandled_notifications.append(notification)
-        except MediaStreamDidFailError, e:
-            self._fail_proposal(originator='remote', error='media stream failed: %s' % e.data.reason)
+            with api.timeout(self.media_stream_timeout):
+                wait_count = len(self.proposed_streams)
+                while wait_count > 0 or self._channel:
+                    notification = self._channel.wait()
+                    if notification.name == 'MediaStreamDidStart':
+                        wait_count -= 1
+                    else:
+                        unhandled_notifications.append(notification)
+        except (MediaStreamDidFailError, api.TimeoutError), e:
+            if isinstance(e, api.TimeoutError):
+                error = 'media stream timed out while starting'
+            else:
+                error = 'media stream failed: %s' % e.data.reason
+            self._fail_proposal(originator='remote', error=error)
         except InvitationDidFailError, e:
             self._fail_proposal(originator='remote', error='session ended')
             self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
@@ -683,13 +700,18 @@ class Session(object):
                     self.greenlet = None
                     return
 
-            wait_count = 1
-            while wait_count > 0 or self._channel:
-                notification = self._channel.wait()
-                if notification.name == 'MediaStreamDidStart':
-                    wait_count -= 1
-        except MediaStreamDidFailError, e:
-            self._fail_proposal(originator='local', error='media stream failed: %s' % e.data.reason)
+            with api.timeout(self.media_stream_timeout):
+                wait_count = 1
+                while wait_count > 0 or self._channel:
+                    notification = self._channel.wait()
+                    if notification.name == 'MediaStreamDidStart':
+                        wait_count -= 1
+        except (MediaStreamDidFailError, api.TimeoutError), e:
+            if isinstance(e, api.TimeoutError):
+                error = 'media stream timed out while starting'
+            else:
+                error = 'media stream failed: %s' % e.data.reason
+            self._fail_proposal(originator='local', error=error)
         except InvitationDidFailError, e:
             self._fail_proposal(originator='local', error='session ended')
             self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
