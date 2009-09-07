@@ -39,6 +39,9 @@ class InvitationDidFailError(Exception):
         self.invitation = invitation
         self.data = data
 
+class IllegalStateError(RuntimeError):
+    pass
+
 
 @decorator
 def transition_state(required_state, new_state):
@@ -47,7 +50,7 @@ def transition_state(required_state, new_state):
         def wrapper(obj, *args, **kwargs):
             with obj._lock:
                 if obj.state != required_state:
-                    raise RuntimeError('cannot call %s in %s state' % (func.__name__, obj.state))
+                    raise IllegalStateError('cannot call %s in %s state' % (func.__name__, obj.state))
                 obj.state = new_state
             return func(obj, *args, **kwargs)
         return wrapper
