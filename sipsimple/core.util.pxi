@@ -350,7 +350,9 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         elif header_name == "Warning":
             match = _re_warning_hdr.match(_pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue))
             if match is not None:
-                header_data = FrozenWarningHeader(**match.groupdict())
+                warning_params = match.groupdict()
+                warning_params['code'] = int(warning_params['code'])
+                header_data = FrozenWarningHeader(**warning_params)
         elif header_name == "Event":
             header_data = FrozenEventHeader_create(<pjsip_event_hdr *> header)
         elif header_name == "Subscription-State":
