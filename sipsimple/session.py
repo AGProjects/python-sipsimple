@@ -1179,14 +1179,8 @@ class Session(object):
                 notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=[stream]))
 
     def _NH_MediaStreamDidEnd(self, notification):
-        stream = notification.sender
-        try:
+        if self.greenlet is None:
             self.remove_stream(stream)
-        except IllegalStateError:
-            notification_center = NotificationCenter()
-            notification_center.remove_observer(self, sender=stream)
-            self.streams.remove(stream)
-            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=[stream]))
 
 
 class SessionManager(object):
