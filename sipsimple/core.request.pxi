@@ -260,7 +260,7 @@ cdef class Request:
             if rdata == NULL:
                 return 0
             event_dict = dict(obj=self)
-            _rdata_info_to_dict(rdata, event_dict)
+            _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
             _add_event("SIPRequestGotProvisionalResponse", event_dict)
         elif self._tsx.state == PJSIP_TSX_STATE_COMPLETED:
             if self._timer_active:
@@ -303,7 +303,7 @@ cdef class Request:
                 event_dict = dict(obj=self)
                 if rdata != NULL:
                     # This shouldn't happen, but safety fist!
-                    _rdata_info_to_dict(rdata, event_dict)
+                    _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
                 if self._tsx.status_code / 100 == 2:
                     if rdata != NULL:
                         if "Expires" in event_dict["headers"]:
