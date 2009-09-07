@@ -116,7 +116,6 @@ class MSRPChat(object):
         except Exception, ex:
             ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
-            raise
         else:
             self.notification_center.post_notification('MediaStreamDidInitialize', self)
 
@@ -144,7 +143,6 @@ class MSRPChat(object):
         except Exception, ex:
             ndata = NotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
-            raise
         else:
             self.notification_center.post_notification('MediaStreamDidStart', self)
             while self.message_queue:
@@ -218,8 +216,13 @@ class MSRPChat(object):
             chunk.add_header(FailureReportHeader(failure_report))
         if success_report is not None:
             chunk.add_header(SuccessReportHeader(success_report))
-        self.msrp_session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
-        self.notification_center.post_notification('MSRPChatDidSendMessage', self, NotificationData(chunk=chunk))
+        try:
+            self.msrp_session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
+        except Exception, e:
+            ndata = NotificationData(context='sending', failure=Failure(), reason=str(e))
+            self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
+        else:
+            self.notification_center.post_notification('MSRPChatDidSendMessage', self, NotificationData(chunk=chunk))
 
     def send_message(self, content, content_type='text/plain', remote_identity=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
