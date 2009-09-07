@@ -9,7 +9,7 @@ http://ag-projects.com
 Description
 -----------
 
-SIP SIMPLE client is a Python software library that allows for easy
+SIP SIMPLE client is a Python software development kit that allows for easy
 development of Internet communications end-points based on SIP and related
 protocols for voice, rich presence, session based instant messaging (IM),
 file transfers and desktop sharing. Other media types can be easily added by
