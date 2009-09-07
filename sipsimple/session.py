@@ -742,6 +742,10 @@ class Session(object):
         unhandled_notifications = []
 
         try:
+            notification_center.remove_observer(self, sender=stream)
+            stream.end()
+            self.streams.remove(stream)
+
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
             local_sdp.version += 1
             local_sdp.media[stream.index].port = 0
@@ -765,9 +769,6 @@ class Session(object):
         else:
             self.greenlet = None
             self.state = 'connected'
-            notification_center.remove_observer(self, sender=stream)
-            stream.end()
-            self.streams.remove(stream)
             notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='local', action='remove', streams=[stream]))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
@@ -1167,6 +1168,25 @@ class Session(object):
     def _NH_MediaStreamDidFail(self, notification):
         if self.greenlet is not None:
             self._channel.send_exception(MediaStreamDidFailError(notification.sender, notification.data))
+        else:
+            stream = notification.sender
+            try:
+                self.remove_stream(stream)
+            except IllegalStateError:
+                notification_center = NotificationCenter()
+                notification_center.remove_observer(self, sender=stream)
+                self.streams.remove(stream)
+                notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=[stream]))
+
+    def _NH_MediaStreamDidEnd(self, notification):
+        stream = notification.sender
+        try:
+            self.remove_stream(stream)
+        except IllegalStateError:
+            notification_center = NotificationCenter()
+            notification_center.remove_observer(self, sender=stream)
+            self.streams.remove(stream)
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=[stream]))
 
 
 class SessionManager(object):
