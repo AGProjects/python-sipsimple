@@ -495,6 +495,7 @@ class Session(object):
                 stream.initialize(self, direction='incoming')
             else:
                 stream.end()
+        self.proposed_streams = streams
 
         try:
             wait_count = len(self.proposed_streams)
@@ -509,8 +510,11 @@ class Session(object):
             for index, media in enumerate(self._invitation.sdp.proposed_remote.media):
                 stream = stream_map.get(index, None)
                 if stream is not None:
-                    local_sdp.media.append(stream.get_local_media(for_offer=False))
-                else:
+                    if index < len(local_sdp.media):
+                        local_sdp.media[index] = stream.get_local_media(for_offer=False)
+                    else:
+                        local_sdp.media.append(stream.get_local_media(for_offer=False))
+                elif index >= len(local_sdp.media): # actually == is sufficient
                     media = SDPMediaStream.new(media)
                     media.port = 0
                     local_sdp.media.append(media)
