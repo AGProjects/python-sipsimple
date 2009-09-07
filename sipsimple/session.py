@@ -983,7 +983,7 @@ class Session(object):
         if originator == 'remote' and self._invitation.sub_state != 'normal':
             self._invitation.send_response(500)
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received='unknown'))
-        notification_center.post_notification('SIPSessionHadProposalFailure', self, TimestampedNotificationData(originator=originator, failure_reaon=error, streams=self.proposed_streams))
+        notification_center.post_notification('SIPSessionHadProposalFailure', self, TimestampedNotificationData(originator=originator, failure_reason=error, streams=self.proposed_streams))
         self.state = 'connected'
         self.proposed_streams = None
         self.greenlet = None
