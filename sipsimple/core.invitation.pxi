@@ -432,6 +432,9 @@ cdef class Invitation:
                     pjmedia_sdp_neg_get_neg_local(self._invite_session.neg, &sdp)
                     self.sdp.proposed_local = FrozenSDPSession_create(sdp)
             elif self.sub_state in ("received proposal", "sent_proposal"):
+                if rdata == NULL:
+                    event_dict['code'] = 408
+                    event_dict['reason'] = 'Request Timeout'
                 self._reinvite_transaction = NULL
         if state == "disconnected":
             event_dict["disconnect_reason"] = "user request"
