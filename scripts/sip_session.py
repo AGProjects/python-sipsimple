@@ -134,6 +134,8 @@ class OutgoingCallInitializer(object):
         except SIPCoreError:
             send_notice('Illegal SIP URI: %s' % self.target)
         else:
+            if '.' not in self.target.host:
+                self.target.host = '%s.%s' % (self.target.host, self.account.id.domain)
             lookup = DNSLookup()
             notification_center = NotificationCenter()
             notification_center.add_observer(self, sender=lookup)

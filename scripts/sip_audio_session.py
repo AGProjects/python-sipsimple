@@ -304,6 +304,8 @@ class SIPAudioApplication(SIPApplication):
                 self.output.put('Illegal SIP URI: %s\n' % self.target)
                 self.stop()
             else:
+                if '.' not in self.target.host:
+                    self.target.host = '%s.%s' % (self.target.host, self.account.id.domain)
                 lookup = DNSLookup()
                 notification_center = NotificationCenter()
                 settings = SIPSimpleSettings()
