@@ -25,8 +25,15 @@ from threading import Thread
 def synchronized(func):
     @preserve_signature(func)
     def wrapper(self, *args, **kwargs):
-        with self.lock:
+        try:
+            self.lock.acquire()
+        except:
             return func(self, *args, **kwargs)
+        else:
+            try:
+                return func(self, *args, **kwargs)
+            finally:
+                self.lock.release()
     return wrapper
 
 
