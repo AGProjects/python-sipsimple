@@ -549,7 +549,8 @@ class UI(Thread):
     #
 
     def _CH_default(self, char):
-        print 'Got control char %s' % ''.join('%02X' % ord(c) for c in char)
+        #print 'Got control char %s' % ''.join('%02X' % ord(c) for c in char)
+        pass
 
     def _CH_home(self, char):
         if self.input.cursor_position > 0:
