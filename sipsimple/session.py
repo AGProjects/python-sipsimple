@@ -831,7 +831,7 @@ class Session(object):
                     elif hasattr(notification.data, 'method'):
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self,
                                                               TimestampedNotificationData(originator='remote', method=notification.data.method, code=200, reason=sip_status_messages[200]))
-                    else:
+                    elif notification.data.disconnect_reason == 'user request':
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self,
                                                               TimestampedNotificationData(originator='local', method='BYE', code=notification.data.code, reason=notification.data.reason))
                     break
