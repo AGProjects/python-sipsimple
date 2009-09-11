@@ -17,7 +17,7 @@ from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.msrp import LoggerSingleton, get_X509Credentials
+from sipsimple.msrp import NotificationProxyLogger, get_X509Credentials
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
 from sipsimple.clients.sdputil import FileSelector
 from sipsimple.util import run_in_twisted
@@ -104,7 +104,7 @@ class MSRPChat(object):
             else:
                 relay = None
                 self.transport = settings.msrp.transport
-            logger = LoggerSingleton().logger
+            logger = NotificationProxyLogger()
             self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
             settings = SIPSimpleSettings()
             local_uri = URI(host=settings.sip.local_ip.normalized,

@@ -14,7 +14,7 @@ from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.cpim import CPIMIdentity
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.msrp import LoggerSingleton, get_X509Credentials
+from sipsimple.msrp import NotificationProxyLogger, get_X509Credentials
 from sipsimple.green.core import SDPNegotiationError
 
 from sipsimple.applications.desktopsharing import vncviewer, pygamevncviewer, gvncviewer, xtightvncviewer, vncserver
@@ -100,7 +100,7 @@ class MSRPDesktop(object):
             else:
                 relay = None
                 self.transport = settings.msrp.transport
-            logger = LoggerSingleton().logger
+            logger = NotificationProxyLogger()
             self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
             settings = SIPSimpleSettings()
             local_uri = URI(host=settings.sip.local_ip.normalized,

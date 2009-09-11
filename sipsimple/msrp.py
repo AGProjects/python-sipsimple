@@ -37,6 +37,7 @@ from datetime import datetime
 from collections import deque
 from twisted.python.failure import Failure
 from twisted.internet.error import ConnectionDone
+from application import log
 from application.notification import NotificationCenter, NotificationData
 from application.python.util import Singleton
 from gnutls.interfaces.twisted import X509Credentials
@@ -44,16 +45,57 @@ from gnutls.crypto import X509Certificate,  X509PrivateKey
 from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.session import MSRPSession, contains_mime_type
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
-from msrplib.trafficlog import Logger
 from sipsimple.green.sessionold import make_SDPMediaStream
 from sipsimple.cpim import MessageCPIM, MessageCPIMParser, CPIMIdentity
 from sipsimple.green import callFromAnyThread, spawn_from_thread
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.util import makedirs, SilenceableWaveFile
+from sipsimple.util import makedirs, SilenceableWaveFile, TimestampedNotificationData
 
 
 class MSRPChatError(Exception):
     pass
+
+
+class NotificationProxyLogger(object):
+    def __init__(self):
+        self.transport_data_in = {}
+
+    def report_out(self, data, transport, new_chunk=True):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('MSRPTransportTrace', sender=transport,
+                                              data=TimestampedNotificationData(direction='outgoing', 
+                                                                               data=data))
+
+    def report_in(self, data, transport, new_chunk=False, packet_done=False):
+        if (new_chunk or packet_done) and self.transport_data_in.get(transport, None):
+            notification_center = NotificationCenter()
+            notification_center.post_notification('MSRPTransportTrace', sender=transport,
+                                                  data=TimestampedNotificationData(direction='incoming', 
+                                                                                   data=self.transport_data_in[transport]))
+            self.transport_data_in[transport] = data or ''
+        if data:
+            self.transport_data_in[transport] = self.transport_data_in.get(transport, '') + data
+
+    def debug(self, message, **context):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=log.level.DEBUG))
+
+    def info(self, message, **context):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=log.level.INFO))
+    msg = info
+
+    def warn(self, message, **context):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=log.level.WARNING))
+
+    def error(self, message, **context):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=log.level.ERROR))
+
+    def fatal(self, message, **context):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=log.level.CRITICAL))
 
 
 NULL, INITIALIZING, INITIALIZED, STARTING, STARTED, ENDING, ENDED, ERROR = range(8)
@@ -94,7 +136,7 @@ class MSRPChat(object):
             relay = None
             self.transport = settings.msrp.transport
 
-        logger = LoggerSingleton().logger
+        logger = NotificationProxyLogger()
 
         self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
         self.local_media = None
