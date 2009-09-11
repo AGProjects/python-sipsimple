@@ -19,6 +19,9 @@ from sipsimple.util import makedirs
 class Logger(object):
     implements(IObserver)
 
+    # public methods
+    #
+
     def __init__(self, sip_to_stdout=False, pjsip_to_stdout=False, notifications_to_stdout=False):
         self.sip_to_stdout = sip_to_stdout
         self.pjsip_to_stdout = pjsip_to_stdout
@@ -83,7 +86,7 @@ class Logger(object):
 
             handler = getattr(self, '_LH_%s' % notification.name, None)
             if handler is not None:
-                handler(notification.name, notification.data)
+                handler(notification)
 
             if notification.name not in ('SIPEngineLog', 'SIPEngineSIPTrace') and (self.notifications_to_stdout or settings.logs.trace_notifications):
                 message = 'Notification name=%s sender=%s\n%s' % (notification.name, notification.sender, pformat(notification.data.__dict__))
@@ -126,79 +129,82 @@ class Logger(object):
     # log handlers
     #
 
-    def _LH_SIPEngineSIPTrace(self, event_name, event_data):
+    def _LH_SIPEngineSIPTrace(self, notification):
         settings = SIPSimpleSettings()
         if not self.sip_to_stdout and not settings.logs.trace_sip:
             return
         if self._siptrace_start_time is None:
-            self._siptrace_start_time = event_data.timestamp
+            self._siptrace_start_time = notification.data.timestamp
         self._siptrace_packet_count += 1
-        if event_data.received:
+        if notification.data.received:
             direction = "RECEIVED"
         else:
             direction = "SENDING"
-        buf = ["%s: Packet %d, +%s" % (direction, self._siptrace_packet_count, (event_data.timestamp - self._siptrace_start_time))]
-        buf.append("%(source_ip)s:%(source_port)d -(SIP over %(transport)s)-> %(destination_ip)s:%(destination_port)d" % event_data.__dict__)
-        buf.append(event_data.data)
+        buf = ["%s: Packet %d, +%s" % (direction, self._siptrace_packet_count, (notification.data.timestamp - self._siptrace_start_time))]
+        buf.append("%(source_ip)s:%(source_port)d -(SIP over %(transport)s)-> %(destination_ip)s:%(destination_port)d" % notification.data.__dict__)
+        buf.append(notification.data.data)
         buf.append('--')
         message = '\n'.join(buf)
         if self.sip_to_stdout:
-            print '%s: %s\n' % (event_data.timestamp, message)
+            print '%s: %s\n' % (notification.data.timestamp, message)
         if settings.logs.trace_sip:
             try:
                 self._init_log_file('siptrace')
             except Exception:
                 pass
             else:
-                self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._siptrace_file.write('%s [%s %d]: %s\n' % (notification.data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
                 self._siptrace_file.flush()
 
-    def _LH_SIPEngineLog(self, event_name, event_data):
+    def _LH_SIPEngineLog(self, notification):
         settings = SIPSimpleSettings()
         if not self.pjsip_to_stdout and not settings.logs.trace_pjsip:
             return
-        message = "(%(level)d) %(sender)14s: %(message)s" % event_data.__dict__
+        message = "(%(level)d) %(sender)14s: %(message)s" % notification.data.__dict__
         if self.pjsip_to_stdout:
-            print '%s %s' % (event_data.timestamp, message)
+            print '%s %s' % (notification.data.timestamp, message)
         if settings.logs.trace_pjsip:
             try:
                 self._init_log_file('pjsiptrace')
             except Exception:
                 pass
             else:
-                self._pjsiptrace_file.write('%s [%s %d] %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._pjsiptrace_file.write('%s [%s %d] %s\n' % (notification.data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
                 self._pjsiptrace_file.flush()
 
-    def _LH_DNSLookupTrace(self, event_name, event_data):
+    def _LH_DNSLookupTrace(self, notification):
         settings = SIPSimpleSettings()
         if not self.sip_to_stdout and not settings.logs.trace_sip:
             return
-        message = 'DNS lookup %(query_type)s %(query_name)s' % event_data.__dict__
-        if event_data.error is None:
-            message += ' succeeded, ttl=%d: ' % event_data.answer.ttl
-            if event_data.query_type == 'A':
-                message += ", ".join(record.address for record in event_data.answer)
-            elif event_data.query_type == 'SRV':
-                message += ", ".join('%d %d %d %s' % (record.priority, record.weight, record.port, record.target) for record in event_data.answer)
-            elif event_data.query_type == 'NAPTR':
-                message += ", ".join('%d %d "%s" "%s" "%s" %s' % (record.order, record.preference, record.flags, record.service, record.regexp, record.replacement) for record in event_data.answer)
+        message = 'DNS lookup %(query_type)s %(query_name)s' % notification.data.__dict__
+        if notification.data.error is None:
+            message += ' succeeded, ttl=%d: ' % notification.data.answer.ttl
+            if notification.data.query_type == 'A':
+                message += ", ".join(record.address for record in notification.data.answer)
+            elif notification.data.query_type == 'SRV':
+                message += ", ".join('%d %d %d %s' % (record.priority, record.weight, record.port, record.target) for record in notification.data.answer)
+            elif notification.data.query_type == 'NAPTR':
+                message += ", ".join('%d %d "%s" "%s" "%s" %s' % (record.order, record.preference, record.flags, record.service, record.regexp, record.replacement) for record in notification.data.answer)
         else:
             import dns.resolver
             message_map = {dns.resolver.NXDOMAIN: 'DNS record does not exist',
                            dns.resolver.NoAnswer: 'DNS response contains no answer',
                            dns.resolver.NoNameservers: 'no DNS name servers could be reached',
                            dns.resolver.Timeout: 'no DNS response received, the query has timed out'}
-            message += ' failed: %s' % message_map.get(event_data.error.__class__, '')
+            message += ' failed: %s' % message_map.get(notification.data.error.__class__, '')
         if self.sip_to_stdout:
-            print '%s: %s' % (event_data.timestamp, message)
+            print '%s: %s' % (notification.data.timestamp, message)
         if settings.logs.trace_sip:
             try:
                 self._init_log_file('siptrace')
             except Exception:
                 pass
             else:
-                self._siptrace_file.write('%s [%s %d]: %s\n' % (event_data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._siptrace_file.write('%s [%s %d]: %s\n' % (notification.data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
                 self._siptrace_file.flush()
+
+    # private methods
+    #
 
     def _init_log_directory(self):
         settings = SIPSimpleSettings()
