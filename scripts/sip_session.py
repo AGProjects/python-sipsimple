@@ -552,7 +552,8 @@ class SIPSessionApplication(SIPApplication):
 
         self.options = options
         self.target = target
-        self.logger = Logger(sip_to_stdout=options.trace_sip, pjsip_to_stdout=options.trace_pjsip, notifications_to_stdout=options.trace_notifications)
+        self.logger = Logger(sip_to_stdout=options.trace_sip, msrp_to_stdout=options.trace_msrp,
+                             pjsip_to_stdout=options.trace_pjsip, notifications_to_stdout=options.trace_notifications)
 
         notification_center.add_observer(self, sender=self)
         notification_center.add_observer(self, sender=ui)
@@ -561,11 +562,11 @@ class SIPSessionApplication(SIPApplication):
 
         log.level.current = log.level.WARNING # get rid of twisted messages
         control_bindings={'s': 'trace sip',
+                          'm': 'trace msrp',
                           'j': 'trace pjsip',
                           'n': 'trace notifications',
                           'h': 'hangup',
                           'r': 'record',
-                          'm': 'mute',
                           'i': 'input',
                           'o': 'output',
                           'a': 'alert',
@@ -620,6 +621,8 @@ class SIPSessionApplication(SIPApplication):
         self.logger.start()
         if settings.logs.trace_sip and self.logger._siptrace_filename is not None:
             send_notice('Logging SIP trace to file "%s"' % self.logger._siptrace_filename, bold=False)
+        if settings.logs.trace_msrp and self.logger._msrptrace_filename is not None:
+            send_notice('Logging MSRP trace to file "%s"' % self.logger._msrptrace_filename, bold=False)
         if settings.logs.trace_pjsip and self.logger._pjsiptrace_filename is not None:
             send_notice('Logging PJSIP trace to file "%s"' % self.logger._pjsiptrace_filename, bold=False)
         if settings.logs.trace_notifications and self.logger._notifications_filename is not None:
@@ -996,6 +999,7 @@ class SIPSessionApplication(SIPApplication):
         if not types:
             lines = []
             lines.append('SIP tracing to console is now %s' % ('active' if self.logger.sip_to_stdout else 'inactive'))
+            lines.append('MSRP tracing to console is now %s' % ('active' if self.logger.msrp_to_stdout else 'inactive'))
             lines.append('PJSIP tracing to console is now %s' % ('active' if self.logger.pjsip_to_stdout else 'inactive'))
             lines.append('Notification tracing to console is now %s' % ('active' if self.logger.notifications_to_stdout else 'inactive'))
             send_notice(lines)
@@ -1011,6 +1015,13 @@ class SIPSessionApplication(SIPApplication):
         elif 'sip' in remove_types or ('sip' in toggle_types and self.logger.sip_to_stdout):
             self.logger.sip_to_stdout = False
             send_notice('SIP tracing to console is now deactivated')
+
+        if 'msrp' in add_types or ('msrp' in toggle_types and not self.logger.msrp_to_stdout):
+            self.logger.msrp_to_stdout = True
+            send_notice('MSRP tracing to console is now activated')
+        elif 'msrp' in remove_types or ('msrp' in toggle_types and self.logger.msrp_to_stdout):
+            self.logger.msrp_to_stdout = False
+            send_notice('MSRP tracing to console is now deactivated')
 
         if 'pjsip' in add_types or ('pjsip' in toggle_types and not self.logger.pjsip_to_stdout):
             self.logger.pjsip_to_stdout = True
@@ -1315,9 +1326,9 @@ class SIPSessionApplication(SIPApplication):
         lines.append('  /next: select the next connected session')
         lines.append('  /prev: select the previous connected session')
         lines.append('  /sessions: show the list of connected sessions')
-        lines.append('  /trace [[+|-]sip] [[+|-]pjsip] [[+|-]notifications]: toggle/set SIP trace on the console (ctrl-x s | ctrl-x j | ctrl-x n)')
+        lines.append('  /trace [[+|-]sip] [[+|-]msrp] [[+|-]pjsip] [[+|-]notifications]: toggle/set tracing on the console (ctrl-x s | ctrl-x m | ctrl-x j | ctrl-x n)')
         lines.append('  /rtp [on|off]: toggle/set printing RTP statistics on the console (ctrl-x p)')
-        lines.append('  /mute [on|off]: mute the microphone (ctrl-x m)')
+        lines.append('  /mute [on|off]: mute the microphone')
         lines.append('  /input [device]: change audio input device (ctrl-x i)')
         lines.append('  /output [device]: change audio output device (ctrl-x o)')
         lines.append('  /alert [device]: change audio alert device (ctrl-x a)')
@@ -1372,6 +1383,7 @@ if __name__ == '__main__':
     parser.add_option('-a', '--account', type='string', dest='account', help='The account name to use for any outgoing traffic. If not supplied, the default account will be used.', metavar='NAME')
     parser.add_option('-c', '--config-file', type='string', dest='config_file', help='The path to a configuration file to use. This overrides the default location of the configuration file.', metavar='FILE')
     parser.add_option('-s', '--trace-sip', action='store_true', dest='trace_sip', default=False, help='Dump the raw contents of incoming and outgoing SIP messages.')
+    parser.add_option('-m', '--trace-msrp', action='store_true', dest='trace_msrp', default=False, help='Dump msrp logging information and the raw contents of incoming and outgoing MSRP messages.')
     parser.add_option('-j', '--trace-pjsip', action='store_true', dest='trace_pjsip', default=False, help='Print PJSIP logging output.')
     parser.add_option('-n', '--trace-notifications', action='store_true', dest='trace_notifications', default=False, help='Print all notifications (disabled by default).')
     parser.add_option('-S', '--disable-sound', action='store_true', dest='disable_sound', default=False, help='Disables initializing the sound card.')
