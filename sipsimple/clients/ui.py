@@ -14,11 +14,11 @@ import sys
 import termios
 
 from application.python.decorator import decorator, preserve_signature
+from application.python.queue import EventQueue
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData
 from collections import deque
-from eventlet.green.threading import RLock
-from threading import Thread
+from threading import RLock, Thread
 
 
 @decorator
@@ -34,6 +34,13 @@ def synchronized(func):
                 return func(self, *args, **kwargs)
             finally:
                 self.lock.release()
+    return wrapper
+
+@decorator
+def serialized(func):
+    @preserve_signature(func)
+    def wrapper(self, *args, **kwargs):
+        self.event_queue.put((func, self, args, kwargs))
     return wrapper
 
 
@@ -248,10 +255,11 @@ class UI(Thread):
         self.displaying_question = False
         self.input = Input()
         self.last_window_size = None
-        self.lock = RLock()
         self.prompt_y = None
         self.questions = deque()
         self.stopping = False
+        self.lock = RLock()
+        self.event_queue = EventQueue(handler=lambda (function, self, args, kwargs): function(self, *args, **kwargs), name='UI operation handling')
 
     @synchronized
     def start(self, prompt='', command_sequence='/', control_char='\x18', control_bindings={}, display_commands=True, display_text=True):
@@ -304,11 +312,13 @@ class UI(Thread):
         self.last_window_size = self.window_size
         signal.signal(signal.SIGWINCH, lambda signum, frame: self._window_resized())
 
+        self.event_queue.start()
         Thread.start(self)
 
         # this will trigger the update of the prompt
         self.prompt = prompt
 
+    @serialized
     @synchronized
     def stop(self):
         self.stopping = True
@@ -321,6 +331,7 @@ class UI(Thread):
     def write(self, text):
         self.writelines([text])
 
+    @serialized
     @synchronized
     def writelines(self, text_lines):
         if not text_lines:
@@ -349,12 +360,14 @@ class UI(Thread):
         # redraw the prompt
         self._update_prompt()
 
+    @serialized
     @synchronized
     def add_question(self, question):
         self.questions.append(question)
         if len(self.questions) == 1:
             self._update_prompt()
 
+    @serialized
     @synchronized
     def remove_question(self, question):
         first_question = (question == self.questions[0])
@@ -376,6 +389,7 @@ class UI(Thread):
 
     def _get_prompt(self):
         return self.__dict__['prompt']
+    @serialized
     @synchronized
     def _set_prompt(self, value):
         if not isinstance(value, Prompt):
@@ -387,6 +401,7 @@ class UI(Thread):
 
     def _get_status(self):
         return self.__dict__['status']
+    @serialized
     @synchronized
     def _set_status(self, status):
         try:
