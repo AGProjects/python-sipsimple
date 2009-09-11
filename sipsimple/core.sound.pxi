@@ -805,4 +805,5 @@ cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
         wav_file._stop(ua, 1)
     except:
         ua._handle_exception(1)
-    return 0
+    # do not return PJ_SUCCESS because if you do pjsip will access the just deallocated port
+    return 1
