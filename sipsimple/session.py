@@ -1180,7 +1180,7 @@ class Session(object):
 
     def _NH_MediaStreamDidEnd(self, notification):
         if self.greenlet is None:
-            self.remove_stream(stream)
+            self.remove_stream(notification.sender)
 
 
 class SessionManager(object):
