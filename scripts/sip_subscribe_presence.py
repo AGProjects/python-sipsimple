@@ -86,7 +86,7 @@ class SubscriptionApplication(object):
         self.target = target
         self.input = InputThread(self)
         self.output = EventQueue(lambda event: sys.stdout.write(event+'\n'))
-        self.logger = Logger(trace_sip, trace_pjsip, trace_notifications)
+        self.logger = Logger(sip_to_stdout=trace_sip, pjsip_to_stdout=trace_pjsip, notifications_to_stdout=trace_notifications)
         self.success = False
         self.account = None
         self.subscription = None

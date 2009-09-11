@@ -10,6 +10,7 @@ import sys
 from pprint import pformat
 from threading import RLock
 
+from application import log
 from application.notification import IObserver, NotificationCenter
 from zope.interface import implements
 
@@ -22,16 +23,22 @@ class Logger(object):
     # public methods
     #
 
-    def __init__(self, sip_to_stdout=False, pjsip_to_stdout=False, notifications_to_stdout=False):
+    def __init__(self, sip_to_stdout=False, msrp_to_stdout=False, pjsip_to_stdout=False, notifications_to_stdout=False, msrp_level=log.level.ERROR):
         self.sip_to_stdout = sip_to_stdout
+        self.msrp_to_stdout = msrp_to_stdout
         self.pjsip_to_stdout = pjsip_to_stdout
         self.notifications_to_stdout = notifications_to_stdout
+        self.msrp_level = msrp_level
 
         self._siptrace_filename = None
         self._siptrace_file = None
         self._siptrace_error = False
         self._siptrace_start_time = None
         self._siptrace_packet_count = 0
+
+        self._msrptrace_filename = None
+        self._msrptrace_file = None
+        self._msrptrace_error = False
 
         self._pjsiptrace_filename = None
         self._pjsiptrace_file = None
@@ -203,6 +210,45 @@ class Logger(object):
                 self._siptrace_file.write('%s [%s %d]: %s\n' % (notification.data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
                 self._siptrace_file.flush()
 
+    def _LH_MSRPTransportTrace(self, notification):
+        settings = SIPSimpleSettings()
+        if not self.msrp_to_stdout and not settings.logs.trace_msrp:
+            return
+        arrow = {'incoming': '<--', 'outgoing': '-->'}[notification.data.direction]
+        local_address = notification.sender.getHost()
+        local_address = '%s:%d' % (local_address.host, local_address.port)
+        remote_address = notification.sender.getPeer()
+        remote_address = '%s:%d' % (remote_address.host, remote_address.port)
+        message = '%s %s %s\n' % (local_address, arrow, remote_address) + notification.data.data
+        if self.msrp_to_stdout:
+            print '%s: %s' % (notification.data.timestamp, message)
+        if settings.logs.trace_msrp:
+            try:
+                self._init_log_file('msrptrace')
+            except Exception:
+                pass
+            else:
+                self._msrptrace_file.write('%s [%s %d]: %s\n' % (notification.data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._msrptrace_file.flush()
+
+    def _LH_MSRPLibraryLog(self, notification):
+        settings = SIPSimpleSettings()
+        if not self.msrp_to_stdout and not settings.logs.trace_msrp:
+            return
+        if notification.data.level < self.msrp_level:
+            return
+        message = '%s%s' % (notification.data.level.prefix, notification.data.message)
+        if self.msrp_to_stdout:
+            print '%s: %s' % (notification.data.timestamp, message)
+        if settings.logs.trace_msrp:
+            try:
+                self._init_log_file('msrptrace')
+            except Exception:
+                pass
+            else:
+                self._msrptrace_file.write('%s [%s %d]: %s\n' % (notification.data.timestamp, os.path.basename(sys.argv[0]).rstrip('.py'), os.getpid(), message))
+                self._msrptrace_file.flush()
+
     # private methods
     #
 
@@ -225,6 +271,11 @@ class Logger(object):
             if self._siptrace_filename is None:
                 self._siptrace_filename = os.path.join(log_directory, 'sip_trace.txt')
                 self._siptrace_error = False
+
+            # msrp trace
+            if self._msrptrace_filename is None:
+                self._msrptrace_filename = os.path.join(log_directory, 'msrp_trace.txt')
+                self._msrptrace_error = False
 
             # pjsip trace
             if self._pjsiptrace_filename is None:

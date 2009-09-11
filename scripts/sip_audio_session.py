@@ -178,7 +178,7 @@ class SIPAudioApplication(SIPApplication):
         self.target = target
         self.input = InputThread() if not options.batch_mode else None
         self.output = EventQueue(lambda message: (sys.stdout.write(message), sys.stdout.flush()))
-        self.logger = Logger(options.trace_sip, options.trace_pjsip, options.trace_notifications)
+        self.logger = Logger(sip_to_stdout=options.trace_sip, pjsip_to_stdout=options.trace_pjsip, notifications_to_stdout=options.trace_notifications)
         
         notification_center.add_observer(self, sender=self)
         notification_center.add_observer(self, sender=self.input)

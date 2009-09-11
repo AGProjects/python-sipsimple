@@ -552,7 +552,7 @@ class SIPSessionApplication(SIPApplication):
 
         self.options = options
         self.target = target
-        self.logger = Logger(options.trace_sip, options.trace_pjsip, options.trace_notifications)
+        self.logger = Logger(sip_to_stdout=options.trace_sip, pjsip_to_stdout=options.trace_pjsip, notifications_to_stdout=options.trace_notifications)
 
         notification_center.add_observer(self, sender=self)
         notification_center.add_observer(self, sender=ui)

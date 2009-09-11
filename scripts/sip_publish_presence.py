@@ -441,7 +441,7 @@ class PublicationApplication(object):
         self.account_name = account_name
         self.interface = UserInterface(self)
         self.output = EventQueue(self._output_handler)
-        self.logger = Logger(trace_sip, trace_pjsip, trace_notifications)
+        self.logger = Logger(sip_to_stdout=trace_sip, pjsip_to_stdout=trace_pjsip, notifications_to_stdout=trace_notifications)
         self.lookup = DNSLookup()
         self.publication_lock = RLock()
         self.success = False
