@@ -23,6 +23,7 @@ from sipsimple.applications.policy import Actions, Conditions, Identity, Identit
 from sipsimple.applications.presrules import AllDevices, AllPersons, AllServices, PresRules, ProvideAllAttributes, ProvideDevices, ProvidePersons, ProvideServices, SubHandling
 from sipsimple.configuration import ConfigurationManager
 
+from xcaplib import logsocket
 from xcaplib.client import XCAPClient
 from xcaplib.error import HTTPError
 
@@ -407,7 +408,11 @@ if __name__ == "__main__":
     parser.print_usage = parser.print_help
     parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
     parser.add_option("-s", "--show-xml", action="store_true", dest="show_xml", default=False, help = 'Show the presence rules XML whenever it is changed and at start-up.')
+    parser.add_option("-d", "--dump", action="store_true", dest="dump", default=False, help = 'Dump the HTTP packets exchanged with the XCAP server.')
     options, args = parser.parse_args()
+
+    if options.dump:
+        logsocket._install()
 
     show_xml = options.show_xml
     
@@ -416,3 +421,5 @@ if __name__ == "__main__":
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
+    finally:
+        logsocket.flush()
