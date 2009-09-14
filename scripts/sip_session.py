@@ -570,6 +570,7 @@ class SIPSessionApplication(SIPApplication):
                           'i': 'input',
                           'o': 'output',
                           'a': 'alert',
+                          'u': 'mute',
                           ',': 'echo -',
                           '<': 'echo -',
                           '.': 'echo +',
@@ -1328,7 +1329,7 @@ class SIPSessionApplication(SIPApplication):
         lines.append('  /sessions: show the list of connected sessions')
         lines.append('  /trace [[+|-]sip] [[+|-]msrp] [[+|-]pjsip] [[+|-]notifications]: toggle/set tracing on the console (ctrl-x s | ctrl-x m | ctrl-x j | ctrl-x n)')
         lines.append('  /rtp [on|off]: toggle/set printing RTP statistics on the console (ctrl-x p)')
-        lines.append('  /mute [on|off]: mute the microphone')
+        lines.append('  /mute [on|off]: mute the microphone (ctrl-x u)')
         lines.append('  /input [device]: change audio input device (ctrl-x i)')
         lines.append('  /output [device]: change audio output device (ctrl-x o)')
         lines.append('  /alert [device]: change audio alert device (ctrl-x a)')
