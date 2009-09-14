@@ -42,12 +42,12 @@ cdef class ConferenceBridge:
                 pass
             if value < 0:
                 raise ValueError("input_volume attribute cannot be negative")
-            if value > 0 and self._muted:
-                self._muted = False
             if ua is not None:
                 status = pjmedia_conf_adjust_rx_level(self._obj, 0, int(value * 1.28 - 128))
                 if status != 0:
                     raise PJSIPError("Could not set input volume of sound device", status)
+            if value > 0 and self._muted:
+                self._muted = False
             self._input_volume = value
 
     property output_volume:
