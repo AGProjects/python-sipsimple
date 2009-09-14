@@ -158,9 +158,10 @@ def delete_service():
 
 def print_rls_services():
     global rls_services, rls_services_etag, buddy_service, show_xml
-    print '\nBuddies:'
-    for buddy in buddy_service.list:
-        print '\t%s' % str(buddy).replace('sip:', '')
+    if buddy_service:
+        print '\nBuddies:'
+        for buddy in buddy_service.list:
+            print '\t%s' % str(buddy).replace('sip:', '')
     print "Press (a) to add or (r) to remove a buddy. (s) will show the RLS services xml. (d) will delete the currently selected service."
     
 
