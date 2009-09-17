@@ -27,6 +27,7 @@ cdef extern from "Python.h":
     void Py_DECREF(object obj)
     object PyString_FromStringAndSize(char *v, int len)
     char* PyString_AsString(object string) except NULL
+    void PyEval_InitThreads()
 
 cdef extern from "stringobject.h":
     ctypedef class __builtin__.str [object PyStringObject]:

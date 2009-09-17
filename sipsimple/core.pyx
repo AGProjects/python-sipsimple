@@ -23,7 +23,7 @@ include "core.mediatransport.pxi"
 
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-CORE_REVISION = 70
+CORE_REVISION = 71
 
 # exports
 
@@ -42,3 +42,15 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "Invitation",
            "SDPSession", "FrozenSDPSession", "SDPMediaStream", "FrozenSDPMediaStream", "SDPConnection", "FrozenSDPConnection", "SDPAttribute", "FrozenSDPAttribute",
            "RTPTransport", "AudioTransport"]
+
+
+# Initialize the GIL in the PyMODINIT function of the module.
+# This is a hack because Cython does not support #ifdefs.
+cdef extern from *:
+    cdef void emit_ifdef_with_thread "#ifdef WITH_THREAD //" ()
+    cdef void emit_endif "#endif //" ()
+
+emit_ifdef_with_thread()
+PyEval_InitThreads()
+emit_endif()
+
