@@ -69,9 +69,9 @@ class SIPApplication(object):
                      user_agent=settings.user_agent,
                      # SIP
                      ignore_missing_ack=False,
-                     local_udp_port=settings.sip.local_udp_port if 'udp' in settings.sip.transports else None,
-                     local_tcp_port=settings.sip.local_tcp_port if 'tcp' in settings.sip.transports else None,
-                     local_tls_port=settings.sip.local_tls_port if 'tls' in settings.sip.transports else None,
+                     local_udp_port=0 if 'udp' in settings.sip.transports else None,
+                     local_tcp_port=0 if 'tcp' in settings.sip.transports else None,
+                     local_tls_port=0 if 'tls' in settings.sip.transports else None,
                      # TLS
                      tls_protocol=settings.tls.protocol,
                      tls_verify_server=settings.tls.verify_server,
