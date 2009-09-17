@@ -58,7 +58,6 @@ class LogsSettings(SettingsGroup):
 
 class MSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tls')
-    local_port = Setting(type=Port, default=0)
 
 
 class RTPSettings(SettingsGroup):
