@@ -226,7 +226,7 @@ class SIPApplication(object):
                 engine.set_local_tcp_port(settings.sip.local_tcp_port)
             if set(('sip.local_tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list',
                     'tls.certificate', 'tls.private_key', 'tls.timeout')).intersection(notification.data.modified):
-                engine.set_tls_options(local_port=settings.sip.local_tls_port,
+                engine.set_tls_options(local_port=0,
                                        protocol=settings.tls.protocol,
                                        verify_server=settings.tls.verify_server,
                                        ca_file=settings.tls.ca_list.normalized,
