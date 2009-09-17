@@ -23,8 +23,7 @@ from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecs, Cou
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.primitives import Registration
-from sipsimple.util import Route
-
+from sipsimple.util import Route, TimestampedNotificationData
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
@@ -223,7 +222,7 @@ class Account(SettingsObject):
         old_route_header = notification.data.route_header
         old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get("transport", "udp"))
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self, data=NotificationData(code=notification.data.code,
+        notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self, data=TimestampedNotificationData(code=notification.data.code,
                                                                                                                      reason=notification.data.reason,
                                                                                                                      contact_header=notification.data.contact_header,
                                                                                                                      contact_header_list=notification.data.contact_header_list,
@@ -236,7 +235,7 @@ class Account(SettingsObject):
     def _NH_SIPRegistrationDidEnd(self, notification):
         notification_center = NotificationCenter()
 
-        data = NotificationData(registration=notification.sender, expired=notification.data.expired)
+        data = TimestampedNotificationData(registration=notification.sender, expired=notification.data.expired)
         notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=data)
 
         if self.active:
@@ -260,7 +259,7 @@ class Account(SettingsObject):
 
                 old_route_header = notification.data.route_header
                 old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get('transport', 'udp'))
-                data = NotificationData(reason=notification.data.reason, registration=notification.sender,
+                data = TimestampedNotificationData(reason=notification.data.reason, registration=notification.sender,
                                         code=notification.data.code, next_route=None, delay=timeout,
                                         route=old_route)
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
@@ -273,7 +272,7 @@ class Account(SettingsObject):
                 route = self._register_routes.popleft()
                 route_header = RouteHeader(route.get_uri())
 
-                data = NotificationData(reason=notification.data.reason, registration=notification.sender,
+                data = TimestampedNotificationData(reason=notification.data.reason, registration=notification.sender,
                                         code=notification.data.code, next_route=route, delay=0, route=old_route)
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
 
@@ -307,7 +306,7 @@ class Account(SettingsObject):
         self._lookup = None
 
         timeout = random.uniform(1.0, 2.0)
-        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=NotificationData(code=0, reason='DNS lookup failed: %s' % notification.data.error, registration=None, route=None, next_route=None, delay=timeout))
+        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=TimestampedNotificationData(code=0, reason='DNS lookup failed: %s' % notification.data.error, registration=None, route=None, next_route=None, delay=timeout))
 
         from twisted.internet import reactor
         reactor.callLater(timeout, self._register)
@@ -343,7 +342,7 @@ class Account(SettingsObject):
             notification_center.add_observer(self, sender=self._registrar)
             self._register()
 
-        notification_center.post_notification('SIPAccountDidActivate', sender=self)
+        notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
         if not self.active:
@@ -357,10 +356,10 @@ class Account(SettingsObject):
                 self._registrar.end(timeout=2)
             except SIPCoreError:
                 notification_center.remove_observer(self, sender=self._registrar)
-                notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=NotificationData(registration=self._registrar, expired=False))
+                notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=TimestampedNotificationData(registration=self._registrar, expired=False))
                 self._registrar = None
 
-        notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
+        notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.id)
@@ -459,7 +458,7 @@ class BonjourAccount(SettingsObject):
         self.active = True
 
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountDidActivate', sender=self)
+        notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
         if not self.active:
@@ -467,7 +466,7 @@ class BonjourAccount(SettingsObject):
         self.active = False
 
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountDidDeactivate', sender=self)
+        notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def __repr__(self):
         return '%s()' % self.__class__.__name__
@@ -508,11 +507,11 @@ class AccountManager(object):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='SIPAccountRegistrationDidEnd')
         notification_center.add_observer(self, name='SIPAccountRegistrationDidFail')
-        notification_center.post_notification('SIPAccountManagerWillStart', sender=self)
+        notification_center.post_notification('SIPAccountManagerWillStart', sender=self, data=TimestampedNotificationData())
         # initialize bonjour account
         bonjour_account = BonjourAccount()
         self.accounts[bonjour_account.id] = bonjour_account
-        notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=NotificationData(account=bonjour_account))
+        notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=bonjour_account))
         # and the other accounts
         try:
             names = configuration.get_names(Account.__section__)
@@ -521,19 +520,19 @@ class AccountManager(object):
         else:
             [Account(id) for id in names if id != bonjour_account.id]
         self.state = 'started'
-        notification_center.post_notification('SIPAccountManagerDidStart', sender=self)
+        notification_center.post_notification('SIPAccountManagerDidStart', sender=self, data=TimestampedNotificationData())
 
     def stop(self):
         self.state = 'stopping'
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountManagerWillEnd', sender=self)
+        notification_center.post_notification('SIPAccountManagerWillEnd', sender=self, data=TimestampedNotificationData())
         for account in self.accounts.itervalues():
             if account.enabled:
                 account._deactivate()
         registered_accounts = [account for account in self.accounts.itervalues() if account.registered]
         if not registered_accounts:
             self.state = 'stopped'
-            notification_center.post_notification('SIPAccountManagerDidEnd', sender=self)
+            notification_center.post_notification('SIPAccountManagerDidEnd', sender=self, data=TimestampedNotificationData())
 
     def has_account(self, id):
         return id in self.accounts
@@ -579,7 +578,7 @@ class AccountManager(object):
             if not registered_accounts:
                 self.state = 'stopped'
                 notification_center = NotificationCenter()
-                notification_center.post_notification('SIPAccountManagerDidEnd', sender=self)
+                notification_center.post_notification('SIPAccountManagerDidEnd', sender=self, data=TimestampedNotificationData())
     _NH_SIPAccountRegistrationDidFail = _NH_SIPAccountRegistrationDidEnd
 
     def _internal_add_account(self, account):
@@ -589,7 +588,7 @@ class AccountManager(object):
         self.accounts[account.id] = account
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-        notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=NotificationData(account=account))
+        notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _internal_remove_account(self, account):
         """
@@ -598,7 +597,7 @@ class AccountManager(object):
         del self.accounts[account.id]
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-        notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=NotificationData(account=account))
+        notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _get_default_account(self):
         settings = SIPSimpleSettings()
@@ -617,7 +616,7 @@ class AccountManager(object):
             settings.default_account = account.id
         settings.save()
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountManagerDidChangeDefaultAccount', sender=self, data=NotificationData(old_account=old_account, account=account))
+        notification_center.post_notification('SIPAccountManagerDidChangeDefaultAccount', sender=self, data=TimestampedNotificationData(old_account=old_account, account=account))
 
     default_account = property(_get_default_account, _set_default_account)
     del _get_default_account, _set_default_account

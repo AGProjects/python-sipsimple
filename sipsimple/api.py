@@ -16,7 +16,7 @@ from sipsimple.account import AccountManager
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.session import SessionManager
-from sipsimple.util import classproperty
+from sipsimple.util import classproperty, TimestampedNotificationData
 
 
 class ApplicationAttribute(object):
@@ -58,7 +58,7 @@ class SIPApplication(object):
         settings = SIPSimpleSettings()
         notification_center.add_observer(self, sender=settings)
 
-        notification_center.post_notification('SIPApplicationWillStart', sender=self)
+        notification_center.post_notification('SIPApplicationWillStart', sender=self, data=TimestampedNotificationData())
         if self.state in ('stopping', 'stopped'):
             return
 
@@ -110,11 +110,11 @@ class SIPApplication(object):
         notification_center = NotificationCenter()
         
         self.state = 'started'
-        reactor.callLater(0, notification_center.post_notification, 'SIPApplicationDidStart', sender=self)
+        reactor.callLater(0, notification_center.post_notification, 'SIPApplicationDidStart', sender=self, data=TimestampedNotificationData())
         reactor.run(installSignalHandlers=False)
         
         self.state = 'stopped'
-        notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=NotificationData(end_reason=self.end_reason or 'reactor stopped'))
+        notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=TimestampedNotificationData(end_reason=self.end_reason or 'reactor stopped'))
         notification_center.remove_observer(self, sender=engine)
         if engine.is_running:
             engine.stop()
@@ -128,10 +128,10 @@ class SIPApplication(object):
         self.end_reason = 'application request'
         prev_state = self.state
         self.state = 'stopping'
-        notification_center.post_notification('SIPApplicationWillEnd', sender=self)
+        notification_center.post_notification('SIPApplicationWillEnd', sender=self, data=TimestampedNotificationData())
         if prev_state == 'starting':
             self.state = 'stopped'
-            notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=NotificationData(end_reason=self.end_reason))
+            notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=TimestampedNotificationData(end_reason=self.end_reason))
             return
         if engine.is_running:
             if account_manager.state == 'started':

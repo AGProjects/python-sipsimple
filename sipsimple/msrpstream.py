@@ -20,7 +20,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.msrp import NotificationProxyLogger, get_X509Credentials
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
 from sipsimple.clients.sdputil import FileSelector
-from sipsimple.util import run_in_twisted
+from sipsimple.util import run_in_twisted, TimestampedNotificationData
 
 
 class MSRPChatError(Exception):
@@ -114,10 +114,10 @@ class MSRPChat(object):
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self.make_SDPMediaStream(full_local_path)
         except Exception, ex:
-            ndata = NotificationData(context='initialize', failure=Failure(), reason=str(ex))
+            ndata = TimestampedNotificationData(context='initialize', failure=Failure(), reason=str(ex))
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
         else:
-            self.notification_center.post_notification('MediaStreamDidInitialize', self)
+            self.notification_center.post_notification('MediaStreamDidInitialize', self, data=TimestampedNotificationData())
 
     @run_in_twisted
     def start(self, local_sdp, remote_sdp, stream_index):
@@ -141,10 +141,10 @@ class MSRPChat(object):
             self.msrp_connector = None
             self._on_start()
         except Exception, ex:
-            ndata = NotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
+            ndata = TimestampedNotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
         else:
-            self.notification_center.post_notification('MediaStreamDidStart', self)
+            self.notification_center.post_notification('MediaStreamDidStart', self, data=TimestampedNotificationData())
             while self.message_queue:
                 self._send_raw_message(*self.message_queue.popleft())
         # what if starting has failed? should I generate MSRPChatDidNotDeliver per each message?
@@ -158,25 +158,25 @@ class MSRPChat(object):
             return
         msrp_session, self.msrp_session = self.msrp_session, None
         msrp_connector, self.msrp_connector = self.msrp_connector, None
-        self.notification_center.post_notification('MediaStreamWillEnd', self)
+        self.notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
         try:
             if msrp_session is not None:
                 msrp_session.shutdown()
             if msrp_connector is not None:
                 msrp_connector.cleanup()
         finally:
-            self.notification_center.post_notification('MediaStreamDidEnd', self)
+            self.notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
 
     def _on_incoming(self, chunk=None, error=None):
         if error is not None:
             if isinstance(error.value, ConnectionDone):
-                self.notification_center.post_notification('MediaStreamDidEnd', self)
+                self.notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
             else:
-                ndata = NotificationData(context='reading', failure=error, reason=error.getErrorMessage())
+                ndata = TimestampedNotificationData(context='reading', failure=error, reason=error.getErrorMessage())
                 self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
         elif chunk.method=='REPORT':
             # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
-            data = NotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
+            data = TimestampedNotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
             if chunk.status.code == 200:
                 self.notification_center.post_notification('MSRPChatDidDeliverMessage', self, data)
             else:
@@ -193,12 +193,12 @@ class MSRPChat(object):
                 content_type = chunk.content_type
             # Note: success reports are issued by msrplib
             # TODO: check wrapped content-type and issue a report if it's invalid
-            ndata = NotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
+            ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
             self.notification_center.post_notification('MSRPChatGotMessage', self, ndata)
 
     def _on_transaction_response(self, message_id, response):
         if response.code!=200:
-            data = NotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
+            data = TimestampedNotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
             self.notification_center.post_notification('MSRPChatDidNotDeliverMessage', self, data)
 
     def _send_raw_message(self, message_id, message, content_type, failure_report=None, success_report=None):
@@ -219,10 +219,10 @@ class MSRPChat(object):
         try:
             self.msrp_session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
         except Exception, e:
-            ndata = NotificationData(context='sending', failure=Failure(), reason=str(e))
+            ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
             self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
         else:
-            self.notification_center.post_notification('MSRPChatDidSendMessage', self, NotificationData(chunk=chunk))
+            self.notification_center.post_notification('MSRPChatDidSendMessage', self, TimestampedNotificationData(chunk=chunk))
 
     def send_message(self, content, content_type='text/plain', remote_identity=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.

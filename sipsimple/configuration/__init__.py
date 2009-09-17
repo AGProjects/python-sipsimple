@@ -10,6 +10,7 @@ import cPickle
 from application.notification import NotificationCenter, NotificationData
 from application.python.util import Singleton
 
+from sipsimple.util import TimestampedNotificationData
 
 __all__ = ['ConfigurationError', 'DuplicateSectionError', 'UnknownSectionError', 'UnknownNameError',
            'ConfigurationManager', 'DefaultValue', 'SettingsObjectID', 'Setting', 'SettingsGroup', 'SettingsObject']
@@ -401,7 +402,7 @@ class SettingsObject(SettingsState):
                 configuration.save()
             except Exception, e:
                 notification_center = NotificationCenter()
-                notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=instance, exception=e))
+                notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=instance, exception=e))
         else:
             if not isinstance(instance, cls):
                 # TODO: Should send a notification that this object could not be retrieved
@@ -432,9 +433,9 @@ class SettingsObject(SettingsState):
                 configuration.set(self.__section__, self.__id__, self)
                 configuration.save()
         except Exception, e:
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=NotificationData(object=self, modified=modified_settings, exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, modified=modified_settings, exception=e))
         finally:
-            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=NotificationData(modified=modified_settings))
+            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
             self.clear_dirty()
 
     def delete(self):

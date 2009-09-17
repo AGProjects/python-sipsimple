@@ -45,7 +45,7 @@ class DNSLookup(object):
         try:
             service_prefix, service_port, service_fallback = self._service_srv_record_map[service]
         except KeyError:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="Unknown service: %s" % service))
+            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Unknown service: %s" % service))
             return
         a_candidates = []
         servers = []
@@ -70,9 +70,9 @@ class DNSLookup(object):
                 for a_answer in a_answers:
                     servers.append((a_answer.address, a_port))
         if servers:
-            notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=servers))
+            notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=TimestampedNotificationData(result=servers))
         else:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No %s servers found for domain %s" % (service, uri.host)))
+            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="No %s servers found for domain %s" % (service, uri.host)))
 
     _naptr_service_transport_map = {"sips+d2t": "tls",
                                     "sip+d2t": "tcp",
@@ -92,17 +92,17 @@ class DNSLookup(object):
         resolver.timeout = 3.0
         resolver.lifetime = 15.0
         if len(supported_transports) == 0:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No transports are supported"))
+            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="No transports are supported"))
             return
         for supported_transport in supported_transports:
             if supported_transport not in self._transport_srv_service_map:
-                notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="Unsupported transport: %s" % supported_transport))
+                notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Unsupported transport: %s" % supported_transport))
                 return
         supported_transports = [transport.lower() for transport in supported_transports]
         # If the URI is a SIPS URI, only a TLS transport can be returned.
         if uri.secure:
             if "tls" not in supported_transports:
-                notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="Requested lookup for SIPS URI, but TLS transport is not supported"))
+                notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Requested lookup for SIPS URI, but TLS transport is not supported"))
                 return
             supported_transports = ["tls"]
         transport = None
@@ -140,7 +140,7 @@ class DNSLookup(object):
                     naptr_answers.sort(key=lambda x: x.preference)
                     naptr_answers.sort(key=lambda x: x.order)
                     if len(naptr_answers) == 0:
-                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="Could not find a suitable transport in NAPTR record of domain"))
+                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Could not find a suitable transport in NAPTR record of domain"))
                         return
                     srv_candidates = [(self._naptr_service_transport_map[answer.service.lower()], answer.replacement) for answer in naptr_answers]
             else:
@@ -174,7 +174,7 @@ class DNSLookup(object):
                     transport = "tls"
                 else:
                     if "udp" not in supported_transports:
-                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="UDP transport is not supported, but NAPTR and SRV lookups for %s failed" % uri.host))
+                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="UDP transport is not supported, but NAPTR and SRV lookups for %s failed" % uri.host))
                         return
                     transport = "udp"
             if port is None:
@@ -183,7 +183,7 @@ class DNSLookup(object):
             if ip is None:
                 a_candidates.append((transport, uri.host, port))
             else:
-                notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=[Route(ip, port=port, transport=transport)]))
+                notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=TimestampedNotificationData(result=[Route(ip, port=port, transport=transport)]))
                 return
         # Keep results in a dictionary so we don't do double A record lookups
         a_cache = {}
@@ -204,8 +204,8 @@ class DNSLookup(object):
             for answer in a_answers:
                 routes.append(Route(answer.address, port=a_port, transport=a_transport))
         if routes:
-            notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=NotificationData(result=routes))
+            notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=TimestampedNotificationData(result=routes))
         else:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=NotificationData(error="No routes found for SIP URI %s (%s)" % (uri, error_type.__name__)))
+            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="No routes found for SIP URI %s (%s)" % (uri, error_type.__name__)))
 
 
