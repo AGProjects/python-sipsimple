@@ -32,7 +32,7 @@ class ContactURI(SIPAddress):
     def __getitem__(self, transport):
         if transport in ('tls', 'tcp', 'udp'):
             parameters = {} if transport=='udp' else {'transport': transport}
-            return SIPURI(user=self.username, host=self.domain, port=getattr(Engine(), 'local_%s_port' % transport), parameters=parameters)
+            return SIPURI(user=self.username, host=self.domain, port=getattr(Engine(), '%s_port' % transport), parameters=parameters)
         return SIPAddress.__getitem__(self, transport)
 
 class SIPSettings(SettingsGroup):
