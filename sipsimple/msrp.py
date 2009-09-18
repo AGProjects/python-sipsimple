@@ -359,11 +359,9 @@ def get_X509Credentials():
     settings = SIPSimpleSettings()
     if settings.tls.certificate is not None:
         cert = X509Certificate(file(settings.tls.certificate.normalized).read())
+        key = X509PrivateKey(file(settings.tls.certificate.normalized).read())
     else:
         cert = None
-    if settings.tls.private_key is not None:
-        key = X509PrivateKey(file(settings.tls.private_key.normalized).read())
-    else:
         key = None
     cred = X509Credentials(cert, key)
     cred.verify_peer = settings.tls.verify_server
