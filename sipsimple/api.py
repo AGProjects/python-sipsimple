@@ -65,13 +65,13 @@ class SIPApplication(object):
         engine = Engine()
         notification_center.add_observer(self, sender=engine)
         engine.start(# general
-                     local_ip=settings.sip.local_ip.normalized,
+                     ip_address=settings.sip.ip_address.normalized,
                      user_agent=settings.user_agent,
                      # SIP
                      ignore_missing_ack=False,
-                     local_udp_port=settings.sip.local_udp_port if 'udp' in settings.sip.transports else None,
-                     local_tcp_port=settings.sip.local_tcp_port if 'tcp' in settings.sip.transports else None,
-                     local_tls_port=settings.sip.local_tls_port if 'tls' in settings.sip.transports else None,
+                     udp_port=settings.sip.udp_port if 'udp' in settings.sip.transports else None,
+                     tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transports else None,
+                     tls_port=settings.sip.tls_port if 'tls' in settings.sip.transports else None,
                      # TLS
                      tls_protocol=settings.tls.protocol,
                      tls_verify_server=settings.tls.verify_server,
@@ -220,13 +220,13 @@ class SIPApplication(object):
                         self.alert_conference_bridge.output_volume = 100
             if 'user_agent' in notification.data.modified:
                 engine.user_agent = settings.user_agent
-            if 'sip.local_udp_port' in notification.data.modified:
-                engine.set_local_udp_port(settings.sip.local_udp_port)
-            if 'sip.local_tcp_port' in notification.data.modified:
-                engine.set_local_tcp_port(settings.sip.local_tcp_port)
-            if set(('sip.local_tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list',
+            if 'sip.udp_port' in notification.data.modified:
+                engine.set_udp_port(settings.sip.udp_port)
+            if 'sip.tcp_port' in notification.data.modified:
+                engine.set_tcp_port(settings.sip.tcp_port)
+            if set(('sip.tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list',
                     'tls.certificate', 'tls.private_key', 'tls.timeout')).intersection(notification.data.modified):
-                engine.set_tls_options(local_port=settings.sip.local_tls_port,
+                engine.set_tls_options(port=settings.sip.tls_port,
                                        protocol=settings.tls.protocol,
                                        verify_server=settings.tls.verify_server,
                                        ca_file=settings.tls.ca_list.normalized,

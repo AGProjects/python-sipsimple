@@ -70,8 +70,8 @@ cdef class PJSIPUA:
         pj_srand(random.getrandbits(32)) # rely on python seed for now
         self._caching_pool = PJCachingPool()
         self._pjmedia_endpoint = PJMEDIAEndpoint(self._caching_pool)
-        self._pjsip_endpoint = PJSIPEndpoint(self._caching_pool, kwargs["local_ip"], kwargs["local_udp_port"],
-                                             kwargs["local_tcp_port"], kwargs["local_tls_port"], kwargs["tls_protocol"],
+        self._pjsip_endpoint = PJSIPEndpoint(self._caching_pool, kwargs["ip_address"], kwargs["udp_port"],
+                                             kwargs["tcp_port"], kwargs["tls_port"], kwargs["tls_protocol"],
                                              kwargs["tls_verify_server"], kwargs["tls_ca_file"],
                                              kwargs["tls_cert_file"], kwargs["tls_privkey_file"], kwargs["tls_timeout"])
         status = pj_mutex_create_simple(self._pjsip_endpoint._pool, "event_queue_lock", &_event_queue_lock)
@@ -267,7 +267,7 @@ cdef class PJSIPUA:
             self._check_self()
             self._pjmedia_endpoint._set_codecs(value, 32000)
 
-    property local_ip:
+    property ip_address:
 
         def __get__(self):
             self._check_self()
@@ -280,7 +280,7 @@ cdef class PJSIPUA:
             else:
                 return None
 
-    property local_udp_port:
+    property udp_port:
 
         def __get__(self):
             self._check_self()
@@ -288,7 +288,7 @@ cdef class PJSIPUA:
                 return None
             return self._pjsip_endpoint._udp_transport.local_name.port
 
-    def set_local_udp_port(self, value):
+    def set_udp_port(self, value):
         cdef int port
         self._check_self()
         if value is None:
@@ -305,7 +305,7 @@ cdef class PJSIPUA:
                 self._pjsip_endpoint._stop_udp_transport()
             self._pjsip_endpoint._start_udp_transport(port)
 
-    property local_tcp_port:
+    property tcp_port:
 
         def __get__(self):
             self._check_self()
@@ -313,7 +313,7 @@ cdef class PJSIPUA:
                 return None
             return self._pjsip_endpoint._tcp_transport.addr_name.port
 
-    def set_local_tcp_port(self, value):
+    def set_tcp_port(self, value):
         cdef int port
         self._check_self()
         if value is None:
@@ -330,7 +330,7 @@ cdef class PJSIPUA:
                 self._pjsip_endpoint._stop_tcp_transport()
             self._pjsip_endpoint._start_tcp_transport(port)
 
-    property local_tls_port:
+    property tls_port:
 
         def __get__(self):
             self._check_self()
@@ -426,19 +426,19 @@ cdef class PJSIPUA:
             self._check_self()
             return self._pjsip_endpoint._tls_timeout
 
-    def set_tls_options(self, local_port=None, protocol="TLSv1", verify_server=False,
+    def set_tls_options(self, port=None, protocol="TLSv1", verify_server=False,
                         ca_file=None, cert_file=None, privkey_file=None, int timeout=1000):
         global _tls_protocol_mapping
-        cdef int port
+        cdef int c_port
         self._check_self()
-        if local_port is None:
+        if port is None:
             if self._pjsip_endpoint._tls_transport == NULL:
                 return
             self._pjsip_endpoint._stop_tls_transport()
         else:
-            port = local_port
-            if port < 0 or port > 65535:
-                raise ValueError("Not a valid TCP port: %d" % local_port)
+            c_port = port
+            if c_port < 0 or c_port > 65535:
+                raise ValueError("Not a valid TCP port: %d" % port)
             if protocol not in _tls_protocol_mapping:
                 raise ValueError("Unknown TLS protocol: %s" % protocol)
             if ca_file is not None and not os.path.isfile(ca_file):
@@ -466,7 +466,7 @@ cdef class PJSIPUA:
             else:
                 self._pjsip_endpoint._tls_privkey_file = PJSTR(privkey_file)
             self._pjsip_endpoint._tls_timeout = timeout
-            self._pjsip_endpoint._start_tls_transport(port)
+            self._pjsip_endpoint._start_tls_transport(c_port)
 
     def detect_nat_type(self, stun_server_address, stun_server_port=PJ_STUN_PORT, object user_data=None):
         cdef pj_str_t stun_server_address_pj

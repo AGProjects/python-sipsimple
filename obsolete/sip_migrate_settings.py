@@ -27,9 +27,9 @@ class GeneralConfig(ConfigSection):
     # relative to SIPSimpleSettings
     _mapping = dict(user_agent='user_agent',
                     local_ip='local_ip',
-                    sip_local_udp_port='sip.local_udp_port',
-                    sip_local_tcp_port='sip.local_tcp_port',
-                    sip_local_tls_port='sip.local_tls_port',
+                    sip_local_udp_port='sip.udp_port',
+                    sip_local_tcp_port='sip.tcp_port',
+                    sip_local_tls_port='sip.tls_port',
                     sip_transports='sip.transports',
                     tls_ca_file='tls.ca_list_file',
                     sip_tls_verify_server='tls.verify_server',

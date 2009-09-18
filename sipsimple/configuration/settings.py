@@ -58,21 +58,21 @@ class LogsSettings(SettingsGroup):
 
 class MSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tls')
-    local_port = Setting(type=Port, default=0)
+    port = Setting(type=Port, default=0)
 
 
 class RTPSettings(SettingsGroup):
+    ip_address = Setting(type=LocalIPAddress, default=LocalIPAddress())
     port_range = Setting(type=PortRange, default=PortRange(50000, 50400))
     timeout = Setting(type=NonNegativeInteger, default=30)
-    local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
     audio_codecs = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
 
 
 class SIPSettings(SettingsGroup):
-    local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
-    local_udp_port = Setting(type=Port, default=0)
-    local_tcp_port = Setting(type=Port, default=0)
-    local_tls_port = Setting(type=Port, default=0)
+    ip_address = Setting(type=LocalIPAddress, default=LocalIPAddress())
+    udp_port = Setting(type=Port, default=0)
+    tcp_port = Setting(type=Port, default=0)
+    tls_port = Setting(type=Port, default=0)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
 

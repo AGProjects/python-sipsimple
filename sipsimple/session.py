@@ -144,7 +144,7 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
 
-            local_ip = settings.sip.local_ip.normalized
+            local_ip = settings.sip.ip_address.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             for index, stream in enumerate(self.proposed_streams):
@@ -304,7 +304,7 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
 
-            local_ip = settings.sip.local_ip.normalized
+            local_ip = settings.sip.ip_address.normalized
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             if self._invitation.sdp.proposed_remote:

@@ -125,7 +125,7 @@ class Account(SettingsObject):
 
         username = ''.join(random.sample(string.lowercase, 8))
         settings = SIPSimpleSettings()
-        self.contact = ContactURI('%s@%s' % (username, settings.sip.local_ip.normalized))
+        self.contact = ContactURI('%s@%s' % (username, settings.sip.ip_address.normalized))
         self.uri = SIPURI(user=self.id.username, host=self.id.domain)
         self.credentials = Credentials(self.id.username, self.password)
 
@@ -276,7 +276,7 @@ class Account(SettingsObject):
                                         code=notification.data.code, next_route=route, delay=0, route=old_route)
                 notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
 
-                self.contact = ContactURI('%s@%s' % (self.contact.username, settings.sip.local_ip.normalized))
+                self.contact = ContactURI('%s@%s' % (self.contact.username, settings.sip.ip_address.normalized))
                 contact_header = ContactHeader(self.contact[route.transport])
                 self._registrar.register(contact_header, route_header, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
@@ -296,7 +296,7 @@ class Account(SettingsObject):
         self._register_routes = deque(notification.data.result)
         route = self._register_routes.popleft()
         route_header = RouteHeader(route.get_uri())
-        self.contact = ContactURI('%s@%s' % (self.contact.username, settings.sip.local_ip.normalized))
+        self.contact = ContactURI('%s@%s' % (self.contact.username, settings.sip.ip_address.normalized))
         contact_header = ContactHeader(self.contact[route.transport])
         self._registrar.register(contact_header, route_header, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
 
@@ -402,7 +402,7 @@ class BonjourAccount(SettingsObject):
     def __init__(self):
         settings = SIPSimpleSettings()
         username = ''.join(random.sample(string.lowercase, 8))
-        self.contact = ContactURI('%s@%s' % (username, settings.sip.local_ip.normalized))
+        self.contact = ContactURI('%s@%s' % (username, settings.sip.ip_address.normalized))
         self.uri = SIPURI(user=self.contact.username, host=self.contact.domain)
         self.credentials = None
 

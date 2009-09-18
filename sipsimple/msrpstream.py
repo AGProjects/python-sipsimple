@@ -107,8 +107,8 @@ class MSRPChat(object):
             logger = NotificationProxyLogger()
             self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
             settings = SIPSimpleSettings()
-            local_uri = URI(host=settings.sip.local_ip.normalized,
-                            port=settings.msrp.local_port,
+            local_uri = URI(host=settings.sip.ip_address.normalized,
+                            port=settings.msrp.port,
                             use_tls=self.transport=='tls',
                             credentials=get_X509Credentials())
             full_local_path = self.msrp_connector.prepare(local_uri)

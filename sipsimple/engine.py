@@ -17,10 +17,10 @@ from sipsimple import __version__
 
 class Engine(Thread):
     __metaclass__ = Singleton
-    default_start_options = {"local_ip": None,
-                             "local_udp_port": 0,
-                             "local_tcp_port": None,
-                             "local_tls_port": None,
+    default_start_options = {"ip_address": None,
+                             "udp_port": 0,
+                             "tcp_port": None,
+                             "tls_port": None,
                              "tls_protocol": "TLSv1",
                              "tls_verify_server": False,
                              "tls_ca_file": None,
@@ -65,11 +65,11 @@ class Engine(Thread):
             return
         object.__setattr__(self, attr, value)
 
-    def start(self, local_ip=None, **kwargs):
+    def start(self, ip_address=None, **kwargs):
         if self._thread_started:
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
-        init_options.update(kwargs, local_ip=local_ip)
+        init_options.update(kwargs, ip_address=ip_address)
         self._post_notification("SIPEngineWillStart")
         with self._lock:
             try:
