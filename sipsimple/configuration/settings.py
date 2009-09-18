@@ -91,7 +91,7 @@ class SoundsSettings(SettingsGroup):
     message_sent = Setting(type=SoundFile, default=None, nillable=True)
     file_received = Setting(type=SoundFile, default=None, nillable=True)
     file_sent = Setting(type=SoundFile, default=None, nillable=True)
-
+    answering_machine = Setting(type=SoundFile, default=None, nillable=True)
 
 class SIPSimpleSettings(SettingsObject):
     __section__ = 'Global'
