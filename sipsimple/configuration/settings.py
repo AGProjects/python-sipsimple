@@ -58,6 +58,7 @@ class LogsSettings(SettingsGroup):
 
 class MSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tls')
+    local_port = Setting(type=Port, default=0)
 
 
 class RTPSettings(SettingsGroup):
@@ -69,6 +70,9 @@ class RTPSettings(SettingsGroup):
 
 class SIPSettings(SettingsGroup):
     local_ip = Setting(type=LocalIPAddress, default=LocalIPAddress())
+    local_udp_port = Setting(type=Port, default=0)
+    local_tcp_port = Setting(type=Port, default=0)
+    local_tls_port = Setting(type=Port, default=0)
     transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
 
 

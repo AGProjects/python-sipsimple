@@ -96,9 +96,9 @@ class Engine(Thread):
             else:
                 local_ip = settings.sip.local_ip.normalized
         setdefault(kwargs,
-            local_udp_port=0 if "udp" in settings.sip.transports else None,
-            local_tcp_port=0 if "tcp" in settings.sip.transports else None,
-            local_tls_port=0 if "tls" in settings.sip.transports else None,
+            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
+            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
+            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
             tls_protocol=settings.tls.protocol,
             tls_verify_server=settings.tls.verify_server,
             tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
