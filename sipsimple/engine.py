@@ -86,33 +86,6 @@ class Engine(Thread):
             else:
                 self._post_notification("SIPEngineDidStart")
 
-    def start_cfg(self, local_ip=None, **kwargs):
-        # Take the default values for the arguments from SIPSimpleSettings
-        from sipsimple.configuration.settings import SIPSimpleSettings
-        settings = SIPSimpleSettings()
-        if local_ip is None:
-            if settings.sip.local_ip is settings.sip.local_ip.DefaultHostIP:
-                local_ip = None
-            else:
-                local_ip = settings.sip.local_ip.normalized
-        setdefault(kwargs,
-            local_udp_port=settings.sip.local_udp_port if "udp" in settings.sip.transports else None,
-            local_tcp_port=settings.sip.local_tcp_port if "tcp" in settings.sip.transports else None,
-            local_tls_port=settings.sip.local_tls_port if "tls" in settings.sip.transports else None,
-            tls_protocol=settings.tls.protocol,
-            tls_verify_server=settings.tls.verify_server,
-            tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
-            tls_cert_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
-            tls_privkey_file=settings.tls.private_key.normalized if settings.tls.private_key is not None else None,
-            tls_timeout=settings.tls.timeout,
-            user_agent=settings.user_agent,
-            log_level=settings.logs.pjsip_level if settings.logs.trace_pjsip else 0,
-            sip_trace=settings.logs.trace_sip,
-            ignore_missing_ack=False,
-            rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
-            codecs=list(settings.rtp.audio_codecs))
-        self.start(local_ip=local_ip, **kwargs)
-
     def stop(self):
         if self._thread_stopping:
             return
