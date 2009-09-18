@@ -79,7 +79,6 @@ class SIPSettings(SettingsGroup):
 class TLSSettings(SettingsGroup):
     ca_list = Setting(type=UserDataPath, default=None, nillable=True)
     certificate = Setting(type=UserDataPath, default=None, nillable=True)
-    private_key = Setting(type=UserDataPath, default=None, nillable=True)
     protocol = Setting(type=TLSProtocol, default='TLSv1')
     verify_server = Setting(type=bool, default=False)
     timeout = Setting(type=NonNegativeInteger, default=1000)

@@ -77,7 +77,7 @@ class SIPApplication(object):
                      tls_verify_server=settings.tls.verify_server,
                      tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
                      tls_cert_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
-                     tls_privkey_file=settings.tls.private_key.normalized if settings.tls.private_key is not None else None,
+                     tls_privkey_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
                      tls_timeout=settings.tls.timeout,
                      # rtp
                      rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
@@ -225,13 +225,13 @@ class SIPApplication(object):
             if 'sip.tcp_port' in notification.data.modified:
                 engine.set_tcp_port(settings.sip.tcp_port)
             if set(('sip.tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list',
-                    'tls.certificate', 'tls.private_key', 'tls.timeout')).intersection(notification.data.modified):
+                    'tls.certificate', 'tls.timeout')).intersection(notification.data.modified):
                 engine.set_tls_options(port=settings.sip.tls_port,
                                        protocol=settings.tls.protocol,
                                        verify_server=settings.tls.verify_server,
                                        ca_file=settings.tls.ca_list.normalized,
                                        cert_file=settings.tls.certificate.normalized,
-                                       privkey_file=settings.tls.private_key.normalized,
+                                       privkey_file=settings.tls.certificate.normalized,
                                        timeout=settings.tls.timeout)
             if 'rtp.port_range' in notification.data.modified:
                 engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
