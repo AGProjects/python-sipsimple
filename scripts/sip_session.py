@@ -665,8 +665,6 @@ class SIPSessionApplication(SIPApplication):
             try:
                 handler(*notification.data.args)
             except TypeError:
-                import traceback
-                traceback.print_exc()
                 send_notice('Illegal use of command /%s. Type /help for a list of available commands.' % notification.data.command)
         else:
             send_notice('Unknown command /%s. Type /help for a list of available commands.' % notification.data.command)
