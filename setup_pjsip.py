@@ -46,14 +46,18 @@ def get_makefile_variables(makefile):
     return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
 
 def get_svn_repo_url(svn_dir):
-    svn_info = distutils_exec_process(["svn", "info", svn_dir], True)
+    environment = dict((name, value) for name, value in os.environ.iteritems() if name!='LANG' and not name.startswith('LC_'))
+    environment['LC_ALL'] = 'C'
+    svn_info = distutils_exec_process(["svn", "info", svn_dir], True, env=environment)
     return re.search("URL: (.*)", svn_info).group(1)
 
 def get_svn_revision(svn_dir, max_revision=None):
+    environment = dict((name, value) for name, value in os.environ.iteritems() if name!='LANG' and not name.startswith('LC_'))
+    environment['LC_ALL'] = 'C'
     if max_revision is None:
-        svn_info = distutils_exec_process(["svn", "info", svn_dir], True)
+        svn_info = distutils_exec_process(["svn", "info", svn_dir], True, env=environment)
     else:
-        svn_info = distutils_exec_process(["svn", "-r", str(max_revision), "info", svn_dir], True)
+        svn_info = distutils_exec_process(["svn", "-r", str(max_revision), "info", svn_dir], True, env=environment)
     return int(re.search("Last Changed Rev: (\d+)", svn_info).group(1))
 
 class PJSIP_build_ext(build_ext):
