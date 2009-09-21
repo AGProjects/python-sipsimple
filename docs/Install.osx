@@ -8,8 +8,7 @@ http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
 
-This document described the installation procedure on Linux operating
-systems in general and Debian/Ubuntu systems in particular.
+This document describes the installation procedure on MacOSX Leopard 10.5.
 
 Fore more information see the installation guide available at:
 
@@ -32,6 +31,11 @@ Step 1. Prerequisites
  * Apple Developer tools
  * darcs version control tool from http://www.darcs.net
 
+The procedure below relies on the standard available Python 2.5 interpreter
+that comes with MacOSX. Make sure that during the building process you are
+not involving external tools or libraries like the ones provided by Fink or
+Darwin Ports distributions.
+
 
 Step 2. Install dependencies
 
@@ -52,11 +56,13 @@ The following are needed only if you wish to use the desktop sharing application
  * x11vnc              http://www.karlrunge.com/x11vnc                   >=0.9.6
  * pygame              http://pygame.org/wiki/MacCompile                 >=1.7.1
 
-
-Build and install C dependencies:
+Build and install C dependencies, the software will be installed under
+/usr/local folder:
 
 cd ~/work
-# gnutls dependencies
+
+# Install GNUTLS dependencies
+# ===========================
 curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
 tar -xjvf libgpg-error-1.7.tar.bz2
 cd libgpg-error-1.7
@@ -81,7 +87,8 @@ make
 sudo make install
 cd ..
 
-# gnutls:
+# Install GNUTLS
+# ==============
 curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.1.tar.bz2
 tar -xjvf gnutls-2.8.1.tar.bz2
 cd gnutls-2.8.1
@@ -90,14 +97,17 @@ make
 sudo make install
 cd ..
 
-# lxml python module
+# Install lxml python module
+# ==========================
 curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta4.tar.gz
 tar -xzvf lxml-2.2beta4.tar.gz
 cd lxml-2.2beta4
 sudo python setup.py install --static-deps
 cd ..
 
-# X11 vncserver (only if you experiment with Desktop Sharing)
+# Install X11 vncserver 
+# =====================
+# Only necessary if you experiment with Desktop Sharing
 curl -O http://x11vnc.sourceforge.net/dev/x11vnc-0.9.7.tar.gz
 tar zxvf x11vnc-0.9.7.tar.gz
 cd x11vnc-0.9.7
@@ -107,18 +117,17 @@ sudo make install
 cd ..
 
 
-Upgrade python setup tools:
+Upgrade python setup tools that comes with OSX:
 
 sudo easy_install --script-dir /usr/bin -U setuptools
 
-
-Install python packages using easy_install:
+Install Python dependencies by using easy_install tool. The software will be
+installed in Library/Python/2.5/site-packages folder:
 
 sudo easy_install -U python-gnutls cython dnspython twisted py greenlet \
 eventlet python-application
 
-
-Install XCAP and MSRP libraries available from AG Projects repositories:
+Install XCAP and MSRP client libraries from AG Projects darcs repositories:
 
 cd ~/work
 # python-xcaplib
