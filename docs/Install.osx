@@ -115,7 +115,7 @@ sudo easy_install --script-dir /usr/bin -U setuptools
 Install python packages using easy_install:
 
 sudo easy_install -U python-gnutls cython dnspython twisted py greenlet \
-eventlet python-application python-cjson
+eventlet python-application
 
 
 Install XCAP and MSRP libraries available from AG Projects repositories:
@@ -161,6 +161,5 @@ cd ..
 Build and install the library system wide:
 
 cd python-sipsimple
-sudo python setup.py build_ext --pjsip-clean-compile
-sudo python setup.py install --prefix /usr/local
+sudo python setup.py install --install-data --prefix=/usr/local
 
