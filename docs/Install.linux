@@ -109,26 +109,21 @@ the following packages, notice the minimum version numbers:
  * cython              http://www.cython.org                             >=0.10
  * dnspython           http://www.dnspython.org                          >=1.6.0
  * twisted             http://twistedmatrix.com/trac                     >=8.1.0
- * pylib               http://codespeak.net/py                           >=0.9.2
  * eventlet            http://pypi.python.org/pypi/eventlet/             >=0.8.11
+ * greenlet            http://pypi.python.org/pypi/greenlet/             >=0.2
  * zope-interface      http://www.zope.org                               >=3.3.1
-
-The following are needed only if you wish to use the desktop sharing application:
-
- * x11vnc              http://www.karlrunge.com/x11vnc                   >=0.9.6
- * python-pygame       http://www.pygame.org                             >=1.7.1
 
 On Debian you can install the dependencies using apt-get:
 
 sudo apt-get install python-gnutls python-application python-lxml cython \
 python-dnspython python-twisted-core python-zopeinterface \
-python-twisted-names python-xml python-pygame
+python-twisted-names python-xml
 
 Alternatively, on non-Debian systems you can use the easy_install script
 provided by the python-setuptools package to install the packages:
 
 sudo easy_install -U lxml python-gnutls cython python-application \
-dnspython twisted py
+dnspython twisted
 
 Install greenlet/eventlet for twisted using easy_install script, they are
 not yet available as Debian packages:
