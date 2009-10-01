@@ -56,11 +56,11 @@ cdef extern from "pjlib.h":
         PJ_MAX_OBJ_NAME
 
     # init / shutdown
-    int pj_init()
-    void pj_shutdown()
+    int pj_init() nogil
+    void pj_shutdown() nogil
 
     # version
-    char *pj_get_version()
+    char *pj_get_version() nogil
 
     # string
     struct pj_str_t:
@@ -68,7 +68,7 @@ cdef extern from "pjlib.h":
         int slen
 
     # errors
-    pj_str_t pj_strerror(int statcode, char *buf, int bufsize)
+    pj_str_t pj_strerror(int statcode, char *buf, int bufsize) nogil
 
     # logging
     enum:
@@ -80,10 +80,10 @@ cdef extern from "pjlib.h":
         PJ_LOG_HAS_TIME
         PJ_LOG_HAS_MICRO_SEC
         PJ_LOG_HAS_SENDER
-    void pj_log_set_decor(int decor)
-    int pj_log_get_level()
-    void pj_log_set_level(int level)
-    void pj_log_set_log_func(void func(int level, char_ptr_const data, int len))
+    void pj_log_set_decor(int decor) nogil
+    int pj_log_get_level() nogil
+    void pj_log_set_level(int level) nogil
+    void pj_log_set_log_func(void func(int level, char_ptr_const data, int len)) nogil
 
     # memory management
     struct pj_pool_t
@@ -94,23 +94,23 @@ cdef extern from "pjlib.h":
         pass
     struct pj_caching_pool:
         pj_pool_factory factory
-    void pj_caching_pool_init(pj_caching_pool *ch_pool, pj_pool_factory_policy *policy, int max_capacity)
-    void pj_caching_pool_destroy(pj_caching_pool *ch_pool)
-    void *pj_pool_alloc(pj_pool_t *pool, int size)
-    pj_pool_t *pj_pool_create_on_buf(char *name, void *buf, int size)
-    pj_str_t *pj_strdup2_with_null(pj_pool_t *pool, pj_str_t *dst, char *src)
+    void pj_caching_pool_init(pj_caching_pool *ch_pool, pj_pool_factory_policy *policy, int max_capacity) nogil
+    void pj_caching_pool_destroy(pj_caching_pool *ch_pool) nogil
+    void *pj_pool_alloc(pj_pool_t *pool, int size) nogil
+    pj_pool_t *pj_pool_create_on_buf(char *name, void *buf, int size) nogil
+    pj_str_t *pj_strdup2_with_null(pj_pool_t *pool, pj_str_t *dst, char *src) nogil
 
     # threads
     enum:
         PJ_THREAD_DESC_SIZE
     struct pj_mutex_t
     struct pj_thread_t
-    int pj_mutex_create_simple(pj_pool_t *pool, char *name, pj_mutex_t **mutex)
-    int pj_mutex_lock(pj_mutex_t *mutex)
-    int pj_mutex_unlock(pj_mutex_t *mutex)
-    int pj_mutex_destroy(pj_mutex_t *mutex)
-    int pj_thread_is_registered()
-    int pj_thread_register(char *thread_name, long *thread_desc, pj_thread_t **thread)
+    int pj_mutex_create_simple(pj_pool_t *pool, char *name, pj_mutex_t **mutex) nogil
+    int pj_mutex_lock(pj_mutex_t *mutex) nogil
+    int pj_mutex_unlock(pj_mutex_t *mutex) nogil
+    int pj_mutex_destroy(pj_mutex_t *mutex) nogil
+    int pj_thread_is_registered() nogil
+    int pj_thread_register(char *thread_name, long *thread_desc, pj_thread_t **thread) nogil
 
     # sockets
     enum:
@@ -122,14 +122,14 @@ cdef extern from "pjlib.h":
         pj_addr_hdr addr
     struct pj_sockaddr_in:
         pass
-    int pj_AF_INET()
-    int pj_AF_INET6()
-    int pj_sockaddr_in_init(pj_sockaddr_in *addr, pj_str_t *cp, int port)
-    int pj_sockaddr_get_port(pj_sockaddr *addr)
-    char *pj_sockaddr_print(pj_sockaddr *addr, char *buf, int size, unsigned int flags)
-    int pj_sockaddr_has_addr(pj_sockaddr *addr)
-    int pj_sockaddr_init(int af, pj_sockaddr *addr, pj_str_t *cp, unsigned int port)
-    int pj_inet_pton(int af, pj_str_t *src, void *dst)
+    int pj_AF_INET() nogil
+    int pj_AF_INET6() nogil
+    int pj_sockaddr_in_init(pj_sockaddr_in *addr, pj_str_t *cp, int port) nogil
+    int pj_sockaddr_get_port(pj_sockaddr *addr) nogil
+    char *pj_sockaddr_print(pj_sockaddr *addr, char *buf, int size, unsigned int flags) nogil
+    int pj_sockaddr_has_addr(pj_sockaddr *addr) nogil
+    int pj_sockaddr_init(int af, pj_sockaddr *addr, pj_str_t *cp, unsigned int port) nogil
+    int pj_inet_pton(int af, pj_str_t *src, void *dst) nogil
 
     # dns
     struct pj_dns_resolver
@@ -138,7 +138,7 @@ cdef extern from "pjlib.h":
     struct pj_time_val:
         long sec
         long msec
-    void pj_gettimeofday(pj_time_val *tv)
+    void pj_gettimeofday(pj_time_val *tv) nogil
 
     # timers
     struct pj_timer_heap_t
@@ -146,17 +146,17 @@ cdef extern from "pjlib.h":
         void *user_data
         int id
     pj_timer_entry *pj_timer_entry_init(pj_timer_entry *entry, int id, void *user_data,
-                                        void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil)
+                                        void cb(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil) nogil
 
     # lists
     struct pj_list:
         void *prev
         void *next
-    void pj_list_init(pj_list *node)
-    void pj_list_insert_after(pj_list *pos, pj_list *node)
+    void pj_list_init(pj_list *node) nogil
+    void pj_list_insert_after(pj_list *pos, pj_list *node) nogil
 
     # random
-    void pj_srand(unsigned int seed)
+    void pj_srand(unsigned int seed) nogil
 
     # maths
     struct pj_math_stat:
@@ -169,12 +169,12 @@ cdef extern from "pjlib.h":
 cdef extern from "pjlib-util.h":
 
     # init
-    int pjlib_util_init()
+    int pjlib_util_init() nogil
 
 cdef extern from "pjnath.h":
 
     # init
-    int pjnath_init()
+    int pjnath_init() nogil
 
     # STUN
     enum:
@@ -184,7 +184,7 @@ cdef extern from "pjnath.h":
     struct pj_stun_sock_cfg:
         pj_sockaddr bound_addr
     void pj_stun_config_init(pj_stun_config *cfg, pj_pool_factory *factory, unsigned int options,
-                             pj_ioqueue_t *ioqueue, pj_timer_heap_t *timer_heap)
+                             pj_ioqueue_t *ioqueue, pj_timer_heap_t *timer_heap) nogil
 
     # NAT detection
     struct pj_stun_nat_detect_result:
@@ -194,7 +194,7 @@ cdef extern from "pjnath.h":
     ctypedef pj_stun_nat_detect_result *pj_stun_nat_detect_result_ptr_const "const pj_stun_nat_detect_result *"
     int pj_stun_detect_nat_type(pj_sockaddr_in *server, pj_stun_config *stun_cfg, void *user_data,
                                 void pj_stun_nat_detect_cb(void *user_data,
-                                                           pj_stun_nat_detect_result_ptr_const res) with gil)
+                                                           pj_stun_nat_detect_result_ptr_const res) with gil) nogil
 
     # ICE
     struct pj_ice_strans_cfg_stun:
@@ -208,7 +208,7 @@ cdef extern from "pjnath.h":
     enum pj_ice_strans_op:
         PJ_ICE_STRANS_OP_INIT
         PJ_ICE_STRANS_OP_NEGOTIATION
-    void pj_ice_strans_cfg_default(pj_ice_strans_cfg *cfg)
+    void pj_ice_strans_cfg_default(pj_ice_strans_cfg *cfg) nogil
 
 cdef extern from "pjmedia.h":
 
@@ -226,19 +226,19 @@ cdef extern from "pjmedia.h":
         unsigned int clock_rate
         unsigned int channel_cnt
     int pjmedia_codec_mgr_enum_codecs(pjmedia_codec_mgr *mgr, unsigned int *count,
-                                      pjmedia_codec_info *info, unsigned int *prio)
-    int pjmedia_codec_mgr_set_codec_priority(pjmedia_codec_mgr *mgr, pj_str_t *codec_id, unsigned int prio)
+                                      pjmedia_codec_info *info, unsigned int *prio) nogil
+    int pjmedia_codec_mgr_set_codec_priority(pjmedia_codec_mgr *mgr, pj_str_t *codec_id, unsigned int prio) nogil
 
     # endpoint
     struct pjmedia_endpt
-    int pjmedia_endpt_create(pj_pool_factory *pf, pj_ioqueue_t *ioqueue, int worker_cnt, pjmedia_endpt **p_endpt)
-    int pjmedia_endpt_destroy(pjmedia_endpt *endpt)
-    pj_ioqueue_t *pjmedia_endpt_get_ioqueue(pjmedia_endpt *endpt)
-    pjmedia_codec_mgr *pjmedia_endpt_get_codec_mgr(pjmedia_endpt *endpt)
+    int pjmedia_endpt_create(pj_pool_factory *pf, pj_ioqueue_t *ioqueue, int worker_cnt, pjmedia_endpt **p_endpt) nogil
+    int pjmedia_endpt_destroy(pjmedia_endpt *endpt) nogil
+    pj_ioqueue_t *pjmedia_endpt_get_ioqueue(pjmedia_endpt *endpt) nogil
+    pjmedia_codec_mgr *pjmedia_endpt_get_codec_mgr(pjmedia_endpt *endpt) nogil
 
     # codecs
-    int pjmedia_codec_g711_init(pjmedia_endpt *endpt)
-    int pjmedia_codec_g711_deinit()
+    int pjmedia_codec_g711_init(pjmedia_endpt *endpt) nogil
+    int pjmedia_codec_g711_deinit() nogil
 
     # sound devices
     struct pjmedia_snd_dev_info:
@@ -250,52 +250,52 @@ cdef extern from "pjmedia.h":
         int rec_id
     struct pjmedia_snd_stream
     ctypedef pjmedia_snd_dev_info *pjmedia_snd_dev_info_ptr_const "const pjmedia_snd_dev_info *"
-    int pjmedia_snd_get_dev_count()
-    pjmedia_snd_dev_info_ptr_const pjmedia_snd_get_dev_info(int index)
-    int pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm, pjmedia_snd_stream_info *pi)
+    int pjmedia_snd_get_dev_count() nogil
+    pjmedia_snd_dev_info_ptr_const pjmedia_snd_get_dev_info(int index) nogil
+    int pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm, pjmedia_snd_stream_info *pi) nogil
 
     # sound port
     struct pjmedia_port
     struct pjmedia_snd_port
     int pjmedia_snd_port_create(pj_pool_t *pool, int rec_id, int play_id, unsigned int clock_rate,
                                 unsigned int channel_count, unsigned int samples_per_frame,
-                                unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port)
+                                unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port) nogil
     int pjmedia_snd_port_create_rec(pj_pool_t *pool, int index, unsigned int clock_rate, unsigned int channel_count,
                                     unsigned int samples_per_frame, unsigned int bits_per_sample, unsigned int options,
-                                    pjmedia_snd_port **p_port)
+                                    pjmedia_snd_port **p_port) nogil
     int pjmedia_snd_port_create_player(pj_pool_t *pool, unsigned int index, unsigned int clock_rate,
                                        unsigned int channel_count, unsigned int samples_per_frame,
-                                       unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port)
-    int pjmedia_snd_port_connect(pjmedia_snd_port *snd_port, pjmedia_port *port)
-    int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port)
-    int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options)
-    int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port)
-    pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port)
+                                       unsigned int bits_per_sample, unsigned int options, pjmedia_snd_port **p_port) nogil
+    int pjmedia_snd_port_connect(pjmedia_snd_port *snd_port, pjmedia_port *port) nogil
+    int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port) nogil
+    int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options) nogil
+    int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port) nogil
+    pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port) nogil
     int pjmedia_null_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count,
-                                 unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port)
+                                 unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port) nogil
 
     # master port
     struct pjmedia_master_port
     int pjmedia_master_port_create(pj_pool_t *pool, pjmedia_port *u_port, pjmedia_port *d_port,
-                                   unsigned int options, pjmedia_master_port **p_m)
-    int pjmedia_master_port_start(pjmedia_master_port *m)
-    int pjmedia_master_port_destroy(pjmedia_master_port *m, int destroy_ports)
+                                   unsigned int options, pjmedia_master_port **p_m) nogil
+    int pjmedia_master_port_start(pjmedia_master_port *m) nogil
+    int pjmedia_master_port_destroy(pjmedia_master_port *m, int destroy_ports) nogil
 
     # conference bridge
     enum pjmedia_conf_option:
         PJMEDIA_CONF_NO_DEVICE
     struct pjmedia_conf
     int pjmedia_conf_create(pj_pool_t *pool, int max_slots, int sampling_rate, int channel_count,
-                            int samples_per_frame, int bits_per_sample, int options, pjmedia_conf **p_conf)
-    int pjmedia_conf_destroy(pjmedia_conf *conf)
-    pjmedia_port *pjmedia_conf_get_master_port(pjmedia_conf *conf)
+                            int samples_per_frame, int bits_per_sample, int options, pjmedia_conf **p_conf) nogil
+    int pjmedia_conf_destroy(pjmedia_conf *conf) nogil
+    pjmedia_port *pjmedia_conf_get_master_port(pjmedia_conf *conf) nogil
     int pjmedia_conf_add_port(pjmedia_conf *conf, pj_pool_t *pool, pjmedia_port *strm_port,
-                              pj_str_t *name, unsigned int *p_slot)
-    int pjmedia_conf_remove_port(pjmedia_conf *conf, unsigned int slot)
-    int pjmedia_conf_connect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot, int level)
-    int pjmedia_conf_disconnect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot)
-    int pjmedia_conf_adjust_rx_level(pjmedia_conf *conf, unsigned slot, int adj_level)
-    int pjmedia_conf_adjust_tx_level(pjmedia_conf *conf, unsigned slot, int adj_level)
+                              pj_str_t *name, unsigned int *p_slot) nogil
+    int pjmedia_conf_remove_port(pjmedia_conf *conf, unsigned int slot) nogil
+    int pjmedia_conf_connect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot, int level) nogil
+    int pjmedia_conf_disconnect_port(pjmedia_conf *conf, unsigned int src_slot, unsigned int sink_slot) nogil
+    int pjmedia_conf_adjust_rx_level(pjmedia_conf *conf, unsigned slot, int adj_level) nogil
+    int pjmedia_conf_adjust_tx_level(pjmedia_conf *conf, unsigned slot, int adj_level) nogil
 
     # sdp
     enum:
@@ -345,7 +345,7 @@ cdef extern from "pjmedia.h":
         unsigned int media_count
         pjmedia_sdp_media *media[PJMEDIA_MAX_SDP_MEDIA]
     ctypedef pjmedia_sdp_session *pjmedia_sdp_session_ptr_const "const pjmedia_sdp_session *"
-    pjmedia_sdp_media *pjmedia_sdp_media_clone(pj_pool_t *pool, pjmedia_sdp_media *rhs)
+    pjmedia_sdp_media *pjmedia_sdp_media_clone(pj_pool_t *pool, pjmedia_sdp_media *rhs) nogil
 
     # sdp negotiation
 
@@ -356,12 +356,12 @@ cdef extern from "pjmedia.h":
         PJMEDIA_SDP_NEG_STATE_WAIT_NEGO
         PJMEDIA_SDP_NEG_STATE_DONE
     struct pjmedia_sdp_neg
-    int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote)
-    int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local)
-    int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote)
-    int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local)
-    pjmedia_sdp_neg_state pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg)
-    char *pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state)
+    int pjmedia_sdp_neg_get_neg_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote) nogil
+    int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
+    int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote) nogil
+    int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
+    pjmedia_sdp_neg_state pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg) nogil
+    char *pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state) nogil
 
     # transport
     enum pjmedia_transport_type:
@@ -383,35 +383,35 @@ cdef extern from "pjmedia.h":
         pjmedia_transport_specific_info *spc_info
     struct pjmedia_srtp_info:
         int active
-    void pjmedia_transport_info_init(pjmedia_transport_info *info)
+    void pjmedia_transport_info_init(pjmedia_transport_info *info) nogil
     int pjmedia_transport_udp_create3(pjmedia_endpt *endpt, int af, char *name, pj_str_t *addr, int port,
-                                      unsigned int options, pjmedia_transport **p_tp)
-    int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info)
-    int pjmedia_transport_close(pjmedia_transport *tp)
+                                      unsigned int options, pjmedia_transport **p_tp) nogil
+    int pjmedia_transport_get_info(pjmedia_transport *tp, pjmedia_transport_info *info) nogil
+    int pjmedia_transport_close(pjmedia_transport *tp) nogil
     int pjmedia_transport_media_create(pjmedia_transport *tp, pj_pool_t *sdp_pool, unsigned int options,
-                                       pjmedia_sdp_session *rem_sdp, unsigned int media_index)
+                                       pjmedia_sdp_session *rem_sdp, unsigned int media_index) nogil
     int pjmedia_transport_encode_sdp(pjmedia_transport *tp, pj_pool_t *sdp_pool, pjmedia_sdp_session *sdp,
-                                     pjmedia_sdp_session *rem_sdp, unsigned int media_index)
+                                     pjmedia_sdp_session *rem_sdp, unsigned int media_index) nogil
     int pjmedia_transport_media_start(pjmedia_transport *tp, pj_pool_t *tmp_pool, pjmedia_sdp_session *sdp_local,
-                                      pjmedia_sdp_session *sdp_remote, unsigned int media_index)
-    int pjmedia_transport_media_stop(pjmedia_transport *tp)
+                                      pjmedia_sdp_session *sdp_remote, unsigned int media_index) nogil
+    int pjmedia_transport_media_stop(pjmedia_transport *tp) nogil
     int pjmedia_endpt_create_sdp(pjmedia_endpt *endpt, pj_pool_t *pool, unsigned int stream_cnt,
-                                 pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp)
+                                 pjmedia_sock_info *sock_info, pjmedia_sdp_session **p_sdp) nogil
 
     # SRTP
     enum pjmedia_srtp_use:
         PJMEDIA_SRTP_MANDATORY
     struct pjmedia_srtp_setting:
         pjmedia_srtp_use use
-    void pjmedia_srtp_setting_default(pjmedia_srtp_setting *opt)
+    void pjmedia_srtp_setting_default(pjmedia_srtp_setting *opt) nogil
     int pjmedia_transport_srtp_create(pjmedia_endpt *endpt, pjmedia_transport *tp,
-                                      pjmedia_srtp_setting *opt, pjmedia_transport **p_tp)
+                                      pjmedia_srtp_setting *opt, pjmedia_transport **p_tp) nogil
 
     # ICE
     struct pjmedia_ice_cb:
         void on_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
     int pjmedia_ice_create2(pjmedia_endpt *endpt, char *name, unsigned int comp_cnt, pj_ice_strans_cfg *cfg,
-                            pjmedia_ice_cb *cb, unsigned int options, pjmedia_transport **p_tp)
+                            pjmedia_ice_cb *cb, unsigned int options, pjmedia_transport **p_tp) nogil
 
     # stream
     enum pjmedia_dir:
@@ -443,29 +443,29 @@ cdef extern from "pjmedia.h":
         pj_math_stat rtt
     struct pjmedia_stream
     int pjmedia_stream_info_from_sdp(pjmedia_stream_info *si, pj_pool_t *pool, pjmedia_endpt *endpt,
-                                     pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx)
+                                     pjmedia_sdp_session *local, pjmedia_sdp_session *remote, unsigned int stream_idx) nogil
     int pjmedia_stream_create(pjmedia_endpt *endpt, pj_pool_t *pool, pjmedia_stream_info *info,
-                              pjmedia_transport *tp, void *user_data, pjmedia_stream **p_stream)
-    int pjmedia_stream_destroy(pjmedia_stream *stream)
-    int pjmedia_stream_get_port(pjmedia_stream *stream, pjmedia_port **p_port)
-    int pjmedia_stream_start(pjmedia_stream *stream)
-    int pjmedia_stream_dial_dtmf(pjmedia_stream *stream, pj_str_t *ascii_digit)
+                              pjmedia_transport *tp, void *user_data, pjmedia_stream **p_stream) nogil
+    int pjmedia_stream_destroy(pjmedia_stream *stream) nogil
+    int pjmedia_stream_get_port(pjmedia_stream *stream, pjmedia_port **p_port) nogil
+    int pjmedia_stream_start(pjmedia_stream *stream) nogil
+    int pjmedia_stream_dial_dtmf(pjmedia_stream *stream, pj_str_t *ascii_digit) nogil
     int pjmedia_stream_set_dtmf_callback(pjmedia_stream *stream,
                                          void cb(pjmedia_stream *stream, void *user_data, int digit) with gil,
-                                         void *user_data)
-    int pjmedia_stream_pause(pjmedia_stream *stream, pjmedia_dir dir)
-    int pjmedia_stream_resume(pjmedia_stream *stream, pjmedia_dir dir)
-    int pjmedia_stream_get_stat(pjmedia_stream *stream, pjmedia_rtcp_stat *stat)
+                                         void *user_data) nogil
+    int pjmedia_stream_pause(pjmedia_stream *stream, pjmedia_dir dir) nogil
+    int pjmedia_stream_resume(pjmedia_stream *stream, pjmedia_dir dir) nogil
+    int pjmedia_stream_get_stat(pjmedia_stream *stream, pjmedia_rtcp_stat *stat) nogil
 
     # wav player
     enum:
         PJMEDIA_FILE_NO_LOOP
-    int pjmedia_port_destroy(pjmedia_port *port)
+    int pjmedia_port_destroy(pjmedia_port *port) nogil
     int pjmedia_wav_player_port_create(pj_pool_t *pool, char *filename, unsigned int ptime, unsigned int flags,
-                                       unsigned int buff_size, pjmedia_port **p_port)
+                                       unsigned int buff_size, pjmedia_port **p_port) nogil
     int pjmedia_wav_player_set_eof_cb(pjmedia_port *port, void *user_data,
-                                      int cb(pjmedia_port *port, void *usr_data) with gil)
-    int pjmedia_wav_player_port_set_pos(pjmedia_port *port, unsigned int offset)
+                                      int cb(pjmedia_port *port, void *usr_data) with gil) nogil
+    int pjmedia_wav_player_port_set_pos(pjmedia_port *port, unsigned int offset) nogil
 
     # wav recorder
     enum pjmedia_file_writer_option:
@@ -473,7 +473,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_wav_writer_port_create(pj_pool_t *pool, char *filename, unsigned int clock_rate,
                                        unsigned int channel_count, unsigned int samples_per_frame,
                                        unsigned int bits_per_sample, unsigned int flags, int buff_size,
-                                       pjmedia_port **p_port)
+                                       pjmedia_port **p_port) nogil
 
     # tone generator
     enum:
@@ -492,12 +492,12 @@ cdef extern from "pjmedia.h":
         short volume
     int pjmedia_tonegen_create(pj_pool_t *pool, unsigned int clock_rate, unsigned int channel_count,
                                unsigned int samples_per_frame, unsigned int bits_per_sample,
-                               unsigned int options, pjmedia_port **p_port)
-    int pjmedia_tonegen_play(pjmedia_port *tonegen, unsigned int count, pjmedia_tone_desc *tones, unsigned int options)
+                               unsigned int options, pjmedia_port **p_port) nogil
+    int pjmedia_tonegen_play(pjmedia_port *tonegen, unsigned int count, pjmedia_tone_desc *tones, unsigned int options) nogil
     int pjmedia_tonegen_play_digits(pjmedia_port *tonegen, unsigned int count,
-                                    pjmedia_tone_digit *digits, unsigned int options)
-    int pjmedia_tonegen_stop(pjmedia_port *tonegen)
-    int pjmedia_tonegen_is_busy(pjmedia_port *tonegen)
+                                    pjmedia_tone_digit *digits, unsigned int options) nogil
+    int pjmedia_tonegen_stop(pjmedia_port *tonegen) nogil
+    int pjmedia_tonegen_is_busy(pjmedia_port *tonegen) nogil
 
 cdef extern from "pjmedia-codec.h":
 
@@ -505,14 +505,14 @@ cdef extern from "pjmedia-codec.h":
     enum:
         PJMEDIA_SPEEX_NO_UWB
         PJMEDIA_SPEEX_NO_WB
-    int pjmedia_codec_gsm_init(pjmedia_endpt *endpt)
-    int pjmedia_codec_gsm_deinit()
-    int pjmedia_codec_g722_init(pjmedia_endpt *endpt)
-    int pjmedia_codec_g722_deinit()
-    int pjmedia_codec_ilbc_init(pjmedia_endpt *endpt, int mode)
-    int pjmedia_codec_ilbc_deinit()
-    int pjmedia_codec_speex_init(pjmedia_endpt *endpt, int options, int quality, int complexity)
-    int pjmedia_codec_speex_deinit()
+    int pjmedia_codec_gsm_init(pjmedia_endpt *endpt) nogil
+    int pjmedia_codec_gsm_deinit() nogil
+    int pjmedia_codec_g722_init(pjmedia_endpt *endpt) nogil
+    int pjmedia_codec_g722_deinit() nogil
+    int pjmedia_codec_ilbc_init(pjmedia_endpt *endpt, int mode) nogil
+    int pjmedia_codec_ilbc_deinit() nogil
+    int pjmedia_codec_speex_init(pjmedia_endpt *endpt, int options, int quality, int complexity) nogil
+    int pjmedia_codec_speex_deinit() nogil
 
 cdef extern from "pjsip.h":
 
@@ -665,27 +665,27 @@ cdef extern from "pjsip.h":
         pjsip_rx_data_pkt_info pkt_info
         pjsip_rx_data_tp_info tp_info
         pjsip_rx_data_msg_info msg_info
-    void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr)
-    void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr)
-    void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start)
-    void *pjsip_msg_find_hdr_by_name(pjsip_msg *msg, pj_str_t *name, void *start)
-    pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue)
-    pjsip_contact_hdr *pjsip_contact_hdr_create(pj_pool_t *pool)
-    pjsip_expires_hdr *pjsip_expires_hdr_create(pj_pool_t *pool, int value)
-    pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text)
-    pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem)
-    void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure)
-    int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata)
-    void pjsip_tx_data_add_ref(pjsip_tx_data *tdata)
-    pj_str_t *pjsip_uri_get_scheme(pjsip_uri *uri)
-    void *pjsip_uri_get_uri(pjsip_uri *uri)
-    int pjsip_uri_print(pjsip_uri_context_e context, void *uri, char *buf, unsigned int size)
-    int PJSIP_URI_SCHEME_IS_SIP(pjsip_sip_uri *uri)
+    void *pjsip_hdr_clone(pj_pool_t *pool, void *hdr) nogil
+    void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr) nogil
+    void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start) nogil
+    void *pjsip_msg_find_hdr_by_name(pjsip_msg *msg, pj_str_t *name, void *start) nogil
+    pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue) nogil
+    pjsip_contact_hdr *pjsip_contact_hdr_create(pj_pool_t *pool) nogil
+    pjsip_expires_hdr *pjsip_expires_hdr_create(pj_pool_t *pool, int value) nogil
+    pjsip_msg_body *pjsip_msg_body_create(pj_pool_t *pool, pj_str_t *type, pj_str_t *subtype, pj_str_t *text) nogil
+    pjsip_route_hdr *pjsip_route_hdr_init(pj_pool_t *pool, void *mem) nogil
+    void pjsip_sip_uri_init(pjsip_sip_uri *url, int secure) nogil
+    int pjsip_tx_data_dec_ref(pjsip_tx_data *tdata) nogil
+    void pjsip_tx_data_add_ref(pjsip_tx_data *tdata) nogil
+    pj_str_t *pjsip_uri_get_scheme(pjsip_uri *uri) nogil
+    void *pjsip_uri_get_uri(pjsip_uri *uri) nogil
+    int pjsip_uri_print(pjsip_uri_context_e context, void *uri, char *buf, unsigned int size) nogil
+    int PJSIP_URI_SCHEME_IS_SIP(pjsip_sip_uri *uri) nogil
     enum:
         PJSIP_PARSE_URI_AS_NAMEADDR
-    pjsip_uri *pjsip_parse_uri(pj_pool_t *pool, char *buf, unsigned int size, unsigned int options)
-    void pjsip_method_init_np(pjsip_method *m, pj_str_t *str)
-    pj_str_t *pjsip_get_status_text(int status_code)
+    pjsip_uri *pjsip_parse_uri(pj_pool_t *pool, char *buf, unsigned int size, unsigned int options) nogil
+    void pjsip_method_init_np(pjsip_method *m, pj_str_t *str) nogil
+    pj_str_t *pjsip_get_status_text(int status_code) nogil
 
     # module
     enum pjsip_module_priority:
@@ -706,31 +706,31 @@ cdef extern from "pjsip.h":
 
     # endpoint
     struct pjsip_endpoint
-    int pjsip_endpt_create(pj_pool_factory *pf, char *name, pjsip_endpoint **endpt)
-    void pjsip_endpt_destroy(pjsip_endpoint *endpt)
-    pj_pool_t *pjsip_endpt_create_pool(pjsip_endpoint *endpt, char *pool_name, int initial, int increment)
-    void pjsip_endpt_release_pool(pjsip_endpoint *endpt, pj_pool_t *pool)
+    int pjsip_endpt_create(pj_pool_factory *pf, char *name, pjsip_endpoint **endpt) nogil
+    void pjsip_endpt_destroy(pjsip_endpoint *endpt) nogil
+    pj_pool_t *pjsip_endpt_create_pool(pjsip_endpoint *endpt, char *pool_name, int initial, int increment) nogil
+    void pjsip_endpt_release_pool(pjsip_endpoint *endpt, pj_pool_t *pool) nogil
     int pjsip_endpt_handle_events(pjsip_endpoint *endpt, pj_time_val *max_timeout) nogil
-    int pjsip_endpt_register_module(pjsip_endpoint *endpt, pjsip_module *module)
-    int pjsip_endpt_schedule_timer(pjsip_endpoint *endpt, pj_timer_entry *entry, pj_time_val *delay)
-    void pjsip_endpt_cancel_timer(pjsip_endpoint *endpt, pj_timer_entry *entry)
+    int pjsip_endpt_register_module(pjsip_endpoint *endpt, pjsip_module *module) nogil
+    int pjsip_endpt_schedule_timer(pjsip_endpoint *endpt, pj_timer_entry *entry, pj_time_val *delay) nogil
+    void pjsip_endpt_cancel_timer(pjsip_endpoint *endpt, pj_timer_entry *entry) nogil
     enum:
         PJSIP_H_ACCEPT
         PJSIP_H_ALLOW
         PJSIP_H_SUPPORTED
-    pjsip_hdr_ptr_const pjsip_endpt_get_capability(pjsip_endpoint *endpt, int htype, pj_str_t *hname)
+    pjsip_hdr_ptr_const pjsip_endpt_get_capability(pjsip_endpoint *endpt, int htype, pj_str_t *hname) nogil
     int pjsip_endpt_add_capability(pjsip_endpoint *endpt, pjsip_module *mod, int htype,
-                                   pj_str_t *hname, unsigned count, pj_str_t *tags)
+                                   pj_str_t *hname, unsigned count, pj_str_t *tags) nogil
     int pjsip_endpt_create_response(pjsip_endpoint *endpt, pjsip_rx_data *rdata,
-                                    int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
+                                    int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata) nogil
     int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata,
-                                   pjsip_tx_data *tdata, void *token, void *cb)
+                                   pjsip_tx_data *tdata, void *token, void *cb) nogil
     int pjsip_endpt_create_request(pjsip_endpoint *endpt, pjsip_method *method, pj_str_t *target, pj_str_t *frm,
                                    pj_str_t *to, pj_str_t *contact, pj_str_t *call_id,
-                                   int cseq,pj_str_t *text, pjsip_tx_data **p_tdata)
-    pj_timer_heap_t *pjsip_endpt_get_timer_heap(pjsip_endpoint *endpt)
-    int pjsip_endpt_create_resolver(pjsip_endpoint *endpt, pj_dns_resolver **p_resv)
-    int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv)
+                                   int cseq,pj_str_t *text, pjsip_tx_data **p_tdata) nogil
+    pj_timer_heap_t *pjsip_endpt_get_timer_heap(pjsip_endpoint *endpt) nogil
+    int pjsip_endpt_create_resolver(pjsip_endpoint *endpt, pj_dns_resolver **p_resv) nogil
+    int pjsip_endpt_set_resolver(pjsip_endpoint *endpt, pj_dns_resolver *resv) nogil
 
     # transports
     enum pjsip_ssl_method:
@@ -744,7 +744,7 @@ cdef extern from "pjsip.h":
         pjsip_host_port local_name
     struct pjsip_tpfactory:
         pjsip_host_port addr_name
-        int destroy(pjsip_tpfactory *factory)
+        int destroy(pjsip_tpfactory *factory) nogil
     struct pjsip_tls_setting:
         pj_str_t ca_list_file
         pj_str_t cert_file
@@ -759,15 +759,15 @@ cdef extern from "pjsip.h":
     struct pjsip_tpselector:
         pjsip_tpselector_type type
         pjsip_tpselector_u u
-    int pjsip_transport_shutdown(pjsip_transport *tp)
+    int pjsip_transport_shutdown(pjsip_transport *tp) nogil
     int pjsip_udp_transport_start(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name,
-                                  unsigned int async_cnt, pjsip_transport **p_transport)
+                                  unsigned int async_cnt, pjsip_transport **p_transport) nogil
     int pjsip_tcp_transport_start2(pjsip_endpoint *endpt, pj_sockaddr_in *local, pjsip_host_port *a_name,
-                                   unsigned int async_cnt, pjsip_tpfactory **p_tpfactory)
+                                   unsigned int async_cnt, pjsip_tpfactory **p_tpfactory) nogil
     int pjsip_tls_transport_start(pjsip_endpoint *endpt, pjsip_tls_setting *opt, pj_sockaddr_in *local,
-                                  pjsip_host_port *a_name, unsigned async_cnt, pjsip_tpfactory **p_factory)
-    void pjsip_tls_setting_default(pjsip_tls_setting *tls_opt)
-    int pjsip_transport_shutdown(pjsip_transport *tp)
+                                  pjsip_host_port *a_name, unsigned async_cnt, pjsip_tpfactory **p_factory) nogil
+    void pjsip_tls_setting_default(pjsip_tls_setting *tls_opt) nogil
+    int pjsip_transport_shutdown(pjsip_transport *tp) nogil
 
     # transaction layer
     enum pjsip_role_e:
@@ -785,16 +785,16 @@ cdef extern from "pjsip.h":
         pjsip_tsx_state_e state
         void **mod_data
         pjsip_method method
-    int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt)
+    int pjsip_tsx_layer_init_module(pjsip_endpoint *endpt) nogil
     int pjsip_tsx_create_key(pj_pool_t *pool, pj_str_t *key, pjsip_role_e role,
-                             pjsip_method *method, pjsip_rx_data *rdata)
-    pjsip_transaction *pjsip_tsx_layer_find_tsx(pj_str_t *key, int lock)
-    int pjsip_tsx_create_uac(pjsip_module *tsx_user, pjsip_tx_data *tdata, pjsip_transaction **p_tsx)
-    int pjsip_tsx_terminate(pjsip_transaction *tsx, int code)
-    int pjsip_tsx_send_msg(pjsip_transaction *tsx, pjsip_tx_data *tdata)
-    pjsip_transaction *pjsip_rdata_get_tsx(pjsip_rx_data *rdata)
-    int pjsip_tsx_create_uas(pjsip_module *tsx_user, pjsip_rx_data *rdata, pjsip_transaction **p_tsx)
-    void pjsip_tsx_recv_msg(pjsip_transaction *tsx, pjsip_rx_data *rdata)
+                             pjsip_method *method, pjsip_rx_data *rdata) nogil
+    pjsip_transaction *pjsip_tsx_layer_find_tsx(pj_str_t *key, int lock) nogil
+    int pjsip_tsx_create_uac(pjsip_module *tsx_user, pjsip_tx_data *tdata, pjsip_transaction **p_tsx) nogil
+    int pjsip_tsx_terminate(pjsip_transaction *tsx, int code) nogil
+    int pjsip_tsx_send_msg(pjsip_transaction *tsx, pjsip_tx_data *tdata) nogil
+    pjsip_transaction *pjsip_rdata_get_tsx(pjsip_rx_data *rdata) nogil
+    int pjsip_tsx_create_uas(pjsip_module *tsx_user, pjsip_rx_data *rdata, pjsip_transaction **p_tsx) nogil
+    void pjsip_tsx_recv_msg(pjsip_transaction *tsx, pjsip_rx_data *rdata) nogil
 
     # event
     enum pjsip_event_id_e:
@@ -819,7 +819,7 @@ cdef extern from "pjsip.h":
         pjsip_event_id_e type
         pjsip_event_body body
     int pjsip_endpt_send_request(pjsip_endpoint *endpt, pjsip_tx_data *tdata, int timeout,
-                                 void *token, void cb(void *token, pjsip_event *e) with gil)
+                                 void *token, void cb(void *token, pjsip_event *e) with gil) nogil
 
     # auth
     enum:
@@ -834,10 +834,10 @@ cdef extern from "pjsip.h":
         pj_str_t data
     struct pjsip_auth_clt_sess:
         pass
-    int pjsip_auth_clt_init(pjsip_auth_clt_sess *sess, pjsip_endpoint *endpt, pj_pool_t *pool, unsigned int options)
-    int pjsip_auth_clt_set_credentials(pjsip_auth_clt_sess *sess, int cred_cnt, pjsip_cred_info *c)
+    int pjsip_auth_clt_init(pjsip_auth_clt_sess *sess, pjsip_endpoint *endpt, pj_pool_t *pool, unsigned int options) nogil
+    int pjsip_auth_clt_set_credentials(pjsip_auth_clt_sess *sess, int cred_cnt, pjsip_cred_info *c) nogil
     int pjsip_auth_clt_reinit_req(pjsip_auth_clt_sess *sess, pjsip_rx_data *rdata,
-                                  pjsip_tx_data *old_request, pjsip_tx_data **new_request)
+                                  pjsip_tx_data *old_request, pjsip_tx_data **new_request) nogil
 
     # dialog layer
     ctypedef pjsip_module pjsip_user_agent
@@ -850,21 +850,21 @@ cdef extern from "pjsip.h":
         pj_pool_t *pool
         pjsip_dlg_party local
     struct pjsip_ua_init_param:
-        pjsip_dialog *on_dlg_forked(pjsip_dialog *first_set, pjsip_rx_data *res)
-    int pjsip_ua_init_module(pjsip_endpoint *endpt, pjsip_ua_init_param *prm)
-    pjsip_user_agent *pjsip_ua_instance()
+        pjsip_dialog *on_dlg_forked(pjsip_dialog *first_set, pjsip_rx_data *res) nogil
+    int pjsip_ua_init_module(pjsip_endpoint *endpt, pjsip_ua_init_param *prm) nogil
+    pjsip_user_agent *pjsip_ua_instance() nogil
     int pjsip_dlg_create_uac(pjsip_user_agent *ua, pj_str_t *local_uri, pj_str_t *local_contact_uri,
-                             pj_str_t *remote_uri, pj_str_t *target, pjsip_dialog **p_dlg)
-    int pjsip_dlg_set_route_set(pjsip_dialog *dlg, pjsip_route_hdr *route_set)
-    int pjsip_dlg_create_uas(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg)
-    int pjsip_dlg_terminate(pjsip_dialog *dlg)
-    int pjsip_dlg_set_transport(pjsip_dialog *dlg, pjsip_tpselector *sel)
+                             pj_str_t *remote_uri, pj_str_t *target, pjsip_dialog **p_dlg) nogil
+    int pjsip_dlg_set_route_set(pjsip_dialog *dlg, pjsip_route_hdr *route_set) nogil
+    int pjsip_dlg_create_uas(pjsip_user_agent *ua, pjsip_rx_data *rdata, pj_str_t *contact, pjsip_dialog **p_dlg) nogil
+    int pjsip_dlg_terminate(pjsip_dialog *dlg) nogil
+    int pjsip_dlg_set_transport(pjsip_dialog *dlg, pjsip_tpselector *sel) nogil
     int pjsip_dlg_respond(pjsip_dialog *dlg, pjsip_rx_data *rdata, int st_code,
-                          pj_str_t *st_text, pjsip_hdr *hdr_list, pjsip_msg_body *body)
+                          pj_str_t *st_text, pjsip_hdr *hdr_list, pjsip_msg_body *body) nogil
     int pjsip_dlg_create_response(pjsip_dialog *dlg, pjsip_rx_data *rdata,
-                                  int st_code, pj_str_t *st_text, pjsip_tx_data **tdata)
-    int pjsip_dlg_modify_response(pjsip_dialog *dlg, pjsip_tx_data *tdata, int st_code, pj_str_t *st_text)
-    int pjsip_dlg_send_response(pjsip_dialog *dlg, pjsip_transaction *tsx, pjsip_tx_data *tdata)
+                                  int st_code, pj_str_t *st_text, pjsip_tx_data **tdata) nogil
+    int pjsip_dlg_modify_response(pjsip_dialog *dlg, pjsip_tx_data *tdata, int st_code, pj_str_t *st_text) nogil
+    int pjsip_dlg_send_response(pjsip_dialog *dlg, pjsip_transaction *tsx, pjsip_tx_data *tdata) nogil
 
 cdef extern from "pjsip-simple/evsub_msg.h":
     struct pjsip_event_hdr:
@@ -897,27 +897,27 @@ cdef extern from "pjsip_simple.h":
                           pj_str_t **p_st_text,pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
         void on_client_refresh(pjsip_evsub *sub) with gil
         void on_server_timeout(pjsip_evsub *sub) with gil
-    int pjsip_evsub_init_module(pjsip_endpoint *endpt)
+    int pjsip_evsub_init_module(pjsip_endpoint *endpt) nogil
     int pjsip_evsub_register_pkg(pjsip_module *pkg_mod, pj_str_t *event_name,
-                                 unsigned int expires, unsigned int accept_cnt, pj_str_t *accept)
+                                 unsigned int expires, unsigned int accept_cnt, pj_str_t *accept) nogil
     int pjsip_evsub_create_uac(pjsip_dialog *dlg, pjsip_evsub_user *user_cb,
-                               pj_str_t *event, int option, pjsip_evsub **p_evsub)
+                               pj_str_t *event, int option, pjsip_evsub **p_evsub) nogil
     int pjsip_evsub_create_uas(pjsip_dialog *dlg, pjsip_evsub_user *user_cb,
-                               pjsip_rx_data *rdata, unsigned int option, pjsip_evsub **p_evsub)
-    int pjsip_evsub_initiate(pjsip_evsub *sub, void *method, unsigned int expires, pjsip_tx_data **p_tdata)
-    int pjsip_evsub_send_request(pjsip_evsub *sub, pjsip_tx_data *tdata)
-    int pjsip_evsub_terminate(pjsip_evsub *sub, int notify)
-    char *pjsip_evsub_get_state_name(pjsip_evsub *sub)
-    void pjsip_evsub_set_mod_data(pjsip_evsub *sub, int mod_id, void *data)
-    void *pjsip_evsub_get_mod_data(pjsip_evsub *sub, int mod_id)
-    pjsip_hdr *pjsip_evsub_get_allow_events_hdr(pjsip_module *m)
+                               pjsip_rx_data *rdata, unsigned int option, pjsip_evsub **p_evsub) nogil
+    int pjsip_evsub_initiate(pjsip_evsub *sub, void *method, unsigned int expires, pjsip_tx_data **p_tdata) nogil
+    int pjsip_evsub_send_request(pjsip_evsub *sub, pjsip_tx_data *tdata) nogil
+    int pjsip_evsub_terminate(pjsip_evsub *sub, int notify) nogil
+    char *pjsip_evsub_get_state_name(pjsip_evsub *sub) nogil
+    void pjsip_evsub_set_mod_data(pjsip_evsub *sub, int mod_id, void *data) nogil
+    void *pjsip_evsub_get_mod_data(pjsip_evsub *sub, int mod_id) nogil
+    pjsip_hdr *pjsip_evsub_get_allow_events_hdr(pjsip_module *m) nogil
     int pjsip_evsub_notify(pjsip_evsub *sub, pjsip_evsub_state state,
-                           pj_str_t *state_str, pj_str_t *reason, pjsip_tx_data **p_tdata)
+                           pj_str_t *state_str, pj_str_t *reason, pjsip_tx_data **p_tdata) nogil
 
 cdef extern from "pjsip_ua.h":
 
     # 100rel / PRACK
-    int pjsip_100rel_init_module(pjsip_endpoint *endpt)
+    int pjsip_100rel_init_module(pjsip_endpoint *endpt) nogil
 
     # invite sessions
     enum pjsip_inv_option:
@@ -943,24 +943,24 @@ cdef extern from "pjsip_ua.h":
         void on_media_update(pjsip_inv_session *inv, int status) with gil
         #void on_send_ack(pjsip_inv_session *inv, pjsip_rx_data *rdata)
         void on_rx_reinvite(pjsip_inv_session *inv, pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
-    int pjsip_inv_usage_init(pjsip_endpoint *endpt, pjsip_inv_callback *cb)
-    int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify)
-    int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata)
-    int pjsip_inv_send_msg(pjsip_inv_session *inv, pjsip_tx_data *tdata)
+    int pjsip_inv_usage_init(pjsip_endpoint *endpt, pjsip_inv_callback *cb) nogil
+    int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify) nogil
+    int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata) nogil
+    int pjsip_inv_send_msg(pjsip_inv_session *inv, pjsip_tx_data *tdata) nogil
     int pjsip_inv_verify_request(pjsip_rx_data *rdata, unsigned int *options, pjmedia_sdp_session *sdp,
-                                 pjsip_dialog *dlg, pjsip_endpoint *endpt, pjsip_tx_data **tdata)
+                                 pjsip_dialog *dlg, pjsip_endpoint *endpt, pjsip_tx_data **tdata) nogil
     int pjsip_inv_create_uas(pjsip_dialog *dlg, pjsip_rx_data *rdata, pjmedia_sdp_session *local_sdp,
-                             unsigned int options, pjsip_inv_session **p_inv)
+                             unsigned int options, pjsip_inv_session **p_inv) nogil
     int pjsip_inv_initial_answer(pjsip_inv_session *inv, pjsip_rx_data *rdata, int st_code,
-                                 pj_str_t *st_text, pjmedia_sdp_session *sdp, pjsip_tx_data **p_tdata)
+                                 pj_str_t *st_text, pjmedia_sdp_session *sdp, pjsip_tx_data **p_tdata) nogil
     int pjsip_inv_answer(pjsip_inv_session *inv, int st_code, pj_str_t *st_text,
-                         pjmedia_sdp_session *local_sdp, pjsip_tx_data **p_tdata)
+                         pjmedia_sdp_session *local_sdp, pjsip_tx_data **p_tdata) nogil
     int pjsip_inv_create_uac(pjsip_dialog *dlg, pjmedia_sdp_session *local_sdp,
-                             unsigned int options, pjsip_inv_session **p_inv)
-    int pjsip_inv_invite(pjsip_inv_session *inv, pjsip_tx_data **p_tdata)
-    char *pjsip_inv_state_name(pjsip_inv_state state)
+                             unsigned int options, pjsip_inv_session **p_inv) nogil
+    int pjsip_inv_invite(pjsip_inv_session *inv, pjsip_tx_data **p_tdata) nogil
+    char *pjsip_inv_state_name(pjsip_inv_state state) nogil
     int pjsip_inv_reinvite(pjsip_inv_session *inv, pj_str_t *new_contact,
-                           pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata)
+                           pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata) nogil
 
 # declarations
 
