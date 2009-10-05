@@ -201,25 +201,31 @@ class Session(object):
                 self.proposed_streams.remove(stream)
                 del stream_map[stream.index]
                 stream.end()
+            invitation_notifications = []
             with api.timeout(self.media_stream_timeout):
                 wait_count = len(self.proposed_streams)
-                while wait_count > 0 or not connected or self._channel:
+                while wait_count > 0:
                     notification = self._channel.wait()
                     if notification.name == 'MediaStreamDidStart':
                         wait_count -= 1
                     elif notification.name == 'SIPInvitationChangedState':
-                        if notification.data.state == 'early' and notification.data.code == 180:
-                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
-                        elif notification.data.state == 'connecting':
-                            received_code = notification.data.code
-                            received_reason = notification.data.reason
-                        elif notification.data.state == 'connected':
-                            if not connected:
-                                connected = True
-                                notification_center.post_notification('SIPSessionDidProcessTransaction', self,
-                                                                      TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
-                            else:
-                                unhandled_notifications.append(notification)
+                        invitation_notifications.append(notification)
+            [self._channel.send(notification) for notification in invitation_notifications]
+            while not connected or self._channel:
+                notification = self._channel.wait()
+                if notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'early' and notification.data.code == 180:
+                        notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                    elif notification.data.state == 'connecting':
+                        received_code = notification.data.code
+                        received_reason = notification.data.reason
+                    elif notification.data.state == 'connected':
+                        if not connected:
+                            connected = True
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                  TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
+                        else:
+                            unhandled_notifications.append(notification)
         except (MediaStreamDidFailError, api.TimeoutError), e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
