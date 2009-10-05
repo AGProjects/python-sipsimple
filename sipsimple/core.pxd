@@ -27,6 +27,7 @@ cdef extern from "Python.h":
     void Py_DECREF(object obj)
     object PyString_FromStringAndSize(char *v, int len)
     char* PyString_AsString(object string) except NULL
+    double PyFloat_AsDouble(object)
     void PyEval_InitThreads()
 
 cdef extern from "stringobject.h":
@@ -1071,6 +1072,8 @@ cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_ro
 
 cdef class PJSIPThread
 cdef class PJSIPUA
+cdef class Timer
+ctypedef int (*timer_callback)(object, object) except -1 with gil
 cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
 cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil

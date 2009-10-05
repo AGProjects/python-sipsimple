@@ -5,14 +5,70 @@
 
 import random
 import sys
+import time
 import traceback
 import os
 
+
 # classes
+
+cdef class Timer:
+    cdef int _scheduled
+    cdef double schedule_time
+    cdef timer_callback callback
+    cdef object obj
+
+    cdef int schedule(self, float delay, timer_callback callback, object obj) except -1:
+        cdef PJSIPUA ua = _get_ua()
+        if delay < 0:
+            raise ValueError("delay must be a non-negative number")
+        if callback == NULL:
+            raise ValueError("callback must be non-NULL")
+        if self._scheduled:
+            raise RuntimeError("already scheduled")
+        self.schedule_time = PyFloat_AsDouble(time.time() + delay)
+        self.callback = callback
+        self.obj = obj
+        ua._add_timer(self)
+        self._scheduled = 1
+        return 0
+
+    cdef int cancel(self) except -1:
+        cdef PJSIPUA ua = _get_ua()
+        if not self._scheduled:
+            return 0
+        ua._remove_timer(self)
+        self._scheduled = 0
+        return 0
+
+    cdef int call(self) except -1:
+        self._scheduled = 0
+        self.callback(self.obj, self)
+
+    def __richcmp__(self, other, op):
+        cdef double diff
+        if not isinstance(self, Timer) or not isinstance(other, Timer):
+            return NotImplemented
+        diff = (<Timer>self).schedule_time - (<Timer>other).schedule_time
+        if op == 0: # <
+            return diff < 0.0
+        elif op == 1: # <=
+            return diff <= 0.0
+        elif op == 2: # ==
+            return diff == 0.0
+        elif op == 3: # !=
+            return diff != 0.0
+        elif op == 4: # >
+            return diff > 0.0
+        elif op == 5: # >=
+            return diff >= 0.0
+        return
+
 
 cdef class PJSIPUA:
     cdef object _threads
     cdef object _event_handler
+    cdef list _timers
     cdef PJLIB _pjlib
     cdef PJCachingPool _caching_pool
     cdef PJSIPEndpoint _pjsip_endpoint
@@ -30,7 +86,6 @@ cdef class PJSIPUA:
     cdef PJSTR _user_agent
     cdef object _events
     cdef object _sent_messages
-    cdef pj_time_val _max_timeout
     cdef int _rtp_port_start
     cdef int _rtp_port_stop
     cdef int _rtp_port_index
@@ -45,12 +100,11 @@ cdef class PJSIPUA:
             raise SIPCoreError("Can only have one PJSUPUA instance at the same time")
         _ua = <void *> self
         self._threads = []
+        self._timers = list()
         self._events = {}
         self._incoming_events = set()
         self._incoming_requests = set()
         self._sent_messages = set()
-        self._max_timeout.sec = 0
-        self._max_timeout.msec = 100
 
     def __init__(self, event_handler, *args, **kwargs):
         global _event_queue_lock
@@ -520,9 +574,21 @@ cdef class PJSIPUA:
         global _post_poll_handler_queue
         cdef int status
         cdef object retval = None
+        cdef float max_timeout
+        cdef pj_time_val pj_max_timeout
+        cdef list timers
+        cdef int processed_timers
+        cdef Timer timer
         self._check_self()
+        if self._timers:
+            max_timeout = min(max((<Timer>self._timers[0]).schedule_time - time.time(), 0.001), 0.100)
+            pj_max_timeout.sec = int(max_timeout)
+            pj_max_timeout.msec = int(max_timeout * 1000) % 1000
+        else:
+            pj_max_timeout.sec = 0
+            pj_max_timeout.msec = 100
         with nogil:
-            status = pjsip_endpt_handle_events(self._pjsip_endpoint._obj, &self._max_timeout)
+            status = pjsip_endpt_handle_events(self._pjsip_endpoint._obj, &pj_max_timeout)
         IF UNAME_SYSNAME == "Darwin":
             if status not in [0, PJ_ERRNO_START_SYS + EBADF]:
                 raise PJSIPError("Error while handling events", status)
@@ -530,6 +596,18 @@ cdef class PJSIPUA:
             if status != 0:
                 raise PJSIPError("Error while handling events", status)
         _process_handler_queue(self, &_post_poll_handler_queue)
+        timers = list()
+        processed_timers = 0
+        while processed_timers < len(self._timers):
+            timer = <Timer> self._timers[processed_timers]
+            if timer.schedule_time - time.time() > 0.001:
+                break
+            timers.append(timer)
+            processed_timers += 1
+        if processed_timers > 0:
+            del self._timers[:processed_timers]
+            for timer in timers:
+                timer.call()
         self._poll_log()
         if self._fatal_error:
             return True
@@ -557,6 +635,25 @@ cdef class PJSIPUA:
     cdef int _check_thread(self) except -1:
         if not pj_thread_is_registered():
             self._threads.append(PJSIPThread())
+        return 0
+
+    cdef int _add_timer(self, Timer timer) except -1:
+        cdef int low
+        cdef int mid
+        cdef int high
+        low = 0
+        high = len(self._timers)
+        while low < high:
+            mid = (low+high)/2
+            if timer < self._timers[mid]:
+                high = mid
+            else:
+                low = mid+1
+        self._timers.insert(low, timer)
+        return 0
+
+    cdef int _remove_timer(self, Timer timer) except -1:
+        self._timers.remove(timer)
         return 0
 
     cdef int _cb_rx_request(self, pjsip_rx_data *rdata) except 0:
