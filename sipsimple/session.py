@@ -670,6 +670,8 @@ class Session(object):
                     if notification.data.succeeded:
                         local_sdp = notification.data.local_sdp
                         remote_sdp = notification.data.remote_sdp
+                        for s in self.streams:
+                            s.update(local_sdp, remote_sdp, s.index)
                     else:
                         self._fail_proposal(originator='local', error='SDP negotiation failed: %s' % notification.data.error)
                         return
@@ -1009,6 +1011,8 @@ class Session(object):
         for stream in self.proposed_streams:
             notification_center.remove_observer(self, sender=stream)
             stream.end()
+        if self._invitation.state == 'disconnected':
+            return
         if originator == 'remote' and self._invitation.sub_state != 'normal':
             self._invitation.send_response(500)
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received='unknown'))
