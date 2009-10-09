@@ -27,6 +27,8 @@ cdef extern from "Python.h":
     void Py_DECREF(object obj)
     object PyString_FromStringAndSize(char *v, int len)
     char* PyString_AsString(object string) except NULL
+    void* PyLong_AsVoidPtr(object)
+    object PyLong_FromVoidPtr(void*)
     double PyFloat_AsDouble(object)
     void PyEval_InitThreads()
 
@@ -107,6 +109,7 @@ cdef extern from "pjlib.h":
     struct pj_mutex_t
     struct pj_thread_t
     int pj_mutex_create_simple(pj_pool_t *pool, char *name, pj_mutex_t **mutex) nogil
+    int pj_mutex_create_recursive(pj_pool_t *pool, char *name, pj_mutex_t **mutex) nogil
     int pj_mutex_lock(pj_mutex_t *mutex) nogil
     int pj_mutex_unlock(pj_mutex_t *mutex) nogil
     int pj_mutex_destroy(pj_mutex_t *mutex) nogil
@@ -978,9 +981,6 @@ cdef class ConferenceBridge
 cdef class ToneGenerator
 cdef class RecordingWaveFile
 cdef class WaveFile
-cdef int _ConferenceBridge_stop_sound_post(object obj) except -1
-cdef int _ConferenceBridge_dealloc_handler(object obj) except -1
-cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 
 # core.helper
@@ -1081,6 +1081,7 @@ cdef int _cb_trace_tx(pjsip_tx_data *tdata) with gil
 cdef int _cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil
 cdef int _cb_add_server_hdr(pjsip_tx_data *tdata) with gil
 cdef PJSIPUA _get_ua()
+cdef int deallocate_weakref(object weak_ref, object timer) except -1 with gil
 
 # core.event
 
@@ -1125,8 +1126,6 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
                                      pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
 cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
-cdef int _Invitation_cb_fail_post(object obj) except -1
-cdef void _Invitation_cb_disconnect_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 
 # core.sdp
 
@@ -1157,6 +1156,5 @@ cdef class RTPTransport
 cdef class AudioTransport
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
-cdef void _AudioTransport_cb_check_rtp(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 cdef dict _pj_math_stat_to_dict(pj_math_stat *stat)
 cdef dict _pjmedia_rtcp_stream_stat_to_dict(pjmedia_rtcp_stream_stat *stream_stat)

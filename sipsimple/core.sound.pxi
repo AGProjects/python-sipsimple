@@ -5,26 +5,26 @@
 
 cdef class ConferenceBridge:
     # instance attributes
-    cdef pjmedia_conf *_obj
-    cdef pj_pool_t *_conf_pool
-    cdef pjmedia_snd_port *_snd
-    cdef pj_pool_t *_snd_pool
-    cdef pjmedia_port *_null_port
-    cdef pjmedia_master_port *_master_port
-    cdef readonly str input_device
-    cdef readonly str output_device
-    cdef readonly str real_input_device
-    cdef readonly str real_output_device
-    cdef readonly int sample_rate
-    cdef readonly int ec_tail_length
-    cdef readonly int slot_count
     cdef int _disconnect_when_idle
     cdef int _input_volume
     cdef int _output_volume
     cdef bint _muted
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_conf_pool
+    cdef pj_pool_t *_snd_pool
+    cdef pjmedia_conf *_obj
+    cdef pjmedia_master_port *_master_port
+    cdef pjmedia_port *_null_port
+    cdef pjmedia_snd_port *_snd
     cdef list _connected_slots
+    cdef readonly int ec_tail_length
+    cdef readonly int sample_rate
+    cdef readonly int slot_count
     cdef readonly int used_slot_count
-    cdef int _is_muted
+    cdef readonly str input_device
+    cdef readonly str output_device
+    cdef readonly str real_input_device
+    cdef readonly str real_output_device
 
     # properties
 
@@ -35,20 +35,37 @@ cdef class ConferenceBridge:
 
         def __set__(self, int value):
             cdef int status
+            cdef int volume
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_conf *conf_bridge
             cdef PJSIPUA ua
+
             try:
                 ua = _get_ua()
             except SIPCoreError:
                 pass
-            if value < 0:
-                raise ValueError("input_volume attribute cannot be negative")
-            if ua is not None:
-                status = pjmedia_conf_adjust_rx_level(self._obj, 0, int(value * 1.28 - 128))
-                if status != 0:
-                    raise PJSIPError("Could not set input volume of sound device", status)
-            if value > 0 and self._muted:
-                self._muted = False
-            self._input_volume = value
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                conf_bridge = self._obj
+
+                if value < 0:
+                    raise ValueError("input_volume attribute cannot be negative")
+                if ua is not None:
+                    volume = int(value * 1.28 - 128)
+                    with nogil:
+                        status = pjmedia_conf_adjust_rx_level(conf_bridge, 0, volume)
+                    if status != 0:
+                        raise PJSIPError("Could not set input volume of sound device", status)
+                if value > 0 and self._muted:
+                    self._muted = False
+                self._input_volume = value
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
 
     property output_volume:
 
@@ -57,18 +74,35 @@ cdef class ConferenceBridge:
 
         def __set__(self, int value):
             cdef int status
+            cdef int volume
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_conf *conf_bridge
             cdef PJSIPUA ua
+
             try:
                 ua = _get_ua()
             except SIPCoreError:
                 pass
-            if value < 0:
-                raise ValueError("output_volume attribute cannot be negative")
-            if ua is not None:
-                status = pjmedia_conf_adjust_tx_level(self._obj, 0, int(value * 1.28 - 128))
-                if status != 0:
-                    raise PJSIPError("Could not set output volume of sound device", status)
-            self._output_volume = value
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                conf_bridge = self._obj
+
+                if value < 0:
+                    raise ValueError("output_volume attribute cannot be negative")
+                if ua is not None:
+                    volume = int(value * 1.28 - 128)
+                    with nogil:
+                        status = pjmedia_conf_adjust_tx_level(conf_bridge, 0, volume)
+                    if status != 0:
+                        raise PJSIPError("Could not set output volume of sound device", status)
+                self._output_volume = value
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
 
     property muted:
 
@@ -76,21 +110,39 @@ cdef class ConferenceBridge:
             return self._muted
 
         def __set__(self, bint muted):
+            cdef int status
+            cdef int volume
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_conf *conf_bridge
             cdef PJSIPUA ua
+
             try:
                 ua = _get_ua()
             except SIPCoreError:
                 pass
-            if muted == self._muted:
-                return
-            if ua is not None:
-                if muted:
-                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, -128)
-                else:
-                    status = pjmedia_conf_adjust_rx_level(self._obj, 0, int(self._input_volume * 1.28 - 128))
-                if status != 0:
-                    raise PJSIPError("Could not set input volume of sound device", status)
-            self._muted = muted
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                conf_bridge = self._obj
+
+                if muted == self._muted:
+                    return
+                if ua is not None:
+                    if muted:
+                        volume = -128
+                    else:
+                        volume = int(self._input_volume * 1.28 - 128)
+                    with nogil:
+                        status = pjmedia_conf_adjust_rx_level(conf_bridge, 0, volume)
+                    if status != 0:
+                        raise PJSIPError("Could not set input volume of sound device", status)
+                self._muted = muted
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
 
     property connected_slots:
 
@@ -100,20 +152,29 @@ cdef class ConferenceBridge:
     # public methods
 
     def __cinit__(self, *args, **kwargs):
+        self._connected_slots = list()
         IF UNAME_SYSNAME == "Darwin":
             self._disconnect_when_idle = 1
         ELSE:
             self._disconnect_when_idle = 0
         self._input_volume = 100
         self._output_volume = 100
-        self._connected_slots = list()
+        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "conference_bridge_lock", &self._lock)
 
     def __init__(self, str input_device, str output_device, int sample_rate,
                  int ec_tail_length=200, int slot_count=254):
         global _dealloc_handler_queue
-        cdef str conf_pool_name
         cdef int status
-        cdef PJSIPUA ua = _get_ua()
+        cdef pj_pool_t *pool
+        cdef pjmedia_conf **conf_bridge_address
+        cdef pjsip_endpoint *endpoint
+        cdef str conf_pool_name
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+        conf_bridge_address = &self._obj
+        endpoint = ua._pjsip_endpoint._obj
+
         if self._obj != NULL:
             raise SIPCoreError("ConferenceBridge.__init__() was already called")
         if sample_rate <= 0:
@@ -127,11 +188,14 @@ cdef class ConferenceBridge:
         self.sample_rate = sample_rate
         self.slot_count = slot_count
         conf_pool_name = "ConferenceBridge_%d" % id(self)
-        self._conf_pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, conf_pool_name, 4096, 4096)
-        if self._conf_pool == NULL:
+        with nogil:
+            pool = pjsip_endpt_create_pool(endpoint, conf_pool_name, 4096, 4096)
+        if pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
-        status = pjmedia_conf_create(self._conf_pool, slot_count+1, sample_rate, 1,
-                                     sample_rate / 50, 16, PJMEDIA_CONF_NO_DEVICE, &self._obj)
+        self._conf_pool = pool
+        with nogil:
+            status = pjmedia_conf_create(pool, slot_count+1, sample_rate, 1,
+                                         sample_rate / 50, 16, PJMEDIA_CONF_NO_DEVICE, conf_bridge_address)
         if status != 0:
             raise PJSIPError("Could not create conference bridge", status)
         self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
@@ -142,83 +206,150 @@ cdef class ConferenceBridge:
     def __dealloc__(self):
         global _dealloc_handler_queue
         cdef PJSIPUA ua
+        cdef pjmedia_conf *conf_bridge
+        cdef pjsip_endpoint *endpoint
+        cdef pj_pool_t *pool
+
         _remove_handler(self, &_dealloc_handler_queue)
+
         try:
             ua = _get_ua()
         except:
             return
+        conf_bridge = self._obj
+        endpoint = ua._pjsip_endpoint._obj
+        pool = self._conf_pool
+
         self._stop_sound_device(ua)
         if self._obj != NULL:
-            pjmedia_conf_destroy(self._obj)
+            with nogil:
+                pjmedia_conf_destroy(conf_bridge)
             self._obj = NULL
         if self._conf_pool != NULL:
-            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._conf_pool)
+            with nogil:
+                pjsip_endpt_release_pool(endpoint, pool)
             self._conf_pool = NULL
 
+        pj_mutex_destroy(self._lock)
+
     def set_sound_devices(self, str input_device, str output_device, int ec_tail_length):
-        cdef PJSIPUA ua = _get_ua()
-        if ec_tail_length < 0:
-            raise ValueError("ec_tail_length argument cannot be negative")
-        if (input_device == self.input_device and output_device == self.output_device and
-            ec_tail_length == self.ec_tail_length):
-            return
-        self._stop_sound_device(ua)
-        self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
-        if (self._disconnect_when_idle and self.used_slot_count == 0 and not
-            (input_device is None and output_device is None)):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if ec_tail_length < 0:
+                raise ValueError("ec_tail_length argument cannot be negative")
+            if (input_device == self.input_device and output_device == self.output_device and
+                ec_tail_length == self.ec_tail_length):
+                return
             self._stop_sound_device(ua)
+            self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
+            if (self._disconnect_when_idle and self.used_slot_count == 0 and not
+                (input_device is None and output_device is None)):
+                self._stop_sound_device(ua)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     def connect_slots(self, int src_slot, int dst_slot):
-        cdef tuple connection
         cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_conf *conf_bridge
+        cdef tuple connection
         cdef PJSIPUA ua
-        try:
-            ua = _get_ua()
-        except SIPCoreError:
-            pass
-        if src_slot < 0:
-            raise ValueError("src_slot argument cannot be negative")
-        if dst_slot < 0:
-            raise ValueError("d_slot argument cannot be negative")
-        connection = (src_slot, dst_slot)
-        if connection in self._connected_slots:
-            return
-        status = pjmedia_conf_connect_port(self._obj, src_slot, dst_slot, 0)
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
         if status != 0:
-            raise PJSIPError("Could not connect slots on conference bridge", status)
-        self._connected_slots.append(connection)
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            conf_bridge = self._obj
+
+            if src_slot < 0:
+                raise ValueError("src_slot argument cannot be negative")
+            if dst_slot < 0:
+                raise ValueError("d_slot argument cannot be negative")
+            connection = (src_slot, dst_slot)
+            if connection in self._connected_slots:
+                return
+            with nogil:
+                status = pjmedia_conf_connect_port(conf_bridge, src_slot, dst_slot, 0)
+            if status != 0:
+                raise PJSIPError("Could not connect slots on conference bridge", status)
+            self._connected_slots.append(connection)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     def disconnect_slots(self, int src_slot, int dst_slot):
-        cdef tuple connection
         cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_conf *conf_bridge
+        cdef tuple connection
         cdef PJSIPUA ua
-        try:
-            ua = _get_ua()
-        except SIPCoreError:
-            pass
-        if src_slot < 0:
-            raise ValueError("src_slot argument cannot be negative")
-        if dst_slot < 0:
-            raise ValueError("d_slot argument cannot be negative")
-        connection = (src_slot, dst_slot)
-        if connection not in self._connected_slots:
-            return
-        status = pjmedia_conf_disconnect_port(self._obj, src_slot, dst_slot)
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
         if status != 0:
-            raise PJSIPError("Could not disconnect slots on conference bridge", status)
-        self._connected_slots.remove(connection)
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            conf_bridge = self._obj
+
+            if src_slot < 0:
+                raise ValueError("src_slot argument cannot be negative")
+            if dst_slot < 0:
+                raise ValueError("d_slot argument cannot be negative")
+            connection = (src_slot, dst_slot)
+            if connection not in self._connected_slots:
+                return
+            with nogil:
+                status = pjmedia_conf_disconnect_port(conf_bridge, src_slot, dst_slot)
+            if status != 0:
+                raise PJSIPError("Could not disconnect slots on conference bridge", status)
+            self._connected_slots.remove(connection)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     # private methods
 
     cdef int _start_sound_device(self, PJSIPUA ua, str input_device, str output_device,
                                  int ec_tail_length, int revert_to_default) except -1:
+        cdef int i
         cdef int input_device_i = -2
         cdef int output_device_i = -2
-        cdef int i
-        cdef pjmedia_snd_stream_info snd_info
-        cdef pjmedia_snd_dev_info_ptr_const dev_info
-        cdef str sound_pool_name
+        cdef int sample_rate = self.sample_rate
         cdef int status
+        cdef pj_pool_t *conf_pool
+        cdef pj_pool_t *snd_pool
+        cdef pjmedia_conf *conf_bridge
+        cdef pjmedia_master_port **master_port_address
+        cdef pjmedia_port **null_port_address
+        cdef pjmedia_snd_dev_info_ptr_const dev_info
+        cdef pjmedia_snd_port **snd_port_address
+        cdef pjmedia_snd_stream_info snd_info
+        cdef pjsip_endpoint *endpoint
+        cdef str sound_pool_name
+
+        conf_bridge = self._obj
+        conf_pool = self._conf_pool
+        endpoint = ua._pjsip_endpoint._obj
+        master_port_address = &self._master_port
+        null_port_address = &self._null_port
+        sample_rate = self.sample_rate
+        snd_port_address = &self._snd
+
         if input_device == "system_default":
             input_device_i = -1
         if output_device == "system_default":
@@ -244,60 +375,75 @@ cdef class ConferenceBridge:
                 else:
                     raise SIPCoreError('Audio output device "%s" not found' % output_device)
         if input_device is None and output_device is None:
-            status = pjmedia_null_port_create(self._conf_pool, self.sample_rate, 1,
-                                              self.sample_rate / 50, 16, &self._null_port)
+            with nogil:
+                status = pjmedia_null_port_create(conf_pool, sample_rate, 1,
+                                                  sample_rate / 50, 16, null_port_address)
             if status != 0:
                 raise PJSIPError("Could not create dummy audio port", status)
-            status = pjmedia_master_port_create(self._conf_pool, self._null_port,
-                                                pjmedia_conf_get_master_port(self._obj), 0, &self._master_port)
+            with nogil:
+                status = pjmedia_master_port_create(conf_pool, null_port_address[0],
+                                                    pjmedia_conf_get_master_port(conf_bridge), 0, master_port_address)
             if status != 0:
                 raise PJSIPError("Could not create master port for dummy sound device", status)
-            status = pjmedia_master_port_start(self._master_port)
+            with nogil:
+                status = pjmedia_master_port_start(master_port_address[0])
             if status != 0:
                 raise PJSIPError("Could not start master port for dummy sound device", status)
         else:
             snd_pool_name = "ConferenceBridge_snd_%d" % id(self)
-            self._snd_pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, snd_pool_name, 4096, 4096)
-            if self._snd_pool == NULL:
+            with nogil:
+                snd_pool = pjsip_endpt_create_pool(endpoint, snd_pool_name, 4096, 4096)
+            if snd_pool == NULL:
                 raise SIPCoreError("Could not allocate memory pool")
+            self._snd_pool = snd_pool
             if input_device is None:
-                status = pjmedia_snd_port_create_player(self._snd_pool, output_device_i, self.sample_rate,
-                                                        1, self.sample_rate / 50, 16, 0, &self._snd)
+                with nogil:
+                    status = pjmedia_snd_port_create_player(snd_pool, output_device_i, sample_rate,
+                                                            1, sample_rate / 50, 16, 0, snd_port_address)
             elif output_device is None:
-                status = pjmedia_snd_port_create_rec(self._snd_pool, input_device_i, self.sample_rate,
-                                                     1, self.sample_rate / 50, 16, 0, &self._snd)
+                with nogil:
+                    status = pjmedia_snd_port_create_rec(snd_pool, input_device_i, sample_rate,
+                                                         1, sample_rate / 50, 16, 0, snd_port_address)
             else:
-                status = pjmedia_snd_port_create(self._snd_pool, input_device_i, output_device_i,
-                                                 self.sample_rate, 1, self.sample_rate / 50, 16, 0, &self._snd)
+                with nogil:
+                    status = pjmedia_snd_port_create(snd_pool, input_device_i, output_device_i,
+                                                     sample_rate, 1, sample_rate / 50, 16, 0, snd_port_address)
             if status == PJMEDIA_ENOSNDPLAY:
-                pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
+                with nogil:
+                    pjsip_endpt_release_pool(endpoint, snd_pool)
                 self._snd_pool = NULL
                 return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
             elif status == PJMEDIA_ENOSNDREC:
-                pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
+                with nogil:
+                    pjsip_endpt_release_pool(endpoint, snd_pool)
                 self._snd_pool = NULL
                 return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
             elif status != 0:
                 raise PJSIPError("Could not create sound device", status)
             if input_device is not None and output_device is not None:
-                status = pjmedia_snd_port_set_ec(self._snd, self._snd_pool, ec_tail_length, 0)
+                with nogil:
+                    status = pjmedia_snd_port_set_ec(snd_port_address[0], snd_pool, ec_tail_length, 0)
                 if status != 0:
                     self._stop_sound_device(ua)
                     raise PJSIPError("Could not set echo cancellation", status)
-            status = pjmedia_snd_port_connect(self._snd, pjmedia_conf_get_master_port(self._obj))
+            with nogil:
+                status = pjmedia_snd_port_connect(snd_port_address[0], pjmedia_conf_get_master_port(conf_bridge))
             if status != 0:
                 self._stop_sound_device(ua)
                 raise PJSIPError("Could not connect sound device", status)
             if input_device_i == -1 or output_device_i == -1:
-                status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(self._snd), &snd_info)
+                with nogil:
+                    status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(snd_port_address[0]), &snd_info)
                 if status != 0:
                     self._stop_sound_device(ua)
                     raise PJSIPError("Could not get sounds device info", status)
                 if input_device_i == -1:
-                    dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
+                    with nogil:
+                        dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
                     self.real_input_device = dev_info.name
                 if output_device_i == -1:
-                    dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
+                    with nogil:
+                        dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
                     self.real_output_device = dev_info.name
         if input_device_i != -1:
             self.real_input_device = input_device
@@ -309,59 +455,122 @@ cdef class ConferenceBridge:
         return 0
 
     cdef int _stop_sound_device(self, PJSIPUA ua) except -1:
+        cdef pj_pool_t *snd_pool
+        cdef pjmedia_master_port *master_port
+        cdef pjmedia_port *null_port
+        cdef pjmedia_snd_port *snd_port
+        cdef pjsip_endpoint *endpoint
+
+        endpoint = ua._pjsip_endpoint._obj
+        master_port = self._master_port
+        null_port = self._null_port
+        snd_pool = self._snd_pool
+        snd_port = self._snd
+
         if self._snd != NULL:
-            pjmedia_snd_port_destroy(self._snd)
+            with nogil:
+                pjmedia_snd_port_destroy(snd_port)
             self._snd = NULL
         if self._snd_pool != NULL:
-            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._snd_pool)
+            with nogil:
+                pjsip_endpt_release_pool(endpoint, snd_pool)
             self._snd_pool = NULL
         if self._master_port != NULL:
-            pjmedia_master_port_destroy(self._master_port, 0)
+            with nogil:
+                pjmedia_master_port_destroy(master_port, 0)
             self._master_port = NULL
         if self._null_port != NULL:
-            pjmedia_port_destroy(self._null_port)
+            with nogil:
+                pjmedia_port_destroy(null_port)
             self._null_port = NULL
         return 0
 
-    cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1:
-        cdef unsigned int slot
+    cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1 with gil:
         cdef int input_device_i
         cdef int output_device_i
+        cdef unsigned int slot
         cdef int status
-        status = pjmedia_conf_add_port(self._obj, pool, port, NULL, &slot)
-        if status != 0:
-            raise PJSIPError("Could not add audio object to conference bridge", status)
-        self.used_slot_count += 1
-        if (self.used_slot_count == 1 and self._disconnect_when_idle and
-            not (self.input_device is None and self.output_device is None) and
-            self._snd == NULL):
-            self._start_sound_device(ua, self.input_device, self.output_device, self.ec_tail_length, 1)
-        return slot
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_conf* conf_bridge
 
-    cdef int _remove_port(self, PJSIPUA ua, unsigned int slot) except -1:
-        global _post_poll_handler_queue
-        cdef int status
-        cdef tuple connection
-        status = pjmedia_conf_remove_port(self._obj, slot)
+        with nogil:
+            status = pj_mutex_lock(lock)
         if status != 0:
-            raise PJSIPError("Could not remove audio object from conference bridge", status)
-        self._connected_slots = [connection for connection in self._connected_slots if slot not in connection]
-        self.used_slot_count -= 1
-        if (self.used_slot_count == 0 and self._disconnect_when_idle and
-            not (self.input_device is None and self.output_device is None)):
-            _add_handler(_ConferenceBridge_stop_sound_post, self, &_post_poll_handler_queue)
-        return 0
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            conf_bridge = self._obj
+
+            with nogil:
+                status = pjmedia_conf_add_port(conf_bridge, pool, port, NULL, &slot)
+            if status != 0:
+                raise PJSIPError("Could not add audio object to conference bridge", status)
+            self.used_slot_count += 1
+            if (self.used_slot_count == 1 and self._disconnect_when_idle and
+                not (self.input_device is None and self.output_device is None) and
+                self._snd == NULL):
+                self._start_sound_device(ua, self.input_device, self.output_device, self.ec_tail_length, 1)
+            return slot
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    cdef int _remove_port(self, PJSIPUA ua, unsigned int slot) except -1 with gil:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_conf* conf_bridge
+        cdef tuple connection
+        cdef Timer timer
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            conf_bridge = self._obj
+
+            with nogil:
+                status = pjmedia_conf_remove_port(conf_bridge, slot)
+            if status != 0:
+                raise PJSIPError("Could not remove audio object from conference bridge", status)
+            self._connected_slots = [connection for connection in self._connected_slots if slot not in connection]
+            self.used_slot_count -= 1
+            if (self.used_slot_count == 0 and self._disconnect_when_idle and
+                not (self.input_device is None and self.output_device is None)):
+                timer = Timer()
+                timer.schedule(0, <timer_callback>self._cb_postpoll_stop_sound, self)
+            return 0
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    cdef int _cb_postpoll_stop_sound(self, timer) except -1:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self.used_slot_count == 0:
+                self._stop_sound_device(ua)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
 
 cdef class ToneGenerator:
     # instance attributes
-    cdef pjmedia_port *_obj
-    cdef pj_pool_t *_pool
-    cdef readonly ConferenceBridge conference_bridge
     cdef int _slot
     cdef int _volume
-    cdef pj_timer_entry _timer
-    cdef int _timer_active
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_port *_obj
+    cdef Timer _timer
+    cdef readonly ConferenceBridge conference_bridge
 
     # properties
 
@@ -371,20 +580,42 @@ cdef class ToneGenerator:
             return self._volume
 
         def __set__(self, value):
+            cdef int slot
+            cdef int volume
             cdef int status
-            cdef PJSIPUA ua = self._get_ua(0)
-            if value < 0:
-                raise ValueError("volume attribute cannot be negative")
-            if ua is not None and self._slot != -1:
-                status = pjmedia_conf_adjust_rx_level(self.conference_bridge._obj, self._slot, int(value * 1.28 - 128))
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_conf *conf_bridge
+            cdef PJSIPUA ua
+
+            ua = self._get_ua(0)
+
+            if ua is not None:
+                with nogil:
+                    status = pj_mutex_lock(lock)
                 if status != 0:
-                    raise PJSIPError("Could not set volume of tone generator", status)
-            self._volume = value
+                    raise PJSIPError("failed to acquire lock", status)
+            try:
+                conf_bridge = self.conference_bridge._obj
+                slot = self._slot
+
+                if value < 0:
+                    raise ValueError("volume attribute cannot be negative")
+                if ua is not None and self._slot != -1:
+                    volume = int(value * 1.28 - 128)
+                    with nogil:
+                        status = pjmedia_conf_adjust_rx_level(conf_bridge, slot, volume)
+                    if status != 0:
+                        raise PJSIPError("Could not set volume of tone generator", status)
+                self._volume = value
+            finally:
+                if ua is not None:
+                    with nogil:
+                        pj_mutex_unlock(lock)
 
     property slot:
 
         def __get__(self):
-            cdef PJSIPUA ua = self._get_ua(0)
+            self._get_ua(0)
             if self._slot == -1:
                 return None
             else:
@@ -393,110 +624,228 @@ cdef class ToneGenerator:
     property is_active:
 
         def __get__(self):
-            cdef PJSIPUA ua = self._get_ua(0)
+            self._get_ua(0)
             return bool(self._slot != -1)
 
     property is_busy:
 
         def __get__(self):
-            cdef PJSIPUA ua = self._get_ua(0)
-            if self._obj == NULL:
+            cdef int status
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_port *port
+            cdef PJSIPUA ua
+
+            ua = self._get_ua(0)
+            if ua is None:
                 return False
-            return bool(pjmedia_tonegen_is_busy(self._obj))
+
+            with nogil:
+                status = pj_mutex_lock(lock)
+            if status != 0:
+                raise PJSIPError("failed to acquire lock", status)
+            try:
+                port = self._obj
+
+                if self._obj == NULL:
+                    return False
+                with nogil:
+                    status = pjmedia_tonegen_is_busy(port)
+                return bool(status)
+            finally:
+                with nogil:
+                    pj_mutex_unlock(lock)
 
     # public methods
 
     def __cinit__(self, *args, **kwargs):
+        cdef pj_pool_t *pool
+        cdef pjsip_endpoint *endpoint
         cdef str pool_name
-        cdef PJSIPUA ua = _get_ua()
-        self._volume = 100
-        self._slot = -1
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+        endpoint = ua._pjsip_endpoint._obj
+
+        pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "tone_generator_lock", &self._lock)
         pool_name = "ToneGenerator_%d" % id(self)
-        pj_timer_entry_init(&self._timer, 0, <void *> self, _ToneGenerator_cb_check_done)
-        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
-        if self._pool == NULL:
+        with nogil:
+            pool = pjsip_endpt_create_pool(endpoint, pool_name, 4096, 4096)
+        if pool == NULL:
             raise SIPCoreError("Could not allocate memory pool")
+        self._pool = pool
+        self._slot = -1
+        self._timer = None
+        self._volume = 100
 
     def __init__(self, ConferenceBridge conference_bridge):
+        cdef int sample_rate
         cdef int status
-        cdef PJSIPUA ua = _get_ua()
+        cdef pj_pool_t *pool
+        cdef pjmedia_port **port_address
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+        pool = self._pool
+        port_address = &self._obj
+        sample_rate = conference_bridge.sample_rate
+
         if self._obj != NULL:
             raise SIPCoreError("ToneGenerator.__init__() was already called")
         if conference_bridge is None:
             raise ValueError("conference_bridge argument may not be None")
         self.conference_bridge = conference_bridge
-        status = pjmedia_tonegen_create(self._pool, conference_bridge.sample_rate, 1,
-                                        conference_bridge.sample_rate / 50, 16, 0, &self._obj)
+        with nogil:
+            status = pjmedia_tonegen_create(pool, sample_rate, 1,
+                                            sample_rate / 50, 16, 0, port_address)
         if status != 0:
             raise PJSIPError("Could not create tone generator", status)
 
     def start(self):
-        cdef PJSIPUA ua = self._get_ua(1)
-        if self._slot != -1:
-            return
-        self._slot = self.conference_bridge._add_port(ua, self._pool, self._obj)
-        if self._volume != 100:
-            self.volume = self._volume
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._get_ua(1)
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self._slot != -1:
+                return
+            self._slot = self.conference_bridge._add_port(ua, self._pool, self._obj)
+            if self._volume != 100:
+                self.volume = self._volume
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     def stop(self):
-        cdef PJSIPUA ua = self._get_ua(0)
-        if self._slot == -1:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._get_ua(0)
+        if ua is None:
             return
-        self._stop(ua)
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self._slot == -1:
+                return
+            self._stop(ua)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     def __dealloc__(self):
-        cdef PJSIPUA ua = self._get_ua(0)
+        cdef pj_pool_t *pool
+        cdef pjmedia_port *port
+        cdef pjsip_endpoint *endpoint
+        cdef PJSIPUA ua
+
+        ua = self._get_ua(0)
+        if ua is None:
+            return
+        endpoint = ua._pjsip_endpoint._obj
+        pool = self._pool
+        port = self._obj
+
         self._stop(ua)
         if self._obj != NULL:
-            pjmedia_tonegen_stop(self._obj)
+            with nogil:
+                pjmedia_tonegen_stop(port)
             self._obj = NULL
         if self._pool != NULL:
-            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
+            with nogil:
+                pjsip_endpt_release_pool(endpoint, pool)
             self._pool = NULL
 
+        pj_mutex_destroy(self._lock)
+
     def play_tones(self, object tones):
-        cdef int freq1, freq2, duration
-        cdef pjmedia_tone_desc tones_arr[PJMEDIA_TONEGEN_MAX_DIGITS]
         cdef unsigned int count = 0
+        cdef int duration
+        cdef int freq1
+        cdef int freq2
         cdef int status
-        cdef PJSIPUA ua = self._get_ua(1)
-        if self._slot == -1:
-            raise SIPCoreError("ToneGenerator has not yet been started")
-        for freq1, freq2, duration in tones:
-            if freq1 == 0 and count > 0:
-                tones_arr[count-1].off_msec += duration
-            else:
-                if count >= PJMEDIA_TONEGEN_MAX_DIGITS:
-                    raise SIPCoreError("Too many tones")
-                tones_arr[count].freq1 = freq1
-                tones_arr[count].freq2 = freq2
-                tones_arr[count].on_msec = duration
-                tones_arr[count].off_msec = 0
-                tones_arr[count].volume = 0
-                tones_arr[count].flags = 0
-                count += 1
-        if count > 0:
-            status = pjmedia_tonegen_play(self._obj, count, tones_arr, 0)
-            if status != 0 and status != PJ_ETOOMANY:
-                raise PJSIPError("Could not playback tones", status)
-        if not self._timer_active:
-            self._start_timer(ua)
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_port *port
+        cdef pjmedia_tone_desc tones_arr[PJMEDIA_TONEGEN_MAX_DIGITS]
+        cdef PJSIPUA ua
+
+        ua = self._get_ua(1)
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            port = self._obj
+
+            if self._slot == -1:
+                raise SIPCoreError("ToneGenerator has not yet been started")
+            for freq1, freq2, duration in tones:
+                if freq1 == 0 and count > 0:
+                    tones_arr[count-1].off_msec += duration
+                else:
+                    if count >= PJMEDIA_TONEGEN_MAX_DIGITS:
+                        raise SIPCoreError("Too many tones")
+                    tones_arr[count].freq1 = freq1
+                    tones_arr[count].freq2 = freq2
+                    tones_arr[count].on_msec = duration
+                    tones_arr[count].off_msec = 0
+                    tones_arr[count].volume = 0
+                    tones_arr[count].flags = 0
+                    count += 1
+            if count > 0:
+                with nogil:
+                    status = pjmedia_tonegen_play(port, count, tones_arr, 0)
+                if status != 0 and status != PJ_ETOOMANY:
+                    raise PJSIPError("Could not playback tones", status)
+            if self._timer is None:
+                self._timer = Timer()
+                self._timer.schedule(0.250, <timer_callback>self._cb_check_done, self)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     def play_dtmf(self, str digit):
-        cdef pjmedia_tone_digit tone
         cdef int status
-        cdef PJSIPUA ua = self._get_ua(1)
-        if self._slot == -1:
-            raise SIPCoreError("ToneGenerator has not yet been started")
-        tone.digit = ord(digit)
-        tone.on_msec = 200
-        tone.off_msec = 50
-        tone.volume = 0
-        status = pjmedia_tonegen_play_digits(self._obj, 1, &tone, 0)
-        if status != 0 and status != PJ_ETOOMANY:
-            raise PJSIPError("Could not playback DTMF tone", status)
-        if not self._timer_active:
-            self._start_timer(ua)
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_port *port
+        cdef pjmedia_tone_digit tone
+        cdef PJSIPUA ua
+
+        ua = self._get_ua(1)
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            port = self._obj
+
+            if self._slot == -1:
+                raise SIPCoreError("ToneGenerator has not yet been started")
+            tone.digit = ord(digit)
+            tone.on_msec = 200
+            tone.off_msec = 50
+            tone.volume = 0
+            with nogil:
+                status = pjmedia_tonegen_play_digits(port, 1, &tone, 0)
+            if status != 0 and status != PJ_ETOOMANY:
+                raise PJSIPError("Could not playback DTMF tone", status)
+            if self._timer is None:
+                self._timer = Timer()
+                self._timer.schedule(0.250, <timer_callback>self._cb_check_done, self)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     # private methods
 
@@ -508,7 +857,7 @@ cdef class ToneGenerator:
             self._obj = NULL
             self._pool = NULL
             self._slot = -1
-            self._timer_active = 0
+            self._timer = None
             if raise_exception:
                 raise
             else:
@@ -516,36 +865,51 @@ cdef class ToneGenerator:
         else:
             return ua
 
-    cdef int _start_timer(self, PJSIPUA ua) except -1:
-        cdef pj_time_val timeout
-        cdef int status
-        timeout.sec = 0
-        timeout.msec = 250
-        status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout)
-        if status != 0:
-            raise PJSIPError("Could not set completion check timer", status)
-        self._timer_active = 1
-        return 0
-
     cdef int _stop(self, PJSIPUA ua) except -1:
-        if self._timer_active:
-            pjsip_endpt_cancel_timer(ua._pjsip_endpoint._obj, &self._timer)
-            self._timer_active = 0
+        if self._timer is not None:
+            self._timer.cancel()
+            self._timer = None
         if self._slot != -1:
             self.conference_bridge._remove_port(ua, self._slot)
             self._slot = -1
         return 0
 
+    cdef int _cb_check_done(self, timer) except -1:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_port *port
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            port = self._obj
+
+            with nogil:
+                status = pjmedia_tonegen_is_busy(port)
+            if status:
+                self._timer = Timer()
+                self._timer.schedule(0.250, <timer_callback>self._cb_check_done, self)
+            else:
+                self._timer = None
+                _add_event("ToneGeneratorDidFinishPlaying", dict(obj=self))
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
 
 cdef class RecordingWaveFile:
+    cdef int _slot
+    cdef int _was_started
+    cdef pj_mutex_t *_lock
     cdef pj_pool_t *_pool
     cdef pjmedia_port *_port
-    cdef int _slot
-    cdef readonly ConferenceBridge conference_bridge
     cdef readonly str file_name
-    cdef int _was_started
+    cdef readonly ConferenceBridge conference_bridge
 
     def __cinit__(self, *args, **kwargs):
+        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "recording_wave_file_lock", &self._lock)
         self._slot = -1
 
     def __init__(self, ConferenceBridge conference_bridge, str file_name):
@@ -585,40 +949,89 @@ cdef class RecordingWaveFile:
                 return self._slot
 
     def start(self):
+        cdef char *filename
+        cdef int sample_rate
         cdef int status
-        cdef str pool_name = "RecordingWaveFile_%d" % id(self)
-        cdef PJSIPUA ua = _get_ua()
-        if self._was_started:
-            raise SIPCoreError("This RecordingWaveFile was already started once")
-        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
-        if self._pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
+        cdef pj_mutex_t *lock = self._lock
+        cdef pj_pool_t *pool
+        cdef pjmedia_port **port_address
+        cdef pjsip_endpoint *endpoint
+        cdef str pool_name
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
         try:
-            status = pjmedia_wav_writer_port_create(self._pool, self.file_name,
-                                                    self.conference_bridge.sample_rate, 1,
-                                                    self.conference_bridge.sample_rate / 50, 16,
-                                                    PJMEDIA_FILE_WRITE_PCM, 0, &self._port)
-            if status != 0:
-                raise PJSIPError("Could not create WAV file", status)
-            self._slot = self.conference_bridge._add_port(ua, self._pool, self._port)
-        except:
-            self.stop()
-            raise
-        self._was_started = 1
+            endpoint = ua._pjsip_endpoint._obj
+            filename = PyString_AsString(self.file_name)
+            pool_name = "RecordingWaveFile_%d" % id(self)
+            port_address = &self._port
+            sample_rate = self.conference_bridge.sample_rate
+
+            if self._was_started:
+                raise SIPCoreError("This RecordingWaveFile was already started once")
+            with nogil:
+                pool = pjsip_endpt_create_pool(endpoint, pool_name, 4096, 4096)
+            if pool == NULL:
+                raise SIPCoreError("Could not allocate memory pool")
+            self._pool = pool
+            try:
+                with nogil:
+                    status = pjmedia_wav_writer_port_create(pool, filename,
+                                                            sample_rate, 1,
+                                                            sample_rate / 50, 16,
+                                                            PJMEDIA_FILE_WRITE_PCM, 0, port_address)
+                if status != 0:
+                    raise PJSIPError("Could not create WAV file", status)
+                self._slot = self.conference_bridge._add_port(ua, self._pool, self._port)
+            except:
+                self.stop()
+                raise
+            self._was_started = 1
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     def stop(self):
-        cdef PJSIPUA ua = self._check_ua()
-        self._stop(ua)
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            self._stop(ua)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     cdef int _stop(self, PJSIPUA ua) except -1:
+        cdef pj_pool_t *pool
+        cdef pjmedia_port *port
+        cdef pjsip_endpoint *endpoint
+
+        endpoint = ua._pjsip_endpoint._obj if ua is not None else NULL
+        pool = self._pool
+        port = self._port
+
         if self._slot != -1:
             self.conference_bridge._remove_port(ua, self._slot)
             self._slot = -1
         if self._port != NULL:
-            pjmedia_port_destroy(self._port)
+            with nogil:
+                pjmedia_port_destroy(port)
             self._port = NULL
         if self._pool != NULL:
-            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
+            with nogil:
+                pjsip_endpt_release_pool(endpoint, pool)
             self._pool = NULL
         return 0
 
@@ -628,18 +1041,28 @@ cdef class RecordingWaveFile:
             ua = _get_ua()
         except:
             return
+
         self._stop(ua)
+        pj_mutex_destroy(self._lock)
 
 
 cdef class WaveFile:
+    cdef object __weakref__
+    cdef object weakref
+
+    cdef int _slot
+    cdef int _volume
+    cdef pj_mutex_t *_lock
     cdef pj_pool_t *_pool
     cdef pjmedia_port *_port
-    cdef int _slot
-    cdef readonly ConferenceBridge conference_bridge
     cdef readonly str file_name
-    cdef int _volume
+    cdef readonly ConferenceBridge conference_bridge
 
     def __cinit__(self, *args, **kwargs):
+        self.weakref = weakref.ref(self)
+        Py_INCREF(self.weakref)
+
+        pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "wave_file_lock", &self._lock)
         self._slot = -1
         self._volume = 100
 
@@ -685,125 +1108,197 @@ cdef class WaveFile:
             return self._volume
 
         def __set__(self, value):
+            cdef int slot
             cdef int status
-            cdef PJSIPUA ua = self._check_ua()
-            if value < 0:
-                raise ValueError("volume attribute cannot be negative")
-            if ua is not None and self._slot != -1:
-                status = pjmedia_conf_adjust_rx_level(self.conference_bridge._obj, self._slot, int(value * 1.28 - 128))
+            cdef int volume
+            cdef pj_mutex_t *lock = self._lock
+            cdef pjmedia_conf *conf_bridge
+            cdef PJSIPUA ua
+
+            ua = self._check_ua()
+
+            if ua is not None:
+                with nogil:
+                    status = pj_mutex_lock(lock)
                 if status != 0:
-                    raise PJSIPError("Could not set volume of .wav file", status)
-            self._volume = value
+                    raise PJSIPError("failed to acquire lock", status)
+            try:
+                conf_bridge = self.conference_bridge._obj
+                slot = self._slot
+
+                if value < 0:
+                    raise ValueError("volume attribute cannot be negative")
+                if ua is not None and self._slot != -1:
+                    volume = int(value * 1.28 - 128)
+                    with nogil:
+                        status = pjmedia_conf_adjust_rx_level(conf_bridge, slot, volume)
+                    if status != 0:
+                        raise PJSIPError("Could not set volume of .wav file", status)
+                self._volume = value
+            finally:
+                if ua is not None:
+                    with nogil:
+                        pj_mutex_unlock(lock)
 
     def start(self):
-        cdef str pool_name
+        cdef char *filename
         cdef int status
-        cdef PJSIPUA ua = _get_ua()
-        if self._port != NULL:
-            raise SIPCoreError("WAV file is already playing")
-        pool_name = "WaveFile_%d" % id(self)
-        self._pool = pjsip_endpt_create_pool(ua._pjsip_endpoint._obj, pool_name, 4096, 4096)
-        if self._pool == NULL:
-            raise SIPCoreError("Could not allocate memory pool")
+        cdef void *weakref
+        cdef pj_pool_t *pool
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjmedia_port **port_address
+        cdef pjsip_endpoint *endpoint
+        cdef str pool_name
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
         try:
-            status = pjmedia_wav_player_port_create(self._pool, self.file_name, 0, PJMEDIA_FILE_NO_LOOP, 0, &self._port)
-            if status != 0:
-                raise PJSIPError("Could not open WAV file", status)
-            status = pjmedia_wav_player_set_eof_cb(self._port, <void *> self, cb_play_wav_eof)
-            if status != 0:
-                raise PJSIPError("Could not set WAV EOF callback", status)
-            self._slot = self.conference_bridge._add_port(ua, self._pool, self._port)
-            if self._volume != 100:
-                self.volume = self._volume
-        except:
-            self._stop(ua, 0)
-            raise
+            endpoint = ua._pjsip_endpoint._obj
+            filename = PyString_AsString(self.file_name)
+            port_address = &self._port
+            weakref = <void *> self.weakref
+
+            if self._port != NULL:
+                raise SIPCoreError("WAV file is already playing")
+            pool_name = "WaveFile_%d" % id(self)
+            with nogil:
+                pool = pjsip_endpt_create_pool(endpoint, pool_name, 4096, 4096)
+            if pool == NULL:
+                raise SIPCoreError("Could not allocate memory pool")
+            self._pool = pool
+            try:
+                with nogil:
+                    status = pjmedia_wav_player_port_create(pool, filename, 0, PJMEDIA_FILE_NO_LOOP, 0, port_address)
+                if status != 0:
+                    raise PJSIPError("Could not open WAV file", status)
+                with nogil:
+                    status = pjmedia_wav_player_set_eof_cb(port_address[0], weakref, cb_play_wav_eof)
+                if status != 0:
+                    raise PJSIPError("Could not set WAV EOF callback", status)
+                self._slot = self.conference_bridge._add_port(ua, self._pool, self._port)
+                if self._volume != 100:
+                    self.volume = self._volume
+            except:
+                self._stop(ua, 0)
+                raise
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     cdef int _stop(self, PJSIPUA ua, int notify) except -1:
         cdef int status
-        cdef int was_active = 0
+        cdef int was_active
+        cdef pj_pool_t *pool
+        cdef pjmedia_port *port
+        cdef pjsip_endpoint *endpoint
+
+        endpoint = ua._pjsip_endpoint._obj
+        pool = self._pool
+        port = self._port
+        was_active = 0
+
         if self._slot != -1:
             was_active = 1
             self.conference_bridge._remove_port(ua, self._slot)
             self._slot = -1
         if self._port != NULL:
-            pjmedia_port_destroy(self._port)
+            with nogil:
+                pjmedia_port_destroy(port)
             self._port = NULL
             was_active = 1
         if self._pool != NULL:
-            pjsip_endpt_release_pool(ua._pjsip_endpoint._obj, self._pool)
+            with nogil:
+                pjsip_endpt_release_pool(endpoint, pool)
             self._pool = NULL
         if notify and was_active:
             _add_event("WaveFileDidFinishPlaying", dict(obj=self))
 
     def stop(self):
-        cdef PJSIPUA ua = self._check_ua()
-        self._stop(ua, 1)
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            self._stop(ua, 1)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
     def __dealloc__(self):
         cdef PJSIPUA ua
+        cdef Timer timer
         try:
             ua = _get_ua()
         except:
             return
         self._stop(ua, 0)
+        timer = Timer()
+        try:
+            timer.schedule(60, deallocate_weakref, self.weakref)
+        except SIPCoreError:
+            pass
+
+        pj_mutex_destroy(self._lock)
+
+    cdef int _cb_eof(self, timer) except -1:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            self._stop(ua, 1)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
 
 
 # callback functions
 
-cdef int _ConferenceBridge_stop_sound_post(object obj) except -1:
-    cdef ConferenceBridge conf_bridge = obj
-    cdef PJSIPUA ua
-    try:
-        ua = _get_ua()
-    except SIPCoreError:
-        pass
-    if conf_bridge.used_slot_count == 0:
-        conf_bridge._stop_sound_device(ua)
-
 cdef int _ConferenceBridge_dealloc_handler(object obj) except -1:
+    cdef int status
     cdef ConferenceBridge conf_bridge = obj
     cdef PJSIPUA ua
-    try:
-        ua = _get_ua()
-    except SIPCoreError:
-        pass
-    conf_bridge._stop_sound_device(ua)
-    conf_bridge._connected_slots = list()
-    conf_bridge.used_slot_count = 0
 
-cdef void _ToneGenerator_cb_check_done(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil:
-    cdef PJSIPUA ua
-    cdef ToneGenerator tone_generator
-    cdef int status
+    ua = _get_ua()
+
+    status = pj_mutex_lock(conf_bridge._lock)
+    if status != 0:
+        raise PJSIPError("failed to acquire lock", status)
     try:
-        ua = _get_ua()
-    except:
-        return
-    try:
-        if entry.user_data != NULL:
-            tone_generator = <object> entry.user_data
-            tone_generator._timer_active = 0
-            if pjmedia_tonegen_is_busy(tone_generator._obj):
-                tone_generator._start_timer(ua)
-            else:
-                _add_event("ToneGeneratorDidFinishPlaying", dict(obj=tone_generator))
-    except:
-        ua._handle_exception(1)
+        conf_bridge._stop_sound_device(ua)
+        conf_bridge._connected_slots = list()
+        conf_bridge.used_slot_count = 0
+    finally:
+        pj_mutex_unlock(conf_bridge._lock)
 
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil:
+    cdef Timer timer
     cdef WaveFile wav_file
-    cdef int status
-    cdef PJSIPUA ua
-    try:
-        ua = _get_ua()
-    except:
-        return 0
-    try:
-        ua = _get_ua()
-        wav_file = <object> user_data
-        wav_file._stop(ua, 1)
-    except:
-        ua._handle_exception(1)
+
+    wav_file = (<object> user_data)()
+    if wav_file is not None:
+        timer = Timer()
+        timer.schedule(0, <timer_callback>wav_file._cb_eof, wav_file)
     # do not return PJ_SUCCESS because if you do pjsip will access the just deallocated port
     return 1

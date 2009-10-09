@@ -874,6 +874,10 @@ cdef PJSIPUA _get_ua():
     ua._check_thread()
     return ua
 
+cdef int deallocate_weakref(object weak_ref, object timer) except -1 with gil:
+    Py_DECREF(weak_ref)
+
+
 # globals
 
 cdef void *_ua = NULL
