@@ -34,7 +34,7 @@ class SilenceableWaveFile(object):
         self.file_name = file_name
         self.volume = volume
         self.loop_count = loop_count
-        self.pause_time = 0
+        self.pause_time = pause_time
         self._current_loop = 0
         self._lock = Lock()
         self._state = 'stopped'
