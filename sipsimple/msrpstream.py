@@ -1,3 +1,6 @@
+# Copyright (C) 2009 AG Projects. See LICENSE for details.
+#
+
 import os
 import random
 from datetime import datetime
