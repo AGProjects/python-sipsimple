@@ -184,6 +184,7 @@ class AudioStream(NotificationHandler):
                 self.state = "ENDED"
                 self.notification_center.post_notification("MediaStreamDidFail", self,
                                                            TimestampedNotificationData(reason=e.args[0]))
+                return
             self._rtp_transport = rtp_transport
             self._audio_transport = audio_transport
             self.notification_center.add_observer(self, sender=audio_transport)
