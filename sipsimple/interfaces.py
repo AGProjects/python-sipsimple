@@ -1,3 +1,6 @@
+# Copyright (C) 2009 AG Projects. See LICENSE for details.
+#
+
 from zope.interface import Interface, Attribute
 
 class IMediaStream(Interface):
