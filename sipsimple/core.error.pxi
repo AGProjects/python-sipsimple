@@ -14,6 +14,10 @@ class PJSIPError(SIPCoreError):
         SIPCoreError.__init__(self, "%s: %s" % (message, _pj_status_to_str(status)))
 
 
+class PJSIPTLSError(PJSIPError):
+    pass
+
+
 class SIPCoreInvalidStateError(SIPCoreError):
     pass
 

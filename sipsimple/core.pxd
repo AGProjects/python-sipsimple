@@ -524,6 +524,13 @@ cdef extern from "pjsip.h":
     enum pjsip_status_code:
         PJSIP_SC_TSX_TIMEOUT
         PJSIP_SC_TSX_TRANSPORT_ERROR
+        PJSIP_TLS_EUNKNOWN
+        PJSIP_TLS_EINVMETHOD
+        PJSIP_TLS_ECACERT
+        PJSIP_TLS_ECERTFILE
+        PJSIP_TLS_EKEYFILE
+        PJSIP_TLS_ECIPHER
+        PJSIP_TLS_ECTX
     struct pjsip_transport
     enum pjsip_uri_context_e:
         PJSIP_URI_IN_CONTACT_HDR

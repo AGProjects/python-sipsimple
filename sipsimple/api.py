@@ -9,7 +9,7 @@ from twisted.internet import reactor
 from twisted.python import threadable
 from zope.interface import implements
 
-from sipsimple.core import ConferenceBridge, SIPCoreError
+from sipsimple.core import ConferenceBridge, PJSIPTLSError, SIPCoreError
 from sipsimple.engine import Engine
 
 from sipsimple.account import AccountManager
@@ -64,29 +64,41 @@ class SIPApplication(object):
 
         engine = Engine()
         notification_center.add_observer(self, sender=engine)
-        engine.start(# general
-                     ip_address=settings.sip.ip_address.normalized,
-                     user_agent=settings.user_agent,
-                     # SIP
-                     ignore_missing_ack=False,
-                     udp_port=settings.sip.udp_port if 'udp' in settings.sip.transports else None,
-                     tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transports else None,
-                     tls_port=settings.sip.tls_port if 'tls' in settings.sip.transports else None,
-                     # TLS
-                     tls_protocol=settings.tls.protocol,
-                     tls_verify_server=settings.tls.verify_server,
-                     tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
-                     tls_cert_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
-                     tls_privkey_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
-                     tls_timeout=settings.tls.timeout,
-                     # rtp
-                     rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
-                     # audio
-                     codecs=list(settings.rtp.audio_codecs),
-                     # logging
-                     log_level=settings.logs.pjsip_level,
-                     trace_sip=True,
-                    )
+        options = dict(# general
+                       ip_address=settings.sip.ip_address.normalized,
+                       user_agent=settings.user_agent,
+                       # SIP
+                       ignore_missing_ack=False,
+                       udp_port=settings.sip.udp_port if 'udp' in settings.sip.transports else None,
+                       tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transports else None,
+                       tls_port=settings.sip.tls_port if 'tls' in settings.sip.transports else None,
+                       # TLS
+                       tls_protocol=settings.tls.protocol,
+                       tls_verify_server=settings.tls.verify_server,
+                       tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
+                       tls_cert_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
+                       tls_privkey_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
+                       tls_timeout=settings.tls.timeout,
+                       # rtp
+                       rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
+                       # audio
+                       codecs=list(settings.rtp.audio_codecs),
+                       # logging
+                       log_level=settings.logs.pjsip_level,
+                       trace_sip=True,
+                      )
+        try:
+            engine.start(**options)
+        except PJSIPTLSError, e:
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+            options['tls_protocol'] = 'TLSv1'
+            options['tls_verify_server'] = False
+            options['tls_ca_file'] = None
+            options['tls_cert_file'] = None
+            options['tls_privkey_file'] = None
+            options['tls_timeout'] = 1000
+            engine.start(**options)
         
         alert_device = settings.audio.alert_device
         if alert_device not in (None, 'system_default') and alert_device not in engine.output_devices:
@@ -226,13 +238,17 @@ class SIPApplication(object):
                 engine.set_tcp_port(settings.sip.tcp_port)
             if set(('sip.tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list',
                     'tls.certificate', 'tls.timeout')).intersection(notification.data.modified):
-                engine.set_tls_options(port=settings.sip.tls_port,
-                                       protocol=settings.tls.protocol,
-                                       verify_server=settings.tls.verify_server,
-                                       ca_file=settings.tls.ca_list.normalized,
-                                       cert_file=settings.tls.certificate.normalized,
-                                       privkey_file=settings.tls.certificate.normalized,
-                                       timeout=settings.tls.timeout)
+                try:
+                    engine.set_tls_options(port=settings.sip.tls_port,
+                                           protocol=settings.tls.protocol,
+                                           verify_server=settings.tls.verify_server,
+                                           ca_file=settings.tls.ca_list.normalized,
+                                           cert_file=settings.tls.certificate.normalized,
+                                           privkey_file=settings.tls.certificate.normalized,
+                                           timeout=settings.tls.timeout)
+                except PJSIPTLSError, e:
+                    notification_center = NotificationCenter()
+                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
             if 'rtp.port_range' in notification.data.modified:
                 engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
             if 'rtp.audio_codecs' in notification.data.modified:

@@ -163,7 +163,9 @@ cdef class PJSIPEndpoint:
         tls_setting.method = _tls_protocol_mapping[self._tls_protocol]
         tls_setting.verify_server = self._tls_verify_server
         status = pjsip_tls_transport_start(self._obj, &tls_setting, &local_addr, NULL, 1, &self._tls_transport)
-        if status != 0:
+        if status in (PJSIP_TLS_EUNKNOWN, PJSIP_TLS_EINVMETHOD, PJSIP_TLS_ECACERT, PJSIP_TLS_ECERTFILE, PJSIP_TLS_EKEYFILE, PJSIP_TLS_ECIPHER, PJSIP_TLS_ECTX):
+            raise PJSIPTLSError("Could not create TLS transport", status)
+        elif status != 0:
             raise PJSIPError("Could not create TLS transport", status)
         return 0
 
