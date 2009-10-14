@@ -54,6 +54,7 @@ class SIPApplication(object):
         session_manager.start()
         notification_center.add_observer(self, sender=account_manager)
         account_manager.start()
+        account = account_manager.default_account
 
         settings = SIPSimpleSettings()
         notification_center.add_observer(self, sender=settings)
@@ -75,9 +76,9 @@ class SIPApplication(object):
                        # TLS
                        tls_protocol=settings.tls.protocol,
                        tls_verify_server=settings.tls.verify_server,
-                       tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
-                       tls_cert_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
-                       tls_privkey_file=settings.tls.certificate.normalized if settings.tls.certificate is not None else None,
+                       tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
+                       tls_cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
+                       tls_privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
                        tls_timeout=settings.tls.timeout,
                        # rtp
                        rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
@@ -236,15 +237,16 @@ class SIPApplication(object):
                 engine.set_udp_port(settings.sip.udp_port)
             if 'sip.tcp_port' in notification.data.modified:
                 engine.set_tcp_port(settings.sip.tcp_port)
-            if set(('sip.tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list',
-                    'tls.certificate', 'tls.timeout')).intersection(notification.data.modified):
+            if set(('sip.tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
+                account_manager = AccountManager()
+                account = account_manager.default_account
                 try:
                     engine.set_tls_options(port=settings.sip.tls_port,
                                            protocol=settings.tls.protocol,
                                            verify_server=settings.tls.verify_server,
-                                           ca_file=settings.tls.ca_list.normalized,
-                                           cert_file=settings.tls.certificate.normalized,
-                                           privkey_file=settings.tls.certificate.normalized,
+                                           ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
+                                           cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
+                                           privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
                                            timeout=settings.tls.timeout)
                 except PJSIPTLSError, e:
                     notification_center = NotificationCenter()

@@ -110,7 +110,7 @@ class MSRPChat(object):
             local_uri = URI(host=settings.sip.ip_address.normalized,
                             port=settings.msrp.port,
                             use_tls=self.transport=='tls',
-                            credentials=get_X509Credentials())
+                            credentials=get_X509Credentials(self.account))
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self.make_SDPMediaStream(full_local_path)
         except Exception, ex:

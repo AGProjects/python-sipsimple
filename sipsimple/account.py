@@ -19,7 +19,7 @@ from zope.interface import implements
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecs, CountryCode, DomainList, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, XCAPRoot
+from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecs, CountryCode, DomainList, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, UserDataPath, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.primitives import Registration
@@ -81,6 +81,10 @@ class SoundsSettings(SettingsGroup):
     audio_inbound = Setting(type=AccountSoundFile, default=AccountSoundFile(AccountSoundFile.DefaultSoundFile('sounds.audio_inbound')), nillable=True)
 
 
+class TLSSettings(SettingsGroup):
+    certificate = Setting(type=UserDataPath, default=None, nillable=True)
+
+
 class Account(SettingsObject):
     """
     Object represeting a SIP account. Contains configuration settings and
@@ -119,6 +123,7 @@ class Account(SettingsObject):
     chat = ChatSettings
     presence = PresenceSettings
     sounds = SoundsSettings
+    tls = TLSSettings
 
     def __init__(self, id):
         self.id = id
@@ -398,6 +403,7 @@ class BonjourAccount(SettingsObject):
 
     rtp = RTPSettings
     sounds = SoundsSettings
+    tls = TLSSettings
 
     def __init__(self):
         settings = SIPSimpleSettings()
