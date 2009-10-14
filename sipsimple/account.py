@@ -14,6 +14,8 @@ from time import time
 
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Singleton
+from gnutls.crypto import X509Certificate, X509PrivateKey
+from gnutls.interfaces.twisted import X509Credentials
 from zope.interface import implements
 
 from sipsimple.engine import Engine
@@ -178,6 +180,27 @@ class Account(SettingsObject):
     @property
     def registered(self):
         return self._registrar is not None and self._registrar.is_registered
+
+    @property
+    def tls_credentials(self):
+        # This property can be optimized to cache the credentials it loads from disk,
+        # however this is not a time consuming operation (~ 3000 req/sec). -Luci
+        settings = SIPSimpleSettings()
+        if self.tls.certificate is not None:
+            certificate_data = open(self.tls.certificate.normalized).read()
+            certificate = X509Certificate(certificate_data)
+            private_key = X509PrivateKey(certificate_data)
+        else:
+            certificate = None
+            private_key = None
+        if settings.tls.ca_list is not None:
+            # we should read all certificates in the file, rather than just the first -Luci
+            trusted = [X509Certificate(open(settings.tls.ca_list.normalized).read())]
+        else:
+            trusted = []
+        credentials = X509Credentials(certificate, private_key, trusted)
+        credentials.verify_peer = settings.tls.verify_server
+        return credentials
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
@@ -435,6 +458,27 @@ class BonjourAccount(SettingsObject):
     @property
     def registered(self):
         return False
+
+    @property
+    def tls_credentials(self):
+        # This property can be optimized to cache the credentials it loads from disk,
+        # however this is not a time consuming operation (~ 3000 req/sec). -Luci
+        settings = SIPSimpleSettings()
+        if self.tls.certificate is not None:
+            certificate_data = open(self.tls.certificate.normalized).read()
+            certificate = X509Certificate(certificate_data)
+            private_key = X509PrivateKey(certificate_data)
+        else:
+            certificate = None
+            private_key = None
+        if settings.tls.ca_list is not None:
+            # we should read all certificates in the file, rather than just the first -Luci
+            trusted = [X509Certificate(open(settings.tls.ca_list.normalized).read())]
+        else:
+            trusted = []
+        credentials = X509Credentials(certificate, private_key, trusted)
+        credentials.verify_peer = settings.tls.verify_server
+        return credentials
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, None)
