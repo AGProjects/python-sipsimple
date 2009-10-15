@@ -11,7 +11,6 @@ from select import error as select_error
 from gnutls.errors import GNUTLSError
 
 from sipsimple.core import SDPSession, SDPConnection, SDPAttribute, SDPMediaStream
-from sipsimple.green.sessionold import IncomingMSRPHandler
 from sipsimple.cpim import MessageCPIMParser
 
 AUTO_ANSWER_ALL  = 'all' # Just an object to check if we accept all 
@@ -42,7 +41,7 @@ class MSRPSocketAdapter:
         # send_message actually makes the vnc session slower.
         # Ideally we should have rate control measured by
         # response times.
-        #
+       
         # self.msrp.send_message(ln + data, content_type)
 
         return len(data) # everything is always sent
@@ -85,92 +84,6 @@ def make_RFB_SDPMediaStream(uri_path, desktop_request=True):
         formats=["*"],
         attributes=attributes
     )
-
-class IncomingDesktopSessionHandler(IncomingMSRPHandler):
-    def __init__( self, get_acceptor, session_factory,
-                  ringer, console, auto_answers, use_tls):
-        IncomingMSRPHandler.__init__(self, get_acceptor, session_factory)
-        self.ringer       = ringer
-        self.console      = console
-        self.auto_answers = auto_answers
-        self.use_tls      = use_tls
-
-    def is_acceptable(self, inv):
-        sdp = inv.get_offered_remote_sdp()
-        if sdp is None or len(sdp.media) != 1 or \
-           sdp.media[0].media != 'application':
-            return False
-        if self.use_tls:
-            if sdp.media[0].transport != 'TCP/TLS/MSRP':
-                return False
-        elif sdp.media[0].transport != 'TCP/MSRP':
-            return False
-
-        inv._attrdict = attrs = \
-            dict((x.name, x.value) for x in sdp.media[0].attributes)
-        if 'path' not in attrs:
-            return False
-        if 'sendonly' in attrs:
-            return False
-        if 'recvonly' in attrs:
-            return False
-        accept_types = attrs.get('accept-types', '')
-        wrapped_types = attrs.get('accept-wrapped-types', '')
-        if 'application/x-rfb' not in accept_types and \
-            ('message/cpim'      not in accept_type or
-             'application/x-rfb' not in wrapped_types   ):
-            return False
-        setup = attrs.get('setup', '')
-        if setup == 'active':
-            inv.desktop_request = True
-
-            if self.auto_answers == AUTO_ANSWER_ALL:
-                return True
-            else:
-                user = inv.remote_uri.user.lower()
-                host = inv.remote_uri.host.lower()
-                if (user, host) in self.auto_answers:
-                    return True
-
-            self.ringer.start()
-            answer = self.console.ask_question(
-                "%s whishes to connect to your desktop. Accept? " %\
-                    inv.remote_uri,
-                list('yYnNaA')
-            )
-            if answer in 'aA' and \
-               self.auto_answers is not AUTO_ANSWER_ALL:
-
-                self.auto_answers.add((
-                    inv.remote_uri.user.lower(),
-                    inv.remote_uri.host.lower()
-                ))
-
-            accept = answer in 'yYaA'
-            self.ringer.stop()
-        elif setup == 'passive':
-            inv.desktop_request = False
-            self.ringer.start()
-            accept = self.console.ask_question(
-                "%s whishes to offer you a desktop. Accept? " %\
-                    inv.remote_uri,
-                list('yYnN')
-            ) in 'yY'
-            self.ringer.stop()
-        else:
-            return False
-        return accept
-
-    def make_local_SDPSession(self, inv, full_local_path, local_ip):
-        sdpmedia = make_RFB_SDPMediaStream(
-            full_local_path, 
-            not inv.desktop_request
-        )
-        return SDPSession(
-            local_ip, 
-            connection  =   SDPConnection(local_ip),
-            media       =   [sdpmedia]
-        )
 
 def listeningEndpoint(
             clientsock, command, 

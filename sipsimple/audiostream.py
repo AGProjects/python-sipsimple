@@ -12,7 +12,6 @@ from sipsimple.util import TimestampedNotificationData, NotificationHandler, mak
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError, PJSIPError, RecordingWaveFile, SIPURI
-from sipsimple.green import GreenBase
 from sipsimple.account import BonjourAccount
 
 class AudioStream(NotificationHandler):
@@ -361,25 +360,4 @@ class AudioStream(NotificationHandler):
                 else:
                     self.state = "ENDED"
 
-
-class GreenAudioStream(GreenBase):
-    implements(IMediaStream)
-
-    klass = AudioStream
-
-    def initialize(self, session):
-        with self.linked_notifications(names=['MediaStreamDidInitialize', 'MediaStreamDidFail']) as q:
-            self._obj.initialize(session)
-            n = q.wait()
-            if n.name == 'MediaStreamDidFail':
-                raise SIPCoreError(n.data.reason)
-            return n
-
-    def start(self, local_sdp, remote_sdp, stream_index):
-        with self.linked_notifications(names=['MediaStreamDidStart', 'MediaStreamDidFail']) as q:
-            self._obj.start(local_sdp, remote_sdp, stream_index)
-            n = q.wait()
-            if n.name == 'MediaStreamDidFail':
-                raise SIPCoreError(n.data.reason)
-            return n
 
