@@ -17,6 +17,8 @@ from sipsimple.account import BonjourAccount
 class AudioStream(NotificationHandler):
     implements(IMediaStream)
 
+    type = 'audio'
+
     hold_supported = True
 
     def __init__(self, account):

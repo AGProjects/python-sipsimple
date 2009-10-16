@@ -25,7 +25,7 @@ from sipsimple.audiostream import AudioStream
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
-from sipsimple.msrpstream import MSRPChat
+from sipsimple.msrpstream import ChatStream
 from sipsimple.session import IllegalStateError, Session
 from sipsimple.util import PersistentTones, SilenceableWaveFile
 
@@ -42,13 +42,6 @@ def send_notice(text, bold=True):
         ui.write(text)
     else:
         ui.write(RichText(text, bold=bold))
-
-# Map with human readable names for streams
-stream_names = {AudioStream: 'audio',
-                MSRPChat:    'chat'}
-
-# Classes for representing questions
-#
 
 
 # Utility classes
@@ -121,7 +114,7 @@ class OutgoingCallInitializer(object):
         if audio:
             self.streams.append(AudioStream(account))
         if chat:
-            self.streams.append(MSRPChat(account))
+            self.streams.append(ChatStream(account))
         self.wave_ringtone = None
 
     def start(self):
@@ -274,7 +267,7 @@ class IncomingCallInitializer(object):
         identity = str(self.session.remote_identity.uri)
         if self.session.remote_identity.display_name:
             identity = '"%s" <%s>' % (self.session.remote_identity.display_name, identity)
-        streams = '/'.join(stream_names[stream.__class__] if stream.__class__ in stream_names else 'unknown' for stream in self.session.proposed_streams)
+        streams = '/'.join(stream.type for stream in self.session.proposed_streams)
         self.question = Question("Incoming %s from '%s', do you want to accept? (a)ccept/(r)eject/(b)usy" % (streams, identity), 'arbi', bold=True)
         notification_center.add_observer(self, sender=self.question)
         ui = UI()
@@ -382,7 +375,7 @@ class OutgoingProposalHandler(object):
         if audio:
             self.stream = AudioStream(session.account)
         if chat:
-            self.stream = MSRPChat(session.account)
+            self.stream = ChatStream(session.account)
         if not self.stream:
             raise ValueError("Need to specify exactly one stream")
 
@@ -395,11 +388,10 @@ class OutgoingProposalHandler(object):
             notification_center.remove_observer(self, sender=self.session)
             raise
 
-        stream_name = stream_names[self.stream.__class__] if self.stream.__class__ in stream_names else 'unknown'
         remote_identity = str(self.session.remote_identity.uri)
         if self.session.remote_identity.display_name:
             remote_identity = '"%s" <%s>' % (self.session.remote_identity.display_name, remote_identity)
-        send_notice("Proposing %s to '%s'..." % (stream_name, remote_identity))
+        send_notice("Proposing %s to '%s'..." % (self.stream.type, remote_identity))
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
@@ -445,7 +437,7 @@ class IncomingProposalHandler(object):
         identity = str(self.session.remote_identity.uri)
         if self.session.remote_identity.display_name:
             identity = '"%s" <%s>' % (self.session.remote_identity.display_name, identity)
-        streams = ', '.join(stream_names[stream.__class__] if stream.__class__ in stream_names else 'unknown' for stream in self.session.proposed_streams)
+        streams = ', '.join(stream.type for stream in self.session.proposed_streams)
         self.question = Question("'%s' wants to add %s, do you want to accept? (a)ccept/(r)eject" % (identity, streams), 'ar', bold=True)
         notification_center.add_observer(self, sender=self.question)
         ui = UI()
@@ -673,7 +665,7 @@ class SIPSessionApplication(SIPApplication):
         msrp_chat = None
         if self.active_session is not None:
             try:
-                msrp_chat = [stream for stream in self.active_session.streams if isinstance(stream, MSRPChat)][0]
+                msrp_chat = [stream for stream in self.active_session.streams if isinstance(stream, ChatStream)][0]
             except IndexError:
                 pass
         if msrp_chat is None:
@@ -871,7 +863,7 @@ class SIPSessionApplication(SIPApplication):
                 notification_center.remove_observer(self, sender=stream)
 
         session = notification.sender
-        streams = ', '.join(stream_names[stream.__class__] if stream.__class__ in stream_names else 'unknown' for stream in notification.data.streams)
+        streams = ', '.join(stream.type for stream in notification.data.streams)
         action = 'added' if notification.data.action == 'add' else 'removed'
         message = '%s party %s %s' % (notification.data.originator.capitalize(), action, streams)
         if session is not self.active_session:
@@ -908,7 +900,7 @@ class SIPSessionApplication(SIPApplication):
     def _NH_AudioStreamDidStopRecordingAudio(self, notification):
         send_notice('Stopped recording audio to %s' % notification.data.file_name)
 
-    def _NH_MSRPChatGotMessage(self, notification):
+    def _NH_ChatStreamGotMessage(self, notification):
         if hasattr(notification.data, 'cpim_headers') and 'From' in notification.data.cpim_headers:
             cpim_identity = notification.data.cpim_headers['From']
             if cpim_identity.display_name:
@@ -1289,8 +1281,7 @@ class SIPSessionApplication(SIPApplication):
         if self.active_session is None:
             send_notice('There is no active session')
             return
-        active_stream_names = [stream_names[stream.__class__] for stream in self.active_session.streams if stream.__class__ in stream_names]
-        if stream_name in active_stream_names:
+        if stream_name in (stream.type for stream in self.active_session.streams):
             send_notice('The active session already has a %s stream' % stream_name)
             return
         proposal_handler = OutgoingProposalHandler(self.active_session, **{stream_name: True})
@@ -1304,8 +1295,8 @@ class SIPSessionApplication(SIPApplication):
             send_notice('There is no active session')
             return
         try:
-            stream = [stream for stream in self.active_session.streams if stream.__class__ in stream_names and stream_names[stream.__class__] == stream_name][0]
-        except IndexError:
+            stream = (stream for stream in self.active_session.streams if stream.type==stream_name).next()
+        except StopIteration:
             send_notice('The current active session does not have any %s streams' % stream_name)
         else:
             try:
@@ -1351,7 +1342,7 @@ class SIPSessionApplication(SIPApplication):
             identity = '%s@%s' % (session.remote_identity.uri.user, session.remote_identity.uri.host)
             if session.remote_identity.display_name:
                 identity = '%s (%s)' % (session.remote_identity.display_name, identity)
-            streams = '/'.join(stream_names[stream.__class__].capitalize() if stream.__class__ in stream_names else 'Unknown' for stream in session.streams)
+            streams = '/'.join(stream.type.capitalize() for stream in session.streams)
             if not streams:
                 streams = 'Session without media'
             ui.prompt = Prompt('%s to %s' % (streams, identity), foreground='darkred')

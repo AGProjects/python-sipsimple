@@ -22,10 +22,10 @@ from sipsimple.account import AccountManager
 from sipsimple.audiostream import AudioStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 try:
-    from sipsimple.desktopstream import MSRPDesktop
+    from sipsimple.desktopstream import DesktopSharingStream
 except:
-    MSRPDesktop = None
-from sipsimple.msrpstream import MSRPChat, MSRPIncomingFileStream
+    DesktopSharingStream = None
+from sipsimple.msrpstream import ChatStream, FileTransferStream
 from sipsimple.util import TimestampedNotificationData, run_in_twisted
 
 
@@ -92,13 +92,13 @@ class Session(object):
                     if media_stream.media == 'audio':
                         stream = AudioStream(self.account)
                     elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
-                        stream = MSRPIncomingFileStream(self.account)
+                        stream = FileTransferStream(self.account)
                     elif media_stream.media == 'message':
-                        stream = MSRPChat(self.account)
+                        stream = ChatStream(self.account)
                     elif media_stream.media == 'application':
                         for attribute in media_stream.attributes:
-                            if attribute.name == 'accept-types' and 'application/x-rfb' in attribute.value.split() and MSRPDesktop is not None:
-                                stream = MSRPDesktop(self.account)
+                            if attribute.name == 'accept-types' and 'application/x-rfb' in attribute.value.split() and DesktopSharingStream is not None:
+                                stream = DesktopSharingStream(self.account)
                     if stream is not None and stream.validate_incoming(remote_sdp, index):
                         stream.index = index
                         self.proposed_streams.append(stream)
@@ -1086,9 +1086,9 @@ class Session(object):
                                 if media_stream.media == 'audio':
                                     stream = AudioStream(self.account)
                                 elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
-                                    stream = MSRPIncomingFileStream(self.account)
+                                    stream = FileTransferStream(self.account)
                                 elif media_stream.media == 'message':
-                                    stream = MSRPChat(self.account)
+                                    stream = ChatStream(self.account)
                                 if stream is not None and stream.validate_incoming(proposed_remote_sdp, index):
                                     stream.index = index
                                     self.proposed_streams.append(stream)

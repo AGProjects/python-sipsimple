@@ -4,6 +4,8 @@
 from zope.interface import Interface, Attribute
 
 class IMediaStream(Interface):
+    type = Attribute("A string identifying the stream type (ex: audio, video, ...)")
+
     hold_supported = Attribute("True if the stream supports hold")
     on_hold_by_local = Attribute("True if the stream is on hold by the local party")
     on_hold_by_remote = Attribute("True if the stream is on hold by the remeot")

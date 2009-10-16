@@ -14,14 +14,18 @@ from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.cpim import CPIMIdentity
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.msrp import NotificationProxyLogger, get_X509Credentials
-from sipsimple.green.core import SDPNegotiationError
+from sipsimple.msrpstream import MSRPStreamError, NotificationProxyLogger
 
 from sipsimple.applications.desktopsharing import vncviewer, pygamevncviewer, gvncviewer, xtightvncviewer, vncserver
 
 
-class MSRPDesktop(object):
+class DesktopSharingStreamError(MSRPStreamError): pass
+
+
+class DesktopSharingStream(object):
     implements(IMediaStream)
+
+    type = 'desktop-sharing'
 
     hold_supported = False
     on_hold = False
@@ -106,7 +110,7 @@ class MSRPDesktop(object):
             local_uri = URI(host=settings.sip.ip_address.normalized,
                             port=settings.msrp.port,
                             use_tls=self.transport=='tls',
-                            credentials=get_X509Credentials(self.account))
+                            credentials=self.account.tls_credentials)
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self.make_SDPMediaStream(full_local_path)
             self.remote_identity = CPIMIdentity(session.remote_identity.uri, session.remote_identity.display_name)
@@ -129,7 +133,7 @@ class MSRPDesktop(object):
             self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
             remote_uri_path = media_attributes.get('path')
             if remote_uri_path is None:
-                raise SDPNegotiationError(reason="remote SDP media does not have 'path' attribute")
+                raise DesktopSharingStreamError(reason="remote SDP media does not have 'path' attribute")
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
@@ -166,10 +170,10 @@ class MSRPDesktop(object):
         self.notification_center.post_notification('MediaStreamDidFail', self, ndata)
 
     def hold(self):
-        return # MSRPDesktop stream does not support hold
+        return # DesktopSharingStream stream does not support hold
 
     def unhold(self):
-        return # MSRPDesktop stream does not support hold
+        return # DesktopSharingStream stream does not support hold
 
     def validate_update(self, remote_sdp, stream_index):
         # TODO
