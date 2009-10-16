@@ -403,7 +403,7 @@ class FileSelector(object):
                     break
                 sha1.update(content)
             # unexpected as it may be, using a regular expression is the fastest method to do this
-            hash = ':'.join(cls._byte_re.findall(sha1.hexdigest().upper()))
+            hash = 'sha1:' + ':'.join(cls._byte_re.findall(sha1.hexdigest().upper()))
             fd.seek(0)
         else:
             hash = None
