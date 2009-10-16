@@ -85,6 +85,7 @@ class SoundsSettings(SettingsGroup):
 
 class TLSSettings(SettingsGroup):
     certificate = Setting(type=UserDataPath, default=None, nillable=True)
+    verify_server = Setting(type=bool, default=False)
 
 
 class Account(SettingsObject):
@@ -199,7 +200,7 @@ class Account(SettingsObject):
         else:
             trusted = []
         credentials = X509Credentials(certificate, private_key, trusted)
-        credentials.verify_peer = settings.tls.verify_server
+        credentials.verify_peer = self.tls.verify_server
         return credentials
 
     def handle_notification(self, notification):
@@ -477,7 +478,7 @@ class BonjourAccount(SettingsObject):
         else:
             trusted = []
         credentials = X509Credentials(certificate, private_key, trusted)
-        credentials.verify_peer = settings.tls.verify_server
+        credentials.verify_peer = self.tls.verify_server
         return credentials
 
     def handle_notification(self, notification):

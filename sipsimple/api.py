@@ -57,7 +57,8 @@ class SIPApplication(object):
         account = account_manager.default_account
 
         settings = SIPSimpleSettings()
-        notification_center.add_observer(self, sender=settings)
+        # we are interested in changes of global and per-account settings
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
 
         notification_center.post_notification('SIPApplicationWillStart', sender=self, data=TimestampedNotificationData())
         if self.state in ('stopping', 'stopped'):
@@ -75,7 +76,7 @@ class SIPApplication(object):
                        tls_port=settings.sip.tls_port if 'tls' in settings.sip.transports else None,
                        # TLS
                        tls_protocol=settings.tls.protocol,
-                       tls_verify_server=settings.tls.verify_server,
+                       tls_verify_server=account.tls.verify_server if account else False,
                        tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
                        tls_cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
                        tls_privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
@@ -196,6 +197,7 @@ class SIPApplication(object):
     def _NH_CFGSettingsObjectDidChange(self, notification):
         engine = Engine()
         settings = SIPSimpleSettings()
+        account_manager = AccountManager()
 
         if notification.sender is settings:
             if 'audio.sample_rate' in notification.data.modified:
@@ -237,13 +239,12 @@ class SIPApplication(object):
                 engine.set_udp_port(settings.sip.udp_port)
             if 'sip.tcp_port' in notification.data.modified:
                 engine.set_tcp_port(settings.sip.tcp_port)
-            if set(('sip.tls_port', 'tls.protocol', 'tls.verify_server', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
-                account_manager = AccountManager()
+            if set(('sip.tls_port', 'tls.protocol', 'tls.ca_list', 'tls.timeout', 'default_account')).intersection(notification.data.modified):
                 account = account_manager.default_account
                 try:
                     engine.set_tls_options(port=settings.sip.tls_port,
                                            protocol=settings.tls.protocol,
-                                           verify_server=settings.tls.verify_server,
+                                           verify_server=account.tls.verify_server if account else False,
                                            ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
                                            cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
                                            privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
@@ -257,5 +258,19 @@ class SIPApplication(object):
                 engine.codecs = list(settings.rtp.audio_codecs)
             if 'logs.pjsip_level' in notification.data.modified:
                 engine.log_level = settings.logs.pjsip_level
+        elif notification.sender is account_manager.default_account:
+            if set(('tls.verify_server', 'tls.certificate')).intersection(notification.data.modified):
+                account = account_manager.default_account
+                try:
+                    engine.set_tls_options(port=settings.sip.tls_port,
+                                           protocol=settings.tls.protocol,
+                                           verify_server=account.tls.verify_server,
+                                           ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
+                                           cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                           privkey_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                           timeout=settings.tls.timeout)
+                except PJSIPTLSError, e:
+                    notification_center = NotificationCenter()
+                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
 
 
