@@ -49,7 +49,7 @@ setup(name         = "python-sipsimple",
           "Operating System :: OS Independent",
           "Programming Language :: Python"
       ],
-      packages     = ["sipsimple", "sipsimple.green", "sipsimple.clients", "sipsimple.applications", "sipsimple.configuration", "sipsimple.configuration.backend"],
+      packages     = ["sipsimple", "sipsimple.clients", "sipsimple.applications", "sipsimple.configuration", "sipsimple.configuration.backend"],
       package_data = {
           'sipsimple.applications' : ['xml-schemas/*']
       },
