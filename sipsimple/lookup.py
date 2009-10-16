@@ -17,19 +17,8 @@ from application.python.decorator import decorator, preserve_signature
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
-from sipsimple.util import Route, TimestampedNotificationData
+from sipsimple.util import Route, TimestampedNotificationData, run_in_twisted
 
-
-@decorator
-def run_in_twisted(func):
-    @preserve_signature(func)
-    def wrapper(*args, **kwargs):
-        from twisted.internet import reactor
-        if threadable.isInIOThread():
-            callInGreenThread(func, *args, **kwargs)
-        else:
-            reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
-    return wrapper
 
 class DNSLookup(object):
 
