@@ -24,7 +24,7 @@ from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
-from sipsimple.util import run_in_twisted, TimestampedNotificationData
+from sipsimple.util import run_in_green_thread, TimestampedNotificationData
 
 
 class MSRPStreamError(Exception): pass
@@ -84,7 +84,7 @@ class MSRPStreamBase(object):
     def validate_incoming(self, remote_sdp, stream_index):
         raise NotImplementedError
 
-    @run_in_twisted
+    @run_in_green_thread
     def initialize(self, session, direction):
         settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
@@ -123,7 +123,7 @@ class MSRPStreamBase(object):
         else:
             notification_center.post_notification('MediaStreamDidInitialize', self, data=TimestampedNotificationData())
 
-    @run_in_twisted
+    @run_in_green_thread
     def start(self, local_sdp, remote_sdp, stream_index):
         notification_center = NotificationCenter()
         try:
@@ -148,7 +148,7 @@ class MSRPStreamBase(object):
         else:
             notification_center.post_notification('MediaStreamDidStart', self, data=TimestampedNotificationData())
 
-    @run_in_twisted
+    @run_in_green_thread
     def end(self):
         if self.msrp_session is None and self.msrp_connector is None:
             return
@@ -305,7 +305,7 @@ class ChatStream(MSRPStreamBase):
             else:
                 notification_center.post_notification('ChatStreamDidSendMessage', self, TimestampedNotificationData(message=chunk))
 
-    @run_in_twisted
+    @run_in_green_thread
     def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None):
         self.message_queue.send((message_id, message, content_type, failure_report, success_report))
     

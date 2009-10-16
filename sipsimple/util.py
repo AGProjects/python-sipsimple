@@ -208,7 +208,7 @@ class Route(object):
 
 
 @decorator
-def run_in_twisted(func):
+def run_in_green_thread(func):
     @preserve_signature(func)
     def wrapper(*args, **kwargs):
         from twisted.internet import reactor
@@ -239,4 +239,4 @@ def makedirs(path):
         raise
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "Route", "run_in_twisted", "classproperty", "makedirs"]
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "Route", "run_in_green_thread", "classproperty", "makedirs"]

@@ -26,7 +26,7 @@ try:
 except:
     DesktopSharingStream = None
 from sipsimple.msrpstream import ChatStream, FileTransferStream
-from sipsimple.util import TimestampedNotificationData, run_in_twisted
+from sipsimple.util import TimestampedNotificationData, run_in_green_thread
 
 
 class MediaStreamDidFailError(Exception):
@@ -113,7 +113,7 @@ class Session(object):
             invitation.send_response(488)
 
     @transition_state(None, 'connecting')
-    @run_in_twisted
+    @run_in_green_thread
     def connect(self, to_header, routes, streams):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
@@ -272,7 +272,7 @@ class Session(object):
                 self._send_hold()
 
     @transition_state('incoming', 'incoming')
-    @run_in_twisted
+    @run_in_green_thread
     def send_ring_indication(self):
         try:
             self._invitation.send_response(180)
@@ -280,7 +280,7 @@ class Session(object):
             pass # The INVITE session might have already been canceled; ignore the error
 
     @transition_state('incoming', 'accepting')
-    @run_in_twisted
+    @run_in_green_thread
     def accept(self, streams):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
@@ -460,7 +460,7 @@ class Session(object):
                 self._send_hold()
 
     @transition_state('incoming', 'terminating')
-    @run_in_twisted
+    @run_in_green_thread
     def reject(self, code=603):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
@@ -503,7 +503,7 @@ class Session(object):
             notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='user request'))
 
     @transition_state('received_proposal', 'accepting_proposal')
-    @run_in_twisted
+    @run_in_green_thread
     def accept_proposal(self, streams):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
@@ -602,7 +602,7 @@ class Session(object):
             if self._hold_in_progress:
                 self._send_hold()
 
-    @run_in_twisted
+    @run_in_green_thread
     def reject_proposal(self, code=488):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
@@ -629,7 +629,7 @@ class Session(object):
                 self._send_hold()
 
     @transition_state('connected', 'sending_proposal')
-    @run_in_twisted
+    @run_in_green_thread
     def add_stream(self, stream):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
@@ -739,7 +739,7 @@ class Session(object):
                 self._send_hold()
 
     @transition_state('connected', 'sending_proposal')
-    @run_in_twisted
+    @run_in_green_thread
     def remove_stream(self, stream):
         if stream not in self.streams:
             self.state = 'connected'
@@ -783,7 +783,7 @@ class Session(object):
             if self._hold_in_progress:
                 self._send_hold()
 
-    @run_in_twisted
+    @run_in_green_thread
     def hold(self):
         if self.on_hold or self._hold_in_progress:
             return
@@ -796,7 +796,7 @@ class Session(object):
         if self.state == 'connected':
             self._send_hold()
 
-    @run_in_twisted
+    @run_in_green_thread
     def unhold(self):
         if not self.on_hold or not self._hold_in_progress:
             return
@@ -809,7 +809,7 @@ class Session(object):
         if self.state == 'connected':
             self._send_unhold()
 
-    @run_in_twisted
+    @run_in_green_thread
     def end(self):
         if self.greenlet is not None:
             api.kill(self.greenlet, api.GreenletExit())
@@ -1021,7 +1021,7 @@ class Session(object):
         self.proposed_streams = None
         self.greenlet = None
 
-    @run_in_twisted
+    @run_in_green_thread
     def handle_notification(self, notification):
         if self.greenlet is None:
             self.greenlet = initial_greenlet = api.getcurrent()

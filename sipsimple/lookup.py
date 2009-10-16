@@ -17,7 +17,7 @@ from application.python.decorator import decorator, preserve_signature
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
-from sipsimple.util import Route, TimestampedNotificationData, run_in_twisted
+from sipsimple.util import Route, TimestampedNotificationData, run_in_green_thread
 
 
 class DNSLookup(object):
@@ -25,7 +25,7 @@ class DNSLookup(object):
     _service_srv_record_map = {"stun": ("_stun._udp", 3478, False),
                                "msrprelay": ("_msrps._tcp", 2855, True)}
     
-    @run_in_twisted
+    @run_in_green_thread
     def lookup_service(self, uri, service):
         notification_center = NotificationCenter()
         resolver = dns.resolver.Resolver()
@@ -70,7 +70,7 @@ class DNSLookup(object):
                                   "tcp": "_sip._tcp",
                                   "tls": "_sips._tls"}
     
-    @run_in_twisted
+    @run_in_green_thread
     def lookup_sip_proxy(self, uri, supported_transports):
         """This function performs RFC 3263 compliant lookup of transport/ip/port
         combinations for a particular SIP URI. As arguments it takes a SIPURI object
