@@ -452,7 +452,7 @@ class FileTransferStream(MSRPStreamBase):
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
         notification_center = NotificationCenter()
-        data = TimestampedNotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
+        data = TimestampedNotificationData(message_id=chunk.message_id, chunk=chunk, code=chunk.status.code, reason=chunk.status.comment)
         if chunk.status.code == 200:
             notification_center.post_notification('FileTransferStreamDidDeliverChunk', self, data)
         else:
@@ -470,7 +470,7 @@ class FileTransferStream(MSRPStreamBase):
             content_type = chunk.content_type
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report if it's invalid
-        ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
+        ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, chunk=chunk)
         NotificationCenter().post_notification('FileTransferStreamGotChunk', self, ndata)
 
 
