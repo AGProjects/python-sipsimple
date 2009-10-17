@@ -446,7 +446,8 @@ class FileTransferStream(MSRPStreamBase):
         return True
 
     def _NH_MediaStreamDidStart(self, notification):
-        self.msrp_session.send_file(self.outgoing_file)
+        if self.direction == 'sendonly':
+            self.msrp_session.send_file(self.outgoing_file)
 
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
