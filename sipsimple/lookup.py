@@ -12,7 +12,7 @@ dns.resolver.socket = socket
 dns.query.select = select
 dns.query.socket = socket
 
-from application.notification import NotificationCenter, NotificationData
+from application.notification import NotificationCenter
 from application.python.decorator import decorator, preserve_signature
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable

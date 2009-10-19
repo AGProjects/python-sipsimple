@@ -1,8 +1,9 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-import random, sys
+import random
 import gnutls
+import sys
 from eventlet import api, processes, proc
 
 #errors
@@ -10,7 +11,7 @@ from twisted.internet.error import ConnectionDone
 from select import error as select_error
 from gnutls.errors import GNUTLSError
 
-from sipsimple.core import SDPSession, SDPConnection, SDPAttribute, SDPMediaStream
+from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.cpim import MessageCPIMParser
 
 AUTO_ANSWER_ALL  = 'all' # Just an object to check if we accept all 
@@ -207,7 +208,6 @@ try:
     # When pygame is not available, skip the build in vncviewer
     #
     import pygame
-    import sys
     from struct import pack, unpack
     import pygame.font, pygame.event, pygame.draw, string
     from pygame.locals import *

@@ -2,7 +2,6 @@
 #
 
 from sipsimple.applications.test import XMLApplicationTest
-from sipsimple.applications.presrules import PresRules
 
 
 class PresRulesTest(XMLApplicationTest):

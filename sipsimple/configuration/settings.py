@@ -11,7 +11,7 @@ import os
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import ContentTypeList, NonNegativeInteger
+from sipsimple.configuration.datatypes import NonNegativeInteger
 from sipsimple.configuration.datatypes import AudioCodecs, AudioInputDevice, AudioOutputDevice, SampleRate
 from sipsimple.configuration.datatypes import LocalIPAddress, MSRPTransport, Port, PortRange, TLSProtocol, Transports
 from sipsimple.configuration.datatypes import ImageDepth, Resolution

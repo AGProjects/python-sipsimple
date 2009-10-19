@@ -9,7 +9,7 @@ from twisted.internet import reactor
 from twisted.python import threadable
 from zope.interface import implements
 
-from sipsimple.core import ConferenceBridge, PJSIPTLSError, SIPCoreError
+from sipsimple.core import ConferenceBridge, PJSIPTLSError
 from sipsimple.engine import Engine
 
 from sipsimple.account import AccountManager

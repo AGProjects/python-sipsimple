@@ -3,7 +3,7 @@ from __future__ import with_statement
 from threading import RLock
 
 from application.python.decorator import decorator
-from application.notification import NotificationCenter, NotificationData
+from application.notification import NotificationCenter
 
 from sipsimple.core import ContactHeader, Header, Request, RouteHeader, SIPCoreError, SIPURI, ToHeader
 from sipsimple.util import NotificationHandler, TimestampedNotificationData

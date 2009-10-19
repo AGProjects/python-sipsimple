@@ -7,7 +7,7 @@ Generic configuration management.
 
 import cPickle
 
-from application.notification import NotificationCenter, NotificationData
+from application.notification import NotificationCenter
 from application.python.util import Singleton
 
 from sipsimple.util import TimestampedNotificationData

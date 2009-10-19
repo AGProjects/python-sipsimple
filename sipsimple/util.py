@@ -16,7 +16,6 @@ from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
 from sipsimple.core import SIPCoreError, SIPURI, ToneGenerator, WaveFile
-from sipsimple.engine import Engine
 
 
 class TimestampedNotificationData(NotificationData):

@@ -12,7 +12,7 @@ from collections import deque
 from itertools import chain
 from time import time
 
-from application.notification import IObserver, NotificationCenter, NotificationData
+from application.notification import IObserver, NotificationCenter
 from application.python.util import Singleton
 from gnutls.crypto import X509Certificate, X509PrivateKey
 from gnutls.interfaces.twisted import X509Credentials
@@ -21,7 +21,7 @@ from zope.interface import implements
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecs, CountryCode, DomainList, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SoundFile, SRTPEncryption, STUNServerAddresses, Transports, UserDataPath, XCAPRoot
+from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecs, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, UserDataPath, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.primitives import Registration

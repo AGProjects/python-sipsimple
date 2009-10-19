@@ -53,7 +53,6 @@ Marketing
 """
 
 from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild
-from sipsimple.applications.util import SIPURI
 
 __all__ = ['_namespace_',
            'ResourceListsApplication',
