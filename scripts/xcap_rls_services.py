@@ -278,7 +278,7 @@ def do_xcap_rls_services(account_name, service):
             raise RuntimeError("No enabled account which matches %s was found. Available and enabled accounts: %s" % (account_name, ", ".join(sorted(account.id for account in account_manager.get_accounts() if account.enabled))))
         account = possible_accounts[0]
     if account is None:
-        raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
+        raise RuntimeError("unknown account %s. Available accounts: %s" % (account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
     elif not account.enabled:
         raise RuntimeError("account %s is not enabled" % account.id)
     elif account == BonjourAccount():
