@@ -199,6 +199,8 @@ cdef class SDPSession(BaseSDPSession):
             for attr in attributes:
                 if not isinstance(attr, SDPAttribute):
                     raise TypeError("Items in SDPSession attribute list must be SDPAttribute instancess")
+            if not isinstance(attributes, SDPAttributeList):
+                attributes = SDPAttributeList(attributes)
             self._attributes = attributes
 
     property media:
@@ -267,7 +269,7 @@ cdef class FrozenSDPSession(BaseSDPSession):
     cdef readonly FrozenSDPConnection connection
     cdef readonly int start_time
     cdef readonly int stop_time
-    cdef readonly frozenlist attributes
+    cdef readonly FrozenSDPAttributeList attributes
     cdef readonly frozenlist media
 
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4", str name not None=" ",
@@ -318,7 +320,7 @@ cdef class FrozenSDPSession(BaseSDPSession):
             self._sdp_session.time.start = start_time
             self.stop_time = stop_time
             self._sdp_session.time.stop = stop_time
-            self.attributes = attributes
+            self.attributes = FrozenSDPAttributeList(attributes) if not isinstance(attributes, FrozenSDPAttributeList) else attributes
             self.media = media
             self.initialized = 1
 
@@ -364,11 +366,13 @@ cdef class BaseSDPMediaStream:
     def __richcmp__(self, other, op):
         return BaseSDPMediaStream_richcmp(self, other, op)
 
-    def get_direction(self):
-        for attribute in self.attributes:
-            if attribute.name in ("sendrecv", "sendonly", "recvonly", "inactive"):
-                return attribute.name
-        return "sendrecv"
+    property direction:
+
+        def __get__(self):
+            for attribute in self.attributes:
+                if attribute.name in ("sendrecv", "sendonly", "recvonly", "inactive"):
+                    return attribute.name
+            return "sendrecv"
 
     cdef pjmedia_sdp_media* get_sdp_media(self):
         self._sdp_media.attr_count = len(self.attributes)
@@ -388,7 +392,7 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
     cdef list _formats
     cdef str _info
     cdef SDPConnection _connection
-    cdef list _attributes
+    cdef SDPAttributeList _attributes
 
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, list formats=None,
                  str info=None, SDPConnection connection=None, list attributes=None):
@@ -483,6 +487,8 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
             for attr in attributes:
                 if not isinstance(attr, SDPAttribute):
                     raise TypeError("Items in SDPMediaStream attribute list must be SDPAttribute instances")
+            if not isinstance(attributes, SDPAttributeList):
+                attributes = SDPAttributeList(attributes)
             self._attributes = attributes
 
     cdef int _update(self, SDPMediaStream media) except -1:
@@ -524,7 +530,7 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
     cdef readonly frozenlist formats
     cdef readonly str info
     cdef readonly FrozenSDPConnection connection
-    cdef readonly frozenlist attributes
+    cdef readonly FrozenSDPAttributeList attributes
 
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, frozenlist formats not None=frozenlist(),
                  str info=None, FrozenSDPConnection connection=None, frozenlist attributes not None=frozenlist()):
@@ -559,7 +565,7 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
                 self._sdp_media.conn = NULL
             else:
                 self._sdp_media.conn = connection.get_sdp_connection()
-            self.attributes = attributes
+            self.attributes = FrozenSDPAttributeList(attributes) if not isinstance(attributes, FrozenSDPAttributeList) else attributes
             self.initialized = 1
 
     def __hash__(self):
@@ -680,6 +686,39 @@ cdef class FrozenSDPConnection(BaseSDPConnection):
     new = classmethod(FrozenSDPConnection_new)
 
 del FrozenSDPConnection_new
+
+
+cdef class SDPAttributeList(list):
+    def __contains__(self, item):
+        if isinstance(item, BaseSDPAttribute):
+            return list.__contains__(self, item)
+        else:
+            return item in [attr.name for attr in self]
+
+    def getall(self, name):
+        return [attr.value for attr in self if attr.name == name]
+
+    def getfirst(self, name, default=None):
+        for attr in self:
+            if attr.name == name:
+                return attr.value
+        return default
+
+cdef class FrozenSDPAttributeList(frozenlist):
+    def __contains__(self, item):
+        if isinstance(item, BaseSDPAttribute):
+            return list.__contains__(self, item)
+        else:
+            return item in [attr.name for attr in self]
+
+    def getall(self, name):
+        return [attr.value for attr in self if attr.name == name]
+
+    def getfirst(self, name, default=None):
+        for attr in self:
+            if attr.name == name:
+                return attr.value
+        return default
 
 
 cdef object BaseSDPAttribute_richcmp(object self, object other, int op) with gil:

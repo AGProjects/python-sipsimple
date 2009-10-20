@@ -861,7 +861,7 @@ cdef class AudioTransport:
                 self._obj = NULL
                 raise
             self.direction = "sendrecv"
-            self.update_direction(local_sdp.media[sdp_index].get_direction())
+            self.update_direction(local_sdp.media[sdp_index].direction)
             with nogil:
                 local_media = pjmedia_sdp_media_clone(pool, pj_local_sdp.media[sdp_index])
             self._local_media = local_media

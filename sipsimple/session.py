@@ -91,7 +91,7 @@ class Session(object):
                     stream = None
                     if media_stream.media == 'audio':
                         stream = AudioStream(self.account)
-                    elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
+                    elif media_stream.media == 'message' and 'file-selector' in media_stream.attributes:
                         stream = FileTransferStream(self.account)
                     elif media_stream.media == 'message':
                         stream = ChatStream(self.account)
@@ -151,7 +151,7 @@ class Session(object):
                 stream.index = index
                 media = stream.get_local_media(for_offer=True)
                 local_sdp.media.append(media)
-                stun_addresses.extend((attr.value.split(' ', 5)[4] for attr in media.attributes if attr.name == 'candidate' and attr.value.startswith('S ')))
+                stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
             if stun_addresses:
                 local_sdp.connection.address = stun_addresses[0]
             self._invitation.send_invite(FromHeader(self.account.uri, self.account.display_name), to_header, RouteHeader(self.route.get_uri()),
@@ -320,7 +320,7 @@ class Session(object):
                     if stream is not None:
                         media = stream.get_local_media(for_offer=False)
                         local_sdp.media.append(media)
-                        stun_addresses.extend((attr.value.split(' ', 5)[4] for attr in media.attributes if attr.name == 'candidate' and attr.value.startswith('S ')))
+                        stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
                     else:
                         media = SDPMediaStream.new(media)
                         media.port = 0
@@ -329,7 +329,7 @@ class Session(object):
                 for stream in self.proposed_streams:
                     media = stream.get_local_media(for_offer=True)
                     local_sdp.media.append(media)
-                    stun_addresses.extend((attr.value.split(' ', 5)[4] for attr in media.attributes if attr.name == 'candidate' and attr.value.startswith('S ')))
+                    stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
             if stun_addresses:
                 local_sdp.connection.address = stun_addresses[0]
             self._invitation.send_response(200, sdp=local_sdp)
@@ -1085,7 +1085,7 @@ class Session(object):
                                 stream = None
                                 if media_stream.media == 'audio':
                                     stream = AudioStream(self.account)
-                                elif media_stream.media == 'message' and 'file-selector' in (attr.name for attr in media_stream.attributes):
+                                elif media_stream.media == 'message' and 'file-selector' in media_stream.attributes:
                                     stream = FileTransferStream(self.account)
                                 elif media_stream.media == 'message':
                                     stream = ChatStream(self.account)

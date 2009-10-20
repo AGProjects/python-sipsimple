@@ -67,8 +67,7 @@ class DesktopSharingStream(object):
 
     def validate_incoming(self, remote_sdp, stream_index):
         media = remote_sdp.media[stream_index]
-        media_attributes = dict((attr.name, attr.value) for attr in media.attributes)
-        remote_setup = media_attributes.get('setup', 'active')
+        remote_setup = media.attributes.getfirst('setup', 'active')
         if remote_setup == 'active' and self.setup in ['passive', None]:
             self.setup = 'passive'
             return True
@@ -125,13 +124,12 @@ class DesktopSharingStream(object):
         context = 'sdp_negotiation'
         try:
             remote_media = remote_sdp.media[stream_index]
-            media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
-            remote_accept_types = media_attributes.get('accept-types')
+            remote_accept_types = remote_media.attributes.getfirst('accept-types')
             # TODO: update accept_types and accept_wrapped_types from remote_media
             # TODO: chatroom, recvonly/sendonly?
             self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
             self.private_messages_allowed = self.cpim_enabled # and isfocus and 'private-messages' in chatroom
-            remote_uri_path = media_attributes.get('path')
+            remote_uri_path = remote_media.attributes.getfirst('path')
             if remote_uri_path is None:
                 raise DesktopSharingStreamError(reason="remote SDP media does not have 'path' attribute")
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]

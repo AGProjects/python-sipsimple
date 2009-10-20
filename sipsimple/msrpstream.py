@@ -130,11 +130,10 @@ class MSRPStreamBase(object):
             context = 'sdp_negotiation'
             self.remote_identity = CPIMIdentity(self.session.remote_identity.uri, self.session.remote_identity.display_name)
             remote_media = remote_sdp.media[stream_index]
-            media_attributes = dict((attr.name, attr.value) for attr in remote_media.attributes)
-            remote_accept_types = media_attributes.get('accept-types')
+            remote_accept_types = remote_media.attributes.getfirst('accept-types')
             # TODO: update accept_types and accept_wrapped_types from remote_media
             self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
-            remote_uri_path = media_attributes.get('path')
+            remote_uri_path = remote_media.attributes.getfirst('path')
             if remote_uri_path is None:
                 raise AttributeError("remote SDP media does not have 'path' attribute")
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
@@ -235,9 +234,7 @@ class ChatStream(MSRPStreamBase):
 
     def validate_incoming(self, remote_sdp, stream_index):
         media = remote_sdp.media[stream_index]
-        media_attributes = dict((attr.name, attr.value) for attr in media.attributes)
-        direction = media_attributes.get('direction', 'sendrecv')
-        if (direction, self.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
+        if (media.direction, self.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
             return False
         return True
 
@@ -438,10 +435,10 @@ class FileTransferStream(MSRPStreamBase):
 
     def validate_incoming(self, remote_sdp, stream_index):
         media = remote_sdp.media[stream_index]
-        media_attributes = dict((attr.name, attr.value) for attr in media.attributes)
-        self.file_selector = FileSelector.parse(media_attributes['file-selector'])
-        direction = media.get_direction()
-        if (direction, self.direction) != ('sendonly', 'recvonly'):
+        if 'file-selector' not in media.attributes:
+            return False
+        self.file_selector = FileSelector.parse(media.attributes.getfirst('file-selector'))
+        if (media.direction, self.direction) != ('sendonly', 'recvonly'):
             return False
         return True
 

@@ -1145,6 +1145,8 @@ cdef class FrozenSDPMediaStream
 cdef class BaseSDPConnection
 cdef class SDPConnection
 cdef class FrozenSDPConnection
+cdef class SDPAttributeList
+cdef class FrozenSDPAttributeList
 cdef class BaseSDPAttribute
 cdef class SDPAttribute
 cdef class FrozenSDPAttribute

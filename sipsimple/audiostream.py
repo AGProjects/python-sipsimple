@@ -321,7 +321,7 @@ class AudioStream(NotificationHandler):
 
     def update(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
-            new_direction = local_sdp.media[stream_index].get_direction()
+            new_direction = local_sdp.media[stream_index].direction
             self._audio_transport.update_direction(new_direction)
             self._check_hold(new_direction, False)
             self._hold_request = None
