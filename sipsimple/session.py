@@ -1055,6 +1055,8 @@ class Session(object):
                             self.state = 'connected'
                             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
                             return
+                    # These tests are here because some ALGs mess up the SDP and the behaviour
+                    # of pjsip in these situations is unexpected (eg. loss of audio). -Luci
                     for attr in ('user', 'net_type', 'address_type', 'address'):
                         if getattr(proposed_remote_sdp, attr) != getattr(active_remote_sdp, attr):
                             engine = Engine()
