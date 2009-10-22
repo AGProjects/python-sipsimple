@@ -937,7 +937,7 @@ cdef class RecordingWaveFile:
 
         def __get__(self):
             self._check_ua()
-            return self._port != NULL
+            return self._slot != -1
 
     property slot:
 

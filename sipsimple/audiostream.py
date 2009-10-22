@@ -44,8 +44,10 @@ class AudioStream(NotificationHandler):
         with self._lock:
             if self._audio_rec is None:
                 return None
+            elif self._audio_rec[0] is self._audio_rec[1]:
+                return self._audio_rec[0].file_name
             else:
-                return self._audio_rec.file_name
+                return (self._audio_rec[0].file_name, self._audio_rec[1].file_name)
 
     @property
     def recording_active(self):
@@ -258,7 +260,7 @@ class AudioStream(NotificationHandler):
         self.notification_center.post_notification("AudioStreamGotDTMF", self,
                                                    NotificationData(timestamp=data.timestamp, digit=data.digit))
 
-    def start_recording(self, file_name=None):
+    def start_recording(self, file_name=None, separate=False):
         with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("AudioStream.start_recording() may only be called in the ESTABLISHED state")
@@ -271,7 +273,14 @@ class AudioStream(NotificationHandler):
                 file_name = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
             recording_path = os.path.join(settings.audio.directory.normalized, self.account.id)
             makedirs(recording_path)
-            self._audio_rec = RecordingWaveFile(self.conference_bridge, os.path.join(recording_path, file_name))
+            if separate:
+                file_name, extension = os.path.splitext(file_name)
+                input_rec = RecordingWaveFile(self.conference_bridge, os.path.join(recording_path, '%s-input%s' % (file_name, extension)))
+                output_rec = RecordingWaveFile(self.conference_bridge, os.path.join(recording_path, '%s-output%s' % (file_name, extension)))
+                self._audio_rec = (input_rec, output_rec)
+            else:
+                audio_rec = RecordingWaveFile(self.conference_bridge, os.path.join(recording_path, file_name))
+                self._audio_rec = (audio_rec, audio_rec)
             self._check_recording()
 
     def stop_recording(self):
@@ -281,38 +290,75 @@ class AudioStream(NotificationHandler):
             self._stop_recording()
 
     def _check_recording(self):
-        if not self._audio_rec.is_active:
+        input_rec, output_rec = self._audio_rec
+        if not input_rec.is_active:
             self.notification_center.post_notification("AudioStreamWillStartRecordingAudio", self,
-                                                       TimestampedNotificationData(file_name=self._audio_rec.file_name))
+                                                       TimestampedNotificationData(file_name=input_rec.file_name, direction='both' if input_rec is output_rec else 'input'))
             try:
-                self._audio_rec.start()
+                input_rec.start()
             except SIPCoreError, e:
-                file_name = self._audio_rec.file_name
+                file_name = input_rec.file_name
                 self._audio_rec = None
                 self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
-                                                           TimestampedNotificationData(file_name=file_name,
-                                                                                       reason=e.args[0]))
+                                                           TimestampedNotificationData(file_name=input_rec.file_name, reason=e.args[0], direction='both' if input_rec is output_rec else 'input'))
                 return
             self.notification_center.post_notification("AudioStreamDidStartRecordingAudio", self,
-                                                       TimestampedNotificationData(file_name=self._audio_rec.file_name))
+                                                       TimestampedNotificationData(file_name=input_rec.file_name, direction='both' if input_rec is output_rec else 'input'))
+        if input_rec is not output_rec and not output_rec.is_active: # first test implied by second, but kept for clearness
+            self.notification_center.post_notification("AudioStreamWillStartRecordingAudio", self,
+                                                       TimestampedNotificationData(file_name=output_rec.file_name, direction='both' if input_rec is output_rec else 'output'))
+            try:
+                output_rec.start()
+            except SIPCoreError, e:
+                self._stop_input_recording()
+                self._audio_rec = None
+                self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
+                                                           TimestampedNotificationData(file_name=output_rec.file_name, reason=e.args[0], direction='both' if input_rec is output_rec else 'output'))
+                return
+            self.notification_center.post_notification("AudioStreamDidStartRecordingAudio", self,
+                                                       TimestampedNotificationData(file_name=output_rec.file_name, direction='both' if input_rec is output_rec else 'output'))
         output_slots = [connection[1] for connection in self.conference_bridge.connected_slots]
-        if not self.on_hold and self._audio_rec.slot not in output_slots:
-            self.conference_bridge.connect_slots(0, self._audio_rec.slot)
-            self.conference_bridge.connect_slots(self._audio_transport.slot, self._audio_rec.slot)
-        elif self.on_hold and self._audio_rec.slot in output_slots:
-            self.conference_bridge.disconnect_slots(0, self._audio_rec.slot)
-            self.conference_bridge.disconnect_slots(self._audio_transport.slot, self._audio_rec.slot)
+        if not self.on_hold:
+            if input_rec.slot not in output_slots:
+                self.conference_bridge.connect_slots(0, input_rec.slot)
+            if output_rec.slot not in output_slots:
+                self.conference_bridge.connect_slots(self._audio_transport.slot, output_rec.slot)
+        else:
+            if input_rec.slot in output_slots:
+                self.conference_bridge.disconnect_slots(0, input_rec.slot)
+            if output_rec.slot in output_slots:
+                self.conference_bridge.disconnect_slots(self._audio_transport.slot, output_rec.slot)
+
+    def _stop_input_recording(self):
+        input_rec, output_rec = self._audio_rec
+        if input_rec.is_active:
+            self.notification_center.post_notification("AudioStreamWillStopRecordingAudio", self,
+                                                       TimestampedNotificationData(file_name=input_rec.file_name, direction='both' if input_rec is output_rec else 'input'))
+            try:
+                input_rec.stop()
+            finally:
+                self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
+                                                           TimestampedNotificationData(file_name=input_rec.file_name, direction='both' if input_rec is output_rec else 'input'))
+
+    def _stop_output_recording(self):
+        input_rec, output_rec = self._audio_rec
+        if output_rec.is_active:
+            self.notification_center.post_notification("AudioStreamWillStopRecordingAudio", self,
+                                                       TimestampedNotificationData(file_name=output_rec.file_name, direction='both' if input_rec is output_rec else 'output'))
+            try:
+                output_rec.stop()
+            finally:
+                self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
+                                                           TimestampedNotificationData(file_name=output_rec.file_name, direction='both' if input_rec is output_rec else 'output'))
 
     def _stop_recording(self):
-        self.notification_center.post_notification("AudioStreamWillStopRecordingAudio", self,
-                                                   TimestampedNotificationData(file_name=self._audio_rec.file_name))
         try:
-            self._audio_rec.stop()
+            self._stop_input_recording()
         finally:
-            file_name = self._audio_rec.file_name
-            self._audio_rec = None
-            self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
-                                                       TimestampedNotificationData(file_name=file_name))
+            try:
+                self._stop_output_recording()
+            finally:
+                self._audio_rec = None
 
     def validate_update(self, remote_sdp, stream_index):
         with self._lock:

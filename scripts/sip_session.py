@@ -895,10 +895,16 @@ class SIPSessionApplication(SIPApplication):
                 self.hold_tone = None
 
     def _NH_AudioStreamDidStartRecordingAudio(self, notification):
-        send_notice('Recording audio to %s' % notification.data.file_name)
+        if notification.data.direction == 'both':
+            send_notice('Recording audio to %s' % notification.data.file_name)
+        else:
+            send_notice('Recording %s audio to %s' % (notification.data.direction, notification.data.file_name))
 
     def _NH_AudioStreamDidStopRecordingAudio(self, notification):
-        send_notice('Stopped recording audio to %s' % notification.data.file_name)
+        if notification.data.direction == 'both':
+            send_notice('Stopped recording audio to %s' % notification.data.file_name)
+        else:
+            send_notice('Stopped recording %s audio to %s' % (notification.data.direction, notification.data.file_name))
 
     def _NH_ChatStreamGotMessage(self, notification):
         if hasattr(notification.data, 'cpim_headers') and 'From' in notification.data.cpim_headers:
@@ -1261,6 +1267,28 @@ class SIPSessionApplication(SIPApplication):
             else:
                 audio_stream.stop_recording()
 
+    def _CH_srecord(self, state='toggle'):
+        if self.active_session is None:
+            return
+        try:
+            audio_stream = [stream for stream in self.active_session.streams if isinstance(stream, AudioStream)][0]
+        except IndexError:
+            pass
+        else:
+            if state == 'toggle':
+                new_state = not audio_stream.recording_active
+            elif state == 'on':
+                new_state = True
+            elif state == 'off':
+                new_state = False
+            else:
+                send_notice('Illegal argument to /srecord. Type /help for a list of available commands.')
+                return
+            if new_state:
+                audio_stream.start_recording(separate=True)
+            else:
+                audio_stream.stop_recording()
+
     def _CH_hold(self, state='toggle'):
         if self.active_session is not None:
             if state == 'toggle':
@@ -1328,6 +1356,7 @@ class SIPSessionApplication(SIPApplication):
         lines.append('In call commands:')
         lines.append('  /hangup: hang-up the active session (ctrl-x h)')
         lines.append('  /record [on|off]: toggle/set audio recording (ctrl-x r)')
+        lines.append('  /srecord [on|off]: toggle/set audio recording to separate files for input and output')
         lines.append('  /hold [on|off]: hold/unhold (ctrl-x SPACE)')
         lines.append('  /add {chat|audio}: add a stream to the current session')
         lines.append('  /remove {chat|audio}: remove a stream from the current session')
