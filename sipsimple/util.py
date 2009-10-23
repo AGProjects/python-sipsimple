@@ -28,12 +28,13 @@ class TimestampedNotificationData(NotificationData):
 class SilenceableWaveFile(object):
     implements(IObserver)
 
-    def __init__(self, conference_bridge, file_name, volume=100, loop_count=1, pause_time=0):
+    def __init__(self, conference_bridge, file_name, volume=100, loop_count=1, pause_time=0, initial_play=True):
         self.conference_bridge = conference_bridge
         self.file_name = file_name
         self.volume = volume
         self.loop_count = loop_count
         self.pause_time = pause_time
+        self.initial_play = initial_play
         self._current_loop = 0
         self._lock = Lock()
         self._state = 'stopped'
@@ -48,7 +49,12 @@ class SilenceableWaveFile(object):
             self._state = 'started'
         self._stopped = False
         self._current_loop = 0
-        self._play_wave()
+        if self.initial_play:
+            self._play_wave()
+        else:
+            self.timer = Timer(self.pause_time, self._play_wave)
+            self.timer.setDaemon(True)
+            self.timer.start()
 
     @property
     def is_active(self):
@@ -83,6 +89,8 @@ class SilenceableWaveFile(object):
                 self.timer = Timer(self.pause_time, self._play_wave)
                 self.timer.setDaemon(True)
                 self.timer.start()
+            else:
+                self._state = 'stopped'
 
 
 class PersistentTones(object):
