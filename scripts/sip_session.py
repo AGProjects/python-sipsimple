@@ -524,6 +524,7 @@ class OutgoingTransferHandler(object):
         self.account = account
         self.target = target
         self.filepath = filepath
+        self.file_selector = None
         self.finished = False
         self.hash_compute_proc = None
         self.session = None
@@ -542,7 +543,10 @@ class OutgoingTransferHandler(object):
         else:
             send_notice('Computing hash...')
             def compute_hash():
-                self.file_selector = FileSelector.for_file(self.filepath)
+                try:
+                    self.file_selector = FileSelector.for_file(self.filepath)
+                except Exception, e:
+                    send_notice('Failed to read file "%s": %s' % (self.filepath, e))
             self.hash_compute_proc = proc.spawn(compute_hash)
             
             if '.' not in self.target.host:
@@ -566,6 +570,8 @@ class OutgoingTransferHandler(object):
         notification_center.remove_observer(self, sender=notification.sender)
         
         self.hash_compute_proc.wait()
+        if self.file_selector is None:
+            return
 
         self.session = Session(self.account)
         notification_center.add_observer(self, sender=self.session)
@@ -688,8 +694,8 @@ class IncomingTransferHandler(object):
         try:
             self.file = open(self.filename, 'w')
         except Exception, e:
-            send_notice('Failed to open file "%s" for writing: %s' % str(e))
-            self.session.reject()
+            send_notice('Failed to open file "%s" for writing: %s' % (self.filename, e))
+            self.session.reject(486)
             return
         self.hash = hashlib.sha1()
 
