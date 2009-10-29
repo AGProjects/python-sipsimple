@@ -2,8 +2,10 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+import hashlib
 import re
 import signal
+import os
 from datetime import datetime
 from itertools import chain
 from optparse import OptionParser
@@ -12,7 +14,9 @@ from time import sleep
 
 from application import log
 from application.notification import IObserver, NotificationCenter
+from application.python.queue import EventQueue
 from application.python.util import Null
+from eventlet import proc
 from zope.interface import implements
 from twisted.internet import reactor
 
@@ -25,9 +29,9 @@ from sipsimple.audiostream import AudioStream
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
-from sipsimple.msrpstream import ChatStream
+from sipsimple.msrpstream import ChatStream, FileSelector, FileTransferStream
 from sipsimple.session import IllegalStateError, Session
-from sipsimple.util import PersistentTones, SilenceableWaveFile
+from sipsimple.util import run_in_green_thread, PersistentTones, SilenceableWaveFile
 
 from sipsimple.clients.log import Logger
 from sipsimple.clients.ui import Prompt, Question, RichText, UI
@@ -513,6 +517,332 @@ class IncomingProposalHandler(object):
             IncomingProposalHandler.tone_ringtone = None
 
 
+class OutgoingTransferHandler(object):
+    implements(IObserver)
+
+    def __init__(self, account, target, filepath):
+        self.account = account
+        self.target = target
+        self.filepath = filepath
+        self.finished = False
+        self.hash_compute_proc = None
+        self.session = None
+        self.wave_ringtone = None
+    
+    @run_in_green_thread
+    def start(self):
+        if '@' not in self.target:
+            self.target = '%s@%s' % (self.target, self.account.id.domain)
+        if not self.target.startswith('sip:') and not self.target.startswith('sips:'):
+            self.target = 'sip:' + self.target
+        try:
+            self.target = SIPURI.parse(self.target)
+        except SIPCoreError:
+            send_notice('Illegal SIP URI: %s' % self.target)
+        else:
+            send_notice('Computing hash...')
+            def compute_hash():
+                self.file_selector = FileSelector.for_file(self.filepath)
+            self.hash_compute_proc = proc.spawn(compute_hash)
+            
+            if '.' not in self.target.host:
+                self.target.host = '%s.%s' % (self.target.host, self.account.id.domain)
+            lookup = DNSLookup()
+            notification_center = NotificationCenter()
+            notification_center.add_observer(self, sender=lookup)
+            settings = SIPSimpleSettings()
+            if isinstance(self.account, Account) and self.account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
+            else:
+                uri = self.target
+            lookup.lookup_sip_proxy(uri, settings.sip.transports)
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
+
+    def _NH_DNSLookupDidSucceed(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=notification.sender)
+        
+        self.hash_compute_proc.wait()
+
+        self.session = Session(self.account)
+        notification_center.add_observer(self, sender=self.session)
+        self.session.connect(ToHeader(self.target), routes=notification.data.result, streams=[FileTransferStream(self.account, self.file_selector)])
+
+    def _NH_DNSLookupDidFail(self, notification):
+        send_notice('File transfer to %s failed: DNS lookup error: %s' % (self.target, notification.data.error))
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=notification.sender)
+
+    def _NH_SIPSessionNewOutgoing(self, notification):
+        session = notification.sender
+        local_identity = str(session.local_identity.uri)
+        if session.local_identity.display_name:
+            local_identity = '"%s" <%s>' % (session.local_identity.display_name, local_identity)
+        remote_identity = str(session.remote_identity.uri)
+        if session.remote_identity.display_name:
+            remote_identity = '"%s" <%s>' % (session.remote_identity.display_name, remote_identity)
+        send_notice("Initiating file transfer from '%s' to '%s' via %s..." % (local_identity, remote_identity, session.route))
+
+    def _NH_SIPSessionGotRingIndication(self, notification):
+        application = SIPSessionApplication()
+        settings = SIPSimpleSettings()
+        ui = UI()
+        ringtone = settings.sounds.audio_outbound
+        if ringtone:
+            self.wave_ringtone = SilenceableWaveFile(application.voice_conference_bridge, ringtone.path.normalized, volume=ringtone.volume, loop_count=0, pause_time=2)
+        if self.wave_ringtone:
+            self.wave_ringtone.start()
+        ui.status = 'Ringing...'
+
+    def _NH_SIPSessionWillStart(self, notification):
+        ui = UI()
+        if self.wave_ringtone:
+            self.wave_ringtone.stop()
+        ui.status = 'Connecting...'
+
+    def _NH_SIPSessionDidStart(self, notification):
+        session = notification.sender
+
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=session.streams[0])
+
+        ui = UI()
+        ui.status = 'File transfer connected'
+
+        identity = str(session.remote_identity.uri)
+        if session.remote_identity.display_name:
+            identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
+        stream = session.streams[0]
+        send_notice("File transfer for %s to '%s' started" % (stream.file_selector.name, identity))
+
+    def _NH_SIPSessionDidFail(self, notification):
+        notification_center = NotificationCenter()
+        session = notification.sender
+        notification_center.remove_observer(self, sender=session)
+
+        ui = UI()
+        ui.status = None
+
+        if self.wave_ringtone:
+            self.wave_ringtone.stop()
+        if notification.data.failure_reason == 'user request' and notification.data.reason == 'Canceled':
+            send_notice('File transfer cancelled')
+        elif notification.data.failure_reason == 'user request':
+            send_notice('File transfer rejected by user (%d %s)' % (notification.data.code, notification.data.reason))
+        else:
+            send_notice('File transfer failed: %s' % notification.data.failure_reason)
+
+    def _NH_SIPSessionDidEnd(self, notification):
+        notification_center = NotificationCenter()
+        session = notification.sender
+        notification_center.remove_observer(self, sender=session)
+        notification_center.remove_observer(self, sender=session.streams[0])
+
+        ui = UI()
+        ui.status = None
+
+        if not self.finished:
+            send_notice('File transfer of %s canceled by %s party' % (os.path.basename(self.filepath), notification.data.originator))
+
+    def _NH_FileTransferStreamDidDeliverChunk(self, notification):
+        ui = UI()
+        ui.status = '%s: %s%%' % (os.path.basename(self.filepath), notification.data.transferred_bytes*100//notification.data.file_size)
+
+    def _NH_FileTransferStreamDidNotDeliverChunk(self, notification):
+        send_notice('Failed to deliver chunk within file transfer of %s (%d %s)' % (os.path.basename(self.filepath), notification.data.code, notification.data.reason))
+
+    def _NH_FileTransferStreamDidFinish(self, notification):
+        self.finished = True
+        send_notice('File transfer of %s finished' % os.path.basename(self.filepath))
+        self.session.end()
+
+
+class IncomingTransferHandler(object):
+    implements(IObserver)
+
+    sessions = 0
+    tone_ringtone = None
+
+    def __init__(self, session, auto_answer_interval=None):
+        self.session = session
+        self.auto_answer_interval = auto_answer_interval
+        self.file = None
+        self.filename = None
+        self.file_write_queue = EventQueue(self.write_chunk, name='File writing thread')
+        self.hash = None
+        self.question = None
+
+    def start(self):
+        settings = SIPSimpleSettings()
+        stream = self.session.proposed_streams[0]
+        self.file_selector = stream.file_selector
+        self.filename = filename = os.path.join(settings.file_transfer.directory.normalized, self.file_selector.name)
+        i = 1
+        while os.path.exists(filename):
+            filename = '%s.%d' % (self.filename, i)
+            i += 1
+        self.filename = filename
+        try:
+            self.file = open(self.filename, 'w')
+        except Exception, e:
+            send_notice('Failed to open file "%s" for writing: %s' % str(e))
+            self.session.reject()
+            return
+        self.hash = hashlib.sha1()
+
+        IncomingTransferHandler.sessions += 1
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=self.session)
+
+        # start auto-answer
+        self.answer_timer = None
+        if self.auto_answer_interval == 0:
+            self.session.accept(self.session.proposed_streams)
+            return
+        elif self.auto_answer_interval > 0:
+            self.answer_timer = reactor.callFromThread(reactor.callLater, self.auto_answer_interval, self.session.accept, self.session.proposed_streams)
+
+        # start ringing
+        application = SIPSessionApplication()
+        self.wave_ringtone = None
+        if application.active_session is None:
+            if IncomingCallInitializer.sessions == 1:
+                ringtone = self.session.account.sounds.audio_inbound.sound_file if self.session.account.sounds.audio_inbound is not None else None
+                if ringtone:
+                    self.wave_ringtone = SilenceableWaveFile(application.alert_conference_bridge, ringtone.path.normalized, volume=ringtone.volume, loop_count=0, pause_time=2)
+                    self.wave_ringtone.start()
+        elif IncomingTransferHandler.tone_ringtone is None:
+            IncomingTransferHandler.tone_ringtone = PersistentTones(application.voice_conference_bridge, [(1000, 400, 200), (0, 0, 50) , (1000, 600, 200)], 6)
+            IncomingTransferHandler.tone_ringtone.start()
+        self.session.send_ring_indication()
+
+        # ask question
+        identity = str(self.session.remote_identity.uri)
+        if self.session.remote_identity.display_name:
+            identity = '"%s" <%s>' % (self.session.remote_identity.display_name, identity)
+        self.question = Question("Incoming file transfer for %s from '%s', do you want to accept? (a)ccept/(r)eject" % (self.file_selector.name, identity), 'ari', bold=True)
+        notification_center.add_observer(self, sender=self.question)
+        ui = UI()
+        ui.add_question(self.question)
+
+    def write_chunk(self, data):
+        if data is not None:
+            self.file.write(data)
+            self.hash.update(data)
+        else:
+            local_hash = 'sha1:' + ':'.join(re.findall(r'..', self.hash.hexdigest().upper()))
+            remote_hash = self.file_selector.hash
+            if local_hash != remote_hash:
+                send_notice('Warning: hash of transferred file does not match the remote hash (file may have changed).')
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
+
+    def _NH_UIQuestionGotAnswer(self, notification):
+        notification_center = NotificationCenter()
+        ui = UI()
+        notification_center.remove_observer(self, sender=notification.sender)
+        answer = notification.data.answer
+        self.question = None
+        if answer == 'a':
+            self.session.accept(self.session.proposed_streams)
+            ui.status = 'Accepting...'
+        elif answer == 'r':
+            self.session.reject()
+            ui.status = 'Rejecting...'
+        
+        if IncomingTransferHandler.sessions == 1:
+            if self.wave_ringtone:
+                self.wave_ringtone.stop()
+                self.wave_ringtone = None
+            if IncomingTransferHandler.tone_ringtone:
+                IncomingTransferHandler.tone_ringtone.stop()
+                IncomingTransferHandler.tone_ringtone = None
+        if self.answer_timer is not None and self.answer_timer.active():
+            self.answer_timer.cancel()
+
+    def _NH_SIPSessionWillStart(self, notification):
+        ui = UI()
+        if self.question is not None:
+            notification_center = NotificationCenter()
+            notification_center.remove_observer(self, sender=self.question)
+            ui.remove_question(self.question)
+            self.question = None
+        ui.status = 'Connecting...'
+
+    def _NH_SIPSessionDidStart(self, notification):
+        session = notification.sender
+        IncomingCallInitializer.sessions -= 1
+
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=session.streams[0])
+
+        ui = UI()
+        ui.status = 'File transfer connected'
+
+        identity = str(session.remote_identity.uri)
+        if session.remote_identity.display_name:
+            identity = '"%s" <%s>' % (session.remote_identity.display_name, identity)
+        send_notice("File transfer for %s with '%s' started" % (self.file_selector.name, identity))
+
+        self.file_write_queue.start()
+
+    def _NH_SIPSessionDidFail(self, notification):
+        notification_center = NotificationCenter()
+        ui = UI()
+        session = notification.sender
+        notification_center.remove_observer(self, sender=session)
+
+        ui.status = None
+
+        if self.question is not None:
+            notification_center.remove_observer(self, sender=self.question)
+            ui.remove_question(self.question)
+            self.question = None
+
+        IncomingCallInitializer.sessions -= 1
+        if self.wave_ringtone:
+            self.wave_ringtone.stop()
+            self.wave_ringtone = None
+        if IncomingCallInitializer.sessions == 0 and IncomingCallInitializer.tone_ringtone is not None:
+            IncomingCallInitializer.tone_ringtone.stop()
+            IncomingCallInitializer.tone_ringtone = None
+        if notification.data.failure_reason == 'user request' and notification.data.reason == 'Canceled':
+            send_notice('File transfer cancelled by user')
+        elif notification.data.failure_reason == 'user request':
+            send_notice('File transfer rejected (%d %s)' % (notification.data.code, notification.data.reason))
+        else:
+            send_notice('File transfer failed: %s' % notification.data.failure_reason)
+
+    def _NH_SIPSessionDidEnd(self, notification):
+        notification_center = NotificationCenter()
+        session = notification.sender
+        notification_center.remove_observer(self, sender=session)
+        notification_center.remove_observer(self, sender=session.streams[0])
+
+        ui = UI()
+        ui.status = None
+
+        if not self.finished:
+            send_notice('File transfer of %s canceled by %s party' % (os.path.basename(self.file_selector.name), notification.data.originator))
+
+        self.file_write_queue.put(None)
+        self.file_write_queue.stop()
+
+    def _NH_FileTransferStreamGotChunk(self, notification):
+        ui = UI()
+        ui.status = '%s: %s%%' % (os.path.basename(self.file_selector.name), notification.data.transferred_bytes*100//notification.data.file_size)
+        self.file_write_queue.put(notification.data.content)
+
+    def _NH_FileTransferStreamDidFinish(self, notification):
+        self.finished = True
+        send_notice('File transfer of %s finished (file saved to "%s").' % (os.path.basename(self.file_selector.name), self.filename))
+
+
 class SIPSessionApplication(SIPApplication):
     # public methods
     #
@@ -550,7 +880,7 @@ class SIPSessionApplication(SIPApplication):
         notification_center.add_observer(self, sender=self)
         notification_center.add_observer(self, sender=ui)
         notification_center.add_observer(self, name='SIPSessionNewIncoming')
-        notification_center.add_observer(self, name='SIPSessionDidStart')
+        notification_center.add_observer(self, name='SIPSessionNewOutgoing')
 
         log.level.current = log.level.WARNING # get rid of twisted messages
         control_bindings={'s': 'trace sip',
@@ -720,13 +1050,33 @@ class SIPSessionApplication(SIPApplication):
 
     def _NH_SIPSessionNewIncoming(self, notification):
         session = notification.sender
-        call_initializer = IncomingCallInitializer(session, self.options.auto_answer_interval)
-        call_initializer.start()
+        transfer_streams = [stream for stream in session.proposed_streams if stream.type == 'file-transfer']
+        # only allow sessions with 0 or 1 file transfers
+        if len(transfer_streams) not in (0, 1):
+            session.reject(488)
+        if transfer_streams:
+            transfer_handler = IncomingTransferHandler(session, self.options.auto_answer_interval)
+            transfer_handler.start()
+        else:
+            notification_center = NotificationCenter()
+            notification_center.add_observer(self, sender=session)
+            call_initializer = IncomingCallInitializer(session, self.options.auto_answer_interval)
+            call_initializer.start()
+
+    def _NH_SIPSessionNewOutgoing(self, notification):
+        session = notification.sender
+        transfer_streams = [stream for stream in session.proposed_streams if stream.type == 'file-transfer']
+        if not transfer_streams:
+            notification_center = NotificationCenter()
+            notification_center.add_observer(self, sender=session)
+
+    def _NH_SIPSessionDidFail(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=notification.sender)
 
     def _NH_SIPSessionDidStart(self, notification):
         notification_center = NotificationCenter()
         session = notification.sender
-        notification_center.add_observer(self, sender=session)
         for stream in notification.data.streams:
             notification_center.add_observer(self, sender=stream)
 
@@ -953,6 +1303,10 @@ class SIPSessionApplication(SIPApplication):
             return
         call_initializer = OutgoingCallInitializer(self.account, target, audio=audio_option=='+audio', chat=True)
         call_initializer.start()
+
+    def _CH_send(self, target, filepath):
+        transfer_handler = OutgoingTransferHandler(self.account, target, filepath)
+        transfer_handler.start()
 
     def _CH_next(self):
         if len(self.connected_sessions) > 1:
@@ -1341,6 +1695,7 @@ class SIPSessionApplication(SIPApplication):
         lines.append('  /call {user[@domain]}: call the specified user using audio and chat')
         lines.append('  /audio {user[@domain]} [+chat]: call the specified user using audio and possibly chat')
         lines.append('  /chat {user[@domain]} [+audio]: call the specified user using chat and possibly audio')
+        lines.append('  /send {user[@domain]} {file}: initiate a file transfer with the specified user')
         lines.append('  /next: select the next connected session')
         lines.append('  /prev: select the previous connected session')
         lines.append('  /sessions: show the list of connected sessions')
