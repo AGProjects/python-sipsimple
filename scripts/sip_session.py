@@ -221,7 +221,7 @@ class OutgoingCallInitializer(object):
 
         if self.wave_ringtone:
             self.wave_ringtone.stop()
-        if notification.data.failure_reason == 'user request' and notification.data.reason == 'Canceled':
+        if notification.data.failure_reason == 'user request' and notification.data.code == 487:
             send_notice('SIP session cancelled')
         elif notification.data.failure_reason == 'user request':
             send_notice('SIP session rejected by user (%d %s)' % (notification.data.code, notification.data.reason))
@@ -362,7 +362,7 @@ class IncomingCallInitializer(object):
         if IncomingCallInitializer.sessions == 0 and IncomingCallInitializer.tone_ringtone is not None:
             IncomingCallInitializer.tone_ringtone.stop()
             IncomingCallInitializer.tone_ringtone = None
-        if notification.data.failure_reason == 'user request' and notification.data.reason == 'Canceled':
+        if notification.data.failure_reason == 'user request' and notification.data.code == 487:
             send_notice('SIP session cancelled by user')
         elif notification.data.failure_reason == 'user request':
             send_notice('SIP session rejected (%d %s)' % (notification.data.code, notification.data.reason))
@@ -628,7 +628,7 @@ class OutgoingTransferHandler(object):
 
         if self.wave_ringtone:
             self.wave_ringtone.stop()
-        if notification.data.failure_reason == 'user request' and notification.data.reason == 'Canceled':
+        if notification.data.failure_reason == 'user request' and notification.data.code == 487:
             send_notice('File transfer cancelled')
         elif notification.data.failure_reason == 'user request':
             send_notice('File transfer rejected by user (%d %s)' % (notification.data.code, notification.data.reason))
@@ -811,7 +811,7 @@ class IncomingTransferHandler(object):
         if IncomingCallInitializer.sessions == 0 and IncomingCallInitializer.tone_ringtone is not None:
             IncomingCallInitializer.tone_ringtone.stop()
             IncomingCallInitializer.tone_ringtone = None
-        if notification.data.failure_reason == 'user request' and notification.data.reason == 'Canceled':
+        if notification.data.failure_reason == 'user request' and notification.data.code == 487:
             send_notice('File transfer cancelled by user')
         elif notification.data.failure_reason == 'user request':
             send_notice('File transfer rejected (%d %s)' % (notification.data.code, notification.data.reason))
