@@ -13,9 +13,6 @@ dns.query.select = select
 dns.query.socket = socket
 
 from application.notification import NotificationCenter
-from application.python.decorator import decorator, preserve_signature
-from eventlet.twistedutil import callInGreenThread
-from twisted.python import threadable
 
 from sipsimple.util import Route, TimestampedNotificationData, run_in_green_thread
 
