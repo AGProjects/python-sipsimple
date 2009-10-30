@@ -57,6 +57,18 @@ def transition_state(required_state, new_state):
     return state_transitioner
 
 
+@decorator
+def check_state(required_states):
+    def state_checker(func):
+        @preserve_signature(func)
+        def wrapper(obj, *args, **kwargs):
+            if obj.state not in required_states:
+                raise IllegalStateError('cannot call %s in %s state' % (func.__name__, obj.state))
+            return func(obj, *args, **kwargs)
+        return wrapper
+    return state_checker
+
+
 class Session(object):
     implements(IObserver)
 
@@ -170,8 +182,10 @@ class Session(object):
                         self._fail(originator='remote', code=received_code, reason=received_reason, error='SDP negotiation failed: %s' % notification.data.error)
                         return
                 elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'early' and notification.data.code == 180:
-                        notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                    if notification.data.state == 'early':
+                        if notification.data.code == 180:
+                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
                     elif notification.data.state == 'connecting':
                         received_code = notification.data.code
                         received_reason = notification.data.reason
@@ -271,7 +285,7 @@ class Session(object):
             if self._hold_in_progress:
                 self._send_hold()
 
-    @transition_state('incoming', 'incoming')
+    @check_state(['incoming', 'received_proposal'])
     @run_in_green_thread
     def send_ring_indication(self):
         try:
@@ -676,7 +690,11 @@ class Session(object):
                         self._fail_proposal(originator='local', error='SDP negotiation failed: %s' % notification.data.error)
                         return
                 elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                    if notification.data.state == 'early':
+                        if notification.data.code == 180:
+                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
+                    elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
                         if 200 <= notification.data.code < 300:
@@ -766,7 +784,11 @@ class Session(object):
                 if notification.name == 'SIPInvitationGotSDPUpdate':
                     received_sdp_update = True
                 elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                    if notification.data.state == 'early':
+                        if notification.data.code == 180:
+                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
+                    elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
         except InvitationDidFailError, e:
@@ -905,7 +927,11 @@ class Session(object):
                         for stream in self.streams:
                             stream.update(local_sdp, remote_sdp, stream.index)
                 elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                    if notification.data.state == 'early':
+                        if notification.data.code == 180:
+                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
+                    elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
         except InvitationDidFailError, e:
@@ -949,7 +975,11 @@ class Session(object):
                         for stream in self.streams:
                             stream.update(local_sdp, remote_sdp, stream.index)
                 elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                    if notification.data.state == 'early':
+                        if notification.data.code == 180:
+                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
+                    elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
         except InvitationDidFailError, e:
