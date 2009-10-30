@@ -8,7 +8,7 @@ class IMediaStream(Interface):
 
     hold_supported = Attribute("True if the stream supports hold")
     on_hold_by_local = Attribute("True if the stream is on hold by the local party")
-    on_hold_by_remote = Attribute("True if the stream is on hold by the remeot")
+    on_hold_by_remote = Attribute("True if the stream is on hold by the remote")
     on_hold = Attribute("True if either on_hold_by_local or on_hold_by_remote is true") 
 
     def __init__(self, account):
