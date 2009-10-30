@@ -678,6 +678,7 @@ class IncomingTransferHandler(object):
         self.file = None
         self.filename = None
         self.file_write_queue = EventQueue(self.write_chunk, name='File writing thread')
+        self.finished = False
         self.hash = None
         self.question = None
 
@@ -738,7 +739,7 @@ class IncomingTransferHandler(object):
         if data is not None:
             self.file.write(data)
             self.hash.update(data)
-        else:
+        elif self.finished:
             local_hash = 'sha1:' + ':'.join(re.findall(r'..', self.hash.hexdigest().upper()))
             remote_hash = self.file_selector.hash
             if local_hash != remote_hash:
