@@ -19,13 +19,8 @@ from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 from sipsimple.engine import Engine
 
 from sipsimple.account import AccountManager
-from sipsimple.audiostream import AudioStream
 from sipsimple.configuration.settings import SIPSimpleSettings
-try:
-    from sipsimple.desktopstream import DesktopSharingStream
-except:
-    DesktopSharingStream = None
-from sipsimple.msrpstream import ChatStream, FileTransferStream
+from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.util import TimestampedNotificationData, run_in_green_thread
 
 
@@ -100,20 +95,17 @@ class Session(object):
         if remote_sdp:
             for index, media_stream in enumerate(remote_sdp.media):
                 if media_stream.port != 0:
-                    stream = None
-                    if media_stream.media == 'audio':
-                        stream = AudioStream(self.account)
-                    elif media_stream.media == 'message' and 'file-selector' in media_stream.attributes:
-                        stream = FileTransferStream(self.account)
-                    elif media_stream.media == 'message':
-                        stream = ChatStream(self.account)
-                    elif media_stream.media == 'application':
-                        for attribute in media_stream.attributes:
-                            if attribute.name == 'accept-types' and 'application/x-rfb' in attribute.value.split() and DesktopSharingStream is not None:
-                                stream = DesktopSharingStream(self.account)
-                    if stream is not None and stream.validate_incoming(remote_sdp, index):
-                        stream.index = index
-                        self.proposed_streams.append(stream)
+                    for stream_type in MediaStreamRegistry():
+                        try:
+                            stream = stream_type.new_from_sdp(self.account, remote_sdp, index)
+                        except InvalidStreamError:
+                            break
+                        except UnknownStreamError:
+                            continue
+                        else:
+                            stream.index = index
+                            self.proposed_streams.append(stream)
+                            break
         if self.proposed_streams:
             self.direction = 'incoming'
             self.state = 'incoming'
@@ -1114,16 +1106,17 @@ class Session(object):
                         for index in added_media_indexes:
                             media_stream = proposed_remote_sdp.media[index]
                             if media_stream.port != 0:
-                                stream = None
-                                if media_stream.media == 'audio':
-                                    stream = AudioStream(self.account)
-                                elif media_stream.media == 'message' and 'file-selector' in media_stream.attributes:
-                                    stream = FileTransferStream(self.account)
-                                elif media_stream.media == 'message':
-                                    stream = ChatStream(self.account)
-                                if stream is not None and stream.validate_incoming(proposed_remote_sdp, index):
-                                    stream.index = index
-                                    self.proposed_streams.append(stream)
+                                for stream_type in MediaStreamRegistry():
+                                    try:
+                                        stream = stream_type.new_from_sdp(self.account, proposed_remote_sdp, index)
+                                    except InvalidStreamError:
+                                        break
+                                    except UnknownStreamError:
+                                        continue
+                                    else:
+                                        stream.index = index
+                                        self.proposed_streams.append(stream)
+                                        break
                         if self.proposed_streams:
                             notification_center.post_notification('SIPSessionGotProposal', sender=self, data=TimestampedNotificationData(originator='remote', streams=self.proposed_streams))
                             return

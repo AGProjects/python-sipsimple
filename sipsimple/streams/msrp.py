@@ -1,6 +1,8 @@
 # Copyright (C) 2009 AG Projects. See LICENSE for details.
 #
 
+__all__ = ['ChatStream', 'FileSelector', 'FileTransferStream', 'MSRPStreamError', 'ChatStreamError']
+
 import os
 import re
 import random
@@ -20,22 +22,24 @@ from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
 from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 
+from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.core import SDPAttribute, SDPMediaStream
-from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
 from sipsimple.util import run_in_green_thread, TimestampedNotificationData
 
 
-class MSRPStreamError(Exception): pass
-
+class MSRPStreamError(StreamError): pass
 class ChatStreamError(MSRPStreamError): pass
 
 
 class MSRPStreamBase(object):
+    __metaclass__ = MediaStreamRegistrar
+
     implements(IMediaStream, IObserver)
 
     type = None
+    priority = None
 
     # Attributes that need to be defined by each MSRP stream type
     media_type = None
@@ -81,7 +85,7 @@ class MSRPStreamBase(object):
     def get_local_media(self, for_offer=True):
         return self.local_media
 
-    def validate_incoming(self, remote_sdp, stream_index):
+    def new_from_sdp(self, account, remote_sdp, stream_index):
         raise NotImplementedError
 
     @run_in_green_thread
@@ -219,6 +223,7 @@ class MSRPStreamBase(object):
 class ChatStream(MSRPStreamBase):
 
     type = 'chat'
+    priority = 1
 
     media_type = 'message'
     accept_types = ['message/cpim', 'text/*']
@@ -228,15 +233,19 @@ class ChatStream(MSRPStreamBase):
         MSRPStreamBase.__init__(self, account, direction)
         self.message_queue = queue()
 
+    @classmethod
+    def new_from_sdp(cls, account, remote_sdp, stream_index):
+        remote_stream = remote_sdp.media[stream_index]
+        if remote_stream.media != 'message':
+            raise UnknownStreamError
+        stream = cls(account)
+        if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
+            raise InvalidStreamError("mismatching directions in chat stream")
+        return stream
+
     @property
     def private_messages_allowed(self):
         return self.cpim_enabled # and isfocus and 'private-messages' in chatroom
-
-    def validate_incoming(self, remote_sdp, stream_index):
-        media = remote_sdp.media[stream_index]
-        if (media.direction, self.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
-            return False
-        return True
 
     # TODO: chatroom, recvonly/sendonly (in start)?
 
@@ -415,6 +424,7 @@ class FileSelector(object):
 class FileTransferStream(MSRPStreamBase):
 
     type = 'file-transfer'
+    priority = 10
 
     media_type = 'message'
     accept_types = ['*']
@@ -428,19 +438,21 @@ class FileTransferStream(MSRPStreamBase):
             self.outgoing_file.headers['Success-Report'] = SuccessReportHeader('yes')
             self.outgoing_file.headers['Failure-Report'] = FailureReportHeader('partial')
 
+    @classmethod
+    def new_from_sdp(cls, account, remote_sdp, stream_index):
+        remote_stream = remote_sdp.media[stream_index]
+        if remote_stream.media != 'message' or 'file-selector' not in remote_stream.attributes:
+            raise UnknownStreamError
+        stream = cls(account)
+        stream.file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
+        if (remote_stream.direction, stream.direction) != ('sendonly', 'recvonly'):
+            raise InvalidStreamError("mismatching directions in file transfer stream")
+        return stream
+
     def _create_local_media(self, uri_path):
         local_media = MSRPStreamBase._create_local_media(self, uri_path)
         local_media.attributes.append(SDPAttribute('file-selector', self.file_selector.sdp_repr))
         return local_media
-
-    def validate_incoming(self, remote_sdp, stream_index):
-        media = remote_sdp.media[stream_index]
-        if 'file-selector' not in media.attributes:
-            return False
-        self.file_selector = FileSelector.parse(media.attributes.getfirst('file-selector'))
-        if (media.direction, self.direction) != ('sendonly', 'recvonly'):
-            return False
-        return True
 
     def _NH_MediaStreamDidStart(self, notification):
         if self.direction == 'sendonly':

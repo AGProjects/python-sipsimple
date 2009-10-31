@@ -1,3 +1,6 @@
+# Copyright (C) 2009 AG Projects. See LICENSE for details.
+#
+
 from __future__ import with_statement
 from threading import RLock
 import os
@@ -7,17 +10,24 @@ from zope.interface import implements
 
 from application.notification import NotificationCenter, NotificationData
 
-from sipsimple.interfaces import IMediaStream
+from sipsimple.streams import IMediaStream, MediaStreamRegistrar, UnknownStreamError
 from sipsimple.util import TimestampedNotificationData, NotificationHandler, makedirs
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError, PJSIPError, RecordingWaveFile, SIPURI
 from sipsimple.account import BonjourAccount
 
+
+__all__ = ['AudioStream']
+
+
 class AudioStream(NotificationHandler):
+    __metaclass__ = MediaStreamRegistrar
+
     implements(IMediaStream)
 
     type = 'audio'
+    priority = 1
 
     hold_supported = True
 
@@ -34,6 +44,18 @@ class AudioStream(NotificationHandler):
         self._audio_rec = None
         self._hold_request = None
         self._lock = RLock()
+
+    @classmethod
+    def new_from_sdp(cls, account, remote_sdp, stream_index):
+        remote_stream = remote_sdp.media[stream_index]
+        if remote_stream.media != 'audio':
+            raise UnknownStreamError
+        stream = cls(account)
+        with stream._lock: # do we really need to lock here? -Dan
+            # TODO: actually validate the SDP
+            stream._incoming_remote_sdp = remote_sdp
+            stream._incoming_stream_index = stream_index
+        return stream
 
     @property
     def on_hold(self):
@@ -84,13 +106,6 @@ class AudioStream(NotificationHandler):
     @property
     def statistics(self):
         return self._audio_transport.statistics if self._audio_transport is not None else None
-
-    def validate_incoming(self, remote_sdp, stream_index):
-        with self._lock:
-            # TODO: actually validate the SDP
-            self._incoming_remote_sdp = remote_sdp
-            self._incoming_stream_index = stream_index
-            return True
 
     def initialize(self, session, direction):
         with self._lock:

@@ -25,11 +25,10 @@ from sipsimple.engine import Engine
 
 from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.api import SIPApplication
-from sipsimple.audiostream import AudioStream
+from sipsimple.streams import AudioStream, ChatStream, FileSelector, FileTransferStream
 from sipsimple.configuration.backend.configfile import ConfigFileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
-from sipsimple.msrpstream import ChatStream, FileSelector, FileTransferStream
 from sipsimple.session import IllegalStateError, Session
 from sipsimple.util import run_in_green_thread, PersistentTones, SilenceableWaveFile
 

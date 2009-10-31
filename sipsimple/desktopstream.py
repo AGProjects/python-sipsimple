@@ -12,9 +12,9 @@ from msrplib.session import contains_mime_type
 
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.cpim import CPIMIdentity
-from sipsimple.interfaces import IMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.msrpstream import MSRPStreamError, NotificationProxyLogger
+from sipsimple.streams import IMediaStream, MediaStreamRegistrar, InvalidStreamError, UnknownStreamError
+from sipsimple.streams.msrp import MSRPStreamError, NotificationProxyLogger
 
 from sipsimple.applications.desktopsharing import vncviewer, pygamevncviewer, gvncviewer, xtightvncviewer, vncserver
 
@@ -23,9 +23,12 @@ class DesktopSharingStreamError(MSRPStreamError): pass
 
 
 class DesktopSharingStream(object):
+    __metaclass__ = MediaStreamRegistrar
+
     implements(IMediaStream)
 
     type = 'desktop-sharing'
+    priority = 1
 
     hold_supported = False
     on_hold = False
@@ -47,6 +50,24 @@ class DesktopSharingStream(object):
         self.worker = None
         self.local_identity = CPIMIdentity(self.account.uri, self.account.display_name)
 
+    @classmethod
+    def new_from_sdp(cls, account, remote_sdp, stream_index):
+        remote_stream = remote_sdp.media[stream_index]
+        if remote_stream.media != 'application':
+            raise UnknownStreamError
+        accept_types = remote_stream.attributes.getfirst('accept-types', None)
+        if accept_types is None or 'application/x-rfb' not in accept_types.split():
+            raise UnknownStreamError
+        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
+        if remote_setup == 'active':
+            setup = 'passive'
+        elif remote_setup == 'passive':
+            setup = 'active'
+        else:
+            raise InvalidStreamError("unknown setup in the remote desktop sharing stream")
+        stream = cls(account, setup=setup)
+        return stream
+
     def make_SDPMediaStream(self, uri_path):
         attributes = []
         attributes.append(SDPAttribute("path", " ".join([str(uri) for uri in uri_path])))
@@ -64,18 +85,6 @@ class DesktopSharingStream(object):
 
     def get_local_media(self, for_offer=True):
         return self.local_media
-
-    def validate_incoming(self, remote_sdp, stream_index):
-        media = remote_sdp.media[stream_index]
-        remote_setup = media.attributes.getfirst('setup', 'active')
-        if remote_setup == 'active' and self.setup in ['passive', None]:
-            self.setup = 'passive'
-            return True
-        elif remote_setup == 'passive' and self.setup in ['active', None]:
-            self.setup = 'active'
-            return True
-        else:
-            return False
 
     def initialize(self, session, direction):
         try:
