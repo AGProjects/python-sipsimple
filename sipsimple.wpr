@@ -1,0 +1,13 @@
+#!wing
+#!version=3.0
+##################################################################
+# Wing IDE project file                                          #
+##################################################################
+[project attributes]
+proj.directory-list = [{'dirloc': loc('.'),
+                        'excludes': [u'_darcs'],
+                        'filter': 'All Source Files',
+                        'include_hidden': True,
+                        'recursive': True,
+                        'watch_for_changes': True}]
+proj.file-type = 'shared'
