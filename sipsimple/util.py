@@ -140,24 +140,6 @@ class PersistentTones(object):
                     self._tone_generator.stop()
 
 
-class NotificationHandler(object):
-    implements(IObserver)
-
-    def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification.sender, notification.data)
-
-    def subscribe_to_all(self, sender=Any, observer=None):
-        """Subscribe to all the notifications this class is interested in (based on what handler methods it has)"""
-        nc = NotificationCenter()
-        if observer is None:
-            observer = self
-        for name in dir(self):
-            if name.startswith('_NH_'):
-                nc.add_observer(observer, name.replace('_NH_', ''), sender=sender)
-
-
 class Route(object):
     def __init__(self, address, port=None, transport='udp'):
         self.address = address
@@ -246,4 +228,4 @@ def makedirs(path):
         raise
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "NotificationHandler", "Route", "run_in_green_thread", "classproperty", "makedirs"]
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "classproperty", "makedirs"]

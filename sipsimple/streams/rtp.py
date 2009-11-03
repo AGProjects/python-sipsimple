@@ -8,10 +8,11 @@ from datetime import datetime
 
 from zope.interface import implements
 
-from application.notification import NotificationCenter, NotificationData
+from application.notification import IObserver, NotificationCenter, NotificationData
+from application.python.util import Null
 
 from sipsimple.streams import IMediaStream, MediaStreamRegistrar, UnknownStreamError
-from sipsimple.util import TimestampedNotificationData, NotificationHandler, makedirs
+from sipsimple.util import TimestampedNotificationData, makedirs
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError, PJSIPError, RecordingWaveFile, SIPURI
@@ -21,10 +22,10 @@ from sipsimple.account import BonjourAccount
 __all__ = ['AudioStream']
 
 
-class AudioStream(NotificationHandler):
+class AudioStream(object):
     __metaclass__ = MediaStreamRegistrar
 
-    implements(IMediaStream)
+    implements(IMediaStream, IObserver)
 
     type = 'audio'
     priority = 1
@@ -44,6 +45,10 @@ class AudioStream(NotificationHandler):
         self._audio_rec = None
         self._hold_request = None
         self._lock = RLock()
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
 
     @classmethod
     def new_from_sdp(cls, account, remote_sdp, stream_index):
@@ -107,6 +112,13 @@ class AudioStream(NotificationHandler):
     def statistics(self):
         return self._audio_transport.statistics if self._audio_transport is not None else None
 
+    def validate_incoming(self, remote_sdp, stream_index):
+        with self._lock:
+            # TODO: actually validate the SDP
+            self._incoming_remote_sdp = remote_sdp
+            self._incoming_stream_index = stream_index
+            return True
+
     def initialize(self, session, direction):
         with self._lock:
             if self.state != "NULL":
@@ -125,19 +137,19 @@ class AudioStream(NotificationHandler):
             else:
                 self._init_rtp_transport()
 
-    def _NH_DNSLookupDidFail(self, dns_lookup, data):
+    def _NH_DNSLookupDidFail(self, notification):
         with self._lock:
-            self.notification_center.remove_observer(self, sender=dns_lookup)
+            self.notification_center.remove_observer(self, sender=notification.sender)
             if self.state == "ENDED":
                 return
             self._init_rtp_transport()
 
-    def _NH_DNSLookupDidSucceed(self, dns_lookup, data):
+    def _NH_DNSLookupDidSucceed(self, notification):
         with self._lock:
-            self.notification_center.remove_observer(self, sender=dns_lookup)
+            self.notification_center.remove_observer(self, sender=notification.sender)
             if self.state == "ENDED":
                 return
-            self._init_rtp_transport(data.result)
+            self._init_rtp_transport(notification.data.result)
 
     def _init_rtp_transport(self, stun_servers=None):
         self._rtp_args = dict()
@@ -152,6 +164,7 @@ class AudioStream(NotificationHandler):
 
     def _try_next_rtp_transport(self, failure_reason=None):
         # TODO: log failure_reason if it is not None? Or send a notification?
+        print 'RTPTransport failure reason: %s' % (failure_reason,)
         if self._stun_servers:
             stun_ip, stun_port = self._stun_servers.pop()
             observer_added = False
@@ -169,15 +182,16 @@ class AudioStream(NotificationHandler):
             self.notification_center.post_notification("MediaStreamDidFail", self,
                                                        TimestampedNotificationData(reason=failure_reason))
 
-    def _NH_RTPTransportDidFail(self, rtp_transport, data):
+    def _NH_RTPTransportDidFail(self, notification):
         with self._lock:
-            self.notification_center.remove_observer(self, sender=rtp_transport)
+            self.notification_center.remove_observer(self, sender=notification.sender)
             if self.state == "ENDED":
                 return
-            self._try_next_rtp_transport(data.reason)
+            self._try_next_rtp_transport(notification.data.reason)
 
-    def _NH_RTPTransportDidInitialize(self, rtp_transport, data):
+    def _NH_RTPTransportDidInitialize(self, notification):
         settings = SIPSimpleSettings()
+        rtp_transport = notification.sender
         with self._lock:
             self.notification_center.remove_observer(self, sender=rtp_transport)
             if self.state == "ENDED":
@@ -271,9 +285,9 @@ class AudioStream(NotificationHandler):
                 if not e.args[0].endswith("(PJ_ETOOMANY)"):
                     raise
 
-    def _NH_RTPAudioStreamGotDTMF(self, audio_transport, data):
+    def _NH_RTPAudioStreamGotDTMF(self, notification):
         self.notification_center.post_notification("AudioStreamGotDTMF", self,
-                                                   NotificationData(timestamp=data.timestamp, digit=data.digit))
+                                                   NotificationData(timestamp=notification.data.timestamp, digit=notification.data.digit))
 
     def start_recording(self, file_name=None, separate=False):
         with self._lock:

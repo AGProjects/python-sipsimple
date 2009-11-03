@@ -2,25 +2,22 @@ from __future__ import with_statement
 
 from threading import RLock
 
-from application.python.decorator import decorator
-from application.notification import NotificationCenter
+from application.notification import IObserver, NotificationCenter
+from application.python.util import Null
+
+from zope.interface import implements
 
 from sipsimple.core import ContactHeader, Header, Request, RouteHeader, SIPCoreError, SIPURI, ToHeader
-from sipsimple.util import NotificationHandler, TimestampedNotificationData
+from sipsimple.util import TimestampedNotificationData
 
-@decorator
-def keyword_handler(func):
-    def wrapper(self, sender, data):
-        return func(self, sender, **data.__dict__)
-    return wrapper
 
-class Registration(NotificationHandler):
+class Registration(object):
+    implements(IObserver)
 
     def __init__(self, from_header, credentials=None, duration=300):
         self.from_header = from_header
         self.credentials = credentials
         self.duration = duration
-        self._notification_center = NotificationCenter()
         self._current_request = None
         self._last_request = None
         self._unregistering = False
@@ -38,18 +35,88 @@ class Registration(NotificationHandler):
                 if raise_sipcore_error:
                     raise
                 else:
-                    self._notification_center.post_notification("SIPRegistrationDidFail", sender=self,
-                                                            data=TimestampedNotificationData(code=0, reason=e.args[0],
-                                                                                  route_header=route_header))
+                    NotificationCenter().post_notification("SIPRegistrationDidFail", sender=self,
+                                                           data=TimestampedNotificationData(code=0, reason=e.args[0],
+                                                                                            route_header=route_header))
 
     def end(self, timeout=None):
         with self._lock:
             if self._last_request is None:
                 return
             self._make_and_send_request(ContactHeader.new(self._last_request.contact_header), RouteHeader.new(self._last_request.route_header), timeout, False)
-            self._notification_center.post_notification("SIPRegistrationWillEnd", sender=self, data=TimestampedNotificationData())
+            NotificationCenter().post_notification("SIPRegistrationWillEnd", sender=self, data=TimestampedNotificationData())
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
+
+    def _NH_SIPRequestDidSucceed(self, notification):
+        request = notification.sender
+        notification_center = NotificationCenter()
+        with self._lock:
+            if request is not self._current_request:
+                return
+            self._current_request = None
+            if self._unregistering:
+                if self._last_request is not None:
+                    self._last_request.end()
+                    self._last_request = None
+                notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
+                                                      data=TimestampedNotificationData(expired=False))
+            else:
+                self._last_request = request
+                try:
+                    contact_header_list = notification.data.headers["Contact"]
+                except KeyError:
+                    contact_header_list = []
+                notification_center.post_notification("SIPRegistrationDidSucceed", sender=self,
+                                                      data=TimestampedNotificationData(code=notification.data.code,
+                                                                                       reason=notification.data.reason,
+                                                                                       contact_header=request.contact_header,
+                                                                                       contact_header_list=contact_header_list,
+                                                                                       expires_in=notification.data.expires,
+                                                                                       route_header=request.route_header))
+
+    def _NH_SIPRequestDidFail(self, notification):
+        request = notification.sender
+        notification_center = NotificationCenter()
+        with self._lock:
+            if request is not self._current_request:
+                return
+            self._current_request = None
+            if self._unregistering:
+                notification_center.post_notification("SIPRegistrationDidNotEnd", sender=self,
+                                                      data=TimestampedNotificationData(code=notification.data.code, 
+                                                                                       reason=notification.data.reason))
+            else:
+                notification_center.post_notification("SIPRegistrationDidFail", sender=self,
+                                                      data=TimestampedNotificationData(code=notification.data.code,
+                                                                                       reason=notification.data.reason,
+                                                                                       route_header=request.route_header))
+
+    def _NH_SIPRequestWillExpire(self, notification):
+        with self._lock:
+            if notification.sender is not self._last_request:
+                return
+            NotificationCenter().post_notification("SIPRegistrationWillExpire", sender=self,
+                                                   data=TimestampedNotificationData(expires=notification.data.expires))
+
+    def _NH_SIPRequestDidEnd(self, notification):
+        request = notification.sender
+        notification_center = NotificationCenter()
+        with self._lock:
+            notification_center.remove_observer(self, sender=request)
+            if request is not self._last_request:
+                return
+            self._last_request = None
+            if self._current_request is not None:
+                self._current_request.end()
+                self._current_request = None
+            notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
+                                                  data=TimestampedNotificationData(expired=True))
 
     def _make_and_send_request(self, contact_header, route_header, timeout, do_register):
+        notification_center = NotificationCenter()
         prev_request = self._current_request or self._last_request
         if prev_request is not None:
             call_id = prev_request.call_id
@@ -60,7 +127,7 @@ class Registration(NotificationHandler):
         request = Request("REGISTER", self.from_header, ToHeader.new(self.from_header), SIPURI(self.from_header.uri.host), route_header,
                           credentials=self.credentials, contact_header=contact_header, call_id=call_id,
                           cseq=cseq, extra_headers=[Header("Expires", str(int(self.duration) if do_register else 0))])
-        self._notification_center.add_observer(self, sender=request)
+        notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
             # we are trying to send something already, cancel whatever it is
             self._current_request.end()
@@ -68,78 +135,18 @@ class Registration(NotificationHandler):
         try:
             request.send(timeout=timeout)
         except:
-            self._notification_center.remove_observer(self, sender=request)
+            notification_center.remove_observer(self, sender=request)
             raise
         self._unregistering = not do_register
         self._current_request = request
 
-    @keyword_handler
-    def _NH_SIPRequestDidSucceed(self, request, timestamp, code, reason, headers, body, expires):
-        with self._lock:
-            if request is not self._current_request:
-                return
-            self._current_request = None
-            if self._unregistering:
-                if self._last_request is not None:
-                    self._last_request.end()
-                    self._last_request = None
-                self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
-                                                            data=TimestampedNotificationData(expired=False))
-            else:
-                self._last_request = request
-                try:
-                    contact_header_list = headers["Contact"]
-                except KeyError:
-                    contact_header_list = []
-                self._notification_center.post_notification("SIPRegistrationDidSucceed", sender=self,
-                                                            data=TimestampedNotificationData(code=code, reason=reason,
-                                                                                  contact_header=request.contact_header,
-                                                                                  contact_header_list=contact_header_list,
-                                                                                  expires_in=expires,
-                                                                                  route_header=request.route_header))
 
-    @keyword_handler
-    def _NH_SIPRequestDidFail(self, request, timestamp, code, reason, headers=None, body=None):
-        with self._lock:
-            if request is not self._current_request:
-                return
-            self._current_request = None
-            if self._unregistering:
-                self._notification_center.post_notification("SIPRegistrationDidNotEnd", sender=self,
-                                                            data=TimestampedNotificationData(code=code, reason=reason))
-            else:
-                self._notification_center.post_notification("SIPRegistrationDidFail", sender=self,
-                                                            data=TimestampedNotificationData(code=code, reason=reason,
-                                                                                  route_header=request.route_header))
-
-    @keyword_handler
-    def _NH_SIPRequestWillExpire(self, request, timestamp, expires):
-        with self._lock:
-            if request is not self._last_request:
-                return
-            self._notification_center.post_notification("SIPRegistrationWillExpire", sender=self,
-                                                        data=TimestampedNotificationData(expires=expires))
-
-    @keyword_handler
-    def _NH_SIPRequestDidEnd(self, request, timestamp):
-        with self._lock:
-            self._notification_center.remove_observer(self, sender=request)
-            if request is not self._last_request:
-                return
-            self._last_request = None
-            if self._current_request is not None:
-                self._current_request.end()
-                self._current_request = None
-            self._notification_center.post_notification("SIPRegistrationDidEnd", sender=self,
-                                                        data=TimestampedNotificationData(expired=True))
-
-
-class Message(NotificationHandler):
+class Message(object):
+    implements(IObserver)
 
     def __init__(self, from_header, to_header, route_header, content_type, body, credentials=None):
         self._request = Request("MESSAGE", from_header, to_header, to_header.uri, route_header,
                                 credentials=credentials, content_type=content_type, body=body)
-        self._notification_center = NotificationCenter()
         self._lock = RLock()
 
     from_header = property(lambda self: self._request.from_header)
@@ -152,44 +159,48 @@ class Message(NotificationHandler):
     in_progress = property(lambda self: self._request.state == "IN_PROGRESS")
 
     def send(self, timeout=None):
+        notification_center = NotificationCenter()
         with self._lock:
             if self.is_sent:
                 raise RuntimeError("This MESSAGE was already sent")
-            self._notification_center.add_observer(self, sender=self._request)
+            notification_center.add_observer(self, sender=self._request)
             try:
                 self._request.send(timeout)
             except:
-                self._notification_center.remove_observer(self, sender=self._request)
+                notification_center.remove_observer(self, sender=self._request)
 
     def end(self):
         with self._lock:
             self._request.end()
 
-    @keyword_handler
-    def _NH_SIPRequestDidSucceed(self, request, timestamp, code, reason, headers, body, expires):
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
+
+    def _NH_SIPRequestDidSucceed(self, notification):
         with self._lock:
-            if expires:
+            if notification.data.expires:
                 # this shouldn't happen really
-                request.end()
-            self._notification_center.post_notification("SIPMessageDidSucceed", sender=self, data=TimestampedNotificationData())
+                notification.sender.end()
+            NotificationCenter().post_notification("SIPMessageDidSucceed", sender=self, data=TimestampedNotificationData())
 
-    @keyword_handler
-    def _NH_SIPRequestDidFail(self, request, timestamp, code, reason, headers=None, body=None):
+    def _NH_SIPRequestDidFail(self, notification):
         with self._lock:
-            self._notification_center.post_notification("SIPMessageDidFail", sender=self,
-                                                        data=TimestampedNotificationData(code=code, reason=reason))
+            NotificationCenter().post_notification("SIPMessageDidFail", sender=self,
+                                                   data=TimestampedNotificationData(code=notification.data.code,
+                                                                                    reason=notification.data.reason))
 
-    @keyword_handler
-    def _NH_SIPRequestDidEnd(self, request, timestamp):
+    def _NH_SIPRequestDidEnd(self, notification):
         with self._lock:
-            self._notification_center.remove_observer(self, sender=request)
+            NotificationCenter().remove_observer(self, sender=notification.sender)
 
 
 class PublicationError(Exception):
     pass
 
 
-class Publication(NotificationHandler):
+class Publication(object):
+    implements(IObserver)
 
     def __init__(self, from_header, event, content_type, credentials=None, duration=300):
         self.from_header = from_header
@@ -197,7 +208,6 @@ class Publication(NotificationHandler):
         self.content_type = content_type
         self.credentials = credentials
         self.duration = duration
-        self._notification_center = NotificationCenter()
         self._last_etag = None
         self._current_request = None
         self._last_request = None
@@ -221,33 +231,15 @@ class Publication(NotificationHandler):
             if self._last_request is None:
                 raise PublicationError("Nothing is currently published")
             self._make_and_send_request(None, RouteHeader.new(self._last_request.route_header), timeout, False)
-            self._notification_center.post_notification("SIPPublicationWillEnd", sender=self, data=TimestampedNotificationData())
+            NotificationCenter().post_notification("SIPPublicationWillEnd", sender=self, data=TimestampedNotificationData())
 
-    def _make_and_send_request(self, body, route_header, timeout, do_publish):
-        extra_headers = []
-        extra_headers.append(Header("Event", self.event))
-        extra_headers.append(Header("Expires",  str(int(self.duration) if do_publish else 0)))
-        if self._last_etag is not None:
-            extra_headers.append(Header("SIP-If-Match", self._last_etag))
-        content_type = (self.content_type if body is not None else None)
-        request = Request("PUBLISH", self.from_header, ToHeader.new(self.from_header), self.from_header.uri, route_header,
-                          credentials=self.credentials, cseq=1, extra_headers=extra_headers,
-                          content_type=content_type, body=body)
-        self._notification_center.add_observer(self, sender=request)
-        if self._current_request is not None:
-            # we are trying to send something already, cancel whatever it is
-            self._current_request.end()
-            self._current_request = None
-        try:
-            request.send(timeout=timeout)
-        except:
-            self._notification_center.remove_observer(self, sender=request)
-            raise
-        self._unpublishing = not do_publish
-        self._current_request = request
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
 
-    @keyword_handler
-    def _NH_SIPRequestDidSucceed(self, request, timestamp, code, reason, headers, body, expires):
+    def _NH_SIPRequestDidSucceed(self, notification):
+        request = notification.sender
+        notification_center = NotificationCenter()
         with self._lock:
             if request is not self._current_request:
                 return
@@ -257,54 +249,81 @@ class Publication(NotificationHandler):
                     self._last_request.end()
                     self._last_request = None
                 self._last_etag = None
-                self._notification_center.post_notification("SIPPublicationDidEnd", sender=self,
-                                                            data=TimestampedNotificationData(expired=False))
+                notification_center.post_notification("SIPPublicationDidEnd", sender=self,
+                                                      data=TimestampedNotificationData(expired=False))
             else:
                 self._last_request = request
-                self._last_etag = headers["SIP-ETag"].body if "SIP-ETag" in headers else None
+                self._last_etag = notification.data.headers["SIP-ETag"].body if "SIP-ETag" in notification.data.headers else None
                 # TODO: add more data?
-                self._notification_center.post_notification("SIPPublicationDidSucceed", sender=self,
-                                                            data=TimestampedNotificationData(code=code, reason=reason,
-                                                                                  expires_in=expires,
-                                                                                  route_header=request.route_header))
+                notification_center.post_notification("SIPPublicationDidSucceed", sender=self,
+                                                      data=TimestampedNotificationData(code=notification.data.code,
+                                                                                       reason=notification.data.reason,
+                                                                                       expires_in=notification.data.expires,
+                                                                                       route_header=request.route_header))
 
-    @keyword_handler
-    def _NH_SIPRequestDidFail(self, request, timestamp, code, reason, headers=None, body=None):
+    def _NH_SIPRequestDidFail(self, notification):
+        request = notification.sender
+        notification_center = NotificationCenter()
         with self._lock:
             if request is not self._current_request:
                 return
             self._current_request = None
-            if code == 412:
+            if notification.data.code == 412:
                 self._last_etag = None
             if self._unpublishing:
-                self._notification_center.post_notification("SIPPublicationDidNotEnd", sender=self,
-                                                            data=TimestampedNotificationData(code=code, reason=reason))
+                notification_center.post_notification("SIPPublicationDidNotEnd", sender=self,
+                                                      data=TimestampedNotificationData(code=notification.data.code,
+                                                                                       reason=notification.data.reason))
             else:
-                self._notification_center.post_notification("SIPPublicationDidFail", sender=self,
-                                                            data=TimestampedNotificationData(code=code, reason=reason,
-                                                                                  route_header=request.route_header))
+                notification_center.post_notification("SIPPublicationDidFail", sender=self,
+                                                      data=TimestampedNotificationData(code=notification.data.code,
+                                                                                       reason=notification.data.reason,
+                                                                                       route_header=request.route_header))
 
-    @keyword_handler
-    def _NH_SIPRequestWillExpire(self, request, timestamp, expires):
+    def _NH_SIPRequestWillExpire(self, notification):
         with self._lock:
-            if request is not self._last_request:
+            if notification.sender is not self._last_request:
                 return
-            self._notification_center.post_notification("SIPPublicationWillExpire", sender=self,
-                                                        data=TimestampedNotificationData(expires=expires))
+            NotificationCenter().post_notification("SIPPublicationWillExpire", sender=self,
+                                                   data=TimestampedNotificationData(expires=notification.data.expires))
 
-    @keyword_handler
-    def _NH_SIPRequestDidEnd(self, request, timestamp):
+    def _NH_SIPRequestDidEnd(self, notification):
+        notification_center = NotificationCenter()
         with self._lock:
-            self._notification_center.remove_observer(self, sender=request)
-            if request is not self._last_request:
+            notification_center.remove_observer(self, sender=notification.sender)
+            if notification.sender is not self._last_request:
                 return
             self._last_request = None
             if self._current_request is not None:
                 self._current_request.end()
                 self._current_request = None
             self._last_etag = None
-            self._notification_center.post_notification("SIPPublicationDidEnd", sender=self,
-                                                        data=TimestampedNotificationData(expired=True))
+            notification_center.post_notification("SIPPublicationDidEnd", sender=self,
+                                                  data=TimestampedNotificationData(expired=True))
+
+    def _make_and_send_request(self, body, route_header, timeout, do_publish):
+        notification_center = NotificationCenter()
+        extra_headers = []
+        extra_headers.append(Header("Event", self.event))
+        extra_headers.append(Header("Expires",  str(int(self.duration) if do_publish else 0)))
+        if self._last_etag is not None:
+            extra_headers.append(Header("SIP-If-Match", self._last_etag))
+        content_type = (self.content_type if body is not None else None)
+        request = Request("PUBLISH", self.from_header, ToHeader.new(self.from_header), self.from_header.uri, route_header,
+                          credentials=self.credentials, cseq=1, extra_headers=extra_headers,
+                          content_type=content_type, body=body)
+        notification_center.add_observer(self, sender=request)
+        if self._current_request is not None:
+            # we are trying to send something already, cancel whatever it is
+            self._current_request.end()
+            self._current_request = None
+        try:
+            request.send(timeout=timeout)
+        except:
+            notification_center.remove_observer(self, sender=request)
+            raise
+        self._unpublishing = not do_publish
+        self._current_request = request
 
 
 __all__ = ["Registration", "Message", "PublicationError", "Publication"]
