@@ -418,7 +418,10 @@ class RuleSet(XMLListRootElement):
         self._rules = {}
         for child in element:
             if child.tag == Rule.qname:
-                list.append(self, Rule.from_element(child, *args, **kwargs))
+                rule =  Rule.from_element(child, *args, **kwargs)
+                list.append(self, rule)
+                if not rule.id in self._rules:
+                    self._rules[rule.id] = rule
 
     def _build_element(self, *args, **kwargs):
         for child in self:

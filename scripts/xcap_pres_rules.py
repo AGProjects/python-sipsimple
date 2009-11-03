@@ -49,13 +49,8 @@ polite_block_rule = None
 polite_block_rule_identities = None
 
 def get_prules():
-    global prules, prules_etag, allow_rule, block_rule, allow_rule_identities, block_rule_identities
-    prules = None
-    prules_etag = None
-    allow_rule = None
-    allow_rule_identities = None
-    block_rule = None
-    block_rule_identities = None
+    global prules, prules_etag, allow_rule, block_rule, polite_block_rule, allow_rule_identities, block_rule_identities, polite_block_rule_identities
+    
     try:
         doc = xcap_client.get('pres-rules')
     except URLError, e:
@@ -198,7 +193,7 @@ def polite_block_watcher(watcher):
     remove_watcher(str(watcher), pblocked=False)
 
 def remove_watcher(watcher, allowed=True, blocked=True, pblocked=True):
-    global prules, prules_etag, allow_rule_identities, block_rule_identities, polite_block_rule_identities
+    global prules, prules_etag, allow_rule, allow_rule_identities, block_rule, block_rule_identities, polite_block_rule, polite_block_rule_identities
     for i in xrange(3):
         if prules is None:
             get_prules()
