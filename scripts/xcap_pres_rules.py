@@ -130,6 +130,9 @@ def allow_watcher(watcher):
     else:
         print "Could not authorized watcher %s" % watcher
 
+    # Remove the watcher from blocked and politely blocked lists, if applicable.
+    remove_watcher(str(watcher), allowed=False)
+
 def block_watcher(watcher):
     global prules, prules_etag, block_rule, block_rule_identities
     for i in xrange(3):
@@ -158,6 +161,9 @@ def block_watcher(watcher):
         sleep(0.1)
     else:
         print "Could not deny authorization of watcher %s" % watcher
+    
+    # Remove the watcher from blocked and politely blocked lists, if applicable.
+    remove_watcher(str(watcher), blocked=False)
 
 def polite_block_watcher(watcher):
     global prules, prules_etag, polite_block_rule, polite_block_rule_identities
@@ -187,25 +193,31 @@ def polite_block_watcher(watcher):
         sleep(0.1)
     else:
         print "Could not politely block authorization of watcher %s" % watcher
+    
+    # Remove the watcher from blocked and politely blocked lists, if applicable.
+    remove_watcher(str(watcher), pblocked=False)
 
-def remove_watcher(watcher):
+def remove_watcher(watcher, allowed=True, blocked=True, pblocked=True):
     global prules, prules_etag, allow_rule_identities, block_rule_identities, polite_block_rule_identities
     for i in xrange(3):
         if prules is None:
             get_prules()
         if prules is not None:
-            if allow_rule_identities is not None and str(watcher) in allow_rule_identities:
-                allow_rule_identities.remove(str(watcher))
-                if len(allow_rule_identities) == 0:
-                    prules.remove(allow_rule)
-            if block_rule_identities is not None and str(watcher) in block_rule_identities:
-                block_rule_identities.remove(str(watcher))
-                if len(block_rule_identities) == 0:
-                    prules.remove(block_rule)
-            if polite_block_rule_identities is not None and str(watcher) in polite_block_rule_identities:
-                polite_block_rule_identities.remove(str(watcher))
-                if len(polite_block_rule_identities) == 0:
-                    prules.remove(polite_block_rule)
+            if allowed:
+                if allow_rule_identities is not None and str(watcher) in allow_rule_identities:
+                    allow_rule_identities.remove(str(watcher))
+                    if len(allow_rule_identities) == 0:
+                        prules.remove(allow_rule)
+            if blocked:
+                if block_rule_identities is not None and str(watcher) in block_rule_identities:
+                    block_rule_identities.remove(str(watcher))
+                    if len(block_rule_identities) == 0:
+                        prules.remove(block_rule)
+            if pblocked:
+                if polite_block_rule_identities is not None and str(watcher) in polite_block_rule_identities:
+                    polite_block_rule_identities.remove(str(watcher))
+                    if len(polite_block_rule_identities) == 0:
+                        prules.remove(polite_block_rule)
             try:
                 res = xcap_client.put('pres-rules', prules.toxml(pretty_print=True), etag=prules_etag, headers={'Content-Type': 'application/auth-policy+xml'})
             except HTTPError, e:
@@ -216,11 +228,14 @@ def remove_watcher(watcher):
                 if show_xml:
                     print "Presence rules document:"
                     print prules.toxml(pretty_print=True)
-                print "Watcher %s has been removed from the rules" % watcher
+                if not (allowed and blocked and pblocked):
+                    print "Watcher %s has been removed from the other rules" % watcher
+                else:
+                    print "Watcher %s has been removed from the rules" % watcher
                 break
         sleep(0.1)
     else:
-        print "Could not politely block authorization of watcher %s" % watcher
+        print "Could not remove watcher %s from the rules" % watcher
    
 
 def print_prules():
