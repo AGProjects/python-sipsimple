@@ -166,6 +166,7 @@ class MSRPStreamBase(object):
                 msrp_connector.cleanup()
         finally:
             notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
+            NotificationCenter().remove_observer(self, sender=self)
 
     def validate_update(self, remote_sdp, stream_index):
         return True #TODO
@@ -185,18 +186,6 @@ class MSRPStreamBase(object):
         handler = getattr(self, '_NH_%s' % notification.name, None)
         if handler is not None:
             handler(notification)
-
-    def _NH_MediaStreamDidFail(self, notification):
-        NotificationCenter().remove_observer(self, sender=self)
-        if self.msrp_session is not None:
-            msrp_session, self.msrp_session = self.msrp_session, None
-            msrp_session.shutdown()
-        if self.msrp_connector is not None:
-            msrp_connector, self.msrp_connector = self.msrp_connector, None
-            msrp_connector.cleanup()
-
-    def _NH_MediaStreamDidEnd(self, notification):
-        NotificationCenter().remove_observer(self, sender=self)
 
     ## Internal message handlers
 
@@ -252,13 +241,7 @@ class ChatStream(MSRPStreamBase):
     def _NH_MediaStreamDidStart(self, notification):
         callInGreenThread(self._message_queue_handler)
 
-    def _NH_MediaStreamDidFail(self, notification):
-        MSRPStreamBase._NH_MediaStreamDidFail(self, notification)
-        self.message_queue.send_exception(ProcExit)
-        # should we generate ChatStreamDidNotDeliver per each message here?
-
     def _NH_MediaStreamDidEnd(self, notification):
-        MSRPStreamBase._NH_MediaStreamDidEnd(self, notification)
         self.message_queue.send_exception(ProcExit)
 
     def _handle_REPORT(self, chunk):
