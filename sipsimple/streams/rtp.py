@@ -164,7 +164,6 @@ class AudioStream(object):
 
     def _try_next_rtp_transport(self, failure_reason=None):
         # TODO: log failure_reason if it is not None? Or send a notification?
-        print 'RTPTransport failure reason: %s' % (failure_reason,)
         if self._stun_servers:
             stun_ip, stun_port = self._stun_servers.pop()
             observer_added = False
