@@ -15,8 +15,7 @@ from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements
 
-from eventlet.twistedutil import callInGreenThread
-from eventlet.proc import ProcExit
+from eventlet.proc import spawn, ProcExit
 from eventlet.coros import queue
 from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
@@ -239,7 +238,7 @@ class ChatStream(MSRPStreamBase):
     # TODO: chatroom, recvonly/sendonly (in start)?
 
     def _NH_MediaStreamDidStart(self, notification):
-        callInGreenThread(self._message_queue_handler)
+        spawn(self._message_queue_handler)
 
     def _NH_MediaStreamDidEnd(self, notification):
         self.message_queue.send_exception(ProcExit)
