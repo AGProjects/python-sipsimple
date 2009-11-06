@@ -1,7 +1,9 @@
 # Copyright (C) 2009 AG Projects. See LICENSE for details.
 #
 
-__all__ = ['ChatStream', 'FileSelector', 'FileTransferStream', 'MSRPStreamError', 'ChatStreamError']
+__all__ = ['MSRPStreamError', 'ChatStreamError', 'ChatStream', 'FileSelector', 'FileTransferStream', 'IDesktopSharingHandler', 'DesktopSharingHandlerBase',
+           'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler', 'DesktopSharingStream']
+
 
 import os
 import re
@@ -10,22 +12,25 @@ import hashlib
 import mimetypes
 from datetime import datetime
 
-from application.notification import NotificationCenter, IObserver
+from application.notification import NotificationCenter, NotificationData, IObserver
 from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
-from zope.interface import implements
+from zope.interface import implements, Interface, Attribute
 
-from eventlet.proc import spawn, ProcExit
 from eventlet.coros import queue
+from eventlet.greenio import GreenSocket
+from eventlet.proc import spawn, ProcExit
+from eventlet.util import tcp_socket, set_reuse_addr
 from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
-from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, parse_uri
+from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, ContentTypeHeader, parse_uri
 from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
+from msrplib.transport import make_response, make_report
 
 from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
-from sipsimple.util import run_in_green_thread, TimestampedNotificationData
+from sipsimple.util import run_in_green_thread, run_in_twisted_thread, TimestampedNotificationData
 
 
 class MSRPStreamError(StreamError): pass
@@ -37,10 +42,11 @@ class MSRPStreamBase(object):
 
     implements(IMediaStream, IObserver)
 
+    # Attributes that need to be defined by each MSRP stream type
     type = None
     priority = None
+    use_msrp_session = False
 
-    # Attributes that need to be defined by each MSRP stream type
     media_type = None
     accept_types = None
     accept_wrapped_types = None
@@ -142,7 +148,8 @@ class MSRPStreamBase(object):
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
-            self.msrp_session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._handle_incoming)
+            if self.use_msrp_session:
+                self.msrp_session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._handle_incoming)
             self.msrp_connector = None
         except Exception, ex:
             ndata = TimestampedNotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
@@ -152,8 +159,9 @@ class MSRPStreamBase(object):
 
     @run_in_green_thread
     def end(self):
-        if self.msrp_session is None and self.msrp_connector is None:
+        if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
             return
+        msrp, self.msrp = self.msrp, None
         msrp_session, self.msrp_session = self.msrp_session, None
         msrp_connector, self.msrp_connector = self.msrp_connector, None
         notification_center = NotificationCenter()
@@ -161,6 +169,8 @@ class MSRPStreamBase(object):
         try:
             if msrp_session is not None:
                 msrp_session.shutdown()
+            elif msrp is not None:
+                msrp.loseConnection(wait=False)
             if msrp_connector is not None:
                 msrp_connector.cleanup()
         finally:
@@ -203,15 +213,16 @@ class MSRPStreamBase(object):
 
     def _handle_REPORT(self, chunk):
         pass
-    
+
     def _handle_SEND(self, chunk):
         pass
 
-    
+
 class ChatStream(MSRPStreamBase):
 
     type = 'chat'
     priority = 1
+    use_msrp_session = True
 
     media_type = 'message'
     accept_types = ['message/cpim', 'text/*']
@@ -339,6 +350,9 @@ class ChatStream(MSRPStreamBase):
         return message_id
 
 
+# File transfer
+#
+
 class FileSelector(object):
     class __metaclass__(type):
         _name_re = re.compile('name:"([^"]+)"')
@@ -407,6 +421,7 @@ class FileTransferStream(MSRPStreamBase):
 
     type = 'file-transfer'
     priority = 10
+    use_msrp_session = True
 
     media_type = 'message'
     accept_types = ['*']
@@ -473,6 +488,345 @@ class FileTransferStream(MSRPStreamBase):
         NotificationCenter().post_notification('FileTransferStreamGotChunk', self, ndata)
         if ndata.transferred_bytes == ndata.file_size:
             NotificationCenter().post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
+
+
+# Desktop sharing
+#
+
+class VNCConnectionError(Exception): pass
+
+
+class IDesktopSharingHandler(Interface):
+    type = Attribute("A string identifying the direction: passive for a server, active for a client")
+
+    def initialize(self, stream):
+        pass
+
+
+class DesktopSharingHandlerBase(object):
+    implements(IDesktopSharingHandler, IObserver)
+    
+    type = None
+    
+    def __new__(cls, *args, **kw):
+        if cls is DesktopSharingHandlerBase:
+            raise TypeError("DesktopSharingHandlerBase cannot be instantiated directly")
+        return object.__new__(cls)
+
+    def __init__(self):
+        self.incoming_msrp_queue = None
+        self.outgoing_msrp_queue = None
+        self.msrp_reader_thread = None
+        self.msrp_writer_thread = None
+
+    def initialize(self, stream):
+        self.incoming_msrp_queue = stream.incoming_queue
+        self.outgoing_msrp_queue = stream.outgoing_queue
+        NotificationCenter().add_observer(self, sender=stream)
+
+    def _msrp_reader(self):
+        raise NotImplementedError
+
+    def _msrp_writer(self):
+        raise NotImplementedError
+
+    ## Internal IObserver interface
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, None)
+        if handler is not None:
+            handler(notification)
+
+    def _NH_MediaStreamDidStart(self, notification):
+        self.msrp_reader_thread = spawn(self._msrp_reader)
+        self.msrp_writer_thread = spawn(self._msrp_reader)
+
+    def _NH_MediaStreamWillEnd(self, notification):
+        NotificationCenter().remove_observer(self, sender=notification.sender)
+        if self.msrp_reader_thread is not None:
+            self.msrp_reader_thread.kill()
+            self.msrp_reader_thread = None
+        if self.msrp_writer_thread is not None:
+            self.msrp_writer_thread.kill()
+            self.msrp_writer_thread = None
+
+
+class InternalVNCViewerHandler(DesktopSharingHandlerBase):
+    type = 'active'
+
+    @run_in_twisted_thread
+    def send(self, data):
+        self.outgoing_msrp_queue.send(data)
+
+    def _msrp_reader(self):
+        notification_center = NotificationCenter()
+        while True:
+            data = self.incoming_msrp_queue.wait()
+            notification_center.post_notification('DesktopSharingStreamGotData', self, NotificationData(data=data))
+
+    def _msrp_writer(self):
+        pass
+
+
+class InternalVNCServerHandler(DesktopSharingHandlerBase):
+    type = 'passive'
+
+    @run_in_twisted_thread
+    def send(self, data):
+        self.outgoing_msrp_queue.send(data)
+
+    def _msrp_reader(self):
+        notification_center = NotificationCenter()
+        while True:
+            data = self.incoming_msrp_queue.wait()
+            notification_center.post_notification('DesktopSharingStreamGotData', self, NotificationData(data=data))
+
+    def _msrp_writer(self):
+        pass
+
+
+class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
+    type = 'active'
+
+    def __init__(self, address=('localhost', 0), connect_timeout=3):
+        DesktopSharingHandlerBase.__init__(self)
+        self.vnc_starter_thread = None
+        self.vnc_socket = GreenSocket(tcp_socket())
+        set_reuse_addr(self.vnc_socket)
+        self.vnc_socket.settimeout(connect_timeout)
+        self.vnc_socket.bind(address)
+        self.vnc_socket.listen(1)
+        self.address = self.vnc_socket.getsockname()
+
+    def _msrp_reader(self):
+        while True:
+            try:
+                data = self.incoming_msrp_queue.wait()
+                self.vnc_socket.sendall(data)
+            except ProcExit:
+                raise
+            except Exception, e:
+                self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                break
+
+    def _msrp_writer(self):
+        while True:
+            try:
+                data = self.vnc_socket.recv(2048)
+                if not data:
+                    raise VNCConnectionError("connection with the VNC viewer was closed")
+                self.outgoing_msrp_queue.send(data)
+            except ProcExit:
+                raise
+            except Exception, e:
+                self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                ndata = TimestampedNotificationData(context='reading', failure=Failure(), reason=str(e))
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                break
+
+    def _start_vnc_connection(self):
+        try:
+            sock, addr = self.vnc_socket.accept()
+            self.vnc_socket.close()
+            self.vnc_socket = sock
+            self.vnc_socket.settimeout(None)
+        except ProcExit:
+            raise
+        except Exception, e:
+            self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+            ndata = TimestampedNotificationData(context='connecting', failure=Failure(), reason=str(e))
+            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+        else:
+            self.msrp_reader_thread = spawn(self._msrp_reader)
+            self.msrp_writer_thread = spawn(self._msrp_writer)
+        finally:
+            self.vnc_starter_thread = None
+
+    def _NH_MediaStreamDidStart(self, notification):
+        self.vnc_starter_thread = spawn(self._start_vnc_connection)
+
+    def _NH_MediaStreamWillEnd(self, notification):
+        if self.vnc_starter_thread is not None:
+            self.vnc_starter_thread.kill()
+            self.vnc_starter_thread = None
+        DesktopSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
+
+
+class ExternalVNCServerHandler(DesktopSharingHandlerBase):
+    type = 'passive'
+    
+    def __init__(self, address, connect_timeout=3):
+        DesktopSharingHandlerBase.__init__(self)
+        self.address = address
+        self.vnc_starter_thread = None
+        self.vnc_socket = None
+        self.connect_timeout = connect_timeout
+
+    def _msrp_reader(self):
+        while True:
+            try:
+                data = self.incoming_msrp_queue.wait()
+                self.vnc_socket.sendall(data)
+            except ProcExit:
+                raise
+            except Exception, e:
+                self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                break
+
+    def _msrp_writer(self):
+        while True:
+            try:
+                data = self.vnc_socket.recv(2048)
+                if not data:
+                    raise VNCConnectionError("connection to the VNC server was closed")
+                self.outgoing_msrp_queue.send(data)
+            except ProcExit:
+                raise
+            except Exception, e:
+                self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                ndata = TimestampedNotificationData(context='reading', failure=Failure(), reason=str(e))
+                NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+                break
+
+    def _start_vnc_connection(self):
+        try:
+            self.vnc_socket = GreenSocket(tcp_socket())
+            self.vnc_socket.settimeout(self.connect_timeout)
+            self.vnc_socket.connect(self.address)
+            self.vnc_socket.settimeout(None)
+        except ProcExit:
+            raise
+        except Exception, e:
+            self.vnc_starter_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+            ndata = TimestampedNotificationData(context='connecting', failure=Failure(), reason=str(e))
+            NotificationCenter().post_notification('DesktopSharingHandlerDidFail', self, ndata)
+        else:
+            self.msrp_reader_thread = spawn(self._msrp_reader)
+            self.msrp_writer_thread = spawn(self._msrp_writer)
+        finally:
+            self.vnc_starter_thread = None
+
+    def _NH_MediaStreamDidStart(self, notification):
+        self.vnc_starter_thread = spawn(self._start_vnc_connection)
+
+    def _NH_MediaStreamWillEnd(self, notification):
+        if self.vnc_starter_thread is not None:
+            self.vnc_starter_thread.kill()
+            self.vnc_starter_thread = None
+        DesktopSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
+
+
+class DesktopSharingStream(MSRPStreamBase):
+
+    type = 'desktop-sharing'
+    priority = 1
+    use_msrp_session = False
+
+    media_type = 'application'
+    accept_types = ['application/x-rfb']
+    accept_wrapped_types = None
+
+    def __init__(self, account, handler):
+        MSRPStreamBase.__init__(self, account, direction='sendrecv')
+        self.handler = handler
+        self.incoming_queue = queue()
+        self.outgoing_queue = queue()
+        self.msrp_reader_thread = None
+        self.msrp_writer_thread = None
+
+    @classmethod
+    def new_from_sdp(cls, account, remote_sdp, stream_index):
+        remote_stream = remote_sdp.media[stream_index]
+        if remote_stream.media != 'application':
+            raise UnknownStreamError
+        accept_types = remote_stream.attributes.getfirst('accept-types', None)
+        if accept_types is None or 'application/x-rfb' not in accept_types.split():
+            raise UnknownStreamError
+        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
+        if remote_setup == 'active':
+            return cls(account, handler=InternalVNCServerHandler())
+        elif remote_setup == 'passive':
+            return cls(account, handler=InternalVNCViewerHandler())
+        else:
+            raise InvalidStreamError("unknown setup attribute in the remote desktop sharing stream")
+
+    def initialize(self, session, direction):
+        NotificationCenter().add_observer(self, sender=self.handler)
+        self.handler.initialize(self)
+        MSRPStreamBase.initialize(self, session, direction)
+
+    def _create_local_media(self, uri_path):
+        local_media = MSRPStreamBase._create_local_media(self, uri_path)
+        local_media.attributes.append(SDPAttribute('setup', self.handler.type))
+        return local_media
+
+    def _msrp_reader(self):
+        while True:
+            try:
+                # it should be read_chunk(0) to read as much as available, but it doesn't work
+                # as it sends 1-2 bytes more than provided by the app to the other side. -Dan
+                chunk = self.msrp.read_chunk(None) # 0 means to return as much data as was read
+                if chunk.method in (None, 'REPORT'):
+                    continue
+                elif chunk.method == 'SEND':
+                    if chunk.content_type in self.accept_types:
+                        self.incoming_queue.send(chunk.data)
+                        response = make_response(chunk, 200, 'OK')
+                        report = make_report(chunk, 200, 'OK')
+                    else:
+                        response = make_response(chunk, 415, 'Invalid Content-Type')
+                        report = None
+                else:
+                    response = make_response(chunk, 501, 'Unknown method')
+                    report = None
+                if response is not None:
+                    self.msrp.write(response.encode())
+                if report is not None:
+                    self.msrp.write(response.encode())
+            except ProcExit:
+                raise
+            except Exception, e:
+                self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                ndata = TimestampedNotificationData(context='reading', failure=Failure(), reason=str(e))
+                NotificationCenter().post_notification('MediaStreamDidFail', self, ndata)
+                break
+
+    def _msrp_writer(self):
+        while True:
+            try:
+                data = self.outgoing_queue.wait()
+                chunk = self.msrp.make_chunk(data=data)
+                chunk.add_header(FailureReportHeader('no'))
+                chunk.add_header(ContentTypeHeader('application/x-rfb'))
+                self.msrp.write(chunk.encode())
+            except ProcExit:
+                raise
+            except Exception, e:
+                self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
+                NotificationCenter().post_notification('MediaStreamDidFail', self, ndata)
+                break
+
+    def _NH_MediaStreamDidStart(self, notification):
+        self.msrp_reader_thread = spawn(self._msrp_reader)
+        self.msrp_writer_thread = spawn(self._msrp_writer)
+
+    def _NH_MediaStreamWillEnd(self, notification):
+        NotificationCenter().remove_observer(self, sender=self.handler)
+        if self.msrp_reader_thread is not None:
+            self.msrp_reader_thread.kill()
+            self.msrp_reader_thread = None
+        if self.msrp_writer_thread is not None:
+            self.msrp_writer_thread.kill()
+            self.msrp_writer_thread = None
+
+    def _NH_DesktopSharingHandlerDidFail(self, notification):
+        NotificationCenter().post_notification('MediaStreamDidFail', self, notification.data)
+
 
 
 # temporary solution. to be replaced later by a better logging system in msrplib -Dan
