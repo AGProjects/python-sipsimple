@@ -84,5 +84,5 @@ from sipsimple.streams import rtp, msrp
 from sipsimple.streams.rtp import *
 from sipsimple.streams.msrp import *
 
-__all__ = ['IMediaStream', 'MediaStreamRegistry', 'MediaStreamRegistrar', 'StreamError', 'InvalidStreamError', 'UnknownStreamError'] + rtp.__all__ + msrp.__all__
+__all__ = ['StreamError', 'InvalidStreamError', 'UnknownStreamError', 'IMediaStream', 'MediaStreamRegistry', 'MediaStreamRegistrar'] + rtp.__all__ + msrp.__all__
 
