@@ -1,6 +1,10 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+"""Implements high-level logger for various protocols and stacks used by the library.
+"""
+
+
 import sys
 from datetime import datetime
 from pprint import pformat
