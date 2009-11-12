@@ -27,7 +27,7 @@ class Engine(Thread):
                              "tls_cert_file": None,
                              "tls_privkey_file": None,
                              "tls_timeout": 1000,
-                             "user_agent": "sip2sip-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
+                             "user_agent": "sipsimple-%s-pjsip-%s-r%s" % (__version__, PJ_VERSION, PJ_SVN_REVISION),
                              "log_level": 5,
                              "trace_sip": False,
                              "ignore_missing_ack": False,
