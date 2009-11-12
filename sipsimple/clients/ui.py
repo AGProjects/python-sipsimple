@@ -1,6 +1,11 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+"""Implements a library that can be used for buildina a fully featured SIP
+User Agent working in a terminal text window. See sip_session.py script for
+an actual implementation.
+"""
+
 from __future__ import with_statement
 
 import atexit
