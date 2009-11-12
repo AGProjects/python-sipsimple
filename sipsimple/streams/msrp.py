@@ -39,6 +39,7 @@ from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
 from sipsimple.util import run_in_green_thread, run_in_twisted_thread, TimestampedNotificationData
+from sipsimple.applications.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
 
 
 class MSRPStreamError(StreamError): pass
@@ -233,7 +234,7 @@ class ChatStream(MSRPStreamBase):
     use_msrp_session = True
 
     media_type = 'message'
-    accept_types = ['message/cpim', 'text/*']
+    accept_types = ['message/cpim', 'text/*', 'application/im-iscomposing+xml']
     accept_wrapped_types = ['*']
 
     def __init__(self, account, direction='sendrecv'):
@@ -283,6 +284,11 @@ class ChatStream(MSRPStreamBase):
             content_type = chunk.content_type
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report if it's invalid
+        if chunk.content_type.lower() == 'application/im-iscomposing+xml':
+            data = IsComposingMessage.parse(chunk.data)
+            ndata = TimestampedNotificationData(state=data.state, refresh=data.refresh, content_type=data.contenttype, last_active=data.last_active)
+            NotificationCenter().post_notification('ChatStreamGotComposingIndication', self, ndata)
+            return
         ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
         NotificationCenter().post_notification('ChatStreamGotMessage', self, ndata)
 
@@ -355,6 +361,28 @@ class ChatStream(MSRPStreamBase):
             if remote_identity is not None and remote_identity != self.remote_identity:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
             self._enqueue_message(message_id, content, content_type)
+        return message_id
+
+    def send_composing_indication(self, state, refresh, last_active=None, remote_identity=None):
+        if self.direction == 'recvonly':
+            raise ChatStreamError('Cannot send message on recvonly stream')
+        content_type = IsComposingMessage.content_type
+        if state not in ('active', 'idle'):
+            raise ValueError('Invalid value for composing indication state')
+        message_id = '%x' % random.getrandbits(64)
+        content = IsComposingMessage(state=State(state), refresh=Refresh(max(refresh, 60)), last_active=LastActive(last_active or datetime.now()), content_type=ContentType('text')).toxml()
+        if self.cpim_enabled:
+            if remote_identity is None:
+                remote_identity = self.remote_identity
+            elif not self.private_messages_allowed and remote_identity != self.remote_identity:
+                raise ChatStreamError('The remote end does not support private messages')
+            dt = datetime.utcnow()
+            msg = MessageCPIM(content, content_type, from_=self.local_identity, to=remote_identity, datetime=dt)
+            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='no')
+        else:
+            if remote_identity is not None and remote_identity != self.remote_identity:
+                raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
+            self._enqueue_message(message_id, content, content_type, failure_report='partial', success_report='no')
         return message_id
 
 
