@@ -1,6 +1,15 @@
 # Copyright (C) 2009 AG Projects. See LICENSE for details.
 #
 
+"""Handling of RTP media streams according to RFC3550, RFC3605, RFC3581,
+RFC2833 and RFC3711, RFC3489 and draft-ietf-mmusic-ice-19.
+
+This module provides classes to parse and generate SDP related to SIP
+sessions that negotiate audio (Voice over IP) and handling of the actual
+media streams.
+"""
+
+
 from __future__ import with_statement
 from threading import RLock
 import os
