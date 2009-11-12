@@ -1,8 +1,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-"""
-Account management system.
+"""Implements a SIP Account management system that allows the definition of
+multiple SIP accounts and their properties.
 """
 
 import random
