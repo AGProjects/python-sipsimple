@@ -1,6 +1,9 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+"""Implements utilities commonly used in various parts of the library.
+"""
+
 from __future__ import with_statement
 
 import errno
