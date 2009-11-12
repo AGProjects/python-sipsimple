@@ -1,6 +1,11 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+"""Implements an asynchronous notification based mechanism for
+establishment, modification and termination of sessions using Session
+Initation Protocol (SIP) standardized in RFC3261
+"""
+
 from __future__ import with_statement
 
 from datetime import datetime
