@@ -3,6 +3,7 @@ import re
 import itertools
 import sys
 import os
+import platform
 
 from distutils.errors import DistutilsError
 from distutils import log
@@ -150,10 +151,12 @@ class PJSIP_build_ext(build_ext):
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
+        cflags = "-O3 -fPIC"
         if sys.platform == "darwin":
-            cflags = "-O3 -fPIC -arch ppc -arch i386"
-        else:
-            cflags = "-O3 -fPIC"
+            if platform.mac_ver()[0].startswith('10.6'):
+                cflags += " -arch x86_64"
+            else:
+                cflags += " -arch ppc -arch i386"
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
         env = os.environ.copy()
