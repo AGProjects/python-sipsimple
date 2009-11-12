@@ -578,7 +578,7 @@ cdef class Invitation:
                     event_dict = dict(obj=self, prev_state=self.state, state="disconnecting", originator="local")
                     self.state = "disconnecting"
                     _add_event("SIPInvitationChangedState", event_dict)
-            if self.state == "outgoing" and rdata is not None:
+            if self.direction == "outgoing" and state in ('connecting', 'connected') and rdata is not None:
                 self.to_header = rdata['headers']['To']
 
             event_dict = dict(obj=self, prev_state=self.state, state=state)
@@ -592,8 +592,11 @@ cdef class Invitation:
             if tdata is not None:
                 event_dict.update(tdata)
 
-            if self.remote_user_agent is None and rdata is not None and 'User-Agent' in event_dict['headers']:
-                self.remote_user_agent = event_dict['headers']['User-Agent'].body
+            if self.remote_user_agent is None and state in ('connecting', 'connected') and rdata is not None:
+                if 'User-Agent' in event_dict['headers']:
+                    self.remote_user_agent = event_dict['headers']['User-Agent'].body
+                elif 'Server' in event_dict['headers']:
+                    self.remote_user_agent = event_dict['headers']['Server'].body
 
             if state == "connected":
                 if sub_state == "received_proposal":
