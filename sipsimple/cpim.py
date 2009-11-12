@@ -1,7 +1,11 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-"""Simple parser and constructor of Message/CPIM content"""
+"""Simple parser and constructor of Message/CPIM content type used for
+Instant Messsaging sessions based on RFC3862.
+"""
+
+
 import re
 from cStringIO import StringIO
 from sipsimple.core import SIPURI
