@@ -1,6 +1,12 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+"""Implements DNS lookups in the context of SIP, STUN and MSRP relay based
+on RFC3263 and related standards. This can be used to determine the next
+hop(s) and failover for routing of SIP messages and reservation of network
+resources prior the starting of a SIP session. 
+"""
+
 import re
 
 # replace standard select and socket modules with versions from eventlet
