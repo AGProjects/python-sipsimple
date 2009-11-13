@@ -225,8 +225,10 @@ class Session(object):
             while not connected or self._channel:
                 notification = self._channel.wait()
                 if notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'early' and notification.data.code == 180:
-                        notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                    if notification.data.state == 'early':
+                        if notification.data.code == 180:
+                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
                     elif notification.data.state == 'connecting':
                         received_code = notification.data.code
                         received_reason = notification.data.reason
