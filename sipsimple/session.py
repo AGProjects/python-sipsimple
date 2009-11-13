@@ -1212,13 +1212,17 @@ class Session(object):
             self._channel.send_exception(MediaStreamDidFailError(notification.sender, notification.data))
         else:
             stream = notification.sender
-            try:
-                self.remove_stream(stream)
-            except IllegalStateError:
-                notification_center = NotificationCenter()
-                notification_center.remove_observer(self, sender=stream)
-                self.streams.remove(stream)
-                notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=[stream]))
+            if self.streams == [stream]:
+                self.greenlet = None
+                self.end()
+            else:
+                try:
+                    self.remove_stream(stream)
+                except IllegalStateError:
+                    notification_center = NotificationCenter()
+                    notification_center.remove_observer(self, sender=stream)
+                    self.streams.remove(stream)
+                    notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=[stream]))
 
     def _NH_MediaStreamDidEnd(self, notification):
         if self.greenlet is None:
