@@ -43,7 +43,7 @@ class DesktopSharingSettings(SettingsGroup):
 
 
 class FileTransferSettings(SettingsGroup):
-    directory = Setting(type=UserDataPath, default=UserDataPath('file_transfers'))
+    directory = Setting(type=UserDataPath, default=None, nillable=True)
 
 
 class LogsSettings(SettingsGroup):

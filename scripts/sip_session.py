@@ -966,6 +966,10 @@ class SIPSessionApplication(SIPApplication):
         engine = Engine()
         settings = SIPSimpleSettings()
 
+        # set the file transfer directory if it's not set
+        if settings.file_transfer.directory is None:
+            settings.file_transfer.directory = 'file_transfers'
+
         # display a list of available devices
         self._CH_devices()
 
