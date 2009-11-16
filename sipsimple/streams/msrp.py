@@ -774,6 +774,19 @@ class DesktopSharingStream(MSRPStreamBase):
         self.msrp_reader_thread = None
         self.msrp_writer_thread = None
 
+    def _get_handler(self):
+        return self.__dict__['handler']
+
+    def _set_handler(self, handler):
+        if handler is None:
+            raise TypeError("handler cannot be None")
+        if 'handler' in self.__dict__ and self.handler.type != handler.type:
+            raise TypeError("cannot replace the handler with one with a different type")
+        self.__dict__['handler'] = handler
+
+    handler = property(_get_handler, _set_handler)
+    del _get_handler, _set_handler
+
     @classmethod
     def new_from_sdp(cls, account, remote_sdp, stream_index):
         remote_stream = remote_sdp.media[stream_index]
