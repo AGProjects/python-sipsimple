@@ -22,12 +22,13 @@ IsComposingApplication.register_namespace(namespace, prefix=None)
 class StateValue(str):
     def __new__(cls, value):
         if value not in ('active', 'idle'):
-            return 'idle'
-        return value
+            value = 'idle'
+        return str.__new__(cls, value)
 
 
 class RefreshValue(int):
     def __new__(cls, value):
+        value = int.__new__(cls, value)
         if value <= 0:
             raise ValueError("illegal value form refresh element")
         return value
