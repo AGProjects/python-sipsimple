@@ -278,15 +278,17 @@ class ChatStream(MSRPStreamBase):
         if chunk.content_type.lower()=='message/cpim':
             cpim_headers, content = MessageCPIMParser.parse_string(chunk.data)
             content_type = cpim_headers.get('Content-Type')
+            remote_identity = cpim_headers['From']
         else:
             cpim_headers = {}
             content = chunk.data
             content_type = chunk.content_type
+            remote_identity = None
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report if it's invalid
         if content_type.lower() == IsComposingMessage.content_type:
             data = IsComposingMessage.parse(content)
-            ndata = TimestampedNotificationData(state=data.state, refresh=data.refresh, content_type=data.contenttype, last_active=data.last_active)
+            ndata = TimestampedNotificationData(state=data.state, refresh=data.refresh, content_type=data.contenttype, last_active=data.last_active, remote_identity=remote_identity)
             NotificationCenter().post_notification('ChatStreamGotComposingIndication', self, ndata)
             return
         ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
