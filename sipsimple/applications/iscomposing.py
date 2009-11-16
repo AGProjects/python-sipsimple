@@ -1,10 +1,8 @@
 # Copyright (C) 2009 AG Projects. See LICENSE for details.
 #
 
-"""
-Parses and produces isComposing messages according to RFC3994.
+"""Parses and produces isComposing messages according to RFC3994."""
 
-"""
 
 __all__ = ['namespace', 'IsComposingApplication', 'State', 'LastActive', 'ContentType', 'Refresh', 'IsComposingMessage']
 
@@ -27,6 +25,7 @@ class StateValue(str):
             return 'idle'
         return value
 
+
 class RefreshValue(int):
     def __new__(cls, value):
         if value <= 0:
@@ -41,16 +40,19 @@ class State(XMLStringElement):
     _xml_application = IsComposingApplication
     _xml_value_type = StateValue
 
+
 class LastActive(XMLStringElement):
     _xml_tag = 'lastactive'
     _xml_namespace = namespace
     _xml_application = IsComposingApplication
     _xml_value_type = Timestamp
 
+
 class ContentType(XMLStringElement):
     _xml_tag = 'contenttype'
     _xml_namespace = namespace
     _xml_application = IsComposingApplication
+
 
 class Refresh(XMLStringElement):
     _xml_tag = 'refresh'
@@ -58,6 +60,7 @@ class Refresh(XMLStringElement):
     _xml_application = IsComposingApplication
     _xml_value_type = RefreshValue
     
+
 class IsComposingMessage(XMLRootElement):
     content_type = "application/im-iscomposing+xml"
 
@@ -66,10 +69,10 @@ class IsComposingMessage(XMLRootElement):
     _xml_application = IsComposingApplication
     _xml_schema_file = 'im-iscomposing.xsd'
     _xml_children_order = {State.qname: 0,
-                            LastActive.qname: 1,
-                            ContentType.qname: 2,
-                            Refresh.qname: 3,
-                            None: 4}
+                           LastActive.qname: 1,
+                           ContentType.qname: 2,
+                           Refresh.qname: 3,
+                           None: 4}
 
     state = XMLElementChild('state', type=State, required=False, test_equal=True)
     last_active = XMLElementChild('last_active', type=LastActive, required=False, test_equal=True)
