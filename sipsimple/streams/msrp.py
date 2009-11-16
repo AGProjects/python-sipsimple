@@ -284,8 +284,8 @@ class ChatStream(MSRPStreamBase):
             content_type = chunk.content_type
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report if it's invalid
-        if chunk.content_type.lower() == 'application/im-iscomposing+xml':
-            data = IsComposingMessage.parse(chunk.data)
+        if content_type.lower() == 'application/im-iscomposing+xml':
+            data = IsComposingMessage.parse(content)
             ndata = TimestampedNotificationData(state=data.state, refresh=data.refresh, content_type=data.contenttype, last_active=data.last_active)
             NotificationCenter().post_notification('ChatStreamGotComposingIndication', self, ndata)
             return
