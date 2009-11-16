@@ -369,7 +369,7 @@ class ChatStream(MSRPStreamBase):
         if state not in ('active', 'idle'):
             raise ValueError('Invalid value for composing indication state')
         message_id = '%x' % random.getrandbits(64)
-        content = IsComposingMessage(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or datetime.now()), content_type=ContentType('text')).toxml()
+        content = IsComposingMessage(state=State(state), refresh=Refresh(refresh), last_active=LastActive(last_active or datetime.utcnow()), content_type=ContentType('text')).toxml()
         if self.cpim_enabled:
             if remote_identity is None:
                 remote_identity = self.remote_identity
