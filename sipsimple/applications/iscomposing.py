@@ -8,9 +8,9 @@ Parses and produces isComposing messages according to RFC3994.
 
 __all__ = ['namespace', 'IsComposingApplication', 'State', 'LastActive', 'ContentType', 'Refresh', 'IsComposingMessage']
 
-import datetime
-from sipsimple.applications import util, XMLApplication, XMLRootElement, XMLElement, XMLStringElement, XMLElementChild
-from sipsimple.applications.util import UnsignedLong, Timestamp
+
+from sipsimple.applications import XMLApplication, XMLRootElement, XMLStringElement, XMLElementChild
+from sipsimple.applications.util import Timestamp
 
 
 namespace = 'urn:ietf:params:xml:ns:im-iscomposing'
