@@ -608,11 +608,11 @@ class OutgoingTransferHandler(object):
             self.wave_ringtone.stop()
         ui.status = 'Connecting...'
 
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=notification.sender.proposed_streams[0])
+
     def _NH_SIPSessionDidStart(self, notification):
         session = notification.sender
-
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=session.streams[0])
 
         ui = UI()
         ui.status = 'File transfer connected'
@@ -644,7 +644,7 @@ class OutgoingTransferHandler(object):
         notification_center = NotificationCenter()
         session = notification.sender
         notification_center.remove_observer(self, sender=session)
-        notification_center.remove_observer(self, sender=session.streams[0])
+        notification_center.remove_observer(self, sender=session.streams[0] if session.streams else session.proposed_streams[0])
 
         ui = UI()
         ui.status = None
@@ -780,12 +780,12 @@ class IncomingTransferHandler(object):
             self.question = None
         ui.status = 'Connecting...'
 
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=notification.sender.proposed_streams[0])
+
     def _NH_SIPSessionDidStart(self, notification):
         session = notification.sender
         IncomingCallInitializer.sessions -= 1
-
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=session.streams[0])
 
         ui = UI()
         ui.status = 'File transfer connected'
@@ -828,7 +828,7 @@ class IncomingTransferHandler(object):
         notification_center = NotificationCenter()
         session = notification.sender
         notification_center.remove_observer(self, sender=session)
-        notification_center.remove_observer(self, sender=session.streams[0])
+        notification_center.remove_observer(self, sender=session.streams[0] if session.streams else session.proposed_streams[0])
 
         ui = UI()
         ui.status = None
@@ -1084,11 +1084,13 @@ class SIPSessionApplication(SIPApplication):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=notification.sender)
 
-    def _NH_SIPSessionDidStart(self, notification):
+    def _NH_SIPSessionWillStart(self, notification):
         notification_center = NotificationCenter()
-        session = notification.sender
-        for stream in notification.data.streams:
+        for stream in notification.sender.proposed_streams:
             notification_center.add_observer(self, sender=stream)
+
+    def _NH_SIPSessionDidStart(self, notification):
+        session = notification.sender
 
         self.connected_sessions.append(session)
         if self.active_session is not None:
@@ -1124,7 +1126,7 @@ class SIPSessionApplication(SIPApplication):
         notification_center = NotificationCenter()
         session = notification.sender
         notification_center.remove_observer(self, sender=session)
-        for stream in session.streams:
+        for stream in session.streams or session.proposed_streams:
             notification_center.remove_observer(self, sender=stream)
 
         ui = UI()
