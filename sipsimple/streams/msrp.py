@@ -69,7 +69,7 @@ class MSRPStreamBase(object):
     def __new__(cls, *args, **kw):
         if cls is MSRPStreamBase:
             raise TypeError("MSRPStreamBase cannot be instantiated directly")
-        return object.__new__(cls, *args, **kw)
+        return object.__new__(cls)
 
     def __init__(self, account, direction='sendrecv'):
         self.account = account
