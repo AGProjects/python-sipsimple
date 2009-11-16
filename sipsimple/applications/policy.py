@@ -48,7 +48,7 @@ from sipsimple.applications import ValidationError, XMLApplication, XMLElement, 
 from sipsimple.applications.util import Timestamp
 
 
-__all__ = ['_namespace_',
+__all__ = ['namespace',
            'CommonPolicyApplication',
            'ConditionElement',
            'ActionElement',
@@ -65,11 +65,11 @@ __all__ = ['_namespace_',
            'RuleSet']
 
 
-_namespace_ = 'urn:ietf:params:xml:ns:common-policy'
+namespace = 'urn:ietf:params:xml:ns:common-policy'
 
 
 class CommonPolicyApplication(XMLApplication): pass
-CommonPolicyApplication.register_namespace(_namespace_, prefix='cp')
+CommonPolicyApplication.register_namespace(namespace, prefix='cp')
 
 
 ## Mixin types for extensibility
@@ -83,7 +83,7 @@ class TransformationElement(object): pass
 
 class IdentityOne(XMLElement):
     _xml_tag = 'one'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
     id = XMLAttribute('id', type=str, required=True, test_equal=True)
@@ -105,7 +105,7 @@ class IdentityOne(XMLElement):
 
 class IdentityExcept(XMLElement):
     _xml_tag = 'except'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True, onset=(lambda self, attr: setattr(self, 'domain', None)))
@@ -134,7 +134,7 @@ class IdentityExcept(XMLElement):
 
 class IdentityMany(XMLListElement):
     _xml_tag = 'many'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
     _xml_children_order = {IdentityExcept.qname: 0}
 
@@ -183,7 +183,7 @@ class IdentityMany(XMLListElement):
 
 class Identity(XMLListElement, ConditionElement):
     _xml_tag = 'identity'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
     def __init__(self, identities=[]):
@@ -221,7 +221,7 @@ class Identity(XMLListElement, ConditionElement):
 
 class Sphere(XMLElement, ConditionElement):
     _xml_tag = 'sphere'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
     value = XMLAttribute('value', type=str, required=True, test_equal=True)
@@ -238,7 +238,7 @@ class Sphere(XMLElement, ConditionElement):
 
 class Validity(XMLListElement, ConditionElement):
     _xml_tag = 'validity'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
     def __init__(self, children=[]):
@@ -277,7 +277,7 @@ class Validity(XMLListElement, ConditionElement):
 
 class Conditions(XMLListElement):
     _xml_tag = 'conditions'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
     _xml_children_order = {Identity.qname: 0,
                            Sphere.qname: 1,
@@ -312,7 +312,7 @@ class Conditions(XMLListElement):
 
 class Actions(XMLListElement):
     _xml_tag = 'actions'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
     def __init__(self, actions=[]):
@@ -344,7 +344,7 @@ class Actions(XMLListElement):
 
 class Transformations(XMLListElement):
     _xml_tag = 'transformations'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
     def __init__(self, transformations=[]):
@@ -376,7 +376,7 @@ class Transformations(XMLListElement):
 
 class Rule(XMLElement):
     _xml_tag = 'rule'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
     _xml_children_order = {Conditions.qname: 0,
                            Actions.qname: 1,
@@ -405,7 +405,7 @@ class RuleSet(XMLListRootElement):
     content_type = 'application/auth-policy+xml'
     
     _xml_tag = 'ruleset'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
     _xml_schema_file = 'common-policy.xsd'
 

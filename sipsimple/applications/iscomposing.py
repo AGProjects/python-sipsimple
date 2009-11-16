@@ -6,18 +6,18 @@ Parses and produces isComposing messages according to RFC3994.
 
 """
 
-__all__ = ['_namespace_', 'IsComposingApplication', 'State', 'LastActive', 'ContentType', 'Refresh', 'IsComposingMessage']
+__all__ = ['namespace', 'IsComposingApplication', 'State', 'LastActive', 'ContentType', 'Refresh', 'IsComposingMessage']
 
 import datetime
 from sipsimple.applications import util, XMLApplication, XMLRootElement, XMLElement, XMLStringElement, XMLElementChild
 from sipsimple.applications.util import UnsignedLong, Timestamp
 
 
-_namespace_ = 'urn:ietf:params:xml:ns:im-iscomposing'
+namespace = 'urn:ietf:params:xml:ns:im-iscomposing'
 
 
 class IsComposingApplication(XMLApplication): pass
-IsComposingApplication.register_namespace(_namespace_, prefix=None)
+IsComposingApplication.register_namespace(namespace, prefix=None)
 
 
 # Attribute value types
@@ -37,24 +37,24 @@ class RefreshValue(int):
 # Elements
 class State(XMLStringElement):
     _xml_tag = 'state'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = IsComposingApplication
     _xml_value_type = StateValue
 
 class LastActive(XMLStringElement):
     _xml_tag = 'lastactive'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = IsComposingApplication
     _xml_value_type = Timestamp
 
 class ContentType(XMLStringElement):
     _xml_tag = 'contenttype'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = IsComposingApplication
 
 class Refresh(XMLStringElement):
     _xml_tag = 'refresh'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = IsComposingApplication
     _xml_value_type = RefreshValue
     
@@ -62,7 +62,7 @@ class IsComposingMessage(XMLRootElement):
     content_type = "application/im-iscomposing+xml"
 
     _xml_tag = 'isComposing'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = IsComposingApplication
     _xml_schema_file = 'im-iscomposing.xsd'
     _xml_children_order = {State.qname: 0,

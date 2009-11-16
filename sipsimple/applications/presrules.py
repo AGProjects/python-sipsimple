@@ -48,10 +48,10 @@ Example usage:
 """
 
 from sipsimple.applications import XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementChild
-from sipsimple.applications.policy import _namespace_ as _cp_namespace_, CommonPolicyApplication, ActionElement, TransformationElement, RuleSet
+from sipsimple.applications.policy import namespace as cp_namespace, CommonPolicyApplication, ActionElement, TransformationElement, RuleSet
 
-__all__ = ['_cp_namespace_',
-           '_pr_namespace_',
+__all__ = ['cp_namespace',
+           'pr_namespace',
            'PresRulesApplication',
            'SubHandling',
            'DeviceID',
@@ -83,10 +83,10 @@ __all__ = ['_cp_namespace_',
            'PresRules']
 
 
-_pr_namespace_ = 'urn:ietf:params:xml:ns:pres-rules'
+pr_namespace = 'urn:ietf:params:xml:ns:pres-rules'
 
 class PresRulesApplication(CommonPolicyApplication): pass
-PresRulesApplication.register_namespace(_pr_namespace_, prefix='pr')
+PresRulesApplication.register_namespace(pr_namespace, prefix='pr')
 
 
 ## Marker mixins
@@ -116,7 +116,7 @@ class ProvideUserInputValue(str):
 
 class SubHandling(XMLStringElement, ActionElement):
     _xml_tag = 'sub-handling'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     _xml_lang = False
     _xml_value_type = SubHandlingValue
@@ -126,14 +126,14 @@ class SubHandling(XMLStringElement, ActionElement):
 
 class Class(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, ProvideServiceElement):
     _xml_tag = 'class'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     _xml_lang = False
 
 
 class OccurenceID(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, ProvideServiceElement):
     _xml_tag = 'occurence-id'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
@@ -142,13 +142,13 @@ class OccurenceID(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, 
 
 class DeviceID(XMLStringElement, ProvideDeviceElement):
     _xml_tag = 'deviceID'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     _xml_lang = False
 
 class AllDevices(XMLEmptyElement):
     _xml_tag = 'all-devices'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     
     def __init__(self, provide_all=True):
@@ -162,7 +162,7 @@ class AllDevices(XMLEmptyElement):
 
 class ProvideDevices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-devices'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
     def _on_all_set(self, attribute):
@@ -213,7 +213,7 @@ class ProvideDevices(XMLListElement, TransformationElement):
 
 class AllPersons(XMLEmptyElement):
     _xml_tag = 'all-persons'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     
     def __init__(self, provide_all=True):
@@ -227,7 +227,7 @@ class AllPersons(XMLEmptyElement):
 
 class ProvidePersons(XMLListElement, TransformationElement):
     _xml_tag = 'provide-persons'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     
     def _on_all_set(self, attribute):
@@ -278,19 +278,19 @@ class ProvidePersons(XMLListElement, TransformationElement):
 
 class ServiceURI(XMLStringElement, ProvideServiceElement):
     _xml_tag = 'service-uri'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ServiceURIScheme(XMLStringElement, ProvideServiceElement):
     _xml_tag = 'service-uri-scheme'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class AllServices(XMLEmptyElement):
     _xml_tag = 'all-services'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     
     def __init__(self, provide_all=True):
@@ -304,7 +304,7 @@ class AllServices(XMLEmptyElement):
 
 class ProvideServices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-services'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
     def _on_all_set(self, attribute):
@@ -378,73 +378,73 @@ class BooleanProvideElement(XMLElement):
 
 class ProvideActivities(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-activities'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideClass(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-class'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideDeviceID(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-deviceID'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideMood(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-mood'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvidePlaceIs(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-place-is'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvidePlaceType(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-place-type'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvidePrivacy(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-privacy'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideRelationship(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-relationship'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideStatusIcon(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-status-icon'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideSphere(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-sphere'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideTimeOffset(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-time-offset'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class ProvideUserInput(XMLStringElement, TransformationElement):
     _xml_tag = 'provide-user-input'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     _xml_lang = False
     _xml_value_type = ProvideUserInputValue
@@ -452,7 +452,7 @@ class ProvideUserInput(XMLStringElement, TransformationElement):
 
 class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-unknown-attribute'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
     name = XMLAttribute('name', type=str, required=True, test_equal=True)
@@ -471,14 +471,14 @@ class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
 
 class ProvideAllAttributes(XMLEmptyElement, TransformationElement):
     _xml_tag = 'provide-all-attributes'
-    _xml_namespace = _pr_namespace_
+    _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
 class PresRules(RuleSet):
     _xml_application = PresRulesApplication
     _xml_schema_file = 'pres-rules.xsd'
-    _xml_nsmap = {'pr': _pr_namespace_,
-                  'cr': _cp_namespace_}
+    _xml_nsmap = {'pr': pr_namespace,
+                  'cr': cp_namespace}
 
 

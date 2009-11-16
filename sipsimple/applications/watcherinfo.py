@@ -55,7 +55,7 @@ See the classes for more information.
 from sipsimple.applications import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute
 from sipsimple.applications.util import UnsignedLong, SIPURI
 
-__all__ = ['_namespace_',
+__all__ = ['namespace',
            'NeedFullUpdateError',
            'WatcherInfoApplication',
            'Watcher',
@@ -63,13 +63,13 @@ __all__ = ['_namespace_',
            'WatcherInfo']
 
 
-_namespace_ = 'urn:ietf:params:xml:ns:watcherinfo'
+namespace = 'urn:ietf:params:xml:ns:watcherinfo'
 
 class NeedFullUpdateError(Exception): pass
 
 
 class WatcherInfoApplication(XMLApplication): pass
-WatcherInfoApplication.register_namespace(_namespace_, prefix=None)
+WatcherInfoApplication.register_namespace(namespace, prefix=None)
 
 
 ## Attribute value types
@@ -111,7 +111,7 @@ class Watcher(XMLElement):
     Can be transformed to a string with the format DISPLAY_NAME <SIP_URI>.
     """
     _xml_tag = 'watcher'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = WatcherInfoApplication
     
     id           = XMLAttribute('id', type=str, required=True, test_equal=True)
@@ -171,7 +171,7 @@ class WatcherList(XMLListElement):
     generators returning Watcher objects with the corresponding status.
     """
     _xml_tag = 'watcher-list'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = WatcherInfoApplication
     _xml_children_order = {Watcher.qname: 0}
 
@@ -271,7 +271,7 @@ class WatcherInfo(XMLListRootElement):
     content_type = 'application/watcherinfo+xml'
 
     _xml_tag = 'watcherinfo'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = WatcherInfoApplication
     _xml_children_order = {WatcherList.qname: 0}
     _xml_schema_file = 'watcherinfo.xsd'

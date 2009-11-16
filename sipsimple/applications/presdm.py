@@ -49,8 +49,8 @@ import datetime
 from sipsimple.applications import util
 from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementChild
 
-__all__ = ['_pidf_namespace_',
-           '_dm_namespace_',
+__all__ = ['pidf_namespace',
+           'dm_namespace',
            'PIDFApplication',
            'ServiceExtension',
            'DeviceExtension',
@@ -74,13 +74,13 @@ __all__ = ['_pidf_namespace_',
            'PIDF']
 
 
-_pidf_namespace_ = 'urn:ietf:params:xml:ns:pidf'
-_dm_namespace_ = 'urn:ietf:params:xml:ns:pidf:data-model'
+pidf_namespace = 'urn:ietf:params:xml:ns:pidf'
+dm_namespace = 'urn:ietf:params:xml:ns:pidf:data-model'
 
 
 class PIDFApplication(XMLApplication): pass
-PIDFApplication.register_namespace(_pidf_namespace_, prefix=None)
-PIDFApplication.register_namespace(_dm_namespace_, prefix='dm')
+PIDFApplication.register_namespace(pidf_namespace, prefix=None)
+PIDFApplication.register_namespace(dm_namespace, prefix='dm')
 
 
 ## Marker mixin
@@ -103,7 +103,7 @@ class BasicStatusValue(str):
 
 class Timestamp(XMLElement):
     _xml_tag = 'timestamp'
-    _xml_namespace = _pidf_namespace_
+    _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
 
     def __init__(self, value=None):
@@ -136,7 +136,7 @@ class Timestamp(XMLElement):
 
 class Note(XMLStringElement):
     _xml_tag = 'note'
-    _xml_namespace = _pidf_namespace_
+    _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_lang = True
     
@@ -188,7 +188,7 @@ class NotesAttribute(object):
 
 class DeviceID(XMLStringElement):
     _xml_tag = 'deviceID'
-    _xml_namespace = _dm_namespace_
+    _xml_namespace = dm_namespace
     _xml_application = PIDFApplication
     _xml_lang = False
 
@@ -197,7 +197,7 @@ class DeviceID(XMLStringElement):
 
 class Basic(XMLStringElement):
     _xml_tag = 'basic'
-    _xml_namespace = _pidf_namespace_
+    _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_lang = False
     _xml_value_type = BasicStatusValue
@@ -205,7 +205,7 @@ class Basic(XMLStringElement):
 
 class Status(XMLElement):
     _xml_tag = 'status'
-    _xml_namespace = _pidf_namespace_
+    _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_children_order = {Basic.qname: 0}
 
@@ -226,7 +226,7 @@ class Status(XMLElement):
 
 class Contact(XMLStringElement):
     _xml_tag = 'contact'
-    _xml_namespace = _pidf_namespace_
+    _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_lang = False
 
@@ -239,7 +239,7 @@ class ServiceTimestamp(Timestamp): pass
 
 class Service(XMLElement):
     _xml_tag = 'tuple'
-    _xml_namespace = _pidf_namespace_
+    _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = ServiceExtension
     _xml_children_order = {Status.qname: 0,
@@ -283,19 +283,19 @@ class Service(XMLElement):
 
 class DeviceNote(Note):
     _xml_tag = 'note'
-    _xml_namespace = _dm_namespace_
+    _xml_namespace = dm_namespace
     _xml_application = PIDFApplication
 
 
 class DeviceTimestamp(Timestamp):
     _xml_tag = 'timestamp'
-    _xml_namespace = _dm_namespace_
+    _xml_namespace = dm_namespace
     _xml_application = PIDFApplication
 
 
 class Device(XMLElement):
     _xml_tag = 'device'
-    _xml_namespace = _dm_namespace_
+    _xml_namespace = dm_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = DeviceExtension
     _xml_children_order = {None: 0,
@@ -334,19 +334,19 @@ class Device(XMLElement):
 
 class PersonNote(Note):
     _xml_tag = 'note'
-    _xml_namespace = _dm_namespace_
+    _xml_namespace = dm_namespace
     _xml_application = PIDFApplication
 
 
 class PersonTimestamp(Timestamp):
     _xml_tag = 'timestamp'
-    _xml_namespace = _dm_namespace_
+    _xml_namespace = dm_namespace
     _xml_application = PIDFApplication
 
 
 class Person(XMLElement):
     _xml_tag = 'person'
-    _xml_namespace = _dm_namespace_
+    _xml_namespace = dm_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = PersonExtension
     _xml_children_order = {None: 0,
@@ -384,7 +384,7 @@ class PIDF(XMLListRootElement):
     content_type = 'application/pidf+xml'
     
     _xml_tag = 'presence'
-    _xml_namespace = _pidf_namespace_
+    _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_schema_file = 'pidf.xsd'
     _xml_children_order = {Service.qname: 0,

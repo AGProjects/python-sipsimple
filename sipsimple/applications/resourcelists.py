@@ -54,7 +54,7 @@ Marketing
 
 from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild
 
-__all__ = ['_namespace_',
+__all__ = ['namespace',
            'ResourceListsApplication',
            'DisplayName',
            'Entry',
@@ -63,7 +63,7 @@ __all__ = ['_namespace_',
            'List',
            'ResourceLists']
 
-_namespace_ = 'urn:ietf:params:xml:ns:resource-lists'
+namespace = 'urn:ietf:params:xml:ns:resource-lists'
 
 # excerpt from the RFC:
 
@@ -90,7 +90,7 @@ _namespace_ = 'urn:ietf:params:xml:ns:resource-lists'
 
 
 class ResourceListsApplication(XMLApplication): pass
-ResourceListsApplication.register_namespace(_namespace_, prefix='rl')
+ResourceListsApplication.register_namespace(namespace, prefix='rl')
 
 
 ## Marker mixins
@@ -102,14 +102,14 @@ class ListElement(object): pass
 
 class DisplayName(XMLStringElement):
     _xml_tag = 'display-name'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = ResourceListsApplication
     _xml_lang = True
 
 
 class Entry(XMLElement, ListElement):
     _xml_tag = 'entry'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
@@ -131,7 +131,7 @@ class Entry(XMLElement, ListElement):
 
 class EntryRef(XMLElement, ListElement):
     _xml_tag = 'entry-ref'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
@@ -153,7 +153,7 @@ class EntryRef(XMLElement, ListElement):
 
 class External(XMLElement, ListElement):
     _xml_tag = 'external'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
@@ -175,7 +175,7 @@ class External(XMLElement, ListElement):
 
 class List(XMLListElement, ListElement):
     _xml_tag = 'list'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0,
                            Entry.qname: 1,
@@ -255,7 +255,7 @@ class ResourceLists(XMLListRootElement):
     content_type = 'application/resource-lists+xml'
     
     _xml_tag = 'resource-lists'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = ResourceListsApplication
     _xml_children_order = {List.qname: 0}
     _xml_schema_file = 'resourcelists.xsd'

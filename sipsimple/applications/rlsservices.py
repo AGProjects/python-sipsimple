@@ -56,10 +56,10 @@ presence
 """
 
 from sipsimple.applications import ValidationError, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
-from sipsimple.applications.resourcelists import _namespace_ as _rl_namespace_, List, ResourceListsApplication
+from sipsimple.applications.resourcelists import namespace as rl_namespace, List, ResourceListsApplication
 
-__all__ = ['_rl_namespace_',
-           '_rls_namespace_',
+__all__ = ['rl_namespace',
+           'rls_namespace',
            'RLSServicesApplication',
            'Package',
            'Packages',
@@ -69,7 +69,7 @@ __all__ = ['_rl_namespace_',
            'RLSServices']
 
 
-_rls_namespace_ = 'urn:ietf:params:xml:ns:rls-services'
+rls_namespace = 'urn:ietf:params:xml:ns:rls-services'
 
 # excerpt from the RFC:
 
@@ -91,7 +91,7 @@ _rls_namespace_ = 'urn:ietf:params:xml:ns:rls-services'
 
 
 class RLSServicesApplication(ResourceListsApplication): pass
-RLSServicesApplication.register_namespace(_rls_namespace_, prefix=None)
+RLSServicesApplication.register_namespace(rls_namespace, prefix=None)
 
 ## Marker mixins
 
@@ -102,14 +102,14 @@ class PackagesElement(object): pass
 
 class Package(XMLStringElement, PackagesElement):
     _xml_tag = 'package'
-    _xml_namespace = _rls_namespace_
+    _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
     _xml_lang = False
 
 
 class Packages(XMLListElement):
     _xml_tag = 'packages'
-    _xml_namespace = _rls_namespace_
+    _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
     _xml_children_order = {Package.qname: 0}
 
@@ -144,7 +144,7 @@ class Packages(XMLListElement):
 
 class ResourceList(XMLStringElement):
     _xml_tag = 'resource-list'
-    _xml_namespace = _rls_namespace_
+    _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
     _xml_lang = False
 
@@ -153,13 +153,13 @@ class ResourceList(XMLStringElement):
 # namespace. We'll redefine the xml tag just for readability purposes.
 class RLSList(List):
     _xml_tag = 'list'
-    _xml_namespace = _rls_namespace_
+    _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
 
 
 class Service(XMLElement):
     _xml_tag = 'service'
-    _xml_namespace = _rls_namespace_
+    _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
     _xml_children_order = {RLSList.qname: 0,
                            ResourceList.qname: 0,
@@ -186,7 +186,7 @@ class RLSServices(XMLListRootElement):
     content_type = 'application/rls-services+xml'
 
     _xml_tag = 'rls-services'
-    _xml_namespace = _rls_namespace_
+    _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
     _xml_children_order = {Service.qname: 0}
     _xml_schema_file = 'rlsservices.xsd'

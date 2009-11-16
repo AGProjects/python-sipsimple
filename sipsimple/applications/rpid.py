@@ -13,7 +13,7 @@ from sipsimple.applications import util
 from sipsimple.applications import parse_qname, ParserError, ValidationError, XMLElement, XMLListElement, XMLEmptyElement, XMLStringElement, XMLAttribute, XMLElementChild
 from sipsimple.applications.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NotesAttribute, Service, Person, Device
 
-__all__ = ['_rpid_namespace_',
+__all__ = ['rpid_namespace',
            'ActivityElement',
            'MoodElement',
            'PlaceTypeElement',
@@ -40,8 +40,8 @@ __all__ = ['_rpid_namespace_',
            'Class',
            'Other']
 
-_rpid_namespace_ = 'urn:ietf:params:xml:ns:pidf:rpid'
-PIDFApplication.register_namespace(_rpid_namespace_, prefix='rpid')
+rpid_namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
+PIDFApplication.register_namespace(rpid_namespace, prefix='rpid')
 
 
 ## Marker mixins
@@ -87,17 +87,17 @@ class UserInputValue(str):
 
 class RPIDNote(Note):
     _xml_tag = 'note'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
 
 class Other(Note):
     _xml_tag = 'note'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
 
 class Activities(XMLListElement, PersonExtension):
     _xml_tag = 'activities'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = ActivityElement
     _xml_children_order = {RPIDNote.qname: 0}
@@ -180,7 +180,7 @@ Person.register_extension('activities', type=Activities)
 
 class Mood(XMLListElement, PersonExtension):
     _xml_tag = 'mood'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = MoodElement
     _xml_children_order = {RPIDNote.qname: 0}
@@ -269,28 +269,28 @@ Person.register_extension('mood', type=Mood)
 
 class AudioPlaceInformation(XMLStringElement):
     _xml_tag = 'audio'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_value_type = AudioPlaceValue
 
 
 class VideoPlaceInformation(XMLStringElement):
     _xml_tag = 'video'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_value_type = VideoPlaceValue
 
 
 class TextPlaceInformation(XMLStringElement):
     _xml_tag = 'text'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_value_type = TextPlaceValue
 
 
 class PlaceIs(XMLElement, PersonExtension):
     _xml_tag = 'place-is'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_children_order = {RPIDNote.qname: 0,
                            AudioPlaceInformation.qname: 1,
@@ -335,7 +335,7 @@ Person.register_extension('place_is', type=PlaceIs)
 
 class PlaceType(XMLListElement, PersonExtension):
     _xml_tag = 'place-type'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_children_order = {RPIDNote.qname: 0}
     
@@ -394,7 +394,7 @@ Person.register_extension('place_type', type=PlaceType)
 
 class AudioPrivacy(XMLEmptyElement):
     _xml_tag = 'audio'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
 
     def __init__(self, private=True):
@@ -408,7 +408,7 @@ class AudioPrivacy(XMLEmptyElement):
 
 class TextPrivacy(XMLEmptyElement):
     _xml_tag = 'text'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
 
     def __init__(self, private=True):
@@ -422,7 +422,7 @@ class TextPrivacy(XMLEmptyElement):
 
 class VideoPrivacy(XMLEmptyElement):
     _xml_tag = 'audio'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
 
     def __init__(self, private=True):
@@ -436,7 +436,7 @@ class VideoPrivacy(XMLEmptyElement):
 
 class Privacy(XMLListElement, PersonExtension):
     _xml_tag = 'privacy'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_children_order = {RPIDNote.qname: 0,
                            AudioPrivacy.qname: 1,
@@ -508,7 +508,7 @@ Person.register_extension('privacy', type=Privacy)
 
 class Relationship(XMLElement, ServiceExtension):
     _xml_tag = 'relationship'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_children_order = {RPIDNote: 0}
     
@@ -572,7 +572,7 @@ Service.register_extension('relationship', type=Relationship)
 
 class ServiceClass(XMLElement, ServiceExtension):
     _xml_tag = 'service-class'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     
     values = set(('courier', 'electronic', 'freight', 'in person', 'postal', 'unknown'))
@@ -635,7 +635,7 @@ Service.register_extension('service_class', type=ServiceClass)
 
 class Sphere(XMLElement, PersonExtension):
     _xml_tag = 'sphere'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
@@ -699,7 +699,7 @@ Person.register_extension('sphere', type=Sphere)
 
 class StatusIcon(XMLStringElement, ServiceExtension, PersonExtension):
     _xml_tag = 'status-icon'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_lang = False
     
@@ -719,7 +719,7 @@ Service.register_extension('status_icon', type=StatusIcon)
 
 class TimeOffset(XMLStringElement, PersonExtension):
     _xml_tag = 'time-offset'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_lang = False
     
@@ -745,7 +745,7 @@ Person.register_extension('time_offset', type=TimeOffset)
 
 class UserInput(XMLStringElement, ServiceExtension, PersonExtension, DeviceExtension):
     _xml_tag = 'user-input'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_lang = False
     _xml_value_type = UserInputValue
@@ -767,7 +767,7 @@ Device.register_extension('user_input', type=UserInput)
 
 class Class(XMLStringElement, ServiceExtension, PersonExtension, DeviceExtension):
     _xml_tag = 'class'
-    _xml_namespace = _rpid_namespace_
+    _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_lang = False
 

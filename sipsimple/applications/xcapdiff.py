@@ -9,24 +9,24 @@ draft-ietf-simple-xcap-diff.
 from sipsimple.applications import XMLApplication, XMLElement, XMLListRootElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementChild
 from sipsimple.applications.util import XCAPURI, Boolean
 
-__all__ = ['_namespace_', 'XCAPDiffApplication', 'BodyNotChanged', 'Document', 'Element', 'Attribute', 'XCAPDiff']
+__all__ = ['namespace', 'XCAPDiffApplication', 'BodyNotChanged', 'Document', 'Element', 'Attribute', 'XCAPDiff']
 
 
-_namespace_ = 'urn:ietf:params:xml:ns:xcap-diff'
+namespace = 'urn:ietf:params:xml:ns:xcap-diff'
 
 class XCAPDiffApplication(XMLApplication): pass
-XCAPDiffApplication.register_namespace(_namespace_, prefix=None)
+XCAPDiffApplication.register_namespace(namespace, prefix=None)
 
 
 class BodyNotChanged(XMLEmptyElement):
     _xml_tag = 'body-not-changed'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
 
 class Document(XMLElement):
     _xml_tag = 'document'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
     selector = XMLAttribute('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
@@ -66,7 +66,7 @@ class Document(XMLElement):
 
 class Element(XMLElement):
     _xml_tag = 'element'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
     selector = XMLAttribute('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
@@ -92,7 +92,7 @@ class Element(XMLElement):
 
 class Attribute(XMLStringElement):
     _xml_tag = 'attribute'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
     selector = XMLAttribute('selector', xmlname='sel', type=XCAPURI, required=True, test_equal=True)
@@ -114,7 +114,7 @@ class XCAPDiff(XMLListRootElement):
     content_type = 'application/xcap-diff+xml'
 
     _xml_tag = 'xcap-diff'
-    _xml_namespace = _namespace_
+    _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
 
     xcap_root = XMLAttribute('xcap_root', xmlname='xcap-root', type=str, required=True, test_equal=True)
