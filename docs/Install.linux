@@ -22,6 +22,12 @@ II. Manual installation (development version)
 I. Debian package installation (last stable version)
 ----------------------------------------------------
 
+Note. The Debian package cannot be installed at this moment because of
+dependecies that are not available anymore in the Debian Unstable
+distribution. Use the Manual Installation procedure until the official next
+release of the Debian package. This section will be uodated after the next
+release.
+
 For people running Debian 5.0 or Ubuntu 8.10 a debian package with the last
 stable version is available in the repository provided by AG Projects. 
 
@@ -79,8 +85,7 @@ You will now have debian packages in the upper level directory that you can
 install using dpkg -i command.
 
 
-
-II. Manual installation (development version)
+II. Manual Installation (development version)
 ---------------------------------------------
 
 
@@ -106,10 +111,10 @@ the following packages, notice the minimum version numbers:
  * python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-application  http://pypi.python.org/simple/python-application  >=1.1.5
  * python-lxml         http://codespeak.net/lxml                         >=2.1.2
+ * python-eventlet     http://download.ag-projects.com/SipClient         =0.8.11
  * cython              http://www.cython.org                             >=0.10
  * dnspython           http://www.dnspython.org                          >=1.6.0
  * twisted             http://twistedmatrix.com/trac                     >=8.1.0
- * eventlet            http://pypi.python.org/pypi/eventlet/             =0.8.11
  * greenlet            http://pypi.python.org/pypi/greenlet/             >=0.2
  * zope-interface      http://www.zope.org                               >=3.3.1
 
@@ -125,13 +130,26 @@ provided by the python-setuptools package to install the packages:
 sudo easy_install -U lxml python-gnutls cython python-application \
 dnspython twisted
 
-Install greenlet/eventlet for twisted using easy_install script, they are
-not yet available as Debian packages:
+Install greenlet using easy_install script, is not yet available as Debian
+package:
 
-sudo easy_install -U greenlet eventlet
+sudo easy_install -U greenlet
 
 Download and install SIP SIMPLE client dependencies available in AG Projects
 repositories:
+
+cd ~/work
+# python-eventlet
+if [ -d python-eventlet ]; then
+        cd python-eventlet
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-eventlet
+        cd python-eventlet
+        sudo python setup.py install
+fi
+cd ..
 
 cd ~/work
 # python-xcaplib
@@ -176,3 +194,4 @@ Build and install the library system wide:
 cd python-sipsimple
 sudo python setup.py build_ext --pjsip-clean-compile
 sudo python setup.py install
+

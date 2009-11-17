@@ -43,6 +43,7 @@ Step 2. Install dependencies
  * python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-application  http://pypi.python.org/simple/python-application  >=1.1.5
  * python-lxml         http://codespeak.net/lxml                         >=2.1.2
+ * python-eventlet     http://download.ag-projects.com/SipClient         =0.8.11
  * python-cjson        http://pypi.python.org/pypi/python-cjson/         >=1.0.5
  * cython              http://www.cython.org                             >=0.10
  * dnspython           http://www.dnspython.org                          >=1.6.0
@@ -113,6 +114,18 @@ eventlet python-application
 Install XCAP and MSRP client libraries from AG Projects darcs repositories:
 
 cd ~/work
+# python-eventlet
+if [ -d python-eventlet ]; then
+        cd python-eventlet
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-eventlet
+        cd python-eventlet
+        sudo python setup.py install
+fi
+cd ..
+
 # python-xcaplib
 if [ -d python-xcaplib ]; then
 	cd python-xcaplib
