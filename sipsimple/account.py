@@ -56,7 +56,7 @@ class DialogEventSettings(SettingsGroup):
 
 
 class NatTraversalSettings(SettingsGroup):
-    enable_ice = Setting(type=bool, default=True)
+    enable_ice = Setting(type=bool, default=False)
     stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
