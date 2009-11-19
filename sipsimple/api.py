@@ -117,7 +117,7 @@ class SIPApplication(object):
         if output_device not in (None, 'system_default') and output_device not in engine.output_devices:
             output_device = 'system_default'
         self.voice_conference_bridge = ConferenceBridge(input_device, output_device, settings.audio.sample_rate, settings.audio.tail_length)
-        self.alert_conference_bridge = ConferenceBridge(None, alert_device, settings.audio.sample_rate, settings.audio.tail_length)
+        self.alert_conference_bridge = ConferenceBridge(None, alert_device, settings.audio.sample_rate, 0)
         if settings.audio.silent:
             self.alert_conference_bridge.output_volume = 0
         
