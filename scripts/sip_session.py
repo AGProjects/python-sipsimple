@@ -1288,6 +1288,37 @@ class SIPSessionApplication(SIPApplication):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=notification.sender)
 
+    def _NH_DefaultAudioDeviceDidChange(self, notification):
+        SIPApplication._NH_DefaultAudioDeviceDidChange(self, notification)
+        if notification.data.changed_input and self.voice_conference_bridge.input_device=='system_default':
+            send_notice('Switched default input device to: %s' % self.voice_conference_bridge.real_input_device)
+        if notification.data.changed_output and self.voice_conference_bridge.output_device=='system_default':
+            send_notice('Switched default output device to: %s' % self.voice_conference_bridge.real_output_device)
+        if notification.data.changed_output and self.alert_conference_bridge.output_device=='system_default':
+            send_notice('Switched alert device to: %s' % self.alert_conference_bridge.real_output_device)
+
+    def _NH_AudioDevicesDidChange(self, notification):
+        old_devices = set(notification.data.old_devices)
+        new_devices = set(notification.data.new_devices)
+        added_devices = new_devices - old_devices
+        removed_devices = old_devices - new_devices
+        changed_input_device = self.voice_conference_bridge.real_input_device in removed_devices
+        changed_output_device = self.voice_conference_bridge.real_output_device in removed_devices
+        changed_alert_device = self.alert_conference_bridge.real_output_device in removed_devices
+
+        SIPApplication._NH_AudioDevicesDidChange(self, notification)
+
+        if added_devices:
+            send_notice('Added audio device(s): %s' % ', '.join(sorted(added_devices)))
+        if removed_devices:
+            send_notice('Removed audio device(s): %s' % ', '.join(sorted(removed_devices)))
+        if changed_input_device:
+            send_notice('Input device has been switched to: %s' % self.voice_conference_bridge.real_input_device)
+        if changed_output_device:
+            send_notice('Output device has been switched to: %s' % self.voice_conference_bridge.real_output_device)
+        if changed_alert_device:
+            send_notice('Alert device has been switched to: %s' % self.alert_conference_bridge.real_output_device)
+
     # command handlers
     #
 

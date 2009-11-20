@@ -1,0 +1,1245 @@
+Index: pjmedia/include/pjmedia/sound.h
+===================================================================
+--- pjmedia/include/pjmedia/sound.h	(revision 2971)
++++ pjmedia/include/pjmedia/sound.h	(working copy)
+@@ -27,6 +27,7 @@
+  */
+ #include <pjmedia/types.h>
+ #include <pj/pool.h>
++#include <pj/os.h>
+ 
+ PJ_BEGIN_DECL
+ 
+@@ -75,6 +76,26 @@
+     unsigned	default_samples_per_sec;/**< Default sampling rate.	    */
+ } pjmedia_snd_dev_info;
+ 
++/** callback launched when a device change event appears */
++typedef void (*audio_change_callback) (void *user_data); 
++
++typedef enum audio_change_type { 
++  AUDIO_CHANGE_INPUT = 1,  
++  AUDIO_CHANGE_OUTPUT = 2
++} audio_change_type; 
++
++/**
++ * Device change callbacks container for setting appropiate upper level callbacks
++ */
++typedef struct pjmedia_audio_change_observer {
++    audio_change_callback default_audio_change;
++    audio_change_callback audio_devices_will_change; 
++    audio_change_callback audio_devices_did_change; 
++    pj_bool_t in_use;
++    pj_thread_t *audio_change_thread; 
++    pj_thread_desc audio_change_thread_desc; 
++} pjmedia_audio_change_observer;
++
+ /** 
+  * Stream information, can be retrieved from a live stream by calling
+  * #pjmedia_snd_stream_get_info().
+@@ -146,6 +167,17 @@
+ 
+ 
+ /**
++ * Add a set of callbacks for the audio device change events 
++ */
++PJ_DECL(pj_status_t) pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer);
++
++/**
++ * Delete an observer for the device change events, identified by the audio change observer
++ */
++PJ_DECL(pj_status_t) pjmedia_del_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer);
++
++
++/**
+  * Get device info.
+  *
+  * @param index		The index of the device, which should be in the range
+@@ -319,8 +351,6 @@
+  */
+ PJ_DECL(pj_status_t) pjmedia_snd_deinit(void);
+ 
+-
+-
+ /**
+  * @}
+  */
+Index: pjmedia/src/pjmedia/pasound.c
+===================================================================
+--- pjmedia/src/pjmedia/pasound.c	(revision 2971)
++++ pjmedia/src/pjmedia/pasound.c	(working copy)
+@@ -31,6 +31,7 @@
+ 
+ static int snd_init_count;
+ 
++
+ /* Latency settings */
+ static unsigned snd_input_latency  = PJMEDIA_SND_DEFAULT_REC_LATENCY;
+ static unsigned snd_output_latency = PJMEDIA_SND_DEFAULT_PLAY_LATENCY;
+@@ -47,15 +48,15 @@
+  */
+ struct pjmedia_snd_stream
+ {
+-    pj_pool_t		*pool;
+-    pj_str_t		 name;
+-    pjmedia_dir		 dir;
+-    int			 play_id;
+-    int			 rec_id;
+-    int			 bytes_per_sample;
+-    pj_uint32_t		 samples_per_sec;
+-    unsigned		 samples_per_frame;
+-    int			 channel_count;
++	pj_pool_t		*pool;
++	pj_str_t		 name;
++	pjmedia_dir		 dir;
++	int			 play_id;
++	int			 rec_id;
++	int			 bytes_per_sample;
++	pj_uint32_t		 samples_per_sec;
++	unsigned		 samples_per_frame;
++	int			 channel_count;
+ 
+     PaStream		*rec_strm;
+     PaStream		*play_strm;
+@@ -97,7 +98,211 @@
+     unsigned		 play_buf_count;
+ };
+ 
++/*
++ * lock used to block calls to PortAudio while the device list
++ * is being changed
++ */
++static pj_rwmutex_t *audio_change_lock;
+ 
++/*
++ * static container for PortAudio audio change observer
++ */
++static pjmedia_audio_change_observer pa_observer = {
++        .default_audio_change = NULL,
++        .audio_devices_will_change = NULL,
++        .audio_devices_did_change = NULL,
++        .in_use = PJ_FALSE
++};
++
++static pj_mutex_t *pa_observer_lock;
++
++/*
++ * This macro checks the return value from enter_pa_call_region()
++ * and exits from container function with the given return value
++ */
++#define ENTER_PA_CALL_REGION_RETURN(ret)                                            \
++    do {                                                                            \
++        if (pj_rwmutex_lock_read(audio_change_lock) != PJ_SUCCESS) {                \
++            PJ_LOG(2, (THIS_FILE,                                                   \
++                "FATAL ERROR: Could not enter in the PortAudio call region"));      \
++            return (ret);                                                           \
++        }                                                                           \
++    } while (0);                                                                    \
++
++#define LEAVE_PA_CALL_REGION()                                                      \
++    do {                                                                            \
++        if (pj_rwmutex_unlock_read(audio_change_lock) != PJ_SUCCESS) {              \
++            PJ_LOG(2, (THIS_FILE, "FATAL ERROR: releasing the audio_change_lock")); \
++        }                                                                           \
++    } while (0);                                                                    \
++
++/* pool used to allocate the audio change lock */
++static pj_pool_t *lock_pool;
++
++/*
++ * Callback called from PortAudio library when one of the next events occur:
++ * - default audio input device has been changed
++ * - default audio output device has been changed
++ * - an audio device was plugged/unplugged
++ * When a hardware change occurs, the library sends a notification just before
++ * is about to rescan devices and change the device list and a second one after
++ * this operation will have been finished.
++ */
++static void pa_audio_change_callback(PaDevicesChangedFlags flags, void *usr) {
++    pjmedia_audio_change_observer *observer =
++            (pjmedia_audio_change_observer *) usr;
++    audio_change_type type = 0;
++    pj_status_t status;
++
++    if (observer == NULL) {
++        PJ_LOG(2, (THIS_FILE, "Pa_audio_change_callback(): null audio_change descriptor"));
++        /* use the static observer; we cannot afford not to take any action */
++        observer = &pa_observer;
++    }
++
++    /* We are in the callback thread */
++    if (!pj_thread_is_registered()) {
++        status = pj_thread_register("pa_devch",
++                observer->audio_change_thread_desc,
++                &observer->audio_change_thread);
++        PJ_LOG(2, (THIS_FILE, "Pa_audio_change_callback(): event thread was registered"));
++    }
++
++    status = pj_mutex_lock(pa_observer_lock);
++    if (status != PJ_SUCCESS) {
++        PJ_LOG(2, (THIS_FILE, "Pa_audio_change_callback(): could not acquire the pa_observer_lock"));
++    }
++
++    /* default audio input device changed */
++    if (flags & paDefaultInputDeviceChanged) {
++        PJ_LOG(2, (THIS_FILE, "Pa_audio_change_callback(): default audio input device changed"));
++        /* call the upper layer observer */
++        if (observer->default_audio_change != NULL) {
++            type = AUDIO_CHANGE_INPUT;
++            observer->default_audio_change((void *) &type);
++        } else {
++            PJ_LOG(2, (THIS_FILE, "Default input device change event lost"));
++        }
++
++    }
++
++    /* default audio output device changed */
++    if (flags & paDefaultOutputDeviceChanged) {
++        PJ_LOG(2, (THIS_FILE, "Pa_audio_change_callback(): default audio output device changed"));
++        /* call the upper layer observer */
++        if (observer->default_audio_change != NULL) {
++            type = AUDIO_CHANGE_OUTPUT;
++            observer->default_audio_change((void *) &type);
++        } else {
++            PJ_LOG(2, (THIS_FILE, "Default output device change event lost"));
++        }
++    }
++
++    /*
++     * the audio device list is about to be changed
++     * this event should lock any operations on any audio device
++     */
++    if (flags & paDevicesListAboutToBeChanged) {
++        if (observer->audio_devices_will_change != NULL) {
++            observer->audio_devices_will_change((void *) observer);
++        } else {
++            PJ_LOG(2, (THIS_FILE, "Pre-change callback lost"));
++        }
++
++        /* acquire the reader-writer lock for blocking calls to PortAudio */
++        status = pj_rwmutex_lock_write(audio_change_lock);
++        if (status != PJ_SUCCESS) {
++            PJ_LOG(2, (THIS_FILE, "Could not acquire write "));
++        }
++        /* the device list can now be modified... */
++
++    } else if (flags & paDevicesListChanged) {
++        /*
++         * ...device list has been modified.
++         * Release call activity to PortAudio or other upper layer locks
++         */
++        status = pj_rwmutex_unlock_write(audio_change_lock);
++
++        /* notify the upper layer */
++        if (observer->audio_devices_did_change != NULL) {
++            observer->audio_devices_did_change((void *) observer);
++        } else {
++            PJ_LOG(2, (THIS_FILE, "Audio device change callback lost"));
++        }
++    }
++
++    status = pj_mutex_unlock(pa_observer_lock);
++    if (status != PJ_SUCCESS) {
++        PJ_LOG(2, (THIS_FILE, "Pa_audio_change_callback: could not release the pa_observer_lock"));
++    }
++
++}
++
++PJ_DEF(pj_status_t) pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)
++{
++    if (audio_change_observer == NULL) {
++        PJ_LOG(4, (THIS_FILE, "Null audio_change descriptor"));
++        return PJ_EINVALIDOP;
++    }
++
++    pj_status_t status = pj_mutex_lock(pa_observer_lock);
++    if (status != PJ_SUCCESS) {
++        PJ_LOG(2, (THIS_FILE, "Could not acquire the pa_observer_lock [error: %d]", status));
++        return status;
++    }
++    /* critical region begin */
++
++    if (pa_observer.in_use == PJ_TRUE) {
++        status = PJ_EBUSY;
++    } else {
++        pa_observer.default_audio_change = audio_change_observer->default_audio_change;
++        pa_observer.audio_devices_will_change = audio_change_observer->audio_devices_will_change;
++        pa_observer.audio_devices_did_change = audio_change_observer->audio_devices_did_change;
++        pa_observer.in_use = PJ_TRUE;
++        status = PJ_SUCCESS;
++    }
++
++    /* critical region end */
++    status = pj_mutex_unlock(pa_observer_lock);
++    if (status != PJ_SUCCESS) {
++        PJ_LOG(2, (THIS_FILE, "Could not release the pa_observer_lock [error: %d]", status));
++        return status;
++    }
++
++    return status;
++}
++
++PJ_DEF(pj_status_t) pjmedia_del_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)
++{
++    pj_status_t status;
++
++    status = pj_mutex_lock(pa_observer_lock);
++    if (status != PJ_SUCCESS) {
++        PJ_LOG(2, (THIS_FILE, "Could not acquire the pa_observer_lock"));
++        return status;
++    }
++    /* critical region begin */
++
++    /*
++     * set values to default
++     */
++    pa_observer.default_audio_change = NULL;
++    pa_observer.audio_devices_will_change = NULL;
++    pa_observer.audio_devices_did_change = NULL;
++    pa_observer.in_use = PJ_FALSE;
++
++    /* critical region end */
++    status = pj_mutex_unlock(pa_observer_lock);
++    if (status != PJ_SUCCESS) {
++        PJ_LOG(2, (THIS_FILE, "Could not release the pa_observer_lock"));
++        return status;
++    }
++
++    return PJ_SUCCESS;
++}
++
++
++
+ static int PaRecorderCallback(const void *input, 
+ 			      void *output,
+ 			      unsigned long frameCount,
+@@ -336,23 +541,48 @@
+ PJ_DEF(pj_status_t) pjmedia_snd_init(pj_pool_factory *factory)
+ {
+     if (++snd_init_count == 1) {
+-	int err;
++        int err;
+ 
+-	PaUtil_SetDebugPrintFunction(&pa_log_cb);
++        PaUtil_SetDebugPrintFunction(&pa_log_cb);
+ 
+-	snd_mgr.factory = factory;
+-	err = Pa_Initialize();
++        snd_mgr.factory = factory;
++        err = Pa_Initialize();
+ 
+-	PJ_LOG(4,(THIS_FILE, 
+-		  "PortAudio sound library initialized, status=%d", err));
+-	PJ_LOG(4,(THIS_FILE, "PortAudio host api count=%d",
+-			     Pa_GetHostApiCount()));
+-	PJ_LOG(4,(THIS_FILE, "Sound device count=%d",
+-			     pjmedia_snd_get_dev_count()));
++        pj_status_t status;
++        lock_pool = pj_pool_create(factory, "lockpool", 1024, 256, NULL);
++        if (!lock_pool) {
++            return PJ_ENOMEM;
++        }
+ 
+-	return err ? PJMEDIA_ERRNO_FROM_PORTAUDIO(err) : PJ_SUCCESS;
++        status = pj_rwmutex_create(lock_pool, "audio_change_lock",
++                &audio_change_lock);
++        if (status != PJ_SUCCESS) {
++            PJ_LOG(4, (THIS_FILE, "Error creating audio_change_lock mutex"));
++            err = status;
++        }
++
++        status = pj_mutex_create_simple(lock_pool, "pa_observer_lock",
++                &pa_observer_lock);
++        if (status != PJ_SUCCESS) {
++            PJ_LOG(4, (THIS_FILE, "Error creating the pa_observer_lock mutex"));
++            err = status;
++        }
++
++        err = Pa_AddDevicesChangedCallback(pa_audio_change_callback, &pa_observer);
++        if (err != paNoError) {
++            PJ_LOG(4, (THIS_FILE, "PortAudio devices changed callback set, status=%d", err));
++        }
++
++        PJ_LOG(4,(THIS_FILE,
++                        "PortAudio sound library initialized, status=%d", err));
++        PJ_LOG(4,(THIS_FILE, "PortAudio host api count=%d",
++                        Pa_GetHostApiCount()));
++        PJ_LOG(4,(THIS_FILE, "Sound device count=%d",
++                        pjmedia_snd_get_dev_count()));
++
++        return err ? PJMEDIA_ERRNO_FROM_PORTAUDIO(err) : PJ_SUCCESS;
+     } else {
+-	return PJ_SUCCESS;
++        return PJ_SUCCESS;
+     }
+ }
+ 
+@@ -362,35 +592,57 @@
+  */
+ PJ_DEF(int) pjmedia_snd_get_dev_count(void)
+ {
++    ENTER_PA_CALL_REGION_RETURN(-1);
++
+     int count = Pa_GetDeviceCount();
++
++    LEAVE_PA_CALL_REGION();
+     return count < 0 ? 0 : count;
+ }
+ 
+ 
+ /*
+  * Get device info.
++ * If we are in device list change process, the return value is NULL 
+  */
+-PJ_DEF(const pjmedia_snd_dev_info*) pjmedia_snd_get_dev_info(unsigned index)
++static pjmedia_snd_dev_info* __pjmedia_snd_get_dev_info(unsigned index)
+ {
+     static pjmedia_snd_dev_info info;
+     const PaDeviceInfo *pa_info;
+ 
+     pa_info = Pa_GetDeviceInfo(index);
+-    if (!pa_info)
+-	return NULL;
+ 
++    if (!pa_info) { 
++        return NULL;
++    }
++
+     pj_bzero(&info, sizeof(info));
+     strncpy(info.name, pa_info->name, sizeof(info.name));
+     info.name[sizeof(info.name)-1] = '\0';
+     info.input_count = pa_info->maxInputChannels;
+     info.output_count = pa_info->maxOutputChannels;
+     info.default_samples_per_sec = (unsigned)pa_info->defaultSampleRate;
+-
++    
+     return &info;
+ }
+ 
++/* safe to device changes */
++PJ_DEF(const pjmedia_snd_dev_info*) pjmedia_snd_get_dev_info(unsigned index)
++{
++    static pjmedia_snd_dev_info *info;
+ 
+-/* Get PortAudio default input device ID */
++    ENTER_PA_CALL_REGION_RETURN(NULL);
++
++    info = __pjmedia_snd_get_dev_info(index);
++
++    LEAVE_PA_CALL_REGION();
++    return info;
++}
++
++
++/* 
++ * Get PortAudio default input device ID 
++ */
+ static int pa_get_default_input_dev(int channel_count)
+ {
+     int i, count;
+@@ -406,8 +658,9 @@
+ 	if (pHI) {
+ 	    const PaDeviceInfo *paDevInfo = NULL;
+ 	    paDevInfo = Pa_GetDeviceInfo(pHI->defaultInputDevice);
+-	    if (paDevInfo && paDevInfo->maxInputChannels >= channel_count)
+-		return pHI->defaultInputDevice;
++	    if (paDevInfo && paDevInfo->maxInputChannels >= channel_count) { 
++            return pHI->defaultInputDevice;
++	    }
+ 	}
+     }
+ #endif
+@@ -428,8 +681,9 @@
+ 
+ 	    paDevInfo = Pa_GetDeviceInfo(pHAInfo->defaultInputDevice);
+ 
+-	    if (paDevInfo->maxInputChannels >= channel_count)
+-		return pHAInfo->defaultInputDevice;
++	    if (paDevInfo->maxInputChannels >= channel_count) { 
++            return pHAInfo->defaultInputDevice;
++	    }
+ 	}
+     }
+ 
+@@ -439,14 +693,18 @@
+ 	const PaDeviceInfo *paDevInfo;
+ 
+ 	paDevInfo = Pa_GetDeviceInfo(i);
+-	if (paDevInfo->maxInputChannels >= channel_count)
++	if (paDevInfo->maxInputChannels >= channel_count) {
+ 	    return i;
++	}
+     }
+     
+     return -1;
+ }
+ 
+-/* Get PortAudio default output device ID */
++/* 
++ * Get PortAudio default output device ID
++ * If we are in device list change process, the return value is -1 
++ */ 
+ static int pa_get_default_output_dev(int channel_count)
+ {
+     int i, count;
+@@ -462,8 +720,9 @@
+ 	if (pHI) {
+ 	    const PaDeviceInfo *paDevInfo = NULL;
+ 	    paDevInfo = Pa_GetDeviceInfo(pHI->defaultOutputDevice);
+-	    if (paDevInfo && paDevInfo->maxOutputChannels >= channel_count)
+-		return pHI->defaultOutputDevice;
++	    if (paDevInfo && paDevInfo->maxOutputChannels >= channel_count) { 
++            return pHI->defaultOutputDevice;
++	    }
+ 	}
+     }
+ #endif
+@@ -484,8 +743,9 @@
+ 
+ 	    paDevInfo = Pa_GetDeviceInfo(pHAInfo->defaultOutputDevice);
+ 
+-	    if (paDevInfo->maxOutputChannels >= channel_count)
+-		return pHAInfo->defaultOutputDevice;
++	    if (paDevInfo->maxOutputChannels >= channel_count) { 
++            return pHAInfo->defaultOutputDevice;
++	    }
+ 	}
+     }
+ 
+@@ -495,8 +755,9 @@
+ 	const PaDeviceInfo *paDevInfo;
+ 
+ 	paDevInfo = Pa_GetDeviceInfo(i);
+-	if (paDevInfo->maxOutputChannels >= channel_count)
++	if (paDevInfo->maxOutputChannels >= channel_count) { 
+ 	    return i;
++	}
+     }
+ 
+     return -1;
+@@ -506,14 +767,14 @@
+ /*
+  * Open stream.
+  */
+-PJ_DEF(pj_status_t) pjmedia_snd_open_rec( int index,
+-					  unsigned clock_rate,
+-					  unsigned channel_count,
+-					  unsigned samples_per_frame,
+-					  unsigned bits_per_sample,
+-					  pjmedia_snd_rec_cb rec_cb,
+-					  void *user_data,
+-					  pjmedia_snd_stream **p_snd_strm)
++static pj_status_t __pjmedia_snd_open_rec( int index,
++        unsigned clock_rate,
++        unsigned channel_count,
++        unsigned samples_per_frame,
++        unsigned bits_per_sample,
++        pjmedia_snd_rec_cb rec_cb,
++        void *user_data,
++        pjmedia_snd_stream **p_snd_strm)
+ {
+     pj_pool_t *pool;
+     pjmedia_snd_stream *stream;
+@@ -526,31 +787,34 @@
+     PaError err;
+ 
+     if (index < 0) {
+-	index = pa_get_default_input_dev(channel_count);
+-	if (index < 0) {
+-	    /* No such device. */
+-	    return PJMEDIA_ENOSNDREC;
+-	}
++    index = pa_get_default_input_dev(channel_count);
++    if (index < 0) {
++        /* No such device. */
++        return PJMEDIA_ENOSNDREC;
+     }
++    }
+ 
+     paDevInfo = Pa_GetDeviceInfo(index);
++
+     if (!paDevInfo) {
+-	/* Assumed it is "No such device" error. */
+-	return PJMEDIA_ESNDINDEVID;
++        /* Assumed it is "No such device" error. */
++        return PJMEDIA_ESNDINDEVID;
+     }
+ 
+     if (bits_per_sample == 8)
+-	sampleFormat = paUInt8;
++    sampleFormat = paUInt8;
+     else if (bits_per_sample == 16)
+-	sampleFormat = paInt16;
++    sampleFormat = paInt16;
+     else if (bits_per_sample == 32)
+-	sampleFormat = paInt32;
+-    else
+-	return PJMEDIA_ESNDINSAMPLEFMT;
++    sampleFormat = paInt32;
++    else { 
++        return PJMEDIA_ESNDINSAMPLEFMT;
++    }
+     
+     pool = pj_pool_create( snd_mgr.factory, "sndstream", 1024, 1024, NULL);
+-    if (!pool)
+-	return PJ_ENOMEM;
++    if (!pool) { 
++        return PJ_ENOMEM;
++    }
+ 
+     stream = PJ_POOL_ZALLOC_T(pool, pjmedia_snd_stream);
+     stream->pool = pool;
+@@ -566,7 +830,7 @@
+     stream->rec_cb = rec_cb;
+ 
+     stream->rec_buf = (pj_int16_t*)pj_pool_alloc(pool, 
+-		      stream->samples_per_frame * stream->bytes_per_sample);
++              stream->samples_per_frame * stream->bytes_per_sample);
+     stream->rec_buf_count = 0;
+ 
+     pj_bzero(&inputParam, sizeof(inputParam));
+@@ -582,11 +846,11 @@
+     paFrames = samples_per_frame / channel_count;
+ 
+     err = Pa_OpenStream( &stream->rec_strm, &inputParam, NULL,
+-			 clock_rate, paFrames, 
+-			 paClipOff, &PaRecorderCallback, stream );
++             clock_rate, paFrames,
++             paClipOff, &PaRecorderCallback, stream );
+     if (err != paNoError) {
+-	pj_pool_release(pool);
+-	return PJMEDIA_ERRNO_FROM_PORTAUDIO(err);
++        pj_pool_release(pool);
++        return PJMEDIA_ERRNO_FROM_PORTAUDIO(err);
+     }
+ 
+     paSI = Pa_GetStreamInfo(stream->rec_strm);
+@@ -594,26 +858,44 @@
+     paLatency = (unsigned)(paSI->inputLatency * 1000);
+ 
+     PJ_LOG(5,(THIS_FILE, "Opened device %s (%s) for recording, sample "
+-			 "rate=%d, ch=%d, "
+-			 "bits=%d, %d samples per frame, latency=%d ms",
+-			 paDevInfo->name, paHostApiInfo->name,
+-			 paRate, channel_count,
+-			 bits_per_sample, samples_per_frame,
+-			 paLatency));
++             "rate=%d, ch=%d, "
++             "bits=%d, %d samples per frame, latency=%d ms",
++             paDevInfo->name, paHostApiInfo->name,
++             paRate, channel_count,
++             bits_per_sample, samples_per_frame,
++             paLatency));
+ 
+     *p_snd_strm = stream;
+     return PJ_SUCCESS;
+ }
+ 
++/* safe to device changes */
++PJ_DEF(pj_status_t) pjmedia_snd_open_rec( int index,
++					  unsigned clock_rate,
++					  unsigned channel_count,
++					  unsigned samples_per_frame,
++					  unsigned bits_per_sample,
++					  pjmedia_snd_rec_cb rec_cb,
++					  void *user_data,
++					  pjmedia_snd_stream **p_snd_strm)
++{
++    pj_status_t status;
+ 
+-PJ_DEF(pj_status_t) pjmedia_snd_open_player( int index,
+-					unsigned clock_rate,
+-					unsigned channel_count,
+-					unsigned samples_per_frame,
+-					unsigned bits_per_sample,
+-					pjmedia_snd_play_cb play_cb,
+-					void *user_data,
+-					pjmedia_snd_stream **p_snd_strm)
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++    status = __pjmedia_snd_open_rec(index, clock_rate, channel_count,
++            samples_per_frame, bits_per_sample, rec_cb, user_data, p_snd_strm);
++    LEAVE_PA_CALL_REGION();
++    return status;
++}
++
++pj_status_t __pjmedia_snd_open_player( int index,
++                    unsigned clock_rate,
++                    unsigned channel_count,
++                    unsigned samples_per_frame,
++                    unsigned bits_per_sample,
++                    pjmedia_snd_play_cb play_cb,
++                    void *user_data,
++                    pjmedia_snd_stream **p_snd_strm)
+ {
+     pj_pool_t *pool;
+     pjmedia_snd_stream *stream;
+@@ -626,31 +908,34 @@
+     PaError err;
+ 
+     if (index < 0) {
+-	index = pa_get_default_output_dev(channel_count);
+-	if (index < 0) {
+-	    /* No such device. */
+-	    return PJMEDIA_ENOSNDPLAY;
+-	}
++    index = pa_get_default_output_dev(channel_count);
++    if (index < 0) {
++        /* No such device. */
++        return PJMEDIA_ENOSNDPLAY;
++    }
+     } 
+ 
+     paDevInfo = Pa_GetDeviceInfo(index);
++
+     if (!paDevInfo) {
+-	/* Assumed it is "No such device" error. */
+-	return PJMEDIA_ESNDINDEVID;
++        /* Assumed it is "No such device" error. */
++        return PJMEDIA_ESNDINDEVID;
+     }
+ 
+     if (bits_per_sample == 8)
+-	sampleFormat = paUInt8;
++    sampleFormat = paUInt8;
+     else if (bits_per_sample == 16)
+-	sampleFormat = paInt16;
++    sampleFormat = paInt16;
+     else if (bits_per_sample == 32)
+-	sampleFormat = paInt32;
+-    else
+-	return PJMEDIA_ESNDINSAMPLEFMT;
+-    
++    sampleFormat = paInt32;
++    else { 
++        return PJMEDIA_ESNDINSAMPLEFMT;
++    }
++
+     pool = pj_pool_create( snd_mgr.factory, "sndstream", 1024, 1024, NULL);
+-    if (!pool)
+-	return PJ_ENOMEM;
++    if (!pool) { 
++        return PJ_ENOMEM;
++    }
+ 
+     stream = PJ_POOL_ZALLOC_T(pool, pjmedia_snd_stream);
+     stream->pool = pool;
+@@ -666,7 +951,7 @@
+     stream->play_cb = play_cb;
+ 
+     stream->play_buf = (pj_int16_t*)pj_pool_alloc(pool, 
+-		       stream->samples_per_frame * stream->bytes_per_sample);
++               stream->samples_per_frame * stream->bytes_per_sample);
+     stream->play_buf_count = 0;
+ 
+     pj_bzero(&outputParam, sizeof(outputParam));
+@@ -682,11 +967,11 @@
+     paFrames = samples_per_frame / channel_count;
+ 
+     err = Pa_OpenStream( &stream->play_strm, NULL, &outputParam,
+-			 clock_rate,  paFrames, 
+-			 paClipOff, &PaPlayerCallback, stream );
++             clock_rate,  paFrames,
++             paClipOff, &PaPlayerCallback, stream );
+     if (err != paNoError) {
+-	pj_pool_release(pool);
+-	return PJMEDIA_ERRNO_FROM_PORTAUDIO(err);
++        pj_pool_release(pool);
++        return PJMEDIA_ERRNO_FROM_PORTAUDIO(err);
+     }
+ 
+     paSI = Pa_GetStreamInfo(stream->play_strm);
+@@ -694,31 +979,50 @@
+     paLatency = (unsigned)(paSI->outputLatency * 1000);
+ 
+     PJ_LOG(5,(THIS_FILE, "Opened device %d: %s(%s) for playing, sample rate=%d"
+-			 ", ch=%d, "
+-			 "bits=%d, %d samples per frame, latency=%d ms",
+-			 index, paDevInfo->name, paHostApiInfo->name, 
+-			 paRate, channel_count,
+-		 	 bits_per_sample, samples_per_frame, paLatency));
++             ", ch=%d, "
++             "bits=%d, %d samples per frame, latency=%d ms",
++             index, paDevInfo->name, paHostApiInfo->name,
++             paRate, channel_count,
++             bits_per_sample, samples_per_frame, paLatency));
+ 
+     *p_snd_strm = stream;
+ 
+     return PJ_SUCCESS;
+ }
+ 
++/* safe to device changes */
++PJ_DEF(pj_status_t) pjmedia_snd_open_player( int index,
++					unsigned clock_rate,
++					unsigned channel_count,
++					unsigned samples_per_frame,
++					unsigned bits_per_sample,
++					pjmedia_snd_play_cb play_cb,
++					void *user_data,
++					pjmedia_snd_stream **p_snd_strm)
++{
++    pj_status_t status;
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++    status = __pjmedia_snd_open_player(index, clock_rate, channel_count,
++            samples_per_frame, bits_per_sample, play_cb, user_data, p_snd_strm);
++    LEAVE_PA_CALL_REGION();
++    return status;
++}
+ 
++
+ /*
+  * Open both player and recorder.
+  */
+-PJ_DEF(pj_status_t) pjmedia_snd_open( int rec_id,
+-				      int play_id,
+-				      unsigned clock_rate,
+-				      unsigned channel_count,
+-				      unsigned samples_per_frame,
+-				      unsigned bits_per_sample,
+-				      pjmedia_snd_rec_cb rec_cb,
+-				      pjmedia_snd_play_cb play_cb,
+-				      void *user_data,
+-				      pjmedia_snd_stream **p_snd_strm)
++
++static pj_status_t __pjmedia_snd_open( int rec_id,
++                      int play_id,
++                      unsigned clock_rate,
++                      unsigned channel_count,
++                      unsigned samples_per_frame,
++                      unsigned bits_per_sample,
++                      pjmedia_snd_rec_cb rec_cb,
++                      pjmedia_snd_play_cb play_cb,
++                      void *user_data,
++                      pjmedia_snd_stream **p_snd_strm)
+ {
+     pj_pool_t *pool;
+     pjmedia_snd_stream *stream;
+@@ -735,46 +1039,49 @@
+     PaError err;
+ 
+     if (rec_id < 0) {
+-	rec_id = pa_get_default_input_dev(channel_count);
+-	if (rec_id < 0) {
+-	    /* No such device. */
+-	    return PJMEDIA_ENOSNDREC;
+-	}
++    rec_id = pa_get_default_input_dev(channel_count);
++    if (rec_id < 0) {
++        /* No such device. */
++        return PJMEDIA_ENOSNDREC;
+     }
++    }
+ 
+     paRecDevInfo = Pa_GetDeviceInfo(rec_id);
++
+     if (!paRecDevInfo) {
+-	/* Assumed it is "No such device" error. */
+-	return PJMEDIA_ESNDINDEVID;
++        /* Assumed it is "No such device" error. */
++        return PJMEDIA_ESNDINDEVID;
+     }
+ 
+     if (play_id < 0) {
+-	play_id = pa_get_default_output_dev(channel_count);
+-	if (play_id < 0) {
+-	    /* No such device. */
+-	    return PJMEDIA_ENOSNDPLAY;
+-	}
++    play_id = pa_get_default_output_dev(channel_count);
++    if (play_id < 0) {
++        /* No such device. */
++        return PJMEDIA_ENOSNDPLAY;
++    }
+     } 
+ 
+     paPlayDevInfo = Pa_GetDeviceInfo(play_id);
+     if (!paPlayDevInfo) {
+-	/* Assumed it is "No such device" error. */
+-	return PJMEDIA_ESNDINDEVID;
++        /* Assumed it is "No such device" error. */
++        return PJMEDIA_ESNDINDEVID;
+     }
+ 
+ 
+     if (bits_per_sample == 8)
+-	sampleFormat = paUInt8;
++    sampleFormat = paUInt8;
+     else if (bits_per_sample == 16)
+-	sampleFormat = paInt16;
++    sampleFormat = paInt16;
+     else if (bits_per_sample == 32)
+-	sampleFormat = paInt32;
+-    else
+-	return PJMEDIA_ESNDINSAMPLEFMT;
+-    
++    sampleFormat = paInt32;
++    else { 
++        return PJMEDIA_ESNDINSAMPLEFMT;
++    }
++
+     pool = pj_pool_create( snd_mgr.factory, "sndstream", 1024, 1024, NULL);
+-    if (!pool)
+-	return PJ_ENOMEM;
++    if (!pool) { 
++        return PJ_ENOMEM;
++    }
+ 
+     stream = PJ_POOL_ZALLOC_T(pool, pjmedia_snd_stream);
+     stream->pool = pool;
+@@ -791,11 +1098,11 @@
+     stream->play_cb = play_cb;
+ 
+     stream->rec_buf = (pj_int16_t*)pj_pool_alloc(pool, 
+-		      stream->samples_per_frame * stream->bytes_per_sample);
++              stream->samples_per_frame * stream->bytes_per_sample);
+     stream->rec_buf_count = 0;
+ 
+     stream->play_buf = (pj_int16_t*)pj_pool_alloc(pool, 
+-		       stream->samples_per_frame * stream->bytes_per_sample);
++               stream->samples_per_frame * stream->bytes_per_sample);
+     stream->play_buf_count = 0;
+ 
+     pj_bzero(&inputParam, sizeof(inputParam));
+@@ -823,15 +1130,15 @@
+      * for both input and output.
+      */
+     if (rec_id == play_id) {
+-	err = Pa_OpenStream( &paStream, &inputParam, &outputParam,
+-			     clock_rate, paFrames, 
+-			     paClipOff, &PaRecorderPlayerCallback, stream );
+-	if (err == paNoError) {
+-	    /* Set play stream and record stream to the same stream */
+-	    stream->play_strm = stream->rec_strm = paStream;
+-	}
++    err = Pa_OpenStream( &paStream, &inputParam, &outputParam,
++                 clock_rate, paFrames,
++                 paClipOff, &PaRecorderPlayerCallback, stream );
++    if (err == paNoError) {
++        /* Set play stream and record stream to the same stream */
++        stream->play_strm = stream->rec_strm = paStream;
++    }
+     } else {
+-	err = -1;
++    err = -1;
+     }
+ 
+     /* .. otherwise if input and output are on the same device, OR if we're
+@@ -839,23 +1146,23 @@
+      * input and output stream.
+      */
+     if (paStream == NULL) {
+-	/* Open input stream */
+-	err = Pa_OpenStream( &stream->rec_strm, &inputParam, NULL,
+-			     clock_rate, paFrames, 
+-			     paClipOff, &PaRecorderCallback, stream );
+-	if (err == paNoError) {
+-	    /* Open output stream */
+-	    err = Pa_OpenStream( &stream->play_strm, NULL, &outputParam,
+-				 clock_rate, paFrames, 
+-				 paClipOff, &PaPlayerCallback, stream );
+-	    if (err != paNoError)
+-		Pa_CloseStream(stream->rec_strm);
+-	}
++    /* Open input stream */
++    err = Pa_OpenStream( &stream->rec_strm, &inputParam, NULL,
++                 clock_rate, paFrames,
++                 paClipOff, &PaRecorderCallback, stream );
++    if (err == paNoError) {
++        /* Open output stream */
++        err = Pa_OpenStream( &stream->play_strm, NULL, &outputParam,
++                 clock_rate, paFrames,
++                 paClipOff, &PaPlayerCallback, stream );
++        if (err != paNoError)
++        Pa_CloseStream(stream->rec_strm);
+     }
++    }
+ 
+     if (err != paNoError) {
+-	pj_pool_release(pool);
+-	return PJMEDIA_ERRNO_FROM_PORTAUDIO(err);
++        pj_pool_release(pool);
++        return PJMEDIA_ERRNO_FROM_PORTAUDIO(err);
+     }
+ 
+     paSI = Pa_GetStreamInfo(stream->rec_strm);
+@@ -865,27 +1172,48 @@
+     paOutputLatency = (unsigned)(paSI->outputLatency * 1000);
+ 
+     PJ_LOG(5,(THIS_FILE, "Opened device %s(%s)/%s(%s) for recording and "
+-			 "playback, sample rate=%d, ch=%d, "
+-			 "bits=%d, %d samples per frame, input latency=%d ms, "
+-			 "output latency=%d ms",
+-			 paRecDevInfo->name, paRecHostApiInfo->name,
+-			 paPlayDevInfo->name, paPlayHostApiInfo->name,
+-			 paRate, channel_count,
+-			 bits_per_sample, samples_per_frame,
+-			 paInputLatency, paOutputLatency));
++             "playback, sample rate=%d, ch=%d, "
++             "bits=%d, %d samples per frame, input latency=%d ms, "
++             "output latency=%d ms",
++             paRecDevInfo->name, paRecHostApiInfo->name,
++             paPlayDevInfo->name, paPlayHostApiInfo->name,
++             paRate, channel_count,
++             bits_per_sample, samples_per_frame,
++             paInputLatency, paOutputLatency));
+ 
+     *p_snd_strm = stream;
+ 
+-
+     return PJ_SUCCESS;
+ }
+ 
++/* safe to device changes */
++PJ_DEF(pj_status_t) pjmedia_snd_open( int rec_id,
++				      int play_id,
++				      unsigned clock_rate,
++				      unsigned channel_count,
++				      unsigned samples_per_frame,
++				      unsigned bits_per_sample,
++				      pjmedia_snd_rec_cb rec_cb,
++				      pjmedia_snd_play_cb play_cb,
++				      void *user_data,
++				      pjmedia_snd_stream **p_snd_strm)
++{
++    pj_status_t status;
+ 
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++    status = __pjmedia_snd_open(rec_id, play_id, clock_rate, channel_count,
++            samples_per_frame, bits_per_sample, rec_cb, play_cb, user_data, p_snd_strm);
++    LEAVE_PA_CALL_REGION();
++    return status;
++}
++
++
+ /*
+  * Get stream info.
+  */
+-PJ_DEF(pj_status_t) pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm,
+-						pjmedia_snd_stream_info *pi)
++
++static pj_status_t __pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm,
++                        pjmedia_snd_stream_info *pi)
+ {
+     const PaStreamInfo *paPlaySI = NULL, *paRecSI = NULL;
+ 
+@@ -893,10 +1221,10 @@
+     PJ_ASSERT_RETURN(strm->play_strm || strm->rec_strm, PJ_EINVALIDOP);
+ 
+     if (strm->play_strm) {
+-	paPlaySI = Pa_GetStreamInfo(strm->play_strm);
++    paPlaySI = Pa_GetStreamInfo(strm->play_strm);
+     }
+     if (strm->rec_strm) {
+-	paRecSI = Pa_GetStreamInfo(strm->rec_strm);
++    paRecSI = Pa_GetStreamInfo(strm->rec_strm);
+     }
+ 
+     pj_bzero(pi, sizeof(*pi));
+@@ -904,65 +1232,86 @@
+     pi->play_id = strm->play_id;
+     pi->rec_id = strm->rec_id;
+     pi->clock_rate = (unsigned)(paPlaySI ? paPlaySI->sampleRate : 
+-				paRecSI->sampleRate);
++                paRecSI->sampleRate);
+     pi->channel_count = strm->channel_count;
+     pi->samples_per_frame = strm->samples_per_frame;
+     pi->bits_per_sample = strm->bytes_per_sample * 8;
+     pi->rec_latency = (unsigned)(paRecSI ? paRecSI->inputLatency * 
+-					   paRecSI->sampleRate : 0);
++                       paRecSI->sampleRate : 0);
+     pi->play_latency = (unsigned)(paPlaySI ? paPlaySI->outputLatency * 
+-					     paPlaySI->sampleRate : 0);
++                         paPlaySI->sampleRate : 0);
+ 
+     return PJ_SUCCESS;
+ }
+ 
++/* safe to device changes */
++PJ_DEF(pj_status_t) pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm,
++						pjmedia_snd_stream_info *pi)
++{
++    pj_status_t status;
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++    status = __pjmedia_snd_stream_get_info(strm, pi);
++    LEAVE_PA_CALL_REGION();
++    return status;
++}
+ 
++
+ /*
+  * Start stream.
+  */
+-PJ_DEF(pj_status_t) pjmedia_snd_stream_start(pjmedia_snd_stream *stream)
++static pj_status_t __pjmedia_snd_stream_start(pjmedia_snd_stream *stream)
+ {
+     int err = 0;
+ 
+     PJ_LOG(5,(THIS_FILE, "Starting %s stream..", stream->name.ptr));
+ 
+     if (stream->play_strm)
+-	err = Pa_StartStream(stream->play_strm);
++    err = Pa_StartStream(stream->play_strm);
+ 
+     if (err==0 && stream->rec_strm && stream->rec_strm != stream->play_strm) {
+-	err = Pa_StartStream(stream->rec_strm);
+-	if (err != 0)
+-	    Pa_StopStream(stream->play_strm);
++    err = Pa_StartStream(stream->rec_strm);
++    if (err != 0)
++        Pa_StopStream(stream->play_strm);
+     }
+ 
+     PJ_LOG(5,(THIS_FILE, "Done, status=%d", err));
+ 
+     return err ? PJMEDIA_ERRNO_FROM_PORTAUDIO(err) : PJ_SUCCESS;
++
+ }
+ 
++/* safe to device changes */
++PJ_DEF(pj_status_t) pjmedia_snd_stream_start(pjmedia_snd_stream *stream)
++{
++    pj_status_t status;
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++    status = __pjmedia_snd_stream_start(stream);
++    LEAVE_PA_CALL_REGION();
++    return status;
++}
++
+ /*
+  * Stop stream.
+  */
+-PJ_DEF(pj_status_t) pjmedia_snd_stream_stop(pjmedia_snd_stream *stream)
++static pj_status_t __pjmedia_snd_stream_stop(pjmedia_snd_stream *stream)
+ {
+     int i, err = 0;
+ 
+     stream->quit_flag = 1;
+     for (i=0; !stream->rec_thread_exited && i<100; ++i)
+-	pj_thread_sleep(10);
++    pj_thread_sleep(10);
+     for (i=0; !stream->play_thread_exited && i<100; ++i)
+-	pj_thread_sleep(10);
++    pj_thread_sleep(10);
+ 
+     pj_thread_sleep(1);
+ 
+     PJ_LOG(5,(THIS_FILE, "Stopping stream.."));
+ 
+     if (stream->play_strm)
+-	err = Pa_StopStream(stream->play_strm);
++    err = Pa_StopStream(stream->play_strm);
+ 
+     if (stream->rec_strm && stream->rec_strm != stream->play_strm)
+-	err = Pa_StopStream(stream->rec_strm);
+-
++    err = Pa_StopStream(stream->rec_strm);
+     stream->play_thread_initialized = 0;
+     stream->rec_thread_initialized = 0;
+ 
+@@ -971,37 +1320,58 @@
+     return err ? PJMEDIA_ERRNO_FROM_PORTAUDIO(err) : PJ_SUCCESS;
+ }
+ 
++/* safe to device changes */
++PJ_DEF(pj_status_t) pjmedia_snd_stream_stop(pjmedia_snd_stream *stream)
++{
++    pj_status_t status;
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++    status = __pjmedia_snd_stream_stop(stream);
++    LEAVE_PA_CALL_REGION();
++    return status;
++}
++
+ /*
+  * Destroy stream.
+  */
+-PJ_DEF(pj_status_t) pjmedia_snd_stream_close(pjmedia_snd_stream *stream)
++static pj_status_t __pjmedia_snd_stream_close(pjmedia_snd_stream *stream)
+ {
+     int i, err = 0;
+ 
+     stream->quit_flag = 1;
+     for (i=0; !stream->rec_thread_exited && i<100; ++i) {
+-	pj_thread_sleep(1);
++    pj_thread_sleep(1);
+     }
+     for (i=0; !stream->play_thread_exited && i<100; ++i) {
+-	pj_thread_sleep(1);
++    pj_thread_sleep(1);
+     }
+ 
+     PJ_LOG(5,(THIS_FILE, "Closing %.*s: %lu underflow, %lu overflow",
+-			 (int)stream->name.slen,
+-			 stream->name.ptr,
+-			 stream->underflow, stream->overflow));
++             (int)stream->name.slen,
++             stream->name.ptr,
++             stream->underflow, stream->overflow));
+ 
+     if (stream->play_strm)
+-	err = Pa_CloseStream(stream->play_strm);
++    err = Pa_CloseStream(stream->play_strm);
+ 
+     if (stream->rec_strm && stream->rec_strm != stream->play_strm)
+-	err = Pa_CloseStream(stream->rec_strm);
++    err = Pa_CloseStream(stream->rec_strm);
+ 
+     pj_pool_release(stream->pool);
+ 
+     return err ? PJMEDIA_ERRNO_FROM_PORTAUDIO(err) : PJ_SUCCESS;
+ }
+ 
++
++/* safe to device changes */
++PJ_DEF(pj_status_t) pjmedia_snd_stream_close(pjmedia_snd_stream *stream)
++{
++    pj_status_t status;
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++    status = __pjmedia_snd_stream_close(stream);
++    LEAVE_PA_CALL_REGION();
++    return status;
++}
++
+ /*
+  * Deinitialize sound library.
+  */
+@@ -1009,11 +1379,24 @@
+ {
+     if (--snd_init_count == 0) {
+ 	int err;
+-
++	
+ 	PJ_LOG(4,(THIS_FILE, "PortAudio sound library shutting down.."));
+-
++    ENTER_PA_CALL_REGION_RETURN(PJ_EBUSY);
++	
+ 	err = Pa_Terminate();
+ 
++    LEAVE_PA_CALL_REGION();
++
++    err = Pa_RemoveDevicesChangedCallback(pa_audio_change_callback, &pa_observer);
++    if (err != paNoError) {
++        PJ_LOG(2, (THIS_FILE, "PortAudio audio_change callback removed with error"));
++        return PJ_EINVALIDOP;
++    }
++
++    pj_mutex_destroy(pa_observer_lock);
++    pj_rwmutex_destroy(audio_change_lock);
++    pj_pool_release(lock_pool);
++
+ 	return err ? PJMEDIA_ERRNO_FROM_PORTAUDIO(err) : PJ_SUCCESS;
+     } else {
+ 	return PJ_SUCCESS;
+Index: pjmedia/src/pjmedia/sound_port.c
+===================================================================
+--- pjmedia/src/pjmedia/sound_port.c	(revision 2971)
++++ pjmedia/src/pjmedia/sound_port.c	(working copy)
+@@ -59,7 +59,7 @@
+     pj_bool_t		 ec_suspended;
+     unsigned		 ec_suspend_count;
+     unsigned		 ec_suspend_limit;
+-
++    
+     pjmedia_plc		*plc;
+ 
+     unsigned		 clock_rate;

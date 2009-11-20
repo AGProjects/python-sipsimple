@@ -76,9 +76,11 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2425-sdp_media_line.patch",
                    "patches/pjsip-2394-sip_dialog-no_totag_check_on_dialog_state_update.patch",
                    "patches/pjsip-2832-sdp_ignore_missing_rtpmap_for_dynamic_pt.patch",
-                   "patches/pjsip-2833-parse_pjsip_allow_events_hdr.patch"]
+                   "patches/pjsip-2833-parse_pjsip_allow_events_hdr.patch",
+                   "patches/pjsip-2830-runtime_device_change_detection.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
+    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch"]
     trunk_overrides = []
 
     user_options = build_ext.user_options
@@ -148,6 +150,11 @@ class PJSIP_build_ext(build_ext):
         open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
         for patch_file in self.patch_files:
             distutils_exec_process(["patch", "--forward", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
+        log.info("Patching PortAudio")
+        self.portaudio_dir = os.path.join(self.svn_dir, "third_party", "portaudio");
+        distutils_exec_process(["svn", "revert", "-R", self.portaudio_dir], True)
+        for patch_file in self.portaudio_patch_files:
+            distutils_exec_process(["patch", "--forward", "-d", self.portaudio_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")

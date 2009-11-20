@@ -14,7 +14,7 @@ from twisted.internet import reactor
 from twisted.python import threadable
 from zope.interface import implements
 
-from sipsimple.core import ConferenceBridge, PJSIPTLSError
+from sipsimple.core import ConferenceBridge, PJSIPTLSError, SIPCoreError
 from sipsimple.engine import Engine
 
 from sipsimple.account import AccountManager
@@ -278,4 +278,53 @@ class SIPApplication(object):
                     notification_center = NotificationCenter()
                     notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
 
+    def _NH_DefaultAudioDeviceDidChange(self, notification):
+        current_input_device = self.voice_conference_bridge.input_device
+        current_output_device = self.voice_conference_bridge.output_device
+        ec_tail_length = self.voice_conference_bridge.ec_tail_length
+        if notification.data.changed_input and current_input_device == 'system_default':
+            try:
+                self.voice_conference_bridge.set_sound_devices('system_default', current_output_device, ec_tail_length)
+            except SIPCoreError:
+                self.voice_conference_bridge.set_sound_devices(None, None, ec_tail_length)
+        if notification.data.changed_output and current_output_device == 'system_default':
+            try: 
+                self.voice_conference_bridge.set_sound_devices(current_input_device, 'system_default', ec_tail_length)
+            except SIPCoreError:
+                self.voice_conference_bridge.set_sound_devices(None, None, ec_tail_length)
+        if notification.data.changed_output and self.alert_conference_bridge.output_device == 'system_default':
+            try: 
+                self.alert_conference_bridge.set_sound_devices(None, 'system_default', 0)
+            except SIPCoreError:
+                self.alert_conference_bridge.set_sound_devices(None, None, 0)            
+
+    def _NH_AudioDevicesDidChange(self, notification):
+        old_devices = set(notification.data.old_devices)
+        new_devices = set(notification.data.new_devices)
+        removed_devices = old_devices - new_devices
+
+        input_device = self.voice_conference_bridge.input_device
+        output_device = self.voice_conference_bridge.output_device
+        alert_device = self.alert_conference_bridge.output_device
+        if self.voice_conference_bridge.real_input_device in removed_devices:
+            input_device = 'system_default' if new_devices else None
+        if self.voice_conference_bridge.real_output_device in removed_devices:
+            output_device = 'system_default' if new_devices else None
+        if self.alert_conference_bridge.real_output_device in removed_devices:
+            alert_device = 'system_default' if new_devices else None
+
+        try:
+            self.voice_conference_bridge.set_sound_devices(input_device, output_device, self.voice_conference_bridge.ec_tail_length)
+        except SIPCoreError:
+            self.voice_conference_bridge.set_sound_devices(None, None, self.voice_conference_bridge.ec_tail_length)
+        try:
+            self.alert_conference_bridge.set_sound_devices(None, alert_device, 0)
+        except SIPCoreError:
+            self.alert_conference_bridge.set_sound_devices(None, None, 0)
+
+        settings = SIPSimpleSettings()
+        settings.audio.input_device = self.voice_conference_bridge.input_device
+        settings.audio.output_device = self.voice_conference_bridge.output_device
+        settings.audio.alert_device = self.alert_conference_bridge.output_device
+        settings.save()
 

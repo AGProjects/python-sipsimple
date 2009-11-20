@@ -246,9 +246,6 @@ cdef class ConferenceBridge:
         try:
             if ec_tail_length < 0:
                 raise ValueError("ec_tail_length argument cannot be negative")
-            if (input_device == self.input_device and output_device == self.output_device and
-                ec_tail_length == self.ec_tail_length):
-                return
             self._stop_sound_device(ua)
             self._start_sound_device(ua, input_device, output_device, ec_tail_length, 0)
             if (self._disconnect_when_idle and self.used_slot_count == 0 and not
@@ -350,109 +347,118 @@ cdef class ConferenceBridge:
         sample_rate = self.sample_rate
         snd_port_address = &self._snd
 
-        if input_device == "system_default":
-            input_device_i = -1
-        if output_device == "system_default":
-            output_device_i = -1
-        if ((input_device_i == -2 and input_device is not None) or
-            (output_device_i == -2 and output_device is not None)):
-            for i from 0 <= i < pjmedia_snd_get_dev_count():
-                dev_info = pjmedia_snd_get_dev_info(i)
-                if (input_device is not None and input_device_i == -2 and
-                    dev_info.input_count > 0 and dev_info.name == input_device):
-                    input_device_i = i
-                if (output_device is not None and output_device_i == -2 and
-                    dev_info.output_count > 0 and dev_info.name == output_device):
-                    output_device_i = i
-            if input_device_i == -2 and input_device is not None:
-                if revert_to_default:
-                    input_device_i = -1
-                else:
-                    raise SIPCoreError('Audio input device "%s" not found' % input_device)
-            if output_device_i == -2 and output_device is not None:
-                if revert_to_default:
-                    output_device_i = -1
-                else:
-                    raise SIPCoreError('Audio output device "%s" not found' % output_device)
-        if input_device is None and output_device is None:
-            with nogil:
-                status = pjmedia_null_port_create(conf_pool, sample_rate, 1,
-                                                  sample_rate / 50, 16, null_port_address)
-            if status != 0:
-                raise PJSIPError("Could not create dummy audio port", status)
-            with nogil:
-                status = pjmedia_master_port_create(conf_pool, null_port_address[0],
-                                                    pjmedia_conf_get_master_port(conf_bridge), 0, master_port_address)
-            if status != 0:
-                raise PJSIPError("Could not create master port for dummy sound device", status)
-            with nogil:
-                status = pjmedia_master_port_start(master_port_address[0])
-            if status != 0:
-                raise PJSIPError("Could not start master port for dummy sound device", status)
-        else:
-            snd_pool_name = "ConferenceBridge_snd_%d" % id(self)
-            with nogil:
-                snd_pool = pjsip_endpt_create_pool(endpoint, snd_pool_name, 4096, 4096)
-            if snd_pool == NULL:
-                raise SIPCoreError("Could not allocate memory pool")
-            self._snd_pool = snd_pool
-            if input_device is None:
+        with nogil:
+            status = pj_rwmutex_lock_read(ua.audio_change_rwlock)
+        if status != 0:
+            raise SIPCoreError('Audio change lock could not be acquired for read', status)
+       
+        try:     
+            if input_device == "system_default":
+                input_device_i = -1
+            if output_device == "system_default":
+                output_device_i = -1
+            if ((input_device_i == -2 and input_device is not None) or
+                (output_device_i == -2 and output_device is not None)):
+                for i from 0 <= i < pjmedia_snd_get_dev_count():
+                    dev_info = pjmedia_snd_get_dev_info(i)
+                    if (input_device is not None and input_device_i == -2 and
+                        dev_info.input_count > 0 and dev_info.name == input_device):
+                        input_device_i = i
+                    if (output_device is not None and output_device_i == -2 and
+                        dev_info.output_count > 0 and dev_info.name == output_device):
+                        output_device_i = i
+                if input_device_i == -2 and input_device is not None:
+                    if revert_to_default:
+                        input_device_i = -1
+                    else:
+                        raise SIPCoreError('Audio input device "%s" not found' % input_device)
+                if output_device_i == -2 and output_device is not None:
+                    if revert_to_default:
+                        output_device_i = -1
+                    else:
+                        raise SIPCoreError('Audio output device "%s" not found' % output_device)
+            if input_device is None and output_device is None:
                 with nogil:
-                    status = pjmedia_snd_port_create_player(snd_pool, output_device_i, sample_rate,
-                                                            1, sample_rate / 50, 16, 0, snd_port_address)
-            elif output_device is None:
+                    status = pjmedia_null_port_create(conf_pool, sample_rate, 1,
+                                                      sample_rate / 50, 16, null_port_address)
+                if status != 0:
+                    raise PJSIPError("Could not create dummy audio port", status)
                 with nogil:
-                    status = pjmedia_snd_port_create_rec(snd_pool, input_device_i, sample_rate,
-                                                         1, sample_rate / 50, 16, 0, snd_port_address)
+                    status = pjmedia_master_port_create(conf_pool, null_port_address[0],
+                                                        pjmedia_conf_get_master_port(conf_bridge), 0, master_port_address)
+                if status != 0:
+                    raise PJSIPError("Could not create master port for dummy sound device", status)
+                with nogil:
+                    status = pjmedia_master_port_start(master_port_address[0])
+                if status != 0:
+                    raise PJSIPError("Could not start master port for dummy sound device", status)
             else:
+                snd_pool_name = "ConferenceBridge_snd_%d" % id(self)
                 with nogil:
-                    status = pjmedia_snd_port_create(snd_pool, input_device_i, output_device_i,
-                                                     sample_rate, 1, sample_rate / 50, 16, 0, snd_port_address)
-            if status == PJMEDIA_ENOSNDPLAY:
+                    snd_pool = pjsip_endpt_create_pool(endpoint, snd_pool_name, 4096, 4096)
+                if snd_pool == NULL:
+                    raise SIPCoreError("Could not allocate memory pool")
+                self._snd_pool = snd_pool
+                if input_device is None:
+                    with nogil:
+                        status = pjmedia_snd_port_create_player(snd_pool, output_device_i, sample_rate,
+                                                                1, sample_rate / 50, 16, 0, snd_port_address)
+                elif output_device is None:
+                    with nogil:
+                        status = pjmedia_snd_port_create_rec(snd_pool, input_device_i, sample_rate,
+                                                             1, sample_rate / 50, 16, 0, snd_port_address)
+                else:
+                    with nogil:
+                        status = pjmedia_snd_port_create(snd_pool, input_device_i, output_device_i,
+                                                         sample_rate, 1, sample_rate / 50, 16, 0, snd_port_address)
+                if status == PJMEDIA_ENOSNDPLAY:
+                    with nogil:
+                        pjsip_endpt_release_pool(endpoint, snd_pool)
+                    self._snd_pool = NULL
+                    return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
+                elif status == PJMEDIA_ENOSNDREC:
+                    with nogil:
+                        pjsip_endpt_release_pool(endpoint, snd_pool)
+                    self._snd_pool = NULL
+                    return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
+                elif status != 0:
+                    raise PJSIPError("Could not create sound device", status)
+                if input_device is not None and output_device is not None:
+                    with nogil:
+                        status = pjmedia_snd_port_set_ec(snd_port_address[0], snd_pool, ec_tail_length, 0)
+                    if status != 0:
+                        self._stop_sound_device(ua)
+                        raise PJSIPError("Could not set echo cancellation", status)
                 with nogil:
-                    pjsip_endpt_release_pool(endpoint, snd_pool)
-                self._snd_pool = NULL
-                return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
-            elif status == PJMEDIA_ENOSNDREC:
-                with nogil:
-                    pjsip_endpt_release_pool(endpoint, snd_pool)
-                self._snd_pool = NULL
-                return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
-            elif status != 0:
-                raise PJSIPError("Could not create sound device", status)
-            if input_device is not None and output_device is not None:
-                with nogil:
-                    status = pjmedia_snd_port_set_ec(snd_port_address[0], snd_pool, ec_tail_length, 0)
+                    status = pjmedia_snd_port_connect(snd_port_address[0], pjmedia_conf_get_master_port(conf_bridge))
                 if status != 0:
                     self._stop_sound_device(ua)
-                    raise PJSIPError("Could not set echo cancellation", status)
+                    raise PJSIPError("Could not connect sound device", status)
+                if input_device_i == -1 or output_device_i == -1:
+                    with nogil:
+                        status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(snd_port_address[0]), &snd_info)
+                    if status != 0:
+                        self._stop_sound_device(ua)
+                        raise PJSIPError("Could not get sounds device info", status)
+                    if input_device_i == -1:
+                        with nogil:
+                            dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
+                        self.real_input_device = dev_info.name
+                    if output_device_i == -1:
+                        with nogil:
+                            dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
+                        self.real_output_device = dev_info.name
+            if input_device_i != -1:
+                self.real_input_device = input_device
+            if output_device_i != -1:
+                self.real_output_device = output_device
+            self.input_device = input_device
+            self.output_device = output_device
+            self.ec_tail_length = ec_tail_length
+            return 0
+        finally:
             with nogil:
-                status = pjmedia_snd_port_connect(snd_port_address[0], pjmedia_conf_get_master_port(conf_bridge))
-            if status != 0:
-                self._stop_sound_device(ua)
-                raise PJSIPError("Could not connect sound device", status)
-            if input_device_i == -1 or output_device_i == -1:
-                with nogil:
-                    status = pjmedia_snd_stream_get_info(pjmedia_snd_port_get_snd_stream(snd_port_address[0]), &snd_info)
-                if status != 0:
-                    self._stop_sound_device(ua)
-                    raise PJSIPError("Could not get sounds device info", status)
-                if input_device_i == -1:
-                    with nogil:
-                        dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
-                    self.real_input_device = dev_info.name
-                if output_device_i == -1:
-                    with nogil:
-                        dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
-                    self.real_output_device = dev_info.name
-        if input_device_i != -1:
-            self.real_input_device = input_device
-        if output_device_i != -1:
-            self.real_output_device = output_device
-        self.input_device = input_device
-        self.output_device = output_device
-        self.ec_tail_length = ec_tail_length
-        return 0
+                pj_rwmutex_unlock_read(ua.audio_change_rwlock)
 
     cdef int _stop_sound_device(self, PJSIPUA ua) except -1:
         cdef pj_pool_t *snd_pool

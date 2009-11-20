@@ -93,6 +93,9 @@ cdef class PJSIPUA:
     cdef int _fatal_error
     cdef set _incoming_events
     cdef set _incoming_requests
+    cdef pjmedia_audio_change_observer _audio_change_observer
+    cdef pj_rwmutex_t *audio_change_rwlock
+    cdef list old_devices
 
     def __cinit__(self, *args, **kwargs):
         global _ua
@@ -174,6 +177,15 @@ cdef class PJSIPUA:
         status = pjsip_endpt_register_module(self._pjsip_endpoint._obj, &self._event_module)
         if status != 0:
             raise PJSIPError("Could not load events module", status)
+        self._audio_change_observer.default_audio_change = _cb_default_audio_change
+        self._audio_change_observer.audio_devices_will_change = _cb_audio_devices_will_change
+        self._audio_change_observer.audio_devices_did_change = _cb_audio_devices_did_change	
+        status = pjmedia_add_audio_change_observer(&self._audio_change_observer); 
+        if status != 0:
+            raise PJSIPError("Could not set audio_change callbacks", status)
+        status = pj_rwmutex_create(self._pjsip_endpoint._pool, "ua_audio_change_rwlock", &self.audio_change_rwlock)
+        if status != 0:
+            raise PJSIPError("Could not initialize audio change rwmutex", status)
         self._user_agent = PJSTR(kwargs["user_agent"])
         for event, accept_types in kwargs["events"].iteritems():
             self.add_event(event, accept_types)
@@ -283,15 +295,25 @@ cdef class PJSIPUA:
         cdef int count
         cdef pjmedia_snd_dev_info_ptr_const info
         cdef list retval = list()
-        for i from 0 <= i < pjmedia_snd_get_dev_count():
-            info = pjmedia_snd_get_dev_info(i)
-            if is_output:
-                count = info.output_count
-            else:
-                count = info.input_count
-            if count:
-                retval.append(info.name)
-        return retval
+        cdef int status 
+        
+        with nogil:
+            status = pj_rwmutex_lock_read(self.audio_change_rwlock)
+        if status != 0:
+            raise SIPCoreError('Could not acquire audio_change_rwlock', status)
+        
+        try:    
+            for i from 0 <= i < pjmedia_snd_get_dev_count():
+                info = pjmedia_snd_get_dev_info(i)
+                if is_output:
+                    count = info.output_count
+                else:
+                    count = info.input_count
+                if count:
+                    retval.append(info.name)
+            return retval
+        finally:
+            pj_rwmutex_unlock_read(self.audio_change_rwlock)
 
     property output_devices:
 
@@ -304,6 +326,30 @@ cdef class PJSIPUA:
         def __get__(self):
             self._check_self()
             return self._get_sound_devices(0)
+            
+    property sound_devices:
+
+        def __get__(self):
+            self._check_self()
+            cdef int i
+            cdef int count
+            cdef pjmedia_snd_dev_info_ptr_const info
+            cdef list retval = list()
+            cdef int status 
+            
+            with nogil:
+                status = pj_rwmutex_lock_read(self.audio_change_rwlock)
+            if status != 0:
+                raise SIPCoreError('Could not acquire audio_change_rwlock', status)
+            try:    
+                for i from 0 <= i < pjmedia_snd_get_dev_count():
+                    with nogil:
+                        info = pjmedia_snd_get_dev_info(i)
+                    if info != NULL:
+                        retval.append(info.name)
+                return retval
+            finally:
+                pj_rwmutex_unlock_read(self.audio_change_rwlock)
 
     property available_codecs:
 
@@ -550,6 +596,8 @@ cdef class PJSIPUA:
         if _ua == NULL:
             return
         self._check_thread()
+        pj_rwmutex_destroy(self.audio_change_rwlock)
+        pjmedia_del_audio_change_observer(&self._audio_change_observer)
         _process_handler_queue(self, &_dealloc_handler_queue)
         if _event_queue_lock != NULL:
             pj_mutex_lock(_event_queue_lock)
@@ -753,6 +801,58 @@ cdef class PJSIPThread:
 
 
 # callback functions
+
+cdef void _cb_default_audio_change(void *user_data) with gil:
+     cdef PJSIPUA ua
+     cdef audio_change_type *type = <audio_change_type *>user_data
+     try:
+        ua = _get_ua()
+     except:
+        return  
+     try:
+        event_dict = dict()
+        event_dict["changed_input"] = (type[0] == AUDIO_CHANGE_INPUT)
+        event_dict["changed_output"] = (type[0] == AUDIO_CHANGE_OUTPUT)
+        _add_event("DefaultAudioDeviceDidChange", event_dict)
+     except:
+        ua._handle_exception(1)
+
+cdef void _cb_audio_devices_will_change(void *user_data) with gil:
+     cdef PJSIPUA ua
+     cdef pjmedia_audio_change_observer *observer = <pjmedia_audio_change_observer*> user_data
+     cdef int status
+     try:
+        ua = _get_ua()
+     except:
+        return  
+     try:
+        ua.old_devices = ua.sound_devices
+        with nogil: 
+            status = pj_rwmutex_lock_write(ua.audio_change_rwlock)
+        if status != 0:
+            raise SIPCoreError('Could not acquire audio_change_rwlock for writing', status)
+     except:
+        ua._handle_exception(1)
+     
+cdef void _cb_audio_devices_did_change(void *user_data) with gil:
+     cdef PJSIPUA ua
+     cdef pjmedia_audio_change_observer *observer = <pjmedia_audio_change_observer*> user_data
+     cdef int status
+     try:
+        ua = _get_ua()
+     except:
+        return  
+     try:
+        with nogil:
+            status = pj_rwmutex_unlock_write(ua.audio_change_rwlock)
+        if status != 0:
+            raise SIPCoreError('Could not release the audio_change_rwlock', status)
+        event_dict = dict() 
+        event_dict["old_devices"] = ua.old_devices
+        event_dict["new_devices"] = ua.sound_devices
+        _add_event("AudioDevicesDidChange", event_dict)
+     except:
+        ua._handle_exception(1)
 
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil:
     cdef PJSIPUA ua

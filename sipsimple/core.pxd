@@ -107,12 +107,19 @@ cdef extern from "pjlib.h":
     enum:
         PJ_THREAD_DESC_SIZE
     struct pj_mutex_t
+    struct pj_rwmutex_t
     struct pj_thread_t
     int pj_mutex_create_simple(pj_pool_t *pool, char *name, pj_mutex_t **mutex) nogil
     int pj_mutex_create_recursive(pj_pool_t *pool, char *name, pj_mutex_t **mutex) nogil
     int pj_mutex_lock(pj_mutex_t *mutex) nogil
     int pj_mutex_unlock(pj_mutex_t *mutex) nogil
     int pj_mutex_destroy(pj_mutex_t *mutex) nogil
+    int pj_rwmutex_create(pj_pool_t *pool, char *name, pj_rwmutex_t **mutex) nogil
+    int pj_rwmutex_lock_read(pj_rwmutex_t *mutex) nogil
+    int pj_rwmutex_lock_write(pj_rwmutex_t *mutex) nogil
+    int pj_rwmutex_unlock_read(pj_rwmutex_t *mutex) nogil
+    int pj_rwmutex_unlock_write(pj_rwmutex_t *mutex) nogil
+    int pj_rwmutex_destroy(pj_rwmutex_t *mutex) nogil  
     int pj_thread_is_registered() nogil
     int pj_thread_register(char *thread_name, long *thread_desc, pj_thread_t **thread) nogil
 
@@ -254,6 +261,16 @@ cdef extern from "pjmedia.h":
         int rec_id
     struct pjmedia_snd_stream
     ctypedef pjmedia_snd_dev_info *pjmedia_snd_dev_info_ptr_const "const pjmedia_snd_dev_info *"
+    ctypedef void (*audio_change_callback) (void *user_data)
+    enum audio_change_type:
+         AUDIO_CHANGE_INPUT = 1
+         AUDIO_CHANGE_OUTPUT = 2
+    struct pjmedia_audio_change_observer:
+         audio_change_callback default_audio_change
+         audio_change_callback audio_devices_will_change
+         audio_change_callback audio_devices_did_change
+    int pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)    
+    int pjmedia_del_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)    
     int pjmedia_snd_get_dev_count() nogil
     pjmedia_snd_dev_info_ptr_const pjmedia_snd_get_dev_info(int index) nogil
     int pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm, pjmedia_snd_stream_info *pi) nogil

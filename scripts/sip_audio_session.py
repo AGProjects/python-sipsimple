@@ -834,6 +834,40 @@ class SIPAudioApplication(SIPApplication):
         elif notification.sender is self.voice_tone_generator:
             self.voice_tone_generator = None
 
+    def _NH_DefaultAudioDeviceDidChange(self, notification):
+        SIPApplication._NH_DefaultAudioDeviceDidChange(self, notification)
+        if notification.data.changed_input and self.voice_conference_bridge.input_device=='system_default':
+            self.output.put('Switched default input device to: %s\n' % self.voice_conference_bridge.real_input_device)
+        if notification.data.changed_output and self.voice_conference_bridge.output_device=='system_default':
+            self.output.put('Switched default output device to: %s\n' % self.voice_conference_bridge.real_output_device)
+        if notification.data.changed_output and self.alert_conference_bridge.output_device=='system_default':
+            self.output.put('Switched alert device to: %s\n' % self.alert_conference_bridge.real_output_device)
+
+    def _NH_AudioDevicesDidChange(self, notification):
+        old_devices = set(notification.data.old_devices)
+        new_devices = set(notification.data.new_devices)
+        added_devices = new_devices - old_devices
+        removed_devices = old_devices - new_devices
+        changed_input_device = self.voice_conference_bridge.real_input_device in removed_devices
+        changed_output_device = self.voice_conference_bridge.real_output_device in removed_devices
+        changed_alert_device = self.alert_conference_bridge.real_output_device in removed_devices
+
+        SIPApplication._NH_AudioDevicesDidChange(self, notification)
+
+        if added_devices:
+            self.output.put('Added audio device(s): %s\n' % ', '.join(sorted(added_devices)))
+        if removed_devices:
+            self.output.put('Removed audio device(s): %s\n' % ', '.join(sorted(removed_devices)))
+        if changed_input_device:
+            self.output.put('Input device has been switched to: %s\n' % self.voice_conference_bridge.real_input_device)
+        if changed_output_device:
+            self.output.put('Output device has been switched to: %s\n' % self.voice_conference_bridge.real_output_device)
+        if changed_alert_device:
+            self.output.put('Alert device has been switched to: %s\n' % self.alert_conference_bridge.real_output_device)
+
+        self.output.put('Available audio input devices: %s\n' % ', '.join(['None', 'system_default'] + sorted(self.engine.input_devices)))
+        self.output.put('Available audio output devices: %s\n' % ', '.join(['None', 'system_default'] + sorted(self.engine.output_devices)))
+
     def _print_new_session(self):
         session = self.incoming_sessions[0]
         identity = str(session.remote_identity.uri)
