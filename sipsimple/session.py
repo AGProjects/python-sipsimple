@@ -1011,6 +1011,12 @@ class Session(object):
                         notification = self._channel.wait()
                         if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'disconnected':
                             if prev_inv_state in ('connecting', 'connected'):
+                                if notification.data.disconnect_reason in ('timeout', 'missing ACK'):
+                                    code = 200
+                                    reason = 'OK'
+                                else:
+                                    code = notification.data.code
+                                    reason = notification.data.reason
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self,
                                                                       TimestampedNotificationData(originator='local', method='BYE', code=notification.data.code, reason=notification.data.reason))
                             elif self._invitation.direction == 'incoming' and prev_inv_state in ('incoming', 'early'):
