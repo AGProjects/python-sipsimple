@@ -94,3 +94,17 @@ xcapdiff.py
 Parses NOTIFY body for xcap-diff event. Used to detect changes in XCAP
 documents changed by other device configured for the same presentity.
 
+
+iscomposing.py (RFC3994)
+
+This module parses and generates isComposing messages according to RFC3994. It's used
+mainly in chat environments to indicate the other party that the user is actually
+typing a message.
+
+
+dialogrules.py
+
+This module parses and generates dialog-rules documents to have authorization policy on 
+dialog-info event. There is not yet an RFC on this so the module is implemented following 
+the same ideas as pre-rules (RFC5025).
+
