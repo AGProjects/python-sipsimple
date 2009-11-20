@@ -19,8 +19,8 @@ from urllib2 import URLError
 
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.applications import ParserError
-from sipsimple.applications.policy import Actions, Conditions, Identity, IdentityOne, Rule, Transformations
-from sipsimple.applications.dialogrules import AllDevices, AllPersons, AllServices, DialogRules, ProvideAllAttributes, ProvideDevices, ProvidePersons, ProvideServices, SubHandling
+from sipsimple.applications.policy import Actions, Conditions, Identity, IdentityOne, Rule
+from sipsimple.applications.dialogrules import DialogRules, SubHandling
 from sipsimple.configuration import ConfigurationManager
 
 from xcaplib import logsocket
@@ -50,7 +50,7 @@ polite_block_rule_identities = None
 
 def get_drules():
     global drules, drules_etag, allow_rule, block_rule, polite_block_rule, allow_rule_identities, block_rule_identities, polite_block_rule_identities
-    
+
     try:
         doc = xcap_client.get('dialog-rules')
     except URLError, e:
@@ -103,9 +103,7 @@ def allow_watcher(watcher):
         if drules is not None:
             if allow_rule is None:
                 allow_rule_identities = Identity()
-                allow_rule = Rule('dialog_whitelist', conditions=Conditions([allow_rule_identities]), actions=Actions([SubHandling('allow')]),
-                        transformations=Transformations([ProvideServices([AllServices()]), ProvidePersons([AllPersons()]), 
-                            ProvideDevices([AllDevices()]), ProvideAllAttributes()]))
+                allow_rule = Rule('dialog_whitelist', conditions=Conditions([allow_rule_identities]), actions=Actions([SubHandling('allow')]))
                 drules.append(allow_rule)
             if str(watcher) not in allow_rule_identities:
                 allow_rule_identities.append(IdentityOne(str(watcher)))
@@ -136,8 +134,7 @@ def block_watcher(watcher):
         if drules is not None:
             if block_rule is None:
                 block_rule_identities = Identity()
-                block_rule = Rule('dialog_blacklist', conditions=Conditions([block_rule_identities]), actions=Actions([SubHandling('block')]),
-                        transformations=Transformations())
+                block_rule = Rule('dialog_blacklist', conditions=Conditions([block_rule_identities]), actions=Actions([SubHandling('block')]))
                 drules.append(block_rule)
             if str(watcher) not in block_rule_identities:
                 block_rule_identities.append(IdentityOne(str(watcher)))
@@ -156,7 +153,7 @@ def block_watcher(watcher):
         sleep(0.1)
     else:
         print "Could not deny authorization of watcher %s" % watcher
-    
+
     # Remove the watcher from blocked and politely blocked lists, if applicable.
     remove_watcher(str(watcher), blocked=False)
 
@@ -168,8 +165,7 @@ def polite_block_watcher(watcher):
         if drules is not None:
             if polite_block_rule is None:
                 polite_block_rule_identities = Identity()
-                polite_block_rule = Rule('dialog_polite_blacklist', conditions=Conditions([polite_block_rule_identities]), actions=Actions([SubHandling('polite-block')]),
-                        transformations=Transformations())
+                polite_block_rule = Rule('dialog_polite_blacklist', conditions=Conditions([polite_block_rule_identities]), actions=Actions([SubHandling('polite-block')]))
                 drules.append(polite_block_rule)
             if str(watcher) not in polite_block_rule_identities:
                 polite_block_rule_identities.append(IdentityOne(str(watcher)))
@@ -188,7 +184,7 @@ def polite_block_watcher(watcher):
         sleep(0.1)
     else:
         print "Could not politely block authorization of watcher %s" % watcher
-    
+
     # Remove the watcher from blocked and politely blocked lists, if applicable.
     remove_watcher(str(watcher), pblocked=False)
 
@@ -231,7 +227,7 @@ def remove_watcher(watcher, allowed=True, blocked=True, pblocked=True):
         sleep(0.1)
     else:
         print "Could not remove watcher %s from the rules" % watcher
-   
+
 
 def print_drules():
     global allow_rule_identities, block_rule_identities, polite_block_rule_identities
@@ -295,7 +291,7 @@ def read_queue(account):
             print "Dialog rules document:"
             print drules.toxml(pretty_print=True)
         print_drules()
-        
+
         while True:
             command, data = queue.get()
             if command == "print":
@@ -347,10 +343,10 @@ def read_queue(account):
             os.kill(os.getpid(), signal.SIGINT)
         lock.release()
 
-def do_xcap_pres_rules(account_name):
+def do_xcap_dialog_rules(account_name):
     global user_quit, lock, queue, string, getstr_event, old
     ctrl_d_pressed = False
-    
+
     ConfigurationManager().start()
     account_manager = AccountManager()
     account_manager.start()
@@ -370,14 +366,14 @@ def do_xcap_pres_rules(account_name):
         raise RuntimeError("account %s is not enabled" % account.id)
     elif account == BonjourAccount():
         raise RuntimeError("cannot use bonjour account for XCAP dialog-rules management")
-    elif not account.presence.enabled:
-        raise RuntimeError("presence is not enabled for account %s" % account.id)
+    elif not account.dialog_event.enabled:
+        raise RuntimeError("dialog event is not enabled for account %s" % account.id)
     elif account.presence.xcap_root is None:
         raise RuntimeError("XCAP root is not defined for account %s" % account.id)
 
     start_new_thread(read_queue,(account,))
     atexit.register(termios_restore)
-    
+
     try:
         while True:
             char = getchar()
@@ -425,9 +421,9 @@ if __name__ == "__main__":
         logsocket._install()
 
     show_xml = options.show_xml
-    
+
     try:
-        do_xcap_pres_rules(options.account_name)
+        do_xcap_dialog_rules(options.account_name)
     except RuntimeError, e:
         print "Error: %s" % str(e)
         sys.exit(1)
