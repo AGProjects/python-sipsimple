@@ -80,7 +80,9 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-runtime_device_change_detection.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
-    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch"]
+    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
+                    "patches/portaudio-1420-compile_snow_leopard.patch",
+                    "patches/portaudio-1420-pa_mac_core_x64_assert_fix.patch"]
     trunk_overrides = []
 
     user_options = build_ext.user_options

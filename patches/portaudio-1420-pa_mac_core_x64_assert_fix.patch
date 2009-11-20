@@ -1,0 +1,25 @@
+Index: src/hostapi/coreaudio/pa_mac_core.c
+===================================================================
+--- src/hostapi/coreaudio/pa_mac_core.c	(revision 1420)
++++ src/hostapi/coreaudio/pa_mac_core.c	(working copy)
+@@ -1719,15 +1719,18 @@
+ 
+    VVDBUG(("ringBufferIOProc()\n"));
+ 
+-   assert( sizeof( UInt32 ) == sizeof( long ) );
+    if( PaUtil_GetRingBufferReadAvailable( rb ) == 0 ) {
+       *outData = NULL;
+       *ioDataSize = 0;
+       return RING_BUFFER_EMPTY;
+    }
++
++   long lioDataSize = 0;
+    PaUtil_GetRingBufferReadRegions( rb, *ioDataSize,
+-                                    outData, (long *)ioDataSize, 
++                                    outData, &lioDataSize, 
+                                     &dummyData, &dummySize );
++
++   *ioDataSize = (UInt32)lioDataSize;
+       
+    assert( *ioDataSize );
+    PaUtil_AdvanceRingBufferReadIndex( rb, *ioDataSize );

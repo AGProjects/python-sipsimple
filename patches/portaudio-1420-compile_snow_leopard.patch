@@ -1,0 +1,17 @@
+Index: src/hostapi/coreaudio/pa_mac_core_internal.h
+===================================================================
+--- src/hostapi/coreaudio/pa_mac_core_internal.h	(revision 1419)
++++ src/hostapi/coreaudio/pa_mac_core_internal.h	(revision 1420)
+@@ -61,10 +61,11 @@
+ #ifndef PA_MAC_CORE_INTERNAL_H__
+ #define PA_MAC_CORE_INTERNAL_H__
+ 
++#include <CoreAudio/CoreAudio.h>
++#include <CoreServices/CoreServices.h>
+ #include <AudioUnit/AudioUnit.h>
+ #include <AudioToolbox/AudioToolbox.h>
+ 
+-
+ #include "portaudio.h"
+ #include "pa_util.h"
+ #include "pa_hostapi.h"
