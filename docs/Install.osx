@@ -1,6 +1,6 @@
 
-Installation procedure for SIP SIMPLE client on MacOSX
-------------------------------------------------------
+Installation procedure for SIP SIMPLE client SDK on MacOSX
+----------------------------------------------------------
 
 
 Copyright (c) 2008-2009 AG Projects
@@ -8,61 +8,61 @@ http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
 
-This document describes the installation procedure on MacOSX Leopard 10.5.
+This document describes the installation procedure on MacOSX Leopard 10.5
+and Snow Leopard 10.6.
 
 Fore more information see the installation guide available at:
 
 http://sipsimpleclient.com/wiki/SipInstallation
 
 
-Manual installation (development version)
+Manual Installation (Development Version)
 -----------------------------------------
 
 The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
-Step 2. Install dependencies
-    Step 2.1. Install dependencies (Leopard)
-    Step 2.2. Install dependencies (Snow Leopard)
-    Step 2.3. Install dependencies (Common)
-Step 3. Install SIP SIMPLE client
+Step 2. Install Dependencies
+    Step 2.1. Install Dependencies (Leopard only)
+    Step 2.2. Install Dependencies (Snow Leopard only)
+    Step 2.3. Install Common Dependencies
+Step 3. Install SIP SIMPLE client SDK
 
 
 Step 1. Prerequisites
 
- * MacOSX 10.5 Leopard (i386 or ppc architectures) or MacOSX 10.6 Snow Leopard
- * Apple Developer tools
+ * MacOSX 10.5 (Leopard) or MacOSX 10.6 (Snow Leopard)
+ * Apple Developer tools (XCode)
+ * On Snow Leopard, the 10.4 SDK must be installed from XCode package
  * darcs version control tool from http://www.darcs.net
- * If using Snow Leopard 10.4 SDK is needed from XCode package
 
-The procedure below relies on the standard available Python 2.5 interpreter
-that comes with MacOSX. Make sure that during the building process you are
-not involving external tools or libraries like the ones provided by Fink or
+The procedure below relies on the standard available Python interpreter that
+comes with MacOSX. Make sure that during the building process you are not
+involving external tools or libraries like the ones provided by Fink or
 Darwin Ports distributions.
 
 
-Step 2. Install dependencies
+Step 2. Install Dependencies
 
  * python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-application  http://pypi.python.org/simple/python-application  >=1.1.5
  * python-lxml         http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet     http://download.ag-projects.com/SipClient         =0.8.11
  * python-cjson        http://pypi.python.org/pypi/python-cjson/         >=1.0.5
- * cython              http://www.cython.org                             >=0.10
+ * cython              http://www.cython.org                             =0.11.2
  * dnspython           http://www.dnspython.org                          >=1.6.0
  * twisted             http://twistedmatrix.com/trac                     >=8.1.0
  * eventlet            http://pypi.python.org/pypi/eventlet/             =0.8.11
  * greenlet            http://pypi.python.org/pypi/greenlet/             >=0.2
  * zope-interface      http://www.zope.org                               >=3.3.1
- * XCode               http://developer.apple.com/tools/Xcode/
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
 
+
+Step 2.1. Install Dependencies (MacOSX 10.5 Leopard only)
+
 cd ~/work
-
-
-Step 2.1. Install dependencies (Leopard)
 
 # Install GNUTLS dependencies
 # ===========================
@@ -109,7 +109,7 @@ sudo python setup.py install --static-deps
 cd ..
 
 
-Step 2.2. Install dependencies (Snow Leopard)
+Step 2.2. Install Dependencies (MacOSX 10.6 Snow Leopard only)
 
 # Install GNUTLS dependencies
 # ===========================
@@ -153,20 +153,20 @@ cd ..
 STATIC_DEPS=true sudo easy_install lxml==2.2.4
 
 
-# Make links for python-gnutls (will be fixed in next release)
-# ============================================================
+# Create some links required by python-gnutls
 sudo ln -s /usr/local/lib/libgnutls-extra.26.dylib /usr/local/lib/libgnutls-extra.so.26 
 sudo ln -s /usr/local/lib/libgnutls.26.dylib /usr/local/lib/libgnutls.so.26
 
 
-Step 2.3. Install dependencies (Common)
+Step 2.3. Install Common Dependencies
 
 Upgrade MacOSX python setup tools:
 
 sudo easy_install --script-dir /usr/bin -U setuptools
 
-Install Python dependencies by using easy_install tool. The software will be
-installed in /Library/Python/2.5/site-packages or /Library/Python/2.6/site-packages folder:
+Install Python dependencies by using the easy_install tool. The software
+will be installed in /Library/Python/2.5/site-packages on Leopard or
+/Library/Python/2.6/site-packages on Snow Leopard:
 
 sudo easy_install -U python-gnutls dnspython twisted greenlet python-application
 
@@ -178,7 +178,7 @@ cd Cython-0.11.2
 sudo python setup.py install
 cd ..
 
-Install XCAP and MSRP client libraries from AG Projects darcs repositories:
+Install SIP SIMPLE client dependencies from AG Projects repositories:
 
 cd ~/work
 # python-eventlet
@@ -218,10 +218,11 @@ fi
 cd ..
 
 
-Step 3. Install SIP SIMPLE client
+Step 3. Install SIP SIMPLE client SDK
 
-Download source code:
+Download or update the source code:
 
+cd ~/work
 if [ -d python-sipsimple ]; then
         cd python-sipsimple
         darcs pull -a
@@ -230,8 +231,9 @@ else
 fi
 cd ..
 
-Build and install the library system wide:
+Build and install the SIP SIMPLE client SDK system wide:
 
 cd python-sipsimple
+sudo python setup.py build_ext --pjsip-clean-compile
 sudo python setup.py install --prefix=/usr/local
 

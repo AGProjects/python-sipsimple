@@ -1,6 +1,6 @@
 
-Installation procedure for SIP SIMPLE client on Linux
------------------------------------------------------
+Installation procedure for SIP SIMPLE client SDK on Linux
+---------------------------------------------------------
 
 Copyright (c) 2008-2009 AG Projects
 http://ag-projects.com
@@ -15,18 +15,18 @@ Fore more information see the installation guide available at:
 http://sipsimpleclient.com/wiki/SipInstallation
 
 
-I. Debian package installation (last stable version)
-II. Manual installation (development version)
+I. Debian Package Installation (Stable Version)
+II. Manual Installation (Development Version)
 
 
-I. Debian package installation (last stable version)
-----------------------------------------------------
+I. Debian Package Installation (Stable Version)
+-----------------------------------------------
 
-Note. The Debian package cannot be installed at this moment because of
-dependecies that are not available anymore in the Debian Unstable
+Note. The current Debian package cannot be installed at this moment because
+of dependecies that are not available anymore in the Debian Unstable
 distribution. Use the Manual Installation procedure until the official next
-release of the Debian package. This section will be uodated after the next
-release.
+release of the Debian package. This section will be updated with the next
+official release.
 
 For people running Debian 5.0 or Ubuntu 8.10 a debian package with the last
 stable version is available in the repository provided by AG Projects. 
@@ -85,7 +85,7 @@ You will now have debian packages in the upper level directory that you can
 install using dpkg -i command.
 
 
-II. Manual Installation (development version)
+II. Manual Installation (Development Version)
 ---------------------------------------------
 
 
@@ -130,13 +130,12 @@ provided by the python-setuptools package to install the packages:
 sudo easy_install -U lxml python-gnutls cython python-application \
 dnspython twisted
 
-Install greenlet using easy_install script, is not yet available as Debian
-package:
+Install greenlet by using easy_install script, it is not yet available as
+Debian package:
 
 sudo easy_install -U greenlet
 
-Download and install SIP SIMPLE client dependencies available in AG Projects
-repositories:
+Install SIP SIMPLE client dependencies from AG Projects repositories:
 
 cd ~/work
 # python-eventlet
@@ -151,7 +150,6 @@ else
 fi
 cd ..
 
-cd ~/work
 # python-xcaplib
 if [ -d python-xcaplib ]; then
         cd python-xcaplib
@@ -177,10 +175,11 @@ fi
 cd ..
 
 
-Step 3. Install SIP SIMPLE client
+Step 3. Install SIP SIMPLE client SDK
 
-Download SIP SIMPLE client sources:
+Download or update the source code:
 
+cd ~/work
 if [ -d python-sipsimple ]; then
 	cd python-sipsimple
 	darcs pull -a
