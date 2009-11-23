@@ -22,14 +22,18 @@ The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
 Step 2. Install dependencies
+    Step 2.1. Install dependencies (Leopard)
+    Step 2.2. Install dependencies (Snow Leopard)
+    Step 2.3. Install dependencies (Common)
 Step 3. Install SIP SIMPLE client
 
 
 Step 1. Prerequisites
 
- * MacOSx 10.5 Leopard (i386 or ppc architectures)
+ * MacOSX 10.5 Leopard (i386 or ppc architectures) or MacOSX 10.6 Snow Leopard
  * Apple Developer tools
  * darcs version control tool from http://www.darcs.net
+ * If using Snow Leopard 10.4 SDK is needed from XCode package
 
 The procedure below relies on the standard available Python 2.5 interpreter
 that comes with MacOSX. Make sure that during the building process you are
@@ -38,7 +42,6 @@ Darwin Ports distributions.
 
 
 Step 2. Install dependencies
-
 
  * python-gnutls       http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-application  http://pypi.python.org/simple/python-application  >=1.1.5
@@ -51,11 +54,15 @@ Step 2. Install dependencies
  * eventlet            http://pypi.python.org/pypi/eventlet/             =0.8.11
  * greenlet            http://pypi.python.org/pypi/greenlet/             >=0.2
  * zope-interface      http://www.zope.org                               >=3.3.1
+ * XCode               http://developer.apple.com/tools/Xcode/
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
 
 cd ~/work
+
+
+Step 2.1. Install dependencies (Leopard)
 
 # Install GNUTLS dependencies
 # ===========================
@@ -101,14 +108,75 @@ cd lxml-2.2beta4
 sudo python setup.py install --static-deps
 cd ..
 
+
+Step 2.2. Install dependencies (Snow Leopard)
+
+# Install GNUTLS dependencies
+# ===========================
+curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
+tar -xjvf libgpg-error-1.7.tar.bz2
+cd libgpg-error-1.7
+CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+make
+sudo make install
+cd ..
+
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/libtasn1-2.2.tar.gz
+tar zxvf libtasn1-2.2.tar.gz 
+cd libtasn1-2.2
+./configure
+make
+sudo make install
+cd ..
+
+curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.4.tar.bz2
+tar -xjvf libgcrypt-1.4.4.tar.bz2
+cd libgcrypt-1.4.4
+CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
+make
+sudo make install
+cd ..
+
+# Install GNUTLS
+# ==============
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.1.tar.bz2
+tar -xjvf gnutls-2.8.1.tar.bz2
+cd gnutls-2.8.1
+CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
+make
+sudo make install
+cd ..
+
+# Install lxml python module
+# ==========================
+# NOTE: This must be executed WITHOUT Cython installed. Otherwise it won't work.
+STATIC_DEPS=true sudo easy_install lxml==2.2.4
+
+
+# Make links for python-gnutls (will be fixed in next release)
+# ============================================================
+sudo ln -s /usr/local/lib/libgnutls-extra.26.dylib /usr/local/lib/libgnutls-extra.so.26 
+sudo ln -s /usr/local/lib/libgnutls.26.dylib /usr/local/lib/libgnutls.so.26
+
+
+Step 2.3. Install dependencies (Common)
+
 Upgrade MacOSX python setup tools:
 
 sudo easy_install --script-dir /usr/bin -U setuptools
 
 Install Python dependencies by using easy_install tool. The software will be
-installed in Library/Python/2.5/site-packages folder:
+installed in /Library/Python/2.5/site-packages or /Library/Python/2.6/site-packages folder:
 
-sudo easy_install -U python-gnutls cython dnspython twisted greenlet python-application
+sudo easy_install -U python-gnutls dnspython twisted greenlet python-application
+
+Install Cython
+
+curl -O http://pypi.python.org/packages/source/C/Cython/Cython-0.11.2.tar.gz
+tar zxvf Cython-0.11.2.tar.gz
+cd Cython-0.11.2
+sudo python setup.py install
+cd ..
 
 Install XCAP and MSRP client libraries from AG Projects darcs repositories:
 
@@ -165,5 +233,5 @@ cd ..
 Build and install the library system wide:
 
 cd python-sipsimple
-sudo python setup.py install --install-data --prefix=/usr/local
+sudo python setup.py install --prefix=/usr/local
 
