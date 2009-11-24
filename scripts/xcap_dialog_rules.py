@@ -284,8 +284,8 @@ def read_queue(account):
     global user_quit, lock, queue, xcap_client
     lock.acquire()
     try:
-        xcap_client = XCAPClient(account.presence.xcap_root, account.id, password=account.password, auth=None)
-        print 'Retrieving current dialog rules from %s' % account.presence.xcap_root
+        xcap_client = XCAPClient(account.xcap.xcap_root, account.id, password=account.password, auth=None)
+        print 'Retrieving current dialog rules from %s' % account.xcap.xcap_root
         get_drules()
         if show_xml and drules is not None:
             print "Dialog rules document:"
@@ -366,9 +366,11 @@ def do_xcap_dialog_rules(account_name):
         raise RuntimeError("account %s is not enabled" % account.id)
     elif account == BonjourAccount():
         raise RuntimeError("cannot use bonjour account for XCAP dialog-rules management")
-    elif not account.dialog_event.enabled:
-        raise RuntimeError("dialog event is not enabled for account %s" % account.id)
-    elif account.presence.xcap_root is None:
+    elif not account.dialog_event.enable_dialog_rules:
+        raise RuntimeError("dialog rules are not enabled for account %s" % account.id)
+    elif not account.xcap.enabled:
+        raise RuntimeError("XCAP root is not enabled for account %s" % account.id)
+    elif account.xcap.xcap_root is None:
         raise RuntimeError("XCAP root is not defined for account %s" % account.id)
 
     start_new_thread(read_queue,(account,))

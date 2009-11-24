@@ -204,8 +204,8 @@ def read_queue(account):
     global user_quit, lock, queue, xcap_client, service_uri
     lock.acquire()
     try:
-        xcap_client = XCAPClient(account.presence.xcap_root, account.id, password=account.password, auth=None)
-        print 'Retrieving current RLS services from %s' % account.presence.xcap_root
+        xcap_client = XCAPClient(account.xcap.xcap_root, account.id, password=account.password, auth=None)
+        print 'Retrieving current RLS services from %s' % account.xcap.xcap_root
         get_rls_services()
         if show_xml and rls_services is not None:
             print "RLS services document:"
@@ -283,9 +283,11 @@ def do_xcap_rls_services(account_name, service):
         raise RuntimeError("account %s is not enabled" % account.id)
     elif account == BonjourAccount():
         raise RuntimeError("cannot use bonjour account for XCAP RLS services management")
-    elif not account.presence.enabled:
-        raise RuntimeError("presence is not enabled for account %s" % account.id)
-    elif account.presence.xcap_root is None:
+    elif not account.xcap.enabled:
+        raise RuntimeError("XCAP root is not enabled for account %s" % account.id)
+    elif not account.presence.enable_rls_services:
+        raise RuntimeError("rls_services are not enabled for account %s" % account.id)
+    elif account.xcap.xcap_root is None:
         raise RuntimeError("XCAP root is not defined for account %s" % account.id)
     
     if service is None:

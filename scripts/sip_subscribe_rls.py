@@ -125,8 +125,10 @@ class SubscriptionApplication(object):
             raise RuntimeError("unknown account %s. Available accounts: %s" % (self.account_name, ', '.join(account.id for account in account_manager.iter_accounts())))
         elif self.account == BonjourAccount():
             raise RuntimeError("cannot use bonjour account for presence subscription")
-        elif not self.account.presence.enabled:
-            raise RuntimeError("presence is not enabled for account %s" % self.account.id)
+        elif not self.account.presence.enable_subscribe_presence:
+            raise RuntimeError("presence subscriptions are not enabled for account %s" % self.account.id)
+        elif not self.account.presence.enable_rls_services:
+            raise RuntimeError("rls services are not enabled for account %s" % self.account.id)
         for account in account_manager.iter_accounts():
             if account == self.account:
                 account.sip.enable_register = False

@@ -50,10 +50,10 @@ class RTPSettings(SettingsGroup):
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
     use_srtp_without_tls = Setting(type=bool, default=True)
 
-
 class DialogEventSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
-
+    enable_subscribe = Setting(type=bool, default=True)
+    enable_publish = Setting(type=bool, default=False)
+    enable_dialog_rules = Setting(type=bool, default=False)
 
 class NatTraversalSettings(SettingsGroup):
     enable_ice = Setting(type=bool, default=False)
@@ -62,22 +62,28 @@ class NatTraversalSettings(SettingsGroup):
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
     use_msrp_relay_for_outbound = Setting(type=bool, default=False)
 
-
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     voicemail_uri = Setting(type=str, default=None, nillable=True)
 
-
 class ChatSettings(SettingsGroup):
     server=Setting(type=Hostname, default=None, nillable=True)
 
-
-class PresenceSettings(SettingsGroup):
+class XcapSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
-    subscribe_rls_services = Setting(type=bool, default=True)
     subscribe_xcap_diff = Setting(type=bool, default=True)
+    icon = Setting(type=bool, default=True)
 
+class PresenceSettings(SettingsGroup):
+    enable_subscribe_presence = Setting(type=bool, default=True)
+    enable_subscribe_winfo = Setting(type=bool, default=True)
+    enable_publish = Setting(type=bool, default=True)
+    enable_pres_rules = Setting(type=bool, default=True)
+    enable_resource_lists = Setting(type=bool, default=True)
+    enable_rls_services = Setting(type=bool, default=True)
+    enable_pres_rules = Setting(type=bool, default=True)
+    enable_resource_lists = Setting(type=bool, default=True)
 
 class SoundsSettings(SettingsGroup):
     audio_inbound = Setting(type=AccountSoundFile, default=AccountSoundFile(AccountSoundFile.DefaultSoundFile('sounds.audio_inbound')), nillable=True)
@@ -125,6 +131,7 @@ class Account(SettingsObject):
     message_summary = MessageSummarySettings
     chat = ChatSettings
     presence = PresenceSettings
+    xcap = XcapSettings
     sounds = SoundsSettings
     tls = TLSSettings
 

@@ -288,8 +288,8 @@ def read_queue(account):
     global user_quit, lock, queue, xcap_client
     lock.acquire()
     try:
-        xcap_client = XCAPClient(account.presence.xcap_root, account.id, password=account.password, auth=None)
-        print 'Retrieving current presence rules from %s' % account.presence.xcap_root
+        xcap_client = XCAPClient(account.xcap.xcap_root, account.id, password=account.password, auth=None)
+        print 'Retrieving current presence rules from %s' % account.xcap.xcap_root
         get_prules()
         if show_xml and prules is not None:
             print "Presence rules document:"
@@ -370,9 +370,11 @@ def do_xcap_pres_rules(account_name):
         raise RuntimeError("account %s is not enabled" % account.id)
     elif account == BonjourAccount():
         raise RuntimeError("cannot use bonjour account for XCAP pres-rules management")
-    elif not account.presence.enabled:
-        raise RuntimeError("presence is not enabled for account %s" % account.id)
-    elif account.presence.xcap_root is None:
+    elif not account.presence.enable_pres_rules:
+        raise RuntimeError("presence rules are not enabled for account %s" % account.id)
+    elif not account.xcap.enabled:
+        raise RuntimeError("XCAP root is not enabled for account %s" % account.id)
+    elif account.xcap.xcap_root is None:
         raise RuntimeError("XCAP root is not defined for account %s" % account.id)
 
     start_new_thread(read_queue,(account,))

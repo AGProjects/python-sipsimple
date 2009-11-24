@@ -493,8 +493,8 @@ class PublicationApplication(object):
             raise RuntimeError("unknown account %s. Available enabled accounts: %s" % (self.account_name, ', '.join(sorted(account.id for account in account_manager.iter_accounts() if account.enabled))))
         elif self.account == BonjourAccount():
             raise RuntimeError("cannot use bonjour account to publish presence information")
-        elif not self.account.presence.enabled:
-            raise RuntimeError("presence is not enabled for account %s" % self.account.id)
+        elif not self.account.presence.enable_publish:
+            raise RuntimeError("publish presence is not enabled for account %s" % self.account.id)
         for account in account_manager.iter_accounts():
             if account == self.account:
                 account.sip.enable_register = False

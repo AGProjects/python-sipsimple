@@ -133,8 +133,13 @@ class SubscriptionApplication(object):
             raise RuntimeError("account %s is not enabled" % self.account.id)
         elif self.account == BonjourAccount():
             raise RuntimeError("cannot use bonjour account for presence subscription")
-        elif not self.account.presence.enabled:
-            raise RuntimeError("presence is not enabled for account %s" % self.account.id)
+        elif not self.account.xcap.subscribe_xcap_diff:
+            raise RuntimeError("subscribe to xcap-diff is not enabled for account %s" % self.account.id)
+        elif not self.account.xcap.enabled:
+            raise RuntimeError("XCAP root is not enabled for account %s" % self.account.id)
+        elif self.account.xcap.xcap_root is None:
+            raise RuntimeError("XCAP root is not defined for account %s" % self.account.id)
+            
         for account in account_manager.iter_accounts():
             if account == self.account:
                 account.sip.enable_register = False
