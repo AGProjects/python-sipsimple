@@ -1,0 +1,35 @@
+<xs:schema targetNamespace="urn:oma:xml:xdm:xcap-directory"
+    xmlns="urn:oma:xml:xdm:xcap-directory"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    elementFormDefault="qualified" attributeFormDefault="unqualified">
+    
+    <xs:import namespace="http://www.w3.org/XML/1998/namespace"
+               schemaLocation="http://www.w3.org/2001/xml.xsd"/>
+ 
+<xs:element name="xcap-directory">
+   <xs:complexType>
+     <xs:sequence minOccurs="0" maxOccurs="unbounded">
+       <xs:element name="folder">
+          <xs:complexType>
+            <xs:choice>
+             <xs:sequence minOccurs="0" maxOccurs="unbounded">
+               <xs:element name="entry">
+                 <xs:complexType>
+                   <xs:attribute name="uri" type="xs:anyURI" use="required"/>
+                   <xs:attribute name="etag" type="xs:string" use="required"/>
+                   <xs:attribute name="last-modified" type="xs:dateTime"/>
+                   <xs:attribute name="size" type="xs:nonNegativeInteger"/>
+                   <xs:anyAttribute processContents="lax"/>
+                  </xs:complexType>  
+                 </xs:element>
+               </xs:sequence>   
+               <xs:element name="error-code" type="xs:string"/>
+              </xs:choice>
+              <xs:attribute name="auid" type="xs:string" use="required"/>
+             </xs:complexType>
+            </xs:element>   
+          </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>
+
