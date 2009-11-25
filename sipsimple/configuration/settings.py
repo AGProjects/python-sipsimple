@@ -12,8 +12,8 @@ import os
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger
-from sipsimple.configuration.datatypes import AudioCodecs, AudioInputDevice, AudioOutputDevice, SampleRate
-from sipsimple.configuration.datatypes import LocalIPAddress, MSRPTransport, Port, PortRange, TLSProtocol, Transports
+from sipsimple.configuration.datatypes import AudioCodecList, AudioInputDevice, AudioOutputDevice, SampleRate
+from sipsimple.configuration.datatypes import LocalIPAddress, MSRPTransport, Port, PortRange, SIPTransportList, TLSProtocol
 from sipsimple.configuration.datatypes import ImageDepth, Resolution
 from sipsimple.configuration.datatypes import Path, SoundFile, UserDataPath
 
@@ -65,7 +65,7 @@ class RTPSettings(SettingsGroup):
     ip_address = Setting(type=LocalIPAddress, default=LocalIPAddress())
     port_range = Setting(type=PortRange, default=PortRange(50000, 50400))
     timeout = Setting(type=NonNegativeInteger, default=30)
-    audio_codecs = Setting(type=AudioCodecs, default=('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM'))
+    audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM')))
 
 
 class SIPSettings(SettingsGroup):
@@ -73,13 +73,14 @@ class SIPSettings(SettingsGroup):
     udp_port = Setting(type=Port, default=0)
     tcp_port = Setting(type=Port, default=0)
     tls_port = Setting(type=Port, default=0)
-    transports = Setting(type=Transports, default=('tls', 'tcp', 'udp'))
+    transport_list = Setting(type=SIPTransportList, default=SIPTransportList(('tls', 'tcp', 'udp')))
 
 
 class TLSSettings(SettingsGroup):
     ca_list = Setting(type=UserDataPath, default=None, nillable=True)
     protocol = Setting(type=TLSProtocol, default='TLSv1')
     timeout = Setting(type=NonNegativeInteger, default=1000)
+
 
 class SoundsSettings(SettingsGroup):
     audio_inbound = Setting(type=SoundFile, default=None, nillable=True)
@@ -90,11 +91,11 @@ class SoundsSettings(SettingsGroup):
     file_sent = Setting(type=SoundFile, default=None, nillable=True)
     answering_machine = Setting(type=SoundFile, default=None, nillable=True)
 
+
 class SIPSimpleSettings(SettingsObject):
-    __section__ = 'Global'
-    __id__ = 'SIPSimple'
-    
-    user_data_directory = Setting(type=Path, default=os.path.expanduser('~/.sipclient'))
+    __id__ = 'SIPSimpleSettings'
+
+    user_data_directory = Setting(type=Path, default=Path(os.path.expanduser('~/.sipclient')))
     resources_directory = Setting(type=Path, default=None, nillable=True)
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)

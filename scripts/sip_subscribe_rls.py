@@ -27,7 +27,8 @@ from sipsimple.core import ContactHeader, FromHeader, Header, RouteHeader, SIPCo
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
-from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration import ConfigurationError, ConfigurationManager
+from sipsimple.configuration.backend.file import FileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.util import Route
 
@@ -110,7 +111,10 @@ class SubscriptionApplication(object):
         self.output.start()
     
         # startup configuration
-        configuration.start()
+        try:
+            configuration.start(FileBackend(os.path.expanduser('~/.sipclient/config')))
+        except ConfigurationError, e:
+            raise RuntimeError("failed to load sipclient's configuration: %s\nIf an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script." % str(e))
         account_manager.start()
         if self.account_name is None:
             self.account = account_manager.default_account
@@ -145,9 +149,9 @@ class SubscriptionApplication(object):
             auto_sound=False,
             events={'presence': ['multipart/related', 'application/rlmi+xml', 'application/pidf+xml']},
             ip_address=settings.sip.ip_address.normalized,
-            udp_port=settings.sip.udp_port if "udp" in settings.sip.transports else None,
-            tcp_port=settings.sip.tcp_port if "tcp" in settings.sip.transports else None,
-            tls_port=settings.sip.tls_port if "tls" in settings.sip.transports else None,
+            udp_port=settings.sip.udp_port if "udp" in settings.sip.transport_list else None,
+            tcp_port=settings.sip.tcp_port if "tcp" in settings.sip.transport_list else None,
+            tls_port=settings.sip.tls_port if "tls" in settings.sip.transport_list else None,
             tls_protocol=settings.tls.protocol,
             tls_verify_server=self.account.tls.verify_server,
             tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list is not None else None,
@@ -339,7 +343,7 @@ class SubscriptionApplication(object):
             uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
         else:
             uri = self.target.uri
-        lookup.lookup_sip_proxy(uri, settings.sip.transports)
+        lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
 
 
 if __name__ == "__main__":

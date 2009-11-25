@@ -13,8 +13,9 @@ from collections import deque
 from optparse import OptionParser
 
 from sipsimple.account import Account, BonjourAccount, AccountManager
-from sipsimple.configuration import Setting, SettingsGroupMeta, ConfigurationManager, DefaultValue
-from sipsimple.configuration.backend.configfile import ConfigFileBackend
+from sipsimple.configuration import ConfigurationError, ConfigurationManager, DefaultValue, Setting, SettingsGroupMeta
+from sipsimple.configuration.backend.file import FileBackend
+from sipsimple.configuration.datatypes import List
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 
@@ -66,7 +67,7 @@ class SettingsParser(object):
 
     @classmethod
     def parse_default(cls, type, value):
-        if issubclass(type, (tuple, list)):
+        if issubclass(type, List):
             values = re.split(r'\s*,\s*', value)
             return values
         elif issubclass(type, bool):
@@ -85,17 +86,20 @@ class SettingsParser(object):
 
     @classmethod
     def parse_MSRPRelayAddress(cls, type, value):
-        match = re.match(r'^(?P<host>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*))(:(?P<port>\d+))?(;transport=(?P<transport>[a-z]+))?$', value)
-        if match is None:
-            raise ValueError("illegal value for address: %s" % value)
-        match_dict = match.groupdict()
-        if match_dict['port'] is None:
-            del match_dict['port']
-        if match_dict['transport'] is None:
-            del match_dict['transport']
-        return type(**match_dict)
+        return type.from_description(value)
 
-    parse_SIPProxy = parse_MSRPRelayAddress
+    @classmethod
+    def parse_SIPProxyAddress(cls, type, value):
+        return type.from_description(value)
+
+    @classmethod
+    def parse_STUNServerAddress(cls, type, value):
+        return type.from_description(value)
+
+    @classmethod
+    def parse_STUNServerAddressList(cls, type, value):
+        values = re.split(r'\s*,\s*', value)
+        return [STUNServerAddress.from_description(v) for v in values]
 
     @classmethod
     def parse_PortRange(cls, type, value):
@@ -134,10 +138,7 @@ class SettingsParser(object):
 class AccountConfigurator(object):
     def __init__(self, config_file):
         self.configuration_manager = ConfigurationManager()
-        if config_file is not None:
-            self.configuration_manager.start(ConfigFileBackend(os.path.realpath(config_file)))
-        else:
-            self.configuration_manager.start()
+        self.configuration_manager.start(FileBackend(os.path.realpath(config_file or os.path.expanduser('~/.sipclient/config'))))
         self.account_manager = AccountManager()
         self.account_manager.start()
 
@@ -272,10 +273,7 @@ class AccountConfigurator(object):
 class SIPSimpleConfigurator(object):
     def __init__(self, config_file):
         self.configuration_manager = ConfigurationManager()
-        if config_file is not None:
-            self.configuration_manager.start(ConfigFileBackend(os.path.realpath(config_file)))
-        else:
-            self.configuration_manager.start()
+        self.configuration_manager.start(FileBackend(os.path.realpath(config_file or os.path.expanduser('~/.sipclient/config'))))
 
     def show(self):
         print 'SIP SIMPLE settings:'
@@ -343,22 +341,27 @@ if __name__ == '__main__':
         sys.exit(1)
 
     # execute the handlers
-    if options.account:
-        object = AccountConfigurator(options.config_file)
-    else:
-        object = SIPSimpleConfigurator(options.config_file)
-    command, args = args[0], args[1:]
-    handler = getattr(object, command, None)
-    if handler is None or not callable(handler):
-        sys.stderr.write("Error: illegal command: %s\n" % command)
-        parser.print_usage()
-        sys.exit(1)
-    
     try:
-        handler(*args)
-    except TypeError:
-        sys.stderr.write("Error: illegal usage of command %s\n" % command)
-        parser.print_usage()
-        sys.exit(1)
+        if options.account:
+            object = AccountConfigurator(options.config_file)
+        else:
+            object = SIPSimpleConfigurator(options.config_file)
+    except ConfigurationError, e:
+        sys.stderr.write("Failed to load sipclient's configuration: %s\n" % str(e))
+        sys.stderr.write("If an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script.\n")
+    else:
+        command, args = args[0], args[1:]
+        handler = getattr(object, command, None)
+        if handler is None or not callable(handler):
+            sys.stderr.write("Error: illegal command: %s\n" % command)
+            parser.print_usage()
+            sys.exit(1)
+
+        try:
+            handler(*args)
+        except TypeError:
+            sys.stderr.write("Error: illegal usage of command %s\n" % command)
+            parser.print_usage()
+            sys.exit(1)
 
 

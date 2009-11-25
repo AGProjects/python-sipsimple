@@ -135,9 +135,9 @@ class AudioStream(object):
             self.state = "INITIALIZING"
             self._session = session
             if self.account.nat_traversal.enable_ice:
-                if self.account.nat_traversal.stun_servers:
+                if self.account.nat_traversal.stun_server_list:
                     # Assume these are IP addresses
-                    stun_servers = list(self.account.nat_traversal.stun_servers)
+                    stun_servers = list((server.host, server.port) for server in self.account.nat_traversal.stun_server_list)
                     self._init_rtp_transport(stun_servers)
                 elif not isinstance(self.account, BonjourAccount):
                     dns_lookup = DNSLookup()
@@ -211,15 +211,15 @@ class AudioStream(object):
                     try:
                         audio_transport = AudioTransport(self.conference_bridge, rtp_transport,
                                                          self._incoming_remote_sdp, self._incoming_stream_index,
-                                                         codecs=(list(self.account.rtp.audio_codecs)
-                                                                 if self.account.rtp.audio_codecs else list(settings.rtp.audio_codecs)))
+                                                         codecs=(list(self.account.rtp.audio_codec_list)
+                                                                 if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
                     finally:
                         del self._incoming_remote_sdp
                         del self._incoming_stream_index
                 else:
                     audio_transport = AudioTransport(self.conference_bridge, rtp_transport,
-                                                     codecs=(list(self.account.rtp.audio_codecs) 
-                                                             if self.account.rtp.audio_codecs else list(settings.rtp.audio_codecs)))
+                                                     codecs=(list(self.account.rtp.audio_codec_list) 
+                                                             if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
             except SIPCoreError, e:
                 self.state = "ENDED"
                 self.notification_center.post_notification("MediaStreamDidFail", self,

@@ -22,7 +22,8 @@ from sipsimple.engine import Engine
 from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.api import SIPApplication
 from sipsimple.clients.log import Logger
-from sipsimple.configuration.backend.configfile import ConfigFileBackend
+from sipsimple.configuration import ConfigurationError
+from sipsimple.configuration.backend.file import FileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 
 
@@ -97,13 +98,14 @@ class RegistrationApplication(SIPApplication):
 
         log.level.current = log.level.WARNING # get rid of twisted messages
 
-        if options.config_file:
-            config_file = os.path.realpath(options.configfile)
-            self.output.put("Using configuration file '%s'\n" % config_file)
-            SIPApplication.start(self, ConfigFileBackend(config_file))
-        else:
-            self.output.put("Using default configuration file\n")
-            SIPApplication.start(self)
+        config_file = os.path.realpath(options.config_file or os.path.expanduser('~/.sipclient/config'))
+        self.output.put("Using configuration file '%s'\n" % config_file)
+        try:
+            SIPApplication.start(self, FileBackend(config_file))
+        except ConfigurationError, e:
+            self.output.put("Failed to load sipclient's configuration: %s\n" % str(e))
+            self.output.put("If an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script.\n")
+            self.output.stop()
 
     def print_help(self):
         message  = 'Available control keys:\n'

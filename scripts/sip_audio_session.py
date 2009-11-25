@@ -28,7 +28,8 @@ from sipsimple.engine import Engine
 from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.api import SIPApplication
 from sipsimple.streams import AudioStream
-from sipsimple.configuration.backend.configfile import ConfigFileBackend
+from sipsimple.configuration import ConfigurationError
+from sipsimple.configuration.backend.file import FileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.session import Session
@@ -190,10 +191,12 @@ class SIPAudioApplication(SIPApplication):
 
         log.level.current = log.level.WARNING # get rid of twisted messages
 
-        if options.config_file:
-            SIPApplication.start(self, ConfigFileBackend(options.config_file))
-        else:
-            SIPApplication.start(self)
+        try:
+            SIPApplication.start(self, FileBackend(options.config_file or os.path.expanduser('~/.sipclient/config')))
+        except ConfigurationError, e:
+            self.output.put("Failed to load sipclient's configuration: %s\n" % str(e))
+            self.output.put("If an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script.\n")
+            self.output.stop()
 
     def print_help(self):
         message  = 'Available control keys:\n'
@@ -277,7 +280,7 @@ class SIPAudioApplication(SIPApplication):
 
         if isinstance(self.account, BonjourAccount) and self.target is None:
             contacts = []
-            for transport in settings.sip.transports:
+            for transport in settings.sip.transport_list:
                 contacts.append(self.account.contact[transport])
             for contact in contacts:
                 self.output.put('Listening on: sip:%s@%s:%d;transport=%s\n' % (contact.user, contact.host, contact.port, contact.parameters['transport'] if 'transport' in contact.parameters else 'udp'))
@@ -314,7 +317,7 @@ class SIPAudioApplication(SIPApplication):
                     uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
                 else:
                     uri = self.target
-                lookup.lookup_sip_proxy(uri, settings.sip.transports)
+                lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
 
     def _NH_SIPApplicationDidEnd(self, notification):
         if self.input:

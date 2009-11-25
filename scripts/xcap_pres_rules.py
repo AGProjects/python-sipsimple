@@ -21,7 +21,8 @@ from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.applications import ParserError
 from sipsimple.applications.policy import Actions, Conditions, Identity, IdentityOne, Rule, Transformations
 from sipsimple.applications.presrules import AllDevices, AllPersons, AllServices, PresRules, ProvideAllAttributes, ProvideDevices, ProvidePersons, ProvideServices, SubHandling
-from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration import ConfigurationError, ConfigurationManager
+from sipsimple.configuration.backend.file import FileBackend
 
 from xcaplib import logsocket
 from xcaplib.client import XCAPClient
@@ -350,8 +351,11 @@ def read_queue(account):
 def do_xcap_pres_rules(account_name):
     global user_quit, lock, queue, string, getstr_event, old
     ctrl_d_pressed = False
-    
-    ConfigurationManager().start()
+
+    try:
+        ConfigurationManager().start(FileBackend(os.path.expanduser('~/.sipclient/config')))
+    except ConfigurationError, e:
+        raise RuntimeError("failed to load sipclient's configuration: %s\nIf an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script." % str(e))
     account_manager = AccountManager()
     account_manager.start()
 

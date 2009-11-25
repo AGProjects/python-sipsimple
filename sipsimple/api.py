@@ -46,7 +46,7 @@ class SIPApplication(object):
 
     engine = Engine()
 
-    def start(self, config_backend=None):
+    def start(self, config_backend):
         if self.state is not None:
             raise RuntimeError("SIPApplication cannot be started from '%s' state" % self.state)
         self.state = 'starting'
@@ -76,9 +76,9 @@ class SIPApplication(object):
                        user_agent=settings.user_agent,
                        # SIP
                        ignore_missing_ack=False,
-                       udp_port=settings.sip.udp_port if 'udp' in settings.sip.transports else None,
-                       tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transports else None,
-                       tls_port=settings.sip.tls_port if 'tls' in settings.sip.transports else None,
+                       udp_port=settings.sip.udp_port if 'udp' in settings.sip.transport_list else None,
+                       tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transport_list else None,
+                       tls_port=settings.sip.tls_port if 'tls' in settings.sip.transport_list else None,
                        # TLS
                        tls_protocol=settings.tls.protocol,
                        tls_verify_server=account.tls.verify_server if account else False,
@@ -89,7 +89,7 @@ class SIPApplication(object):
                        # rtp
                        rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
                        # audio
-                       codecs=list(settings.rtp.audio_codecs),
+                       codecs=list(settings.rtp.audio_codec_list),
                        # logging
                        log_level=settings.logs.pjsip_level,
                        trace_sip=True,
@@ -120,7 +120,7 @@ class SIPApplication(object):
         self.alert_conference_bridge = ConferenceBridge(None, alert_device, settings.audio.sample_rate, 0)
         if settings.audio.silent:
             self.alert_conference_bridge.output_volume = 0
-        
+
         Thread(name='Reactor Thread', target=self._run_reactor).start()
 
     def _run_reactor(self):
@@ -259,8 +259,8 @@ class SIPApplication(object):
                     notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
             if 'rtp.port_range' in notification.data.modified:
                 engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
-            if 'rtp.audio_codecs' in notification.data.modified:
-                engine.codecs = list(settings.rtp.audio_codecs)
+            if 'rtp.audio_codec_list' in notification.data.modified:
+                engine.codecs = list(settings.rtp.audio_codec_list)
             if 'logs.pjsip_level' in notification.data.modified:
                 engine.log_level = settings.logs.pjsip_level
         elif notification.sender is account_manager.default_account:

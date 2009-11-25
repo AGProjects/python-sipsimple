@@ -5,23 +5,21 @@
 Generic configuration management.
 """
 
-import cPickle
+from weakref import WeakKeyDictionary
 
 from application.notification import NotificationCenter
 from application.python.util import Singleton
 
 from sipsimple.util import TimestampedNotificationData
 
-__all__ = ['ConfigurationError', 'DuplicateSectionError', 'UnknownSectionError', 'UnknownNameError',
-           'ConfigurationManager', 'DefaultValue', 'SettingsObjectID', 'Setting', 'SettingsGroup', 'SettingsObject']
+__all__ = ['ConfigurationError', 'ObjectNotFoundError', 'ConfigurationManager', 'DefaultValue',
+           'SettingsObjectID', 'Setting', 'SettingsGroup', 'SettingsObject', 'SettingsObjectExtension']
 
 
 ## Exceptions
 
 class ConfigurationError(Exception): pass
-class DuplicateSectionError(ConfigurationError): pass
-class UnknownSectionError(ConfigurationError): pass
-class UnknownNameError(ConfigurationError): pass
+class ObjectNotFoundError(ConfigurationError): pass
 
 
 ## ConfigurationManager
@@ -36,66 +34,81 @@ class ConfigurationManager(object):
 
     def __init__(self):
         self.backend = None
+        self.data = None
 
-    def start(self, backend=None):
+    def start(self, backend):
         """
         Initialize the ConfigurationManager to use the specified backend. This
         method can only be called once, with an object which provides IBackend.
         The other methods of the object cannot be used unless this method was
         called.
         """
-        from sipsimple.configuration.backend import IBackend
+        from sipsimple.configuration.backend import IConfigurationBackend
         if self.backend is not None:
             raise RuntimeError("ConfigurationManager already started")
-        if backend is None:
-            from sipsimple.configuration.backend.configfile import ConfigFileBackend
-            backend = ConfigFileBackend()
-        elif not IBackend.providedBy(backend):
-            raise TypeError("backend must implement the IBackend interface")
+        if not IConfigurationBackend.providedBy(backend):
+            raise TypeError("backend must implement the IConfigurationBackend interface")
         self.backend = backend
+        self.data = self.backend.load()
 
-    def set(self, section, name, object):
+    def update(self, group, name, data):
         """
-        Save the object with an associated name in the specified section.
+        Save the object with an associated name in the specified group.
         Cannot be called before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
-        data = cPickle.dumps(object)
-        try:
-            self.backend.set(section, name, data)
-        except UnknownSectionError:
-            self.backend.add_section(section)
-            self.backend.set(section, name, data)
+        if group is not None:
+            self._update_dict(self.data.setdefault(group, {}).setdefault(name, {}), data)
+        else:
+            self._update_dict(self.data.setdefault(name, {}), data)
 
-    def delete(self, section, name):
+    def delete(self, group, name):
         """
-        Delete an object identified by a name in the specified section. Cannot
-        be called before start().
+        Delete an object identified by a name in the specified group. Cannot be
+        called before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
-        self.backend.delete(section, name)
+        try:
+            if group is not None:
+                group_data = self.data[group]
+                del group_data[name]
+                if not group_data:
+                    del self.data[group]
+            else:
+                del self.data[name]
+        except KeyError:
+            pass
 
-    def get(self, section, name):
+    def get(self, group, name):
         """
-        Get an object identified by a name in the specified section. Raises
-        UnknownNameError if such an object does not exist. Cannot be called
+        Get an object identified by a name in the specified group. Raises
+        ObjectNotFoundError if such an object does not exist. Cannot be called
         before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
-        data = self.backend.get(section, name)
-        return cPickle.loads(data)
+        try:
+            if group is not None:
+                return self.data[group][name]
+            else:
+                return self.data[name]
+        except KeyError:
+            object_name = "%s in %s" % (name, group) if (group is not None) else name
+            raise ObjectNotFoundError("object %s does not exist" % object_name)
 
-    def get_names(self, section):
+    def get_names(self, group):
         """
-        Get all the names from  the specified section.
-        Returns a list containing the names. Cannot be called before start().
+        Get all the names from  the specified group. Returns a list containing
+        the names. Cannot be called before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
-        return self.backend.get_names(section)
+        try:
+            return self.data[group].keys()
+        except:
+            return []
 
 
     def save(self):
@@ -104,7 +117,20 @@ class ConfigurationManager(object):
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
-        self.backend.save()
+        self.backend.save(self.data)
+
+    def _update_dict(self, old_data, new_data):
+        for key, value in new_data.iteritems():
+            if value is DefaultValue:
+                old_data.pop(key, None)
+            elif type(value) is dict:
+                if key in old_data and type(old_data[key]) is not dict:
+                    del old_data[key]
+                self._update_dict(old_data.setdefault(key, {}), value)
+                if not old_data[key]:
+                    del old_data[key]
+            else:
+                old_data[key] = value
 
 
 ## Descriptors and base classes used for represeting configuration settings
@@ -139,22 +165,22 @@ class SettingsObjectID(object):
     """
     def __init__(self, type):
         self.type = type
-        self.objects = {}
+        self.objects = WeakKeyDictionary()
 
     def __get__(self, obj, objtype):
         if obj is None:
             return self
         try:
-            return self.objects[id(obj)]
+            return self.objects[obj]
         except KeyError:
             raise AttributeError("SettingsObject ID has not been defined")
 
     def __set__(self, obj, value):
-        if self.objects.get(id(obj), value) != value:
+        if self.objects.get(obj, value) != value:
             raise AttributeError("SettingsObject ID cannot be overwritten")
         if not isinstance(value, self.type):
             value = self.type(value)
-        self.objects[id(obj)] = value
+        self.objects[obj] = value
 
 
 class Setting(object):
@@ -171,77 +197,70 @@ class Setting(object):
         self.type = type
         self.default = default
         self.nillable = nillable
-        self.objects = {}
-        self.oldobjects = {}
-        self.dirty = {}
+        self.values = WeakKeyDictionary()
+        self.oldvalues = WeakKeyDictionary()
+        self.dirty = WeakKeyDictionary()
 
     def __get__(self, obj, objtype):
         if obj is None:
             return self
-        return self.objects.get(id(obj), self.default)
+        return self.values.get(obj, self.default)
 
     def __set__(self, obj, value):
         if value is None and not self.nillable:
             raise ValueError("Setting attribute is not nillable")
+        if value is DefaultValue:
+            self.values.pop(obj, None)
+            return
 
-        # DefaultValue is equivalent to passing the defined default value
-        value = self.default if value is DefaultValue else value
         if value is not None and not isinstance(value, self.type):
             value = self.type(value)
         # check whether the old value is the same as the new value
-        if self.objects.get(id(obj), self.default) == value:
+        if obj in self.values and self.values[obj] == value:
             return
 
-        if value == self.default:
-            self.objects.pop(id(obj), None)
-        else:
-            self.objects[id(obj)] = value
-        self.dirty[id(obj)] = True
-
-    def remove(self, obj):
-        """
-        Removes references to values for the specified configuration object.
-        """
-        self.objects.pop(id(obj), None)
-        self.dirty.pop(id(obj), None)
+        self.values[obj] = value
+        self.dirty[obj] = True
 
     def isset(self, obj):
         """
         Returns True if the setting is set to a different value than the
         default on the specified configuration object.
         """
-        return id(obj) in self.objects
+        return obj in self.values
 
     def isdirty(self, obj):
         """
         Returns True if the setting was changed on the specified configuration
         object.
         """
-        return self.dirty.get(id(obj), False)
+        return self.dirty.get(obj, False)
 
     def clear_dirty(self, obj):
         """
         Clears the dirty flag for this setting on the specified configuration
         object.
         """
-        self.dirty.pop(id(obj), None)
+        self.dirty.pop(obj, None)
         try:
-            self.oldobjects[id(obj)] = self.objects[id(obj)]
+            self.oldvalues[obj] = self.values[obj]
         except KeyError:
             pass
 
     def get_old(self, obj):
-        return self.oldobjects.get(id(obj), self.default)
+        return self.oldvalues.get(obj, self.default)
 
     def undo(self, obj):
-        self.dirty.pop(id(obj), None)
-        self.objects[id(obj)] = self.oldobjects.setdefault(id(obj), self.default)
+        self.dirty.pop(obj, None)
+        if obj in self.oldvalues:
+            self.values[obj] = self.oldvalues[obj]
+        else:
+            self.values.pop(obj, None)
 
 
 class SettingsState(object):
     """
-    This class represents configuration objects which can be pickled and can access
-    the dirty state of contained settings.
+    This class represents configuration objects which can be saved and restored.
     """
 
     def get_modified(self):
@@ -291,31 +310,61 @@ class SettingsState(object):
         for name in dir(self.__class__):
             attribute = getattr(self.__class__, name, None)
             if isinstance(attribute, SettingsGroupMeta):
-                state[name] = getattr(self, name)
+                state[name] = getattr(self, name).__getstate__()
             elif isinstance(attribute, Setting):
                 if attribute.isset(self):
-                    state[name] = getattr(self, name)
-        if not state:
-            state['__dummy__'] = None
+                    value = getattr(self, name)
+                    if value is None:
+                        pass
+                    elif issubclass(attribute.type, bool):
+                        value = u'true' if value else u'false'
+                    elif issubclass(attribute.type, (int, long, basestring)):
+                        value = unicode(value)
+                    else:
+                        try:
+                            value = value.__getstate__()
+                        except AttributeError:
+                            raise TypeError("Setting type %s does not provide __getstate__" % value.__class__.__name__)
+                    state[name] = value
+                else:
+                    state[name] = DefaultValue
         return state
 
     def __setstate__(self, state):
-        state.pop('__dummy__', None)
         for name, value in state.iteritems():
             attribute = getattr(self.__class__, name, None)
-            if isinstance(attribute, (SettingsGroupMeta, Setting)):
+            if isinstance(attribute, SettingsGroupMeta):
+                group = getattr(self, name)
                 try:
+                    group.__setstate__(value)
+                except ValueError, e:
+                    configuration_manager = ConfigurationManager()
+                    notification_center = NotificationCenter()
+                    notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
+            elif isinstance(attribute, Setting):
+                try:
+                    if value is None:
+                        pass
+                    elif issubclass(attribute.type, bool):
+                        if value.lower() in ('true', 'yes', 'on', '1'):
+                            value = True
+                        elif value.lower() in ('false', 'no', 'off', '0'):
+                            value = False
+                        else:
+                            raise ValueError("invalid boolean value: %s" % (value,))
+                    elif issubclass(attribute.type, (int, long, basestring)):
+                        value = attribute.type(value)
+                    else:
+                        object = attribute.type.__new__(attribute.type)
+                        object.__setstate__(value)
+                        value = object
                     setattr(self, name, value)
-                except Exception:
-                    pass #FIXME: add log message saying that stored value could not be used. -Luci
-            if isinstance(attribute, Setting):
-                attribute.clear_dirty(self)
-
-    def __del__(self):
-        for name in dir(self.__class__):
-            attribute = getattr(self.__class__, name, None)
-            if isinstance(attribute, (Setting, SettingsGroupMeta)):
-                attribute.remove(self)
+                except ValueError, e:
+                    configuration_manager = ConfigurationManager()
+                    notification_center = NotificationCenter()
+                    notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
+                else:
+                    attribute.clear_dirty(self)
 
 
 class SettingsGroupMeta(type):
@@ -324,23 +373,18 @@ class SettingsGroupMeta(type):
     as descriptor instances.
     """
     def __init__(cls, name, bases, dct):
-        cls.objects = {}
+        cls.values = WeakKeyDictionary()
 
     def __get__(cls, obj, objtype):
         if obj is None:
             return cls
-        attribute = cls.objects.get(id(obj), None)
-        if attribute is None:
-            attribute = cls.objects.setdefault(id(obj), cls())
-        return attribute
+        try:
+            return cls.values[obj]
+        except KeyError:
+            return cls.values.setdefault(obj, cls())
 
     def __set__(cls, obj, value):
-        if not isinstance(value, cls):
-            raise TypeError("illegal type for SettingsGroup attribute")
-        cls.objects[id(obj)] = value
-
-    def remove(self, obj):
-        self.objects.pop(id(obj), None)
+        raise AttributeError("cannot overwrite group of settings")
 
 
 class SettingsGroup(SettingsState):
@@ -381,7 +425,7 @@ class SettingsObject(SettingsState):
 
     __metaclass__ = Singleton
 
-    __section__ = None
+    __group__ = None
     __id__ = None
 
     def __new__(cls, id=None):
@@ -391,30 +435,21 @@ class SettingsObject(SettingsState):
         if not isinstance(id, basestring):
             raise TypeError("id needs to be a string instance")
         configuration = ConfigurationManager()
-        try:
-            instance = configuration.get(cls.__section__, id)
-        except (UnknownSectionError, UnknownNameError):
-            instance = SettingsState.__new__(cls)
-        except (AttributeError, TypeError):
-            instance = SettingsState.__new__(cls)
-            try:
-                configuration.set(instance.__section__, id, instance)
-                configuration.save()
-            except Exception, e:
-                notification_center = NotificationCenter()
-                notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=instance, exception=e))
-        else:
-            if not isinstance(instance, cls):
-                # TODO: Should send a notification that this object could not be retrieved
-                instance = SettingsState.__new__(cls)
+        instance = SettingsState.__new__(cls)
         instance.__id__ = id
+        try:
+            data = configuration.get(cls.__group__, id)
+        except ObjectNotFoundError:
+            pass
+        else:
+            instance.__setstate__(data)
         return instance
 
     def save(self):
         """
-        If the __section__ class attribute is assigned a value different from
-        None, the save method will use the ConfigurationManager to store the
-        object under its id in the specified section.
+        Use the ConfigurationManager to store the object under its id in the
+        specified group or top-level otherwise, depending on whether group is
+        None.
 
         This method will also post a CFGSettingsObjectDidChange notification,
         regardless of whether the settings have been saved to persistent storage
@@ -429,10 +464,11 @@ class SettingsObject(SettingsState):
         notification_center = NotificationCenter()
         
         try:
-            if self.__section__ is not None:
-                configuration.set(self.__section__, self.__id__, self)
-                configuration.save()
+            configuration.update(self.__group__, self.__id__, self.__getstate__())
+            configuration.save()
         except Exception, e:
+            import traceback
+            traceback.print_exc()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, modified=modified_settings, exception=e))
         finally:
             notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
@@ -440,10 +476,8 @@ class SettingsObject(SettingsState):
 
     def delete(self):
         """
-        Remove this object from the persistent configuration. If the __section__
-        attribute is None, only removes this object from Singleton's registry.
-        See the documentation in the save method for information on how the
-        object is stored.
+        Remove this object from the persistent configuration. This also removes
+        the object from Singleton's registry.
         """
         if self.__id__ is self.__class__.__id__:
             raise TypeError("cannot delete %s instance with default id" % self.__class__.__name__)
@@ -453,21 +487,38 @@ class SettingsObject(SettingsState):
             pass
         else:
             del self.__class__._instances[key]
-        if self.__section__ is None:
-            return
         configuration = ConfigurationManager()
-        try:
-            configuration.delete(self.__section__, self.__id__)
-        except UnknownSectionError:
-            pass
-        else:
-            configuration.save()
-    
-    
+        configuration.delete(self.__group__, self.__id__)
+        configuration.save()
+
+
     def clone(self, new_id):
         """
         Create a copy of this object and all its sub settings.
         """
         raise NotImplementedError
+
+    @classmethod
+    def register_extension(cls, extension):
+        """
+        Register an extension of this SettingsObject. All Settings and
+        SettingsGroups defined in the extension will be added to this
+        SettingsObject, overwriting any attributes with the same name. Other
+        attriutes in the extension are ignored.
+        """
+        if not issubclass(extension, SettingsObjectExtension):
+            raise TypeError("expected subclass of SettingsObjectExtension, got %r" % (extension,))
+        for name in dir(extension):
+            attribute = getattr(extension, name, None)
+            if isinstance(attribute, (Setting, SettingsGroupMeta)):
+                setattr(cls, name, attribute)
+
+
+class SettingsObjectExtension(object):
+    """
+    Base class for extensions of SettingsObjects.
+    """
+    def __new__(self, *args, **kwargs):
+        raise TypeError("SettingsObjectExtension subclasses cannot be instantiated")
 
 

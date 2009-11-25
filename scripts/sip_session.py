@@ -26,7 +26,8 @@ from sipsimple.engine import Engine
 from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.api import SIPApplication
 from sipsimple.streams import AudioStream, ChatStream, FileSelector, FileTransferStream
-from sipsimple.configuration.backend.configfile import ConfigFileBackend
+from sipsimple.configuration import ConfigurationError
+from sipsimple.configuration.backend.file import FileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.session import IllegalStateError, Session
@@ -140,7 +141,7 @@ class OutgoingCallInitializer(object):
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
             else:
                 uri = self.target
-            lookup.lookup_sip_proxy(uri, settings.sip.transports)
+            lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
@@ -558,7 +559,7 @@ class OutgoingTransferHandler(object):
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host, port=self.account.sip.outbound_proxy.port, parameters={'transport': self.account.sip.outbound_proxy.transport})
             else:
                 uri = self.target
-            lookup.lookup_sip_proxy(uri, settings.sip.transports)
+            lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
@@ -909,10 +910,13 @@ class SIPSessionApplication(SIPApplication):
                           '?': 'help'}
         ui.start(control_bindings=control_bindings, display_text=False)
 
-        if options.config_file:
-            SIPApplication.start(self, ConfigFileBackend(options.config_file))
-        else:
-            SIPApplication.start(self)
+        try:
+            SIPApplication.start(self, FileBackend(options.config_file or os.path.expanduser('~/.sipclient/config')))
+        except ConfigurationError, e:
+            send_notice("Failed to load sipclient's configuration: %s\n" % str(e), bold=False)
+            send_notice("If an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script.", bold=False)
+            ui.stop()
+            self.stopped_event.set()
 
     # notification handlers
     #
@@ -975,7 +979,7 @@ class SIPSessionApplication(SIPApplication):
 
         if isinstance(self.account, BonjourAccount):
             contacts = []
-            for transport in settings.sip.transports:
+            for transport in settings.sip.transport_list:
                 contacts.append(self.account.contact[transport])
             for contact in contacts:
                 send_notice('Listening on: sip:%s@%s:%d;transport=%s' % (contact.user, contact.host, contact.port, contact.parameters['transport'] if 'transport' in contact.parameters else 'udp'), bold=False)

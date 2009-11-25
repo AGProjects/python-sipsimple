@@ -20,8 +20,8 @@ from zope.interface import implements
 
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI, SIPCoreError
-from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, UnknownSectionError
-from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecs, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxy, SRTPEncryption, STUNServerAddresses, UserDataPath, XCAPRoot
+from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
+from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecList, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, UserDataPath, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.primitives import Registration
@@ -38,7 +38,7 @@ class ContactURI(SIPAddress):
         return SIPAddress.__getitem__(self, transport)
 
 class SIPSettings(SettingsGroup):
-    outbound_proxy = Setting(type=SIPProxy, default=None, nillable=True)
+    outbound_proxy = Setting(type=SIPProxyAddress, default=None, nillable=True)
     enable_register = Setting(type=bool, default=True)
     register_interval = Setting(type=NonNegativeInteger, default=600)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
@@ -46,7 +46,7 @@ class SIPSettings(SettingsGroup):
 
 
 class RTPSettings(SettingsGroup):
-    audio_codecs = Setting(type=AudioCodecs, default=None, nillable=True)
+    audio_codec_list = Setting(type=AudioCodecList, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
     use_srtp_without_tls = Setting(type=bool, default=True)
 
@@ -57,7 +57,7 @@ class DialogEventSettings(SettingsGroup):
 
 class NatTraversalSettings(SettingsGroup):
     enable_ice = Setting(type=bool, default=False)
-    stun_servers = Setting(type=STUNServerAddresses, default=None, nillable=True)
+    stun_server_list = Setting(type=STUNServerAddressList, default=None, nillable=True)
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
     use_msrp_relay_for_outbound = Setting(type=bool, default=False)
@@ -116,7 +116,7 @@ class Account(SettingsObject):
 
     implements(IObserver)
 
-    __section__ = 'Accounts'
+    __group__ = 'Accounts'
 
     id = SettingsObjectID(type=SIPAddress)
     enabled = Setting(type=bool, default=False)
@@ -364,7 +364,7 @@ class Account(SettingsObject):
             uri = SIPURI(host=self.sip.outbound_proxy.host, port=self.sip.outbound_proxy.port, parameters={'transport': self.sip.outbound_proxy.transport})
         else:
             uri = SIPURI(host=self.id.domain)
-        self._lookup.lookup_sip_proxy(uri, settings.sip.transports)
+        self._lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
 
     def _activate(self):
         if self.active:
@@ -424,7 +424,7 @@ class BonjourAccount(SettingsObject):
 
     implements(IObserver)
 
-    __section__ = 'Accounts'
+    __group__ = 'Accounts'
     __id__ = SIPAddress('bonjour@local')
 
     id = property(lambda self: self.__id__)
@@ -571,12 +571,8 @@ class AccountManager(object):
         self.accounts[bonjour_account.id] = bonjour_account
         notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=bonjour_account))
         # and the other accounts
-        try:
-            names = configuration.get_names(Account.__section__)
-        except UnknownSectionError:
-            pass
-        else:
-            [Account(id) for id in names if id != bonjour_account.id]
+        names = configuration.get_names(Account.__group__)
+        [Account(id) for id in names if id != bonjour_account.id]
         self.state = 'started'
         notification_center.post_notification('SIPAccountManagerDidStart', sender=self, data=TimestampedNotificationData())
 
