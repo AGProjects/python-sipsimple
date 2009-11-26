@@ -21,7 +21,6 @@ import mimetypes
 from datetime import datetime
 
 from application.notification import NotificationCenter, NotificationData, IObserver
-from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements, Interface, Attribute
 
