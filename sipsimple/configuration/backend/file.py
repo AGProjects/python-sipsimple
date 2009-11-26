@@ -184,7 +184,7 @@ class FileBackend(object):
         lines = self._build_group(data, 0)
         tmp_filename = os.path.join(os.path.dirname(self.filename), '%s.%d.%08X' % (self.filename, os.getpid(), random.getrandbits(32)))
         try:
-            file = open(tmp_filename, 'wb')
+            file = os.fdopen(os.open(tmp_filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0600), 'wb')
             file.write((os.linesep.join(lines)+os.linesep).encode(self.encoding))
             file.close()
             if platform.system() == 'Windows':
