@@ -210,11 +210,8 @@ class MSRPStreamBase(object):
     def _handle_incoming(self, chunk=None, error=None):
         notification_center = NotificationCenter()
         if error is not None:
-            if isinstance(error.value, ConnectionDone):
-                notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
-            else:
-                ndata = TimestampedNotificationData(context='reading', failure=error, reason=error.getErrorMessage())
-                notification_center.post_notification('MediaStreamDidFail', self, ndata)
+            ndata = TimestampedNotificationData(context='reading', failure=error, reason=error.getErrorMessage())
+            notification_center.post_notification('MediaStreamDidFail', self, ndata)
             return
         method_handler = getattr(self, '_handle_%s' % chunk.method, None)
         if method_handler is not None:
