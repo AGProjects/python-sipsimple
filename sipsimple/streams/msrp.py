@@ -21,6 +21,7 @@ import mimetypes
 from datetime import datetime
 
 from application.notification import NotificationCenter, NotificationData, IObserver
+from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements, Interface, Attribute
 
@@ -209,12 +210,14 @@ class MSRPStreamBase(object):
     def _handle_incoming(self, chunk=None, error=None):
         notification_center = NotificationCenter()
         if error is not None:
+            if self.msrp_session is None and isinstance(error.value, ConnectionDone):
+                return
             ndata = TimestampedNotificationData(context='reading', failure=error, reason=error.getErrorMessage())
             notification_center.post_notification('MediaStreamDidFail', self, ndata)
-            return
-        method_handler = getattr(self, '_handle_%s' % chunk.method, None)
-        if method_handler is not None:
-            method_handler(chunk)
+        elif chunk is not None:
+            method_handler = getattr(self, '_handle_%s' % chunk.method, None)
+            if method_handler is not None:
+                method_handler(chunk)
 
     def _handle_REPORT(self, chunk):
         pass
