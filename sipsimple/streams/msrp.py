@@ -82,6 +82,7 @@ class MSRPStreamBase(object):
         self.cpim_enabled = None ## Boolean value. None means it was not negotiated yet
         self.session = None
         self.msrp_session = None
+        self.shutting_down = False
 
     def _create_local_media(self, uri_path):
         transport = "TCP/TLS/MSRP" if uri_path[-1].use_tls else "TCP/MSRP"
@@ -166,25 +167,28 @@ class MSRPStreamBase(object):
         else:
             notification_center.post_notification('MediaStreamDidStart', self, data=TimestampedNotificationData())
 
-    @run_in_green_thread
     def end(self):
-        if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
-            return
-        msrp, self.msrp = self.msrp, None
-        msrp_session, self.msrp_session = self.msrp_session, None
-        msrp_connector, self.msrp_connector = self.msrp_connector, None
-        notification_center = NotificationCenter()
-        notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
-        try:
-            if msrp_session is not None:
-                msrp_session.shutdown()
-            elif msrp is not None:
-                msrp.loseConnection(wait=False)
-            if msrp_connector is not None:
-                msrp_connector.cleanup()
-        finally:
-            notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
-            NotificationCenter().remove_observer(self, sender=self)
+        @run_in_green_thread
+        def shutdown_stream(self):
+            if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
+                return
+            msrp, self.msrp = self.msrp, None
+            msrp_session, self.msrp_session = self.msrp_session, None
+            msrp_connector, self.msrp_connector = self.msrp_connector, None
+            notification_center = NotificationCenter()
+            notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
+            try:
+                if msrp_session is not None:
+                    msrp_session.shutdown()
+                elif msrp is not None:
+                    msrp.loseConnection(wait=False)
+                if msrp_connector is not None:
+                    msrp_connector.cleanup()
+            finally:
+                notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
+                NotificationCenter().remove_observer(self, sender=self)
+        self.shutting_down = True
+        shutdown_stream(self)
 
     def validate_update(self, remote_sdp, stream_index):
         return True #TODO
@@ -210,7 +214,7 @@ class MSRPStreamBase(object):
     def _handle_incoming(self, chunk=None, error=None):
         notification_center = NotificationCenter()
         if error is not None:
-            if self.msrp_session is None and isinstance(error.value, ConnectionDone):
+            if self.shutting_down and isinstance(error.value, ConnectionDone):
                 return
             ndata = TimestampedNotificationData(context='reading', failure=error, reason=error.getErrorMessage())
             notification_center.post_notification('MediaStreamDidFail', self, ndata)
