@@ -1245,10 +1245,6 @@ class Session(object):
                     self.streams.remove(stream)
                     notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=[stream]))
 
-    def _NH_MediaStreamDidEnd(self, notification):
-        if self.greenlet is None:
-            self.remove_stream(notification.sender)
-
 
 class SessionManager(object):
     __metaclass__ = Singleton
