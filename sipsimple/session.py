@@ -1229,7 +1229,8 @@ class Session(object):
 
     def _NH_MediaStreamDidFail(self, notification):
         if self.greenlet is not None:
-            self._channel.send_exception(MediaStreamDidFailError(notification.sender, notification.data))
+            if self.state not in ('terminating', 'terminated'):
+                self._channel.send_exception(MediaStreamDidFailError(notification.sender, notification.data))
         else:
             stream = notification.sender
             if self.streams == [stream]:
