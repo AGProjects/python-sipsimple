@@ -47,6 +47,9 @@ class IMediaStream(Interface):
     def start(self, local_sdp, remote_sdp, stream_index):
         pass
 
+    def deactivate(self):
+        pass
+
     def end(self):
         pass
 

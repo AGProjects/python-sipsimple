@@ -175,6 +175,7 @@ class Session(object):
                     else:
                         for stream in self.proposed_streams:
                             notification_center.remove_observer(self, sender=stream)
+                            stream.deactivate()
                             stream.end()
                         self._fail(originator='remote', code=received_code, reason=received_reason, error='SDP negotiation failed: %s' % notification.data.error)
                         return
@@ -205,12 +206,14 @@ class Session(object):
                     notification_center.remove_observer(self, sender=stream)
                     self.proposed_streams.remove(stream)
                     del stream_map[stream.index]
+                    stream.deactivate()
                     stream.end()
             removed_streams = [stream for stream in self.proposed_streams if stream.index >= len(local_sdp.media)]
             for stream in removed_streams:
                 notification_center.remove_observer(self, sender=stream)
                 self.proposed_streams.remove(stream)
                 del stream_map[stream.index]
+                stream.deactivate()
                 stream.end()
             invitation_notifications = []
             with api.timeout(self.media_stream_timeout):
@@ -242,6 +245,7 @@ class Session(object):
         except (MediaStreamDidFailError, api.TimeoutError), e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
                 stream.end()
             if isinstance(e, api.TimeoutError):
                 error = 'media stream timed out while starting'
@@ -252,6 +256,7 @@ class Session(object):
             notification_center.remove_observer(self, sender=self._invitation)
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
                 stream.end()
             self.state = 'terminated'
             if e.data.prev_state in ('connecting', 'connected'):
@@ -270,6 +275,7 @@ class Session(object):
         except SIPCoreError, e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
                 stream.end()
             self._fail(originator='local', code=received_code, reason=received_reason, error='SIP core error: %s' % str(e))
         else:
@@ -307,8 +313,6 @@ class Session(object):
                 if stream in streams:
                     notification_center.add_observer(self, sender=stream)
                     stream.initialize(self, direction='incoming')
-                else:
-                    stream.end()
         else:
             for index, stream in enumerate(streams):
                 notification_center.add_observer(self, sender=stream)
@@ -365,6 +369,7 @@ class Session(object):
                                                                   TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received=True))
                         for stream in self.proposed_streams:
                             notification_center.remove_observer(self, sender=stream)
+                            stream.deactivate()
                             stream.end()
                         self._fail(originator='remote', code=200, reason=sip_status_messages[200], error='SDP negotiation failed: %s' % notification.data.error)
                         return
@@ -388,12 +393,14 @@ class Session(object):
                         notification_center.remove_observer(self, sender=stream)
                         self.proposed_streams.remove(stream)
                         del stream_map[stream.index]
+                        stream.deactivate()
                         stream.end()
             removed_streams = [stream for stream in self.proposed_streams if stream.index >= len(local_sdp.media)]
             for stream in removed_streams:
                 notification_center.remove_observer(self, sender=stream)
                 self.proposed_streams.remove(stream)
                 del stream_map[stream.index]
+                stream.deactivate()
                 stream.end()
             with api.timeout(self.media_stream_timeout):
                 while wait_count > 0 or not connected or self._channel:
@@ -418,6 +425,7 @@ class Session(object):
                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=True))
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
                 stream.end()
             code = 200 if self._invitation.state not in ('incoming', 'early') else 0
             reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
@@ -430,6 +438,7 @@ class Session(object):
             notification_center.remove_observer(self, sender=self._invitation)
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
                 stream.end()
             self.state = 'terminated'
             if e.data.prev_state in ('incoming', 'early'):
@@ -449,6 +458,7 @@ class Session(object):
             notification_center.remove_observer(self, sender=self._invitation)
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
                 stream.end()
             self.state = 'terminated'
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Canceled', ack_received='unknown'))
@@ -456,6 +466,7 @@ class Session(object):
         except SIPCoreError, e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
+                stream.deactivate()
                 stream.end()
             code = 200 if self._invitation.state not in ('incoming', 'early') else 0
             reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
@@ -477,9 +488,6 @@ class Session(object):
     def reject(self, code=603):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
-
-        for stream in self.proposed_streams:
-            stream.end()
 
         try:
             self._invitation.send_response(code)
@@ -527,8 +535,6 @@ class Session(object):
             if stream in streams:
                 notification_center.add_observer(self, sender=stream)
                 stream.initialize(self, direction='incoming')
-            else:
-                stream.end()
         self.proposed_streams = streams
 
         try:
@@ -620,9 +626,6 @@ class Session(object):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
 
-        for stream in self.proposed_streams:
-            stream.end()
-
         try:
             self._invitation.send_response(code)
             with api.timeout(1, None):
@@ -701,6 +704,7 @@ class Session(object):
                             received_reason = notification.data.reason
                         else:
                             notification_center.remove_observer(self, sender=stream)
+                            stream.deactivate()
                             stream.end()
                             notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='local', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
                             self.state = 'connected'
@@ -718,6 +722,7 @@ class Session(object):
                     stream.start(local_sdp, remote_sdp, stream.index)
                 else:
                     notification_center.remove_observer(self, sender=stream)
+                    stream.deactivate()
                     stream.end()
                     notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='local', code=received_code, reason=received_reason, streams=self.proposed_streams))
                     self.state = 'connected'
@@ -768,7 +773,7 @@ class Session(object):
 
         try:
             notification_center.remove_observer(self, sender=stream)
-            stream.end()
+            stream.deactivate()
             self.streams.remove(stream)
 
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
@@ -796,6 +801,7 @@ class Session(object):
         except SIPCoreError:
             raise #FIXME
         else:
+            stream.end()
             self.greenlet = None
             self.state = 'connected'
             notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='local', action='remove', streams=[stream]))
@@ -841,13 +847,14 @@ class Session(object):
         self.state = 'terminating'
         if self._invitation.state == 'connected':
             notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator='local'))
-        for stream in ((self.streams or []) + (self.proposed_streams or [])):
+        streams = (self.streams or []) + (self.proposed_streams or [])
+        for stream in list(streams):
             try:
                 notification_center.remove_observer(self, sender=stream)
             except KeyError:
-                pass
+                streams.remove(stream)
             else:
-                stream.end()
+                stream.deactivate()
         cancelling = self._invitation.state != 'connected'
         try:
             self._invitation.end(timeout=1)
@@ -871,6 +878,9 @@ class Session(object):
                 self.end_time = datetime.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='SIP core error: %s' % str(e)))
             return
+        finally:
+            for stream in streams:
+                stream.end()
         notification_center.remove_observer(self, sender=self._invitation)
         self.greenlet = None
         self.state = 'terminated'
@@ -1045,6 +1055,7 @@ class Session(object):
         notification_center = NotificationCenter()
         for stream in self.proposed_streams:
             notification_center.remove_observer(self, sender=stream)
+            stream.deactivate()
             stream.end()
         if self._invitation.state == 'disconnected':
             return
@@ -1143,12 +1154,14 @@ class Session(object):
                         prev_on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
                         for stream in removed_streams:
                             notification_center.remove_observer(self, sender=stream)
-                            stream.end()
+                            stream.deactivate()
                             self.streams.remove(stream)
                             local_sdp.media[stream.index].port = 0
                         for stream in self.streams:
                             local_sdp.media[stream.index] = stream.get_local_media(for_offer=False)
                         self._invitation.send_response(200, sdp=local_sdp)
+                        for stream in removed_streams:
+                            stream.end()
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
 
 
@@ -1194,6 +1207,7 @@ class Session(object):
                     notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator=notification.data.originator))
                     for stream in self.streams:
                         notification_center.remove_observer(self, sender=stream)
+                        stream.deactivate()
                         stream.end()
                     self.state = 'terminated'
                     if notification.data.originator == 'remote':

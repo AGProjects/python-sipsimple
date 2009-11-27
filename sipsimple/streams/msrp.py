@@ -167,28 +167,28 @@ class MSRPStreamBase(object):
         else:
             notification_center.post_notification('MediaStreamDidStart', self, data=TimestampedNotificationData())
 
-    def end(self):
-        @run_in_green_thread
-        def shutdown_stream(self):
-            if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
-                return
-            msrp, self.msrp = self.msrp, None
-            msrp_session, self.msrp_session = self.msrp_session, None
-            msrp_connector, self.msrp_connector = self.msrp_connector, None
-            notification_center = NotificationCenter()
-            notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
-            try:
-                if msrp_session is not None:
-                    msrp_session.shutdown()
-                elif msrp is not None:
-                    msrp.loseConnection(wait=False)
-                if msrp_connector is not None:
-                    msrp_connector.cleanup()
-            finally:
-                notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
-                NotificationCenter().remove_observer(self, sender=self)
+    def deactivate(self):
         self.shutting_down = True
-        shutdown_stream(self)
+
+    @run_in_green_thread
+    def end(self):
+        if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
+            return
+        notification_center = NotificationCenter()
+        notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
+        msrp, self.msrp = self.msrp, None
+        msrp_session, self.msrp_session = self.msrp_session, None
+        msrp_connector, self.msrp_connector = self.msrp_connector, None
+        try:
+            if msrp_session is not None:
+                msrp_session.shutdown()
+            elif msrp is not None:
+                msrp.loseConnection(wait=False)
+            if msrp_connector is not None:
+                msrp_connector.cleanup()
+        finally:
+            notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
+            NotificationCenter().remove_observer(self, sender=self)
 
     def validate_update(self, remote_sdp, stream_index):
         return True #TODO
@@ -844,6 +844,8 @@ class DesktopSharingStream(MSRPStreamBase):
                 raise
             except Exception, e:
                 self.msrp_reader_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                if self.shutting_down and isinstance(e, ConnectionDone):
+                    break
                 ndata = TimestampedNotificationData(context='reading', failure=Failure(), reason=str(e))
                 NotificationCenter().post_notification('MediaStreamDidFail', self, ndata)
                 break
@@ -860,6 +862,8 @@ class DesktopSharingStream(MSRPStreamBase):
                 raise
             except Exception, e:
                 self.msrp_writer_thread = None # avoid issues caused by the notification handler killing this greenlet during post_notification
+                if self.shutting_down and isinstance(e, ConnectionDone):
+                    break
                 ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
                 NotificationCenter().post_notification('MediaStreamDidFail', self, ndata)
                 break

@@ -427,6 +427,9 @@ class AudioStream(object):
                 self.conference_bridge.connect_slots(self._audio_transport.slot, 0)
             self._hold_request = None if self._hold_request == 'hold' else 'unhold'
 
+    def deactivate(self):
+        pass
+
     def end(self):
         with self._lock:
             if self.state != "ENDED":
