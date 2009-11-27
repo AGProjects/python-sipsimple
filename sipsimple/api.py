@@ -55,7 +55,11 @@ class SIPApplication(object):
         notification_center = NotificationCenter()
         session_manager = SessionManager()
 
-        configuration_manager.start(config_backend)
+        try:
+            configuration_manager.start(config_backend)
+        except:
+            self.state = None
+            raise
         session_manager.start()
         notification_center.add_observer(self, sender=account_manager)
         account_manager.start()

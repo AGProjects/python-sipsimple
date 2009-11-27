@@ -48,8 +48,8 @@ class ConfigurationManager(object):
             raise RuntimeError("ConfigurationManager already started")
         if not IConfigurationBackend.providedBy(backend):
             raise TypeError("backend must implement the IConfigurationBackend interface")
+        self.data = backend.load()
         self.backend = backend
-        self.data = self.backend.load()
 
     def update(self, group, name, data):
         """
