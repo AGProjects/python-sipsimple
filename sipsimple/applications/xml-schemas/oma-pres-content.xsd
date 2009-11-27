@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema targetNamespace="urn:oma:xml:prs:pres-content"
+   xmlns="urn:oma:xml:prs:pres-content"
+   xmlns:xs="http://www.w3.org/2001/XMLSchema" 
+   elementFormDefault="qualified" 
+   attributeFormDefault="unqualified">
+
+<xs:import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="http://www.w3.org/2001/xml.xsd"/>
+
+<xs:element name="content">
+   <xs:complexType>
+      <xs:sequence>
+         <xs:element name="mime-type" minOccurs="0">
+            <xs:complexType>
+               <xs:simpleContent>
+                  <xs:extension base="xs:string">
+                     <xs:anyAttribute processContents="lax"/>
+                  </xs:extension>
+               </xs:simpleContent>
+            </xs:complexType>
+         </xs:element>
+
+         <xs:element name="encoding" minOccurs="0">
+            <xs:complexType>
+               <xs:simpleContent>
+                  <xs:extension base="xs:string">
+                     <xs:anyAttribute processContents="lax"/>
+                  </xs:extension>
+               </xs:simpleContent>
+            </xs:complexType>
+         </xs:element>
+
+         <xs:element name="description" minOccurs="0" maxOccurs="unbounded">
+            <xs:complexType>
+               <xs:simpleContent>
+                 <xs:extension base="xs:string">
+                   <xs:attribute ref="xml:lang"/>
+                    <xs:anyAttribute processContents="lax"/>
+                 </xs:extension>
+               </xs:simpleContent>
+            </xs:complexType>
+         </xs:element>
+
+         <xs:element name="data">
+            <xs:complexType>
+               <xs:simpleContent>
+                  <xs:extension base="xs:string">
+                     <xs:anyAttribute processContents="lax"/>
+                  </xs:extension>
+               </xs:simpleContent>
+            </xs:complexType>
+         </xs:element>
+
+         <xs:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:anyAttribute processContents="lax"/>
+   </xs:complexType>
+</xs:element>
+
+</xs:schema>
+
