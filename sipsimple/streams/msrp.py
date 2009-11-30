@@ -128,6 +128,8 @@ class MSRPStreamBase(object):
             else:
                 relay = None
                 self.transport = settings.msrp.transport
+            if not outgoing and relay is None and self.transport == 'tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
+                raise MSRPStreamError("cannot create incoming MSRP stream without a certificate and private key")
             logger = NotificationProxyLogger()
             self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
             local_uri = URI(host=settings.sip.ip_address.normalized,
