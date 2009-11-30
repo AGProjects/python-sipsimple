@@ -33,21 +33,31 @@ except ImportError:
 download_icon = False
 xcap_client = None
 filename = None
-icon_count = 0
 
-def _download_icon(icon):
-    global output_filename, icon_count
-    if icon:
+def _download_icon(url):
+    global icon_count
+    if url:
         try:
-            xml = urllib2.urlopen(icon).read()
+            data = urllib2.urlopen(url).read()
         except (URLError, HTTPError), e:
             raise RuntimeError("Cannot download icon: %s" % str(e))
         else:
-            icon = Icon.parse(xml)
-            buf = StringIO(base64.decodestring(icon.data.value))
-            img = Image.open(buf)
-            img.save("%s_%s.%s" % (output_filename or "icon", icon_count, img.format.lower()))
-            icon_count += 1
+            filename = "icon_" + url.split("/")[-1]
+            if os.path.isfile(filename):
+                count = 0
+                while True:
+                    file, ext = os.path.splitext(filename)
+                    if not os.path.isfile("%s_%s%s" % (file, count, ext)):
+                        filename = "%s_%s%s" % (file, count, ext)
+                        break
+                    count += 1
+            try:
+                f = open(filename, "w")
+                f.write(data)
+                f.close()
+                print "\tFile saved to: %s" % filename
+            except IOError, e:
+                raise RuntimeError("Cannot write icon: %s" % str(e))
 
 def _do_icon_get():
     global xcap_client, download_icon
@@ -154,7 +164,7 @@ if __name__ == "__main__":
     parser.add_option("-a", "--account-name", type="string", dest="account_name", help="The name of the account to use.")
     parser.add_option("-i", dest="input_filename", help="The name of the file in case we are doing a PUT.")
     parser.add_option("-d", "--download", action="store_true", dest="download_icon", default=False, help="Download the icon.")
-    parser.add_option("-f", "--filename", type="string", dest="filename", help="Name for storing the downloaded icon in case of PUT or name of icon in case of DELETE.")
+    parser.add_option("-f", "--filename", type="string", dest="filename", help="Name for icon to DELETE.")
     options, args = parser.parse_args()
 
     if not args or args[0] not in ('GET', 'PUT', 'DELETE'):
