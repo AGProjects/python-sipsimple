@@ -62,7 +62,7 @@ def _download_icon(url):
 def _do_icon_get():
     global xcap_client, download_icon
     try:
-        res = xcap_client.get("xcap-directory", node="/xcap-directory/folder%5B@auid=%22icon%22%5D")
+        res = xcap_client.get("org.openmobilealliance.xcap-directory", node="/org.openmobilealliance.xcap-directory/folder%5B@auid=%22oma_status-icon%22%5D")
     except URLError, e:
         raise RuntimeError("Cannot GET icon: %s" % str(e))
     except HTTPError, e:
@@ -92,7 +92,7 @@ def _do_icon_put(file):
         img.save(out, format=format)
         icon = Icon(data=Data(base64.encodestring(out.getvalue())))
         kwargs = {'filename': new_filename}
-        res = xcap_client.put("icon", icon.toxml(), headers={'Content-Type': "application/vnd.oma.pres-content+xml"}, **kwargs)
+        res = xcap_client.put("oma_status-icon", icon.toxml(), headers={'Content-Type': "application/vnd.oma.pres-content+xml"}, **kwargs)
     except (URLError, IOError, httplib.BadStatusLine), e:
         raise RuntimeError("Cannot PUT icon: %s" % str(e))
     except HTTPError, e:
@@ -108,7 +108,7 @@ def _do_icon_delete():
 
     try:
         kwargs = {'filename': filename}
-        res = xcap_client.delete("icon", **kwargs)
+        res = xcap_client.delete("oma_status-icon", **kwargs)
     except URLError, e:
         raise RuntimeError("Cannot GET icon: %s" % str(e))
     except HTTPError, e:
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     options, args = parser.parse_args()
 
     if not args or args[0] not in ('GET', 'PUT', 'DELETE'):
-        print "You need to specify the opperation: GET or PUT"
+        print "You need to specify the opperation: GET, PUT or DELETE"
         sys.exit(1)
 
     operation = args[0]

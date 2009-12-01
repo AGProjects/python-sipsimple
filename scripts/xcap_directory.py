@@ -26,7 +26,7 @@ xcap_directory_xml = None
 def get_xcap_directory():
     global xcap_client, xcap_directory, xcap_directory_xml
     try:
-        xcap_directory_xml = xcap_client.get('xcap-directory')
+        xcap_directory_xml = xcap_client.get('org.openmobilealliance.xcap-directory')
     except URLError, e:
         raise RuntimeError("Cannot obtain 'xcap-directory' document: %s" % str(e))
     except HTTPError, e:
