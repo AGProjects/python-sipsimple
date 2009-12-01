@@ -694,7 +694,7 @@ class IncomingTransferHandler(object):
             i += 1
         self.filename = filename
         try:
-            self.file = open(self.filename, 'w')
+            self.file = open(self.filename, 'wb')
         except Exception, e:
             send_notice('Failed to open file "%s" for writing: %s' % (self.filename, e))
             self.session.reject(486)
@@ -739,11 +739,13 @@ class IncomingTransferHandler(object):
         if data is not None:
             self.file.write(data)
             self.hash.update(data)
-        elif self.finished:
-            local_hash = 'sha1:' + ':'.join(re.findall(r'..', self.hash.hexdigest().upper()))
-            remote_hash = self.file_selector.hash
-            if local_hash != remote_hash:
-                send_notice('Warning: hash of transferred file does not match the remote hash (file may have changed).')
+        else:
+            self.file.close()
+            if self.finished:
+                local_hash = 'sha1:' + ':'.join(re.findall(r'..', self.hash.hexdigest().upper()))
+                remote_hash = self.file_selector.hash
+                if local_hash != remote_hash:
+                    send_notice('Warning: hash of transferred file does not match the remote hash (file may have changed).')
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
