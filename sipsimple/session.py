@@ -1142,6 +1142,7 @@ class Session(object):
                                         self.proposed_streams.append(stream)
                                         break
                         if self.proposed_streams:
+                            self._invitation.send_response(100)
                             notification_center.post_notification('SIPSessionGotProposal', sender=self, data=TimestampedNotificationData(originator='remote', streams=self.proposed_streams))
                             return
                         else:
