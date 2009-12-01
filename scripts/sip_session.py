@@ -681,6 +681,7 @@ class IncomingTransferHandler(object):
         self.finished = False
         self.hash = None
         self.question = None
+        self.wave_ringtone = None
 
     def start(self):
         settings = SIPSimpleSettings()
@@ -714,9 +715,8 @@ class IncomingTransferHandler(object):
 
         # start ringing
         application = SIPSessionApplication()
-        self.wave_ringtone = None
         if application.active_session is None:
-            if IncomingCallInitializer.sessions == 1:
+            if IncomingTransferHandler.sessions == 1:
                 ringtone = self.session.account.sounds.audio_inbound.sound_file if self.session.account.sounds.audio_inbound is not None else None
                 if ringtone:
                     self.wave_ringtone = SilenceableWaveFile(application.alert_conference_bridge, ringtone.path.normalized, volume=ringtone.volume, loop_count=0, pause_time=2)
@@ -798,6 +798,14 @@ class IncomingTransferHandler(object):
 
         self.file_write_queue.start()
 
+        if IncomingTransferHandler.sessions == 1:
+            if self.wave_ringtone:
+                self.wave_ringtone.stop()
+                self.wave_ringtone = None
+            if IncomingTransferHandler.tone_ringtone:
+                IncomingTransferHandler.tone_ringtone.stop()
+                IncomingTransferHandler.tone_ringtone = None
+
     def _NH_SIPSessionDidFail(self, notification):
         notification_center = NotificationCenter()
         ui = UI()
@@ -811,13 +819,13 @@ class IncomingTransferHandler(object):
             ui.remove_question(self.question)
             self.question = None
 
-        IncomingCallInitializer.sessions -= 1
+        IncomingTransferHandler.sessions -= 1
         if self.wave_ringtone:
             self.wave_ringtone.stop()
             self.wave_ringtone = None
-        if IncomingCallInitializer.sessions == 0 and IncomingCallInitializer.tone_ringtone is not None:
-            IncomingCallInitializer.tone_ringtone.stop()
-            IncomingCallInitializer.tone_ringtone = None
+        if IncomingTransferHandler.sessions == 0 and IncomingTransferHandler.tone_ringtone is not None:
+            IncomingTransferHandler.tone_ringtone.stop()
+            IncomingTransferHandler.tone_ringtone = None
         if notification.data.failure_reason == 'user request' and notification.data.code == 487:
             send_notice('File transfer cancelled by user')
         elif notification.data.failure_reason == 'user request':
