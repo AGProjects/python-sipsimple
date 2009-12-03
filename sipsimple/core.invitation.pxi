@@ -216,6 +216,10 @@ cdef class Invitation:
                                               &to_header_str.pj_str, &target_str.pj_str, dialog_address)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
+
+            with nogil:
+                pjsip_dlg_inc_lock(self._dialog)
+
             self.from_header = FrozenFromHeader_create(self._dialog.local.info)
             self.to_header = FrozenToHeader.new(to_header)
             self.call_id = _pj_str_to_str(self._dialog.call_id.id)
@@ -246,16 +250,23 @@ cdef class Invitation:
                 status = pjsip_inv_send_msg(invite_session_address[0], tdata)
             if status != 0:
                 raise PJSIPError("Could not send initial INVITE", status)
-
             if timeout is not None:
                 self._timer = Timer()
                 self._timer.schedule(timeout, <timer_callback>self._cb_timer_disconnect, self)
-        except:
+            with nogil:
+                pjsip_dlg_dec_lock(self._dialog)
+        except Exception, e:
+            if isinstance(e, PJSIPError) and e.errno == EADDRNOTAVAIL:
+                self._invite_session = NULL
+                pjsip_dlg_dec_lock(self._dialog)
+                self._dialog = NULL
+                raise
+                
             if self._invite_session != NULL:
                 pjsip_inv_terminate(self._invite_session, 500, 0)
                 self._invite_session = NULL
             elif self._dialog != NULL:
-                pjsip_dlg_terminate(self._dialog)
+                pjsip_dlg_dec_lock(self._dialog)
                 self._dialog = NULL
             raise
         finally:
@@ -572,6 +583,9 @@ cdef class Invitation:
                     return 0
 
             if state == "disconnected" and self.state != "disconnecting":
+                # the invite session may have been destroyed if it failed
+                if not self._invite_session:
+                    return 0
                 # we either sent a cancel or a negative reply to an incoming INVITE
                 if self._invite_session.cancelling or (self.state in ("incoming", "early") and self.direction == "incoming" and rdata is None):
                     # we caused the disconnect so send the transition to the disconnecting state

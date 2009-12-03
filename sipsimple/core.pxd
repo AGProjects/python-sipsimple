@@ -19,6 +19,7 @@ cdef extern from "sys/errno.h":
     enum:
         EADDRINUSE
         EBADF
+        EADDRNOTAVAIL
 
 # Python C imports
 
@@ -893,6 +894,8 @@ cdef extern from "pjsip.h":
                                   int st_code, pj_str_t *st_text, pjsip_tx_data **tdata) nogil
     int pjsip_dlg_modify_response(pjsip_dialog *dlg, pjsip_tx_data *tdata, int st_code, pj_str_t *st_text) nogil
     int pjsip_dlg_send_response(pjsip_dialog *dlg, pjsip_transaction *tsx, pjsip_tx_data *tdata) nogil
+    void pjsip_dlg_inc_lock(pjsip_dialog *dlg) nogil
+    void pjsip_dlg_dec_lock(pjsip_dialog *dlg) nogil
 
 cdef extern from "pjsip-simple/evsub_msg.h":
     struct pjsip_event_hdr:
