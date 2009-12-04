@@ -49,6 +49,7 @@ class RTPSettings(SettingsGroup):
     audio_codec_list = Setting(type=AudioCodecList, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
     use_srtp_without_tls = Setting(type=bool, default=True)
+    inband_dtmf = Setting(type=bool, default=False)
 
 class DialogEventSettings(SettingsGroup):
     enable_subscribe = Setting(type=bool, default=True)
