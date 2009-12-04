@@ -121,6 +121,10 @@ class AudioStream(object):
     def statistics(self):
         return self._audio_transport.statistics if self._audio_transport is not None else None
 
+    @property
+    def slot(self):
+        return self._audio_transport.slot if self._audio_transport is not None else None
+
     def validate_incoming(self, remote_sdp, stream_index):
         with self._lock:
             # TODO: actually validate the SDP
