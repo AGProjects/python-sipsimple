@@ -439,6 +439,9 @@ class SIPAudioApplication(SIPApplication):
                     wave_file = WaveFile(self.voice_conference_bridge, ResourcePath(filename).normalized)
                     NotificationCenter().add_observer(self, sender=wave_file)
                     wave_file.start()
+                    audio_slot = audio_stream.slot
+                    if self.active_session.account.rtp.inband_dtmf and audio_slot is not None:
+                        self.voice_conference_bridge.connect_slots(wave_file.slot, audio_slot)
                     self.voice_conference_bridge.connect_slots(wave_file.slot, 0)
         elif notification.data.input in ('\x1b[A', '\x1b[D') and len(self.started_sessions) > 0: # UP and LEFT
             if self.active_session is None:
