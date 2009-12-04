@@ -16,7 +16,7 @@ from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python.queue import EventQueue
 from application.python.util import Null
-from eventlet import proc
+from eventlet import api, proc
 from zope.interface import implements
 from twisted.internet import reactor
 
@@ -918,7 +918,23 @@ class SIPSessionApplication(SIPApplication):
                           ' ': 'hold',
                           'q': 'quit',
                           '/': 'help',
-                          '?': 'help'}
+                          '?': 'help',
+                          '0': 'dtmf 0',
+                          '1': 'dtmf 1',
+                          '2': 'dtmf 2',
+                          '3': 'dtmf 3',
+                          '4': 'dtmf 4',
+                          '5': 'dtmf 5',
+                          '6': 'dtmf 6',
+                          '7': 'dtmf 7',
+                          '8': 'dtmf 8',
+                          '9': 'dtmf 9',
+                          '*': 'dtmf *',
+                          '#': 'dtmf #',
+                          'A': 'dtmf A',
+                          'B': 'dtmf B',
+                          'C': 'dtmf C',
+                          'D': 'dtmf D'}
         ui.start(control_bindings=control_bindings, display_text=False)
 
         try:
@@ -1660,6 +1676,26 @@ class SIPSessionApplication(SIPApplication):
             send_notice('Cancelling SIP session...')
             self.outgoing_session.end()
 
+    @run_in_green_thread
+    def _CH_dtmf(self, tones):
+        if self.active_session is not None:
+            try:
+                audio_stream = [stream for stream in self.active_session.streams if isinstance(stream, AudioStream)][0]
+            except IndexError:
+                pass
+            else:
+                for digit in tones:
+                    audio_stream.send_dtmf(digit)
+                    filename = 'dtmf_%s_tone.wav' % {'*': 'star', '#': 'pound'}.get(digit, digit)
+                    wave_file = WaveFile(self.voice_conference_bridge, ResourcePath(filename).normalized)
+                    NotificationCenter().add_observer(self, sender=wave_file)
+                    wave_file.start()
+                    audio_slot = audio_stream.slot
+                    if self.active_session.account.rtp.inband_dtmf and audio_slot is not None:
+                        self.voice_conference_bridge.connect_slots(wave_file.slot, audio_slot)
+                    self.voice_conference_bridge.connect_slots(wave_file.slot, 0)
+                    api.sleep(0.3)
+
     def _CH_record(self, state='toggle'):
         if self.active_session is None:
             return
@@ -1771,6 +1807,7 @@ class SIPSessionApplication(SIPApplication):
         lines.append('  /help: display this help message (ctrl-x ?)')
         lines.append('In call commands:')
         lines.append('  /hangup: hang-up the active session (ctrl-x h)')
+        lines.append('  /dtmf {0-9|*|#|A-D}...: send DTMF tones (ctrl-x 0-9|*|#|A-D)')
         lines.append('  /record [on|off]: toggle/set audio recording (ctrl-x r)')
         lines.append('  /srecord [on|off]: toggle/set audio recording to separate files for input and output')
         lines.append('  /hold [on|off]: hold/unhold (ctrl-x SPACE)')
