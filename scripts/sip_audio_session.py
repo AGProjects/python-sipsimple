@@ -22,7 +22,7 @@ from application.python.util import Null
 from zope.interface import implements
 from twisted.internet import reactor
 
-from sipsimple.core import SIPCoreError, SIPURI, ToHeader, ToneGenerator
+from sipsimple.core import SIPCoreError, SIPURI, ToHeader, WaveFile
 from sipsimple.engine import Engine
 
 from sipsimple.account import Account, AccountManager, BonjourAccount
@@ -30,6 +30,7 @@ from sipsimple.api import SIPApplication
 from sipsimple.streams import AudioStream
 from sipsimple.configuration import ConfigurationError
 from sipsimple.configuration.backend.file import FileBackend
+from sipsimple.configuration.datatypes import ResourcePath
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.session import Session
@@ -432,13 +433,13 @@ class SIPAudioApplication(SIPApplication):
                 except IndexError:
                     pass
                 else:
-                    audio_stream.send_dtmf(notification.data.input)
-                    if self.voice_tone_generator is None:
-                        self.voice_tone_generator = ToneGenerator(self.voice_conference_bridge)
-                        self.voice_tone_generator.start()
-                        self.voice_conference_bridge.connect_slots(self.voice_tone_generator.slot, 0)
-                        notification_center.add_observer(self, sender=self.voice_tone_generator)
-                    self.voice_tone_generator.play_dtmf(notification.data.input)
+                    digit = notification.data.input
+                    audio_stream.send_dtmf(digit)
+                    filename = 'dtmf_%s_tone.wav' % {'*': 'star', '#': 'pound'}.get(digit, digit)
+                    wave_file = WaveFile(self.voice_conference_bridge, ResourcePath(filename).normalized)
+                    NotificationCenter().add_observer(self, sender=wave_file)
+                    wave_file.start()
+                    self.voice_conference_bridge.connect_slots(wave_file.slot, 0)
         elif notification.data.input in ('\x1b[A', '\x1b[D') and len(self.started_sessions) > 0: # UP and LEFT
             if self.active_session is None:
                 self.active_session = self.started_sessions[0]
@@ -702,12 +703,11 @@ class SIPAudioApplication(SIPApplication):
             if timer.active():
                 timer.cancel()
             del self.hangup_timers[id(session)]
-        if self.voice_tone_generator is None:
-            self.voice_tone_generator = ToneGenerator(self.voice_conference_bridge)
-            self.voice_tone_generator.start()
-            self.voice_conference_bridge.connect_slots(self.voice_tone_generator.slot, 0)
-            notification_center.add_observer(self, sender=self.voice_tone_generator)
-        self.voice_tone_generator.play_tones([(800,400,100),(0,0,100),(400,0,200)])
+
+        hangup_tone = WaveFile(self.voice_conference_bridge, ResourcePath('hangup_tone.wav').normalized)
+        NotificationCenter().add_observer(self, sender=hangup_tone)
+        hangup_tone.start()
+        self.voice_conference_bridge.connect_slots(hangup_tone.slot, 0)
 
     def _NH_SIPSessionDidEnd(self, notification):
         session = notification.sender
@@ -806,13 +806,12 @@ class SIPAudioApplication(SIPApplication):
             session.reject_proposal(488)
 
     def _NH_AudioStreamGotDTMF(self, notification):
-        notification_center = NotificationCenter()
-        if self.voice_tone_generator is None:
-            self.voice_tone_generator = ToneGenerator(self.voice_conference_bridge)
-            self.voice_tone_generator.start()
-            self.voice_conference_bridge.connect_slots(self.voice_tone_generator.slot, 0)
-            notification_center.add_observer(self, sender=self.voice_tone_generator)
-        self.voice_tone_generator.play_dtmf(notification.data.digit)
+        digit = notification.data.digit
+        filename = 'dtmf_%s_tone.wav' % {'*': 'star', '#': 'pound'}.get(digit, digit)
+        wave_file = WaveFile(self.voice_conference_bridge, ResourcePath(filename).normalized)
+        NotificationCenter().add_observer(self, sender=wave_file)
+        wave_file.start()
+        self.voice_conference_bridge.connect_slots(wave_file.slot, 0)
 
     def _NH_AudioStreamDidChangeHoldState(self, notification):
         if notification.data.on_hold:
@@ -829,13 +828,12 @@ class SIPAudioApplication(SIPApplication):
     def _NH_AudioStreamDidStopRecordingAudio(self, notification):
         self.output.put('Stopped recording audio to %s\n' % notification.data.file_name)
 
-    def _NH_ToneGeneratorDidFinishPlaying(self, notification):
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=notification.sender)
-        if notification.sender is self.alert_tone_generator:
-            self.alert_tone_generator = None
-        elif notification.sender is self.voice_tone_generator:
-            self.voice_tone_generator = None
+    def _NH_WaveFileDidFinishPlaying(self, notification):
+        wave_file = notification.sender
+        NotificationCenter().remove_observer(self, sender=wave_file)
+        for src_slot, dst_slot in self.voice_conference_bridge.connected_slots:
+            if src_slot == wave_file.slot:
+                self.voice_conference_bridge.disconnect_slots(src_slot, dst_slot)
 
     def _NH_DefaultAudioDeviceDidChange(self, notification):
         SIPApplication._NH_DefaultAudioDeviceDidChange(self, notification)
