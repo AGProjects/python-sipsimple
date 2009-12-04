@@ -20,7 +20,7 @@ from eventlet import proc
 from zope.interface import implements
 from twisted.internet import reactor
 
-from sipsimple.core import SIPCoreError, SIPURI, ToHeader, ToneGenerator
+from sipsimple.core import SIPCoreError, SIPURI, ToHeader, WaveFile
 from sipsimple.engine import Engine
 
 from sipsimple.account import Account, AccountManager, BonjourAccount
@@ -28,6 +28,7 @@ from sipsimple.api import SIPApplication
 from sipsimple.streams import AudioStream, ChatStream, FileSelector, FileTransferStream
 from sipsimple.configuration import ConfigurationError
 from sipsimple.configuration.backend.file import FileBackend
+from sipsimple.configuration.datatypes import ResourcePath
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.session import IllegalStateError, Session
@@ -1130,11 +1131,11 @@ class SIPSessionApplication(SIPApplication):
             if timer.active():
                 timer.cancel()
             del self.hangup_timers[id(session)]
-        tone_generator = ToneGenerator(self.voice_conference_bridge)
-        tone_generator.start()
-        self.voice_conference_bridge.connect_slots(tone_generator.slot, 0)
-        notification_center.add_observer(self, sender=tone_generator)
-        tone_generator.play_tones([(800,400,100),(0,0,100),(400,0,200)])
+
+        hangup_tone = WaveFile(self.voice_conference_bridge, ResourcePath('hangup_tone.wav').normalized)
+        NotificationCenter().add_observer(self, sender=hangup_tone)
+        hangup_tone.start()
+        self.voice_conference_bridge.connect_slots(hangup_tone.slot, 0)
 
     def _NH_SIPSessionDidEnd(self, notification):
         notification_center = NotificationCenter()
@@ -1251,12 +1252,12 @@ class SIPSessionApplication(SIPApplication):
         self._update_prompt()
 
     def _NH_AudioStreamGotDTMF(self, notification):
-        notification_center = NotificationCenter()
-        tone_generator = ToneGenerator(self.voice_conference_bridge)
-        tone_generator.start()
-        self.voice_conference_bridge.connect_slots(tone_generator.slot, 0)
-        notification_center.add_observer(self, sender=tone_generator)
-        tone_generator.play_dtmf(notification.data.digit)
+        digit = notification.data.digit
+        filename = 'dtmf_%s_tone.wav' % {'*': 'star', '#': 'pound'}.get(digit, digit)
+        wave_file = WaveFile(self.voice_conference_bridge, ResourcePath(filename).normalized)
+        NotificationCenter().add_observer(self, sender=wave_file)
+        wave_file.start()
+        self.voice_conference_bridge.connect_slots(wave_file.slot, 0)
         send_notice('Got DMTF %s' % notification.data.digit)
 
     def _NH_AudioStreamDidChangeHoldState(self, notification):
@@ -1298,10 +1299,6 @@ class SIPSessionApplication(SIPApplication):
         ui = UI()
         ui.write(RichText('%s> ' % remote_identity, foreground='blue') + notification.data.content)
 
-    def _NH_ToneGeneratorDidFinishPlaying(self, notification):
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=notification.sender)
-
     def _NH_DefaultAudioDeviceDidChange(self, notification):
         SIPApplication._NH_DefaultAudioDeviceDidChange(self, notification)
         if notification.data.changed_input and self.voice_conference_bridge.input_device=='system_default':
@@ -1332,6 +1329,13 @@ class SIPSessionApplication(SIPApplication):
             send_notice('Output device has been switched to: %s' % self.voice_conference_bridge.real_output_device)
         if changed_alert_device:
             send_notice('Alert device has been switched to: %s' % self.alert_conference_bridge.real_output_device)
+
+    def _NH_WaveFileDidFinishPlaying(self, notification):
+        wave_file = notification.sender
+        NotificationCenter().remove_observer(self, sender=wave_file)
+        for src_slot, dst_slot in self.voice_conference_bridge.connected_slots:
+            if src_slot == wave_file.slot:
+                self.voice_conference_bridge.disconnect_slots(src_slot, dst_slot)
 
     # command handlers
     #
