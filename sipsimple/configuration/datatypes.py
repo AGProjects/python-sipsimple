@@ -264,6 +264,8 @@ class LocalIPAddress(object):
     def __init__(self, address=DefaultHostIP):
         if address is not self.DefaultHostIP:
             address = str(address)
+            if address == "0.0.0.0":
+                raise ValueError("illegal local IP address value. Use 'auto' to automatically bind to all interfaces")
             if self._address_re.match(address) is None:
                 raise ValueError("illegal local IP address value: %s" % address)
         self.address = address
@@ -273,7 +275,7 @@ class LocalIPAddress(object):
 
     def __setstate__(self, state):
         self.__init__(self.DefaultHostIP if state.lower() == u'auto' else state)
-    
+
     @property
     def normalized(self):
         if self.address is self.DefaultHostIP:

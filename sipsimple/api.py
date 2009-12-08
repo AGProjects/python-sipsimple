@@ -19,6 +19,7 @@ from sipsimple.engine import Engine
 
 from sipsimple.account import AccountManager
 from sipsimple.configuration import ConfigurationManager
+from sipsimple.configuration.datatypes import LocalIPAddress
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.session import SessionManager
 from sipsimple.util import classproperty, TimestampedNotificationData
@@ -76,7 +77,7 @@ class SIPApplication(object):
         engine = Engine()
         notification_center.add_observer(self, sender=engine)
         options = dict(# general
-                       ip_address=settings.sip.ip_address.normalized,
+                       ip_address=None if settings.sip.ip_address.address is LocalIPAddress.DefaultHostIP else settings.sip.ip_address.normalized,
                        user_agent=settings.user_agent,
                        # SIP
                        ignore_missing_ack=False,
