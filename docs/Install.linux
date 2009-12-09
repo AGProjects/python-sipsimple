@@ -112,7 +112,7 @@ the following packages, notice the minimum version numbers:
  * python-application       http://pypi.python.org/simple/python-application  >=1.1.5
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
- * cython                   http://www.cython.org                             >=0.10
+ * cython                   http://www.cython.org                             <=0.11.2
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * greenlet                 http://pypi.python.org/pypi/greenlet/             >=0.2
@@ -121,15 +121,27 @@ the following packages, notice the minimum version numbers:
 
 On Debian you can install the dependencies using apt-get:
 
-sudo apt-get install python-gnutls python-application python-lxml cython \
+sudo apt-get install python-gnutls python-application python-lxml \
 python-dnspython python-twisted-core python-zopeinterface \
 python-twisted-names python-xml python-imaging
+
+Cython version 11.3 or higher is known not be working, you must install a
+version of Cython bigger that 0.10.1 and smaller than 0.11.3. Check the
+available versions from your Debian system packages and install a proper
+Cython version using the following commands, the example is for 0.11.2-1:
+
+adigeo@node03:~$ apt-cache show cython | grep Version
+Version: 0.11.2-1
+sudo apt-get install cython=0.11.2-1
 
 Alternatively, on non-Debian systems you can use the easy_install script
 provided by the python-setuptools package to install the packages:
 
-sudo easy_install -U lxml python-gnutls cython python-application \
-dnspython twisted PIL
+sudo easy_install -U lxml python-gnutls python-application dnspython twisted PIL
+
+Install the proper version of Cython:
+
+sudo easy_install "cython==0.11.2"
 
 Install greenlet by using easy_install script, it is not yet available as
 Debian package:
