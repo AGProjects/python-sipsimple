@@ -125,7 +125,7 @@ sudo apt-get install python-gnutls python-application python-lxml \
 python-dnspython python-twisted-core python-zopeinterface \
 python-twisted-names python-xml python-imaging
 
-Cython version 11.3 or higher is known not be working, you must install a
+Cython version 11.3 or higher is known not to be working, you must install a
 version of Cython bigger that 0.10.1 and smaller than 0.11.3. Check the
 available versions from your Debian system packages and install a proper
 Cython version using the following commands, the example is for 0.11.2-1:
