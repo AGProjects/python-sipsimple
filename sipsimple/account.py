@@ -67,9 +67,6 @@ class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     voicemail_uri = Setting(type=str, default=None, nillable=True)
 
-class ChatSettings(SettingsGroup):
-    server=Setting(type=Hostname, default=None, nillable=True)
-
 class XcapSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
@@ -130,7 +127,6 @@ class Account(SettingsObject):
     dialog_event = DialogEventSettings
     nat_traversal = NatTraversalSettings
     message_summary = MessageSummarySettings
-    chat = ChatSettings
     presence = PresenceSettings
     xcap = XcapSettings
     sounds = SoundsSettings
