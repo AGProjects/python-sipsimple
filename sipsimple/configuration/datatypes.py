@@ -265,7 +265,7 @@ class LocalIPAddress(object):
         if address is not self.DefaultHostIP:
             address = str(address)
             if address == "0.0.0.0":
-                raise ValueError("illegal local IP address value. Use 'auto' to automatically bind to all interfaces")
+                raise ValueError("illegal local IP address value. Use DefaultHostIP object to automatically bind to all interfaces")
             if self._address_re.match(address) is None:
                 raise ValueError("illegal local IP address value: %s" % address)
         self.address = address
