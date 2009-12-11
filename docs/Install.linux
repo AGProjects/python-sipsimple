@@ -8,88 +8,15 @@ http://ag-projects.com
 Home page: http://sipsimpleclient.com
 
 This document described the installation procedure on Linux operating
-systems in general and Debian/Ubuntu systems in particular.
+systems.
 
 Fore more information see the installation guide available at:
 
 http://sipsimpleclient.com/wiki/SipInstallation
 
 
-I. Debian Package Installation (Stable Version)
-II. Manual Installation (Development Version)
-
-
-I. Debian Package Installation (Stable Version)
------------------------------------------------
-
-Note. The current Debian package cannot be installed at this moment because
-of dependecies that are not available anymore in the Debian Unstable
-distribution. Use the Manual Installation procedure until the official next
-release of the Debian package. This section will be updated with the next
-official release.
-
-For people running Debian 5.0 or Ubuntu 8.10 a debian package with the last
-stable version is available in the repository provided by AG Projects. 
-
-Add these lines in /etc/apt/sources.list:
-
-# AG Projects software
-deb     http://ag-projects.com/debian unstable main
-deb-src http://ag-projects.com/debian unstable main
-
-Install AG Projects debian signing key:
-
-wget http://download.ag-projects.com/agp-debian-gpg.key
-sudo apt-key add agp-debian-gpg.key
-
-The install the debian package:
-
-sudo apt-get update
-sudo apt-get install python-sipsimple sipsimple-cli
-
-Debian package building instructions
-
-Install Debian development tools
-
-sudo apt-get install build-essential dpkg-dev fakeroot devscripts \
-python-setuptools darcs subversion libssl-dev
-
-Install the building dependencies and sources of each package
-
-Add these lines in etc/apt/sources.list:                              
-
-# AG Projects software
-deb     http://ag-projects.com/debian unstable main
-deb-src http://ag-projects.com/debian unstable main
-
-sudo apt-get update
-sudo apt-get build-dep sipclient python-eventlet python-msrplib python-xcaplib
-sudo apt-get source sipclient python-eventlet python-msrplib python-xcaplib
-
-You need Cython version 0.10 or higher. If your Debian distribution has an
-older version you must create a debian package for latest cython and install
-it on your system before continuing further.
-
-Build debian packages
- 
-Go to each of the directories created above and build the corespondent
-debian package:
-
-python setup.py sdist
-Go to dist directory
-untar the versioned tar archieve
-change directory to the newly created folder
-debuild
-
-You will now have debian packages in the upper level directory that you can
-install using dpkg -i command.
-
-
-II. Manual Installation (Development Version)
----------------------------------------------
-
-
 Step 1. Prerequisites
+---------------------
 	
 Both i386 or amd64 architectures are supported. Install the C compiling
 environment, python 2.5 and the development version for the following
@@ -104,6 +31,7 @@ packages:
 
 
 Step 2. Install dependencies
+----------------------------
 
 Use the appropriate package manager for your Linux distribution to install
 the following packages, notice the minimum version numbers:
@@ -130,7 +58,7 @@ version of Cython bigger that 0.10.1 and smaller than 0.11.3. Check the
 available versions from your Debian system packages and install a proper
 Cython version using the following commands, the example is for 0.11.2-1:
 
-adigeo@node03:~$ apt-cache show cython | grep Version
+apt-cache show cython | grep Version
 Version: 0.11.2-1
 sudo apt-get install cython=0.11.2-1
 
@@ -141,17 +69,24 @@ sudo easy_install -U lxml python-gnutls python-application dnspython twisted PIL
 
 Install the proper version of Cython:
 
-sudo easy_install "cython==0.11.2"
+sudo easy_install cython==0.11.2
 
-Install greenlet by using easy_install script, it is not yet available as
-Debian package:
+Install greenlet by using easy_install script:
 
 sudo easy_install -U greenlet
 
-Install SIP SIMPLE client dependencies from AG Projects repositories:
 
-cd ~/work
-# python-eventlet
+Step 3. Install SIP SIMPLE client SDK
+-------------------------------------
+
+The SDK consists of four parts:
+
+ 1. Eventlet
+ 2. XCAP library
+ 3. MSRP library
+ 4. SIP SIMPLE library
+
+# Eventlet
 if [ -d python-eventlet ]; then
         cd python-eventlet
         darcs pull -a 
@@ -163,7 +98,7 @@ else
 fi
 cd ..
 
-# python-xcaplib
+# XCAP library
 if [ -d python-xcaplib ]; then
         cd python-xcaplib
         darcs pull -a 
@@ -175,7 +110,7 @@ else
 fi
 cd ..
 
-# python-msrplib
+# MSRP library
 if [ -d python-msrplib ]; then
         cd python-msrplib
         darcs pull -a
@@ -187,12 +122,7 @@ else
 fi
 cd ..
 
-
-Step 3. Install SIP SIMPLE client SDK
-
-Download or update the source code:
-
-cd ~/work
+# SIP SIMPLE library
 if [ -d python-sipsimple ]; then
 	cd python-sipsimple
 	darcs pull -a
@@ -201,7 +131,7 @@ else
 fi
 cd..
 
-Build and install the library system wide:
+Build and install SIP SIMPLE library:
 
 cd python-sipsimple
 sudo python setup.py build_ext --pjsip-clean-compile
