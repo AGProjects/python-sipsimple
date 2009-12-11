@@ -2,7 +2,6 @@
 Installation procedure for SIP SIMPLE client SDK on MacOSX
 ----------------------------------------------------------
 
-
 Copyright (c) 2008-2009 AG Projects
 http://ag-projects.com
 
@@ -10,14 +9,6 @@ Home page: http://sipsimpleclient.com
 
 This document describes the installation procedure on MacOSX Leopard 10.5
 and Snow Leopard 10.6.
-
-Fore more information see the installation guide available at:
-
-http://sipsimpleclient.com/wiki/SipInstallation
-
-
-Manual Installation (Development Version)
------------------------------------------
 
 The installation procedure consists of the steps described below:
 
@@ -30,6 +21,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 
 Step 1. Prerequisites
+---------------------
 
  * MacOSX 10.5 (Leopard) or MacOSX 10.6 (Snow Leopard)
  * Apple Developer tools (XCode)
@@ -43,6 +35,7 @@ Darwin Ports distributions.
 
 
 Step 2. Install Dependencies
+----------------------------
 
  * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
  * python-application       http://pypi.python.org/simple/python-application  >=1.1.5
@@ -171,7 +164,7 @@ will be installed in /Library/Python/2.5/site-packages on Leopard or
 
 sudo easy_install -U python-gnutls dnspython twisted greenlet python-application PIL
 
-Install Cython
+Install a proper version of Cython:
 
 curl -O http://pypi.python.org/packages/source/C/Cython/Cython-0.11.2.tar.gz
 tar zxvf Cython-0.11.2.tar.gz
@@ -179,10 +172,18 @@ cd Cython-0.11.2
 sudo python setup.py install
 cd ..
 
-Install SIP SIMPLE client dependencies from AG Projects repositories:
 
-cd ~/work
-# python-eventlet
+Step 3. Install SIP SIMPLE client SDK
+-------------------------------------
+
+The SDK consists of four parts:
+
+ 1. Eventlet
+ 2. XCAP library
+ 3. MSRP library
+ 4. SIP SIMPLE library
+
+# Eventlet
 if [ -d python-eventlet ]; then
         cd python-eventlet
         darcs pull -a 
@@ -194,47 +195,42 @@ else
 fi
 cd ..
 
-# python-xcaplib
+# XCAP library
 if [ -d python-xcaplib ]; then
-	cd python-xcaplib
-	darcs pull -a
-	sudo python setup.py install
+        cd python-xcaplib
+        darcs pull -a 
+        sudo python setup.py install
 else
-	darcs get http://devel.ag-projects.com/repositories/python-xcaplib
-	cd python-xcaplib
-	sudo python setup.py install
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+        sudo python setup.py install
 fi
 cd ..
 
-# python-msrplib
+# MSRP library
 if [ -d python-msrplib ]; then
-	cd python-msrplib
-	darcs pull -a
-	sudo python setup.py install
-else
-	darcs get http://devel.ag-projects.com/repositories/python-msrplib
-	cd python-msrplib
-	sudo python setup.py install
-fi
-cd ..
-
-
-Step 3. Install SIP SIMPLE client SDK
-
-Download or update the source code:
-
-cd ~/work
-if [ -d python-sipsimple ]; then
-        cd python-sipsimple
+        cd python-msrplib
         darcs pull -a
+        sudo python setup.py install
 else
-        darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+        sudo python setup.py install
 fi
 cd ..
 
-Build and install the SIP SIMPLE client SDK system wide:
+# SIP SIMPLE library
+if [ -d python-sipsimple ]; then
+	cd python-sipsimple
+	darcs pull -a
+else 
+	darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+fi
+cd..
+
+Build and install SIP SIMPLE library:
 
 cd python-sipsimple
 sudo python setup.py build_ext --pjsip-clean-compile
-sudo python setup.py install --prefix=/usr/local
+sudo python setup.py install
 
