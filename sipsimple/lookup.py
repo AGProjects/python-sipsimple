@@ -49,8 +49,10 @@ class DNSCache(object):
 
     def put(self, key, value):
         from twisted.internet import reactor
-        self.data[key] = value
-        reactor.callLater(value.expiration, self.data.pop, key, None)
+        expiration = value.expiration-time()
+        if expiration > 0:
+            self.data[key] = value
+            reactor.callLater(expiration, self.data.pop, key, None)
 
     def flush(self, key=None):
         if key is not None:
