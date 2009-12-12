@@ -232,5 +232,5 @@ Build and install SIP SIMPLE library:
 
 cd python-sipsimple
 sudo python setup.py build_ext --pjsip-clean-compile
-sudo python setup.py install
+sudo python setup.py install --prefix=/usr/local
 
