@@ -15,7 +15,7 @@ from threading import RLock
 import os
 from datetime import datetime
 
-from zope.interface import implements
+from zope.interface import Attribute, Interface, implements
 
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Null
@@ -28,7 +28,41 @@ from sipsimple.core import RTPTransport, AudioTransport, SIPCoreError, PJSIPErro
 from sipsimple.account import BonjourAccount
 
 
-__all__ = ['AudioStream']
+__all__ = ['IVirtualAudioDevice', 'AudioStream']
+
+
+class IVirtualAudioDevice(Interface):
+    """
+    Interface describing an object which produces data for the audio stream
+    and/or handles data from the audio stream.
+    """
+
+    consumer_slot = Attribute("The slot to which audio data can be written")
+    producer_slot = Attribute("The slot from which audio data can be read")
+
+    def initialize(conference_bridge):
+        """
+        Method called by the AudioStream when the IVirtualAudioDevice is
+        attached to it.
+        """
+
+
+class AudioDevice(object):
+    implements(IVirtualAudioDevice)
+
+    def __init__(self):
+        self.conference_bridge = None
+
+    def initialize(self, conference_bridge):
+        self.conference_bridge = conference_bridge
+
+    @property
+    def producer_slot(self):
+        return 0 if self.conference_bridge else None
+
+    @property
+    def consumer_slot(self):
+        return 0 if self.conference_bridge else None
 
 
 class AudioStream(object):
@@ -43,9 +77,11 @@ class AudioStream(object):
 
     def __init__(self, account):
         from sipsimple.api import SIPApplication
+        self._lock = RLock()
         self.state = "NULL"
         self.account = account
         self.conference_bridge = SIPApplication.voice_conference_bridge
+        self.device = AudioDevice()
         self.notification_center = NotificationCenter()
         self.on_hold_by_local = False
         self.on_hold_by_remote = False
@@ -53,7 +89,6 @@ class AudioStream(object):
         self._rtp_transport = None
         self._audio_rec = None
         self._hold_request = None
-        self._lock = RLock()
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
@@ -124,6 +159,40 @@ class AudioStream(object):
     @property
     def slot(self):
         return self._audio_transport.slot if self._audio_transport is not None else None
+
+    def _get_device(self):
+        return self.__dict__['device']
+
+    def _set_device(self, device):
+        if not IVirtualAudioDevice.providedBy(device):
+            raise TypeError("audio connector must implement IAudioConnector")
+        with self._lock:
+            stream_connected = False
+            recording_connected = False
+            if 'device' in self.__dict__ and not self.on_hold:
+                if self._audio_transport and self._audio_transport.slot != -1:
+                    stream_connected = True
+                    if self.device.producer_slot is not None:
+                        self.conference_bridge.disconnect_slots(self.device.producer_slot, self._audio_transport.slot)
+                    if self.device.consumer_slot is not None:
+                        self.conference_bridge.disconnect_slots(self._audio_transport.slot, self.device.consumer_slot)
+                if self._audio_rec and self._audio_rec[0].slot in (connection[0] for connection in self.conference_bridge.connected_slots):
+                    recording_connected = True
+                    if self.device.producer_slot is not None:
+                        self.conference_bridge.disconnect_slots(self.device.producer_slot, self._audio_rec[0].slot)
+            self.__dict__['device'] = device
+            self.device.initialize(self.conference_bridge)
+            if stream_connected:
+                if self.device.producer_slot is not None:
+                    self.conference_bridge.connect_slots(self.device.producer_slot, self._audio_transport.slot)
+                if self.device.consumer_slot is not None:
+                    self.conference_bridge.connect_slots(self._audio_transport.slot, self.device.consumer_slot)
+            if recording_connected:
+                if self.device.producer_slot is not None:
+                    self.conference_bridge.connect_slots(self.device.producer_slot, self._audio_rec[0].slot)
+
+    device = property(_get_device, _set_device)
+    del _get_device, _set_device
 
     def validate_incoming(self, remote_sdp, stream_index):
         with self._lock:
@@ -258,8 +327,10 @@ class AudioStream(object):
         self.on_hold_by_local = "recv" not in direction
         self.on_hold_by_remote = "send" not in direction
         if (is_initial or was_on_hold_by_local) and not self.on_hold_by_local and self._hold_request != 'hold':
-            self.conference_bridge.connect_slots(0, self._audio_transport.slot)
-            self.conference_bridge.connect_slots(self._audio_transport.slot, 0)
+            if self.device.producer_slot is not None:
+                self.conference_bridge.connect_slots(self.device.producer_slot, self._audio_transport.slot)
+            if self.device.consumer_slot is not None:
+                self.conference_bridge.connect_slots(self._audio_transport.slot, self.device.consumer_slot)
         if not was_on_hold_by_local and self.on_hold_by_local:
             self.notification_center.post_notification("AudioStreamDidChangeHoldState", self,
                                                        TimestampedNotificationData(originator="local", on_hold=True))
@@ -360,13 +431,13 @@ class AudioStream(object):
                                                        TimestampedNotificationData(file_name=output_rec.file_name, direction='both' if input_rec is output_rec else 'output'))
         output_slots = [connection[1] for connection in self.conference_bridge.connected_slots]
         if not self.on_hold:
-            if input_rec.slot not in output_slots:
-                self.conference_bridge.connect_slots(0, input_rec.slot)
+            if input_rec.slot not in output_slots and self.device.producer_slot is not None:
+                self.conference_bridge.connect_slots(self.device.producer_slot, input_rec.slot)
             if output_rec.slot not in output_slots:
                 self.conference_bridge.connect_slots(self._audio_transport.slot, output_rec.slot)
         else:
-            if input_rec.slot in output_slots:
-                self.conference_bridge.disconnect_slots(0, input_rec.slot)
+            if input_rec.slot in output_slots and self.device.producer_slot is not None:
+                self.conference_bridge.disconnect_slots(self.device.producer_slot, input_rec.slot)
             if output_rec.slot in output_slots:
                 self.conference_bridge.disconnect_slots(self._audio_transport.slot, output_rec.slot)
 
@@ -418,8 +489,10 @@ class AudioStream(object):
             if self.on_hold_by_local or self._hold_request == 'hold':
                 return
             if self.state == "ESTABLISHED":
-                self.conference_bridge.disconnect_slots(0, self._audio_transport.slot)
-                self.conference_bridge.disconnect_slots(self._audio_transport.slot, 0)
+                if self.device.producer_slot is not None:
+                    self.conference_bridge.disconnect_slots(self.device.producer_slot, self._audio_transport.slot)
+                if self.device.consumer_slot is not None:
+                    self.conference_bridge.disconnect_slots(self._audio_transport.slot, self.device.consumer_slot)
             self._hold_request = 'hold'
 
     def unhold(self):
@@ -427,8 +500,10 @@ class AudioStream(object):
             if not self.on_hold_by_local or self._hold_request == 'unhold':
                 return
             if self.state == "ESTABLISHED" and self._hold_request == 'hold':
-                self.conference_bridge.connect_slots(0, self._audio_transport.slot)
-                self.conference_bridge.connect_slots(self._audio_transport.slot, 0)
+                if self.device.producer_slot is not None:
+                    self.conference_bridge.connect_slots(self.device.producer_slot, self._audio_transport.slot)
+                if self.device.consumer_slot is not None:
+                    self.conference_bridge.connect_slots(self._audio_transport.slot, self.device.consumer_slot)
             self._hold_request = None if self._hold_request == 'hold' else 'unhold'
 
     def deactivate(self):
