@@ -766,8 +766,9 @@ cdef class PJSIPUA:
                 sub._init(self, rdata, _pj_str_to_str(event_hdr.event_type))
         elif method_name == "MESSAGE":
             message_params = dict()
-            message_params["to_header"] = FrozenToHeader_create(rdata.msg_info.to_hdr)
+            message_params["request_uri"] = FrozenSIPURI_create(<pjsip_sip_uri *> pjsip_uri_get_uri(rdata.msg_info.msg.line.req.uri))
             message_params["from_header"] = FrozenFromHeader_create(rdata.msg_info.from_hdr)
+            message_params["to_header"] = FrozenToHeader_create(rdata.msg_info.to_hdr)
             message_params["content_type"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
             message_params["content_subtype"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data,
