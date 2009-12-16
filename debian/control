@@ -2,14 +2,14 @@ Source: python-sipsimple
 Section: python
 Priority: optional
 Maintainer: Dan Pascu <dan@ag-projects.com>
-Uploaders: Ruud Klaver <ruud@ag-projects.com>, Adrian Georgescu <ag@ag-projects.com>, Denis Bilenko <denis@ag-projects.com>, Lucian Stanescu <luci@ag-projects.com>
+Uploaders: Adrian Georgescu <ag@ag-projects.com>, Lucian Stanescu <luci@ag-projects.com>, Saul Ibarra <saul@ag-projects.com>
 Build-Depends: cdbs (>= 0.4.47), debhelper (>= 7), python-all-dev (>= 2.5), python-support, cython (>= 0.10.0), libasound2-dev, libssl-dev
-Standards-Version: 3.8.0
+Standards-Version: 3.8.3
 Homepage: http://sipsimpleclient.com
 
 Package: python-sipsimple
 Architecture: any
-Depends: ${python:Depends}, ${shlibs:Depends}, python-application (>= 1.2.1), python-twisted-core (>= 8.1.0), python-dnspython (>= 1.6), python-gnutls, python-lxml, python-xcaplib (>= 1.0.10), python-msrplib (>= 0.11.0)
+Depends: ${python:Depends}, ${shlibs:Depends}, python-application (>= 1.2.1), python-twisted-core (>= 8.1.0), python-dnspython (>= 1.6), python-gnutls, python-lxml, python-xcaplib (>= 1.0.10), python-msrplib (>= 0.11.0), python-eventlet (>=0.8.11)
 Provides: ${python:Provides}
 Description: Python SIP SIMPLE framework
  The SIP SIMPLE Python framework allows for easy development of Internet
@@ -21,7 +21,7 @@ Description: Python SIP SIMPLE framework
 Package: sipsimple-cli
 Section: net
 Architecture: all
-Depends: ${python:Depends}, python-sipsimple (>= ${source:Version}), python-twisted-conch (>= 8.1.0)
+Depends: ${python:Depends}, python-sipsimple (>= ${source:Version})
 Description: SIP SIMPLE command line clients
  This package contains some command line clients that are implemented using
  the Python SIP SIMPLE framework. They demonstrate some of the framework
