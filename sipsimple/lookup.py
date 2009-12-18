@@ -149,7 +149,7 @@ class DNSLookup(object):
         service_srv_record_map = {"stun": ("_stun._udp", 3478, False),
                                   "msrprelay": ("_msrps._tcp", 2855, True)}
         notification_center = NotificationCenter()
-        log_context = dict(context='lookup_service', uri=uri)
+        log_context = dict(context='lookup_service', service=service, uri=uri)
 
         try:
             service_prefix, service_port, service_fallback = service_srv_record_map[service]
