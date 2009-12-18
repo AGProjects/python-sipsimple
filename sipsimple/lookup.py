@@ -22,9 +22,10 @@ dns.query.select = select
 dns.query.socket = socket
 
 from application.notification import NotificationCenter
+from application.python.decorator import decorator, preserve_signature
 from dns import exception, rdatatype
 
-from sipsimple.util import Route, TimestampedNotificationData, run_in_green_thread
+from sipsimple.util import Route, TimestampedNotificationData, run_in_waitable_green_thread
 
 
 def domain_iterator(domain):
@@ -34,6 +35,28 @@ def domain_iterator(domain):
     while domain not in ('.', ''):
         yield domain
         domain = (domain.split('.', 1)+[''])[1]
+
+
+@decorator
+def post_dns_lookup_notifications(func):
+    @preserve_signature(func)
+    def wrapper(obj, *args, **kwargs):
+        notification_center = NotificationCenter()
+        try:
+            result = func(obj, *args, **kwargs)
+        except DNSLookupError, e:
+            notification_center.post_notification('DNSLookupDidFail', sender=obj, data=TimestampedNotificationData(error=e.message))
+            raise
+        else:
+            notification_center.post_notification('DNSLookupDidSucceed', sender=obj, data=TimestampedNotificationData(result=result))
+            return result
+    return wrapper
+
+
+class DNSLookupError(Exception):
+    """
+    The error raised by DNSLookup when a lookup cannot be performed.
+    """
 
 
 class DNSCache(object):
@@ -108,7 +131,8 @@ class DNSLookup(object):
 
     cache = DNSCache()
 
-    @run_in_green_thread
+    @run_in_waitable_green_thread
+    @post_dns_lookup_notifications
     def lookup_service(self, uri, service, timeout=3.0, lifetime=15.0):
         """
         Performs an SRV query to determine the servers used for the specified
@@ -130,8 +154,7 @@ class DNSLookup(object):
         try:
             service_prefix, service_port, service_fallback = service_srv_record_map[service]
         except KeyError:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Unknown service: %s" % service))
-            return
+            raise DNSLookupError("Unknown service: %s" % service)
 
         try:
             resolver = DNSResolver()
@@ -143,20 +166,19 @@ class DNSLookup(object):
             record_name = '%s.%s' % (service_prefix, uri.host)
             services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
             if services:
-                notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=TimestampedNotificationData(result=[(result.address, result.port) for result in services[record_name]]))
-                return
+                return [(result.address, result.port) for result in services[record_name]]
             elif service_fallback:
                 addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                 if uri.host in addresses:
-                    result = [(addr, service_port) for addr in addresses[uri.host]]
-                    notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=TimestampedNotificationData(result=result))
-                    return
+                    return [(addr, service_port) for addr in addresses[uri.host]]
         except dns.resolver.Timeout:
-            pass
-        notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error='No %s servers found for domain %s' % (service, uri.host)))
+            raise DNSLookupError('Timeout in lookup for %s servers for domain %s' % (service, uri.host))
+        else:
+            raise DNSLookupError('No %s servers found for domain %s' % (service, uri.host))
 
 
-    @run_in_green_thread
+    @run_in_waitable_green_thread
+    @post_dns_lookup_notifications
     def lookup_sip_proxy(self, uri, supported_transports, timeout=3.0, lifetime=15.0):
         """
         Performs an RFC 3263 compliant lookup of transport/ip/port combinations
@@ -181,13 +203,11 @@ class DNSLookup(object):
         log_context = dict(context='lookup_sip_proxy', uri=uri)
 
         if not supported_transports:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="No transports are supported"))
-            return
+            raise DNSLookupError("No transports are supported")
         supported_transports = [transport.lower() for transport in supported_transports]
         unknown_transports = set(supported_transports).difference(transport_service_map)
         if unknown_transports:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Unknown transports: %s" % ', '.join(unknown_transports)))
-            return
+            raise DNSLookupError("Unknown transports: %s" % ', '.join(unknown_transports))
 
         try:
             resolver = DNSResolver()
@@ -200,52 +220,49 @@ class DNSLookup(object):
             if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
                 transport = 'tls' if uri.secure else uri.parameters.get('transport', 'udp').lower()
                 if transport not in supported_transports:
-                    notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Transport %s dictated by URI is not supported" % transport))
-                    return
+                    raise DNSLookupError("Transport %s dictated by URI is not supported" % transport)
                 port = uri.port or (5061 if transport=='tls' else 5060)
-                routes = [Route(address=uri.host, port=port, transport=transport)]
+                return [Route(address=uri.host, port=port, transport=transport)]
 
             # If the port is specified in the URI, we will only do an A lookup
             elif uri.port:
-                addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                 transport = 'tls' if uri.secure else uri.parameters.get('transport', 'udp')
                 if transport not in supported_transports:
-                    notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Transport %s dictated by URI is not supported" % transport))
-                    return
-                routes = [Route(address=addr, port=uri.port, transport=transport) for addr in addresses.get(uri.host, ())]
+                    raise DNSLookupError("Transport %s dictated by URI is not supported" % transport)
+                addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
+                if addresses:
+                    return [Route(address=addr, port=uri.port, transport=transport) for addr in addresses[uri.host]]
 
             # If the transport was already set as a parameter on the SIP URI, only do SRV lookups
             elif 'transport' in uri.parameters:
                 transport = uri.parameters['transport'].lower()
                 if transport not in supported_transports:
-                    notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Requested lookup for URI with %s transport, but it is not supported" % transport))
-                    return
+                    raise DNSLookupError("Requested lookup for URI with %s transport, but it is not supported" % transport)
                 if uri.secure and transport != 'tls':
-                    notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Requested lookup for SIPS URI, but with %s transport parameter" % transport))
-                    return
+                    raise DNSLookupError("Requested lookup for SIPS URI, but with %s transport parameter" % transport)
                 record_name = '%s.%s' % (transport_service_map[transport], uri.host)
                 services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
                 if services:
-                    routes = [Route(address=result.address, port=result.port, transport=transport) for result in services[record_name]]
+                    return [Route(address=result.address, port=result.port, transport=transport) for result in services[record_name]]
                 else:
                     # If SRV lookup fails, try A lookup
                     addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                     port = 5061 if transport=='tls' else 5060
-                    routes = [Route(address=addr, port=port, transport=transport) for addr in addresses.get(uri.host, ())]
+                    if addresses:
+                        return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
 
             # Otherwise, it means we don't have a numeric IP address, a port isn't specified and neither is a transport. So we have to do a full NAPTR lookup
             else:
                 # If the URI is a SIPS URI, we only support the TLS transport.
                 if uri.secure:
                     if 'tls' not in supported_transports:
-                        notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="Requested lookup for SIPS URI, but TLS transport is not supported"))
-                        return
+                        raise DNSLookupError("Requested lookup for SIPS URI, but TLS transport is not supported")
                     supported_transports = ['tls']
                 # First try NAPTR lookup
                 naptr_services = [service for service, transport in naptr_service_transport_map.iteritems() if transport in supported_transports]
                 pointers = self._lookup_naptr_record(resolver, uri.host, naptr_services, log_context=log_context)
                 if pointers:
-                    routes = [Route(address=result.address, port=result.port, transport=naptr_service_transport_map[result.service]) for result in pointers]
+                    return [Route(address=result.address, port=result.port, transport=naptr_service_transport_map[result.service]) for result in pointers]
                 else:
                     # If that fails, try SRV lookup
                     routes = []
@@ -254,19 +271,19 @@ class DNSLookup(object):
                         services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
                         if services:
                             routes.extend(Route(address=result.address, port=result.port, transport=transport) for result in services[record_name])
-                    if not routes:
+                    if routes:
+                        return routes
+                    else:
                         # If SRV lookup fails, try A lookup
                         addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                         transport = 'tls' if uri.secure else 'udp'
                         port = 5061 if transport=='tls' else 5060
-                        routes = [Route(address=addr, port=port, transport=transport) for addr in addresses.get(uri.host, ())]
+                        if addresses:
+                            return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
         except dns.resolver.Timeout:
-            routes = []
-
-        if routes:
-            notification_center.post_notification('DNSLookupDidSucceed', sender=self, data=TimestampedNotificationData(result=routes))
+            raise DNSLookupError("Timeout in lookup for routes for SIP URI %s" % uri)
         else:
-            notification_center.post_notification('DNSLookupDidFail', sender=self, data=TimestampedNotificationData(error="No routes found for SIP URI %s" % (uri,)))
+            raise DNSLookupError("No routes found for SIP URI %s" % uri)
 
 
     def _lookup_a_records(self, resolver, hostnames, additional_records=[], log_context={}):
