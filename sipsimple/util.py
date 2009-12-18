@@ -9,12 +9,14 @@ from __future__ import with_statement
 import errno
 import os
 import socket
+import sys
 from datetime import datetime
 from threading import Lock, Timer
 
 from zope.interface import implements
 from application.notification import IObserver, Any, NotificationCenter, NotificationData
 from application.python.decorator import decorator, preserve_signature
+from eventlet import coros
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
 
@@ -208,6 +210,27 @@ def run_in_green_thread(func):
             callInGreenThread(func, *args, **kwargs)
         else:
             reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
+    return wrapper
+
+
+@decorator
+def run_in_waitable_green_thread(func):
+    @preserve_signature(func)
+    def wrapper(*args, **kwargs):
+        from twisted.internet import reactor
+        event = coros.event()
+        def wrapped_func():
+            try:
+                result = func(*args, **kwargs)
+            except:
+                event.send_exception(*sys.exc_info())
+            else:
+                event.send(result)
+        if threadable.isInIOThread():
+            callInGreenThread(wrapped_func)
+        else:
+            reactor.callFromThread(callInGreenThread, wrapped_func)
+        return event
     return wrapper
 
 
