@@ -354,7 +354,7 @@ class ChatStream(MSRPStreamBase):
         if self.direction=='recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
         if not contains_mime_type(self.accept_types, content_type):
-            raise ChatStreamError('Invalid content_type for outgoing message: %r' % (content_type, ))
+            raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
         message_id = '%x' % random.getrandbits(64)
         if self.cpim_enabled:
             if remote_identity is None:
