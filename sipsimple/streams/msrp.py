@@ -326,7 +326,7 @@ class ChatStream(MSRPStreamBase):
             else:
                 notification_center.post_notification('ChatStreamDidSendMessage', self, TimestampedNotificationData(message=chunk))
 
-    @run_in_green_thread
+    @run_in_twisted_thread
     def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None):
         self.message_queue.send((message_id, message, content_type, failure_report, success_report))
     
