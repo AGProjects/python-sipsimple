@@ -202,11 +202,11 @@ class DNSLookup(object):
 
             record_name = '%s.%s' % (service_prefix, uri.host)
             services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
-            if services:
+            if services[record_name]:
                 return [(result.address, result.port) for result in services[record_name]]
             elif service_fallback:
                 addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
-                if uri.host in addresses:
+                if addresses[uri.host]:
                     return [(addr, service_port) for addr in addresses[uri.host]]
         except dns.resolver.Timeout:
             raise DNSLookupError('Timeout in lookup for %s servers for domain %s' % (service, uri.host))
@@ -266,7 +266,7 @@ class DNSLookup(object):
                 if transport not in supported_transports:
                     raise DNSLookupError("Transport %s dictated by URI is not supported" % transport)
                 addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
-                if addresses:
+                if addresses[uri.host]:
                     return [Route(address=addr, port=uri.port, transport=transport) for addr in addresses[uri.host]]
 
             # If the transport was already set as a parameter on the SIP URI, only do SRV lookups
@@ -278,13 +278,13 @@ class DNSLookup(object):
                     raise DNSLookupError("Requested lookup for SIPS URI, but with %s transport parameter" % transport)
                 record_name = '%s.%s' % (transport_service_map[transport], uri.host)
                 services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
-                if services:
+                if services[record_name]:
                     return [Route(address=result.address, port=result.port, transport=transport) for result in services[record_name]]
                 else:
                     # If SRV lookup fails, try A lookup
                     addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                     port = 5061 if transport=='tls' else 5060
-                    if addresses:
+                    if addresses[uri.host]:
                         return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
 
             # Otherwise, it means we don't have a numeric IP address, a port isn't specified and neither is a transport. So we have to do a full NAPTR lookup
@@ -305,7 +305,7 @@ class DNSLookup(object):
                     for transport in supported_transports:
                         record_name = '%s.%s' % (transport_service_map[transport], uri.host)
                         services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
-                        if services:
+                        if services[record_name]:
                             routes.extend(Route(address=result.address, port=result.port, transport=transport) for result in services[record_name])
                     if routes:
                         return routes
@@ -314,7 +314,7 @@ class DNSLookup(object):
                         addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                         transport = 'tls' if uri.secure else 'udp'
                         port = 5061 if transport=='tls' else 5060
-                        if addresses:
+                        if addresses[uri.host]:
                             return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
         except dns.resolver.Timeout:
             raise DNSLookupError("Timeout in lookup for routes for SIP URI %s" % uri)
@@ -337,6 +337,7 @@ class DNSLookup(object):
                     raise
                 except exception.DNSException, e:
                     notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), answer=None, error=e, **log_context))
+                    addresses[hostname] = []
                 else:
                     notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), answer=answer, error=None, **log_context))
                     addresses[hostname] = [r.address for r in answer.rrset]
