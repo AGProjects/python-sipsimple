@@ -9,7 +9,6 @@ resources prior the starting of a SIP session.
 """
 
 import re
-from itertools import chain
 from time import time
 
 # replace standard select and socket modules with versions from eventlet
@@ -92,14 +91,53 @@ class DNSResolver(dns.resolver.Resolver):
     Each time a query is performed, its duration is subtracted from the lifetime
     value.
     """
+
+    def __init__(self, *args, **kwargs):
+        dns.resolver.Resolver.__init__(self, *args, **kwargs)
+        self.original_nameservers = self.nameservers
+
     def query(self, qname, *args, **kwargs):
         if not qname.endswith('.'):
             qname += '.'
+        self.nameservers = self._get_authoritative_ns(qname)
         start_time = time()
         try:
             return dns.resolver.Resolver.query(self, qname, *args, **kwargs)
         finally:
             self.lifetime -= min(self.lifetime, time()-start_time)
+
+    def _get_authoritative_ns(self, domain):
+        self.nameservers = self.original_nameservers
+        for domain in domain_iterator(domain):
+            start_time = time()
+            try:
+                answer = dns.resolver.Resolver.query(self, domain, rdatatype.NS)
+            except dns.resolver.Timeout, e:
+                raise
+            except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers), e:
+                continue
+            finally:
+                self.lifetime -= min(self.lifetime, time()-start_time)
+            additional_addresses = dict((rset.name.to_text(), rset) for rset in answer.response.additional if rset.rdtype == rdatatype.A)
+            ns_hostnames = set(r.to_text() for r in answer.rrset)
+            ns_addresses = []
+            for hostname in ns_hostnames:
+                if hostname in additional_addresses:
+                    ns_addresses.extend(r.address for r in additional_addresses[hostname])
+                else:
+                    start_time = time()
+                    try:
+                        a_answer = dns.resolver.Resolver.query(self, hostname, rdatatype.A)
+                    except dns.resolver.Timeout, e:
+                        raise
+                    except exception.DNSException, e:
+                        continue
+                    finally:
+                        self.lifetime -= min(self.lifetime, time()-start_time)
+                    ns_addresses.extend(r.address for r in a_answer.rrset)
+            return ns_addresses
+        else:
+            return []
 
 
 class SRVResult(object):
@@ -161,7 +199,6 @@ class DNSLookup(object):
             resolver.cache = self.cache
             resolver.timeout = timeout
             resolver.lifetime = lifetime
-            resolver.nameservers = self._get_authoritative_ns(resolver, uri.host, log_context=log_context)
 
             record_name = '%s.%s' % (service_prefix, uri.host)
             services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
@@ -214,7 +251,6 @@ class DNSLookup(object):
             resolver.cache = self.cache
             resolver.timeout = timeout
             resolver.lifetime = lifetime
-            resolver.nameservers = self._get_authoritative_ns(resolver, uri.host, log_context=log_context)
 
             # If the host part of the URI is an IP address, we will not do any lookup
             if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
@@ -352,25 +388,5 @@ class DNSLookup(object):
                 pointers.extend(NAPTRResult(record.service.lower(), record.order, record.preference, r.priority, r.weight, r.port, r.address) for r in services.get(record.replacement.to_text(), ()))
         pointers.sort(key=lambda result: (result.order, result.preference))
         return pointers
-
-
-    def _get_authoritative_ns(self, resolver, domain, log_context={}):
-        notification_center = NotificationCenter()
-        for domain in domain_iterator(domain):
-            try:
-                answer = resolver.query(domain, rdatatype.NS)
-            except dns.resolver.Timeout, e:
-                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NS', query_name=domain, answer=None, error=e, **log_context))
-                raise
-            except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers), e:
-                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NS', query_name=domain, answer=None, error=e, **log_context))
-                continue
-            else:
-                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NS', query_name=domain, answer=answer, error=None, **log_context))
-                ns_hostnames = set(r.to_text() for r in answer.rrset)
-                ns_addresses = list(chain(*self._lookup_a_records(resolver, ns_hostnames, answer.response.additional, log_context=log_context).values()))
-                return ns_addresses
-        else:
-            return []
 
 
