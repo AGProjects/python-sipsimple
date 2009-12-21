@@ -879,7 +879,7 @@ class SIPSessionApplication(SIPApplication):
 
         self.logger = None
         self.rtp_statistics = None
-        self.nat_detector = NATDetector()
+        self.nat_detector = None
 
         self.hold_tone = None
 
@@ -992,6 +992,9 @@ class SIPSessionApplication(SIPApplication):
             settings.audio.input_device = None
             settings.audio.output_device = None
             settings.audio.alert_device = None
+
+        if isinstance(self.account, Account):
+            self.nat_detector = NATDetector()
 
     def _NH_SIPApplicationDidStart(self, notification):
         engine = Engine()
