@@ -275,6 +275,7 @@ cdef class Request:
                                     reason="Could not add auth data to request %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
+                    return 0
                 cseq = <pjsip_cseq_hdr *> pjsip_msg_find_hdr(tdata_auth.msg, PJSIP_H_CSEQ, NULL)
                 if cseq != NULL:
                     cseq.cseq += 1
@@ -288,6 +289,7 @@ cdef class Request:
                                             _pj_status_to_str(status)))
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
+                    return 0
                 self._tsx.mod_data[ua._module.id] = NULL
                 self._tsx = tsx_auth
                 self._tsx.mod_data[ua._module.id] = <void *> self
@@ -299,6 +301,7 @@ cdef class Request:
                                     reason="Could not send request with auth %s" % _pj_status_to_str(status)))
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
+                    return 0
             else:
                 event_dict = dict(obj=self)
                 if rdata != NULL:
@@ -308,7 +311,7 @@ cdef class Request:
                     if rdata != NULL:
                         if "Expires" in event_dict["headers"]:
                             expires = event_dict["headers"]["Expires"]
-                        else:
+                        elif self.contact_header is not None:
                             for contact_header in event_dict["headers"].get("Contact", []):
                                 if contact_header.uri == self.contact_header.uri and contact_header.expires is not None:
                                     expires = contact_header.expires
