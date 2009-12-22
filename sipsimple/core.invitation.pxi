@@ -134,9 +134,10 @@ cdef class Invitation:
                 raise PJSIPError("Could not create initial (unused) response to INVITE", status)
             with nogil:
                 pjsip_tx_data_dec_ref(tdata)
-            if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER:
-                pjmedia_sdp_neg_get_neg_remote(self._invite_session.neg, &sdp)
-                self.sdp.proposed_remote = FrozenSDPSession_create(sdp)
+            if self._invite_session.neg != NULL:
+                if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER:
+                    pjmedia_sdp_neg_get_neg_remote(self._invite_session.neg, &sdp)
+                    self.sdp.proposed_remote = FrozenSDPSession_create(sdp)
             self._invite_session.mod_data[ua._module.id] = <void *> self.weakref
             self.call_id = _pj_str_to_str(self._dialog.call_id.id)
             event_dict = dict(obj=self, prev_state=self.state, state="incoming", originator="remote")
