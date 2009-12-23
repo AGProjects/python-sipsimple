@@ -158,6 +158,9 @@ class MSRPStreamBase(object):
             if remote_uri_path is None:
                 raise AttributeError("remote SDP media does not have 'path' attribute")
             full_remote_path = [parse_uri(uri) for uri in remote_uri_path.split()]
+            remote_transport = 'tls' if full_remote_path[0].use_tls else 'tcp'
+            if self.transport != remote_transport:
+                raise MSRPStreamError("remote transport ('%s') different from local transport ('%s')" % (remote_transport, self.transport))
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
             if self.use_msrp_session:
