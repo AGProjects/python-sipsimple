@@ -842,7 +842,7 @@ class Session(object):
             api.kill(self.greenlet, api.GreenletExit())
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
-        if self._invitation is None or self._invitation.state in ('disconnecting', 'disconnected'):
+        if self._invitation is None or self._invitation.state in (None, 'disconnecting', 'disconnected'):
             return
         self.state = 'terminating'
         if self._invitation.state == 'connected':
