@@ -125,6 +125,8 @@ class MSRPStreamBase(object):
                                               port=self.account.nat_traversal.msrp_relay.port,
                                               use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
                     self.transport = self.account.nat_traversal.msrp_relay.transport
+                if self.transport != settings.msrp.transport:
+                    raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
             else:
                 relay = None
                 self.transport = settings.msrp.transport
