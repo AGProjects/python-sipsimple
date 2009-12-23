@@ -256,6 +256,9 @@ class ChatStream(MSRPStreamBase):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message':
             raise UnknownStreamError
+        expected_transport = 'TCP/TLS/MSRP' if SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
+        if remote_stream.transport != expected_transport:
+            raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
         if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
             raise InvalidStreamError("mismatching directions in chat stream")
@@ -487,6 +490,9 @@ class FileTransferStream(MSRPStreamBase):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message' or 'file-selector' not in remote_stream.attributes:
             raise UnknownStreamError
+        expected_transport = 'TCP/TLS/MSRP' if SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
+        if remote_stream.transport != expected_transport:
+            raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
         stream.file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
         if (remote_stream.direction, stream.direction) != ('sendonly', 'recvonly'):
@@ -806,6 +812,9 @@ class DesktopSharingStream(MSRPStreamBase):
         accept_types = remote_stream.attributes.getfirst('accept-types', None)
         if accept_types is None or 'application/x-rfb' not in accept_types.split():
             raise UnknownStreamError
+        expected_transport = 'TCP/TLS/MSRP' if SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
+        if remote_stream.transport != expected_transport:
+            raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         remote_setup = remote_stream.attributes.getfirst('setup', 'active')
         if remote_setup == 'active':
             return cls(account, handler=InternalVNCServerHandler())

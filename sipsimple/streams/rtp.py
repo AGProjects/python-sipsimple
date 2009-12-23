@@ -20,7 +20,7 @@ from zope.interface import Attribute, Interface, implements
 from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.util import Null
 
-from sipsimple.streams import IMediaStream, MediaStreamRegistrar, UnknownStreamError
+from sipsimple.streams import IMediaStream, MediaStreamRegistrar, InvalidStreamError, UnknownStreamError
 from sipsimple.util import TimestampedNotificationData, makedirs
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -99,6 +99,8 @@ class AudioStream(object):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'audio':
             raise UnknownStreamError
+        if remote_stream.transport != 'RTP/AVP':
+            raise InvalidStreamError("expected RTP/AVP transport in audio stream, got %s" % remote_stream.transport)
         stream = cls(account)
         with stream._lock: # do we really need to lock here? -Dan
             # TODO: actually validate the SDP
