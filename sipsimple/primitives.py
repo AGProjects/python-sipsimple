@@ -34,15 +34,12 @@ class Registration(object):
     contact_uri = property(lambda self: None if self._last_request is None else self._last_request.contact_uri)
     expires_in = property(lambda self: 0 if self._last_request is None else self._last_request.expires_in)
 
-    def register(self, contact_header, route_header, timeout=None, raise_sipcore_error=True):
+    def register(self, contact_header, route_header, timeout=None):
         with self._lock:
             try:
                 self._make_and_send_request(contact_header, route_header, timeout, True)
             except SIPCoreError, e:
-                if raise_sipcore_error:
-                    raise
-                else:
-                    NotificationCenter().post_notification("SIPRegistrationDidFail", sender=self,
+                NotificationCenter().post_notification("SIPRegistrationDidFail", sender=self,
                                                            data=TimestampedNotificationData(code=0, reason=e.args[0],
                                                                                             route_header=route_header))
 
@@ -50,8 +47,11 @@ class Registration(object):
         with self._lock:
             if self._last_request is None:
                 return
-            self._make_and_send_request(ContactHeader.new(self._last_request.contact_header), RouteHeader.new(self._last_request.route_header), timeout, False)
             NotificationCenter().post_notification("SIPRegistrationWillEnd", sender=self, data=TimestampedNotificationData())
+            try:
+                self._make_and_send_request(ContactHeader.new(self._last_request.contact_header), RouteHeader.new(self._last_request.route_header), timeout, False)
+            except SIPCoreError, e:
+                NotificationCenter().post_notification("SIPRegistrationDidNotEnd", sender=self, data=TimestampedNotificationData(code=0, reason=e.args[0]))
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
