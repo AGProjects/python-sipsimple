@@ -75,7 +75,7 @@ class IsComposingMessage(XMLRootElement):
                            Refresh.qname: 3,
                            None: 4}
 
-    state = XMLElementChild('state', type=State, required=False, test_equal=True)
+    state = XMLElementChild('state', type=State, required=True, test_equal=True)
     last_active = XMLElementChild('last_active', type=LastActive, required=False, test_equal=True)
     contenttype = XMLElementChild('contenttype', type=ContentType, required=False, test_equal=True)
     refresh = XMLElementChild('refresh', type=Refresh, required=False, test_equal=True)
