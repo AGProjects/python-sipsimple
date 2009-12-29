@@ -7,8 +7,6 @@ This module provides an extension to PIDF (module sipsimple.applications.presdm)
 provide additional contact information about a presentity.
 """
 
-from lxml import etree
-
 from sipsimple.applications import XMLStringElement
 from sipsimple.applications.presdm import PIDFApplication, ServiceExtension, PersonExtension, Service, Person
 
