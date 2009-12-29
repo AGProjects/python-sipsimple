@@ -301,8 +301,11 @@ class ChatStream(MSRPStreamBase):
         # TODO: check wrapped content-type and issue a report if it's invalid
         if content_type.lower() == IsComposingMessage.content_type:
             data = IsComposingMessage.parse(content)
-            ndata = TimestampedNotificationData(state=data.state.value, refresh=data.refresh.value, content_type=data.contenttype.value,
-                                                last_active=data.last_active.value, remote_identity=remote_identity)
+            ndata = TimestampedNotificationData(state=data.state.value,
+                                                refresh=data.refresh.value if data.refresh is not None else None,
+                                                content_type=data.contenttype.value if data.contenttype is not None else None,
+                                                last_active=data.last_active.value if data.last_active is not None else None,
+                                                remote_identity=remote_identity)
             NotificationCenter().post_notification('ChatStreamGotComposingIndication', self, ndata)
             return
         ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, message=chunk)
