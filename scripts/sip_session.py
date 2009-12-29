@@ -123,6 +123,9 @@ class OutgoingCallInitializer(object):
         self.wave_ringtone = None
 
     def start(self):
+        if isinstance(self.account, BonjourAccount) and '@' not in self.target:
+            send_notice('Bonjour mode requires a host in the destination address')
+            return
         if '@' not in self.target:
             self.target = '%s@%s' % (self.target, self.account.id.domain)
         if not self.target.startswith('sip:') and not self.target.startswith('sips:'):
@@ -132,7 +135,7 @@ class OutgoingCallInitializer(object):
         except SIPCoreError:
             send_notice('Illegal SIP URI: %s' % self.target)
         else:
-            if '.' not in self.target.host:
+            if '.' not in self.target.host and not isinstance(self.account, BonjourAccount):
                 self.target.host = '%s.%s' % (self.target.host, self.account.id.domain)
             lookup = DNSLookup()
             notification_center = NotificationCenter()
@@ -533,6 +536,9 @@ class OutgoingTransferHandler(object):
     
     @run_in_green_thread
     def start(self):
+        if isinstance(self.account, BonjourAccount) and '@' not in self.target:
+            send_notice('Bonjour mode requires a host in the destination address')
+            return
         if '@' not in self.target:
             self.target = '%s@%s' % (self.target, self.account.id.domain)
         if not self.target.startswith('sip:') and not self.target.startswith('sips:'):
@@ -550,7 +556,7 @@ class OutgoingTransferHandler(object):
                     send_notice('Failed to read file "%s": %s' % (self.filepath, e))
             self.hash_compute_proc = proc.spawn(compute_hash)
             
-            if '.' not in self.target.host:
+            if '.' not in self.target.host and not isinstance(self.account, BonjourAccount):
                 self.target.host = '%s.%s' % (self.target.host, self.account.id.domain)
             lookup = DNSLookup()
             notification_center = NotificationCenter()

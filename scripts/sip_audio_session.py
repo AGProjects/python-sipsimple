@@ -298,6 +298,10 @@ class SIPAudioApplication(SIPApplication):
         self.hold_tone = PersistentTones(self.voice_conference_bridge, [(300, 0, 100), (0,0,100), (300, 0, 100)], 30, volume=50)
 
         if self.target is not None:
+            if isinstance(self.account, BonjourAccount) and '@' not in self.target:
+                self.output.put('Bonjour mode requires a host in the destination address\n')
+                self.stop()
+                return
             if '@' not in self.target:
                 self.target = '%s@%s' % (self.target, self.account.id.domain)
             if not self.target.startswith('sip:') and not self.target.startswith('sips:'):
@@ -308,7 +312,7 @@ class SIPAudioApplication(SIPApplication):
                 self.output.put('Illegal SIP URI: %s\n' % self.target)
                 self.stop()
             else:
-                if '.' not in self.target.host:
+                if '.' not in self.target.host and not isinstance(self.account, BonjourAccount):
                     self.target.host = '%s.%s' % (self.target.host, self.account.id.domain)
                 lookup = DNSLookup()
                 notification_center = NotificationCenter()
