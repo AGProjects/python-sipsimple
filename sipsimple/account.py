@@ -91,6 +91,9 @@ class TLSSettings(SettingsGroup):
     certificate = Setting(type=UserDataPath, default=None, nillable=True)
     verify_server = Setting(type=bool, default=False)
 
+class PSTNSettings(SettingsGroup):
+    replace_plus = Setting(type=str, default=None, nillable=True)
+
 
 class Account(SettingsObject):
     """
@@ -131,6 +134,7 @@ class Account(SettingsObject):
     xcap = XcapSettings
     sounds = SoundsSettings
     tls = TLSSettings
+    pstn = PSTNSettings
 
     def __init__(self, id):
         self.id = id
