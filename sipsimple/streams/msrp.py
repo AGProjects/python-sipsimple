@@ -290,13 +290,13 @@ class ChatStream(MSRPStreamBase):
             return
         if chunk.content_type.lower()=='message/cpim':
             cpim_headers, content = MessageCPIMParser.parse_string(chunk.data)
-            content_type = cpim_headers.get('Content-Type')
-            remote_identity = cpim_headers['From']
+            content_type = cpim_headers.get('Content-Type', 'text/plain')
+            remote_identity = cpim_headers.get('From', self.remote_identity)
         else:
             cpim_headers = {}
             content = chunk.data
             content_type = chunk.content_type
-            remote_identity = None
+            remote_identity = self.remote_identity
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report if it's invalid
         if content_type.lower() == IsComposingMessage.content_type:
