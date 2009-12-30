@@ -38,12 +38,15 @@ the following packages, notice the minimum version numbers:
  * python-application       http://pypi.python.org/simple/python-application  >=1.1.5
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
+ * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
  * cython                   http://www.cython.org                             <=0.11.2
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
+ * eventlet                 http://pypi.python.org/pypi/eventlet/             =0.8.11
  * greenlet                 http://pypi.python.org/pypi/greenlet/             >=0.2
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
+ * pybonjour                http://code.google.com/p/pybonjour/               >=1.1.1
 
 On Debian you can install the dependencies using apt-get:
 
@@ -63,7 +66,8 @@ sudo apt-get install cython=0.11.2-1
 Alternatively, on non-Debian systems you can use the easy_install script
 provided by the python-setuptools package to install the packages:
 
-sudo easy_install -U lxml python-gnutls python-application dnspython twisted PIL
+sudo easy_install -U lxml python-gnutls python-application \
+dnspython twisted PIL pybonjour
 
 Install the proper version of Cython:
 
@@ -71,7 +75,11 @@ sudo easy_install cython==0.11.2
 
 Install greenlet by using easy_install script:
 
-sudo easy_install -U greenlet
+sudo easy_install greenlet
+
+Install pybonjour by using easy_install script:
+
+sudo easy_install pybonjour
 
 
 Step 3. Install SIP SIMPLE client SDK
