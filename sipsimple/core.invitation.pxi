@@ -695,7 +695,10 @@ cdef class Invitation:
                 event_dict["error"] = _pj_status_to_str(timer.status)
             _add_event("SIPInvitationGotSDPUpdate", event_dict)
             if self.state in ("incoming", "early") and timer.status != 0:
-                self.send_response(488)
+                if self.direction == "incoming":
+                    self.send_response(488)
+                else:
+                    self.end()
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
