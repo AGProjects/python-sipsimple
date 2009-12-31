@@ -189,7 +189,9 @@ class Message(object):
             if notification.data.expires:
                 # this shouldn't happen really
                 notification.sender.end()
-            NotificationCenter().post_notification("SIPMessageDidSucceed", sender=self, data=TimestampedNotificationData())
+            NotificationCenter().post_notification("SIPMessageDidSucceed", sender=self,
+                                                   data=TimestampedNotificationData(code=notification.data.code,
+                                                                                    reason=notification.data.reason))
 
     def _NH_SIPRequestDidFail(self, notification):
         with self._lock:
