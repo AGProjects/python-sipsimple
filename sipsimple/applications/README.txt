@@ -108,3 +108,27 @@ This module parses and generates dialog-rules documents to have authorization po
 dialog-info event. There is not yet an RFC on this so the module is implemented following 
 the same ideas as pre-rules (RFC5025).
 
+
+cipid.py
+
+This module provides an extension to PIDF (module sipsimple.applications.pidf) to support
+information defined in RFC4482.
+
+
+caps.py
+
+This module provides capabilities application: displays OPTIONS request-like information
+as an extension to the PIDF. Defined in RFC5196.
+
+
+conference.py
+
+This module implements conference-info (RFC4575) payload parsing and generating for describing
+information about conferences.
+
+
+messagesummary.py
+
+This module implements a parser and generator for message-summary payload (RFC3842) which is used
+to indicate missed calls / faxes / etc.
+
