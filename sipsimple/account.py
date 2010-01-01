@@ -21,7 +21,7 @@ from zope.interface import implements
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
-from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecList, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, UserDataPath, XCAPRoot
+from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecList, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, UserDataPath, XCAPRoot, ReplacePlus
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.primitives import Registration
@@ -92,7 +92,7 @@ class TLSSettings(SettingsGroup):
     verify_server = Setting(type=bool, default=False)
 
 class PSTNSettings(SettingsGroup):
-    replace_plus = Setting(type=str, default=None, nillable=True)
+    replace_plus = Setting(type=ReplacePlus, default=None, nillable=True)
 
 
 class Account(SettingsObject):

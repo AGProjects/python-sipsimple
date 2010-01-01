@@ -19,7 +19,8 @@ __all__ = [# Base datatypes
            # Desktop sharing datatypes
            'ImageDepth', 'Resolution',
            # Path datatypes
-           'Path', 'ResourcePath', 'UserDataPath', 'SoundFile', 'AccountSoundFile']
+           'Path', 'ResourcePath', 'UserDataPath', 'SoundFile', 'AccountSoundFile',
+           'ReplacePlus']
 
 import os
 import re
@@ -198,6 +199,10 @@ class AudioCodecList(List):
 
 
 class AudioInputDevice(str):
+    pass
+
+
+class ReplacePlus(str):
     pass
 
 
