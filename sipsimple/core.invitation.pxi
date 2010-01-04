@@ -593,7 +593,7 @@ cdef class Invitation:
                     event_dict = dict(obj=self, prev_state=self.state, state="disconnecting", originator="local")
                     self.state = "disconnecting"
                     _add_event("SIPInvitationChangedState", event_dict)
-            if self.direction == "outgoing" and state in ('connecting', 'connected') and rdata is not None:
+            if self.direction == "outgoing" and state in ('connecting', 'connected') and self.state in ('outgoing', 'early') and rdata is not None:
                 self.to_header = rdata['headers']['To']
 
             event_dict = dict(obj=self, prev_state=self.state, state=state)
