@@ -481,9 +481,34 @@ class AudioStream(object):
 
     def update(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
-            new_direction = local_sdp.media[stream_index].direction
-            self._audio_transport.update_direction(new_direction)
-            self._check_hold(new_direction, False)
+            if self.remote_rtp_port != remote_sdp.media[stream_index].port:
+                settings = SIPSimpleSettings()
+                if self._audio_rec is not None:
+                    output_rec = self._audio_rec[1]
+                    output_slots = [connection[1] for connection in self.conference_bridge.connected_slots]
+                    if output_rec.slot in output_slots:
+                        self.conference_bridge.disconnect_slots(self._audio_transport.slot, output_rec.slot)
+                self.notification_center.remove_observer(self, sender=self._audio_transport)
+                self._audio_transport.stop()
+                try:
+                    self._audio_transport = AudioTransport(self.conference_bridge, self._rtp_transport,
+                                                           remote_sdp, stream_index,
+                                                           codecs=(list(self.account.rtp.audio_codec_list)
+                                                                   if self.account.rtp.audio_codec_list else list(settings.rtp.audio_codec_list)))
+                except SIPCoreError, e:
+                    self.state = "ENDED"
+                    self.notification_center.post_notification("MediaStreamDidFail", self,
+                                                               TimestampedNotificationData(reason=e.args[0]))
+                    return
+                self.notification_center.add_observer(self, sender=self._audio_transport)
+                self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout,
+                                            media_check_interval=settings.rtp.timeout)
+                self._check_hold(self._audio_transport.direction, True)
+                self.notification_center.post_notification("AudioStreamDidChangeRTPParameters", self, TimestampedNotificationData())
+            else:
+                new_direction = local_sdp.media[stream_index].direction
+                self._audio_transport.update_direction(new_direction)
+                self._check_hold(new_direction, False)
             self._hold_request = None
 
     def hold(self):
