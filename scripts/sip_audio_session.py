@@ -832,11 +832,11 @@ class SIPAudioApplication(SIPApplication):
 
     def _NH_AudioStreamDidChangeRTPParameters(self, notification):
         stream = notification.sender
-        send_notice('Audio RTP parameters changed:')
-        send_notice('Audio stream using "%s" codec at %sHz' % (stream.codec, stream.sample_rate))
-        send_notice('Audio RTP endpoints %s:%d <-> %s:%d' % (stream.local_rtp_address, stream.local_rtp_port, stream.remote_rtp_address, stream.remote_rtp_port))
+        self.output.put('Audio RTP parameters changed:\n')
+        self.output.put('Audio stream using "%s" codec at %sHz\n' % (stream.codec, stream.sample_rate))
+        self.output.put('Audio RTP endpoints %s:%d <-> %s:%d\n' % (stream.local_rtp_address, stream.local_rtp_port, stream.remote_rtp_address, stream.remote_rtp_port))
         if stream.srtp_active:
-            send_notice('RTP audio stream is encrypted')
+            self.output.put('RTP audio stream is encrypted\n')
 
     def _NH_AudioStreamDidStartRecordingAudio(self, notification):
         self.output.put('Recording audio to %s\n' % notification.data.file_name)
