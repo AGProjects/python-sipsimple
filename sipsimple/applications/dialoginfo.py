@@ -209,6 +209,20 @@ class Dialog(XMLElement):
     local = XMLElementChild('local', type=Local, required=False, test_equal=True)
     remote = XMLElementChild('remote', type=Remote, required=False, test_equal=True)
 
+    def __init__(self, id, state, call_id=None, local_tag=None, remote_tag=None, direction=None, duration=None, replaces=None, referred_by=None, local=None, remote=None):
+        XMLElement.__init__(self)
+        self.id = id
+        self.state = state
+        self.call_id = call_id
+        self.local_tag = local_tag
+        self.remote_tag = remote_tag
+        self.direction = direction
+        self.duration = duration
+        self.replaces = replaces
+        self.referred_by = referred_by
+        self.local = local
+        self.remote = remote
+
 class DialogInfo(XMLListRootElement):
     content_type = "application/dialog-info+xml"
 
