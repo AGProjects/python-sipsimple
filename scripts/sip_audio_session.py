@@ -185,6 +185,7 @@ class SIPAudioApplication(SIPApplication):
         notification_center.add_observer(self, sender=self)
         notification_center.add_observer(self, sender=self.input)
         notification_center.add_observer(self, name='SIPSessionNewIncoming')
+        notification_center.add_observer(self, name='AudioStreamDidChangeRTPParameters')
 
         if self.input:
             self.input.start()
@@ -828,6 +829,14 @@ class SIPAudioApplication(SIPApplication):
             on_hold_streams = [stream for stream in chain(*(session.streams for session in self.started_sessions)) if stream is not notification.sender and stream.on_hold]
             if not on_hold_streams and self.hold_tone.is_active:
                 self.hold_tone.stop()
+
+    def _NH_AudioStreamDidChangeRTPParameters(self, notification):
+        stream = notification.sender
+        send_notice('Audio RTP parameters changed:')
+        send_notice('Audio stream using "%s" codec at %sHz' % (stream.codec, stream.sample_rate))
+        send_notice('Audio RTP endpoints %s:%d <-> %s:%d' % (stream.local_rtp_address, stream.local_rtp_port, stream.remote_rtp_address, stream.remote_rtp_port))
+        if stream.srtp_active:
+            send_notice('RTP audio stream is encrypted')
 
     def _NH_AudioStreamDidStartRecordingAudio(self, notification):
         self.output.put('Recording audio to %s\n' % notification.data.file_name)

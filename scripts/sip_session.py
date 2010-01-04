@@ -905,6 +905,7 @@ class SIPSessionApplication(SIPApplication):
         notification_center.add_observer(self, sender=ui)
         notification_center.add_observer(self, name='SIPSessionNewIncoming')
         notification_center.add_observer(self, name='SIPSessionNewOutgoing')
+        notification_center.add_observer(self, name='AudioStreamDidChangeRTPParameters')
 
         log.level.current = log.level.WARNING # get rid of twisted messages
         control_bindings={'s': 'trace sip',
@@ -1295,6 +1296,14 @@ class SIPSessionApplication(SIPApplication):
             if not on_hold_streams and self.hold_tone:
                 self.hold_tone.stop()
                 self.hold_tone = None
+
+    def _NH_AudioStreamDidChangeRTPParameters(self, notification):
+        stream = notification.sender
+        send_notice('Audio RTP parameters changed:')
+        send_notice('Audio stream using "%s" codec at %sHz' % (stream.codec, stream.sample_rate))
+        send_notice('Audio RTP endpoints %s:%d <-> %s:%d' % (stream.local_rtp_address, stream.local_rtp_port, stream.remote_rtp_address, stream.remote_rtp_port))
+        if stream.srtp_active:
+            send_notice('RTP audio stream is encrypted')
 
     def _NH_AudioStreamDidStartRecordingAudio(self, notification):
         if notification.data.direction == 'both':
