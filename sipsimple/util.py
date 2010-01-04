@@ -273,6 +273,18 @@ def classproperty(function):
     return Descriptor()
 
 
+def limit(value, min=None, max=None):
+    from __builtin__ import min as minimum, max as maximum
+    if min is None and max is None:
+        return value
+    elif min is None:
+        return minimum(value, max)
+    elif max is None:
+        return maximum(min, value)
+    else:
+        return maximum(min, minimum(value, max))
+
+
 def makedirs(path):
     try:
         os.makedirs(path)
@@ -282,4 +294,4 @@ def makedirs(path):
         raise
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "makedirs"]
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "limit", "makedirs"]
