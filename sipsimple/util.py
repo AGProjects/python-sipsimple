@@ -246,6 +246,22 @@ def run_in_twisted_thread(func):
     return wrapper
 
 
+def call_in_green_thread(func, *args, **kwargs):
+    from twisted.internet import reactor
+    if threadable.isInIOThread():
+        callInGreenThread(*args, **kwargs)
+    else:
+        reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
+
+
+def call_in_twisted_thread(func, *args, **kwargs):
+    from twisted.internet import reactor
+    if threadable.isInIOThread():
+        func(*args, **kwargs)
+    else:
+        reactor.callFromThread(func, *args, **kwargs)
+
+
 def classproperty(function):
     class Descriptor(object):
         def __get__(self, instance, owner):
@@ -266,4 +282,4 @@ def makedirs(path):
         raise
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "classproperty", "makedirs"]
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "makedirs"]
