@@ -406,7 +406,7 @@ class Account(SettingsObject):
 
     @property
     def registered(self):
-        return self._registrar.registered
+        return self._registrar.registered if self._registrar else False
 
     @property
     def tls_credentials(self):
