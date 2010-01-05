@@ -140,7 +140,7 @@ class AccountConfigurator(object):
         self.configuration_manager = ConfigurationManager()
         self.configuration_manager.start(FileBackend(os.path.realpath(config_file or os.path.expanduser('~/.sipclient/config'))))
         self.account_manager = AccountManager()
-        self.account_manager.start()
+        self.account_manager.load_accounts()
 
     def list(self):
         print 'Accounts:'

@@ -134,7 +134,7 @@ class WinfoApplication(object):
             configuration.start(FileBackend(os.path.expanduser('~/.sipclient/config')))
         except ConfigurationError, e:
             raise RuntimeError("failed to load sipclient's configuration: %s\nIf an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script." % str(e))
-        account_manager.start()
+        account_manager.load_accounts()
         if self.account_name is None:
             self.account = account_manager.default_account
         else:
@@ -226,8 +226,6 @@ class WinfoApplication(object):
 
     def stop(self):
         self.stopping = True
-        account_manager = AccountManager()
-        account_manager.stop()
         if self.subscription is not None and self.subscription.state.lower() in ('accepted', 'pending', 'active'):
             self.subscription.end(timeout=1)
         else:

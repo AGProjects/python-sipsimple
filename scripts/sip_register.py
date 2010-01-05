@@ -234,7 +234,7 @@ class RegistrationApplication(SIPApplication):
                 self.stop()
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
-        self.output.put('%s Registration %s.\n' % (datetime.now().replace(microsecond=0), ('expired' if notification.data.expired else 'ended')))
+        self.output.put('%s Registration ended.\n' % datetime.now().replace(microsecond=0))
 
     def _NH_SIPEngineGotException(self, notification):
         self.output.put('%s An exception occured within the SIP core:\n%s\n' % (datetime.now().replace(microsecond=0), notification.data.traceback))

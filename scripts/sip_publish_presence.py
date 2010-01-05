@@ -483,7 +483,7 @@ class PublicationApplication(object):
             configuration.start(FileBackend(os.path.expanduser('~/.sipclient/config')))
         except ConfigurationError, e:
             raise RuntimeError("failed to load sipclient's configuration: %s\nIf an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script." % str(e))
-        account_manager.start()
+        account_manager.load_accounts()
         if self.account_name is None:
             self.account = account_manager.default_account
         else:
@@ -578,8 +578,6 @@ class PublicationApplication(object):
 
     def stop(self):
         self.stopping = True
-        account_manager = AccountManager()
-        account_manager.stop()
         if self.publication is not None:
             try:
                 self.publication.end(timeout=1)

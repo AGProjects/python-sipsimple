@@ -353,7 +353,7 @@ def do_xcap_dialog_rules(account_name):
     except ConfigurationError, e:
         raise RuntimeError("failed to load sipclient's configuration: %s\nIf an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script." % str(e))
     account_manager = AccountManager()
-    account_manager.start()
+    account_manager.load_accounts()
 
     if account_name is None:
         account = account_manager.default_account

@@ -1097,7 +1097,7 @@ class SIPSessionApplication(SIPApplication):
         self.registration_succeeded = False
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
-        send_notice('%s Registration %s.' % (datetime.now().replace(microsecond=0), ('expired' if notification.data.expired else 'ended')))
+        send_notice('%s Registration ended.' % datetime.now().replace(microsecond=0))
 
     def _NH_SIPSessionNewIncoming(self, notification):
         session = notification.sender

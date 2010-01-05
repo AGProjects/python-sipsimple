@@ -261,7 +261,7 @@ class SIPMessageApplication(SIPApplication):
         self.registration_succeeded = False
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):
-        self.output.put('%s Registration %s.\n' % (datetime.now().replace(microsecond=0), ('expired' if notification.data.expired else 'ended')))
+        self.output.put('%s Registration ended.\n' % datetime.now().replace(microsecond=0))
 
     def _NH_DNSLookupDidSucceed(self, notification):
         self.routes = notification.data.result
