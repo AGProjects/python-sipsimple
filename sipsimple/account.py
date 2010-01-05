@@ -159,6 +159,9 @@ class AccountRegistrar(object):
                             # Authentication failed, so retry the registration in some time
                             timeout = random.uniform(60, 120)
                             self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
+                            # Since we weren't able to register, recreate a registration next time
+                            notification_center.remove_observer(self, sender=self._registration)
+                            self._registration = None
                             break
                         else:
                             # Otherwise just try the next route
@@ -220,7 +223,7 @@ class AccountRegistrar(object):
         if self._registration is not None:
             notification_center.remove_observer(self, sender=self._registration)
             self._registration = None
-            self._command_channel.send(Command('register', command.event))
+        self._command_channel.send(Command('register', command.event))
 
     @run_in_twisted_thread
     def handle_notification(self, notification):
@@ -451,7 +454,7 @@ class Account(SettingsObject):
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
-            elif 'password' in notification.data.modified:
+            elif set(['password', 'sip.outbound_proxy', 'sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.enable_register:
                 self._registrar.reload_settings()
 
     def _activate(self):
