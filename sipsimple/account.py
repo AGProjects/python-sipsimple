@@ -147,7 +147,10 @@ class AccountRegistrar(object):
                     route_header = RouteHeader(route.get_uri())
                     self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
                     try:
-                        data = self._data_channel.wait()
+                        while True:
+                            notification = self._data_channel.wait()
+                            if notification.name == 'SIPRegistrationDidSucceed':
+                                break
                     except SIPRegistrationDidFail, e:
                         self.registered = False
                         notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account,
@@ -169,9 +172,9 @@ class AccountRegistrar(object):
                     else:
                         self.registered = True
                         notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self.account,
-                                                              data=TimestampedNotificationData(contact_header=data.contact_header,
-                                                                                               contact_header_list=data.contact_header_list,
-                                                                                               expires=data.expires_in,
+                                                              data=TimestampedNotificationData(contact_header=notification.data.contact_header,
+                                                                                               contact_header_list=notification.data.contact_header_list,
+                                                                                               expires=notification.data.expires_in,
                                                                                                registration=self._registration,
                                                                                                route=route))
                         self._register_wait = 1
@@ -204,7 +207,10 @@ class AccountRegistrar(object):
         if self._registration is not None:
             self._registration.end(timeout=2)
             try:
-                self._data_channel.wait()
+                while True:
+                    notification = self._data_channel.wait()
+                    if notification.name == 'SIPRegistrationDidEnd':
+                        break
             except SIPRegistrationDidNotEnd, e:
                 notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account,
                                                       data=TimestampedNotificationData(code=e.code,
@@ -231,7 +237,7 @@ class AccountRegistrar(object):
         handler(notification)
 
     def _NH_SIPRegistrationDidSucceed(self, notification):
-        self._data_channel.send(notification.data)
+        self._data_channel.send(notification)
 
     def _NH_SIPRegistrationDidFail(self, notification):
         self._data_channel.send_exception(SIPRegistrationDidFail(notification.data))
@@ -240,7 +246,7 @@ class AccountRegistrar(object):
         self._command_channel.send(Command('register'))
 
     def _NH_SIPRegistrationDidEnd(self, notification):
-        self._data_channel.send(notification.data)
+        self._data_channel.send(notification)
 
     def _NH_SIPRegistrationDidNotEnd(self, notification):
         self._data_channel.send_exception(SIPRegistrationDidNotEnd(notification.data))
