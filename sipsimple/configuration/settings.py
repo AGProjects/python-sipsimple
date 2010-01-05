@@ -36,8 +36,8 @@ class ChatSettings(SettingsGroup):
 
 
 class DesktopSharingSettings(SettingsGroup):
-    client_command = Setting(type=Path, default=None, nillable=True)
-    server_command = Setting(type=Path, default=None, nillable=True)
+    client_command = Setting(type=str, default=None, nillable=True)
+    server_command = Setting(type=str, default=None, nillable=True)
 
 
 class FileTransferSettings(SettingsGroup):
