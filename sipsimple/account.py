@@ -440,14 +440,14 @@ class Account(SettingsObject):
             self.credentials.password = self.password
 
         # activate/deactivate the account or start/stop/reload the registration process
-        if self.started:
+        if self._started:
             if 'enabled' in notification.data.modified:
                 if self.enabled:
                     self._activate()
                 else:
                     self._deactivate()
             elif self.enabled and 'sip.enable_register' in notification.data.modified:
-                if not self.sip.enable_register:
+                if self.sip.enable_register:
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
