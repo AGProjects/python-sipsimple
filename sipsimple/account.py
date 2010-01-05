@@ -8,24 +8,27 @@ multiple SIP accounts and their properties.
 import random
 import string
 
-from collections import deque
 from itertools import chain
 from time import time
 
 from application.notification import IObserver, NotificationCenter
-from application.python.util import Singleton
+from application.python.util import Null, Singleton
+from application.system import host
+from eventlet import coros, proc
+from eventlet.api import GreenletExit
 from gnutls.crypto import X509Certificate, X509PrivateKey
 from gnutls.interfaces.twisted import X509Credentials
+from twisted.internet import reactor
 from zope.interface import implements
 
 from sipsimple.engine import Engine
-from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI, SIPCoreError
+from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
-from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecList, Hostname, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, UserDataPath, XCAPRoot, ReplacePlus
+from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, UserDataPath, XCAPRoot, ReplacePlus
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.lookup import DNSLookup
+from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.primitives import Registration
-from sipsimple.util import Route, TimestampedNotificationData
+from sipsimple.util import TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
@@ -36,6 +39,205 @@ class ContactURI(SIPAddress):
             parameters = {} if transport=='udp' else {'transport': transport}
             return SIPURI(user=self.username, host=self.domain, port=getattr(Engine(), '%s_port' % transport), parameters=parameters)
         return SIPAddress.__getitem__(self, transport)
+
+
+class Command(object):
+    def __init__(self, name, event=None):
+        self.name = name
+        self.event = event or coros.event()
+
+    def signal(self):
+        self.event.send()
+
+    def wait(self):
+        return self.event.wait()
+
+
+class SIPRegistrationDidFail(Exception):
+    def __init__(self, data):
+        self.__dict__.update(data.__dict__)
+
+class SIPRegistrationDidNotEnd(Exception):
+    def __init__(self, data):
+        self.__dict__.update(data.__dict__)
+
+class AccountRegistrar(object):
+    implements(IObserver)
+
+    def __init__(self, account):
+        self.account = account
+        username = ''.join(random.sample(string.lowercase, 8))
+        self.contact = ContactURI('%s@%s' % (username, host.default_ip))
+        self.registered = False
+        self._command_channel = coros.queue()
+        self._data_channel = coros.queue()
+        self._refresh_timer = None
+        self._register_wait = 1
+        self._registration = None
+
+    def start(self):
+        self._run()
+
+    def stop(self):
+        self._command_channel.send_exception(GreenletExit)
+
+    def activate(self):
+        command = Command('register')
+        self._command_channel.send(command)
+
+    def deactivate(self):
+        command = Command('unregister')
+        self._command_channel.send(command)
+        command.wait()
+
+    def register(self):
+        command = Command('register')
+        self._command_channel.send(command)
+
+    def reload_settings(self):
+        command = Command('reload_settings')
+        self._command_channel.send(command)
+
+    @run_in_green_thread
+    def _run(self):
+        while True:
+            command = self._command_channel.wait()
+            handler = getattr(self, '_CH_%s' % command.name)
+            handler(command)
+
+    def _CH_register(self, command):
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+        try:
+            # Cancel any timer which would refresh the registration
+            if self._refresh_timer is not None and self._refresh_timer.active():
+                self._refresh_timer.cancel()
+            self._refresh_timer = None
+
+            # Initialize the registration
+            if self._registration is None:
+                self._registration = Registration(FromHeader(self.account.uri, self.account.display_name),
+                                                  credentials=self.account.credentials,
+                                                  duration=self.account.sip.register_interval)
+                notification_center.add_observer(self, sender=self._registration)
+
+            # Lookup routes
+            if self.account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=self.account.sip.outbound_proxy.host,
+                             port=self.account.sip.outbound_proxy.port,
+                             parameters={'transport': self.account.sip.outbound_proxy.transport})
+            else:
+                uri = SIPURI(host=self.account.id.domain)
+            lookup = DNSLookup()
+            routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+
+            # Rebuild contact
+            self.contact = ContactURI('%s@%s' % (self.contact.username, host.default_ip))
+
+            # Register by trying each route in turn
+            register_timeout = time() + 30
+            for route in routes:
+                remaining_time = register_timeout-time()
+                if remaining_time > 0:
+                    contact_header = ContactHeader(self.contact[route.transport])
+                    route_header = RouteHeader(route.get_uri())
+                    self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
+                    try:
+                        data = self._data_channel.wait()
+                    except SIPRegistrationDidFail, e:
+                        self.registered = False
+                        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account,
+                                                              data=TimestampedNotificationData(code=e.code,
+                                                                                               reason=e.reason,
+                                                                                               registration=self._registration,
+                                                                                               route=route))
+                        if e.code == 401:
+                            # Authentication failed, so retry the registration in some time
+                            timeout = random.uniform(60, 120)
+                            self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
+                            break
+                        else:
+                            # Otherwise just try the next route
+                            continue
+                    else:
+                        self.registered = True
+                        notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self.account,
+                                                              data=TimestampedNotificationData(contact_header=data.contact_header,
+                                                                                               contact_header_list=data.contact_header_list,
+                                                                                               expires=data.expires_in,
+                                                                                               registration=self._registration,
+                                                                                               route=route))
+                        self._register_wait = 1
+                        command.signal()
+                        break
+            else:
+                # There are no more routes to try, reschedule the registration
+                timeout = random.uniform(self._register_wait, 2*self._register_wait)
+                self._register_wait = limit(self._register_wait*2, max=30)
+                self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
+                # Since we weren't able to register, recreate a registration next time
+                notification_center.remove_observer(self, sender=self._registration)
+                self._registration = None
+        except DNSLookupError, e:
+            self.registered = False
+            notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account,
+                                                  data=TimestampedNotificationData(code=0,
+                                                                                   reason='DNS lookup failed: %s' % e,
+                                                                                   registration=None,
+                                                                                   route=None))
+            timeout = random.uniform(1, 2)
+            self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
+
+    def _CH_unregister(self, command):
+        notification_center = NotificationCenter()
+        # Cancel any timer which would restart the registration process
+        if self._refresh_timer is not None and self._refresh_timer.active():
+            self._refresh_timer.cancel()
+            self._refresh_timer = None
+        if self._registration is not None:
+            self._registration.end(timeout=2)
+            try:
+                self._data_channel.wait()
+            except SIPRegistrationDidNotEnd, e:
+                notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account,
+                                                      data=TimestampedNotificationData(code=e.code,
+                                                                                       reason=e.reason,
+                                                                                       registration=self._registration))
+            else:
+                notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self.account,
+                                                      data=TimestampedNotificationData(registration=self._registration))
+            finally:
+                notification_center.remove_observer(self, sender=self._registration)
+                self._registration = None
+        command.signal()
+
+    def _CH_reload_settings(self, command):
+        notification_center = NotificationCenter()
+        if self._registration is not None:
+            notification_center.remove_observer(self, sender=self._registration)
+            self._registration = None
+            self._command_channel.send(Command('register', command.event))
+
+    @run_in_twisted_thread
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
+
+    def _NH_SIPRegistrationDidSucceed(self, notification):
+        self._data_channel.send(notification.data)
+
+    def _NH_SIPRegistrationDidFail(self, notification):
+        self._data_channel.send_exception(SIPRegistrationDidFail(notification.data))
+
+    def _NH_SIPRegistrationWillExpire(self, notification):
+        self._command_channel.send(Command('register'))
+
+    def _NH_SIPRegistrationDidEnd(self, notification):
+        self._data_channel.send(notification.data)
+
+    def _NH_SIPRegistrationDidNotEnd(self, notification):
+        self._data_channel.send_exception(SIPRegistrationDidNotEnd(notification.data))
+
 
 class SIPSettings(SettingsGroup):
     outbound_proxy = Setting(type=SIPProxyAddress, default=None, nillable=True)
@@ -51,10 +253,12 @@ class RTPSettings(SettingsGroup):
     use_srtp_without_tls = Setting(type=bool, default=True)
     inband_dtmf = Setting(type=bool, default=False)
 
+
 class DialogEventSettings(SettingsGroup):
     enable_subscribe = Setting(type=bool, default=True)
     enable_publish = Setting(type=bool, default=False)
     enable_dialog_rules = Setting(type=bool, default=False)
+
 
 class NatTraversalSettings(SettingsGroup):
     enable_ice = Setting(type=bool, default=False)
@@ -63,15 +267,18 @@ class NatTraversalSettings(SettingsGroup):
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
     use_msrp_relay_for_outbound = Setting(type=bool, default=False)
 
+
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     voicemail_uri = Setting(type=str, default=None, nillable=True)
+
 
 class XcapSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
     subscribe_xcap_diff = Setting(type=bool, default=True)
     icon = Setting(type=bool, default=True)
+
 
 class PresenceSettings(SettingsGroup):
     enable_subscribe_presence = Setting(type=bool, default=True)
@@ -82,6 +289,7 @@ class PresenceSettings(SettingsGroup):
     enable_rls_services = Setting(type=bool, default=True)
     enable_pres_rules = Setting(type=bool, default=True)
     enable_resource_lists = Setting(type=bool, default=True)
+
 
 class SoundsSettings(SettingsGroup):
     audio_inbound = Setting(type=AccountSoundFile, default=AccountSoundFile(AccountSoundFile.DefaultSoundFile('sounds.audio_inbound')), nillable=True)
@@ -139,56 +347,58 @@ class Account(SettingsObject):
     def __init__(self, id):
         self.id = id
 
-        username = ''.join(random.sample(string.lowercase, 8))
-        settings = SIPSimpleSettings()
-        self.contact = ContactURI('%s@%s' % (username, settings.sip.ip_address.normalized))
         self.uri = SIPURI(user=self.id.username, host=self.id.domain)
         self.credentials = Credentials(self.id.username, self.password)
 
-        self.active = False
-        self._register_wait = 0.5
-        self._register_routes = None
-        self._lookup = None
-        self._register_timeout = 0.0
-        self._registrar = None
+        self._active = False
+        self._registrar = AccountRegistrar(self)
+        self._started = False
 
         manager = AccountManager()
         manager._internal_add_account(self)
 
+        from sipsimple.api import SIPApplication
+        if SIPApplication.running:
+            call_in_twisted_thread(self.start)
+
+    def start(self):
+        if self._started:
+            return
+        self._started = True
+
+        self._registrar.start()
+        if self.enabled:
+            self._activate()
+
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
-        notification_center.add_observer(self, name='SIPApplicationDidStart')
-        notification_center.add_observer(self, name='SIPApplicationWillEnd')
+    def stop(self):
+        if not self._started:
+            return
+        self._started = False
 
-        if self.enabled:
-            from sipsimple.api import SIPApplication
-            if SIPApplication.running:
-                self._activate()
-
-    def delete(self):
-        SettingsObject.delete(self)
-
-        if self.enabled:
-            self._deactivate()
+        self._deactivate()
+        self._registrar.stop()
+        self._registrar = None
 
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
-        if self._lookup is not None:
-            notification_center.remove_observer(self, sender=self._lookup)
-            self._lookup = None
-
-        if self._registrar is not None:
-            notification_center.remove_observer(self, sender=self._registrar)
-            self._registrar = None
+    def delete(self):
+        call_in_green_thread(self.stop)
+        SettingsObject.delete(self)
 
         manager = AccountManager()
         manager._internal_remove_account(self)
 
     @property
+    def contact(self):
+        return self._registrar.contact
+
+    @property
     def registered(self):
-        return self._registrar is not None and self._registrar.is_registered
+        return self._registrar.registered
 
     @property
     def tls_credentials(self):
@@ -212,190 +422,45 @@ class Account(SettingsObject):
         return credentials
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
 
+    @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        notification_center = NotificationCenter()
-
-        from sipsimple.api import SIPApplication
-        enabled_value = notification.data.modified.get('enabled', None)
-        if 'enabled' in notification.data.modified:
-            if not self.enabled:
-                self._deactivate()
-            elif SIPApplication.running:
-                self._activate()
-
-        if self.enabled and 'sip.enable_register' in notification.data.modified:
-            if not self.sip.enable_register:
-                notification_center.remove_observer(self, sender=self._registrar)
-                if self._registrar.is_registered:
-                    self._registrar.end(timeout=2)
-                self._registrar = None
-            elif SIPApplication.running:
-                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.sip.register_interval)
-                notification_center.add_observer(self, sender=self._registrar)
-                self._register()
-
-        # update credentials attribute if needed
+        # update credentials attribute
         if 'password' in notification.data.modified:
             self.credentials.password = self.password
-            if self._registrar is not None:
-                notification_center.remove_observer(self, sender=self._registrar)
-                self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.sip.register_interval)
-                notification_center.add_observer(self, sender=self._registrar)
-                self._register()
 
-    def _NH_SIPApplicationDidStart(self, notification):
-        if self.enabled:
-            self._activate()
-
-    def _NH_SIPApplicationWillEnd(self, notification):
-        if self.enabled:
-            self._deactivate()
-
-    def _NH_SIPRegistrationDidSucceed(self, notification):
-        old_route_header = notification.data.route_header
-        old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get("transport", "udp"))
-        notification_center = NotificationCenter()
-        notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self, data=TimestampedNotificationData(code=notification.data.code,
-                                                                                                                     reason=notification.data.reason,
-                                                                                                                     contact_header=notification.data.contact_header,
-                                                                                                                     contact_header_list=notification.data.contact_header_list,
-                                                                                                                     expires=notification.data.expires_in,
-                                                                                                                     registration=notification.sender,
-                                                                                                                     route=old_route))
-        self._register_routes = None
-        self._register_wait = 0.5
-
-    def _NH_SIPRegistrationDidEnd(self, notification):
-        notification_center = NotificationCenter()
-
-        data = TimestampedNotificationData(registration=notification.sender, expired=notification.data.expired)
-        notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=data)
-
-        if self.active:
-            self._register()
-        else:
-            notification_center.remove_observer(self, sender=self._registrar)
-            self._registrar = None
-
-    def _NH_SIPRegistrationDidFail(self, notification):
-        settings = SIPSimpleSettings()
-        notification_center = NotificationCenter()
-
-        account_manager = AccountManager()
-        if account_manager.state not in ('stopping', 'stopped'):
-            if notification.data.code == 401 or not self._register_routes or time() >= self._register_timeout:
-                if notification.data.code == 401:
-                    timeout = random.uniform(60, 120)
+        # activate/deactivate the account or start/stop/reload the registration process
+        if self.started:
+            if 'enabled' in notification.data.modified:
+                if self.enabled:
+                    self._activate()
                 else:
-                    self._register_wait = min(self._register_wait*2, 30)
-                    timeout = random.uniform(self._register_wait, 2*self._register_wait)
-
-                old_route_header = notification.data.route_header
-                old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get('transport', 'udp'))
-                data = TimestampedNotificationData(reason=notification.data.reason, registration=notification.sender,
-                                        code=notification.data.code, next_route=None, delay=timeout,
-                                        route=old_route)
-                notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
-
-                from twisted.internet import reactor
-                reactor.callFromThread(reactor.callLater, timeout, self._register)
-            else:
-                old_route_header = notification.data.route_header
-                old_route = Route(old_route_header.uri.host, old_route_header.uri.port, old_route_header.uri.parameters.get('transport', 'udp'))
-                route = self._register_routes.popleft()
-                route_header = RouteHeader(route.get_uri())
-
-                data = TimestampedNotificationData(reason=notification.data.reason, registration=notification.sender,
-                                        code=notification.data.code, next_route=route, delay=0, route=old_route)
-                notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=data)
-
-                self.contact = ContactURI('%s@%s' % (self.contact.username, settings.sip.ip_address.normalized))
-                contact_header = ContactHeader(self.contact[route.transport])
-                self._registrar.register(contact_header, route_header, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
-
-    def _NH_SIPRegistrationWillExpire(self, notification):
-        self._register()
-
-    def _NH_DNSLookupDidSucceed(self, notification):
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=notification.sender)
-        self._lookup = None
-
-        if not self.active:
-            return
-
-        settings = SIPSimpleSettings()
-
-        self._register_routes = deque(notification.data.result)
-        route = self._register_routes.popleft()
-        route_header = RouteHeader(route.get_uri())
-        self.contact = ContactURI('%s@%s' % (self.contact.username, settings.sip.ip_address.normalized))
-        contact_header = ContactHeader(self.contact[route.transport])
-        self._registrar.register(contact_header, route_header, timeout=max(1, min(10, self._register_timeout-time()+0.25)), raise_sipcore_error=False)
-
-    def _NH_DNSLookupDidFail(self, notification):
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=notification.sender)
-        self._lookup = None
-
-        timeout = random.uniform(1.0, 2.0)
-        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self, data=TimestampedNotificationData(code=0, reason='DNS lookup failed: %s' % notification.data.error, registration=None, route=None, next_route=None, delay=timeout))
-
-        from twisted.internet import reactor
-        reactor.callLater(timeout, self._register)
-
-    def _register(self):
-        if not self.active:
-            return
-
-        notification_center = NotificationCenter()
-        settings = SIPSimpleSettings()
-
-        self._register_timeout = time()+30
-
-        if self._lookup is not None:
-            notification_center.remove_observer(self, sender=self._lookup)
-        self._lookup = DNSLookup()
-        notification_center.add_observer(self, sender=self._lookup)
-        if self.sip.outbound_proxy is not None:
-            uri = SIPURI(host=self.sip.outbound_proxy.host, port=self.sip.outbound_proxy.port, parameters={'transport': self.sip.outbound_proxy.transport})
-        else:
-            uri = SIPURI(host=self.id.domain)
-        self._lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
+                    self._deactivate()
+            elif self.enabled and 'sip.enable_register' in notification.data.modified:
+                if not self.sip.enable_register:
+                    self._registrar.activate()
+                else:
+                    self._registrar.deactivate()
+            elif 'password' in notification.data.modified:
+                self._registrar.reload_settings()
 
     def _activate(self):
-        if self.active:
+        if self._active:
             return
-        self.active = True
-        
-        notification_center = NotificationCenter()
-
+        self._active = True
         if self.sip.enable_register:
-            self._registrar = Registration(FromHeader(self.uri, self.display_name), credentials=self.credentials, duration=self.sip.register_interval)
-            notification_center.add_observer(self, sender=self._registrar)
-            self._register()
-
+            self._registrar.activate()
+        notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
-        if not self.active:
+        if not self._active:
             return
-        self.active = False
-
+        self._active = False
+        self._registrar.deactivate()
         notification_center = NotificationCenter()
-
-        if self.sip.enable_register:
-            try:
-                self._registrar.end(timeout=2)
-            except SIPCoreError:
-                notification_center.remove_observer(self, sender=self._registrar)
-                notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self, data=TimestampedNotificationData(registration=self._registrar, expired=False))
-                self._registrar = None
-
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def __repr__(self):
@@ -444,8 +509,8 @@ class BonjourAccount(SettingsObject):
         self.uri = SIPURI(user=self.contact.username, host=self.contact.domain)
         self.credentials = None
 
-        self.active = False
-
+        self._active = False
+        self._started = False
 
         # initialize nat settings
         self.nat_traversal = NatTraversalSettings()
@@ -454,15 +519,30 @@ class BonjourAccount(SettingsObject):
         self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
 
+        from sipsimple.api import SIPApplication
+        if SIPApplication.running:
+            call_in_twisted_thread(self.start)
+
+    def start(self):
+        if self._started:
+            return
+        self._started = True
+
+        if self.enabled:
+            self._activate()
+
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
-        notification_center.add_observer(self, name='SIPApplicationDidStart')
-        notification_center.add_observer(self, name='SIPApplicationWillEnd')
+    def stop(self):
+        if not self._started:
+            return
+        self._started = False
 
-        from sipsimple.api import SIPApplication
-        if self.enabled and SIPApplication.running:
-            self._activate()
+        self._deactivate()
+
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
     @property
     def registered(self):
@@ -490,40 +570,30 @@ class BonjourAccount(SettingsObject):
         return credentials
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
 
-    def _NH_SIPApplicationDidStart(self, notification):
-        if self.enabled:
-            self._activate()
-
-    def _NH_SIPApplicationWillEnd(self, notification):
-        if self.enabled:
-            self._deactivate()
-
+    @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        enabled_value = notification.data.modified.get('enabled', None)
-        if enabled_value is not None:
-            from sipsimple.api import SIPApplication
-            if not self.enabled:
-                self._deactivate()
-            elif SIPApplication.running:
-                self._activate()
+        # activate/deactivate the account
+        if self._started:
+            if 'enabled' in notification.data.modified:
+                if self.enabled:
+                    self._activate()
+                else:
+                    self._deactivate()
 
     def _activate(self):
-        if self.active:
+        if self._active:
             return
-        self.active = True
-
+        self._active = True
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
-        if not self.active:
+        if not self._active:
             return
-        self.active = False
-
+        self._active = False
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
@@ -554,40 +624,44 @@ class AccountManager(object):
 
     def __init__(self):
         self.accounts = {}
-        self.state = 'stopped'
 
-    def start(self):
+    def load_accounts(self):
         """
-        Load all accounts from the configuration. The accounts with the enabled
-        flag set will automatically activate.
+        Load all accounts from the configuration. The accounts will not be
+        started until the start method is called.
         """
-        self.state = 'starting'
         configuration = ConfigurationManager()
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='SIPAccountRegistrationDidEnd')
-        notification_center.add_observer(self, name='SIPAccountRegistrationDidFail')
-        notification_center.post_notification('SIPAccountManagerWillStart', sender=self, data=TimestampedNotificationData())
-        # initialize bonjour account
         bonjour_account = BonjourAccount()
+        notification_center = NotificationCenter()
         self.accounts[bonjour_account.id] = bonjour_account
+        notification_center.add_observer(self, sender=bonjour_account, name='CFGSettingsObjectDidChange')
         notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=bonjour_account))
         # and the other accounts
         names = configuration.get_names(Account.__group__)
         [Account(id) for id in names if id != bonjour_account.id]
-        self.state = 'started'
+
+    def start(self):
+        """
+        Start the accounts which will determine the ones with the enabled flag
+        set to activate.
+        """
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPAccountManagerWillStart', sender=self, data=TimestampedNotificationData())
+        for account in self.accounts.itervalues():
+            account.start()
         notification_center.post_notification('SIPAccountManagerDidStart', sender=self, data=TimestampedNotificationData())
 
     def stop(self):
-        self.state = 'stopping'
+        """
+        Stop the accounts which will determine the ones which were enabled to
+        deactivate. This method returns only once the accounts were stopped
+        successfully or they timed out trying.
+        """
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountManagerWillEnd', sender=self, data=TimestampedNotificationData())
-        for account in self.accounts.itervalues():
-            if account.enabled:
-                account._deactivate()
-        registered_accounts = [account for account in self.accounts.itervalues() if account.registered]
-        if not registered_accounts:
-            self.state = 'stopped'
-            notification_center.post_notification('SIPAccountManagerDidEnd', sender=self, data=TimestampedNotificationData())
+        procs = [proc.spawn(account.stop) for account in self.accounts.itervalues()]
+        proc.waitall(procs)
+        notification_center.post_notification('SIPAccountManagerDidEnd', sender=self, data=TimestampedNotificationData())
 
     def has_account(self, id):
         return id in self.accounts
@@ -611,12 +685,11 @@ class AccountManager(object):
         return chain(exact_matches, loose_matches, [None]).next()
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        if isinstance(notification.sender, Account):
+        if isinstance(notification.sender, (Account, BonjourAccount)):
             account = notification.sender
             if 'enabled' in notification.data.modified:
                 if account.enabled and self.default_account is None:
@@ -626,15 +699,6 @@ class AccountManager(object):
                         self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
                     except StopIteration:
                         self.default_account = None
-
-    def _NH_SIPAccountRegistrationDidEnd(self, notification):
-        if self.state == 'stopping':
-            registered_accounts = [account for account in self.accounts.itervalues() if account.registered]
-            if not registered_accounts:
-                self.state = 'stopped'
-                notification_center = NotificationCenter()
-                notification_center.post_notification('SIPAccountManagerDidEnd', sender=self, data=TimestampedNotificationData())
-    _NH_SIPAccountRegistrationDidFail = _NH_SIPAccountRegistrationDidEnd
 
     def _internal_add_account(self, account):
         """
