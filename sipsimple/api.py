@@ -6,12 +6,14 @@ various sub-systems required to implement a fully featured SIP User Agent
 application.
 """
 
-from threading import Thread
+from __future__ import with_statement
 
-from application.notification import IObserver, NotificationCenter, NotificationData
-from application.python.util import Singleton
+from threading import RLock, Thread
+
+from application.notification import IObserver, NotificationCenter
+from application.python.util import Null, Singleton
+from eventlet import coros
 from twisted.internet import reactor
-from twisted.python import threadable
 from zope.interface import implements
 
 from sipsimple.core import ConferenceBridge, PJSIPTLSError, SIPCoreError
@@ -22,7 +24,7 @@ from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.datatypes import LocalIPAddress
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.session import SessionManager
-from sipsimple.util import classproperty, TimestampedNotificationData
+from sipsimple.util import call_in_twisted_thread, run_in_green_thread, classproperty, TimestampedNotificationData
 
 
 class ApplicationAttribute(object):
@@ -45,36 +47,60 @@ class SIPApplication(object):
     voice_conference_bridge = ApplicationAttribute(value=None)
     alert_conference_bridge = ApplicationAttribute(value=None)
 
+    _channel = ApplicationAttribute(value=coros.queue())
+    _lock = ApplicationAttribute(value=RLock())
+
     engine = Engine()
 
     def start(self, config_backend):
-        if self.state is not None:
-            raise RuntimeError("SIPApplication cannot be started from '%s' state" % self.state)
-        self.state = 'starting'
+        with self._lock:
+            if self.state is not None:
+                raise RuntimeError("SIPApplication cannot be started from '%s' state" % self.state)
+            self.state = 'starting'
+
         account_manager = AccountManager()
         configuration_manager = ConfigurationManager()
         notification_center = NotificationCenter()
-        session_manager = SessionManager()
 
+        # load configuration
         try:
             configuration_manager.start(config_backend)
+            SIPSimpleSettings()
+            account_manager.load_accounts()
         except:
             self.state = None
             raise
-        session_manager.start()
-        notification_center.add_observer(self, sender=account_manager)
-        account_manager.start()
-        account = account_manager.default_account
 
-        settings = SIPSimpleSettings()
-        # we are interested in changes of global and per-account settings
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
 
+        # start the reactor thread
+        Thread(name='Reactor Thread', target=self._run_reactor).start()
+
+    def _run_reactor(self):
+        from eventlet.twistedutil import join_reactor
+        notification_center = NotificationCenter()
+
+        reactor.callLater(0, self._initialize_subsystems)
+        reactor.run(installSignalHandlers=False)
+
+        self.state = 'stopped'
+        notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=TimestampedNotificationData(end_reason=self.end_reason))
+
+    def _initialize_subsystems(self):
+        account_manager = AccountManager()
+        engine = Engine()
+        notification_center = NotificationCenter()
+        session_manager = SessionManager()
+        settings = SIPSimpleSettings()
+
         notification_center.post_notification('SIPApplicationWillStart', sender=self, data=TimestampedNotificationData())
-        if self.state in ('stopping', 'stopped'):
+        if self.state == 'stopping':
+            reactor.stop()
             return
 
-        engine = Engine()
+        account = account_manager.default_account
+
+        # initialize core
         notification_center.add_observer(self, sender=engine)
         options = dict(# general
                        ip_address=None if settings.sip.ip_address.address is LocalIPAddress.DefaultHostIP else settings.sip.ip_address.normalized,
@@ -100,18 +126,23 @@ class SIPApplication(object):
                        trace_sip=True,
                       )
         try:
-            engine.start(**options)
-        except PJSIPTLSError, e:
-            notification_center = NotificationCenter()
-            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
-            options['tls_protocol'] = 'TLSv1'
-            options['tls_verify_server'] = False
-            options['tls_ca_file'] = None
-            options['tls_cert_file'] = None
-            options['tls_privkey_file'] = None
-            options['tls_timeout'] = 1000
-            engine.start(**options)
-        
+            try:
+                engine.start(**options)
+            except PJSIPTLSError, e:
+                notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
+                options['tls_protocol'] = 'TLSv1'
+                options['tls_verify_server'] = False
+                options['tls_ca_file'] = None
+                options['tls_cert_file'] = None
+                options['tls_privkey_file'] = None
+                options['tls_timeout'] = 1000
+                engine.start(**options)
+        except SIPCoreError:
+            self.end_reason = 'engine failed'
+            reactor.stop()
+            return
+
+        # initialize audio conference bridges
         alert_device = settings.audio.alert_device
         if alert_device not in (None, 'system_default') and alert_device not in engine.output_devices:
             alert_device = 'system_default'
@@ -126,83 +157,60 @@ class SIPApplication(object):
         if settings.audio.silent:
             self.alert_conference_bridge.output_volume = 0
 
-        Thread(name='Reactor Thread', target=self._run_reactor).start()
+        # initialize middleware components
+        account_manager.start()
+        session_manager.start()
 
-    def _run_reactor(self):
-        from eventlet.twistedutil import join_reactor
-        engine = Engine()
-        notification_center = NotificationCenter()
-        
         self.state = 'started'
-        reactor.callLater(0, notification_center.post_notification, 'SIPApplicationDidStart', sender=self, data=TimestampedNotificationData())
-        reactor.run(installSignalHandlers=False)
-        
-        self.state = 'stopped'
-        notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=TimestampedNotificationData(end_reason=self.end_reason or 'reactor stopped'))
-        notification_center.remove_observer(self, sender=engine)
-        if engine.is_running:
-            engine.stop()
+        notification_center.post_notification('SIPApplicationDidStart', sender=self, data=TimestampedNotificationData())
 
     def stop(self):
-        if self.state in (None, 'stopping', 'stopped'):
-            return
-        account_manager = AccountManager()
-        engine = Engine()
-        notification_center = NotificationCenter()
+        with self._lock:
+            if self.state in (None, 'stopping', 'stopped'):
+                return
+            prev_state = self.state
+            self.state = 'stopping'
+        
         self.end_reason = 'application request'
-        prev_state = self.state
-        self.state = 'stopping'
+        notification_center = NotificationCenter()
         notification_center.post_notification('SIPApplicationWillEnd', sender=self, data=TimestampedNotificationData())
-        if prev_state == 'starting':
-            self.state = 'stopped'
-            notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=TimestampedNotificationData(end_reason=self.end_reason))
-            return
-        if engine.is_running:
-            if account_manager.state == 'started':
-                account_manager.stop()
-            else:
-                engine.stop()
-        elif threadable.isInIOThread():
-            reactor.stop()
-        else:
-            reactor.callFromThread(reactor.stop)
+        if prev_state != 'starting':
+            self._shutdown_subsystems()
+
+    @run_in_green_thread
+    def _shutdown_subsystems(self):
+        # shutdown middleware components
+        account_manager = AccountManager()
+        account_manager.stop()
+
+        # shutdown engine
+        engine = Engine()
+        engine.stop()
+        while True:
+            notification = self._channel.wait()
+            if notification.name == 'SIPEngineDidEnd':
+                break
+
+        # stop the reactor
+        reactor.stop()
 
     @classproperty
     def running(cls):
         return cls.state == 'started'
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, None)
-        if handler is not None:
-            handler(notification)
+        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler(notification)
 
     def _NH_SIPEngineDidEnd(self, notification):
-        if not reactor.running:
-            return
-        if self.state != 'stopping':
-            self.end_reason = 'engine stopped'
-        if threadable.isInIOThread():
-            reactor.stop()
-        else:
-            reactor.callFromThread(reactor.stop)
+        call_in_twisted_thread(self._channel.send, notification)
 
     def _NH_SIPEngineDidFail(self, notification):
-        if not reactor.running:
+        if not self.running:
             return
         self.end_reason = 'engine failed'
-        if threadable.isInIOThread():
-            reactor.stop()
-        else:
-            reactor.callFromThread(reactor.stop)
-
-    def _NH_SIPAccountManagerDidEnd(self, notification):
-        engine = Engine()
-        if engine.is_running:
-            engine.stop()
-        elif threadable.isInIOThread():
-            reactor.stop()
-        else:
-            reactor.callFromThread(reactor.stop)
+        # this notification is always sent from the Engine's thread
+        reactor.callFromThread(reactor.stop)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
         engine = Engine()
@@ -261,7 +269,7 @@ class SIPApplication(object):
                                            timeout=settings.tls.timeout)
                 except PJSIPTLSError, e:
                     notification_center = NotificationCenter()
-                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
             if 'rtp.port_range' in notification.data.modified:
                 engine.rtp_port_range = (settings.rtp.port_range.start, settings.rtp.port_range.end)
             if 'rtp.audio_codec_list' in notification.data.modified:
@@ -281,7 +289,7 @@ class SIPApplication(object):
                                            timeout=settings.tls.timeout)
                 except PJSIPTLSError, e:
                     notification_center = NotificationCenter()
-                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=NotificationData(error=e))
+                    notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
 
     def _NH_DefaultAudioDeviceDidChange(self, notification):
         current_input_device = self.voice_conference_bridge.input_device
