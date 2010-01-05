@@ -22,6 +22,7 @@ from sipsimple.engine import Engine
 from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.api import SIPApplication
 from sipsimple.clients.log import Logger
+from sipsimple.clients.system import IPAddressMonitor
 from sipsimple.configuration import ConfigurationError
 from sipsimple.configuration.backend.file import FileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -74,6 +75,7 @@ class RegistrationApplication(SIPApplication):
 
         self.input = None
         self.output = None
+        self.ip_address_monitor = IPAddressMonitor()
         self.logger = None
         self.max_registers = None
         self.success = False
@@ -159,8 +161,12 @@ class RegistrationApplication(SIPApplication):
             self.output.put('Logging notifications trace to file "%s"\n' % self.logger._notifications_filename)
 
     def _NH_SIPApplicationDidStart(self, notification):
+        self.ip_address_monitor.start()
         if self.max_registers != 1 and not self.options.batch_mode:
             self.print_help()
+
+    def _NH_SIPApplicationWillEnd(self, notification):
+        self.ip_address_monitor.stop()
 
     def _NH_SIPApplicationDidEnd(self, notification):
         if self.input:

@@ -35,6 +35,7 @@ from sipsimple.session import IllegalStateError, Session
 from sipsimple.util import run_in_green_thread, PersistentTones, SilenceableWaveFile
 
 from sipsimple.clients.log import Logger
+from sipsimple.clients.system import IPAddressMonitor
 from sipsimple.clients.ui import Prompt, Question, RichText, UI
 
 
@@ -883,6 +884,7 @@ class SIPSessionApplication(SIPApplication):
         self.registration_succeeded = False
         self.stopped_event = Event()
 
+        self.ip_address_monitor = IPAddressMonitor()
         self.logger = None
         self.rtp_statistics = None
         self.nat_detector = None
@@ -1007,6 +1009,8 @@ class SIPSessionApplication(SIPApplication):
         engine = Engine()
         settings = SIPSimpleSettings()
 
+        self.ip_address_monitor.start()
+
         # set the file transfer directory if it's not set
         if settings.file_transfer.directory is None:
             settings.file_transfer.directory = 'file_transfers'
@@ -1026,6 +1030,9 @@ class SIPSessionApplication(SIPApplication):
         if self.target is not None:
             call_initializer = OutgoingCallInitializer(self.account, self.target, audio=True)
             call_initializer.start()
+
+    def _NH_SIPApplicationWillEnd(self, notification):
+        self.ip_address_monitor.stop()
 
     def _NH_SIPApplicationDidEnd(self, notification):
         ui = UI()

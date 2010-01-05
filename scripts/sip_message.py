@@ -29,6 +29,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 
 from sipsimple.clients.log import Logger
+from sipsimple.clients.system import IPAddressMonitor
 
 
 class InputThread(Thread):
@@ -100,6 +101,7 @@ class SIPMessageApplication(SIPApplication):
         
         self.input =  None
         self.output = None
+        self.ip_address_monitor = IPAddressMonitor()
         self.logger = None
 
     def start(self, target, options):
@@ -171,6 +173,8 @@ class SIPMessageApplication(SIPApplication):
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
 
+        self.ip_address_monitor.start()
+
         if isinstance(self.account, BonjourAccount) and self.target is None:
             contacts = []
             for transport in settings.sip.transport_list:
@@ -201,6 +205,9 @@ class SIPMessageApplication(SIPApplication):
                 lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
         else:
             self.output.put('Press Ctrl+D to stop the program.\n')
+
+    def _NH_SIPApplicationWillEnd(self, notification):
+        self.ip_address_monitor.stop()
 
     def _NH_SIPApplicationDidEnd(self, notification):
         if self.input:

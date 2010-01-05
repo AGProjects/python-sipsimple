@@ -37,6 +37,7 @@ from sipsimple.session import Session
 from sipsimple.util import PersistentTones, SilenceableWaveFile
 
 from sipsimple.clients.log import Logger
+from sipsimple.clients.system import IPAddressMonitor
 
 
 class InputThread(Thread):
@@ -156,6 +157,7 @@ class SIPAudioApplication(SIPApplication):
         
         self.input =  None
         self.output = None
+        self.ip_address_monitor = IPAddressMonitor()
         self.logger = None
         self.rtp_statistics = None
         self.nat_detector = NATDetector()
@@ -265,6 +267,8 @@ class SIPAudioApplication(SIPApplication):
         engine = Engine()
         settings = SIPSimpleSettings()
 
+        self.ip_address_monitor.start()
+
         self.output.put('Available audio input devices: %s\n' % ', '.join(['None', 'system_default'] + sorted(engine.input_devices)))
         self.output.put('Available audio output devices: %s\n' % ', '.join(['None', 'system_default'] + sorted(engine.output_devices)))
         if self.voice_conference_bridge.input_device == 'system_default':
@@ -324,6 +328,9 @@ class SIPAudioApplication(SIPApplication):
                 else:
                     uri = self.target
                 lookup.lookup_sip_proxy(uri, settings.sip.transport_list)
+
+    def _NH_SIPApplicationWillEnd(self, notification):
+        self.ip_address_monitor.stop()
 
     def _NH_SIPApplicationDidEnd(self, notification):
         if self.input:
