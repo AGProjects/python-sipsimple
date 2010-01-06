@@ -136,7 +136,7 @@ class MSRPStreamBase(object):
             logger = NotificationProxyLogger()
             self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
             local_uri = URI(host=host.default_ip,
-                            port=settings.msrp.port,
+                            port=0,
                             use_tls=self.transport=='tls',
                             credentials=self.account.tls_credentials)
             full_local_path = self.msrp_connector.prepare(local_uri)
