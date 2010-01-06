@@ -21,7 +21,6 @@ from sipsimple.engine import Engine
 
 from sipsimple.account import AccountManager
 from sipsimple.configuration import ConfigurationManager
-from sipsimple.configuration.datatypes import LocalIPAddress
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.session import SessionManager
 from sipsimple.util import call_in_twisted_thread, run_in_green_thread, classproperty, TimestampedNotificationData
