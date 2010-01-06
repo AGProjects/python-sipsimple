@@ -864,7 +864,10 @@ class Session(object):
         try:
             self._invitation.end(timeout=1)
             while True:
-                notification = self._channel.wait()
+                try:
+                    notification = self._channel.wait()
+                except MediaStreamDidFailError:
+                    continue
                 if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'disconnected':
                     if cancelling:
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self,
