@@ -1075,9 +1075,11 @@ class SIPSessionApplication(SIPApplication):
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
         if self.registration_succeeded:
             return
-        route = notification.data.route
-        lines = ['%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires)]
+        contact_header = notification.data.contact_header
         contact_header_list = notification.data.contact_header_list
+        expires = notification.data.expires
+        registrar = notification.data.registrar
+        lines = ['%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).' % (datetime.now().replace(microsecond=0), contact_header.uri, self.account.id, registrar.address, registrar.port, registrar.transport, expires)]
         if len(contact_header_list) > 1:
             lines.append('Other registered contacts:')
             lines.extend('  %s (expires in %s seconds)' % (str(other_contact_header.uri), other_contact_header.expires) for other_contact_header in contact_header_list if other_contact_header.uri != notification.data.contact_header.uri)
@@ -1086,16 +1088,7 @@ class SIPSessionApplication(SIPApplication):
         self.registration_succeeded = True
 
     def _NH_SIPAccountRegistrationDidFail(self, notification):
-        if notification.data.registration is not None:
-            route = notification.data.route
-            if notification.data.code:
-                status_text = '%d %s' % (notification.data.code, notification.data.reason)
-            else:
-                status_text = notification.data.reason
-            send_notice('%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status_text))
-        else:
-            send_notice('%s Failed to register contact for sip:%s: %s' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
-
+        send_notice('%s Failed to register contact for sip:%s: %s (retrying in %.2f seconds)' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.error, notification.data.timeout))
         self.registration_succeeded = False
 
     def _NH_SIPAccountRegistrationDidEnd(self, notification):

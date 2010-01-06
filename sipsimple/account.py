@@ -61,6 +61,12 @@ class SIPRegistrationDidNotEnd(Exception):
     def __init__(self, data):
         self.__dict__.update(data.__dict__)
 
+class SIPAccountRegistrationError(Exception):
+    def __init__(self, error, timeout):
+        self.error = error
+        self.timeout = timeout
+
+
 class AccountRegistrar(object):
     implements(IObserver)
 
@@ -108,19 +114,23 @@ class AccountRegistrar(object):
     def _CH_register(self, command):
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
+
+        # Cancel any timer which would refresh the registration
+        if self._refresh_timer is not None and self._refresh_timer.active():
+            self._refresh_timer.cancel()
+        self._refresh_timer = None
+
+        # Initialize the registration
+        if self._registration is None:
+            self._registration = Registration(FromHeader(self.account.uri, self.account.display_name),
+                                              credentials=self.account.credentials,
+                                              duration=self.account.sip.register_interval)
+            notification_center.add_observer(self, sender=self._registration)
+            notification_center.post_notification('SIPAccountWillRegister', sender=self.account, data=TimestampedNotificationData())
+        else:
+            notification_center.post_notification('SIPAccountRegistrationWillRefresh', sender=self.account, data=TimestampedNotificationData())
+
         try:
-            # Cancel any timer which would refresh the registration
-            if self._refresh_timer is not None and self._refresh_timer.active():
-                self._refresh_timer.cancel()
-            self._refresh_timer = None
-
-            # Initialize the registration
-            if self._registration is None:
-                self._registration = Registration(FromHeader(self.account.uri, self.account.display_name),
-                                                  credentials=self.account.credentials,
-                                                  duration=self.account.sip.register_interval)
-                notification_center.add_observer(self, sender=self._registration)
-
             # Lookup routes
             if self.account.sip.outbound_proxy is not None:
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host,
@@ -129,7 +139,10 @@ class AccountRegistrar(object):
             else:
                 uri = SIPURI(host=self.account.id.domain)
             lookup = DNSLookup()
-            routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+            try:
+                routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+            except DNSLookupError, e:
+                raise SIPAccountRegistrationError(error='DNS lookup failed: %s' % e, timeout=random.uniform(1, 2))
 
             # Rebuild contact
             self.contact = ContactURI('%s@%s' % (self.contact.username, host.default_ip))
@@ -148,31 +161,30 @@ class AccountRegistrar(object):
                             if notification.name == 'SIPRegistrationDidSucceed':
                                 break
                     except SIPRegistrationDidFail, e:
-                        self.registered = False
-                        notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account,
+                        notification_center.post_notification('SIPAccountRegistrationGotAnswer', sender=self.account,
                                                               data=TimestampedNotificationData(code=e.code,
                                                                                                reason=e.reason,
                                                                                                registration=self._registration,
-                                                                                               route=route))
+                                                                                               registrar=route))
                         if e.code == 401:
                             # Authentication failed, so retry the registration in some time
                             timeout = random.uniform(60, 120)
-                            self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
-                            # Since we weren't able to register, recreate a registration next time
-                            notification_center.remove_observer(self, sender=self._registration)
-                            self._registration = None
-                            break
+                            raise SIPAccountRegistrationError(error='Authentication failed', timeout=timeout)
                         else:
                             # Otherwise just try the next route
                             continue
                     else:
+                        notification_center.post_notification('SIPAccountRegistrationGotAnswer', sender=self.account,
+                                                              data=TimestampedNotificationData(code=notification.data.code,
+                                                                                               reason=notification.data.reason,
+                                                                                               registration=self._registration,
+                                                                                               registrar=route))
                         self.registered = True
                         notification_center.post_notification('SIPAccountRegistrationDidSucceed', sender=self.account,
                                                               data=TimestampedNotificationData(contact_header=notification.data.contact_header,
                                                                                                contact_header_list=notification.data.contact_header_list,
                                                                                                expires=notification.data.expires_in,
-                                                                                               registration=self._registration,
-                                                                                               route=route))
+                                                                                               registrar=route))
                         self._register_wait = 1
                         command.signal()
                         break
@@ -180,19 +192,12 @@ class AccountRegistrar(object):
                 # There are no more routes to try, reschedule the registration
                 timeout = random.uniform(self._register_wait, 2*self._register_wait)
                 self._register_wait = limit(self._register_wait*2, max=30)
-                self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
-                # Since we weren't able to register, recreate a registration next time
-                notification_center.remove_observer(self, sender=self._registration)
-                self._registration = None
-        except DNSLookupError, e:
+                raise SIPAccountRegistrationError(error='No more routes to try', timeout=timeout)
+        except SIPAccountRegistrationError, e:
             self.registered = False
             notification_center.post_notification('SIPAccountRegistrationDidFail', sender=self.account,
-                                                  data=TimestampedNotificationData(code=0,
-                                                                                   reason='DNS lookup failed: %s' % e,
-                                                                                   registration=None,
-                                                                                   route=None))
-            timeout = random.uniform(1, 2)
-            self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
+                                                  data=TimestampedNotificationData(error=e.error, timeout=e.timeout))
+            self._refresh_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('register', command.event))
             # Since we weren't able to register, recreate a registration next time
             notification_center.remove_observer(self, sender=self._registration)
             self._registration = None

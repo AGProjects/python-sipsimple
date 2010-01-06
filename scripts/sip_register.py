@@ -195,46 +195,37 @@ class RegistrationApplication(SIPApplication):
             self.print_help()
     
     def _NH_SIPAccountRegistrationDidSucceed(self, notification):
+        contact_header = notification.data.contact_header
+        contact_header_list = notification.data.contact_header_list
+        expires = notification.data.expires
+        registrar = notification.data.registrar
         if not self.success:
-            route = notification.data.route
-            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).\n' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires)
-            contact_header_list = notification.data.contact_header_list
+            message = '%s Registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).\n' % (datetime.now().replace(microsecond=0), contact_header.uri, self.account.id, registrar.address, registrar.port, registrar.transport, expires)
             if len(contact_header_list) > 1:
                 message += 'Other registered contacts:\n%s\n' % '\n'.join(['  %s (expires in %s seconds)' % (str(other_contact_header.uri), other_contact_header.expires) for other_contact_header in contact_header_list if other_contact_header.uri != notification.data.contact_header.uri])
             self.output.put(message)
             
             self.success = True
         else:
-            route = notification.data.route
-            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).\n' % (datetime.now().replace(microsecond=0), notification.data.contact_header.uri, self.account.id, route.address, route.port, route.transport, notification.data.expires))
+            self.output.put('%s Refreshed registered contact "%s" for sip:%s at %s:%d;transport=%s (expires in %d seconds).\n' % (datetime.now().replace(microsecond=0), contact_header.uri, self.account.id, registrar.address, registrar.port, registrar.transport, expires))
         
         if self.max_registers is not None:
             self.max_registers -= 1
             if self.max_registers == 0:
                 self.stop()
 
+    def _NH_SIPAccountRegistrationGotAnswer(self, notification):
+        if notification.data.code >= 300:
+            registrar = notification.data.registrar
+            code = notification.data.code
+            reason = notification.data.reason
+            self.output.put('%s Registration failed at %s:%d;transport=%s: %d %s\n' % (datetime.now().replace(microsecond=0), registrar.address, registrar.port, registrar.transport, code, reason))
+
     def _NH_SIPAccountRegistrationDidFail(self, notification):
-        if notification.data.registration is not None:
-            route = notification.data.route
-            if notification.data.next_route:
-                next_route = notification.data.next_route
-                next_route = 'Trying next route %s:%d;transport=%s.\n' % (next_route.address, next_route.port, next_route.transport)
-            else:
-                if notification.data.delay:
-                    next_route = 'No more routes to try; retrying in %.2f seconds.\n' % (notification.data.delay)
-                else:
-                    next_route = 'No more routes to try\n'
-            if notification.data.code:
-                status = '%d %s' % (notification.data.code, notification.data.reason)
-            else:
-                status = notification.data.reason
-            self.output.put('%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s\n' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status, next_route))
-        else:
-            self.output.put('%s Failed to register contact for sip:%s: %s\n' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
-        
+        self.output.put('%s Failed to register contact for sip:%s: %s (retrying in %.2f seconds)\n' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.error, notification.data.timeout))
         self.success = False
         
-        if self.max_registers is not None and notification.data.next_route is None:
+        if self.max_registers is not None:
             self.max_registers -= 1
             if self.max_registers == 0:
                 self.stop()
