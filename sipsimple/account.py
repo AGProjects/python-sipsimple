@@ -94,10 +94,6 @@ class AccountRegistrar(object):
         self._command_channel.send(command)
         command.wait()
 
-    def register(self):
-        command = Command('register')
-        self._command_channel.send(command)
-
     def reload_settings(self):
         command = Command('reload_settings')
         self._command_channel.send(command)
