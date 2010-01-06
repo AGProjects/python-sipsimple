@@ -1,7 +1,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-"""Implements a high-level application responsable for starting and stopping
+"""
+Implements a high-level application responsable for starting and stopping
 various sub-systems required to implement a fully featured SIP User Agent
 application.
 """
