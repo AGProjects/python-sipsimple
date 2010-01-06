@@ -273,16 +273,9 @@ def classproperty(function):
     return Descriptor()
 
 
-def limit(value, min=None, max=None):
+def limit(value, min=float("-infinity"), max=float("+infinity")):
     from __builtin__ import min as minimum, max as maximum
-    if min is None and max is None:
-        return value
-    elif min is None:
-        return minimum(value, max)
-    elif max is None:
-        return maximum(min, value)
-    else:
-        return maximum(min, minimum(value, max))
+    return maximum(min, minimum(value, max))
 
 
 def makedirs(path):
