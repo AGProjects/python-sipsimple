@@ -197,6 +197,9 @@ class AccountRegistrar(object):
                                                                                    route=None))
             timeout = random.uniform(1, 2)
             self._refresh_timer = reactor.callLater(timeout, self._command_channel.send, Command('register', command.event))
+            # Since we weren't able to register, recreate a registration next time
+            notification_center.remove_observer(self, sender=self._registration)
+            self._registration = None
 
     def _CH_unregister(self, command):
         notification_center = NotificationCenter()
