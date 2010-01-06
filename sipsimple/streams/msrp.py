@@ -21,6 +21,7 @@ import mimetypes
 from datetime import datetime
 
 from application.notification import NotificationCenter, NotificationData, IObserver
+from application.system import host
 from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements, Interface, Attribute
@@ -134,7 +135,7 @@ class MSRPStreamBase(object):
                 raise MSRPStreamError("cannot create incoming MSRP stream without a certificate and private key")
             logger = NotificationProxyLogger()
             self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
-            local_uri = URI(host=settings.sip.ip_address.normalized,
+            local_uri = URI(host=host.default_ip,
                             port=settings.msrp.port,
                             use_tls=self.transport=='tls',
                             credentials=self.account.tls_credentials)

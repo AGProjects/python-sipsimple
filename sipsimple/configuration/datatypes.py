@@ -12,10 +12,9 @@ __all__ = [# Base datatypes
            # Audio datatypes
            'AudioCodecList', 'AudioInputDevice', 'AudioOutputDevice', 'SampleRate',
            # Address and transport datatypes
-           'Port', 'PortRange', 'LocalIPAddress', 'Hostname', 'DomainList', 'EndpointAddress',
-           'MSRPRelayAddress', 'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList',
-           'XCAPRoot', 'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption',
-           'TLSProtocol',
+           'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'MSRPRelayAddress',
+           'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
+           'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption', 'TLSProtocol',
            # Desktop sharing datatypes
            'ImageDepth', 'Resolution',
            # Path datatypes
@@ -256,63 +255,6 @@ class PortRange(object):
     def __unicode__(self):
         return u'%s-%d' % (self.start, self.end)
 
-
-class LocalIPAddress(object):
-    class DefaultHostIP(object):
-        def __repr__(self):
-            return 'LocalIPAddress.DefaultHostIP'
-        __str__ = __repr__
-    DefaultHostIP = DefaultHostIP()
-
-    _address_re = re.compile("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-
-    def __init__(self, address=DefaultHostIP):
-        if address is not self.DefaultHostIP:
-            address = str(address)
-            if address == "0.0.0.0":
-                raise ValueError("illegal local IP address value. Use DefaultHostIP object to automatically bind to all interfaces")
-            if self._address_re.match(address) is None:
-                raise ValueError("illegal local IP address value: %s" % address)
-        self.address = address
-
-    def __getstate__(self):
-        return unicode(self)
-
-    def __setstate__(self, state):
-        self.__init__(self.DefaultHostIP if state.lower() == u'auto' else state)
-
-    @property
-    def normalized(self):
-        if self.address is self.DefaultHostIP:
-            import socket
-            try:
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                try:
-                    s.connect(('1.2.3.4', 56))
-                    return s.getsockname()[0]
-                finally:
-                    s.close()
-            except socket.error:
-                raise RuntimeError("could not determine local IP address")
-        else:
-            return self.address
-
-    def __eq__(self, other):
-        try:
-            return self.address == other.address
-        except AttributeError:
-            return False
-
-    def __hash__(self):
-        return hash(self.address)
-
-    def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, self.address)
-    
-    def __unicode__(self):
-        if self.address is self.DefaultHostIP:
-            return u'auto'
-        return unicode(self.address)
 
 class Hostname(str):
     _host_re = re.compile(r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*)$")

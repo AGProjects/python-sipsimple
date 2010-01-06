@@ -103,7 +103,6 @@ class SIPApplication(object):
         # initialize core
         notification_center.add_observer(self, sender=engine)
         options = dict(# general
-                       ip_address=None if settings.sip.ip_address.address is LocalIPAddress.DefaultHostIP else settings.sip.ip_address.normalized,
                        user_agent=settings.user_agent,
                        # SIP
                        ignore_missing_ack=False,

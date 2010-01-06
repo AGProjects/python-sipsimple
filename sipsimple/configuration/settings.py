@@ -13,7 +13,7 @@ from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger
 from sipsimple.configuration.datatypes import AudioCodecList, AudioInputDevice, AudioOutputDevice, SampleRate
-from sipsimple.configuration.datatypes import LocalIPAddress, MSRPTransport, Port, PortRange, SIPTransportList, TLSProtocol
+from sipsimple.configuration.datatypes import MSRPTransport, Port, PortRange, SIPTransportList, TLSProtocol
 from sipsimple.configuration.datatypes import ImageDepth, Resolution
 from sipsimple.configuration.datatypes import Path, SoundFile, UserDataPath
 
@@ -60,14 +60,12 @@ class MSRPSettings(SettingsGroup):
 
 
 class RTPSettings(SettingsGroup):
-    ip_address = Setting(type=LocalIPAddress, default=LocalIPAddress())
     port_range = Setting(type=PortRange, default=PortRange(50000, 50400))
     timeout = Setting(type=NonNegativeInteger, default=30)
     audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('speex', 'G722', 'PCMU', 'PCMA', 'iLBC', 'GSM')))
 
 
 class SIPSettings(SettingsGroup):
-    ip_address = Setting(type=LocalIPAddress, default=LocalIPAddress())
     udp_port = Setting(type=Port, default=0)
     tcp_port = Setting(type=Port, default=0)
     tls_port = Setting(type=Port, default=0)

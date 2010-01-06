@@ -14,6 +14,7 @@ from threading import RLock
 from application.notification import IObserver, Notification, NotificationCenter
 from application.python.decorator import decorator, preserve_signature
 from application.python.util import Singleton
+from application.system import host
 from eventlet import api
 from eventlet.coros import queue
 from zope.interface import implements
@@ -153,7 +154,7 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
 
-            local_ip = settings.sip.ip_address.normalized
+            local_ip = host.default_ip
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             for index, stream in enumerate(self.proposed_streams):
@@ -331,7 +332,7 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
 
-            local_ip = settings.sip.ip_address.normalized
+            local_ip = host.default_ip
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             if self._invitation.sdp.proposed_remote:

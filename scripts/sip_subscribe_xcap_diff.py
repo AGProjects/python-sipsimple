@@ -168,7 +168,6 @@ class SubscriptionApplication(object):
         engine.start(
             auto_sound=False,
             events={'xcap-diff': ['application/xcap-diff+xml']},
-            ip_address=settings.sip.ip_address.normalized,
             udp_port=settings.sip.udp_port if "udp" in settings.sip.transport_list else None,
             tcp_port=settings.sip.tcp_port if "tcp" in settings.sip.transport_list else None,
             tls_port=settings.sip.tls_port if "tls" in settings.sip.transport_list else None,

@@ -520,9 +520,8 @@ class BonjourAccount(SettingsObject):
     tls = TLSSettings
 
     def __init__(self):
-        settings = SIPSimpleSettings()
         username = ''.join(random.sample(string.lowercase, 8))
-        self.contact = ContactURI('%s@%s' % (username, settings.sip.ip_address.normalized))
+        self.contact = ContactURI('%s@%s' % (username, host.default_ip))
         self.uri = SIPURI(user=self.contact.username, host=self.contact.domain)
         self.credentials = None
 
