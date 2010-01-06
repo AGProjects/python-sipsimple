@@ -1088,16 +1088,11 @@ class SIPSessionApplication(SIPApplication):
     def _NH_SIPAccountRegistrationDidFail(self, notification):
         if notification.data.registration is not None:
             route = notification.data.route
-            if notification.data.next_route:
-                next_route = notification.data.next_route
-                next_route_text = 'Trying next route %s:%d;transport=%s.' % (next_route.address, next_route.port, next_route.transport)
-            else:
-                next_route_text = 'No more routes to try; retrying in %.2f seconds.' % (notification.data.delay)
             if notification.data.code:
                 status_text = '%d %s' % (notification.data.code, notification.data.reason)
             else:
                 status_text = notification.data.reason
-            send_notice('%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s. %s' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status_text, next_route_text))
+            send_notice('%s Failed to register contact for sip:%s at %s:%d;transport=%s: %s' % (datetime.now().replace(microsecond=0), self.account.id, route.address, route.port, route.transport, status_text))
         else:
             send_notice('%s Failed to register contact for sip:%s: %s' % (datetime.now().replace(microsecond=0), self.account.id, notification.data.reason))
 
