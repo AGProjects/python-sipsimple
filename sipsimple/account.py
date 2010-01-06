@@ -203,6 +203,7 @@ class AccountRegistrar(object):
         if self._refresh_timer is not None and self._refresh_timer.active():
             self._refresh_timer.cancel()
             self._refresh_timer = None
+        self.registered = False
         if self._registration is not None:
             self._registration.end(timeout=2)
             try:
