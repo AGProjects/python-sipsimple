@@ -158,7 +158,7 @@ class AccountRegistrar(object):
                     try:
                         while True:
                             notification = self._data_channel.wait()
-                            if notification.name == 'SIPRegistrationDidSucceed':
+                            if notification.sender is self._registration and notification.name == 'SIPRegistrationDidSucceed':
                                 break
                     except SIPRegistrationDidFail, e:
                         notification_center.post_notification('SIPAccountRegistrationGotAnswer', sender=self.account,
@@ -214,7 +214,7 @@ class AccountRegistrar(object):
             try:
                 while True:
                     notification = self._data_channel.wait()
-                    if notification.name == 'SIPRegistrationDidEnd':
+                    if notification.sender is self._registration and notification.name == 'SIPRegistrationDidEnd':
                         break
             except SIPRegistrationDidNotEnd, e:
                 notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account,
