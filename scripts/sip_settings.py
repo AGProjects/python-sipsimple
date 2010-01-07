@@ -15,8 +15,12 @@ from optparse import OptionParser
 from sipsimple.account import Account, BonjourAccount, AccountManager
 from sipsimple.configuration import ConfigurationError, ConfigurationManager, DefaultValue, Setting, SettingsGroupMeta
 from sipsimple.configuration.backend.file import FileBackend
-from sipsimple.configuration.datatypes import List
+from sipsimple.configuration.datatypes import List, STUNServerAddress
 from sipsimple.configuration.settings import SIPSimpleSettings
+
+from sipsimple.clients.configuration import config_filename
+from sipsimple.clients.configuration.account import AccountExtension
+from sipsimple.clients.configuration.settings import SIPSimpleSettingsExtension
 
 
 def format_child(obj, attrname, maxchars):
@@ -77,12 +81,6 @@ class SettingsParser(object):
                 return False
         else:
             return value
-    
-    @classmethod
-    def parse_LocalIPAddress(cls, type, value):
-        if value == 'auto':
-            return type()
-        return type(value)
 
     @classmethod
     def parse_MSRPRelayAddress(cls, type, value):
@@ -137,8 +135,10 @@ class SettingsParser(object):
 
 class AccountConfigurator(object):
     def __init__(self, config_file):
+        Account.register_extension(AccountExtension)
+        BonjourAccount.register_extension(AccountExtension)
         self.configuration_manager = ConfigurationManager()
-        self.configuration_manager.start(FileBackend(os.path.realpath(config_file or os.path.expanduser('~/.sipclient/config'))))
+        self.configuration_manager.start(FileBackend(os.path.realpath(config_file or config_filename)))
         self.account_manager = AccountManager()
         self.account_manager.load_accounts()
 
@@ -272,8 +272,10 @@ class AccountConfigurator(object):
 
 class SIPSimpleConfigurator(object):
     def __init__(self, config_file):
+        SIPSimpleSettings.register_extension(SIPSimpleSettingsExtension)
         self.configuration_manager = ConfigurationManager()
-        self.configuration_manager.start(FileBackend(os.path.realpath(config_file or os.path.expanduser('~/.sipclient/config'))))
+        self.configuration_manager.start(FileBackend(os.path.realpath(config_file or config_filename)))
+        SIPSimpleSettings()
 
     def show(self):
         print 'SIP SIMPLE settings:'

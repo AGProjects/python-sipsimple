@@ -5,6 +5,7 @@
 multiple SIP accounts and their properties.
 """
 
+import os
 import random
 import string
 
@@ -24,7 +25,7 @@ from zope.interface import implements
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
-from sipsimple.configuration.datatypes import AccountSoundFile, AudioCodecList, MSRPRelayAddress, NonNegativeInteger, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, UserDataPath, XCAPRoot, ReplacePlus
+from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.primitives import Registration
@@ -273,7 +274,6 @@ class RTPSettings(SettingsGroup):
     audio_codec_list = Setting(type=AudioCodecList, default=None, nillable=True)
     srtp_encryption = Setting(type=SRTPEncryption, default='optional')
     use_srtp_without_tls = Setting(type=bool, default=True)
-    inband_dtmf = Setting(type=bool, default=False)
 
 
 class DialogEventSettings(SettingsGroup):
@@ -295,7 +295,7 @@ class MessageSummarySettings(SettingsGroup):
     voicemail_uri = Setting(type=str, default=None, nillable=True)
 
 
-class XcapSettings(SettingsGroup):
+class XCAPSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
     subscribe_xcap_diff = Setting(type=bool, default=True)
@@ -313,16 +313,13 @@ class PresenceSettings(SettingsGroup):
     enable_resource_lists = Setting(type=bool, default=True)
 
 
-class SoundsSettings(SettingsGroup):
-    audio_inbound = Setting(type=AccountSoundFile, default=AccountSoundFile(AccountSoundFile.DefaultSoundFile('sounds.audio_inbound')), nillable=True)
-
-
 class TLSSettings(SettingsGroup):
-    certificate = Setting(type=UserDataPath, default=None, nillable=True)
+    certificate = Setting(type=Path, default=None, nillable=True)
     verify_server = Setting(type=bool, default=False)
 
+
 class PSTNSettings(SettingsGroup):
-    replace_plus = Setting(type=ReplacePlus, default=None, nillable=True)
+    pass
 
 
 class Account(SettingsObject):
@@ -353,7 +350,6 @@ class Account(SettingsObject):
     enabled = Setting(type=bool, default=False)
     password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)
-    order = Setting(type=int, default=0)
 
     sip = SIPSettings
     rtp = RTPSettings
@@ -361,8 +357,7 @@ class Account(SettingsObject):
     nat_traversal = NatTraversalSettings
     message_summary = MessageSummarySettings
     presence = PresenceSettings
-    xcap = XcapSettings
-    sounds = SoundsSettings
+    xcap = XCAPSettings
     tls = TLSSettings
     pstn = PSTNSettings
 
@@ -428,7 +423,7 @@ class Account(SettingsObject):
         # however this is not a time consuming operation (~ 3000 req/sec). -Luci
         settings = SIPSimpleSettings()
         if self.tls.certificate is not None:
-            certificate_data = open(self.tls.certificate.normalized).read()
+            certificate_data = open(os.path.expanduser(self.tls.certificate)).read()
             certificate = X509Certificate(certificate_data)
             private_key = X509PrivateKey(certificate_data)
         else:
@@ -436,7 +431,7 @@ class Account(SettingsObject):
             private_key = None
         if settings.tls.ca_list is not None:
             # we should read all certificates in the file, rather than just the first -Luci
-            trusted = [X509Certificate(open(settings.tls.ca_list.normalized).read())]
+            trusted = [X509Certificate(open(os.path.expanduser(settings.tls.ca_list)).read())]
         else:
             trusted = []
         credentials = X509Credentials(certificate, private_key, trusted)
@@ -518,10 +513,8 @@ class BonjourAccount(SettingsObject):
     id = property(lambda self: self.__id__)
     enabled = Setting(type=bool, default=True)
     display_name = Setting(type=str, default=None, nillable=True)
-    order = Setting(type=int, default=0)
 
     rtp = RTPSettings
-    sounds = SoundsSettings
     tls = TLSSettings
 
     def __init__(self):
@@ -575,7 +568,7 @@ class BonjourAccount(SettingsObject):
         # however this is not a time consuming operation (~ 3000 req/sec). -Luci
         settings = SIPSimpleSettings()
         if self.tls.certificate is not None:
-            certificate_data = open(self.tls.certificate.normalized).read()
+            certificate_data = open(os.path.expanduser(self.tls.certificate)).read()
             certificate = X509Certificate(certificate_data)
             private_key = X509PrivateKey(certificate_data)
         else:
@@ -583,7 +576,7 @@ class BonjourAccount(SettingsObject):
             private_key = None
         if settings.tls.ca_list is not None:
             # we should read all certificates in the file, rather than just the first -Luci
-            trusted = [X509Certificate(open(settings.tls.ca_list.normalized).read())]
+            trusted = [X509Certificate(open(os.path.expanduser(settings.tls.ca_list)).read())]
         else:
             trusted = []
         credentials = X509Credentials(certificate, private_key, trusted)

@@ -25,7 +25,7 @@ from eventlet.twistedutil import join_reactor
 
 from sipsimple.engine import Engine
 from sipsimple.core import ContactHeader, FromHeader, RouteHeader, SIPCoreError, SIPURI, Subscription, ToHeader
-from sipsimple.account import AccountManager, BonjourAccount
+from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.clients.log import Logger
 from sipsimple.lookup import DNSLookup
 from sipsimple.configuration import ConfigurationError, ConfigurationManager
@@ -37,6 +37,10 @@ from sipsimple.applications import ParserError
 from sipsimple.applications.watcherinfo import WatcherInfo
 from sipsimple.applications.policy import Actions, Conditions, Identity, IdentityOne, Rule, Transformations
 from sipsimple.applications.presrules import AllDevices, AllPersons, AllServices, PresRules, ProvideAllAttributes, ProvideDevices, ProvidePersons, ProvideServices, SubHandling
+
+from sipsimple.clients.configuration import config_filename
+from sipsimple.clients.configuration.account import AccountExtension
+from sipsimple.clients.configuration.settings import SIPSimpleSettingsExtension
 
 from xcaplib.client import XCAPClient
 from xcaplib.error import HTTPError
@@ -130,8 +134,11 @@ class WinfoApplication(object):
         self.output.start()
     
         # startup configuration
+        Account.register_extension(AccountExtension)
+        BonjourAccount.register_extension(AccountExtension)
+        SIPSimpleSettings.register_extension(SIPSimpleSettingsExtension)
         try:
-            configuration.start(FileBackend(os.path.expanduser('~/.sipclient/config')))
+            configuration.start(FileBackend(config_filename))
         except ConfigurationError, e:
             raise RuntimeError("failed to load sipclient's configuration: %s\nIf an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script." % str(e))
         account_manager.load_accounts()

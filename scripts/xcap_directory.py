@@ -7,11 +7,16 @@ import sys
 from optparse import OptionParser
 from urllib2 import URLError
 
-from sipsimple.account import AccountManager, BonjourAccount
+from sipsimple.account import Account, AccountManager, BonjourAccount
 from sipsimple.applications import ParserError
 from sipsimple.applications.directory import XCAPDirectory, Entry
 from sipsimple.configuration import ConfigurationManager, ConfigurationError
 from sipsimple.configuration.backend.file import FileBackend
+from sipsimple.configuration.settings import SIPSimpleSettings
+
+from sipsimple.clients.configuration import config_filename
+from sipsimple.clients.configuration.account import AccountExtension
+from sipsimple.clients.configuration.settings import SIPSimpleSettingsExtension
 
 from xcaplib import logsocket
 from xcaplib.client import XCAPClient
@@ -54,8 +59,11 @@ def print_xcap_directory():
 def do_xcap_directory(account_name):
     global xcap_client
 
+    Account.register_extension(AccountExtension)
+    BonjourAccount.register_extension(AccountExtension)
+    SIPSimpleSettings.register_extension(SIPSimpleSettingsExtension)
     try:
-        ConfigurationManager().start(FileBackend(os.path.expanduser('~/.sipclient/config')))
+        ConfigurationManager().start(FileBackend(config_filename))
     except ConfigurationError, e:
         raise RuntimeError("failed to load sipclient's configuration: %s\nIf an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script." % str(e))
     account_manager = AccountManager()

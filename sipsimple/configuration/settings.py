@@ -7,15 +7,12 @@ SIP SIMPLE settings.
 Definition of general (non-account related) settings.
 """
 
-import os
-
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger
 from sipsimple.configuration.datatypes import AudioCodecList, AudioInputDevice, AudioOutputDevice, SampleRate
 from sipsimple.configuration.datatypes import MSRPTransport, Port, PortRange, SIPTransportList, TLSProtocol
-from sipsimple.configuration.datatypes import ImageDepth, Resolution
-from sipsimple.configuration.datatypes import Path, SoundFile, UserDataPath
+from sipsimple.configuration.datatypes import Path
 
 
 __all__ = ['SIPSimpleSettings']
@@ -26,31 +23,23 @@ class AudioSettings(SettingsGroup):
     input_device = Setting(type=AudioInputDevice, default='system_default', nillable=True)
     output_device = Setting(type=AudioOutputDevice, default='system_default', nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
-    directory = Setting(type=UserDataPath, default=UserDataPath('history'))
     sample_rate = Setting(type=SampleRate, default=16000)
     silent = Setting(type=bool, default=False)
 
 
 class ChatSettings(SettingsGroup):
-    directory = Setting(type=UserDataPath, default=UserDataPath('history'))
+    pass
 
 
 class DesktopSharingSettings(SettingsGroup):
-    client_command = Setting(type=str, default=None, nillable=True)
-    server_command = Setting(type=str, default=None, nillable=True)
+    pass
 
 
 class FileTransferSettings(SettingsGroup):
-    directory = Setting(type=UserDataPath, default=None, nillable=True)
+    pass
 
 
 class LogsSettings(SettingsGroup):
-    directory = Setting(type=UserDataPath, default=UserDataPath('logs'))
-    trace_sip = Setting(type=bool, default=False)
-    trace_pjsip = Setting(type=bool, default=False)
-    trace_msrp = Setting(type=bool, default=False)
-    trace_xcap = Setting(type=bool, default=False)
-    trace_notifications = Setting(type=bool, default=False)
     pjsip_level = Setting(type=NonNegativeInteger, default=5)
 
 
@@ -72,26 +61,14 @@ class SIPSettings(SettingsGroup):
 
 
 class TLSSettings(SettingsGroup):
-    ca_list = Setting(type=UserDataPath, default=None, nillable=True)
+    ca_list = Setting(type=Path, default=None, nillable=True)
     protocol = Setting(type=TLSProtocol, default='TLSv1')
     timeout = Setting(type=NonNegativeInteger, default=1000)
-
-
-class SoundsSettings(SettingsGroup):
-    audio_inbound = Setting(type=SoundFile, default=None, nillable=True)
-    audio_outbound = Setting(type=SoundFile, default=None, nillable=True)
-    message_received = Setting(type=SoundFile, default=None, nillable=True)
-    message_sent = Setting(type=SoundFile, default=None, nillable=True)
-    file_received = Setting(type=SoundFile, default=None, nillable=True)
-    file_sent = Setting(type=SoundFile, default=None, nillable=True)
-    answering_machine = Setting(type=SoundFile, default=None, nillable=True)
 
 
 class SIPSimpleSettings(SettingsObject):
     __id__ = 'SIPSimpleSettings'
 
-    user_data_directory = Setting(type=Path, default=Path(os.path.expanduser('~/.sipclient')))
-    resources_directory = Setting(type=Path, default=None, nillable=True)
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
     user_agent = Setting(type=str, default='sipsimple %s' % __version__)
 
@@ -99,7 +76,6 @@ class SIPSimpleSettings(SettingsObject):
     chat = ChatSettings
     desktop_sharing = DesktopSharingSettings
     file_transfer = FileTransferSettings
-    sounds = SoundsSettings 
     logs = LogsSettings
     msrp = MSRPSettings
     rtp = RTPSettings

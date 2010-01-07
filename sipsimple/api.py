@@ -9,6 +9,7 @@ application.
 
 from __future__ import with_statement
 
+import os
 from threading import RLock, Thread
 
 from application.notification import IObserver, NotificationCenter
@@ -112,9 +113,9 @@ class SIPApplication(object):
                        # TLS
                        tls_protocol=settings.tls.protocol,
                        tls_verify_server=account.tls.verify_server if account else False,
-                       tls_ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                       tls_cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
-                       tls_privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
+                       tls_ca_file=os.path.expanduser(settings.tls.ca_list) if settings.tls.ca_list else None,
+                       tls_cert_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
+                       tls_privkey_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
                        tls_timeout=settings.tls.timeout,
                        # rtp
                        rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
@@ -262,9 +263,9 @@ class SIPApplication(object):
                     engine.set_tls_options(port=settings.sip.tls_port,
                                            protocol=settings.tls.protocol,
                                            verify_server=account.tls.verify_server if account else False,
-                                           ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                                           cert_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
-                                           privkey_file=account.tls.certificate.normalized if account and account.tls.certificate else None,
+                                           ca_file=os.path.expanduser(settings.tls.ca_list) if settings.tls.ca_list else None,
+                                           cert_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
+                                           privkey_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
                                            timeout=settings.tls.timeout)
                 except PJSIPTLSError, e:
                     notification_center = NotificationCenter()
@@ -282,9 +283,9 @@ class SIPApplication(object):
                     engine.set_tls_options(port=settings.sip.tls_port,
                                            protocol=settings.tls.protocol,
                                            verify_server=account.tls.verify_server,
-                                           ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
-                                           cert_file=account.tls.certificate.normalized if account.tls.certificate else None,
-                                           privkey_file=account.tls.certificate.normalized if account.tls.certificate else None,
+                                           ca_file=os.path.expanduser(settings.tls.ca_list) if settings.tls.ca_list else None,
+                                           cert_file=os.path.expanduser(account.tls.certificate) if account.tls.certificate else None,
+                                           privkey_file=os.path.expanduser(account.tls.certificate) if account.tls.certificate else None,
                                            timeout=settings.tls.timeout)
                 except PJSIPTLSError, e:
                     notification_center = NotificationCenter()

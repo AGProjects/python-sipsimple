@@ -27,6 +27,10 @@ from sipsimple.configuration import ConfigurationError
 from sipsimple.configuration.backend.file import FileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 
+from sipsimple.clients.configuration import config_filename
+from sipsimple.clients.configuration.account import AccountExtension
+from sipsimple.clients.configuration.settings import SIPSimpleSettingsExtension
+
 
 class InputThread(Thread):
     def __init__(self):
@@ -100,8 +104,11 @@ class RegistrationApplication(SIPApplication):
 
         log.level.current = log.level.WARNING # get rid of twisted messages
 
-        config_file = os.path.realpath(options.config_file or os.path.expanduser('~/.sipclient/config'))
+        config_file = os.path.realpath(options.config_file or config_filename)
         self.output.put("Using configuration file '%s'\n" % config_file)
+        Account.register_extension(AccountExtension)
+        BonjourAccount.register_extension(AccountExtension)
+        SIPSimpleSettings.register_extension(SIPSimpleSettingsExtension)
         try:
             SIPApplication.start(self, FileBackend(config_file))
         except ConfigurationError, e:

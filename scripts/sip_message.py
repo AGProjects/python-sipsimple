@@ -28,6 +28,9 @@ from sipsimple.configuration.backend.file import FileBackend
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 
+from sipsimple.clients.configuration import config_filename
+from sipsimple.clients.configuration.account import AccountExtension
+from sipsimple.clients.configuration.settings import SIPSimpleSettingsExtension
 from sipsimple.clients.log import Logger
 from sipsimple.clients.system import IPAddressMonitor
 
@@ -124,8 +127,11 @@ class SIPMessageApplication(SIPApplication):
 
         log.level.current = log.level.WARNING # get rid of twisted messages
 
+        Account.register_extension(AccountExtension)
+        BonjourAccount.register_extension(AccountExtension)
+        SIPSimpleSettings.register_extension(SIPSimpleSettingsExtension)
         try:
-            SIPApplication.start(self, FileBackend(options.config_file or os.path.expanduser('~/.sipclient/config')))
+            SIPApplication.start(self, FileBackend(options.config_file or config_filename))
         except ConfigurationError, e:
             self.output.put("Failed to load sipclient's configuration: %s\n" % str(e))
             self.output.put("If an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script.\n")

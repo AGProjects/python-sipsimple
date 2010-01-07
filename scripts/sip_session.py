@@ -28,12 +28,15 @@ from sipsimple.api import SIPApplication
 from sipsimple.streams import AudioStream, ChatStream, FileSelector, FileTransferStream
 from sipsimple.configuration import ConfigurationError
 from sipsimple.configuration.backend.file import FileBackend
-from sipsimple.configuration.datatypes import ResourcePath
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup
 from sipsimple.session import IllegalStateError, Session
 from sipsimple.util import run_in_green_thread, PersistentTones, SilenceableWaveFile
 
+from sipsimple.clients.configuration import config_filename
+from sipsimple.clients.configuration.account import AccountExtension
+from sipsimple.clients.configuration.datatypes import ResourcePath
+from sipsimple.clients.configuration.settings import SIPSimpleSettingsExtension
 from sipsimple.clients.log import Logger
 from sipsimple.clients.system import IPAddressMonitor
 from sipsimple.clients.ui import Prompt, Question, RichText, UI
@@ -946,8 +949,11 @@ class SIPSessionApplication(SIPApplication):
                           'D': 'dtmf D'}
         ui.start(control_bindings=control_bindings, display_text=False)
 
+        Account.register_extension(AccountExtension)
+        BonjourAccount.register_extension(AccountExtension)
+        SIPSimpleSettings.register_extension(SIPSimpleSettingsExtension)
         try:
-            SIPApplication.start(self, FileBackend(options.config_file or os.path.expanduser('~/.sipclient/config')))
+            SIPApplication.start(self, FileBackend(options.config_file or config_filename))
         except ConfigurationError, e:
             send_notice("Failed to load sipclient's configuration: %s\n" % str(e), bold=False)
             send_notice("If an old configuration file is in place, delete it or move it and recreate the configuration using the sip_settings script.", bold=False)
