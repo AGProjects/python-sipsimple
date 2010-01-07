@@ -25,7 +25,7 @@ dns.entropy.between = randint
 
 sys.modules['dns.entropy'] = dns.entropy
 
-del dns, partial, randint, randrange, sys
+del partial, randint, randrange, sys
 
 # replace standard select and socket modules with versions from eventlet
 from eventlet.green import select
