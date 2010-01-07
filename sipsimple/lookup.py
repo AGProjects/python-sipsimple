@@ -11,6 +11,22 @@ resources prior the starting of a SIP session.
 import re
 from time import time
 
+# patch dns.entropy module which is not thread-safe
+import dns
+import sys
+from functools import partial
+from random import randint, randrange
+
+dns.entropy = dns.__class__('dns.entropy')
+dns.entropy.__file__ = dns.__file__.replace('__init__.py', 'entropy.py')
+dns.entropy.__builtins__ = dns.__builtins__
+dns.entropy.random_16 = partial(randrange, 2**16)
+dns.entropy.between = randint
+
+sys.modules['dns.entropy'] = dns.entropy
+
+del dns, partial, randint, randrange, sys
+
 # replace standard select and socket modules with versions from eventlet
 from eventlet.green import select
 from eventlet.green import socket
