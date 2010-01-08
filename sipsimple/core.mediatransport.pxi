@@ -973,10 +973,12 @@ cdef class AudioTransport:
             if len(digit) != 1 or digit not in "0123456789*#ABCD":
                 raise SIPCoreError("Not a valid DTMF digit: %s" % digit)
             _str_to_pj_str(digit, &digit_pj)
-            with nogil:
-                status = pjmedia_stream_dial_dtmf(stream, &digit_pj)
-            if status != 0:
-                raise PJSIPError("Could not send DTMF digit on audio stream", status)
+            if not self._stream_info.tx_event_pt < 0:
+                # If the remote doesn't support telephone-event just don't send DTMF
+                with nogil:
+                    status = pjmedia_stream_dial_dtmf(stream, &digit_pj)
+                if status != 0:
+                    raise PJSIPError("Could not send DTMF digit on audio stream", status)
         finally:
             with nogil:
                 pj_mutex_unlock(lock)

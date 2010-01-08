@@ -446,6 +446,8 @@ cdef extern from "pjmedia.h":
     struct pjmedia_stream_info:
         pjmedia_codec_info fmt
         pjmedia_codec_param *param
+        unsigned int tx_event_pt
+        
     struct pjmedia_rtcp_stream_stat_loss_type:
         unsigned int burst
         unsigned int random
