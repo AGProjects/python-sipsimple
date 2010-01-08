@@ -98,7 +98,7 @@ class Logger(object):
             if notification.name not in ('SIPEngineLog', 'SIPEngineSIPTrace') and (self.notifications_to_stdout or settings.logs.trace_notifications):
                 message = 'Notification name=%s sender=%s' % (notification.name, notification.sender)
                 if notification.data is not None:
-                    message += '\n%s' % pformat(notification.data.__dict__)
+                    message += '\n%s' % pformat(notification.data)
                 if self.notifications_to_stdout:
                     print '%s: %s' % (datetime.datetime.now(), message)
                 if settings.logs.trace_notifications:
