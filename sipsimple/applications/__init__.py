@@ -6,7 +6,7 @@ import sys
 
 from lxml import etree
 
-from sipsimple.util import classproperty
+from sipsimple.util import classproperty, GenericException
 
 __all__ = ['ParserError',
            'BuilderError',
@@ -23,8 +23,8 @@ __all__ = ['ParserError',
 
 ## Exceptions
 
-class ParserError(Exception): pass
-class BuilderError(Exception): pass
+class ParserError(GenericException): pass
+class BuilderError(GenericException): pass
 class ValidationError(ParserError): pass
 
 

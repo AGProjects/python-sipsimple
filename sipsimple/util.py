@@ -287,4 +287,12 @@ def makedirs(path):
         raise
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "limit", "makedirs"]
+class GenericException(Exception):
+    def _get_message(self, message): 
+        return self._message
+    def _set_message(self, message): 
+        self._message = message
+    message = property(_get_message, _set_message)
+
+
+__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "limit", "makedirs", "GenericException"]

@@ -40,7 +40,7 @@ from application.notification import NotificationCenter
 from application.python.decorator import decorator, preserve_signature
 from dns import exception, rdatatype
 
-from sipsimple.util import Route, TimestampedNotificationData, run_in_waitable_green_thread
+from sipsimple.util import Route, TimestampedNotificationData, run_in_waitable_green_thread, GenericException
 
 
 def domain_iterator(domain):
@@ -68,7 +68,7 @@ def post_dns_lookup_notifications(func):
     return wrapper
 
 
-class DNSLookupError(Exception):
+class DNSLookupError(GenericException):
     """
     The error raised by DNSLookup when a lookup cannot be performed.
     """
