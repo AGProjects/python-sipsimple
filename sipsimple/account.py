@@ -370,12 +370,12 @@ class Account(SettingsObject):
             return
         self._started = True
 
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+
         self._registrar.start()
         if self.enabled:
             self._activate()
-
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
     def stop(self):
         if not self._started:
@@ -529,11 +529,11 @@ class BonjourAccount(SettingsObject):
             return
         self._started = True
 
-        if self.enabled:
-            self._activate()
-
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+
+        if self.enabled:
+            self._activate()
 
     def stop(self):
         if not self._started:
