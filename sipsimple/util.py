@@ -8,7 +8,6 @@ Implements utilities commonly used in various parts of the library.
 from __future__ import with_statement
 
 __all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
-           "GenericException",
            "Command", "PersistentTones", "Route", "SilenceableWaveFile", "TimestampedNotificationData",
            "call_in_green_thread", "call_in_twisted_thread", "limit", "makedirs"]
 
@@ -86,17 +85,6 @@ def run_in_twisted_thread(func):
         else:
             reactor.callFromThread(func, *args, **kwargs)
     return wrapper
-
-
-# Exceptions
-#
-
-class GenericException(Exception):
-    def _get_message(self):
-        return self._message
-    def _set_message(self, message): 
-        self._message = message
-    message = property(_get_message, _set_message)
 
 
 # Utility classes

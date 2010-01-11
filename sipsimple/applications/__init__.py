@@ -6,7 +6,7 @@ import sys
 
 from lxml import etree
 
-from sipsimple.util import classproperty, GenericException
+from sipsimple.util import classproperty
 
 __all__ = ['ParserError',
            'BuilderError',
@@ -23,8 +23,8 @@ __all__ = ['ParserError',
 
 ## Exceptions
 
-class ParserError(GenericException): pass
-class BuilderError(GenericException): pass
+class ParserError(Exception): pass
+class BuilderError(Exception): pass
 class ValidationError(ParserError): pass
 
 
@@ -289,7 +289,7 @@ class XMLElement(object):
         try:
             self.check_validity()
         except ValidationError, e:
-            raise BuilderError(e.message)
+            raise BuilderError(str(e))
         # build element children
         for name in self._xml_element_children:
             child = getattr(self, name, None)

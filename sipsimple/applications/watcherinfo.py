@@ -136,7 +136,7 @@ class Watcher(XMLElement):
         try:
             self.sipuri = element.text
         except ValueError, e:
-            raise ValidationError("invalid SIPURI in Watcher: %s" % e.message)
+            raise ValidationError("invalid SIPURI in Watcher: %s" % str(e))
 
     def _build_element(self, *args, **kwargs):
         pass
