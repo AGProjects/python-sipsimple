@@ -353,7 +353,6 @@ class Account(SettingsObject):
         self.id = id
 
         self.uri = SIPURI(user=self.id.username, host=self.id.domain)
-        self.credentials = Credentials(self.id.username, self.password)
 
         self._active = False
         self._registrar = AccountRegistrar(self)
@@ -406,6 +405,10 @@ class Account(SettingsObject):
         return self._registrar.registered if self._registrar else False
 
     @property
+    def credentials(self):
+        return Credentials(self.id.username, self.password)
+
+    @property
     def tls_credentials(self):
         # This property can be optimized to cache the credentials it loads from disk,
         # however this is not a time consuming operation (~ 3000 req/sec). -Luci
@@ -432,10 +435,6 @@ class Account(SettingsObject):
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        # update credentials attribute
-        if 'password' in notification.data.modified:
-            self.credentials.password = self.password
-
         # activate/deactivate the account or start/stop/reload the registration process
         if self._started:
             if 'enabled' in notification.data.modified:

@@ -113,15 +113,16 @@ class MSRPStreamBase(object):
             self.session = session
             outgoing = direction=='outgoing'
             if (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
+                credentials = self.account.credentials
                 if self.account.nat_traversal.msrp_relay is None:
                     relay = MSRPRelaySettings(domain=self.account.uri.host,
                                               username=self.account.uri.user,
-                                              password=self.account.credentials.password if self.account.credentials else '')
+                                              password=credentials.password if credentials else '')
                     self.transport = 'tls'
                 else:
                     relay = MSRPRelaySettings(domain=self.account.uri.host,
                                               username=self.account.uri.user,
-                                              password=self.account.credentials.password if self.account.credentials else '',
+                                              password=credentials.password if credentials else '',
                                               host=self.account.nat_traversal.msrp_relay.host,
                                               port=self.account.nat_traversal.msrp_relay.port,
                                               use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
