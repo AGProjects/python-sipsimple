@@ -92,7 +92,7 @@ def run_in_twisted_thread(func):
 #
 
 class GenericException(Exception):
-    def _get_message(self, message): 
+    def _get_message(self):
         return self._message
     def _set_message(self, message): 
         self._message = message
