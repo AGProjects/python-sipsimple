@@ -1032,16 +1032,23 @@ class Session(object):
                                 if notification.data.disconnect_reason in ('timeout', 'missing ACK'):
                                     code = 200
                                     reason = 'OK'
+                                    originator = 'local'
+                                elif hasattr(notification.data, 'method'):
+                                    code = 200
+                                    reason = 'OK'
+                                    originator = 'remote'
                                 else:
                                     code = notification.data.code
                                     reason = notification.data.reason
+                                    originator = 'local'
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self,
-                                                                      TimestampedNotificationData(originator='local', method='BYE', code=notification.data.code, reason=notification.data.reason))
+                                                                      TimestampedNotificationData(originator=originator, method='BYE', code=code, reason=reason))
                             elif self._invitation.direction == 'incoming' and prev_inv_state in ('incoming', 'early'):
                                 ack_received = notification.data.disconnect_reason != 'missing ACK'
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received=ack_received))
                             elif self._invitation.direction == 'outgoing' and prev_inv_state in ('outgoing', 'early'):
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=487, reason='Session Canceled'))
+                            break
             except SIPCoreError:
                 pass
             except api.TimeoutError:
