@@ -26,6 +26,7 @@ from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements, Interface, Attribute
 
+from eventlet import api
 from eventlet.coros import queue
 from eventlet.greenio import GreenSocket
 from eventlet.proc import spawn, ProcExit
@@ -75,6 +76,7 @@ class MSRPStreamBase(object):
     def __init__(self, account, direction='sendrecv'):
         self.account = account
         self.direction = direction
+        self.greenlet = None
         self.local_identity = CPIMIdentity(self.account.uri, self.account.display_name)
         self.local_media = None
         self.remote_identity = None ## will be filled in by start()
@@ -106,6 +108,7 @@ class MSRPStreamBase(object):
 
     @run_in_green_thread
     def initialize(self, session, direction):
+        self.greenlet = api.getcurrent()
         settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self)
@@ -142,14 +145,19 @@ class MSRPStreamBase(object):
                             credentials=self.account.tls_credentials)
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self._create_local_media(full_local_path)
+        except api.GreenletExit:
+            raise
         except Exception, ex:
             ndata = TimestampedNotificationData(context='initialize', failure=Failure(), reason=str(ex))
             notification_center.post_notification('MediaStreamDidFail', self, ndata)
         else:
             notification_center.post_notification('MediaStreamDidInitialize', self, data=TimestampedNotificationData())
+        finally:
+            self.greenlet = None
 
     @run_in_green_thread
     def start(self, local_sdp, remote_sdp, stream_index):
+        self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
         try:
             context = 'sdp_negotiation'
@@ -170,11 +178,15 @@ class MSRPStreamBase(object):
             if self.use_msrp_session:
                 self.msrp_session = MSRPSession(self.msrp, accept_types=self.accept_types, on_incoming_cb=self._handle_incoming)
             self.msrp_connector = None
+        except api.GreenletExit:
+            raise
         except Exception, ex:
             ndata = TimestampedNotificationData(context=context, failure=Failure(), reason=str(ex) or type(ex).__name__)
             notification_center.post_notification('MediaStreamDidFail', self, ndata)
         else:
             notification_center.post_notification('MediaStreamDidStart', self, data=TimestampedNotificationData())
+        finally:
+            self.greenlet = None
 
     def deactivate(self):
         self.shutting_down = True
@@ -189,6 +201,8 @@ class MSRPStreamBase(object):
         msrp_session, self.msrp_session = self.msrp_session, None
         msrp_connector, self.msrp_connector = self.msrp_connector, None
         try:
+            if self.greenlet is not None:
+                api.kill(self.greenlet)
             if msrp_session is not None:
                 msrp_session.shutdown()
             elif msrp is not None:
