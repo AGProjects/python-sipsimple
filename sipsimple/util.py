@@ -1,10 +1,16 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-"""Implements utilities commonly used in various parts of the library.
+"""
+Implements utilities commonly used in various parts of the library.
 """
 
 from __future__ import with_statement
+
+__all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
+           "GenericException",
+           "Command", "PersistentTones", "Route", "SilenceableWaveFile", "TimestampedNotificationData",
+           "call_in_green_thread", "call_in_twisted_thread", "limit", "makedirs"]
 
 import errno
 import os
@@ -14,7 +20,7 @@ from datetime import datetime
 from threading import Lock, Timer
 
 from zope.interface import implements
-from application.notification import IObserver, Any, NotificationCenter, NotificationData
+from application.notification import IObserver, NotificationCenter, NotificationData
 from application.python.decorator import decorator, preserve_signature
 from eventlet import coros
 from eventlet.twistedutil import callInGreenThread
@@ -22,6 +28,79 @@ from twisted.python import threadable
 
 from sipsimple.core import SIPCoreError, SIPURI, ToneGenerator, WaveFile
 
+
+# Descriptors and decorators
+#
+
+def classproperty(function):
+    class Descriptor(object):
+        def __get__(self, instance, owner):
+            return function(owner)
+        def __set__(self, instance, value):
+            raise AttributeError("read-only attribute cannot be set")
+        def __delete__(self, instance):
+            raise AttributeError("read-only attribute cannot be deleted")
+    return Descriptor()
+
+
+@decorator
+def run_in_green_thread(func):
+    @preserve_signature(func)
+    def wrapper(*args, **kwargs):
+        from twisted.internet import reactor
+        if threadable.isInIOThread():
+            callInGreenThread(func, *args, **kwargs)
+        else:
+            reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
+    return wrapper
+
+
+@decorator
+def run_in_waitable_green_thread(func):
+    @preserve_signature(func)
+    def wrapper(*args, **kwargs):
+        from twisted.internet import reactor
+        event = coros.event()
+        def wrapped_func():
+            try:
+                result = func(*args, **kwargs)
+            except:
+                event.send_exception(*sys.exc_info())
+            else:
+                event.send(result)
+        if threadable.isInIOThread():
+            callInGreenThread(wrapped_func)
+        else:
+            reactor.callFromThread(callInGreenThread, wrapped_func)
+        return event
+    return wrapper
+
+
+@decorator
+def run_in_twisted_thread(func):
+    @preserve_signature(func)
+    def wrapper(*args, **kwargs):
+        from twisted.internet import reactor
+        if threadable.isInIOThread():
+            func(*args, **kwargs)
+        else:
+            reactor.callFromThread(func, *args, **kwargs)
+    return wrapper
+
+
+# Exceptions
+#
+
+class GenericException(Exception):
+    def _get_message(self, message): 
+        return self._message
+    def _set_message(self, message): 
+        self._message = message
+    message = property(_get_message, _set_message)
+
+
+# Utility classes
+#
 
 class Command(object):
     def __init__(self, name, event=None):
@@ -33,90 +112,6 @@ class Command(object):
 
     def wait(self):
         return self.event.wait()
-
-
-class TimestampedNotificationData(NotificationData):
-
-    def __init__(self, **kwargs):
-        self.timestamp = datetime.now()
-        NotificationData.__init__(self, **kwargs)
-
-
-class SilenceableWaveFile(object):
-    implements(IObserver)
-
-    def __init__(self, conference_bridge, file_name, volume=100, loop_count=1, pause_time=0, initial_play=True):
-        self.conference_bridge = conference_bridge
-        self.file_name = file_name
-        self.volume = volume
-        self.loop_count = loop_count
-        self.pause_time = pause_time
-        self.initial_play = initial_play
-        self._channel = None
-        self._current_loop = 0
-        self._state = 'stopped'
-        self._wave_file = None
-        if not os.path.exists(file_name):
-            raise ValueError("File not found: %s" % file_name)
-
-    @run_in_twisted_thread
-    def start(self):
-        if self._state != 'stopped':
-            return
-        self._state = 'started'
-        self._channel = coros.queue()
-        self._current_loop = 0
-        if self.initial_play:
-            self._channel.send(Command('play'))
-        else:
-            from twisted.internet import reactor
-            reactor.callLater(self.pause_time, self._channel.send, Command('play'))
-        self._run()
-
-    @run_in_twisted_thread
-    def stop(self):
-        if self._state != 'started':
-            return
-        self._channel.send(Command('stop'))
-
-    @property
-    def is_active(self):
-        return self._state == "started"
-
-    @run_in_green_thread
-    def _run(self):
-        notification_center = NotificationCenter()
-        try:
-            while True:
-                command = self._channel.wait()
-                if command.name == 'play':
-                    self._wave_file = WaveFile(self.conference_bridge, self.file_name)
-                    notification_center.add_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
-                    self._wave_file.volume = self.volume
-                    self._wave_file.start()
-                    self.conference_bridge.connect_slots(self._wave_file.slot, 0)
-                elif command.name == 'reschedule':
-                    self._current_loop += 1
-                    notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
-                    self._wave_file = None
-                    if self.loop_count == 0 or self._current_loop < self.loop_count:
-                        from twisted.internet import reactor
-                        reactor.callLater(self.pause_time, self._channel.send, Command('play'))
-                    else:
-                        break
-                elif command.name == 'stop':
-                    if self._wave_file is not None:
-                        notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
-                        self._wave_file.stop()
-                        self._wave_file = None
-                    break
-        finally:
-            self._channel = None
-            self._state = 'stopped'
-
-    @run_in_twisted_thread
-    def handle_notification(self, notification):
-        self._channel.send(Command('reschedule'))
 
 
 class PersistentTones(object):
@@ -222,50 +217,92 @@ class Route(object):
         return 'sip:%s:%d;transport=%s' % (self.address, self.port, self.transport)
 
 
-@decorator
-def run_in_green_thread(func):
-    @preserve_signature(func)
-    def wrapper(*args, **kwargs):
-        from twisted.internet import reactor
-        if threadable.isInIOThread():
-            callInGreenThread(func, *args, **kwargs)
+class SilenceableWaveFile(object):
+    implements(IObserver)
+
+    def __init__(self, conference_bridge, file_name, volume=100, loop_count=1, pause_time=0, initial_play=True):
+        self.conference_bridge = conference_bridge
+        self.file_name = file_name
+        self.volume = volume
+        self.loop_count = loop_count
+        self.pause_time = pause_time
+        self.initial_play = initial_play
+        self._channel = None
+        self._current_loop = 0
+        self._state = 'stopped'
+        self._wave_file = None
+        if not os.path.exists(file_name):
+            raise ValueError("File not found: %s" % file_name)
+
+    @run_in_twisted_thread
+    def start(self):
+        if self._state != 'stopped':
+            return
+        self._state = 'started'
+        self._channel = coros.queue()
+        self._current_loop = 0
+        if self.initial_play:
+            self._channel.send(Command('play'))
         else:
-            reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
-    return wrapper
+            from twisted.internet import reactor
+            reactor.callLater(self.pause_time, self._channel.send, Command('play'))
+        self._run()
+
+    @run_in_twisted_thread
+    def stop(self):
+        if self._state != 'started':
+            return
+        self._channel.send(Command('stop'))
+
+    @property
+    def is_active(self):
+        return self._state == "started"
+
+    @run_in_green_thread
+    def _run(self):
+        notification_center = NotificationCenter()
+        try:
+            while True:
+                command = self._channel.wait()
+                if command.name == 'play':
+                    self._wave_file = WaveFile(self.conference_bridge, self.file_name)
+                    notification_center.add_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
+                    self._wave_file.volume = self.volume
+                    self._wave_file.start()
+                    self.conference_bridge.connect_slots(self._wave_file.slot, 0)
+                elif command.name == 'reschedule':
+                    self._current_loop += 1
+                    notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
+                    self._wave_file = None
+                    if self.loop_count == 0 or self._current_loop < self.loop_count:
+                        from twisted.internet import reactor
+                        reactor.callLater(self.pause_time, self._channel.send, Command('play'))
+                    else:
+                        break
+                elif command.name == 'stop':
+                    if self._wave_file is not None:
+                        notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
+                        self._wave_file.stop()
+                        self._wave_file = None
+                    break
+        finally:
+            self._channel = None
+            self._state = 'stopped'
+
+    @run_in_twisted_thread
+    def handle_notification(self, notification):
+        self._channel.send(Command('reschedule'))
 
 
-@decorator
-def run_in_waitable_green_thread(func):
-    @preserve_signature(func)
-    def wrapper(*args, **kwargs):
-        from twisted.internet import reactor
-        event = coros.event()
-        def wrapped_func():
-            try:
-                result = func(*args, **kwargs)
-            except:
-                event.send_exception(*sys.exc_info())
-            else:
-                event.send(result)
-        if threadable.isInIOThread():
-            callInGreenThread(wrapped_func)
-        else:
-            reactor.callFromThread(callInGreenThread, wrapped_func)
-        return event
-    return wrapper
+class TimestampedNotificationData(NotificationData):
+
+    def __init__(self, **kwargs):
+        self.timestamp = datetime.now()
+        NotificationData.__init__(self, **kwargs)
 
 
-@decorator
-def run_in_twisted_thread(func):
-    @preserve_signature(func)
-    def wrapper(*args, **kwargs):
-        from twisted.internet import reactor
-        if threadable.isInIOThread():
-            func(*args, **kwargs)
-        else:
-            reactor.callFromThread(func, *args, **kwargs)
-    return wrapper
-
+# Utility functions
+#
 
 def call_in_green_thread(func, *args, **kwargs):
     from twisted.internet import reactor
@@ -283,17 +320,6 @@ def call_in_twisted_thread(func, *args, **kwargs):
         reactor.callFromThread(func, *args, **kwargs)
 
 
-def classproperty(function):
-    class Descriptor(object):
-        def __get__(self, instance, owner):
-            return function(owner)
-        def __set__(self, instance, value):
-            raise AttributeError("read-only attribute cannot be set")
-        def __delete__(self, instance):
-            raise AttributeError("read-only attribute cannot be deleted")
-    return Descriptor()
-
-
 def limit(value, min=float("-infinity"), max=float("+infinity")):
     from __builtin__ import min as minimum, max as maximum
     return maximum(min, minimum(value, max))
@@ -308,12 +334,3 @@ def makedirs(path):
         raise
 
 
-class GenericException(Exception):
-    def _get_message(self, message): 
-        return self._message
-    def _set_message(self, message): 
-        self._message = message
-    message = property(_get_message, _set_message)
-
-
-__all__ = ["Command", "TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "limit", "makedirs", "GenericException"]
