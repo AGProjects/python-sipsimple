@@ -182,6 +182,7 @@ class Participant(XMLElement):
     target = XMLElementChild('target', type=Target, required=False, test_equal=True)
 
     def __init__(self, identity=None, target=None):
+        XMLElement.__init__(self)
         self.identity = identity
         self.target = target
 
