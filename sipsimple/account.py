@@ -29,7 +29,7 @@ from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, 
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.primitives import Registration
-from sipsimple.util import TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread
+from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
@@ -40,18 +40,6 @@ class ContactURI(SIPAddress):
             parameters = {} if transport=='udp' else {'transport': transport}
             return SIPURI(user=self.username, host=self.domain, port=getattr(Engine(), '%s_port' % transport), parameters=parameters)
         return SIPAddress.__getitem__(self, transport)
-
-
-class Command(object):
-    def __init__(self, name, event=None):
-        self.name = name
-        self.event = event or coros.event()
-
-    def signal(self):
-        self.event.send()
-
-    def wait(self):
-        return self.event.wait()
 
 
 class SIPRegistrationDidFail(Exception):

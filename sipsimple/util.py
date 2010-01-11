@@ -23,6 +23,18 @@ from twisted.python import threadable
 from sipsimple.core import SIPCoreError, SIPURI, ToneGenerator, WaveFile
 
 
+class Command(object):
+    def __init__(self, name, event=None):
+        self.name = name
+        self.event = event or coros.event()
+
+    def signal(self):
+        self.event.send()
+
+    def wait(self):
+        return self.event.wait()
+
+
 class TimestampedNotificationData(NotificationData):
 
     def __init__(self, **kwargs):
@@ -40,62 +52,71 @@ class SilenceableWaveFile(object):
         self.loop_count = loop_count
         self.pause_time = pause_time
         self.initial_play = initial_play
+        self._channel = None
         self._current_loop = 0
-        self._lock = Lock()
         self._state = 'stopped'
         self._wave_file = None
         if not os.path.exists(file_name):
             raise ValueError("File not found: %s" % file_name)
 
+    @run_in_twisted_thread
     def start(self):
-        with self._lock:
-            if self._state != 'stopped':
-                return
-            self._state = 'started'
-        self._stopped = False
+        if self._state != 'stopped':
+            return
+        self._state = 'started'
+        self._channel = coros.queue()
         self._current_loop = 0
         if self.initial_play:
-            self._play_wave()
+            self._channel.send(Command('play'))
         else:
-            self.timer = Timer(self.pause_time, self._play_wave)
-            self.timer.setDaemon(True)
-            self.timer.start()
+            from twisted.internet import reactor
+            reactor.callLater(self.pause_time, self._channel.send, Command('play'))
+        self._run()
+
+    @run_in_twisted_thread
+    def stop(self):
+        if self._state != 'started':
+            return
+        self._channel.send(Command('stop'))
 
     @property
     def is_active(self):
-        with self._lock:
-            return self._state == "started"
+        return self._state == "started"
 
-    def stop(self):
-        with self._lock:
-            if self._state != 'started':
-                return
-            self._state = 'stopped'
-        if self._wave_file is not None:
-            self._wave_file.stop()
-
-
-    def _play_wave(self):
-        if self._state == 'stopped':
-            return
-        self._current_loop += 1
+    @run_in_green_thread
+    def _run(self):
         notification_center = NotificationCenter()
-        self._wave_file = WaveFile(self.conference_bridge, self.file_name)
-        notification_center.add_observer(self, sender=self._wave_file)
-        self._wave_file.volume = self.volume
-        self._wave_file.start()
-        self.conference_bridge.connect_slots(self._wave_file.slot, 0)
+        try:
+            while True:
+                command = self._channel.wait()
+                if command.name == 'play':
+                    self._wave_file = WaveFile(self.conference_bridge, self.file_name)
+                    notification_center.add_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
+                    self._wave_file.volume = self.volume
+                    self._wave_file.start()
+                    self.conference_bridge.connect_slots(self._wave_file.slot, 0)
+                elif command.name == 'reschedule':
+                    self._current_loop += 1
+                    notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
+                    self._wave_file = None
+                    if self.loop_count == 0 or self._current_loop < self.loop_count:
+                        from twisted.internet import reactor
+                        reactor.callLater(self.pause_time, self._channel.send, Command('play'))
+                    else:
+                        break
+                elif command.name == 'stop':
+                    if self._wave_file is not None:
+                        notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
+                        self._wave_file.stop()
+                        self._wave_file = None
+                    break
+        finally:
+            self._channel = None
+            self._state = 'stopped'
 
+    @run_in_twisted_thread
     def handle_notification(self, notification):
-        if notification.name == 'WaveFileDidFinishPlaying':
-            notification_center = NotificationCenter()
-            notification_center.remove_observer(self, sender=self._wave_file)
-            if self.loop_count == 0 or self._current_loop < self.loop_count:
-                self.timer = Timer(self.pause_time, self._play_wave)
-                self.timer.setDaemon(True)
-                self.timer.start()
-            else:
-                self._state = 'stopped'
+        self._channel.send(Command('reschedule'))
 
 
 class PersistentTones(object):
@@ -295,4 +316,4 @@ class GenericException(Exception):
     message = property(_get_message, _set_message)
 
 
-__all__ = ["TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "limit", "makedirs", "GenericException"]
+__all__ = ["Command", "TimestampedNotificationData", "SilenceableWaveFile", "PersistentTones", "Route", "run_in_green_thread", "run_in_twisted_thread", "call_in_green_thread", "call_in_twisted_thread", "classproperty", "limit", "makedirs", "GenericException"]
