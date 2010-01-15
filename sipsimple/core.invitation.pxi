@@ -683,6 +683,12 @@ cdef class Invitation:
                     local_sdp.media = local_sdp.media[:len(remote_sdp.media)]
                 if len(remote_sdp.media) > len(local_sdp.media):
                     remote_sdp.media = remote_sdp.media[:len(local_sdp.media)]
+                for index, local_media in enumerate(local_sdp.media):
+                    remote_media = remote_sdp.media[index]
+                    if not local_media.port and remote_media.port:
+                        remote_media.port = 0
+                    if not remote_media.port and local_media.port:
+                        local_media.port = 0
                 self.sdp.active_local = FrozenSDPSession.new(local_sdp)
                 self.sdp.active_remote = FrozenSDPSession.new(remote_sdp)
             if self.state in ["disconnecting", "disconnected"]:
