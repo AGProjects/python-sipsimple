@@ -18,35 +18,13 @@ import struct
 import sys
 import termios
 
-from application.python.decorator import decorator, preserve_signature
 from application.python.queue import EventQueue
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData
 from collections import deque
 from threading import RLock, Thread
 
-
-@decorator
-def synchronized(func):
-    @preserve_signature(func)
-    def wrapper(self, *args, **kwargs):
-        try:
-            self.lock.acquire()
-        except:
-            return func(self, *args, **kwargs)
-        else:
-            try:
-                return func(self, *args, **kwargs)
-            finally:
-                self.lock.release()
-    return wrapper
-
-@decorator
-def serialized(func):
-    @preserve_signature(func)
-    def wrapper(self, *args, **kwargs):
-        self.event_queue.put((func, self, args, kwargs))
-    return wrapper
+from sipsimple.clients.util import serialized, synchronized
 
 
 class RichText(object):
