@@ -73,11 +73,13 @@ class AccountRegistrar(object):
     def start(self):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._run()
 
     def stop(self):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
+        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_channel.send_exception(GreenletExit)
 
     def activate(self):
@@ -246,6 +248,10 @@ class AccountRegistrar(object):
         self._data_channel.send_exception(SIPRegistrationDidNotEnd(notification.data))
 
     def _NH_SystemIPAddressDidChange(self, notification):
+        if self._registration is not None:
+            self._command_channel.send(Command('register'))
+
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._registration is not None:
             self._command_channel.send(Command('register'))
 
