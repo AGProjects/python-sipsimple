@@ -715,9 +715,6 @@ class Session(object):
                             self.state = 'connected'
                             self.proposed_streams = None
                             self.greenlet = None
-                            if notification.data.code in (408, 481):
-                                # RFC 3261, section 14.1
-                                self.end()
                             return
 
             try:
