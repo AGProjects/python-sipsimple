@@ -8,7 +8,7 @@ __all__ = ['namespace', 'IsComposingApplication', 'State', 'LastActive', 'Conten
 
 
 from sipsimple.applications import XMLApplication, XMLRootElement, XMLStringElement, XMLElementChild
-from sipsimple.applications.util import Timestamp
+from sipsimple.util import Timestamp
 
 
 namespace = 'urn:ietf:params:xml:ns:im-iscomposing'

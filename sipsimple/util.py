@@ -8,14 +8,15 @@ Implements utilities commonly used in various parts of the library.
 from __future__ import with_statement
 
 __all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
-           "Command", "PersistentTones", "Route", "SilenceableWaveFile", "TimestampedNotificationData",
+           "Command", "PersistentTones", "Route", "SilenceableWaveFile", "Timestamp", "TimestampedNotificationData"
            "call_in_green_thread", "call_in_twisted_thread", "limit", "makedirs"]
 
 import errno
 import os
+import re
 import socket
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Lock, Timer
 
 from zope.interface import implements
@@ -280,6 +281,77 @@ class SilenceableWaveFile(object):
     @run_in_twisted_thread
     def handle_notification(self, notification):
         self._channel.send(Command('reschedule'))
+
+
+class Timestamp(datetime):
+    _timestamp_re = re.compile(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})T(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(\.(?P<secfrac>\d{1,}))?((?P<UTC>Z)|((?P<tzsign>\+|-)(?P<tzhour>\d{2}):(?P<tzminute>\d{2})))')
+
+    def __init__(self, *args, **kwargs):
+        if kwargs:
+            datetime.__init__(self, *args, **kwargs)
+
+    @classmethod
+    def utc_offset(cls):
+        timediff = datetime.now() - datetime.utcnow()
+        return int(round((timediff.days*86400 + timediff.seconds + timediff.microseconds/1000000.0)/60))
+
+    @classmethod
+    def parse(cls, stamp):
+        if stamp is None:
+            return None
+        match = cls._timestamp_re.match(stamp)
+        if match is None:
+            raise ValueError("Timestamp %s is not in RFC3339 format" % stamp)
+        dct = match.groupdict()
+        if dct['UTC'] is not None:
+            secoffset = 0
+        else:
+            secoffset = int(dct['tzminute'])*60 + int(dct['tzhour'])*3600
+            if dct['tzsign'] == '-':
+                secoffset *= -1
+        if dct['secfrac'] is not None:
+            secfrac = dct['secfrac'][:6]
+            secfrac += '0'*(6-len(secfrac))
+            secfrac = int(secfrac)
+        else:
+            secfrac = 0
+        dt = cls(int(dct['year']), month=int(dct['month']), day=int(dct['day']),
+                 hour=int(dct['hour']), minute=int(dct['minute']), second=int(dct['second']),
+                 microsecond=secfrac)
+        return dt - timedelta(seconds=secoffset) + timedelta(seconds=cls.utc_offset()*60)
+
+    @classmethod
+    def format(cls, dt):
+        if dt is None:
+            return None
+        minutes = cls.utc_offset()
+        if minutes == 0:
+            tzspec = 'Z'
+        else:
+            if minutes < 0:
+                sign = '-'
+                minutes *= -1
+            else:
+                sign = '+'
+            hours = minutes / 60
+            minutes = minutes % 60
+            tzspec = '%s%02d:%02d' % (sign, hours, minutes)
+        return dt.replace(microsecond=0).isoformat()+tzspec
+
+    def __new__(cls, value, *args, **kwargs):
+        if isinstance(value, cls):
+            return value
+        elif isinstance(value, datetime):
+            return cls(value.year, month=value.month, day=value.day,
+                       hour=value.hour, minute=value.minute, second=value.second,
+                       microsecond=value.microsecond)
+        elif isinstance(value, basestring):
+            return cls.parse(value)
+        else:
+            return datetime.__new__(cls, value, *args, **kwargs)
+
+    def __str__(self):
+        return self.format(self)
 
 
 class TimestampedNotificationData(NotificationData):

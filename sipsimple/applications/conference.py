@@ -36,7 +36,7 @@ __all__ = ['namespace',
 
 
 from sipsimple.applications import ValidationError, XMLApplication, XMLRootElement, XMLStringElement, XMLElementChild, XMLElement, XMLListElement, XMLAttribute
-from sipsimple.applications.util import Timestamp
+from sipsimple.util import Timestamp
 
 
 namespace = 'urn:ietf:params:xml:ns:conference-info'

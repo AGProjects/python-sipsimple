@@ -8,7 +8,7 @@ __all__ = ['namespace', 'XCAPDirectoryApplication', 'Folder', 'Entry', 'ErrorCod
 
 
 from sipsimple.applications import XMLApplication, XMLListRootElement, XMLStringElement, XMLListElement, XMLAttribute
-from sipsimple.applications.util import Timestamp
+from sipsimple.util import Timestamp
 
 
 namespace = 'urn:oma:xml:xdm:xcap-directory'

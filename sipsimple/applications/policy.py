@@ -45,7 +45,7 @@ import datetime
 from lxml import etree
 
 from sipsimple.applications import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementChild
-from sipsimple.applications.util import Timestamp
+from sipsimple.util import Timestamp
 
 
 __all__ = ['namespace',

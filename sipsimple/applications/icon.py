@@ -8,7 +8,6 @@ __all__ = ['namespace', 'IconApplication', 'MIMEType', 'Encoding', 'Description'
 
 
 from sipsimple.applications import XMLApplication, XMLRootElement, XMLStringElement, XMLElementChild
-from sipsimple.applications.util import Timestamp
 
 
 namespace = 'urn:oma:xml:prs:pres-content'

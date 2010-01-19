@@ -46,7 +46,7 @@ Example usage:
 
 import datetime
 
-from sipsimple.applications import util
+from sipsimple import util
 from sipsimple.applications import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLStringElement, XMLAttribute, XMLElementChild
 
 __all__ = ['pidf_namespace',
@@ -114,13 +114,13 @@ class Timestamp(XMLElement):
         self.value = element.text
 
     def _build_element(self, *args, **kwargs):
-        self.element.text = util.Timestamp.format_timestamp(self.value)
+        self.element.text = util.Timestamp.format(self.value)
     
     def _set_value(self, value):
         if value is None:
             value = datetime.datetime.now()
         elif isinstance(value, basestring):
-            value = util.Timestamp.parse_timestamp(value)
+            value = util.Timestamp.parse(value)
         elif isinstance(value, Timestamp):
             value = value.value
         self.__value = value
