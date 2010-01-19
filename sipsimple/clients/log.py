@@ -18,8 +18,6 @@ from zope.interface import implements
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.util import makedirs
 
-from sipsimple.clients.util import serialized
-
 
 class Logger(object):
     implements(IObserver)
@@ -52,14 +50,14 @@ class Logger(object):
         self._notifications_file = None
         self._notifications_error = False
 
-        self._log_directory_error = False
+        self._event_queue = EventQueue(handler=self._process_notification, name='Log handling')
         self._lock = RLock()
-        self.event_queue = EventQueue(handler=lambda (function, self, args, kwargs): function(self, *args, **kwargs), name='Log handling')
+        self._log_directory_error = False
 
     def start(self):
         with self._lock:
             # start the thread processing the notifications
-            self.event_queue.start()
+            self._event_queue.start()
 
             # register to receive log notifications
             notification_center = NotificationCenter()
@@ -74,8 +72,8 @@ class Logger(object):
     def stop(self):
         with self._lock:
             # stop the thread processing the notifications
-            self.event_queue.stop()
-            self.event_queue.wait()
+            self._event_queue.stop()
+            self._event_queue.join()
 
             # sip trace
             if self._siptrace_file is not None:
@@ -96,8 +94,10 @@ class Logger(object):
             notification_center = NotificationCenter()
             notification_center.remove_observer(self)
 
-    @serialized
     def handle_notification(self, notification):
+        self._event_queue.put(notification)
+
+    def _process_notification(self, notification):
         settings = SIPSimpleSettings()
         with self._lock:
             handler = getattr(self, '_NH_%s' % notification.name, None)

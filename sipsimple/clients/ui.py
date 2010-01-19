@@ -18,13 +18,20 @@ import struct
 import sys
 import termios
 
+from application.python.decorator import decorator, preserve_signature
 from application.python.queue import EventQueue
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData
 from collections import deque
 from threading import RLock, Thread
 
-from sipsimple.clients.util import serialized, synchronized
+
+@decorator
+def run_in_ui_thread(func):
+    @preserve_signature(func)
+    def wrapper(self, *args, **kwargs):
+        self.event_queue.put((func, self, args, kwargs))
+    return wrapper
 
 
 class RichText(object):
@@ -172,30 +179,30 @@ class TTYFileWrapper(object):
     def isatty(self): return True
     def tell(self): return self.file.tell()
 
-    @synchronized
     def write(self, str):
-        if not str:
-            return
-        ui = UI()
-        if ui.stopping:
-            self.file.write(str)
-        else:
-            lines = re.split(r'\r\n|\r|\n', str)
-            lines[0] = self.buffer + lines[0]
-            self.buffer = lines[-1]
-            ui.writelines(lines[:-1])
-
-    @synchronized
-    def writelines(self, sequence):
-        for text in sequence:
-            self.write(text)
-
-    @synchronized
-    def flush(self):
-        if self.buffer:
+        with self.lock:
+            if not str:
+                return
             ui = UI()
-            ui.writelines([self.buffer])
-            self.buffer = ''
+            if ui.stopping:
+                self.file.write(str)
+            else:
+                lines = re.split(r'\r\n|\r|\n', str)
+                lines[0] = self.buffer + lines[0]
+                self.buffer = lines[-1]
+                ui.writelines(lines[:-1])
+
+    def writelines(self, sequence):
+        with self.lock:
+            for text in sequence:
+                self.write(text)
+
+    def flush(self):
+        with self.lock:
+            if self.buffer:
+                ui = UI()
+                ui.writelines([self.buffer])
+                self.buffer = ''
 
     def send_to_file(self):
         if self.buffer:
@@ -244,120 +251,120 @@ class UI(Thread):
         self.lock = RLock()
         self.event_queue = EventQueue(handler=lambda (function, self, args, kwargs): function(self, *args, **kwargs), name='UI operation handling')
 
-    @synchronized
     def start(self, prompt='', command_sequence='/', control_char='\x18', control_bindings={}, display_commands=True, display_text=True):
-        if self.isAlive():
-            raise RuntimeError('UI already active')
-        if not sys.stdin.isatty():
-            raise RuntimeError('UI cannot be used on a non-TTY')
-        if not sys.stdout.isatty():
-            raise RuntimeError('UI cannot be used on a non-TTY')
-        stdin_fd = sys.stdin.fileno()
+        with self.lock:
+            if self.isAlive():
+                raise RuntimeError('UI already active')
+            if not sys.stdin.isatty():
+                raise RuntimeError('UI cannot be used on a non-TTY')
+            if not sys.stdout.isatty():
+                raise RuntimeError('UI cannot be used on a non-TTY')
+            stdin_fd = sys.stdin.fileno()
 
-        self.command_sequence = command_sequence
-        self.application_control_char = control_char
-        self.application_control_bindings = control_bindings
-        self.display_commands = display_commands
-        self.display_text = display_text
+            self.command_sequence = command_sequence
+            self.application_control_char = control_char
+            self.application_control_bindings = control_bindings
+            self.display_commands = display_commands
+            self.display_text = display_text
 
-        # wrap sys.stdout
-        sys.stdout = TTYFileWrapper(sys.stdout)
-        # and possibly sys.stderr
-        if sys.stderr.isatty():
-            sys.stderr = TTYFileWrapper(sys.stderr)
+            # wrap sys.stdout
+            sys.stdout = TTYFileWrapper(sys.stdout)
+            # and possibly sys.stderr
+            if sys.stderr.isatty():
+                sys.stderr = TTYFileWrapper(sys.stderr)
 
-        # change input to character-mode
-        old_settings = termios.tcgetattr(stdin_fd)
-        new_settings = termios.tcgetattr(stdin_fd)
-        new_settings[3] &= ~termios.ECHO & ~termios.ICANON
-        new_settings[6][termios.VMIN] = '\000'
-        termios.tcsetattr(stdin_fd, termios.TCSADRAIN, new_settings)
-        atexit.register(termios.tcsetattr, stdin_fd, termios.TCSADRAIN, old_settings)
+            # change input to character-mode
+            old_settings = termios.tcgetattr(stdin_fd)
+            new_settings = termios.tcgetattr(stdin_fd)
+            new_settings[3] &= ~termios.ECHO & ~termios.ICANON
+            new_settings[6][termios.VMIN] = '\000'
+            termios.tcsetattr(stdin_fd, termios.TCSADRAIN, new_settings)
+            atexit.register(termios.tcsetattr, stdin_fd, termios.TCSADRAIN, old_settings)
 
-        # find out cursor position in terminal
-        self._raw_write('\x1b[6n')
-        if select.select([stdin_fd], [], [], None)[0]:
-            line, col = os.read(stdin_fd, 10)[2:-1].split(';')
-            line = int(line)
-            col = int(col)
+            # find out cursor position in terminal
+            self._raw_write('\x1b[6n')
+            if select.select([stdin_fd], [], [], None)[0]:
+                line, col = os.read(stdin_fd, 10)[2:-1].split(';')
+                line = int(line)
+                col = int(col)
 
-        # scroll down the terminal until everything goes up
-        self._scroll_up(line-1)
-        # move the cursor to the upper left side corner
-        self._raw_write('\x1b[H')
-        self.cursor_x = 1
-        self.cursor_y = 1
-        # display the prompt
-        self.prompt_y = 1
-        self.input.add_line()
-        self._update_prompt()
-        # make sure we know when the window gets resized
-        self.last_window_size = self.window_size
-        signal.signal(signal.SIGWINCH, lambda signum, frame: self._window_resized())
+            # scroll down the terminal until everything goes up
+            self._scroll_up(line-1)
+            # move the cursor to the upper left side corner
+            self._raw_write('\x1b[H')
+            self.cursor_x = 1
+            self.cursor_y = 1
+            # display the prompt
+            self.prompt_y = 1
+            self.input.add_line()
+            self._update_prompt()
+            # make sure we know when the window gets resized
+            self.last_window_size = self.window_size
+            signal.signal(signal.SIGWINCH, lambda signum, frame: self._window_resized())
 
-        self.event_queue.start()
-        Thread.start(self)
+            self.event_queue.start()
+            Thread.start(self)
 
-        # this will trigger the update of the prompt
-        self.prompt = prompt
+            # this will trigger the update of the prompt
+            self.prompt = prompt
 
-    @serialized
-    @synchronized
+    @run_in_ui_thread
     def stop(self):
-        self.stopping = True
-        self.status = None
-        sys.stdout.send_to_file()
-        if isinstance(sys.stderr, TTYFileWrapper):
-            sys.stderr.send_to_file()
-        self._raw_write('\n\x1b[2K')
+        with self.lock:
+            self.stopping = True
+            self.status = None
+            sys.stdout.send_to_file()
+            if isinstance(sys.stderr, TTYFileWrapper):
+                sys.stderr.send_to_file()
+            self._raw_write('\n\x1b[2K')
 
     def write(self, text):
         self.writelines([text])
 
-    @serialized
-    @synchronized
+    @run_in_ui_thread
     def writelines(self, text_lines):
-        if not text_lines:
-            return
-        # go to beginning of prompt line
-        self._raw_write('\x1b[%d;%dH' % (self.prompt_y, 1))
-        # erase everything beneath it
-        self._raw_write('\x1b[0J')
-        # start writing lines
-        window_size = self.window_size
-        for text in text_lines:
-            # write the line
-            self._raw_write('%s\n' % text)
-            # calculate the number of lines the text will produce
-            text_lines = (len(text)-1)/window_size.x + 1
-            # calculate how much the text will automatically scroll the window
-            window_height = struct.unpack('HHHH', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))[0]
-            auto_scroll_amount = max(0, (self.prompt_y+text_lines-1) - (window_height-1))
-            # calculate the new position of the prompt
-            self.prompt_y += text_lines - auto_scroll_amount
-            # we might need to scroll up to make the prompt position visible again
-            scroll_up = self.prompt_y - window_height
-            if scroll_up > 0:
-                self.prompt_y -= scroll_up
-                self._scroll_up(scroll_up)
-        # redraw the prompt
-        self._update_prompt()
+        with self.lock:
+            if not text_lines:
+                return
+            # go to beginning of prompt line
+            self._raw_write('\x1b[%d;%dH' % (self.prompt_y, 1))
+            # erase everything beneath it
+            self._raw_write('\x1b[0J')
+            # start writing lines
+            window_size = self.window_size
+            for text in text_lines:
+                # write the line
+                self._raw_write('%s\n' % text)
+                # calculate the number of lines the text will produce
+                text_lines = (len(text)-1)/window_size.x + 1
+                # calculate how much the text will automatically scroll the window
+                window_height = struct.unpack('HHHH', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))[0]
+                auto_scroll_amount = max(0, (self.prompt_y+text_lines-1) - (window_height-1))
+                # calculate the new position of the prompt
+                self.prompt_y += text_lines - auto_scroll_amount
+                # we might need to scroll up to make the prompt position visible again
+                scroll_up = self.prompt_y - window_height
+                if scroll_up > 0:
+                    self.prompt_y -= scroll_up
+                    self._scroll_up(scroll_up)
+            # redraw the prompt
+            self._update_prompt()
 
-    @serialized
-    @synchronized
+    @run_in_ui_thread
     def add_question(self, question):
-        self.questions.append(question)
-        if len(self.questions) == 1:
-            self._update_prompt()
+        with self.lock:
+            self.questions.append(question)
+            if len(self.questions) == 1:
+                self._update_prompt()
 
-    @serialized
-    @synchronized
+    @run_in_ui_thread
     def remove_question(self, question):
-        first_question = (question == self.questions[0])
-        self.questions.remove(question)
-        if not self.questions or first_question:
-            self.displaying_question = False
-            self._update_prompt()
+        with self.lock:
+            first_question = (question == self.questions[0])
+            self.questions.remove(question)
+            if not self.questions or first_question:
+                self.displaying_question = False
+                self._update_prompt()
 
     # properties
     #
@@ -372,39 +379,39 @@ class UI(Thread):
 
     def _get_prompt(self):
         return self.__dict__['prompt']
-    @serialized
-    @synchronized
+    @run_in_ui_thread
     def _set_prompt(self, value):
-        if not isinstance(value, Prompt):
-            value = Prompt(value)
-        self.__dict__['prompt'] = value
-        self._update_prompt()
+        with self.lock:
+            if not isinstance(value, Prompt):
+                value = Prompt(value)
+            self.__dict__['prompt'] = value
+            self._update_prompt()
     prompt = property(_get_prompt, _set_prompt)
     del _get_prompt, _set_prompt
 
     def _get_status(self):
         return self.__dict__['status']
-    @serialized
-    @synchronized
+    @run_in_ui_thread
     def _set_status(self, status):
-        try:
-            old_status = self.__dict__['status']
-        except KeyError:
-            self.__dict__['status'] = status
-        else:
-            self.__dict__['status'] = status
-            if old_status is not None and status is None:
-                status_y, window_length = struct.unpack('HHHH', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))[:2]
-                # save current cursor position
-                self._raw_write('\x1b[s')
-                # goto line status_y
-                self._raw_write('\x1b[%d;%dH' % (status_y, 1))
-                # erase it
-                self._raw_write('\x1b[2K')
-                # restore the cursor position
-                self._raw_write('\x1b[u')
+        with self.lock:
+            try:
+                old_status = self.__dict__['status']
+            except KeyError:
+                self.__dict__['status'] = status
             else:
-                self._update_prompt()
+                self.__dict__['status'] = status
+                if old_status is not None and status is None:
+                    status_y, window_length = struct.unpack('HHHH', fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, struct.pack('HHHH', 0, 0, 0, 0)))[:2]
+                    # save current cursor position
+                    self._raw_write('\x1b[s')
+                    # goto line status_y
+                    self._raw_write('\x1b[%d;%dH' % (status_y, 1))
+                    # erase it
+                    self._raw_write('\x1b[2K')
+                    # restore the cursor position
+                    self._raw_write('\x1b[u')
+                else:
+                    self._update_prompt()
     status = property(_get_status, _set_status)
     del _get_status, _set_status
 
