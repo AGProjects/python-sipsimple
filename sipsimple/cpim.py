@@ -9,7 +9,9 @@ Instant Messsaging sessions based on RFC3862.
 import re
 from cStringIO import StringIO
 from sipsimple.core import SIPURI
-from sipsimple.clients.iso8601 import parse_date
+
+from sipsimple.util import Timestamp
+
 
 class MessageCPIM(object):
 
@@ -43,7 +45,7 @@ class MessageCPIM(object):
         if self.from_:
             result.append('From: %s' % self.format_address(self.from_))
         if self.datetime:
-            result.append('DateTime: %s' % self.datetime.isoformat())
+            result.append('DateTime: %s' % Timestamp.format(self.datetime))
         result.append('')
         result.append('Content-Type: %s' % self.content_type)
         result.append('')
@@ -88,7 +90,7 @@ class MessageCPIMParser(object):
     _mapping = {'From': CPIMIdentity.parse,
                 'To': CPIMIdentity.parse,
                 'cc': CPIMIdentity.parse,
-                'DateTime': parse_date}
+                'DateTime': Timestamp.parse}
 
     @classmethod
     def parse_file(cls, f):
@@ -98,15 +100,14 @@ class MessageCPIMParser(object):
                 line = f.readline().rstrip()
                 if not line:
                     break
+                header, value = line.split(': ', 1)
+                transform = cls._mapping.get(header, lambda x: x)
                 try:
-                    header, value = line.split(': ', 1)
-                except:
-                    print 'failed to parse line %r' % (line, )
-                    raise
-                transform = cls._mapping.get(header)
-                if transform:
                     value = transform(value)
-                headers[header] = value
+                except ValueError:
+                    pass
+                else:
+                    headers[header] = value
         return headers, f.read()
 
     @classmethod
