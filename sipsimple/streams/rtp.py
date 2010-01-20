@@ -76,7 +76,7 @@ class AudioStream(object):
     hold_supported = True
 
     def __init__(self, account):
-        from sipsimple.api import SIPApplication
+        from sipsimple.application import SIPApplication
         self._lock = RLock()
         self.state = "NULL"
         self.account = account

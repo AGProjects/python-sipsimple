@@ -18,12 +18,3 @@ Description: Python SIP SIMPLE framework
  desktop sharing. Other media types can be easily added by using an
  extensible high-level API.
 
-Package: sipsimple-cli
-Section: net
-Architecture: all
-Depends: ${python:Depends}, python-sipsimple (>= ${source:Version})
-Description: SIP SIMPLE command line clients
- This package contains some command line clients that are implemented using
- the Python SIP SIMPLE framework. They demonstrate some of the framework
- capabilities and can be used as examples or for testing purposes.
-

@@ -41,7 +41,7 @@ from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.cpim import CPIMIdentity, MessageCPIM, MessageCPIMParser
 from sipsimple.util import run_in_green_thread, run_in_twisted_thread, TimestampedNotificationData
-from sipsimple.applications.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
+from sipsimple.payloads.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
 
 
 class MSRPStreamError(StreamError): pass

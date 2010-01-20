@@ -8,6 +8,8 @@ hop(s) and failover for routing of SIP messages and reservation of network
 resources prior the starting of a SIP session.
 """
 
+from __future__ import absolute_import
+
 import re
 from time import time
 

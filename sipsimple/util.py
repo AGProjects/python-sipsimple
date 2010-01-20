@@ -5,10 +5,10 @@
 Implements utilities commonly used in various parts of the library.
 """
 
-from __future__ import with_statement
+from __future__ import absolute_import, with_statement
 
 __all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
-           "Command", "PersistentTones", "Route", "SilenceableWaveFile", "Timestamp", "TimestampedNotificationData"
+           "Command", "PersistentTones", "Route", "SilenceableWaveFile", "Timestamp", "TimestampedNotificationData",
            "call_in_green_thread", "call_in_twisted_thread", "limit", "makedirs"]
 
 import errno
@@ -25,8 +25,6 @@ from application.python.decorator import decorator, preserve_signature
 from eventlet import coros
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
-
-from sipsimple.core import SIPCoreError, SIPURI, ToneGenerator, WaveFile
 
 
 # Descriptors and decorators
@@ -106,6 +104,7 @@ class Command(object):
 class PersistentTones(object):
 
     def __init__(self, conference_bridge, tones, interval, volume=100, initial_play=True):
+        from sipsimple.core import ToneGenerator
         self.tones = tones
         self.interval = interval
         self._initial_play = initial_play
@@ -120,6 +119,7 @@ class PersistentTones(object):
             return self._timer is not None
 
     def _play_tones(self):
+        from sipsimple.core import SIPCoreError
         with self._lock:
             try:
                 self._tone_generator.play_tones(self.tones)
@@ -190,6 +190,7 @@ class Route(object):
     del _get_transport, _set_transport
 
     def get_uri(self):
+        from sipsimple.core import SIPURI
         if self.transport in ('udp', 'tcp') and self.port == 5060:
             port = None
         elif self.transport == 'tls' and self.port == 5061:
@@ -249,6 +250,7 @@ class SilenceableWaveFile(object):
 
     @run_in_green_thread
     def _run(self):
+        from sipsimple.core import WaveFile
         notification_center = NotificationCenter()
         try:
             while True:

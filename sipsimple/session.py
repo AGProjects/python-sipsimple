@@ -6,7 +6,7 @@ establishment, modification and termination of sessions using Session
 Initiation Protocol (SIP) standardized in RFC3261
 """
 
-from __future__ import with_statement
+from __future__ import absolute_import, with_statement
 
 from datetime import datetime
 from threading import RLock
@@ -19,10 +19,9 @@ from eventlet import api
 from eventlet.coros import queue
 from zope.interface import implements
 
-from sipsimple.core import Invitation, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
+from sipsimple.core import Engine, Invitation, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
 from sipsimple.core import ContactHeader, FromHeader, RouteHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
-from sipsimple.engine import Engine
 
 from sipsimple.account import AccountManager
 from sipsimple.configuration.settings import SIPSimpleSettings

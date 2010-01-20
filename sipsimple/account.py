@@ -5,6 +5,8 @@
 multiple SIP accounts and their properties.
 """
 
+from __future__ import absolute_import
+
 import os
 import random
 import string
@@ -22,13 +24,11 @@ from gnutls.interfaces.twisted import X509Credentials
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.engine import Engine
-from sipsimple.core import ContactHeader, Credentials, FromHeader, RouteHeader, SIPURI
+from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, Registration, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
-from sipsimple.primitives import Registration
 from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
@@ -367,7 +367,7 @@ class Account(SettingsObject):
         manager = AccountManager()
         manager._internal_add_account(self)
 
-        from sipsimple.api import SIPApplication
+        from sipsimple.application import SIPApplication
         if SIPApplication.running:
             call_in_twisted_thread(self.start)
 
@@ -526,7 +526,7 @@ class BonjourAccount(SettingsObject):
         self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
 
-        from sipsimple.api import SIPApplication
+        from sipsimple.application import SIPApplication
         if SIPApplication.running:
             call_in_twisted_thread(self.start)
 
