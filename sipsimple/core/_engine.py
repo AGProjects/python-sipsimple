@@ -95,8 +95,6 @@ class Engine(Thread):
         with self._lock:
             if self._thread_started:
                 self._thread_stopping = True
-                if currentThread() is not self:
-                    self.join()
 
     # worker thread
     def run(self):
