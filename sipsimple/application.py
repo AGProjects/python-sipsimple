@@ -71,8 +71,6 @@ class SIPApplication(object):
             self.state = None
             raise
 
-        notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
-
         # start the reactor thread
         Thread(name='Reactor Thread', target=self._run_reactor).start()
 
@@ -171,6 +169,8 @@ class SIPApplication(object):
         # initialize middleware components
         account_manager.start()
         session_manager.start()
+
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
 
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self, data=TimestampedNotificationData())
