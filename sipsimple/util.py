@@ -250,7 +250,7 @@ class SilenceableWaveFile(object):
 
     @run_in_green_thread
     def _run(self):
-        from sipsimple.core import WaveFile
+        from sipsimple.core import SIPCoreError, WaveFile
         notification_center = NotificationCenter()
         try:
             while True:
@@ -259,8 +259,12 @@ class SilenceableWaveFile(object):
                     self._wave_file = WaveFile(self.conference_bridge, self.file_name)
                     notification_center.add_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
                     self._wave_file.volume = self.volume
-                    self._wave_file.start()
-                    self.conference_bridge.connect_slots(self._wave_file.slot, 0)
+                    try:
+                        self._wave_file.start()
+                    except SIPCoreError, e:
+                        self._channel.send(Command('reschedule'))
+                    else:
+                        self.conference_bridge.connect_slots(self._wave_file.slot, 0)
                 elif command.name == 'reschedule':
                     self._current_loop += 1
                     notification_center.remove_observer(self, sender=self._wave_file, name='WaveFileDidFinishPlaying')
