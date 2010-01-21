@@ -71,7 +71,7 @@ class Folder(XMLListElement):
             child.to_element(*args, **kwargs)
 
     def _add_item(self, value):
-        if not isinstance(value, (Entry, ErroCode)):
+        if not isinstance(value, (Entry, ErrorCode)):
             raise TypeError("Folder element can only contain Entry or ErrorCode children, got %s instead" % value.__class__.__name__)
         self._insert_element(value.element)
         return value
