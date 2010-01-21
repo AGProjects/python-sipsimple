@@ -247,18 +247,21 @@ class Validity(XMLListElement, ConditionElement):
 
     def _parse_element(self, element, *args, **kwargs):
         iterator = iter(element)
-        for child in iterator:
-            if child.tag == '{%s}from' % self._xml_namespace:
+        for first_child in iterator:
+            second_child = iterator.next()
+            if first_child.tag == '{%s}from' % self._xml_namespace and second_child.tag == '{%s}until' % self._xml_namespace:
                 try:
-                    self.append((child.text, iterator.next().text))
+                    self.append((first_child.text, second_child.text))
                 except:
                     pass
 
     def _build_element(self, *args, **kwargs):
         self.element.clear()
-        for child in self:
+        for (from_valid, until_valid) in self:
             from_elem = etree.SubElement(self.element, '{%s}from' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
+            from_elem.text = str(from_valid)
             until_elem = etree.SubElement(self.element, '{%s}until' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
+            until_elem.text = str(until_valid)
 
     def check_validity(self):
         if not self:
