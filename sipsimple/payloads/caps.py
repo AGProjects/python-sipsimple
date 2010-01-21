@@ -7,7 +7,7 @@ This module provides an extension to PIDF (module sipsimple.payloads.presdm) to
 describe a user-agent capabilities in the PIDF documents.
 """
 
-from sipsimple.payloads import XMLStringElement, XMLElement, XMLElementChild, XMLEmptyElement, XMLListElement, XMLAttribute
+from sipsimple.payloads import ValidationError, XMLStringElement, XMLElement, XMLElementChild, XMLEmptyElement, XMLListElement, XMLAttribute
 from sipsimple.payloads.presdm import PIDFApplication, ServiceExtension, Service, DeviceExtension, Device
 
 __all__ = ['caps_namespace',

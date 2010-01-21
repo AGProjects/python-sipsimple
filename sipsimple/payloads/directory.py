@@ -7,7 +7,7 @@
 __all__ = ['namespace', 'XCAPDirectoryApplication', 'Folder', 'Entry', 'ErrorCode']
 
 
-from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLStringElement, XMLListElement, XMLAttribute
+from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLStringElement, XMLListElement, XMLAttribute
 from sipsimple.util import Timestamp
 
 

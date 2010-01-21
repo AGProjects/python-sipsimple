@@ -18,7 +18,7 @@ __all__ = ['namespace',
         'DialogInfo']
 
 
-from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLAttribute
+from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLAttribute
 
 
 namespace = 'urn:ietf:params:xml:ns:dialog-info'
