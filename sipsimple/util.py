@@ -321,10 +321,10 @@ class Timestamp(datetime):
             secfrac = int(secfrac)
         else:
             secfrac = 0
-        dt = cls(int(dct['year']), month=int(dct['month']), day=int(dct['day']),
-                 hour=int(dct['hour']), minute=int(dct['minute']), second=int(dct['second']),
-                 microsecond=secfrac)
-        return dt - timedelta(seconds=secoffset) + timedelta(seconds=cls.utc_offset()*60)
+        dt = datetime(int(dct['year']), month=int(dct['month']), day=int(dct['day']),
+                      hour=int(dct['hour']), minute=int(dct['minute']), second=int(dct['second']),
+                      microsecond=secfrac)
+        return cls(dt - timedelta(seconds=secoffset) + timedelta(seconds=cls.utc_offset()*60))
 
     @classmethod
     def format(cls, dt):
