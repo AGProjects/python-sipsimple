@@ -411,7 +411,6 @@ class AudioStream(object):
             try:
                 input_rec.start()
             except SIPCoreError, e:
-                file_name = input_rec.file_name
                 self._audio_rec = None
                 self.notification_center.post_notification("AudioStreamDidStopRecordingAudio", self,
                                                            TimestampedNotificationData(file_name=input_rec.file_name, reason=e.args[0], direction='both' if input_rec is output_rec else 'input'))

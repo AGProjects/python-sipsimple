@@ -60,7 +60,6 @@ class SIPApplication(object):
 
         account_manager = AccountManager()
         configuration_manager = ConfigurationManager()
-        notification_center = NotificationCenter()
 
         # load configuration
         try:

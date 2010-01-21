@@ -261,7 +261,7 @@ class SilenceableWaveFile(object):
                     self._wave_file.volume = self.volume
                     try:
                         self._wave_file.start()
-                    except SIPCoreError, e:
+                    except SIPCoreError:
                         self._channel.send(Command('reschedule'))
                     else:
                         self.conference_bridge.connect_slots(self._wave_file.slot, 0)

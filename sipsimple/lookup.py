@@ -130,9 +130,9 @@ class DNSResolver(dns.resolver.Resolver):
             start_time = time()
             try:
                 answer = dns.resolver.Resolver.query(self, domain, rdatatype.NS)
-            except dns.resolver.Timeout, e:
+            except dns.resolver.Timeout:
                 raise
-            except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers), e:
+            except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
                 continue
             finally:
                 self.lifetime -= min(self.lifetime, time()-start_time)
@@ -146,9 +146,9 @@ class DNSResolver(dns.resolver.Resolver):
                     start_time = time()
                     try:
                         a_answer = dns.resolver.Resolver.query(self, hostname, rdatatype.A)
-                    except dns.resolver.Timeout, e:
+                    except dns.resolver.Timeout:
                         raise
-                    except exception.DNSException, e:
+                    except exception.DNSException:
                         continue
                     finally:
                         self.lifetime -= min(self.lifetime, time()-start_time)
@@ -204,7 +204,6 @@ class DNSLookup(object):
         """
         service_srv_record_map = {"stun": ("_stun._udp", 3478, False),
                                   "msrprelay": ("_msrps._tcp", 2855, True)}
-        notification_center = NotificationCenter()
         log_context = dict(context='lookup_service', service=service, uri=uri)
 
         try:
@@ -254,7 +253,6 @@ class DNSLookup(object):
                                  "tcp": "_sip._tcp",
                                  "tls": "_sips._tcp"}
 
-        notification_center = NotificationCenter()
         log_context = dict(context='lookup_sip_proxy', uri=uri)
 
         if not supported_transports:

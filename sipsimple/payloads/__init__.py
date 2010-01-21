@@ -327,7 +327,7 @@ class XMLElement(object):
             if element_child is not None:
                 try:
                     value = type.from_element(child, *args, **kwargs)
-                except ValidationError, e:
+                except ValidationError:
                     pass # we should accept partially valid documents
                 else:
                     if element_child.required:
