@@ -11,11 +11,11 @@ resources prior the starting of a SIP session.
 from __future__ import absolute_import
 
 import re
+import sys
 from time import time
 
 # patch dns.entropy module which is not thread-safe
 import dns
-import sys
 from functools import partial
 from random import randint, randrange
 
@@ -27,7 +27,7 @@ dns.entropy.between = randint
 
 sys.modules['dns.entropy'] = dns.entropy
 
-del partial, randint, randrange, sys
+del partial, randint, randrange
 
 # replace standard select and socket modules with versions from eventlet
 from eventlet.green import select
@@ -42,7 +42,7 @@ from application.notification import NotificationCenter
 from application.python.decorator import decorator, preserve_signature
 from dns import exception, rdatatype
 
-from sipsimple.util import Route, TimestampedNotificationData, run_in_waitable_green_thread
+from sipsimple.util import Route, TimestampedNotificationData, limit, run_in_waitable_green_thread
 
 
 def domain_iterator(domain):
@@ -92,7 +92,7 @@ class DNSCache(object):
         expiration = value.expiration-time()
         if expiration > 0:
             self.data[key] = value
-            reactor.callLater(expiration, self.data.pop, key, None)
+            reactor.callLater(limit(expiration, max=sys.maxint), self.data.pop, key, None)
 
     def flush(self, key=None):
         if key is not None:
