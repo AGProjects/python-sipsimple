@@ -1,8 +1,9 @@
 # Copyright (C) 2009-2010 AG Projects. See LICENSE for details.
 #
 
-"""Handling of MSRP media streams according to RFC4975, RFC4976, RFC5547 and
-RFC3994.
+"""
+Handling of MSRP media streams according to RFC4975, RFC4976, RFC5547
+and RFC3994.
 
 This module provides classes to parse and generate SDP related to SIP
 sessions that negotiate Instant Messsaging, File Transfer and Desktop

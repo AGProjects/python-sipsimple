@@ -1,7 +1,8 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""Simple parser and constructor of Message/CPIM content type used for
+"""
+Simple parser and constructor of Message/CPIM content type used for
 Instant Messsaging sessions based on RFC3862.
 """
 

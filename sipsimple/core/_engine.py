@@ -1,8 +1,9 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""Implements a mechanism for starting the SIP core engine based on PJSIP (http://pjsip.org)
-stack.
+"""
+Implements a mechanism for starting the SIP core engine based on PJSIP
+(http://pjsip.org) stack.
 """
 
 from __future__ import with_statement

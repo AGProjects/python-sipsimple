@@ -1,7 +1,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-"""Resource lists (rfc4826) handling
+"""
+Resource lists (rfc4826) handling
 
 This module provides convenient classes to parse and generate
 resource-lists documents as described in RFC 4826.

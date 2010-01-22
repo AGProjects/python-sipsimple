@@ -1,10 +1,11 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-"""CIPID handling according to RFC4482
+"""
+CIPID handling according to RFC4482
 
-This module provides an extension to PIDF (module sipsimple.payloads.presdm) to
-provide additional contact information about a presentity.
+This module provides an extension to PIDF (module sipsimple.payloads.presdm)
+to provide additional contact information about a presentity.
 """
 
 from sipsimple.payloads import XMLStringElement

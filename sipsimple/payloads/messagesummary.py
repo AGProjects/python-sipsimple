@@ -1,9 +1,11 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-""" Message summary and Message Waiting Indication handling according to RFC3842
+"""
+Message summary and Message Waiting Indication handling according to RFC3842
 
-This module provides the ability to parse and generate Message Summary payloads.
+This module provides the ability to parse and generate Message Summary
+payloads.
 """
 
 import re

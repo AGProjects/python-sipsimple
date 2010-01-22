@@ -1,7 +1,8 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""RPID handling according to RFC4480
+"""
+RPID handling according to RFC4480
 
 This module provides an extension to PIDF (module sipsimple.payloads.presdm) to
 support rich presence.

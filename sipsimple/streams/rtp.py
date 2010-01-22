@@ -1,7 +1,8 @@
 # Copyright (C) 2009-2010 AG Projects. See LICENSE for details.
 #
 
-"""Handling of RTP media streams according to RFC3550, RFC3605, RFC3581,
+"""
+Handling of RTP media streams according to RFC3550, RFC3605, RFC3581,
 RFC2833 and RFC3711, RFC3489 and draft-ietf-mmusic-ice-19.
 
 This module provides classes to parse and generate SDP related to SIP

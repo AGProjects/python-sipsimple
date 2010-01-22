@@ -1,9 +1,10 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""Implements an asynchronous notification based mechanism for
+"""
+Implements an asynchronous notification based mechanism for
 establishment, modification and termination of sessions using Session
-Initiation Protocol (SIP) standardized in RFC3261
+Initiation Protocol (SIP) standardized in RFC3261.
 """
 
 from __future__ import absolute_import, with_statement

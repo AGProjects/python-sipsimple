@@ -1,12 +1,14 @@
 # Copyright (C) 2009 AG Projects. See LICENSE for details.
 #
 
-"""This module automatically registers media streams to a stream registry
-allowing for a plug and play mechanism of various types of media negoticated
-in a SIP session that can be added to this library by using a generic API.
+"""
+This module automatically registers media streams to a stream registry
+allowing for a plug and play mechanism of various types of media
+negoticated in a SIP session that can be added to this library by using
+a generic API.
 
-For actual usage see rtp.py and msrp.py that implement media streams based
-on their respective RTP and MSRP protocols.
+For actual usage see rtp.py and msrp.py that implement media streams
+based on their respective RTP and MSRP protocols.
 """
 
 

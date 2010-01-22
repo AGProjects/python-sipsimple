@@ -1,7 +1,8 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""Implements a SIP Account management system that allows the definition of
+"""
+Implements a SIP Account management system that allows the definition of
 multiple SIP accounts and their properties.
 """
 

@@ -1,8 +1,10 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
-"""Implements a high-level mechanism for SIP methods that can be used for
-non-session based operations like REGISTER, SUBSCRIBE, PUBLISH and MESSAGE.
+"""
+Implements a high-level mechanism for SIP methods that can be used for
+non-session based operations like REGISTER, SUBSCRIBE, PUBLISH and
+MESSAGE.
 """
 
 from __future__ import with_statement

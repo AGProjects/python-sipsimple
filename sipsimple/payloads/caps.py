@@ -1,10 +1,11 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""User Agent Capability Extension  handling according to RFC5196
+"""
+User Agent Capability Extension handling according to RFC5196
 
-This module provides an extension to PIDF (module sipsimple.payloads.presdm) to
-describe a user-agent capabilities in the PIDF documents.
+This module provides an extension to PIDF (module sipsimple.payloads.presdm)
+to describe a user-agent capabilities in the PIDF documents.
 """
 
 from sipsimple.payloads import ValidationError, XMLStringElement, XMLElement, XMLElementChild, XMLEmptyElement, XMLListElement, XMLAttribute
