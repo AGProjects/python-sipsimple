@@ -3,53 +3,6 @@
 
 """
 Parses application/watcherinfo+xml documents according to RFC3857 and RFC3858.
-
-Example:
-
->>> winfo_doc='''<?xml version="1.0"?>
-... <watcherinfo xmlns="urn:ietf:params:xml:ns:watcherinfo"
-...              version="0" state="full">
-...   <watcher-list resource="sip:professor@example.net" package="presence">
-...     <watcher status="active"
-...              id="8ajksjda7s"
-...              duration-subscribed="509"
-...              event="approved" >sip:userA@example.net</watcher>
-...     <watcher status="pending"
-...              id="hh8juja87s997-ass7"
-...              display-name="Mr. Subscriber"
-...              event="subscribe">sip:userB@example.org</watcher>
-...   </watcher-list>
-... </watcherinfo>'''
->>> winfo = WatcherInfo()
-
-The return value of winfo.update() is a dictionary containing WatcherList objects
-as keys and lists of the updated watchers as values.
-
->>> updated = winfo.update(winfo_doc)
->>> len(updated['sip:professor@example.net'])
-2
-
-winfo.pending, winfo.terminated and winfo.active are dictionaries indexed by
-WatcherList objects as keys and lists of Wacher objects as values.
-
->>> print winfo.pending['sip:professor@example.net'][0]
-"Mr. Subscriber" <sip:userB@example.org>
->>> print winfo.pending['sip:professor@example.net'][1]
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-IndexError: list index out of range
->>> print winfo.active['sip:professor@example.net'][0]
-sip:userA@example.net
->>> len(winfo.terminated['sip:professor@example.net'])
-0
-
-winfo.wlists is the list of WatcherList objects
-
->>> list(winfo.wlists[0].active) == list(winfo.active['sip:professor@example.net'])
-True
-
-
-See the classes for more information.
 """
 
 from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute

@@ -3,54 +3,6 @@
 
 """
 Resource lists (rfc4826) handling
-
-This module provides convenient classes to parse and generate
-resource-lists documents as described in RFC 4826.
-
-Generation
-----------
-
->>> bill = Entry('sip:bill@example.com', display_name = 'Bill Doe')
->>> petri = EntryRef('some/ref')
->>> friends = List([bill, petri])
->>> rl = ResourceLists([friends])
->>> print rl.toxml(pretty_print=True)
-<?xml version='1.0' encoding='UTF-8'?>
-<rl:resource-lists xmlns:rl="urn:ietf:params:xml:ns:resource-lists">
-  <rl:list>
-    <rl:entry uri="sip:bill@example.com">
-      <rl:display-name>Bill Doe</rl:display-name>
-    </rl:entry>
-    <rl:entry-ref ref="some/ref"/>
-  </rl:list>
-</rl:resource-lists>
-<BLANKLINE>
-
-toxml() wraps etree.tostring() and accepts all its arguments (like pretty_print).
-
-
-Parsing
--------
-
->>> r = ResourceLists.parse(example_from_section_3_3_rfc)
->>> len(r)
-1
-
->>> friends = r[0]
->>> friends.name
-'friends'
-
->>> bill = friends[0]
->>> bill.uri
-'sip:bill@example.com'
->>> print bill.display_name
-Bill Doe
-
->>> close_friends = friends[2]
->>> print close_friends[0]
-"Joe Smith" <sip:joe@example.com>
->>> print close_friends[2].display_name
-Marketing
 """
 
 from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild

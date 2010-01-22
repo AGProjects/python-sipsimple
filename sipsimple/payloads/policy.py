@@ -4,41 +4,6 @@
 """
 Generic data types to be used in policy applications, according to
 RFC4745.
-
-Example usage:
-
->>> alice = IdentityOne('sip:alice@example.com')
->>> carol = IdentityOne('tel:+1-212-555-1234')
->>> bob = IdentityOne('mailto:bob@example.net')
->>> print carol
-tel:+1-212-555-1234
->>> id = Identity([alice, bob])
->>> print id
-Identity([IdentityOne('sip:alice@example.com'), IdentityOne('mailto:bob@example.net')])
->>> id[1:1] = [carol]
->>> print id
-Identity([IdentityOne('sip:alice@example.com'), IdentityOne('tel:+1-212-555-1234'), IdentityOne('mailto:bob@example.net')])
->>> conditions = Conditions([id])
->>> rule = Rule(id='f3g44r1', conditions=conditions, actions=Actions(), transformations=Transformations())
->>> ruleset = RuleSet()
->>> ruleset.append(rule)
->>> print ruleset.toxml(pretty_print=True)
-<?xml version='1.0' encoding='UTF-8'?>
-<cp:ruleset xmlns:cp="urn:ietf:params:xml:ns:common-policy">
-  <cp:rule id="f3g44r1">
-    <cp:conditions>
-      <cp:identity>
-        <cp:one id="sip:alice@example.com"/>
-        <cp:one id="mailto:bob@example.net"/>
-        <cp:one id="tel:+1-212-555-1234"/>
-      </cp:identity>
-    </cp:conditions>
-    <cp:actions/>
-    <cp:transformations/>
-  </cp:rule>
-</cp:ruleset>
-<BLANKLINE>
-
 """
 
 import datetime

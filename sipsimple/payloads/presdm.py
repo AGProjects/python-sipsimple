@@ -3,46 +3,6 @@
 
 """
 PIDF handling according to RFC3863 and RFC3379
-
-This module provides classes to parse and generate PIDF documents.
-
-Example usage:
-
->>> from datetime import datetime
->>> pidf = PIDF('pres:someone@example.com')
->>> status = Status(basic=Basic('open'))
->>> contact = Contact('im:someone@mobilecarrier.net')
->>> contact.priority = "0.8"
->>> tuple1 = Service('bs35r9', notes=[ServiceNote("Don't Disturb Please!"), ServiceNote("Ne derangez pas, s'il vous plait", lang="fr")], status=status)
->>> tuple1.contact = contact
->>> tuple1.timestamp = Timestamp(datetime(2008, 9, 11, 20, 42, 03))
->>> tuple2 = Service('eg92n8', status=Status(basic=Basic('open')), contact=Contact('mailto:someone@example.com'))
->>> tuple2.contact.priority = "1.0"
->>> pidf.notes.add(Note("I'll be in Tokyo next week"))
->>> pidf.append(tuple1)
->>> pidf.append(tuple2)
->>> print pidf.toxml(pretty_print=True)
-<?xml version='1.0' encoding='UTF-8'?>
-<presence xmlns:rpid="urn:ietf:params:xml:ns:pidf:rpid" xmlns:dm="urn:ietf:params:xml:ns:pidf:data-model" xmlns="urn:ietf:params:xml:ns:pidf" entity="pres:someone@example.com">
-  <tuple id="bs35r9">
-    <status>
-      <basic>open</basic>
-    </status>
-    <contact priority="0.8">im:someone@mobilecarrier.net</contact>
-    <note>Don't Disturb Please!</note>
-    <note xml:lang="fr">Ne derangez pas, s'il vous plait</note>
-    <timestamp>2008-09-11T20:42:03Z</timestamp>
-  </tuple>
-  <tuple id="eg92n8">
-    <status>
-      <basic>open</basic>
-    </status>
-    <contact priority="1.0">mailto:someone@example.com</contact>
-  </tuple>
-  <note>I'll be in Tokyo next week</note>
-</presence>
-<BLANKLINE>
-
 """
 
 import datetime

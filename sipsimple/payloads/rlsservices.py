@@ -4,55 +4,6 @@
 """
 Parses and builds application/rls-services+xml documents according to
 RFC4826.
-
-See RLSServices class for more information.
-
->>> buddies = Service('sip:mybuddies@example.com', 'http://xcap.example.com/xxx', ['presence'])
->>> marketing = Service('sip:marketing@example.com')
->>> marketing.list = RLSList([Entry('sip:joe@example.com'), Entry('sip:sudhir@example.com')])
->>> marketing.packages = ['presence']
->>> rls = RLSServices([buddies, marketing])
->>> print rls.toxml(pretty_print=True)
-<?xml version='1.0' encoding='UTF-8'?>
-<rls-services xmlns:rl="urn:ietf:params:xml:ns:resource-lists" xmlns="urn:ietf:params:xml:ns:rls-services">
-  <service uri="sip:mybuddies@example.com">
-    <resource-list>http://xcap.example.com/xxx</resource-list>
-    <packages>
-      <package>presence</package>
-    </packages>
-  </service>
-  <service uri="sip:marketing@example.com">
-    <list>
-      <rl:entry uri="sip:joe@example.com"/>
-      <rl:entry uri="sip:sudhir@example.com"/>
-    </list>
-    <packages>
-      <package>presence</package>
-    </packages>
-  </service>
-</rls-services>
-<BLANKLINE>
-
-
->>> rls = RLSServices.parse(example_from_section_4_3_rfc)
->>> len(rls)
-2
-
->>> rls[0].uri
-'sip:mybuddies@example.com'
-
->>> print rls[0].list
-http://xcap.example.com/xxx
-
->>> print rls[0].packages[0]
-presence
-
-
->>> rls[1].uri
-'sip:marketing@example.com'
-
->>> assert len(rls[1].packages) == 1 and rls[1].packages[0] == 'presence'
-
 """
 
 from sipsimple.payloads import ValidationError, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
