@@ -22,24 +22,6 @@ __all__ = ['rl_namespace',
 
 rls_namespace = 'urn:ietf:params:xml:ns:rls-services'
 
-# excerpt from the RFC:
-
-# <rls-services>
-# body: sequence of <service> elements
-
-# <service>
-# attribute "uri": mandatory, unique among all <service> in any document
-# body: List or ResourceList, then optional Packages
-
-# <resource-list>
-# body: http uri that references <list>
-
-# <packages>
-# body: sequence of <package>
-
-# <package>
-# body: name of SIP event package
-
 
 class RLSServicesApplication(ResourceListsApplication): pass
 RLSServicesApplication.register_namespace(rls_namespace, prefix=None)

@@ -3,9 +3,6 @@
 
 """
 Message summary and Message Waiting Indication handling according to RFC3842
-
-This module provides the ability to parse and generate Message Summary
-payloads.
 """
 
 import re
