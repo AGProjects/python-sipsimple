@@ -11,11 +11,11 @@ resources prior the starting of a SIP session.
 from __future__ import absolute_import
 
 import re
-import sys
 from time import time
 
 # patch dns.entropy module which is not thread-safe
 import dns
+import sys
 from functools import partial
 from random import randint, randrange
 
@@ -27,7 +27,7 @@ dns.entropy.between = randint
 
 sys.modules['dns.entropy'] = dns.entropy
 
-del partial, randint, randrange
+del partial, randint, randrange, sys
 
 # replace standard select and socket modules with versions from eventlet
 from eventlet.green import select
@@ -92,7 +92,7 @@ class DNSCache(object):
         expiration = value.expiration-time()
         if expiration > 0:
             self.data[key] = value
-            reactor.callLater(limit(expiration, max=sys.maxint), self.data.pop, key, None)
+            reactor.callLater(limit(expiration, max=3600), self.data.pop, key, None)
 
     def flush(self, key=None):
         if key is not None:
