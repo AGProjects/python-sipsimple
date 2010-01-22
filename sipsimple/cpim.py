@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+# Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
 """Simple parser and constructor of Message/CPIM content type used for

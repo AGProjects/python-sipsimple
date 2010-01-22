@@ -1,4 +1,4 @@
-# Copyright (C) 2009 AG Projects. See LICENSE for details.
+# Copyright (C) 2009-2010 AG Projects. See LICENSE for details.
 #
 
 """Generates icon application documents according to OMA TS Presence SIMPLE Content"""

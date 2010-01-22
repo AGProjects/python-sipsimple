@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
+# Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
 """Implements a SIP Account management system that allows the definition of
