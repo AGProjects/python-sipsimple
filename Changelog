@@ -1,3 +1,49 @@
+python-sipsimple (0.12.0) unstable; urgency=low
+
+  * Removed obsolete desktopsharing.py file
+  * Use OMA standard auids for icon and directory applications
+  * Added slot property to AudioStream
+  * Refactored DNS lookup implementation
+  * Don't bit-shift g722 audio samples
+  * Updated installation procedures
+  * Added IVirtualAudioDevice interface and support for it in AudioStream
+  * Modified DNSLookup to offer both a synchronous and an asynchronous API
+  * Improved logging in DNSLookup.lookup_service
+  * Added the request URI to the SIPEngineGotMessage notification data
+  * Added CIPID (RFC4482) application
+  * Added check in MSRPStreamBase for transport mismatch in settings
+  * Added checks for SDP media stream transport for incoming sessions
+  * Made Registration always communicate via notifications
+  * Added capabilities application (RFC5196)
+  * Added conference XML application (RFC4575)
+  * Added message summary application (RFC3842)
+  * Modified AudioStream to support changing the rtp port in reINVITEs
+  * Pass code and reason of SIP MESSAGE response to its notification
+  * Added dialog-info application (RFC4235)
+  * Added call_in_(twisted|green)_thread utility functions
+  * Added limit utility function
+  * Refactored sipsimple.account using a green model
+  * Restrucutred SIPApplication to simplify the code
+  * Added support for detecting default IP address changes
+  * Added redirect_identities attribute to SIPSessionDidFail notifications
+  * Modified Account to re-register when some settings change
+  * Removed sip.ip_address and rtp.ip_address global settings
+  * Removed msrp.port global setting
+  * Reorganized account registration notifications
+  * Reorganized settings
+  * Patched dns.entropy module which is not thread-safe
+  * Modified SilenceableWaveFile to use a green model
+  * Made Account.credentials a property
+  * Reorganized the contents of the sipsimple.util module
+  * Modified MSRPStreamBase to stop other operations when an end is requested
+  * Added support for SystemDidWakeUpFromSleep notification in registration
+  * Moved Timestamp from sipsimple.applications.util to sipsimple.util
+  * Removed sipclients related modules, scripts and data from the project
+  * Reorganized packages and modules
+  * Numerous bug fixes
+
+ -- Lucian Stanescu <luci@ag-projects.com>  Wed, 20 Jan 2010 12:21:35 +0000
+
 python-sipsimple (0.9.0) unstable; urgency=low
 
   * Added upgrade guide:
