@@ -18,6 +18,7 @@ from application.system import unlink
 from zope.interface import implements
 
 from sipsimple.configuration.backend import IConfigurationBackend, ConfigurationBackendError
+from sipsimple.util import makedirs
 
 
 class FileParserError(ConfigurationBackendError):
@@ -182,8 +183,11 @@ class FileBackend(object):
         in a format suitable to be read back using load().
         """
         lines = self._build_group(data, 0)
-        tmp_filename = os.path.join(os.path.dirname(self.filename), '%s.%d.%08X' % (self.filename, os.getpid(), random.getrandbits(32)))
+        config_directory = os.path.dirname(self.filename)
+        tmp_filename = '%s.%d.%08X' % (self.filename, os.getpid(), random.getrandbits(32))
         try:
+            if config_directory:
+                makedirs(config_directory)
             file = os.fdopen(os.open(tmp_filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0600), 'wb')
             file.write((os.linesep.join(lines)+os.linesep).encode(self.encoding))
             file.close()
