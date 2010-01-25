@@ -165,6 +165,11 @@ class SIPApplication(object):
         if settings.audio.silent:
             self.alert_conference_bridge.output_volume = 0
 
+        settings.audio.input_device = self.voice_conference_bridge.input_device
+        settings.audio.output_device = self.voice_conference_bridge.output_device
+        settings.audio.alert_device = self.alert_conference_bridge.output_device
+        settings.save()
+
         # initialize middleware components
         account_manager.start()
         session_manager.start()
