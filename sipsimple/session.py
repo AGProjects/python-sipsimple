@@ -20,7 +20,7 @@ from eventlet import api
 from eventlet.coros import queue
 from zope.interface import implements
 
-from sipsimple.core import Engine, Invitation, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
+from sipsimple.core import Engine, Invitation, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
 from sipsimple.core import ContactHeader, FromHeader, RouteHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
@@ -1165,37 +1165,47 @@ class Session(object):
                             for stream in removed_streams:
                                 notification_center.remove_observer(self, sender=stream)
                                 stream.deactivate()
-                                self.streams.remove(stream)
                                 local_sdp.media[stream.index].port = 0
                             for stream in self.streams:
                                 local_sdp.media[stream.index] = stream.get_local_media(for_offer=False)
-                            self._invitation.send_response(200, sdp=local_sdp)
-                            for stream in removed_streams:
-                                stream.end()
-                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
+                            try:
+                                self._invitation.send_response(200, sdp=local_sdp)
+                            except PJSIPError, e:
+                                if 'PJMEDIA_SDPNEG' in str(e):
+                                    engine = Engine()
+                                    self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Changing the codec of an audio stream is currently not supported')])
+                                    self.state = 'connected'
+                                    notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=488, reason=sip_status_messages[488], ack_received='unknown'))
+                                    return
+                                else:
+                                    raise
+                            else:
+                                for stream in removed_streams:
+                                    self.streams.remove(stream)
+                                    stream.end()
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
 
-
-                            received_invitation_state = False
-                            received_sdp_update = False
-                            while not received_sdp_update or not received_invitation_state:
-                                notification = self._channel.wait()
-                                if notification.name == 'SIPInvitationGotSDPUpdate':
-                                    received_sdp_update = True
-                                    if notification.data.succeeded:
-                                        local_sdp = notification.data.local_sdp
-                                        remote_sdp = notification.data.remote_sdp
-                                        for stream in self.streams:
-                                            stream.update(local_sdp, remote_sdp, stream.index)
-                                elif notification.name == 'SIPInvitationChangedState':
-                                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
-                                        received_invitation_state = True
-                            on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
-                            if on_hold_streams != prev_on_hold_streams:
-                                hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
-                                notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='remote', on_hold=bool(on_hold_streams),
-                                                                      partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
-                            if removed_media_indexes:
-                                notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=removed_streams))
+                                received_invitation_state = False
+                                received_sdp_update = False
+                                while not received_sdp_update or not received_invitation_state:
+                                    notification = self._channel.wait()
+                                    if notification.name == 'SIPInvitationGotSDPUpdate':
+                                        received_sdp_update = True
+                                        if notification.data.succeeded:
+                                            local_sdp = notification.data.local_sdp
+                                            remote_sdp = notification.data.remote_sdp
+                                            for stream in self.streams:
+                                                stream.update(local_sdp, remote_sdp, stream.index)
+                                    elif notification.name == 'SIPInvitationChangedState':
+                                        if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                                            received_invitation_state = True
+                                on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
+                                if on_hold_streams != prev_on_hold_streams:
+                                    hold_supported_streams = (stream for stream in self.streams if stream.hold_supported)
+                                    notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='remote', on_hold=bool(on_hold_streams),
+                                                                          partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
+                                if removed_media_indexes:
+                                    notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='remove', streams=removed_streams))
                     except InvitationDidFailError, e:
                         self.greenlet = None
                         self.state == 'connected'
