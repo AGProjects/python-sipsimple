@@ -35,6 +35,7 @@ cdef class Request:
     cdef int _timer_active
     cdef int _expire_rest
     cdef object _expire_time
+    cdef object _timeout
 
     # properties
 
@@ -209,6 +210,7 @@ cdef class Request:
                 raise ValueError("Timeout value cannot be negative")
             timeout_pj.sec = int(timeout)
             timeout_pj.msec = (timeout * 1000) % 1000
+        self._timeout = timeout
         status = pjsip_tsx_send_msg(self._tsx, self._tdata)
         if status != 0:
             raise PJSIPError("Could not send request", status)
@@ -252,7 +254,7 @@ cdef class Request:
         cdef int expires = -1
         cdef SIPURI contact_uri
         cdef dict contact_params
-        cdef pj_time_val expire_warning
+        cdef pj_time_val timeout_pj
         cdef int status
         if rdata != NULL:
             self.to_header = FrozenToHeader_create(rdata.msg_info.to_hdr)
@@ -302,6 +304,12 @@ cdef class Request:
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
                     return 0
+                elif self._timeout is not None:
+                    timeout_pj.sec = int(self._timeout)
+                    timeout_pj.msec = (self._timeout * 1000) % 1000
+                    status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
+                    if status == 0:
+                        self._timer_active = 1
             else:
                 event_dict = dict(obj=self)
                 if rdata != NULL:
@@ -334,13 +342,13 @@ cdef class Request:
                     self.state = "TERMINATED"
                     _add_event("SIPRequestDidEnd", dict(obj=self))
                 else:
-                    expire_warning.sec = max(1, expires - self.expire_warning_time, expires/2)
-                    expire_warning.msec = 0
-                    status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &expire_warning)
+                    timeout_pj.sec = max(1, expires - self.expire_warning_time, expires/2)
+                    timeout_pj.msec = 0
+                    status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._timer, &timeout_pj)
                     if status == 0:
                         self._timer_active = 1
                         self.state = "EXPIRING"
-                        self._expire_rest = max(1, expires - expire_warning.sec)
+                        self._expire_rest = max(1, expires - timeout_pj.sec)
                     else:
                         self.state = "TERMINATED"
                         _add_event("SIPRequestDidEnd", dict(obj=self))
