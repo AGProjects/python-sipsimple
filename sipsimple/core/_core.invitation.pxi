@@ -314,7 +314,7 @@ cdef class Invitation:
             with nogil:
                 status = pjsip_inv_answer(invite_session, code, &reason_str if reason is not None else NULL,
                                           local_sdp, &tdata)
-            if status != 0 and not _pj_status_to_def(status).startswith("PJMEDIA_SDPNEG"):
+            if status != 0:
                 raise PJSIPError("Could not create %d reply to INVITE" % code, status)
             _add_headers_to_tdata(tdata, extra_headers)
             with nogil:
