@@ -623,7 +623,7 @@ cdef class Invitation:
                     if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER:
                         pjmedia_sdp_neg_get_neg_local(self._invite_session.neg, &sdp)
                         self.sdp.proposed_local = FrozenSDPSession_create(sdp)
-                elif self.sub_state in ("received proposal", "sent_proposal"):
+                elif self.sub_state in ("received_proposal", "sent_proposal"):
                     if rdata is None:
                         event_dict['code'] = 408
                         event_dict['reason'] = 'Request Timeout'
