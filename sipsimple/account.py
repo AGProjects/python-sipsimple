@@ -275,6 +275,7 @@ class DialogEventSettings(SettingsGroup):
     enable_subscribe = Setting(type=bool, default=True)
     enable_publish = Setting(type=bool, default=False)
     enable_dialog_rules = Setting(type=bool, default=False)
+    enable_subscribe_winfo = Setting(type=bool, default=True)
 
 
 class NatTraversalSettings(SettingsGroup):
@@ -295,6 +296,7 @@ class XCAPSettings(SettingsGroup):
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
     subscribe_xcap_diff = Setting(type=bool, default=True)
     icon = Setting(type=bool, default=True)
+    pidf_manipulation = Setting(type=bool, default=True)
 
 
 class PresenceSettings(SettingsGroup):
