@@ -122,7 +122,7 @@ class MSRPStreamBase(object):
                     relay = MSRPRelaySettings(domain=self.account.uri.host,
                                               username=self.account.uri.user,
                                               password=credentials.password if credentials else '')
-                    self.transport = setting.msrp.transport
+                    self.transport = settings.msrp.transport
                 else:
                     relay = MSRPRelaySettings(domain=self.account.uri.host,
                                               username=self.account.uri.user,
