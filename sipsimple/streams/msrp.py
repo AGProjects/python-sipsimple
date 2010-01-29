@@ -942,7 +942,7 @@ class NotificationProxyLogger(object):
             self.transport_data_in[transport] = self.transport_data_in.get(transport, '') + data
 
     def debug(self, message, **context):
-        NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.DEBUG))
+        pass
 
     def info(self, message, **context):
         NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.INFO))
