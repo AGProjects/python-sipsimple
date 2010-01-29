@@ -301,7 +301,7 @@ class Session(object):
         try:
             self._invitation.send_response(180)
         except SIPCoreInvalidStateError:
-            pass # The INVITE session might have already been canceled; ignore the error
+            pass # The INVITE session might have already been cancelled; ignore the error
 
     @transition_state('incoming', 'accepting')
     @run_in_green_thread
@@ -447,8 +447,8 @@ class Session(object):
                 stream.end()
             self.state = 'terminated'
             if e.data.prev_state in ('incoming', 'early'):
-                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Canceled', ack_received='unknown'))
-                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Canceled', failure_reason=e.data.disconnect_reason, redirect_identities=None))
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Cancelled', ack_received='unknown'))
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Cancelled', failure_reason=e.data.disconnect_reason, redirect_identities=None))
             elif e.data.prev_state == 'connecting' and e.data.disconnect_reason == 'missing ACK':
                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=False))
                 notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=200, reason=sip_status_messages[200], failure_reason=e.data.disconnect_reason, redirect_identities=None))
@@ -459,15 +459,15 @@ class Session(object):
                 notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='remote', end_reason=e.data.disconnect_reason))
             self.greenlet = None
         except SIPCoreInvalidStateError:
-            # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was canceled by the remote party
+            # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was cancelled by the remote party
             notification_center.remove_observer(self, sender=self._invitation)
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
                 stream.deactivate()
                 stream.end()
             self.state = 'terminated'
-            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Canceled', ack_received='unknown'))
-            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Canceled', failure_reason='user request', redirect_identities=None))
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Cancelled', ack_received='unknown'))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
         except SIPCoreError, e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
@@ -506,11 +506,11 @@ class Session(object):
                                                                   TimestampedNotificationData(originator='remote', method='INVITE', code=code, reason=sip_status_messages[code], ack_received=ack_received))
                             break
         except SIPCoreInvalidStateError:
-            # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was canceled by the remote party
+            # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was cancelled by the remote party
             notification_center.remove_observer(self, sender=self._invitation)
             self.state = 'terminated'
-            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Canceled', ack_received='unknown'))
-            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Canceled', failure_reason='user request', redirect_identities=None))
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Cancelled', ack_received='unknown'))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
         except SIPCoreError, e:
             code = 200 if self._invitation.state not in ('incoming', 'early') else 0
             reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
@@ -893,7 +893,7 @@ class Session(object):
         self.greenlet = None
         self.state = 'terminated'
         if cancelling:
-            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Canceled', failure_reason='user request', redirect_identities=None))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
         else:
             self.end_time = datetime.now()
             notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='user request'))
@@ -1047,7 +1047,7 @@ class Session(object):
                                 ack_received = notification.data.disconnect_reason != 'missing ACK'
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received=ack_received))
                             elif self._invitation.direction == 'outgoing' and prev_inv_state in ('outgoing', 'early'):
-                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=487, reason='Session Canceled'))
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=487, reason='Session Cancelled'))
                             break
             except SIPCoreError:
                 pass
@@ -1218,8 +1218,8 @@ class Session(object):
                     if self.state == 'incoming':
                         self.state = 'terminated'
                         if notification.data.originator == 'remote':
-                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Canceled', ack_received='unknown'))
-                            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Canceled', failure_reason='user request', redirect_identities=None))
+                            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Cancelled', ack_received='unknown'))
+                            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
                         else:
                             # There must have been an error involved
                             notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=0, reason=None, failure_reason=notification.data.disconnect_reason, redirect_identities=None))
