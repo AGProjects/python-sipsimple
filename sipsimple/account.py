@@ -733,7 +733,7 @@ class AccountManager(object):
         return self.accounts.get(settings.default_account, None)
 
     def _set_default_account(self, account):
-        if not account.enabled:
+        if account is not None and not account.enabled:
             raise ValueError("account %s is not enabled" % account.id)
         settings = SIPSimpleSettings()
         old_account = self.accounts.get(settings.default_account, None)
