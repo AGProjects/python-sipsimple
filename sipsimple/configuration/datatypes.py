@@ -474,6 +474,10 @@ class TLSProtocol(str):
 
 class Path(str):
     def __new__(cls, path):
-        return os.path.normpath(str(path))
+        return str.__new__(cls, os.path.normpath(path))
+
+    @property
+    def normalized(self):
+        return os.path.expanduser(self)
 
 
