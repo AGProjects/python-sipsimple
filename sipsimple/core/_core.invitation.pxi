@@ -430,6 +430,42 @@ cdef class Invitation:
             with nogil:
                 pj_mutex_unlock(lock)
 
+    def cancel_reinvite(self):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjsip_inv_session *invite_session
+        cdef pjsip_tx_data *tdata
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            invite_session = self._invite_session
+
+            if not self.sub_state == "sent_proposal":
+                raise SIPCoreError("re-INVITE can only be cancelled if INVITE session is in 'sent_proposal' sub state")
+            if self._invite_session == NULL:
+                raise SIPCoreError("INVITE session is not active")
+            if self._reinvite_transaction == NULL:
+                raise SIPCoreError("there is no active re-INVITE transaction")
+
+            with nogil:
+                status = pjsip_inv_cancel_reinvite(invite_session, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create message to CANCEL re-INVITE transaction", status)
+            if tdata != NULL:
+                with nogil:
+                    status = pjsip_inv_send_msg(invite_session, tdata)
+                if status != 0:
+                    raise PJSIPError("Could not send %s" % _pj_str_to_str(tdata.msg.line.req.method.name), status)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
     property local_identity:
 
         def __get__(self):
@@ -593,6 +629,7 @@ cdef class Invitation:
                     event_dict = dict(obj=self, prev_state=self.state, state="disconnecting", originator="local")
                     self.state = "disconnecting"
                     _add_event("SIPInvitationChangedState", event_dict)
+
             if self.direction == "outgoing" and state in ('connecting', 'connected') and self.state in ('outgoing', 'early') and rdata is not None:
                 self.to_header = rdata['headers']['To']
 
@@ -624,9 +661,13 @@ cdef class Invitation:
                         pjmedia_sdp_neg_get_neg_local(self._invite_session.neg, &sdp)
                         self.sdp.proposed_local = FrozenSDPSession_create(sdp)
                 elif self.sub_state in ("received_proposal", "sent_proposal"):
-                    if rdata is None:
+                    if (rdata, tdata) == (None, None):
                         event_dict['code'] = 408
                         event_dict['reason'] = 'Request Timeout'
+                    if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_LOCAL_OFFER:
+                        pjmedia_sdp_neg_cancel_offer(self._invite_session.neg)
+                    if pjmedia_sdp_neg_get_state(self._invite_session.neg) == PJMEDIA_SDP_NEG_STATE_REMOTE_OFFER:
+                        pjmedia_sdp_neg_cancel_remote_offer(self._invite_session.neg)
                     self._reinvite_transaction = NULL
             if state == "disconnected":
                 event_dict["disconnect_reason"] = "user request"
@@ -751,12 +792,6 @@ cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
             elif state == "confirmed":
                 state = "connected"
                 sub_state = "normal"
-            elif state == "reinvited":
-                state = "connected"
-                sub_state = "received_proposal"
-            elif state == "reinviting":
-                state = "connected"
-                sub_state = "sent_proposal"
             elif state == "disconnctd":
                 state = "disconnected"
             if e != NULL:
@@ -842,7 +877,9 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
 
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil:
     cdef pjsip_rx_data *rdata = NULL
+    cdef pjsip_tx_data *tdata = NULL
     cdef object rdata_dict = None
+    cdef object tdata_dict = None
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef StateCallbackTimer timer
@@ -855,6 +892,8 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
             return
         if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
             rdata = e.body.tsx_state.src.rdata
+        if e.type == PJSIP_EVENT_TSX_STATE and e.body.tsx_state.type == PJSIP_EVENT_TX_MSG:
+            tdata = e.body.tsx_state.src.tdata
         if inv.mod_data[ua._module.id] != NULL:
             invitation = (<object> inv.mod_data[ua._module.id])()
             if invitation is None:
@@ -864,8 +903,11 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
                 if rdata != NULL:
                     rdata_dict = dict()
                     _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+                if tdata != NULL:
+                    tdata_dict = dict()
+                    _pjsip_msg_to_dict(tdata.msg, tdata_dict)
                 try:
-                    timer = StateCallbackTimer("connected", "normal", rdata_dict, None)
+                    timer = StateCallbackTimer("connected", "normal", rdata_dict, tdata_dict)
                     timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
                 except:
                     invitation._fail(ua)

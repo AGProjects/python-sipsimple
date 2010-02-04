@@ -1,0 +1,109 @@
+Index: pjsip/include/pjsip-ua/sip_inv.h
+===================================================================
+--- pjsip/include/pjsip-ua/sip_inv.h	(revisión: 3056)
++++ pjsip/include/pjsip-ua/sip_inv.h	(copia de trabajo)
+@@ -687,6 +687,22 @@
+ 
+ 
+ 
++ /** 
++ * Creates a CANCEL request for an ongoing re-INVITE transaction.
++ *
++ * @param inv		The invite session.
++ * @param p_tdata	Pointer to receive the message to be created. Note
++ *			that it's possible to receive NULL here while the
++ *			function returns PJ_SUCCESS, see the description.
++ *
++ * @return		PJ_SUCCESS if termination is initiated.
++ */
++PJ_DECL(pj_status_t) pjsip_inv_cancel_reinvite( pjsip_inv_session *inv,
++					    pjsip_tx_data **p_tdata );
++
++
++
++
+ /**
+  * Create a re-INVITE request. 
+  *
+Index: pjsip/src/pjsip-ua/sip_inv.c
+===================================================================
+--- pjsip/src/pjsip-ua/sip_inv.c	(revisión: 3056)
++++ pjsip/src/pjsip-ua/sip_inv.c	(copia de trabajo)
+@@ -1936,6 +1936,56 @@
+     return PJ_SUCCESS;
+ }
+ 
++/*
++ * Cancel re-INVITE transaction.
++ */
++PJ_DEF(pj_status_t) pjsip_inv_cancel_reinvite(  pjsip_inv_session *inv,
++					    pjsip_tx_data **p_tdata )
++{
++    pjsip_tx_data *tdata;
++    pj_status_t status;
++
++    /* Verify arguments. */
++    PJ_ASSERT_RETURN(inv && p_tdata, PJ_EINVAL);
++
++    /* Create appropriate message. */
++    switch (inv->state) {
++    case PJSIP_INV_STATE_CONFIRMED:
++        /* MUST have the original UAC INVITE transaction  */
++        PJ_ASSERT_RETURN(inv->invite_tsx != NULL, PJ_EBUG);
++
++        /* CANCEL should only be called when we have received a
++         * provisional response. If we haven't received any responses,
++         * just destroy the transaction.
++         */
++        if (inv->invite_tsx->status_code < 100) {
++            inv->pending_cancel = PJ_TRUE;
++            *p_tdata = NULL;
++            PJ_LOG(4, (inv->obj_name, "Delaying CANCEL since no "
++                       "provisional response is received yet"));
++            return PJ_SUCCESS;
++        }
++
++        status = pjsip_endpt_create_cancel(inv->dlg->endpt, 
++                                           inv->invite_tsx->last_tx,
++                                           &tdata);
++        if (status != PJ_SUCCESS)
++            return status;
++	break;
++
++    default:
++        /* We can send a CANCEL to a re-INVITE if the INVITE session is not confirmed. */
++        status = PJ_FALSE;
++	break;
++    }
++
++    if (status != PJ_SUCCESS)
++	return status;
++
++    *p_tdata = tdata;
++    return PJ_SUCCESS;
++}
++
+ /* Following redirection recursion, get next target from the target set and
+  * notify user.
+  *
+@@ -3746,6 +3796,20 @@
+ 	    /* Save pending invite transaction */
+ 	    inv->invite_tsx = tsx;
+ 
++        } else if (tsx->state == PJSIP_TSX_STATE_PROCEEDING) {
++            
++            /* CANCEL the re-INVITE if necessary */
++            if (inv->pending_cancel) {
++	        pj_status_t status;
++		pjsip_tx_data *cancel;
++
++		inv->pending_cancel = PJ_FALSE;
++
++		status = pjsip_inv_cancel_reinvite(inv, &cancel);
++		if (status == PJ_SUCCESS && cancel)
++		    status = pjsip_inv_send_msg(inv, cancel);
++            }
++
+ 	} else if (tsx->state == PJSIP_TSX_STATE_TERMINATED &&
+ 		   tsx->status_code/100 == 2) 
+ 	{

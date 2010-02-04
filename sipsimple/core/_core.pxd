@@ -382,6 +382,8 @@ cdef extern from "pjmedia.h":
     int pjmedia_sdp_neg_get_neg_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
     int pjmedia_sdp_neg_get_active_remote(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *remote) nogil
     int pjmedia_sdp_neg_get_active_local(pjmedia_sdp_neg *neg, pjmedia_sdp_session_ptr_const *local) nogil
+    int pjmedia_sdp_neg_cancel_offer(pjmedia_sdp_neg *neg) nogil
+    int pjmedia_sdp_neg_cancel_remote_offer(pjmedia_sdp_neg *neg) nogil
     pjmedia_sdp_neg_state pjmedia_sdp_neg_get_state(pjmedia_sdp_neg *neg) nogil
     char *pjmedia_sdp_neg_state_str(pjmedia_sdp_neg_state state) nogil
 
@@ -979,6 +981,7 @@ cdef extern from "pjsip_ua.h":
     int pjsip_inv_usage_init(pjsip_endpoint *endpt, pjsip_inv_callback *cb) nogil
     int pjsip_inv_terminate(pjsip_inv_session *inv, int st_code, int notify) nogil
     int pjsip_inv_end_session(pjsip_inv_session *inv, int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata) nogil
+    int pjsip_inv_cancel_reinvite(pjsip_inv_session *inv, pjsip_tx_data **p_tdata) nogil
     int pjsip_inv_send_msg(pjsip_inv_session *inv, pjsip_tx_data *tdata) nogil
     int pjsip_inv_verify_request(pjsip_rx_data *rdata, unsigned int *options, pjmedia_sdp_session *sdp,
                                  pjsip_dialog *dlg, pjsip_endpoint *endpt, pjsip_tx_data **tdata) nogil

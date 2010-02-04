@@ -79,7 +79,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2833-parse_pjsip_allow_events_hdr.patch",
                    "patches/pjsip-2830-runtime_device_change_detection.patch",
                    "patches/pjsip-2342-g722-14-bits-conversion.patch",
-                   "patches/pjsip-2656-ip_selection_algorithm.patch"]
+                   "patches/pjsip-2656-ip_selection_algorithm.patch",
+                   "patches/pjsip-2830-allow_cancel_reinvite.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
