@@ -1111,9 +1111,15 @@ class Session(object):
     def _fail_proposal(self, originator, error):
         notification_center = NotificationCenter()
         for stream in self.proposed_streams:
-            notification_center.remove_observer(self, sender=stream)
-            stream.deactivate()
-            stream.end()
+            try:
+                notification_center.remove_observer(self, sender=stream)
+            except KeyError:
+                # _fail_proposal can be called from reject_proposal, which means the stream will
+                # not have been initialized or the session registered as an observer for it.
+                pass
+            else:
+                stream.deactivate()
+                stream.end()
         if originator == 'remote' and self._invitation.sub_state == 'received_proposal':
             self._invitation.send_response(500)
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=500, reason=sip_status_messages[500], ack_received='unknown'))
