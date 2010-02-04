@@ -490,12 +490,12 @@ class Session(object):
 
     @transition_state('incoming', 'terminating')
     @run_in_green_thread
-    def reject(self, code=603):
+    def reject(self, code=603, reason=None):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
 
         try:
-            self._invitation.send_response(code)
+            self._invitation.send_response(code, reason)
             with api.timeout(1):
                 while True:
                     notification = self._channel.wait()
@@ -627,12 +627,12 @@ class Session(object):
                 self._send_hold()
 
     @run_in_green_thread
-    def reject_proposal(self, code=488):
+    def reject_proposal(self, code=488, reason=None):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
 
         try:
-            self._invitation.send_response(code)
+            self._invitation.send_response(code, reason)
             with api.timeout(1, None):
                 while True:
                     notification = self._channel.wait()
