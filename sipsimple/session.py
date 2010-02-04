@@ -626,6 +626,7 @@ class Session(object):
             if self._hold_in_progress:
                 self._send_hold()
 
+    @transition_state('received_proposal', 'rejecting_proposal')
     @run_in_green_thread
     def reject_proposal(self, code=488, reason=None):
         self.greenlet = api.getcurrent()
