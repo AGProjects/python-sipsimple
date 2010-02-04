@@ -873,9 +873,9 @@ class DesktopSharingStream(MSRPStreamBase):
                     response = make_response(chunk, 501, 'Unknown method')
                     report = None
                 if response is not None:
-                    self.msrp.write(response.encode())
+                    self.msrp.write_chunk(response)
                 if report is not None:
-                    self.msrp.write(response.encode())
+                    self.msrp.write_chunk(response)
             except ProcExit:
                 raise
             except Exception, e:
@@ -893,7 +893,7 @@ class DesktopSharingStream(MSRPStreamBase):
                 chunk = self.msrp.make_chunk(data=data)
                 chunk.add_header(FailureReportHeader('no'))
                 chunk.add_header(ContentTypeHeader('application/x-rfb'))
-                self.msrp.write(chunk.encode())
+                self.msrp.write_chunk(chunk)
             except ProcExit:
                 raise
             except Exception, e:
@@ -925,21 +925,55 @@ class DesktopSharingStream(MSRPStreamBase):
 # temporary solution. to be replaced later by a better logging system in msrplib -Dan
 class NotificationProxyLogger(object):
     def __init__(self):
-        from weakref import WeakKeyDictionary
         from application import log
-        self.transport_data_in = WeakKeyDictionary()
         self.level = log.level
+        self.stripped_data_transactions = set()
+        self.text_transactions = set()
+        self.transaction_data = {}
 
     def report_out(self, data, transport, new_chunk=True):
-        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='outgoing', data=data))
+        pass
 
     def report_in(self, data, transport, new_chunk=False, packet_done=False):
-        if new_chunk or packet_done:
-            old_data = self.transport_data_in.pop(transport, None)
-            if old_data is not None:
-                NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='incoming', data=old_data))
-        if data:
-            self.transport_data_in[transport] = self.transport_data_in.get(transport, '') + data
+        pass
+
+    def received_new_chunk(self, data, transport, chunk):
+        content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
+        if chunk.method != 'SEND' or (chunk.content_type and content_type in ('text', 'message')):
+            self.text_transactions.add(chunk.transaction_id)
+        self.transaction_data[chunk.transaction_id] = data
+
+    def received_chunk_data(self, data, transport, transaction_id):
+        if transaction_id in self.text_transactions:
+            self.transaction_data[transaction_id] += data
+        elif transaction_id not in self.stripped_data_transactions:
+            self.transaction_data[transaction_id] += '<stripped data>'
+            self.stripped_data_transactions.add(transaction_id)
+
+    def received_chunk_end(self, data, transport, transaction_id):
+        chunk = self.transaction_data.pop(transaction_id) + data
+        self.stripped_data_transactions.discard(transaction_id)
+        self.text_transactions.discard(transaction_id)
+        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='incoming', data=chunk))
+
+    def sent_new_chunk(self, data, transport, chunk):
+        content_type = chunk.content_type.split('/')[0].lower() if chunk.content_type else None
+        if chunk.method != 'SEND' or (chunk.content_type and content_type in ('text', 'message')):
+            self.text_transactions.add(chunk.transaction_id)
+        self.transaction_data[chunk.transaction_id] = data
+
+    def sent_chunk_data(self, data, transport, transaction_id):
+        if transaction_id in self.text_transactions:
+            self.transaction_data[transaction_id] += data
+        elif transaction_id not in self.stripped_data_transactions:
+            self.transaction_data[transaction_id] += '<stripped data>'
+            self.stripped_data_transactions.add(transaction_id)
+
+    def sent_chunk_end(self, data, transport, transaction_id):
+        chunk = self.transaction_data.pop(transaction_id) + data
+        self.stripped_data_transactions.discard(transaction_id)
+        self.text_transactions.discard(transaction_id)
+        NotificationCenter().post_notification('MSRPTransportTrace', sender=transport, data=TimestampedNotificationData(direction='outgoing', data=chunk))
 
     def debug(self, message, **context):
         pass
