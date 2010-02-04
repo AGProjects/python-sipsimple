@@ -815,6 +815,49 @@ class Session(object):
             if self._hold_in_progress:
                 self._send_hold()
 
+    @transition_state('sending_proposal', 'cancelling_proposal')
+    @run_in_green_thread
+    def cancel_proposal(self):
+        if self.greenlet is not None:
+            api.kill(self.greenlet, api.GreenletExit())
+        self.greenlet = api.getcurrent()
+        notification_center = NotificationCenter()
+        try:
+            self._invitation.cancel_reinvite()
+            while True:
+                try:
+                    notification = self._channel.wait()
+                except MediaStreamDidFailError:
+                    continue
+                if notification.name == 'SIPInvitationChangedState':
+                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                        if notification.data.code == 487:
+                            if self.proposed_streams:
+                                for stream in self.proposed_streams:
+                                    stream.deactivate()
+                                    stream.end()
+                            notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='remote', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
+                        elif notification.data.code == 200:
+                            self.end()
+                    break
+        except SIPCoreError, e:
+            self.proposed_streams = None
+            self.greenlet = None
+            self.state = 'connected'
+            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e), redirect_identities=None))
+        except InvitationDidFailError, e:
+            self.proposed_streams = None
+            self.greenlet = None
+            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
+        else:
+            self.proposed_streams = None
+            self.greenlet = None
+            self.state = 'connected'
+        finally:
+            if self._hold_in_progress:
+                self._send_hold()
+
     @run_in_green_thread
     def hold(self):
         if self.on_hold or self._hold_in_progress:
@@ -897,49 +940,6 @@ class Session(object):
         else:
             self.end_time = datetime.now()
             notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='user request'))
-
-    @transition_state('sending_proposal', 'cancelling_proposal')
-    @run_in_green_thread
-    def cancel_proposal(self):
-        if self.greenlet is not None:
-            api.kill(self.greenlet, api.GreenletExit())
-        self.greenlet = api.getcurrent()
-        notification_center = NotificationCenter()
-        try:
-            self._invitation.cancel_reinvite()
-            while True:
-                try:
-                    notification = self._channel.wait()
-                except MediaStreamDidFailError:
-                    continue
-                if notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
-                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=notification.data.code, reason=notification.data.reason))
-                        if notification.data.code == 487:
-                            if self.proposed_streams:
-                                for stream in self.proposed_streams:
-                                    stream.deactivate()
-                                    stream.end()
-                            notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='remote', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
-                        elif notification.data.code == 200:
-                            self.end()
-                    break
-        except SIPCoreError, e:
-            self.proposed_streams = None
-            self.greenlet = None
-            self.state = 'connected'
-            notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', code=0, reason=None, failure_reason='SIP core error: %s' % str(e), redirect_identities=None))
-        except InvitationDidFailError, e:
-            self.proposed_streams = None
-            self.greenlet = None
-            self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
-        else:
-            self.proposed_streams = None
-            self.greenlet = None
-            self.state = 'connected'
-        finally:
-            if self._hold_in_progress:
-                self._send_hold()
 
     @property
     def local_identity(self):

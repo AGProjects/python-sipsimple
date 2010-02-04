@@ -370,6 +370,42 @@ cdef class Invitation:
             with nogil:
                 pj_mutex_unlock(lock)
 
+    def cancel_reinvite(self):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjsip_inv_session *invite_session
+        cdef pjsip_tx_data *tdata
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            invite_session = self._invite_session
+
+            if not self.sub_state == "sent_proposal":
+                raise SIPCoreError("re-INVITE can only be cancelled if INVITE session is in 'sent_proposal' sub state")
+            if self._invite_session == NULL:
+                raise SIPCoreError("INVITE session is not active")
+            if self._reinvite_transaction == NULL:
+                raise SIPCoreError("there is no active re-INVITE transaction")
+
+            with nogil:
+                status = pjsip_inv_cancel_reinvite(invite_session, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create message to CANCEL re-INVITE transaction", status)
+            if tdata != NULL:
+                with nogil:
+                    status = pjsip_inv_send_msg(invite_session, tdata)
+                if status != 0:
+                    raise PJSIPError("Could not send %s" % _pj_str_to_str(tdata.msg.line.req.method.name), status)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
     def end(self, list extra_headers not None=list(), timeout=None):
         cdef int status
         cdef pj_mutex_t *lock = self._lock
@@ -426,42 +462,6 @@ cdef class Invitation:
             if tdata != NULL:
                 _pjsip_msg_to_dict(tdata.msg, event_dict)
             _add_event("SIPInvitationChangedState", event_dict)
-        finally:
-            with nogil:
-                pj_mutex_unlock(lock)
-
-    def cancel_reinvite(self):
-        cdef int status
-        cdef pj_mutex_t *lock = self._lock
-        cdef pjsip_inv_session *invite_session
-        cdef pjsip_tx_data *tdata
-        cdef PJSIPUA ua
-
-        ua = _get_ua()
-
-        with nogil:
-            status = pj_mutex_lock(lock)
-        if status != 0:
-            raise PJSIPError("failed to acquire lock", status)
-        try:
-            invite_session = self._invite_session
-
-            if not self.sub_state == "sent_proposal":
-                raise SIPCoreError("re-INVITE can only be cancelled if INVITE session is in 'sent_proposal' sub state")
-            if self._invite_session == NULL:
-                raise SIPCoreError("INVITE session is not active")
-            if self._reinvite_transaction == NULL:
-                raise SIPCoreError("there is no active re-INVITE transaction")
-
-            with nogil:
-                status = pjsip_inv_cancel_reinvite(invite_session, &tdata)
-            if status != 0:
-                raise PJSIPError("Could not create message to CANCEL re-INVITE transaction", status)
-            if tdata != NULL:
-                with nogil:
-                    status = pjsip_inv_send_msg(invite_session, tdata)
-                if status != 0:
-                    raise PJSIPError("Could not send %s" % _pj_str_to_str(tdata.msg.line.req.method.name), status)
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
