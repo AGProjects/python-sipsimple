@@ -179,20 +179,20 @@ class AudioStream(object):
                         self.conference_bridge.disconnect_slots(self.device.producer_slot, self._audio_transport.slot)
                     if self.device.consumer_slot is not None:
                         self.conference_bridge.disconnect_slots(self._audio_transport.slot, self.device.consumer_slot)
-                if self._audio_rec and self._audio_rec[0].slot in (connection[0] for connection in self.conference_bridge.connected_slots):
-                    recording_connected = True
-                    if self.device.producer_slot is not None:
-                        self.conference_bridge.disconnect_slots(self.device.producer_slot, self._audio_rec[0].slot)
+                    if self._audio_rec and self._audio_rec[0].slot in (connection[0] for connection in self.conference_bridge.connected_slots):
+                        recording_connected = True
+                        if self.device.producer_slot is not None:
+                            self.conference_bridge.disconnect_slots(self.device.producer_slot, self._audio_rec[0].slot)
             self.__dict__['device'] = device
-            self.device.initialize(self.conference_bridge)
             if stream_connected:
+                self.device.initialize(self.conference_bridge)
                 if self.device.producer_slot is not None:
                     self.conference_bridge.connect_slots(self.device.producer_slot, self._audio_transport.slot)
                 if self.device.consumer_slot is not None:
                     self.conference_bridge.connect_slots(self._audio_transport.slot, self.device.consumer_slot)
-            if recording_connected:
-                if self.device.producer_slot is not None:
-                    self.conference_bridge.connect_slots(self.device.producer_slot, self._audio_rec[0].slot)
+                if recording_connected:
+                    if self.device.producer_slot is not None:
+                        self.conference_bridge.connect_slots(self.device.producer_slot, self._audio_rec[0].slot)
 
     device = property(_get_device, _set_device)
     del _get_device, _set_device
@@ -357,6 +357,7 @@ class AudioStream(object):
             settings = SIPSimpleSettings()
             self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout,
                                         media_check_interval=settings.rtp.timeout)
+            self.device.initialize(self.conference_bridge)
             self._check_hold(self._audio_transport.direction, True)
             self.state = 'ESTABLISHED'
             self.notification_center.post_notification("MediaStreamDidStart", self, TimestampedNotificationData())
