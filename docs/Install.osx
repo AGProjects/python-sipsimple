@@ -24,6 +24,7 @@ Step 1. Prerequisites
 ---------------------
 
  * MacOSX 10.5 (Leopard) or MacOSX 10.6 (Snow Leopard)
+ * Intel architecture
  * Apple Developer tools (XCode)
  * On Snow Leopard, the 10.4 SDK must be installed from XCode package
  * darcs version control tool from http://www.darcs.net
