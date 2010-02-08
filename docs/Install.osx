@@ -64,7 +64,7 @@ cd ~/work
 curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
 tar -xjvf libgpg-error-1.7.tar.bz2
 cd libgpg-error-1.7
-CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..
@@ -80,7 +80,7 @@ cd ..
 curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.4.tar.bz2
 tar -xjvf libgcrypt-1.4.4.tar.bz2
 cd libgcrypt-1.4.4
-CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
 sudo make install
 cd ..
@@ -90,7 +90,7 @@ cd ..
 curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.1.tar.bz2
 tar -xjvf gnutls-2.8.1.tar.bz2
 cd gnutls-2.8.1
-CFLAGS="-arch ppc -arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..
