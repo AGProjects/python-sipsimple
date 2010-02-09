@@ -1,0 +1,17 @@
+Index: pjnath/src/pjnath/ice_session.c
+===================================================================
+--- pjnath/src/pjnath/ice_session.c	(revisión: 3056)
++++ pjnath/src/pjnath/ice_session.c	(copia de trabajo)
+@@ -603,11 +603,10 @@
+ 				  pj_uint32_t local_pref,
+ 				  pj_uint32_t comp_id)
+ {
+-#if 0
+     return ((ice->prefs[type] & 0xFF) << 24) + 
+ 	   ((local_pref & 0xFFFF)    << 8) +
+ 	   (((256 - comp_id) & 0xFF) << 0);
+-#else
++#if 0
+     enum {
+ 	type_mask   = ((2 << PJ_ICE_CAND_TYPE_PREF_BITS) - 1),
+ 	local_mask  = ((2 << PJ_ICE_LOCAL_PREF_BITS) - 1),
