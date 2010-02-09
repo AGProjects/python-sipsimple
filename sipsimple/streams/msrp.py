@@ -267,6 +267,7 @@ class ChatStream(MSRPStreamBase):
     def __init__(self, account, direction='sendrecv'):
         MSRPStreamBase.__init__(self, account, direction)
         self.message_queue = queue()
+        self.sent_messages = set()
 
     @classmethod
     def new_from_sdp(cls, account, remote_sdp, stream_index):
@@ -295,12 +296,14 @@ class ChatStream(MSRPStreamBase):
 
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
-        notification_center = NotificationCenter()
-        data = TimestampedNotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
-        if chunk.status.code == 200:
-            notification_center.post_notification('ChatStreamDidDeliverMessage', self, data)
-        else:
-            notification_center.post_notification('ChatStreamDidNotDeliverMessage', self, data)
+        if chunk.message_id in self.sent_messages:
+            self.sent_messages.remove(chunk.message_id)
+            notification_center = NotificationCenter()
+            data = TimestampedNotificationData(message_id=chunk.message_id, message=chunk, code=chunk.status.code, reason=chunk.status.comment)
+            if chunk.status.code == 200:
+                notification_center.post_notification('ChatStreamDidDeliverMessage', self, data)
+            else:
+                notification_center.post_notification('ChatStreamDidNotDeliverMessage', self, data)
     
     def _handle_SEND(self, chunk):
         if self.direction=='sendonly':
@@ -329,14 +332,15 @@ class ChatStream(MSRPStreamBase):
         NotificationCenter().post_notification('ChatStreamGotMessage', self, ndata)
 
     def _on_transaction_response(self, message_id, response):
-        if response.code!=200:
+        if message_id in self.sent_messages and response.code != 200:
+            self.sent_message.remove(message_id)
             data = TimestampedNotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
             NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', self, data)
 
     def _message_queue_handler(self):
         notification_center = NotificationCenter()
         while True:
-            message_id, message, content_type, failure_report, success_report = self.message_queue.wait()
+            message_id, message, content_type, failure_report, success_report, notify_progress = self.message_queue.wait()
             if self.msrp_session is None:
                 # should we generate ChatStreamDidNotDeliver per each message in the queue here?
                 break
@@ -352,12 +356,14 @@ class ChatStream(MSRPStreamBase):
                 notification_center.post_notification('MediaStreamDidFail', self, ndata)
                 break
             else:
-                notification_center.post_notification('ChatStreamDidSendMessage', self, TimestampedNotificationData(message=chunk))
+                if notify_progress and success_report == 'yes' and failure_report != 'no':
+                    self.sent_messages.add(message_id)
+                    notification_center.post_notification('ChatStreamDidSendMessage', self, TimestampedNotificationData(message=chunk))
 
     @run_in_twisted_thread
-    def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None):
-        self.message_queue.send((message_id, message, content_type, failure_report, success_report))
-    
+    def _enqueue_message(self, message_id, message, content_type, failure_report=None, success_report=None, notify_progress=True):
+        self.message_queue.send((message_id, message, content_type, failure_report, success_report, notify_progress))
+
     def send_message(self, content, content_type='text/plain', remote_identity=None, dt=None):
         """Send IM message. Prefer Message/CPIM wrapper if it is supported.
         If called before the connection was established, the messages will be
@@ -392,11 +398,11 @@ class ChatStream(MSRPStreamBase):
             if dt is None:
                 dt = datetime.utcnow()
             msg = MessageCPIM(content, content_type, from_=self.local_identity, to=remote_identity, datetime=dt)
-            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='yes')
+            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='yes', notify_progress=True)
         else:
             if remote_identity is not None and remote_identity != self.remote_identity:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
-            self._enqueue_message(message_id, content, content_type)
+            self._enqueue_message(message_id, content, content_type, failure_report='partial', success_report='yes', notify_progress=True)
         return message_id
 
     def send_composing_indication(self, state, refresh, last_active=None, remote_identity=None):
@@ -416,7 +422,7 @@ class ChatStream(MSRPStreamBase):
         else:
             if remote_identity is not None and remote_identity != self.remote_identity:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
-            self._enqueue_message(message_id, content, IsComposingMessage.content_type, failure_report='partial', success_report='no')
+            self._enqueue_message(message_id, content, IsComposingMessage.content_type, failure_report='partial', success_report='no', notify_progress=False)
         return message_id
 
 
