@@ -212,7 +212,7 @@ class MSRPStreamBase(object):
                 msrp_connector.cleanup()
         finally:
             notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
-            NotificationCenter().remove_observer(self, sender=self)
+            notification_center.remove_observer(self, sender=self)
 
     def validate_update(self, remote_sdp, stream_index):
         return True #TODO
@@ -545,7 +545,7 @@ class FileTransferStream(MSRPStreamBase):
             data.file_size = chunk.byte_range[2]
             notification_center.post_notification('FileTransferStreamDidDeliverChunk', self, data)
             if data.transferred_bytes == data.file_size:
-                NotificationCenter().post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
+                notification_center.post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
         else:
             notification_center.post_notification('FileTransferStreamDidNotDeliverChunk', self, data)
     
@@ -563,10 +563,11 @@ class FileTransferStream(MSRPStreamBase):
         # TODO: check wrapped content-type and issue a report if it's invalid
         # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
         # only works as long as chunks are delivered in order. -Luci
+        notification_center = NotificationCenter()
         ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, chunk=chunk, transferred_bytes=chunk.byte_range[0]+chunk.size-1, file_size=chunk.byte_range[2])
-        NotificationCenter().post_notification('FileTransferStreamGotChunk', self, ndata)
+        notification_center.post_notification('FileTransferStreamGotChunk', self, ndata)
         if ndata.transferred_bytes == ndata.file_size:
-            NotificationCenter().post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
+            notification_center.post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
 
 
 # Desktop sharing
