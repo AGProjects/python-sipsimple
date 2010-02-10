@@ -896,7 +896,7 @@ class Session(object):
         if self._invitation.state == 'connected':
             notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator='local'))
         streams = (self.streams or []) + (self.proposed_streams or [])
-        for stream in list(streams):
+        for stream in streams[:]:
             try:
                 notification_center.remove_observer(self, sender=stream)
             except KeyError:
