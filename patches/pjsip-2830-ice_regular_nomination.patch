@@ -1,0 +1,1085 @@
+Index: pjnath/include/pjnath/ice_strans.h
+===================================================================
+--- pjnath/include/pjnath/ice_strans.h	(revisión: 3096)
++++ pjnath/include/pjnath/ice_strans.h	(copia de trabajo)
+@@ -139,6 +139,13 @@
+     pj_dns_resolver	*resolver;
+ 
+     /**
++     * This contains various STUN session options. Once the ICE stream
++     * transport is created, application may also change the options
++     * with #pj_ice_strans_set_options().
++     */
++    pj_ice_sess_options	 opt;
++
++    /**
+      * STUN and local transport settings. This specifies the 
+      * settings for local UDP socket, which will be resolved
+      * to get the STUN mapped address.
+@@ -151,12 +158,12 @@
+ 	pj_stun_sock_cfg     cfg;
+ 
+ 	/**
+-	 * Disable host candidates. When this option is set, no
+-	 * host candidates will be added.
++	 * Maximum number of host candidates to be added. If the
++	 * value is zero, no host candidates will be added.
+ 	 *
+-	 * Default: PJ_FALSE
++	 * Default: 64
+ 	 */
+-	pj_bool_t	     no_host_cands;
++	unsigned	     max_host_cands;
+ 
+ 	/**
+ 	 * Include loopback addresses in the host candidates.
+@@ -328,6 +335,32 @@
+ 
+ 
+ /**
++ * Get the value of various options of the ICE stream transport.
++ *
++ * @param ice_st	The ICE stream transport.
++ * @param opt		The options to be initialized with the values
++ *			from the ICE stream transport.
++ *
++ * @return		PJ_SUCCESS on success, or the appropriate error.
++ */
++PJ_DECL(pj_status_t) pj_ice_strans_get_options(pj_ice_strans *ice_st,
++					       pj_ice_sess_options *opt);
++
++/**
++ * Specify various options for this ICE stream transport. Application 
++ * should call #pj_ice_strans_get_options() to initialize the options 
++ * with their default values.
++ *
++ * @param ice_st	The ICE stream transport.
++ * @param opt		Options to be applied to this ICE stream transport.
++ *
++ * @return		PJ_SUCCESS on success, or the appropriate error.
++ */
++PJ_DECL(pj_status_t) pj_ice_strans_set_options(pj_ice_strans *ice_st,
++					       const pj_ice_sess_options *opt);
++
++
++/**
+  * Initialize the ICE session in the ICE stream transport.
+  * When application is about to send an offer containing ICE capability,
+  * or when it receives an offer containing ICE capability, it must
+Index: pjnath/include/pjnath/ice_session.h
+===================================================================
+--- pjnath/include/pjnath/ice_session.h	(revisión: 3096)
++++ pjnath/include/pjnath/ice_session.h	(copia de trabajo)
+@@ -184,13 +184,20 @@
+ typedef struct pj_ice_sess_comp
+ {
+     /**
+-     * The pointer to ICE check which was nominated for this component.
+-     * The value will be NULL if a nominated check has not been found
+-     * for this component.
++     * Pointer to ICE check with highest priority which connectivity check
++     * has been successful. The value will be NULL if a no successful check
++     * has not been found for this component.
+      */
+     pj_ice_sess_check	*valid_check;
+ 
+     /**
++     * Pointer to ICE check with highest priority which connectivity check
++     * has been successful and it has been nominated. The value may be NULL
++     * if there is no such check yet.
++     */
++    pj_ice_sess_check	*nominated_check;
++
++    /**
+      * The STUN session to be used to send and receive STUN messages for this
+      * component.
+      */
+@@ -555,6 +562,44 @@
+ 
+ 
+ /**
++ * This structure describes various ICE session options. Application
++ * configure the ICE session with these options by calling 
++ * #pj_ice_sess_set_options().
++ */
++typedef struct pj_ice_sess_options
++{
++    /**
++     * Specify whether to use aggressive nomination.
++     */
++    pj_bool_t		aggressive;
++
++    /**
++     * For controlling agent if it uses regular nomination, specify the delay
++     * to perform nominated check (connectivity check with USE-CANDIDATE 
++     * attribute) after all components have a valid pair.
++     *
++     * Default value is PJ_ICE_NOMINATED_CHECK_DELAY.
++     */
++    unsigned		nominated_check_delay;
++
++    /**
++     * For a controlled agent, specify how long it wants to wait (in 
++     * milliseconds) for the controlling agent to complete sending 
++     * connectivity check with nominated flag set to true for all components
++     * after the controlled agent has found that all connectivity checks in
++     * its checklist have been completed and there is at least one successful
++     * (but not nominated) check for every component.
++     *
++     * Default value for this option is 
++     * ICE_CONTROLLED_AGENT_WAIT_NOMINATION_TIMEOUT. Specify -1 to disable
++     * this timer.
++     */
++    int			controlled_agent_want_nom_timeout;
++
++} pj_ice_sess_options;
++
++
++/**
+  * This structure describes the ICE session. For this version of PJNATH,
+  * an ICE session corresponds to a single media stream (unlike the ICE
+  * session described in the ICE standard where an ICE session covers the
+@@ -571,11 +616,13 @@
+     void		*user_data;		    /**< App. data.	    */
+     pj_mutex_t		*mutex;			    /**< Mutex.		    */
+     pj_ice_sess_role	 role;			    /**< ICE role.	    */
++    pj_ice_sess_options	 opt;			    /**< Options	    */
+     pj_timestamp	 tie_breaker;		    /**< Tie breaker value  */
+     pj_uint8_t		*prefs;			    /**< Type preference.   */
++    pj_bool_t		 is_nominating;		    /**< Nominating stage   */
+     pj_bool_t		 is_complete;		    /**< Complete?	    */
+     pj_status_t		 ice_status;		    /**< Error status.	    */
+-    pj_timer_entry	 completion_timer;	    /**< To call callback.  */
++    pj_timer_entry	 timer;			    /**< ICE timer.	    */
+     pj_ice_sess_cb	 cb;			    /**< Callback.	    */
+ 
+     pj_stun_config	 stun_cfg;		    /**< STUN settings.	    */
+@@ -656,6 +703,12 @@
+ 				     pj_ice_cand_type type,
+ 				     const pj_sockaddr *base_addr);
+ 
++/**
++ * Initialize ICE session options with library default values.
++ *
++ * @param opt		ICE session options.
++ */
++PJ_DECL(void) pj_ice_sess_options_default(pj_ice_sess_options *opt);
+ 
+ /**
+  * Create ICE session with the specified role and number of components.
+@@ -691,6 +744,34 @@
+ 				        pj_ice_sess **p_ice);
+ 
+ /**
++ * Get the value of various options of the ICE session.
++ *
++ * @param ice		The ICE session.
++ * @param opt		The options to be initialized with the values
++ *			from the ICE session.
++ *
++ * @return		PJ_SUCCESS on success, or the appropriate error.
++ */
++PJ_DECL(pj_status_t) pj_ice_sess_get_options(pj_ice_sess *ice,
++					     pj_ice_sess_options *opt);
++
++/**
++ * Specify various options for this ICE session. Application MUST only
++ * call this function after the ICE session has been created but before
++ * any connectivity check is started.
++ *
++ * Application should call #pj_ice_sess_get_options() to initialize the
++ * options with their default values.
++ *
++ * @param ice		The ICE session.
++ * @param opt		Options to be applied to the ICE session.
++ *
++ * @return		PJ_SUCCESS on success, or the appropriate error.
++ */
++PJ_DECL(pj_status_t) pj_ice_sess_set_options(pj_ice_sess *ice,
++					     const pj_ice_sess_options *opt);
++
++/**
+  * Destroy ICE session. This will cancel any connectivity checks currently
+  * running, if any, and any other events scheduled by this session, as well
+  * as all memory resources.
+Index: pjnath/include/pjnath/config.h
+===================================================================
+--- pjnath/include/pjnath/config.h	(revisión: 3096)
++++ pjnath/include/pjnath/config.h	(copia de trabajo)
+@@ -323,6 +323,39 @@
+ 
+ 
+ /**
++ * For a controlled agent, specify how long it wants to wait (in milliseconds)
++ * for the controlling agent to complete sending connectivity check with
++ * nominated flag set to true for all components after the controlled agent
++ * has found that all connectivity checks in its checklist have been completed
++ * and there is at least one successful (but not nominated) check for every
++ * component.
++ *
++ * When selecting the value, bear in mind that the connectivity check from
++ * controlling agent may be delayed because of delay in receiving SDP answer
++ * from the controlled agent.
++ *
++ * Application may set this value to -1 to disable this timer.
++ *
++ * Default: 10000 (milliseconds)
++ */
++#ifndef ICE_CONTROLLED_AGENT_WAIT_NOMINATION_TIMEOUT
++#   define ICE_CONTROLLED_AGENT_WAIT_NOMINATION_TIMEOUT	10000
++#endif
++
++
++/**
++ * For controlling agent if it uses regular nomination, specify the delay to
++ * perform nominated check (connectivity check with USE-CANDIDATE attribute)
++ * after all components have a valid pair.
++ *
++ * Default: 4*PJ_STUN_RTO_VALUE (milliseconds)
++ */
++#ifndef PJ_ICE_NOMINATED_CHECK_DELAY
++#   define PJ_ICE_NOMINATED_CHECK_DELAY		    (4*PJ_STUN_RTO_VALUE)
++#endif
++
++
++/**
+  * Minimum interval value to be used for sending STUN keep-alive on the ICE
+  * stream transport, in seconds. This minimum interval, plus a random value
+  * which maximum is PJ_ICE_ST_KEEP_ALIVE_MAX_RAND, specify the actual interval
+Index: pjnath/include/pjnath/errno.h
+===================================================================
+--- pjnath/include/pjnath/errno.h	(revisión: 3096)
++++ pjnath/include/pjnath/errno.h	(copia de trabajo)
+@@ -190,8 +190,13 @@
+  * host candidate.
+  */
+ #define PJNATH_EICENOHOSTCAND	    (PJNATH_ERRNO_START+92) /* 370092 */
++/**
++ * @hideinitializer
++ * Controlled agent timed-out in waiting for the controlling agent to 
++ * send nominated check after all connectivity checks have completed.
++ */
++#define PJNATH_EICENOMTIMEOUT	    (PJNATH_ERRNO_START+93) /* 370093 */
+ 
+-
+ /************************************************************
+  * TURN ERROR CODES
+  ***********************************************************/
+Index: pjnath/src/pjnath-test/ice_test.c
+===================================================================
+--- pjnath/src/pjnath-test/ice_test.c	(revisión: 3096)
++++ pjnath/src/pjnath-test/ice_test.c	(copia de trabajo)
+@@ -141,9 +141,9 @@
+     }
+ 
+     if (ept->cfg.enable_host == 0) {
+-	ice_cfg.stun.no_host_cands = PJ_TRUE;
++	ice_cfg.stun.max_host_cands = 0;
+     } else {
+-	ice_cfg.stun.no_host_cands = PJ_FALSE;
++	//ice_cfg.stun.no_host_cands = PJ_FALSE;
+ 	ice_cfg.stun.loop_addr = PJ_TRUE;
+     }
+ 
+Index: pjnath/src/pjnath/ice_session.c
+===================================================================
+--- pjnath/src/pjnath/ice_session.c	(revisión: 3096)
++++ pjnath/src/pjnath/ice_session.c	(copia de trabajo)
+@@ -66,6 +66,20 @@
+     "Controlling"
+ };
+ 
++enum timer_type
++{
++    TIMER_NONE,			/**< Timer not active			*/
++    TIMER_COMPLETION_CALLBACK,	/**< Call on_ice_complete() callback    */
++    TIMER_CONTROLLED_WAIT_NOM,	/**< Controlled agent is waiting for 
++				     controlling agent to send connectivity
++				     check with nominated flag after it has
++				     valid check for every components.	*/
++    TIMER_START_NOMINATED_CHECK,/**< Controlling agent start connectivity
++				     checks with USE-CANDIDATE flag.	*/
++					
++
++};
++
+ /* Candidate type preference */
+ static pj_uint8_t cand_type_prefs[4] =
+ {
+@@ -118,10 +132,13 @@
+ 
+ 
+ /* Forward declarations */
++static void on_timer(pj_timer_heap_t *th, pj_timer_entry *te);
++static void on_ice_complete(pj_ice_sess *ice, pj_status_t status);
+ static void destroy_ice(pj_ice_sess *ice,
+ 			pj_status_t reason);
+ static pj_status_t start_periodic_check(pj_timer_heap_t *th, 
+ 					pj_timer_entry *te);
++static void start_nominated_check(pj_ice_sess *ice);
+ static void periodic_timer(pj_timer_heap_t *th, 
+ 			  pj_timer_entry *te);
+ static void handle_incoming_check(pj_ice_sess *ice,
+@@ -296,6 +313,15 @@
+ }
+ 
+ 
++/* Init options with default values */
++PJ_DEF(void) pj_ice_sess_options_default(pj_ice_sess_options *opt)
++{
++    opt->aggressive = PJ_FALSE;
++    opt->nominated_check_delay = PJ_ICE_NOMINATED_CHECK_DELAY;
++    opt->controlled_agent_want_nom_timeout = 
++	ICE_CONTROLLED_AGENT_WAIT_NOMINATION_TIMEOUT;
++}
++
+ /*
+  * Create ICE session.
+  */
+@@ -326,7 +352,10 @@
+     ice->tie_breaker.u32.hi = pj_rand();
+     ice->tie_breaker.u32.lo = pj_rand();
+     ice->prefs = cand_type_prefs;
++    pj_ice_sess_options_default(&ice->opt);
+ 
++    pj_timer_entry_init(&ice->timer, TIMER_NONE, (void*)ice, &on_timer);
++
+     pj_ansi_snprintf(ice->obj_name, sizeof(ice->obj_name),
+ 		     name, ice);
+ 
+@@ -345,6 +374,7 @@
+ 	pj_ice_sess_comp *comp;
+ 	comp = &ice->comp[i];
+ 	comp->valid_check = NULL;
++	comp->nominated_check = NULL;
+ 
+ 	status = init_comp(ice, i+1, comp);
+ 	if (status != PJ_SUCCESS) {
+@@ -389,6 +419,31 @@
+ 
+ 
+ /*
++ * Get the value of various options of the ICE session.
++ */
++PJ_DEF(pj_status_t) pj_ice_sess_get_options(pj_ice_sess *ice,
++					    pj_ice_sess_options *opt)
++{
++    PJ_ASSERT_RETURN(ice, PJ_EINVAL);
++    pj_memcpy(opt, &ice->opt, sizeof(*opt));
++    return PJ_SUCCESS;
++}
++
++/*
++ * Specify various options for this ICE session.
++ */
++PJ_DEF(pj_status_t) pj_ice_sess_set_options(pj_ice_sess *ice,
++					    const pj_ice_sess_options *opt)
++{
++    PJ_ASSERT_RETURN(ice && opt, PJ_EINVAL);
++    pj_memcpy(&ice->opt, opt, sizeof(*opt));
++    LOG5((ice->obj_name, "ICE nomination type set to %s",
++	  (ice->opt.aggressive ? "aggressive" : "regular")));
++    return PJ_SUCCESS;
++}
++
++
++/*
+  * Destroy
+  */
+ static void destroy_ice(pj_ice_sess *ice,
+@@ -406,10 +461,10 @@
+ 	pj_mutex_unlock(ice->mutex);
+     }
+ 
+-    if (ice->completion_timer.id) {
++    if (ice->timer.id) {
+ 	pj_timer_heap_cancel(ice->stun_cfg.timer_heap, 
+-			     &ice->completion_timer);
+-	ice->completion_timer.id = PJ_FALSE;
++			     &ice->timer);
++	ice->timer.id = PJ_FALSE;
+     }
+ 
+     for (i=0; i<ice->comp_cnt; ++i) {
+@@ -1039,18 +1094,38 @@
+     return PJ_SUCCESS;
+ }
+ 
+-/* Timer callback to call on_ice_complete() callback */
+-static void on_completion_timer(pj_timer_heap_t *th, 
+-			        pj_timer_entry *te)
++/* Timer callback */
++static void on_timer(pj_timer_heap_t *th, pj_timer_entry *te)
+ {
+     pj_ice_sess *ice = (pj_ice_sess*) te->user_data;
++    enum timer_type type = (enum timer_type)te->id;
+ 
+     PJ_UNUSED_ARG(th);
+ 
+-    te->id = PJ_FALSE;
++    pj_mutex_lock(ice->mutex);
+ 
+-    if (ice->cb.on_ice_complete)
+-	(*ice->cb.on_ice_complete)(ice, ice->ice_status);
++    te->id = TIMER_NONE;
++
++    switch (type) {
++    case TIMER_CONTROLLED_WAIT_NOM:
++	LOG4((ice->obj_name, 
++	      "Controlled agent timed-out in waiting for the controlling "
++	      "agent to send nominated check. Setting state to fail now.."));
++	on_ice_complete(ice, PJNATH_EICENOMTIMEOUT);
++	break;
++    case TIMER_COMPLETION_CALLBACK:
++	if (ice->cb.on_ice_complete)
++	    (*ice->cb.on_ice_complete)(ice, ice->ice_status);
++	break;
++    case TIMER_START_NOMINATED_CHECK:
++	start_nominated_check(ice);
++	break;
++    case TIMER_NONE:
++	/* Nothing to do, just to get rid of gcc warning */
++	break;
++    }
++
++    pj_mutex_unlock(ice->mutex);
+ }
+ 
+ /* This function is called when ICE processing completes */
+@@ -1060,6 +1135,11 @@
+ 	ice->is_complete = PJ_TRUE;
+ 	ice->ice_status = status;
+     
++	if (ice->timer.id != TIMER_NONE) {
++	    pj_timer_heap_cancel(ice->stun_cfg.timer_heap, &ice->timer);
++	    ice->timer.id = TIMER_NONE;
++	}
++
+ 	/* Log message */
+ 	LOG4((ice->obj_name, "ICE process complete, status=%s", 
+ 	     pj_strerror(status, ice->tmp.errmsg, 
+@@ -1071,26 +1151,49 @@
+ 	if (ice->cb.on_ice_complete) {
+ 	    pj_time_val delay = {0, 0};
+ 
+-	    ice->completion_timer.cb = &on_completion_timer;
+-	    ice->completion_timer.user_data = (void*) ice;
+-	    ice->completion_timer.id = PJ_TRUE;
+-
++	    ice->timer.id = TIMER_COMPLETION_CALLBACK;
+ 	    pj_timer_heap_schedule(ice->stun_cfg.timer_heap, 
+-				   &ice->completion_timer,
+-				   &delay);
++				   &ice->timer, &delay);
+ 	}
+     }
+ }
+ 
++/* Update valid check and nominated check for the candidate */
++static void update_comp_check(pj_ice_sess *ice, unsigned comp_id, 
++			      pj_ice_sess_check *check)
++{
++    pj_ice_sess_comp *comp;
+ 
++    comp = find_comp(ice, comp_id);
++    if (comp->valid_check == NULL) {
++	comp->valid_check = check;
++    } else {
++	if (CMP_CHECK_PRIO(comp->valid_check, check) < 0)
++	    comp->valid_check = check;
++    }
++
++    if (check->nominated) {
++	/* Update the nominated check for the component */
++	if (comp->nominated_check == NULL) {
++	    comp->nominated_check = check;
++	} else {
++	    if (CMP_CHECK_PRIO(comp->nominated_check, check) < 0)
++		comp->nominated_check = check;
++	}
++    }
++}
++
+ /* This function is called when one check completes */
+ static pj_bool_t on_check_complete(pj_ice_sess *ice,
+ 				   pj_ice_sess_check *check)
+ {
++    pj_ice_sess_comp *comp;
+     unsigned i;
+ 
+     pj_assert(check->state >= PJ_ICE_SESS_CHECK_STATE_SUCCEEDED);
+ 
++    comp = find_comp(ice, check->lcand->comp_id);
++
+     /* 7.1.2.2.2.  Updating Pair States
+      * 
+      * The agent sets the state of the pair that generated the check to
+@@ -1104,6 +1207,7 @@
+      *     always.
+      */
+     if (check->err_code==PJ_SUCCESS) {
++
+ 	for (i=0; i<ice->clist.count; ++i) {
+ 	    pj_ice_sess_check *c = &ice->clist.checks[i];
+ 	    if (pj_strcmp(&c->lcand->foundation, &check->lcand->foundation)==0
+@@ -1112,6 +1216,11 @@
+ 		check_set_state(ice, c, PJ_ICE_SESS_CHECK_STATE_WAITING, 0);
+ 	    }
+ 	}
++
++	LOG5((ice->obj_name, "Check %d is successful%s",
++	     GET_CHECK_ID(&ice->clist, check),
++	     (check->nominated ? "  and nominated" : "")));
++
+     }
+ 
+     /* 8.2.  Updating States
+@@ -1136,13 +1245,7 @@
+      *      than the lowest priority nominated pair for that component
+      */
+     if (check->err_code==PJ_SUCCESS && check->nominated) {
+-	pj_ice_sess_comp *comp;
+ 
+-	LOG5((ice->obj_name, "Check %d is successful and nominated",
+-	     GET_CHECK_ID(&ice->clist, check)));
+-
+-	comp = find_comp(ice, check->lcand->comp_id);
+-
+ 	for (i=0; i<ice->clist.count; ++i) {
+ 
+ 	    pj_ice_sess_check *c = &ice->clist.checks[i];
+@@ -1179,14 +1282,6 @@
+ 		}
+ 	    }
+ 	}
+-
+-	/* Update the nominated check for the component */
+-	if (comp->valid_check == NULL) {
+-	    comp->valid_check = check;
+-	} else {
+-	    if (CMP_CHECK_PRIO(comp->valid_check, check) < 0)
+-		comp->valid_check = check;
+-	}
+     }
+ 
+ 
+@@ -1211,7 +1306,7 @@
+      * ICE processing as success, otherwise wait.
+      */
+     for (i=0; i<ice->comp_cnt; ++i) {
+-	if (ice->comp[i].valid_check == NULL)
++	if (ice->comp[i].nominated_check == NULL)
+ 	    break;
+     }
+     if (i == ice->comp_cnt) {
+@@ -1258,23 +1353,16 @@
+ 	/* All checks have completed, but we don't have nominated pair.
+ 	 * If agent's role is controlled, check if all components have
+ 	 * valid pair. If it does, this means the controlled agent has
+-	 * finished the check list early and it's waiting for controlling
+-	 * agent to send a check with USE-CANDIDATE flag set.
++	 * finished the check list and it's waiting for controlling
++	 * agent to send checks with USE-CANDIDATE flag set.
+ 	 */
+ 	if (ice->role == PJ_ICE_SESS_ROLE_CONTROLLED) {
+-	    unsigned comp_id;
+-	    for (comp_id=1; comp_id <= ice->comp_cnt; ++comp_id) {
+-		unsigned j;
+-		for (j=0; j<ice->valid_list.count; ++j) {
+-		    pj_ice_sess_check *vc = &ice->valid_list.checks[j];
+-		    if (vc->lcand->comp_id == comp_id)
+-			break;
+-		}
+-		if (j == ice->valid_list.count)
++	    for (i=0; i < ice->comp_cnt; ++i) {
++		if (ice->comp[i].valid_check == NULL)
+ 		    break;
+ 	    }
+ 
+-	    if (comp_id <= ice->comp_cnt) {
++	    if (i < ice->comp_cnt) {
+ 		/* This component ID doesn't have valid pair.
+ 		 * Mark ICE as failed. 
+ 		 */
+@@ -1284,12 +1372,109 @@
+ 		/* All components have a valid pair.
+ 		 * We should wait until we receive nominated checks.
+ 		 */
++		if (ice->timer.id == TIMER_NONE &&
++		    ice->opt.controlled_agent_want_nom_timeout >= 0) 
++		{
++		    pj_time_val delay;
++
++		    delay.sec = 0;
++		    delay.msec = ice->opt.controlled_agent_want_nom_timeout;
++		    pj_time_val_normalize(&delay);
++
++		    ice->timer.id = TIMER_CONTROLLED_WAIT_NOM;
++		    pj_timer_heap_schedule(ice->stun_cfg.timer_heap, 
++					   &ice->timer,
++					   &delay);
++
++		    LOG5((ice->obj_name, 
++			  "All checks have completed. Controlled agent now "
++			  "waits for nomination from controlling agent "
++			  "(timeout=%d msec)",
++			  ice->opt.controlled_agent_want_nom_timeout));
++		}
+ 		return PJ_FALSE;
+ 	    }
++
++	    /* Unreached */
++
++	} else if (ice->is_nominating) {
++	    /* We are controlling agent and all checks have completed but
++	     * there's at least one component without nominated pair (or
++	     * more likely we don't have any nominated pairs at all).
++	     */
++	    on_ice_complete(ice, PJNATH_EICEFAILED);
++	    return PJ_TRUE;
++
++	} else {
++	    /* We are controlling agent and all checks have completed. If
++	     * we have valid list for every component, then move on to
++	     * sending nominated check, otherwise we have failed.
++	     */
++	    for (i=0; i<ice->comp_cnt; ++i) {
++		if (ice->comp[i].valid_check == NULL)
++		    break;
++	    }
++
++	    if (i < ice->comp_cnt) {
++		/* At least one component doesn't have a valid check. Mark
++		 * ICE as failed.
++		 */
++		on_ice_complete(ice, PJNATH_EICEFAILED);
++		return PJ_TRUE;
++	    }
++
++	    /* Now it's time to send connectivity check with nomination 
++	     * flag set.
++	     */
++	    LOG4((ice->obj_name, 
++		  "All checks have completed, starting nominated checks now"));
++	    start_nominated_check(ice);
++	    return PJ_FALSE;
+ 	}
++    }
+ 
+-	on_ice_complete(ice, PJNATH_EICEFAILED);
+-	return PJ_TRUE;
++    /* If this connectivity check has been successful, scan all components
++     * and see if they have a valid pair, if we are controlling and we haven't
++     * started our nominated check yet.
++     */
++    if (check->err_code == PJ_SUCCESS && 
++	ice->role==PJ_ICE_SESS_ROLE_CONTROLLING &&
++	!ice->is_nominating &&
++	ice->timer.id == TIMER_NONE) 
++    {
++	pj_time_val delay;
++
++	for (i=0; i<ice->comp_cnt; ++i) {
++	    if (ice->comp[i].valid_check == NULL)
++		break;
++	}
++
++	if (i < ice->comp_cnt) {
++	    /* Some components still don't have valid pair, continue
++	     * processing.
++	     */
++	    return PJ_FALSE;
++	}
++
++	LOG4((ice->obj_name, 
++	      "Scheduling nominated check in %d ms",
++	      ice->opt.nominated_check_delay));
++
++	if (ice->timer.id != TIMER_NONE) {
++	    pj_timer_heap_cancel(ice->stun_cfg.timer_heap, &ice->timer);
++	    ice->timer.id = TIMER_NONE;
++	}
++
++	/* All components have valid pair. Let connectivity checks run for
++	 * a little bit more time, then start our nominated check.
++	 */
++	delay.sec = 0;
++	delay.msec = ice->opt.nominated_check_delay;
++	pj_time_val_normalize(&delay);
++
++	ice->timer.id = TIMER_START_NOMINATED_CHECK;
++	pj_timer_heap_schedule(ice->stun_cfg.timer_heap, &ice->timer, &delay);
++	return PJ_FALSE;
+     }
+ 
+     /* We still have checks to perform */
+@@ -1297,7 +1482,6 @@
+ }
+ 
+ 
+-
+ /* Create checklist by pairing local candidates with remote candidates */
+ PJ_DEF(pj_status_t) pj_ice_sess_create_check_list(
+ 			      pj_ice_sess *ice,
+@@ -1430,10 +1614,11 @@
+     return PJ_SUCCESS;
+ }
+ 
+-/* Perform check on the specified candidate pair */
++/* Perform check on the specified candidate pair. */
+ static pj_status_t perform_check(pj_ice_sess *ice, 
+ 				 pj_ice_sess_checklist *clist,
+-				 unsigned check_id)
++				 unsigned check_id,
++				 pj_bool_t nominate)
+ {
+     pj_ice_sess_comp *comp;
+     pj_ice_msg_data *msg_data;
+@@ -1481,9 +1666,11 @@
+      * Also add ICE-CONTROLLING or ICE-CONTROLLED
+      */
+     if (ice->role == PJ_ICE_SESS_ROLE_CONTROLLING) {
+-	pj_stun_msg_add_empty_attr(check->tdata->pool, check->tdata->msg, 
+-				   PJ_STUN_ATTR_USE_CANDIDATE);
+-	check->nominated = PJ_TRUE;
++	if (nominate) {
++	    pj_stun_msg_add_empty_attr(check->tdata->pool, check->tdata->msg,
++				       PJ_STUN_ATTR_USE_CANDIDATE);
++	    check->nominated = PJ_TRUE;
++	}
+ 
+ 	pj_stun_msg_add_uint64_attr(check->tdata->pool, check->tdata->msg, 
+ 				    PJ_STUN_ATTR_ICE_CONTROLLING,
+@@ -1549,7 +1736,7 @@
+ 	pj_ice_sess_check *check = &clist->checks[i];
+ 
+ 	if (check->state == PJ_ICE_SESS_CHECK_STATE_WAITING) {
+-	    status = perform_check(ice, clist, i);
++	    status = perform_check(ice, clist, i, ice->is_nominating);
+ 	    if (status != PJ_SUCCESS) {
+ 		pj_mutex_unlock(ice->mutex);
+ 		return status;
+@@ -1568,7 +1755,7 @@
+ 	    pj_ice_sess_check *check = &clist->checks[i];
+ 
+ 	    if (check->state == PJ_ICE_SESS_CHECK_STATE_FROZEN) {
+-		status = perform_check(ice, clist, i);
++		status = perform_check(ice, clist, i, ice->is_nominating);
+ 		if (status != PJ_SUCCESS) {
+ 		    pj_mutex_unlock(ice->mutex);
+ 		    return status;
+@@ -1596,6 +1783,66 @@
+ }
+ 
+ 
++/* Start sending connectivity check with USE-CANDIDATE */
++static void start_nominated_check(pj_ice_sess *ice)
++{
++    pj_time_val delay;
++    unsigned i;
++    pj_status_t status;
++
++    LOG4((ice->obj_name, "Starting nominated check.."));
++
++    pj_assert(ice->is_nominating == PJ_FALSE);
++
++    /* Stop our timer if it's active */
++    if (ice->timer.id == TIMER_START_NOMINATED_CHECK) {
++	pj_timer_heap_cancel(ice->stun_cfg.timer_heap, &ice->timer);
++	ice->timer.id = TIMER_NONE;
++    }
++
++    /* For each component, set the check state of valid check with
++     * highest priority to Waiting (it should have Success state now).
++     */
++    for (i=0; i<ice->comp_cnt; ++i) {
++	unsigned j;
++	const pj_ice_sess_check *vc = ice->comp[i].valid_check;
++
++	pj_assert(ice->comp[i].nominated_check == NULL);
++	pj_assert(vc->err_code == PJ_SUCCESS);
++
++	for (j=0; j<ice->clist.count; ++j) {
++	    pj_ice_sess_check *c = &ice->clist.checks[j];
++	    if (c->lcand->transport_id == vc->lcand->transport_id &&
++		c->rcand == vc->rcand)
++	    {
++		pj_assert(c->err_code == PJ_SUCCESS);
++		c->state = PJ_ICE_SESS_CHECK_STATE_FROZEN;
++		check_set_state(ice, c, PJ_ICE_SESS_CHECK_STATE_WAITING, 
++			        PJ_SUCCESS);
++		break;
++	    }
++	}
++    }
++
++    /* And (re)start the periodic check */
++    if (!ice->clist.timer.id) {
++	pj_timer_heap_cancel(ice->stun_cfg.timer_heap, &ice->clist.timer);
++	ice->clist.timer.id = PJ_FALSE;
++    }
++
++    ice->clist.timer.id = PJ_TRUE;
++    delay.sec = delay.msec = 0;
++    status = pj_timer_heap_schedule(ice->stun_cfg.timer_heap, 
++				    &ice->clist.timer, &delay);
++    if (status != PJ_SUCCESS) {
++	ice->clist.timer.id = PJ_FALSE;
++    } else {
++	LOG5((ice->obj_name, "Periodic timer rescheduled.."));
++    }
++
++    ice->is_nominating = PJ_TRUE;
++}
++
+ /* Timer callback to perform periodic check */
+ static void periodic_timer(pj_timer_heap_t *th, 
+ 			   pj_timer_entry *te)
+@@ -1642,6 +1889,10 @@
+ 
+     LOG4((ice->obj_name, "Starting ICE check.."));
+ 
++    /* If we are using aggressive nomination, set the is_nominating state */
++    if (ice->opt.aggressive)
++	ice->is_nominating = PJ_TRUE;
++
+     /* The agent examines the check list for the first media stream (a
+      * media stream is the first media stream when it is described by
+      * the first m-line in the SDP offer and answer).  For that media
+@@ -1826,7 +2077,8 @@
+ 	    /* Resend request */
+ 	    LOG4((ice->obj_name, "Resending check because of role conflict"));
+ 	    check_set_state(ice, check, PJ_ICE_SESS_CHECK_STATE_WAITING, 0);
+-	    perform_check(ice, clist, msg_data->data.req.ckid);
++	    perform_check(ice, clist, msg_data->data.req.ckid, 
++			  check->nominated || ice->is_nominating);
+ 	    pj_mutex_unlock(ice->mutex);
+ 	    return;
+ 	}
+@@ -1959,19 +2211,34 @@
+      * equals the destination address to which the request was sent.    
+      */
+ 
+-    /* Add pair to valid list */
+-    pj_assert(ice->valid_list.count < PJ_ICE_MAX_CHECKS);
+-    new_check = &ice->valid_list.checks[ice->valid_list.count++];
+-    new_check->lcand = lcand;
+-    new_check->rcand = check->rcand;
+-    new_check->prio = CALC_CHECK_PRIO(ice, lcand, check->rcand);
+-    new_check->state = PJ_ICE_SESS_CHECK_STATE_SUCCEEDED;
+-    new_check->nominated = check->nominated;
+-    new_check->err_code = PJ_SUCCESS;
++    /* Add pair to valid list, if it's not there, otherwise just update
++     * nominated flag
++     */
++    for (i=0; i<ice->valid_list.count; ++i) {
++	if (ice->valid_list.checks[i].lcand == lcand &&
++	    ice->valid_list.checks[i].rcand == check->rcand)
++	    break;
++    }
+ 
++    if (i==ice->valid_list.count) {
++	pj_assert(ice->valid_list.count < PJ_ICE_MAX_CHECKS);
++	new_check = &ice->valid_list.checks[ice->valid_list.count++];
++	new_check->lcand = lcand;
++	new_check->rcand = check->rcand;
++	new_check->prio = CALC_CHECK_PRIO(ice, lcand, check->rcand);
++	new_check->state = PJ_ICE_SESS_CHECK_STATE_SUCCEEDED;
++	new_check->nominated = check->nominated;
++	new_check->err_code = PJ_SUCCESS;
++    } else {
++	new_check = &ice->valid_list.checks[i];
++	ice->valid_list.checks[i].nominated = check->nominated;
++    }
++
+     /* Sort valid_list */
+     sort_checklist(&ice->valid_list);
+ 
++    /* Update valid check and nominated check for the component */
++    update_comp_check(ice, new_check->lcand->comp_id, new_check);
+ 
+     /* 7.1.2.2.2.  Updating Pair States
+      * 
+@@ -2312,8 +2579,11 @@
+ 	if (c->state == PJ_ICE_SESS_CHECK_STATE_FROZEN ||
+ 	    c->state == PJ_ICE_SESS_CHECK_STATE_WAITING)
+ 	{
++	    /* See if we shall nominate this check */
++	    pj_bool_t nominate = (c->nominated || ice->is_nominating);
++
+ 	    LOG5((ice->obj_name, "Performing triggered check for check %d",i));
+-	    perform_check(ice, &ice->clist, i);
++	    perform_check(ice, &ice->clist, i, nominate);
+ 
+ 	} else if (c->state == PJ_ICE_SESS_CHECK_STATE_IN_PROGRESS) {
+ 	    /* Should retransmit immediately
+@@ -2336,8 +2606,17 @@
+ 	    if (rcheck->use_candidate) {
+ 		for (j=0; j<ice->valid_list.count; ++j) {
+ 		    pj_ice_sess_check *vc = &ice->valid_list.checks[j];
+-		    if (vc->lcand == c->lcand && vc->rcand == c->rcand) {
++		    if (vc->lcand->transport_id == c->lcand->transport_id && 
++			vc->rcand == c->rcand) 
++		    {
++			/* Set nominated flag */
+ 			vc->nominated = PJ_TRUE;
++
++			/* Update valid check and nominated check for the component */
++			update_comp_check(ice, vc->lcand->comp_id, vc);
++
++			dump_check(ice->tmp.txt, sizeof(ice->tmp.txt), &ice->valid_list, vc);
++			LOG5((ice->obj_name, "Valid check %s is nominated", ice->tmp.txt));
+ 		    }
+ 		}
+ 	    }
+@@ -2361,6 +2640,7 @@
+     else if (ice->clist.count < PJ_ICE_MAX_CHECKS) {
+ 
+ 	pj_ice_sess_check *c = &ice->clist.checks[ice->clist.count];
++	pj_bool_t nominate;
+ 
+ 	c->lcand = lcand;
+ 	c->rcand = rcand;
+@@ -2369,9 +2649,11 @@
+ 	c->nominated = rcheck->use_candidate;
+ 	c->err_code = PJ_SUCCESS;
+ 
++	nominate = (c->nominated || ice->is_nominating);
++
+ 	LOG4((ice->obj_name, "New triggered check added: %d", 
+ 	     ice->clist.count));
+-	perform_check(ice, &ice->clist, ice->clist.count++);
++	perform_check(ice, &ice->clist, ice->clist.count++, nominate);
+ 
+     } else {
+ 	LOG4((ice->obj_name, "Error: unable to perform triggered check: "
+Index: pjnath/src/pjnath/stun_msg_dump.c
+===================================================================
+--- pjnath/src/pjnath/stun_msg_dump.c	(revisión: 3096)
++++ pjnath/src/pjnath/stun_msg_dump.c	(copia de trabajo)
+@@ -57,11 +57,19 @@
+ 		      const pj_stun_attr_hdr *ahdr)
+ {
+     char *p = buffer, *end = buffer + length;
++    const char *attr_name = pj_stun_get_attr_name(ahdr->type);
++    char attr_buf[32];
+     int len;
+ 
++    if (*attr_name == '?') {
++	pj_ansi_snprintf(attr_buf, sizeof(attr_buf), "Attr 0x%x", 
++			 ahdr->type);
++	attr_name = attr_buf;
++    }
++
+     len = pj_ansi_snprintf(p, end-p,
+ 			   "  %s: length=%d",
+-			   pj_stun_get_attr_name(ahdr->type),
++			   attr_name,
+ 			   (int)ahdr->length);
+     APPLY();
+ 
+Index: pjnath/src/pjnath/errno.c
+===================================================================
+--- pjnath/src/pjnath/errno.c	(revisión: 3096)
++++ pjnath/src/pjnath/errno.c	(copia de trabajo)
+@@ -66,6 +66,7 @@
+     PJ_BUILD_ERR( PJNATH_EICEMISSINGSDP,    "Missing ICE SDP attribute"),
+     PJ_BUILD_ERR( PJNATH_EICEINCANDSDP,	    "Invalid SDP \"candidate\" attribute"),
+     PJ_BUILD_ERR( PJNATH_EICENOHOSTCAND,    "No host candidate associated with srflx"),
++    PJ_BUILD_ERR( PJNATH_EICENOMTIMEOUT,    "Controlled agent timed out waiting for nomination"),
+ 
+     /* TURN related errors */
+     PJ_BUILD_ERR( PJNATH_ETURNINTP,	    "Invalid/unsupported transport"),
+Index: pjnath/src/pjnath/ice_strans.c
+===================================================================
+--- pjnath/src/pjnath/ice_strans.c	(revisión: 3096)
++++ pjnath/src/pjnath/ice_strans.c	(copia de trabajo)
+@@ -197,9 +197,13 @@
+     pj_stun_sock_cfg_default(&cfg->stun.cfg);
+     pj_turn_alloc_param_default(&cfg->turn.alloc_param);
+ 
++    pj_ice_sess_options_default(&cfg->opt);
++
+     cfg->af = pj_AF_INET();
+     cfg->stun.port = PJ_STUN_PORT;
+     cfg->turn.conn_type = PJ_TURN_TP_UDP;
++
++    cfg->stun.max_host_cands = 64;
+ }
+ 
+ 
+@@ -245,7 +249,7 @@
+     comp->default_cand = 0;
+ 
+     /* Create STUN transport if configured */
+-    if (ice_st->cfg.stun.server.slen || !ice_st->cfg.stun.no_host_cands) {
++    if (ice_st->cfg.stun.server.slen || ice_st->cfg.stun.max_host_cands) {
+ 	pj_stun_sock_cb stun_sock_cb;
+ 	pj_ice_sess_cand *cand;
+ 
+@@ -309,10 +313,10 @@
+ 
+ 	}
+ 
+-	/* Add local addresses to host candidates, unless no_host_cands
+-	 * flag is set.
++	/* Add local addresses to host candidates, unless max_host_cands
++	 * is set to zero.
+ 	 */
+-	if (ice_st->cfg.stun.no_host_cands == PJ_FALSE) {
++	if (ice_st->cfg.stun.max_host_cands) {
+ 	    pj_stun_sock_info stun_sock_info;
+ 	    unsigned i;
+ 
+@@ -321,7 +325,9 @@
+ 	    if (status != PJ_SUCCESS)
+ 		return status;
+ 
+-	    for (i=0; i<stun_sock_info.alias_cnt; ++i) {
++	    for (i=0; i<stun_sock_info.alias_cnt && 
++		      i<ice_st->cfg.stun.max_host_cands; ++i) 
++	    {
+ 		char addrinfo[PJ_INET6_ADDRSTRLEN+10];
+ 		const pj_sockaddr *addr = &stun_sock_info.aliases[i];
+ 
+@@ -647,6 +653,30 @@
+ 
+ 
+ /*
++ * Get the value of various options of the ICE stream transport.
++ */
++PJ_DEF(pj_status_t) pj_ice_strans_get_options( pj_ice_strans *ice_st,
++					       pj_ice_sess_options *opt)
++{
++    PJ_ASSERT_RETURN(ice_st && opt, PJ_EINVAL);
++    pj_memcpy(opt, &ice_st->cfg.opt, sizeof(*opt));
++    return PJ_SUCCESS;
++}
++
++/*
++ * Specify various options for this ICE stream transport. 
++ */
++PJ_DEF(pj_status_t) pj_ice_strans_set_options(pj_ice_strans *ice_st,
++					      const pj_ice_sess_options *opt)
++{
++    PJ_ASSERT_RETURN(ice_st && opt, PJ_EINVAL);
++    pj_memcpy(&ice_st->cfg.opt, opt, sizeof(*opt));
++    if (ice_st->ice)
++	pj_ice_sess_set_options(ice_st->ice, &ice_st->cfg.opt);
++    return PJ_SUCCESS;
++}
++
++/*
+  * Create ICE!
+  */
+ PJ_DEF(pj_status_t) pj_ice_strans_init_ice(pj_ice_strans *ice_st,
+@@ -682,6 +712,9 @@
+     /* Associate user data */
+     ice_st->ice->user_data = (void*)ice_st;
+ 
++    /* Set options */
++    pj_ice_sess_set_options(ice_st->ice, &ice_st->cfg.opt);
++
+     /* If default candidate for components are SRFLX one, upload a custom
+      * type priority to ICE session so that SRFLX candidates will get
+      * checked first.
