@@ -154,6 +154,8 @@ class MSRPStreamBase(object):
         else:
             notification_center.post_notification('MediaStreamDidInitialize', self, data=TimestampedNotificationData())
         finally:
+            if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
+                notification_center.remove_observer(self, sender=self)
             self.greenlet = None
 
     @run_in_green_thread
