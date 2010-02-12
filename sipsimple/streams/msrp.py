@@ -800,7 +800,8 @@ class ExternalVNCServerHandler(DesktopSharingHandlerBase):
             self.vnc_starter_thread.kill()
             self.vnc_starter_thread = None
         DesktopSharingHandlerBase._NH_MediaStreamWillEnd(self, notification)
-        self.vnc_socket.close()
+        if self.vnc_socket is not None:
+            self.vnc_socket.close()
 
 
 class DesktopSharingStream(MSRPStreamBase):
