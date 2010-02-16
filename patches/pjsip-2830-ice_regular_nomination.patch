@@ -814,7 +814,7 @@ Index: pjnath/src/pjnath/ice_session.c
 +    }
 +
 +    /* And (re)start the periodic check */
-+    if (!ice->clist.timer.id) {
++    if (ice->clist.timer.id) {
 +	pj_timer_heap_cancel(ice->stun_cfg.timer_heap, &ice->clist.timer);
 +	ice->clist.timer.id = PJ_FALSE;
 +    }
