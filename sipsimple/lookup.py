@@ -155,7 +155,7 @@ class DNSResolver(dns.resolver.Resolver):
                     ns_addresses.extend(r.address for r in a_answer.rrset)
             return ns_addresses
         else:
-            return []
+            return self.original_nameservers
 
 
 class SRVResult(object):
