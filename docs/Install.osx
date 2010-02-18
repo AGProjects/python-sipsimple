@@ -30,9 +30,9 @@ Step 1. Prerequisites
  * darcs version control tool from http://www.darcs.net
 
 The procedure below relies on the standard available Python interpreter that
-comes with MacOSX. Make sure that during the building process you are not
-involving external tools or libraries like the ones provided by Fink or
-Darwin Ports distributions.
+comes with MacOSX (version 2.5 on Leopard and 2.6 on Snow Leopard). Make
+sure that during the building process you are not involving external tools
+or libraries like the ones provided by Fink or Darwin Ports distributions.
 
 
 Step 2. Install Dependencies

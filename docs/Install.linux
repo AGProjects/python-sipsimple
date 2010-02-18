@@ -17,8 +17,8 @@ Step 1. Prerequisites
 ---------------------
 	
 Both i386 or amd64 architectures are supported. Install the C compiling
-environment, python 2.5 and the development version for the following
-packages: 
+environment, Python 2.5 or 2.6 and the development version for the following
+packages:
 
  * openssl
  * gnutls >=2.4.1
