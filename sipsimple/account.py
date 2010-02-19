@@ -124,7 +124,7 @@ class AccountRegistrar(object):
 
         try:
             # Lookup routes
-            if self.account.sip.outbound_proxy is not None:
+            if self.account.sip.outbound_proxy is not None and self.account.sip.enable_outbound_proxy is True:
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host,
                              port=self.account.sip.outbound_proxy.port,
                              parameters={'transport': self.account.sip.outbound_proxy.transport})
@@ -259,6 +259,7 @@ class AccountRegistrar(object):
 
 class SIPSettings(SettingsGroup):
     outbound_proxy = Setting(type=SIPProxyAddress, default=None, nillable=True)
+    enable_outbound_proxy = Setting(type=bool, default=False)
     enable_register = Setting(type=bool, default=True)
     register_interval = Setting(type=NonNegativeInteger, default=600)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
@@ -456,7 +457,7 @@ class Account(SettingsObject):
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
-            elif set(['password', 'sip.outbound_proxy', 'sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.enable_register:
+            elif set(['password', 'sip.outbound_proxy', 'sip.register_interval', 'sip.enable_outbound_proxy']).intersection(notification.data.modified) and self.enabled and self.sip.enable_register:
                 self._registrar.reload_settings()
 
     def _activate(self):
