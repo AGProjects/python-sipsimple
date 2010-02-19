@@ -237,3 +237,16 @@ cd python-sipsimple
 sudo python setup.py build_ext --pjsip-clean-compile
 sudo python setup.py install
 
+Additional, you can install the command line interface scripts that can be
+used to test the SDK.
+
+if [ -d sipclients ]; then
+	cd sipclients
+	darcs pull -a
+else 
+	darcs get http://devel.ag-projects.com/repositories/sipclients
+fi
+cd..
+
+sudo python setup.py install
+
