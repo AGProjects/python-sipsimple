@@ -315,7 +315,7 @@ class Account(SettingsObject):
     attributes for accessing SIP related objects.
 
     When the account is active, it will register, publish its presence and
-    subscribe to watcher-info events.
+    subscribe to watcher-info events depending on its settings.
 
     If the object is unpickled and its enabled flag was set, it will
     automatically activate.
@@ -607,7 +607,7 @@ class AccountManager(object):
     This is a singleton object which manages all the SIP accounts. When its
     start method is called, it will load all the accounts from the
     configuration. It is also used to manage the default account (the one
-    which maintains a buddylist) using the default_account attribute:
+    used for outbound sessions) using the default_account attribute:
 
     manager = AccountManager()
     manager.default_account = manager.get_account('alice@example.net')
@@ -642,7 +642,7 @@ class AccountManager(object):
 
     def start(self):
         """
-        Start the accounts which will determine the ones with the enabled flag
+        Start the accounts, which will determine the ones with the enabled flag
         set to activate.
         """
         notification_center = NotificationCenter()
@@ -653,7 +653,7 @@ class AccountManager(object):
 
     def stop(self):
         """
-        Stop the accounts which will determine the ones which were enabled to
+        Stop the accounts, which will determine the ones that were enabled to
         deactivate. This method returns only once the accounts were stopped
         successfully or they timed out trying.
         """
