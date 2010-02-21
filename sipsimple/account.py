@@ -274,8 +274,6 @@ class RTPSettings(SettingsGroup):
 
 class DialogEventSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    subscribe = Setting(type=bool, default=True)
-    publish = Setting(type=bool, default=False)
 
 
 class NatTraversalSettings(SettingsGroup):
@@ -295,18 +293,11 @@ class XCAPSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
     xcap_diff = Setting(type=bool, default=True)
-    icon = Setting(type=bool, default=True)
-    pidf_manipulation = Setting(type=bool, default=True)
 
 
 class PresenceSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    subscribe = Setting(type=bool, default=True)
-    publish = Setting(type=bool, default=True)
-    pres_rules = Setting(type=bool, default=True)
-    resource_lists = Setting(type=bool, default=True)
     rls_services = Setting(type=bool, default=True)
-    resource_lists = Setting(type=bool, default=True)
 
 
 class TLSSettings(SettingsGroup):
