@@ -273,10 +273,9 @@ class RTPSettings(SettingsGroup):
 
 
 class DialogEventSettings(SettingsGroup):
-    enable_subscribe = Setting(type=bool, default=True)
-    enable_publish = Setting(type=bool, default=False)
-    enable_dialog_rules = Setting(type=bool, default=False)
-    enable_subscribe_winfo = Setting(type=bool, default=True)
+    enabled = Setting(type=bool, default=True)
+    subscribe = Setting(type=bool, default=True)
+    publish = Setting(type=bool, default=False)
 
 
 class NatTraversalSettings(SettingsGroup):
@@ -295,20 +294,19 @@ class MessageSummarySettings(SettingsGroup):
 class XCAPSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
-    subscribe_xcap_diff = Setting(type=bool, default=True)
+    xcap_diff = Setting(type=bool, default=True)
     icon = Setting(type=bool, default=True)
     pidf_manipulation = Setting(type=bool, default=True)
 
 
 class PresenceSettings(SettingsGroup):
-    enable_subscribe_presence = Setting(type=bool, default=True)
-    enable_subscribe_winfo = Setting(type=bool, default=True)
-    enable_publish = Setting(type=bool, default=True)
-    enable_pres_rules = Setting(type=bool, default=True)
-    enable_resource_lists = Setting(type=bool, default=True)
-    enable_rls_services = Setting(type=bool, default=True)
-    enable_pres_rules = Setting(type=bool, default=True)
-    enable_resource_lists = Setting(type=bool, default=True)
+    enabled = Setting(type=bool, default=True)
+    subscribe = Setting(type=bool, default=True)
+    publish = Setting(type=bool, default=True)
+    pres_rules = Setting(type=bool, default=True)
+    resource_lists = Setting(type=bool, default=True)
+    rls_services = Setting(type=bool, default=True)
+    resource_lists = Setting(type=bool, default=True)
 
 
 class TLSSettings(SettingsGroup):
