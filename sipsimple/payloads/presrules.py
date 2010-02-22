@@ -67,7 +67,7 @@ class SubHandlingValue(str):
 class ProvideUserInputValue(str):
     def __new__(cls, value):
         if value not in ('false', 'bare', 'thresholds', 'full'):
-            raise ValueError("illega value for ProvideUserInput element")
+            raise ValueError("illegal value for ProvideUserInput element")
         return str.__new__(cls, value)
 
 
