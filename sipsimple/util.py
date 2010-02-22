@@ -8,8 +8,8 @@ Implements utilities commonly used in various parts of the library.
 from __future__ import absolute_import, with_statement
 
 __all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
-           "Command", "PersistentTones", "Route", "SilenceableWaveFile", "Timestamp", "TimestampedNotificationData",
-           "call_in_green_thread", "call_in_twisted_thread", "limit", "makedirs"]
+           "Command", "MultilingualText", "PersistentTones", "Route", "SilenceableWaveFile", "Timestamp",
+           "TimestampedNotificationData", "call_in_green_thread", "call_in_twisted_thread", "limit", "makedirs"]
 
 import errno
 import os
@@ -99,6 +99,19 @@ class Command(object):
 
     def wait(self):
         return self.event.wait()
+
+
+class MultilingualText(unicode):
+    def __new__(cls, *args, **translations):
+        if len(args) > 1:
+            raise TypeError("%s.__new__ takes at most 1 positional argument (%d given)" % (cls.__name__, len(args)))
+        default = args[0] if args else translations.get('en', u'')
+        obj = unicode.__new__(cls, default)
+        obj.translations = translations
+        return obj
+
+    def get_translation(self, language):
+        return self.translations.get(language, self)
 
 
 class PersistentTones(object):
