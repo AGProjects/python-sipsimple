@@ -124,7 +124,7 @@ class AccountRegistrar(object):
 
         try:
             # Lookup routes
-            if self.account.sip.outbound_proxy is not None and self.account.sip.enable_outbound_proxy is True:
+            if self.account.sip.outbound_proxy is not None:
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host,
                              port=self.account.sip.outbound_proxy.port,
                              parameters={'transport': self.account.sip.outbound_proxy.transport})
@@ -259,8 +259,7 @@ class AccountRegistrar(object):
 
 class SIPSettings(SettingsGroup):
     outbound_proxy = Setting(type=SIPProxyAddress, default=None, nillable=True)
-    enable_outbound_proxy = Setting(type=bool, default=False)
-    enable_register = Setting(type=bool, default=True)
+    register = Setting(type=bool, default=True)
     register_interval = Setting(type=NonNegativeInteger, default=600)
     subscribe_interval = Setting(type=NonNegativeInteger, default=600)
     publish_interval = Setting(type=NonNegativeInteger, default=600)
@@ -277,7 +276,7 @@ class DialogEventSettings(SettingsGroup):
 
 
 class NatTraversalSettings(SettingsGroup):
-    enable_ice = Setting(type=bool, default=False)
+    use_ice = Setting(type=bool, default=False)
     stun_server_list = Setting(type=STUNServerAddressList, default=None, nillable=True)
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
@@ -292,12 +291,12 @@ class MessageSummarySettings(SettingsGroup):
 class XCAPSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
-    xcap_diff = Setting(type=bool, default=True)
+    use_xcap_diff = Setting(type=bool, default=True)
 
 
 class PresenceSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    rls_services = Setting(type=bool, default=True)
+    use_rls = Setting(type=bool, default=True)
 
 
 class TLSSettings(SettingsGroup):
@@ -441,19 +440,19 @@ class Account(SettingsObject):
                     self._activate()
                 else:
                     self._deactivate()
-            elif self.enabled and 'sip.enable_register' in notification.data.modified:
-                if self.sip.enable_register:
+            elif self.enabled and 'sip.register' in notification.data.modified:
+                if self.sip.register:
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
-            elif set(['password', 'sip.outbound_proxy', 'sip.register_interval', 'sip.enable_outbound_proxy']).intersection(notification.data.modified) and self.enabled and self.sip.enable_register:
+            elif set(['password', 'sip.outbound_proxy', 'sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.register:
                 self._registrar.reload_settings()
 
     def _activate(self):
         if self._active:
             return
         self._active = True
-        if self.sip.enable_register:
+        if self.sip.register:
             self._registrar.activate()
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
@@ -514,7 +513,7 @@ class BonjourAccount(SettingsObject):
 
         # initialize nat settings
         self.nat_traversal = NatTraversalSettings()
-        self.nat_traversal.enable_ice = False
+        self.nat_traversal.use_ice = False
         self.nat_traversal.msrp_relay = None
         self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
