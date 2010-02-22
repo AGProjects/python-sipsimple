@@ -28,7 +28,7 @@ setup(name         = "python-sipsimple",
           "Operating System :: OS Independent",
           "Programming Language :: Python"
       ],
-      packages     = ["sipsimple", "sipsimple.core", "sipsimple.streams", "sipsimple.payloads", "sipsimple.configuration", "sipsimple.configuration.backend"],
+      packages     = ["sipsimple", "sipsimple.core", "sipsimple.streams", "sipsimple.streams.applications", "sipsimple.payloads", "sipsimple.configuration", "sipsimple.configuration.backend"],
       package_data = {
           'sipsimple.payloads' : ['xml-schemas/*']
       },
