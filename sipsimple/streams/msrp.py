@@ -559,21 +559,19 @@ class FileTransferStream(MSRPStreamBase):
             notification_center.post_notification('FileTransferStreamDidNotDeliverChunk', self, data)
     
     def _handle_SEND(self, chunk):
+        notification_center = NotificationCenter()
         if self.direction=='sendonly':
             return # should we just ignore this? -Dan
-        if chunk.content_type.lower()=='message/cpim':
-            cpim_headers, content = MessageCPIMParser.parse_string(chunk.data)
-            content_type = cpim_headers.get('Content-Type')
-        else:
-            cpim_headers = {}
-            content = chunk.data
-            content_type = chunk.content_type
+        if chunk.content_type.lower() == 'message/cpim':
+            # In order to properly support the CPIM wrapper, msrplib needs to be refactored. -Luci
+            e = MSRPStreamError("CPIM wrapper is not supported")
+            notification_center.post_notification('MediaStreamDidFail', self, TimestampedNotificationData(failure=Failure(e), reason=str(e)))
+            return
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report if it's invalid
         # Calculating the number of bytes transferred so far by looking at the Byte-Range of this message
         # only works as long as chunks are delivered in order. -Luci
-        notification_center = NotificationCenter()
-        ndata = TimestampedNotificationData(content=content, content_type=content_type, cpim_headers=cpim_headers, chunk=chunk, transferred_bytes=chunk.byte_range[0]+chunk.size-1, file_size=chunk.byte_range[2])
+        ndata = TimestampedNotificationData(content=chunk.data, content_type=chunk.content_type, transferred_bytes=chunk.byte_range[0]+chunk.size-1, file_size=chunk.byte_range[2])
         notification_center.post_notification('FileTransferStreamGotChunk', self, ndata)
         if ndata.transferred_bytes == ndata.file_size:
             notification_center.post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
