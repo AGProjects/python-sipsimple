@@ -66,7 +66,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 65536",
                    "#define PJSIP_UNESCAPE_IN_PLACE 1",
-                   "#define PJMEDIA_HAS_L16_CODEC 0"]
+                   "#define PJMEDIA_HAS_L16_CODEC 0",
+                   "#define PJ_ICE_MAX_CHECKS 256"]
     patch_files = ["patches/sdp_neg_cancel_remote_offer_r2669.patch",
                    "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-cancel_sdp_neg_on_sending_negative_reply_to_reinvite.patch",
