@@ -1002,64 +1002,64 @@ cdef extern from "pjsip_ua.h":
 
 # core.lib
 
-cdef class PJLIB(object)
-cdef class PJCachingPool(object)
-cdef class PJSIPEndpoint(object)
-cdef class PJMEDIAEndpoint(object)
+cdef class PJLIB
+cdef class PJCachingPool
+cdef class PJSIPEndpoint
+cdef class PJMEDIAEndpoint
 
 # core.sound
 
-cdef class ConferenceBridge(object)
-cdef class ToneGenerator(object)
-cdef class RecordingWaveFile(object)
-cdef class WaveFile(object)
+cdef class ConferenceBridge
+cdef class ToneGenerator
+cdef class RecordingWaveFile
+cdef class WaveFile
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 
 # core.helper
 
-cdef class BaseCredentials(object)
-cdef class Credentials(BaseCredentials)
-cdef class FrozenCredentials(BaseCredentials)
-cdef class BaseSIPURI(object)
-cdef class SIPURI(BaseSIPURI)
-cdef class FrozenSIPURI(BaseSIPURI)
+cdef class BaseCredentials
+cdef class Credentials
+cdef class FrozenCredentials
+cdef class BaseSIPURI
+cdef class SIPURI
+cdef class FrozenSIPURI
 cdef SIPURI SIPURI_create(pjsip_sip_uri *base_uri)
 cdef FrozenSIPURI FrozenSIPURI_create(pjsip_sip_uri *base_uri)
 
 # core.headers
 
-cdef class BaseHeader(object)
-cdef class Header(BaseHeader)
-cdef class FrozenHeader(BaseHeader)
-cdef class BaseContactHeader(object)
-cdef class ContactHeader(BaseContactHeader)
-cdef class FrozenContactHeader(BaseContactHeader)
-cdef class BaseIdentityHeader(object)
-cdef class IdentityHeader(BaseIdentityHeader)
-cdef class FrozenIdentityHeader(BaseIdentityHeader)
-cdef class FromHeader(IdentityHeader)
-cdef class FrozenFromHeader(FrozenIdentityHeader)
-cdef class ToHeader(IdentityHeader)
-cdef class FrozenToHeader(FrozenIdentityHeader)
-cdef class RouteHeader(IdentityHeader)
-cdef class FrozenRouteHeader(FrozenIdentityHeader)
-cdef class RecordRouteHeader(IdentityHeader)
-cdef class FrozenRecordRouteHeader(FrozenIdentityHeader)
-cdef class BaseRetryAfterHeader(object)
-cdef class RetryAfterHeader(BaseRetryAfterHeader)
-cdef class FrozenRetryAfterHeader(BaseRetryAfterHeader)
-cdef class BaseViaHeader(object)
-cdef class ViaHeader(BaseViaHeader)
-cdef class FrozenViaHeader(BaseViaHeader)
-cdef class BaseWarningHeader(object)
-cdef class WarningHeader(BaseWarningHeader)
-cdef class FrozenWarningHeader(BaseWarningHeader)
-cdef class BaseEventHeader(object)
-cdef class EventHeader(BaseEventHeader)
-cdef class FrozenEventHeader(BaseEventHeader)
-cdef class BaseSubscriptionStateHeader(object)
-cdef class SubscriptionStateHeader(BaseSubscriptionStateHeader)
-cdef class FrozenSubscriptionStateHeader(BaseSubscriptionStateHeader)
+cdef class BaseHeader
+cdef class Header
+cdef class FrozenHeader
+cdef class BaseContactHeader
+cdef class ContactHeader
+cdef class FrozenContactHeader
+cdef class BaseIdentityHeader
+cdef class IdentityHeader
+cdef class FrozenIdentityHeader
+cdef class FromHeader
+cdef class FrozenFromHeader
+cdef class ToHeader
+cdef class FrozenToHeader
+cdef class RouteHeader
+cdef class FrozenRouteHeader
+cdef class RecordRouteHeader
+cdef class FrozenRecordRouteHeader
+cdef class BaseRetryAfterHeader
+cdef class RetryAfterHeader
+cdef class FrozenRetryAfterHeader
+cdef class BaseViaHeader
+cdef class ViaHeader
+cdef class FrozenViaHeader
+cdef class BaseWarningHeader
+cdef class WarningHeader
+cdef class FrozenWarningHeader
+cdef class BaseEventHeader
+cdef class EventHeader
+cdef class FrozenEventHeader
+cdef class BaseSubscriptionStateHeader
+cdef class SubscriptionStateHeader
+cdef class FrozenSubscriptionStateHeader
 
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
@@ -1084,9 +1084,9 @@ cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_su
 
 # core.util
 
-cdef class frozenlist(object)
-cdef class frozendict(object)
-cdef class PJSTR(object)
+cdef class frozenlist
+cdef class frozendict
+cdef class PJSTR
 cdef int _str_to_pj_str(object string, pj_str_t *pj_str) except -1
 cdef object _pj_str_to_str(pj_str_t pj_str)
 cdef object _pj_status_to_str(int status)
@@ -1102,9 +1102,9 @@ cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_ro
 
 # core.ua
 
-cdef class PJSIPThread(object)
-cdef class PJSIPUA(object)
-cdef class Timer(object)
+cdef class PJSIPThread
+cdef class PJSIPUA
+cdef class Timer
 ctypedef int (*timer_callback)(object, object) except -1 with gil
 cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
@@ -1129,16 +1129,16 @@ cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1
 
 # core.request
 
-cdef class Request(object)
-cdef class IncomingRequest(object)
+cdef class Request
+cdef class IncomingRequest
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 cdef int _IncomingRequest_dealloc_handler(object obj) except -1
 
 # core.subscription
 
-cdef class Subscription(object)
-cdef class IncomingSubscription(object)
+cdef class Subscription
+cdef class IncomingSubscription
 cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
 cdef void _Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
                                     pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
@@ -1151,7 +1151,7 @@ cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx,
 
 # core.invitation
 
-cdef class Invitation(object)
+cdef class Invitation
 cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
 cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
@@ -1161,20 +1161,20 @@ cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
 
 # core.sdp
 
-cdef class BaseSDPSession(object)
-cdef class SDPSession(BaseSDPSession)
-cdef class FrozenSDPSession(BaseSDPSession)
-cdef class BaseSDPMediaStream(object)
-cdef class SDPMediaStream(BaseSDPMediaStream)
-cdef class FrozenSDPMediaStream(BaseSDPMediaStream)
-cdef class BaseSDPConnection(object)
-cdef class SDPConnection(BaseSDPConnection)
-cdef class FrozenSDPConnection(BaseSDPConnection)
-cdef class SDPAttributeList(list)
-cdef class FrozenSDPAttributeList(frozenlist)
-cdef class BaseSDPAttribute(object)
-cdef class SDPAttribute(BaseSDPAttribute)
-cdef class FrozenSDPAttribute(BaseSDPAttribute)
+cdef class BaseSDPSession
+cdef class SDPSession
+cdef class FrozenSDPSession
+cdef class BaseSDPMediaStream
+cdef class SDPMediaStream
+cdef class FrozenSDPMediaStream
+cdef class BaseSDPConnection
+cdef class SDPConnection
+cdef class FrozenSDPConnection
+cdef class SDPAttributeList
+cdef class FrozenSDPAttributeList
+cdef class BaseSDPAttribute
+cdef class SDPAttribute
+cdef class FrozenSDPAttribute
 cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
 cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
 cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media)
@@ -1186,8 +1186,8 @@ cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr)
 
 # core.mediatransport
 
-cdef class RTPTransport(object)
-cdef class AudioTransport(object)
+cdef class RTPTransport
+cdef class AudioTransport
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
 cdef dict _pj_math_stat_to_dict(pj_math_stat *stat)

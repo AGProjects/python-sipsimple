@@ -39,7 +39,7 @@ the following packages, notice the minimum version numbers:
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
- * cython                   http://www.cython.org                             >=0.11.3
+ * cython                   http://www.cython.org                             <=0.11.2
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * eventlet                 http://pypi.python.org/pypi/eventlet/             =0.8.11
@@ -52,13 +52,26 @@ On Debian you can install the dependencies using apt-get:
 
 sudo apt-get install python-gnutls python-application python-lxml \
 python-dnspython python-twisted-core python-zopeinterface \
-python-twisted-names python-xml python-imaging cython
+python-twisted-names python-xml python-imaging
+
+Cython version 11.3 or higher is known not to be working, you must install a
+version of Cython bigger that 0.10.1 and smaller than 0.11.3. Check the
+available versions from your Debian system packages and install a proper
+Cython version using the following commands, the example is for 0.11.2-1:
+
+apt-cache show cython | grep Version
+Version: 0.11.2-1
+sudo apt-get install cython=0.11.2-1
 
 Alternatively, on non-Debian systems you can use the easy_install script
 provided by the python-setuptools package to install the packages:
 
 sudo easy_install -U lxml python-gnutls python-application \
 dnspython twisted PIL pybonjour
+
+Install the proper version of Cython:
+
+sudo easy_install cython==0.11.2
 
 Install greenlet by using easy_install script:
 
