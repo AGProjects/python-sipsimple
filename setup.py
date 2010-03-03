@@ -34,7 +34,7 @@ setup(name         = "python-sipsimple",
       },
       ext_modules  = [
             Extension(name = "sipsimple.core._core",
-            sources = ["sipsimple/core/_core.pyx", "sipsimple/core/_core.pxd"] + glob.glob(os.path.join("sipsimple", "core", "_core.*.pxi")))
+            sources = ["sipsimple/core/_core.pyx"] + glob.glob(os.path.join("sipsimple", "core", "_core.*.pxi")))
             ],
       cmdclass = { 'build_ext': PJSIP_build_ext }
 )
