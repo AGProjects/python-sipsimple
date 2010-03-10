@@ -1060,10 +1060,8 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
             if op == PJ_ICE_STRANS_OP_NEGOTIATION:
                 if status == 0:
                     rtp_transport._ice_active = 1
-                    _add_event("RTPTransportCompletedICENegotiation", dict(obj=rtp_transport, succeeded=True))
                 else:
-                    _add_event("RTPTransportCompletedICENegotiation", dict(obj=rtp_transport, succeeded=False,
-                                                                           error=_pj_status_to_str(status)))
+                    _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
             elif op == PJ_ICE_STRANS_OP_INIT:
                 if status == 0:
                     rtp_transport.state = "INIT"
@@ -1073,6 +1071,64 @@ cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op 
                     _add_event("RTPTransportDidInitialize", dict(obj=rtp_transport))
                 else:
                     _add_event("RTPTransportDidFail", dict(obj=rtp_transport, reason=_pj_status_to_str(status)))
+    except:
+        ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_ice_candidates_chosen(pjmedia_transport *tp, int status, pj_ice_candidate_pair rtp_pair, pj_ice_candidate_pair rtcp_pair, char *duration, char *local_candidates, char *remote_candidates, char *valid_list) with gil:
+    cdef void *rtp_transport_void = NULL
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    cdef dict chosen_local_candidates
+    cdef dict chosen_remote_candidates
+    cdef list local_cand_list = list()
+    cdef list remote_cand_list = list()
+    cdef list v_list = list()
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        if tp != NULL:
+            rtp_transport_void = (<void **> (tp.name + 1))[0]
+        if rtp_transport_void != NULL:
+            rtp_transport = (<object> rtp_transport_void)()
+            if rtp_transport is None:
+                return
+            if status == 0:
+                for item in local_candidates.split("\r\n"):
+                    if item:
+                        item_id, component_id, address, comp_type = item.split(" ")
+                        local_cand_list.append([item_id, component_id, address, comp_type])
+                for item in remote_candidates.split("\r\n"):
+                    if item:
+                        item_id, component_id, address, comp_type = item.split(" ")
+                        remote_cand_list.append([item_id, component_id, address, comp_type])
+                for item in valid_list.split("\r\n"):
+                    if item:
+                        item_id, component_id, source, destination, nomination, state = item.split(" ")
+                        v_list.append([item_id, component_id, source, destination, nomination, state])
+                chosen_local_candidates = dict(rtp_cand_type=rtp_pair.local_type, rtp_cand_ip=rtp_pair.local_ip, rtcp_cand_type=rtcp_pair.local_type, rtcp_cand_ip=rtcp_pair.local_ip)
+                chosen_remote_candidates = dict(rtp_cand_type=rtp_pair.remote_type, rtp_cand_ip=rtp_pair.remote_ip, rtcp_cand_type=rtcp_pair.remote_type, rtcp_cand_ip=rtcp_pair.remote_ip)
+                _add_event("RTPTransportICENegotiationDidSucceed", dict(obj=rtp_transport, chosen_local_candidates=chosen_local_candidates, chosen_remote_candidates=chosen_remote_candidates, duration=duration, local_candidates=local_cand_list, remote_candidates=remote_cand_list, connectivity_checks_results=v_list))
+    except:
+        ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_ice_failure(pjmedia_transport *tp, char *reason) with gil:
+    cdef void *rtp_transport_void = NULL
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        if tp != NULL:
+            rtp_transport_void = (<void **> (tp.name + 1))[0]
+        if rtp_transport_void != NULL:
+            rtp_transport = (<object> rtp_transport_void)()
+            if rtp_transport is None:
+                return
+            _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=reason))
     except:
         ua._handle_exception(1)
 
@@ -1094,3 +1150,6 @@ cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int d
 
 cdef pjmedia_ice_cb _ice_cb
 _ice_cb.on_ice_complete = _RTPTransport_cb_ice_complete
+_ice_cb.on_ice_candidates_chosen = _RTPTransport_cb_ice_candidates_chosen
+_ice_cb.on_ice_failure = _RTPTransport_cb_ice_failure
+

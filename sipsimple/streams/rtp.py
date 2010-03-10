@@ -278,6 +278,9 @@ class AudioStream(object):
         rtp_transport = notification.sender
         with self._lock:
             self.notification_center.remove_observer(self, sender=rtp_transport)
+            if self.account.nat_traversal.use_ice:
+                self.notification_center.add_observer(self, sender=rtp_transport, name='RTPTransportICENegotiationDidSucceed')
+                self.notification_center.add_observer(self, sender=rtp_transport, name='RTPTransportICENegotiationDidFail')
             if self.state == "ENDED":
                 return
             del self._rtp_args
@@ -306,6 +309,18 @@ class AudioStream(object):
             self.notification_center.add_observer(self, sender=audio_transport)
             self.state = "INITIALIZED"
             self.notification_center.post_notification("MediaStreamDidInitialize", self, TimestampedNotificationData())
+
+    def _NH_RTPTransportICENegotiationDidSucceed(self, notification):
+        rtp_transport = notification.sender
+        self.notification_center.remove_observer(self, sender=rtp_transport, name='RTPTransportICENegotiationDidSucceed')
+        self.notification_center.remove_observer(self, sender=rtp_transport, name='RTPTransportICENegotiationDidFail')
+        self.notification_center.post_notification("AudioStreamICENegotiationDidSucceed", self, data=notification.data)
+
+    def _NH_RTPTransportICENegotiationDidFail(self, notification):
+        rtp_transport = notification.sender
+        self.notification_center.remove_observer(self, sender=rtp_transport, name='RTPTransportICENegotiationDidSucceed')
+        self.notification_center.remove_observer(self, sender=rtp_transport, name='RTPTransportICENegotiationDidFail')
+        self.notification_center.post_notification("AudioStreamICENegotiationDidFail", self, data=notification.data)
 
     def get_local_media(self, for_offer):
         with self._lock:
