@@ -301,6 +301,8 @@ cdef extern from "pjmedia.h":
     pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port) nogil
     int pjmedia_null_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count,
                                  unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port) nogil
+    int pjmedia_mixer_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count,
+                                  unsigned int samples_per_frame, unsigned int bits_per_sample, pjmedia_port **p_port) nogil
 
     # master port
     struct pjmedia_master_port
@@ -1017,10 +1019,11 @@ cdef class PJMEDIAEndpoint
 
 # core.sound
 
-cdef class ConferenceBridge
+cdef class AudioMixer
 cdef class ToneGenerator
 cdef class RecordingWaveFile
 cdef class WaveFile
+cdef class MixerPort
 cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 
 # core.helper

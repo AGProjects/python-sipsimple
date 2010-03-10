@@ -87,7 +87,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-dont_compile_pjsua.patch",
                    "patches/pjsip-2830-ice_choose_right_candidate.patch",
                    "patches/pjsip-2830-ice_avoid_crash_on_ice_completion_cb.patch",
-                   "patches/pjsip-2830-ice_status_callbacks.patch"]
+                   "patches/pjsip-2830-ice_status_callbacks.patch",
+                   "patches/pjsip-2830-add_mixer_port.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
@@ -148,6 +149,7 @@ class PJSIP_build_ext(build_ext):
                 if svn_updated:
                     log.info("Fetching updates from PJSIP SVN repository")
                     distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
+                    distutils_exec_process("svn status \"%s\" | grep ^\?| awk '{print $2}' | xargs -I '{}' rm '{}'" % (self.svn_dir,), True, shell=True)
                     distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
                     if self.pjsip_svn_repo == self.pjsip_svn_repos["1.0"]:
                         for override_file, override_revision in self.trunk_overrides:

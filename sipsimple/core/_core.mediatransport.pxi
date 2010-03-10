@@ -504,7 +504,7 @@ cdef class AudioTransport:
     cdef dict _cached_statistics
     cdef Timer _timer
     cdef readonly object direction
-    cdef readonly ConferenceBridge conference_bridge
+    cdef readonly AudioMixer mixer
     cdef readonly RTPTransport transport
 
     def __cinit__(self, *args, **kwargs):
@@ -529,7 +529,7 @@ cdef class AudioTransport:
         self._timer = None
         self._volume = 100
 
-    def __init__(self, ConferenceBridge conference_bridge, RTPTransport transport,
+    def __init__(self, AudioMixer mixer, RTPTransport transport,
                  BaseSDPSession remote_sdp=None, int sdp_index=0, enable_silence_detection=True, list codecs=None):
         cdef int status
         cdef pj_pool_t *pool
@@ -547,8 +547,8 @@ cdef class AudioTransport:
 
         if self.transport is not None:
             raise SIPCoreError("AudioTransport.__init__() was already called")
-        if conference_bridge is None:
-            raise ValueError("conference_bridge argument may not be None")
+        if mixer is None:
+            raise ValueError("mixer argument may not be None")
         if transport is None:
             raise ValueError("transport argument cannot be None")
         if sdp_index < 0:
@@ -557,14 +557,14 @@ cdef class AudioTransport:
             raise SIPCoreError('RTPTransport object provided is not in the "INIT" state, but in the "%s" state' %
                                transport.state)
         self._vad = int(bool(enable_silence_detection))
-        self.conference_bridge = conference_bridge
+        self.mixer = mixer
         self.transport = transport
         transport._get_info(&info)
         global_codecs = ua._pjmedia_endpoint._get_current_codecs()
         if codecs is None:
             codecs = global_codecs
         try:
-            ua._pjmedia_endpoint._set_codecs(codecs, self.conference_bridge.sample_rate)
+            ua._pjmedia_endpoint._set_codecs(codecs, self.mixer.sample_rate)
             with nogil:
                 status = pjmedia_endpt_create_sdp(media_endpoint, pool, 1, &info.sock_info, &local_sdp_c)
             if status != 0:
@@ -708,7 +708,7 @@ cdef class AudioTransport:
                 if status != 0:
                     raise PJSIPError("failed to acquire lock", status)
             try:
-                conf_bridge = self.conference_bridge._obj
+                conf_bridge = self.mixer._obj
                 slot = self._slot
 
                 if value < 0:
@@ -852,7 +852,7 @@ cdef class AudioTransport:
                 self._obj = NULL
                 raise PJSIPError("Could not get audio port for audio session", status)
             try:
-                self._slot = self.conference_bridge._add_port(ua, pool, media_port)
+                self._slot = self.mixer._add_port(ua, pool, media_port)
                 if self._volume != 100:
                     self.volume = self._volume
             except:
@@ -894,7 +894,7 @@ cdef class AudioTransport:
                 self._timer = None
             if self._obj == NULL:
                 return
-            self.conference_bridge._remove_port(ua, self._slot)
+            self.mixer._remove_port(ua, self._slot)
             self._cached_statistics = self.statistics
             with nogil:
                 pjmedia_stream_destroy(stream)

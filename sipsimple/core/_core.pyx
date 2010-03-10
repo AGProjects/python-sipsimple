@@ -23,13 +23,13 @@ include "_core.mediatransport.pxi"
 
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-CORE_REVISION = 80
+CORE_REVISION = 81
 
 # exports
 
 __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "SIPCoreError", "PJSIPError", "PJSIPTLSError", "SIPCoreInvalidStateError",
-           "ConferenceBridge", "ToneGenerator", "RecordingWaveFile", "WaveFile",
+           "AudioMixer", "ToneGenerator", "RecordingWaveFile", "WaveFile", "MixerPort",
            "sip_status_messages",
            "BaseCredentials", "Credentials", "FrozenCredentials", "BaseSIPURI", "SIPURI", "FrozenSIPURI",
            "BaseHeader", "Header", "FrozenHeader", "BaseContactHeader", "ContactHeader", "FrozenContactHeader",
