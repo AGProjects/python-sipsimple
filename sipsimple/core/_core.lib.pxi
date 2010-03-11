@@ -4,8 +4,6 @@
 # classes
 
 cdef class PJLIB:
-    cdef int _init_done
-
     def __cinit__(self):
         cdef int status
         status = pj_init()
@@ -25,9 +23,6 @@ cdef class PJLIB:
 
 
 cdef class PJCachingPool:
-    cdef pj_caching_pool _obj
-    cdef int _init_done
-
     def __cinit__(self):
         pj_caching_pool_init(&self._obj, &pj_pool_factory_default_policy, 0)
         self._init_done = 1
@@ -38,19 +33,6 @@ cdef class PJCachingPool:
 
 
 cdef class PJSIPEndpoint:
-    cdef pjsip_endpoint *_obj
-    cdef pj_pool_t *_pool
-    cdef pjsip_transport *_udp_transport
-    cdef pjsip_tpfactory *_tcp_transport
-    cdef pjsip_tpfactory *_tls_transport
-    cdef int _tls_verify_server
-    cdef PJSTR _tls_ca_file
-    cdef PJSTR _tls_cert_file
-    cdef PJSTR _tls_privkey_file
-    cdef object _local_ip_used
-    cdef int _tls_timeout
-    cdef object _tls_protocol
-
     def __cinit__(self, PJCachingPool caching_pool, ip_address, udp_port, tcp_port, tls_port, tls_protocol,
                   tls_verify_server, tls_ca_file, tls_cert_file, tls_privkey_file, int tls_timeout):
         global _inv_cb, _tls_protocol_mapping
@@ -188,13 +170,6 @@ cdef class PJSIPEndpoint:
 
 
 cdef class PJMEDIAEndpoint:
-    cdef pjmedia_endpt *_obj
-    cdef int _has_speex
-    cdef int _has_g722
-    cdef int _has_g711
-    cdef int _has_ilbc
-    cdef int _has_gsm
-
     def __cinit__(self, PJCachingPool caching_pool):
         cdef int status
         cdef int speex_options = 0

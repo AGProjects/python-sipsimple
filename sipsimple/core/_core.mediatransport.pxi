@@ -4,25 +4,6 @@
 # classes
 
 cdef class RTPTransport:
-    cdef object __weakref__
-    cdef object weakref
-
-    cdef int _af
-    cdef int _ice_active
-    cdef pj_mutex_t *_lock
-    cdef pj_pool_t *_pool
-    cdef pjmedia_transport *_obj
-    cdef pjmedia_transport *_wrapped_transport
-    cdef object _local_rtp_addr
-    cdef readonly object ice_stun_address
-    cdef readonly object ice_stun_port
-    cdef readonly object remote_rtp_port_sdp
-    cdef readonly object remote_rtp_address_sdp
-    cdef readonly object srtp_forced
-    cdef readonly object state
-    cdef readonly object use_ice
-    cdef readonly object use_srtp
-
     def __cinit__(self, *args, **kwargs):
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint
@@ -480,33 +461,11 @@ cdef class RTPTransport:
 
 
 cdef class MediaCheckTimer(Timer):
-    cdef int media_check_interval
-
     def __init__(self, media_check_interval):
         self.media_check_interval = media_check_interval
 
 
 cdef class AudioTransport:
-    cdef object __weakref__
-    cdef object weakref
-
-    cdef int _is_offer
-    cdef int _is_started
-    cdef int _slot
-    cdef int _volume
-    cdef unsigned int _packets_received
-    cdef unsigned int _vad
-    cdef pj_mutex_t *_lock
-    cdef pj_pool_t *_pool
-    cdef pjmedia_sdp_media *_local_media
-    cdef pjmedia_stream *_obj
-    cdef pjmedia_stream_info _stream_info
-    cdef dict _cached_statistics
-    cdef Timer _timer
-    cdef readonly object direction
-    cdef readonly AudioMixer mixer
-    cdef readonly RTPTransport transport
-
     def __cinit__(self, *args, **kwargs):
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint

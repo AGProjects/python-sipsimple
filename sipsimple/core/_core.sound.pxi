@@ -4,28 +4,6 @@
 # classes
 
 cdef class AudioMixer:
-    # instance attributes
-    cdef int _disconnect_when_idle
-    cdef int _input_volume
-    cdef int _output_volume
-    cdef bint _muted
-    cdef pj_mutex_t *_lock
-    cdef pj_pool_t *_conf_pool
-    cdef pj_pool_t *_snd_pool
-    cdef pjmedia_conf *_obj
-    cdef pjmedia_master_port *_master_port
-    cdef pjmedia_port *_null_port
-    cdef pjmedia_snd_port *_snd
-    cdef list _connected_slots
-    cdef readonly int ec_tail_length
-    cdef readonly int sample_rate
-    cdef readonly int slot_count
-    cdef readonly int used_slot_count
-    cdef readonly str input_device
-    cdef readonly str output_device
-    cdef readonly str real_input_device
-    cdef readonly str real_output_device
-
     # properties
 
     property input_volume:
@@ -569,15 +547,6 @@ cdef class AudioMixer:
 
 
 cdef class ToneGenerator:
-    # instance attributes
-    cdef int _slot
-    cdef int _volume
-    cdef pj_mutex_t *_lock
-    cdef pj_pool_t *_pool
-    cdef pjmedia_port *_obj
-    cdef Timer _timer
-    cdef readonly AudioMixer mixer
-
     # properties
 
     property volume:
@@ -906,14 +875,6 @@ cdef class ToneGenerator:
 
 
 cdef class RecordingWaveFile:
-    cdef int _slot
-    cdef int _was_started
-    cdef pj_mutex_t *_lock
-    cdef pj_pool_t *_pool
-    cdef pjmedia_port *_port
-    cdef readonly str filename
-    cdef readonly AudioMixer mixer
-
     def __cinit__(self, *args, **kwargs):
         pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "recording_wave_file_lock", &self._lock)
         self._slot = -1
@@ -1053,17 +1014,6 @@ cdef class RecordingWaveFile:
 
 
 cdef class WaveFile:
-    cdef object __weakref__
-    cdef object weakref
-
-    cdef int _slot
-    cdef int _volume
-    cdef pj_mutex_t *_lock
-    cdef pj_pool_t *_pool
-    cdef pjmedia_port *_port
-    cdef readonly str filename
-    cdef readonly AudioMixer mixer
-
     def __cinit__(self, *args, **kwargs):
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
@@ -1280,13 +1230,6 @@ cdef class WaveFile:
 
 
 cdef class MixerPort:
-    cdef int _slot
-    cdef int _was_started
-    cdef pj_mutex_t *_lock
-    cdef pj_pool_t *_pool
-    cdef pjmedia_port *_port
-    cdef readonly AudioMixer mixer
-
     def __cinit__(self, *args, **kwargs):
         pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "mixer_port_lock", &self._lock)
         self._slot = -1

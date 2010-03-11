@@ -6,35 +6,7 @@ import re
 # main class
 
 cdef class Subscription:
-    # class attributes
     expire_warning_time = 30
-
-    # instance attributes
-
-    cdef pjsip_evsub *_obj
-    cdef pjsip_dialog *_dlg
-    cdef pjsip_route_hdr _route_header
-    cdef pj_list _route_set
-    cdef readonly object state
-    cdef pj_timer_entry _timeout_timer
-    cdef int _timeout_timer_active
-    cdef pj_timer_entry _refresh_timer
-    cdef int _refresh_timer_active
-    cdef readonly FrozenFromHeader from_header
-    cdef readonly FrozenToHeader to_header
-    cdef readonly FrozenContactHeader contact_header
-    cdef readonly object event
-    cdef readonly FrozenRouteHeader route_header
-    cdef readonly FrozenCredentials credentials
-    cdef readonly int refresh
-    cdef readonly frozenlist extra_headers
-    cdef readonly object body
-    cdef readonly object content_type
-    cdef pj_time_val _subscribe_timeout
-    cdef int _want_end
-    cdef int _term_code
-    cdef object _term_reason
-    cdef int _expires
 
     #public methods
 
@@ -280,19 +252,6 @@ cdef class Subscription:
 
 
 cdef class IncomingSubscription:
-    # instance attributes
-    cdef pjsip_evsub *_obj
-    cdef pjsip_dialog *_dlg
-    cdef readonly str state
-    cdef PJSTR _content_type
-    cdef PJSTR _content_subtype
-    cdef PJSTR _content
-    cdef pjsip_tx_data *_initial_response
-    cdef pjsip_transaction *_initial_tsx
-    cdef int _expires
-    cdef readonly str event
-    # TODO: add usefull attributes?
-
     # properties
 
     property content_type:

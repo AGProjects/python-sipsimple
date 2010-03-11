@@ -5,11 +5,6 @@ import weakref
 
 
 cdef class SDPPayloads:
-    cdef readonly FrozenSDPSession proposed_local
-    cdef readonly FrozenSDPSession proposed_remote
-    cdef readonly FrozenSDPSession active_local
-    cdef readonly FrozenSDPSession active_remote
-
     def __init__(self):
         self.proposed_local = None
         self.proposed_remote = None
@@ -18,11 +13,6 @@ cdef class SDPPayloads:
 
 
 cdef class StateCallbackTimer(Timer):
-    cdef object state
-    cdef object sub_state
-    cdef object rdata
-    cdef object tdata
-
     def __init__(self, state, sub_state, rdata, tdata):
         self.state = state
         self.sub_state = sub_state
@@ -31,37 +21,11 @@ cdef class StateCallbackTimer(Timer):
 
 
 cdef class SDPCallbackTimer(Timer):
-    cdef int status
-
     def __init__(self, int status):
         self.status = status
 
 
 cdef class Invitation:
-    cdef object __weakref__
-    cdef object weakref
-
-    cdef int _sdp_neg_status
-    cdef pj_list _route_set
-    cdef pj_mutex_t *_lock
-    cdef pjsip_inv_session *_invite_session
-    cdef pjsip_dialog *_dialog
-    cdef pjsip_route_hdr _route_header
-    cdef pjsip_transaction *_reinvite_transaction
-    cdef Timer _timer
-    cdef readonly str call_id
-    cdef readonly str direction
-    cdef readonly str remote_user_agent
-    cdef readonly str state
-    cdef readonly str sub_state
-    cdef readonly str transport
-    cdef readonly FrozenCredentials credentials
-    cdef readonly FrozenContactHeader local_contact_header
-    cdef readonly FrozenFromHeader from_header
-    cdef readonly FrozenToHeader to_header
-    cdef readonly FrozenRouteHeader route_header
-    cdef readonly SDPPayloads sdp
-
     def __cinit__(self, *args, **kwargs):
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)

@@ -8,9 +8,6 @@ import re
 # classes
 
 cdef class PJSTR:
-    cdef pj_str_t pj_str
-    cdef object str
-
     def __cinit__(self, str):
         self.str = str
         _str_to_pj_str(str, &self.pj_str)
@@ -34,9 +31,6 @@ cdef class SIPStatusMessages:
 
 
 cdef class frozenlist:
-    cdef int initialized
-    cdef list list
-    cdef long hash
     def __cinit__(self, *args, **kw):
         self.list = list()
         self.initialized = 0
@@ -100,9 +94,6 @@ cdef class frozenlist:
 
 
 cdef class frozendict:
-    cdef int initialized
-    cdef dict dict
-    cdef long hash
     def __cinit__(self, *args, **kw):
         self.dict = dict()
         self.initialized = 0

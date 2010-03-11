@@ -13,11 +13,6 @@ import os
 # classes
 
 cdef class Timer:
-    cdef int _scheduled
-    cdef double schedule_time
-    cdef timer_callback callback
-    cdef object obj
-
     cdef int schedule(self, float delay, timer_callback callback, object obj) except -1:
         cdef PJSIPUA ua = _get_ua()
         if delay < 0:
@@ -66,37 +61,6 @@ cdef class Timer:
 
 
 cdef class PJSIPUA:
-    cdef object _threads
-    cdef object _event_handler
-    cdef list _timers
-    cdef PJLIB _pjlib
-    cdef PJCachingPool _caching_pool
-    cdef PJSIPEndpoint _pjsip_endpoint
-    cdef PJMEDIAEndpoint _pjmedia_endpoint
-    cdef pjsip_module _module
-    cdef PJSTR _module_name
-    cdef pjsip_module _trace_module
-    cdef PJSTR _trace_module_name
-    cdef pjsip_module _ua_tag_module
-    cdef PJSTR _ua_tag_module_name
-    cdef pjsip_module _event_module
-    cdef PJSTR _event_module_name
-    cdef int _trace_sip
-    cdef int _ignore_missing_ack
-    cdef PJSTR _user_agent
-    cdef object _events
-    cdef object _sent_messages
-    cdef int _rtp_port_start
-    cdef int _rtp_port_stop
-    cdef int _rtp_port_index
-    cdef pj_stun_config _stun_cfg
-    cdef int _fatal_error
-    cdef set _incoming_events
-    cdef set _incoming_requests
-    cdef pjmedia_audio_change_observer _audio_change_observer
-    cdef pj_rwmutex_t *audio_change_rwlock
-    cdef list old_devices
-
     def __cinit__(self, *args, **kwargs):
         global _ua
         if _ua != NULL:
@@ -790,9 +754,6 @@ cdef class PJSIPUA:
 
 
 cdef class PJSIPThread:
-    cdef pj_thread_t *_obj
-    cdef long _thread_desc[PJ_THREAD_DESC_SIZE]
-
     def __cinit__(self):
         cdef object thread_name = "python_%d" % id(self)
         cdef int status

@@ -23,8 +23,6 @@ cdef object BaseSDPSession_richcmp(object self, object other, int op) with gil:
         return not eq
 
 cdef class BaseSDPSession:
-    cdef pjmedia_sdp_session _sdp_session
-
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPSession cannot be instantiated directly")
     
@@ -64,16 +62,6 @@ def SDPSession_new(cls, BaseSDPSession sdp_session):
                sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
 
 cdef class SDPSession(BaseSDPSession):
-    cdef str _address
-    cdef str _user
-    cdef str _net_type
-    cdef str _address_type
-    cdef str _name
-    cdef str _info
-    cdef SDPConnection _connection
-    cdef list _attributes
-    cdef list _media
-
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4",
                  str name not None=" ", str info=None, SDPConnection connection=None, int start_time=0, int stop_time=0, list attributes=None, list media=None):
         cdef unsigned int version_id = 2208988800UL
@@ -266,21 +254,6 @@ def FrozenSDPSession_new(cls, BaseSDPSession sdp_session):
                sdp_session.info, connection, sdp_session.start_time, sdp_session.stop_time, attributes, media)
 
 cdef class FrozenSDPSession(BaseSDPSession):
-    cdef int initialized
-    cdef readonly str address
-    cdef readonly unsigned int id
-    cdef readonly unsigned int version
-    cdef readonly str user
-    cdef readonly str net_type
-    cdef readonly str address_type
-    cdef readonly str name
-    cdef readonly str info
-    cdef readonly FrozenSDPConnection connection
-    cdef readonly int start_time
-    cdef readonly int stop_time
-    cdef readonly FrozenSDPAttributeList attributes
-    cdef readonly frozenlist media
-
     def __init__(self, str address not None, object id=None, object version=None, str user not None="-", str net_type not None="IN", str address_type not None="IP4", str name not None=" ",
                 str info=None, FrozenSDPConnection connection=None, int start_time=0, int stop_time=0, frozenlist attributes not None=frozenlist(), frozenlist media not None=frozenlist()):
         cdef unsigned int version_id = 2208988800UL
@@ -360,8 +333,6 @@ cdef object BaseSDPMediaStream_richcmp(object self, object other, int op) with g
         return not eq
 
 cdef class BaseSDPMediaStream:
-    cdef pjmedia_sdp_media _sdp_media
-
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPMediaStream cannot be instantiated directly")
 
@@ -396,13 +367,6 @@ def SDPMediaStream_new(cls, BaseSDPMediaStream sdp_media):
                sdp_media.info, connection, attributes)
 
 cdef class SDPMediaStream(BaseSDPMediaStream):
-    cdef str _media
-    cdef str _transport
-    cdef list _formats
-    cdef str _info
-    cdef SDPConnection _connection
-    cdef SDPAttributeList _attributes
-
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, list formats=None,
                  str info=None, SDPConnection connection=None, list attributes=None):
         self.media = media
@@ -531,16 +495,6 @@ def FrozenSDPMediaStream_new(cls, BaseSDPMediaStream sdp_media):
                frozenlist(sdp_media.formats), sdp_media.info, connection, attributes)
 
 cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
-    cdef int initialized
-    cdef readonly str media
-    cdef readonly int port
-    cdef readonly str transport
-    cdef readonly int port_count
-    cdef readonly frozenlist formats
-    cdef readonly str info
-    cdef readonly FrozenSDPConnection connection
-    cdef readonly FrozenSDPAttributeList attributes
-
     def __init__(self, str media not None, int port, str transport not None, int port_count=1, frozenlist formats not None=frozenlist(),
                  str info=None, FrozenSDPConnection connection=None, frozenlist attributes not None=frozenlist()):
         if not self.initialized:
@@ -604,8 +558,6 @@ cdef object BaseSDPConnection_richcmp(object self, object other, int op) with gi
         return not eq
 
 cdef class BaseSDPConnection:
-    cdef pjmedia_sdp_conn _sdp_connection
-
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPConnection cannot be instantiated directly")
 
@@ -625,10 +577,6 @@ def SDPConnection_new(cls, BaseSDPConnection sdp_connection):
     return cls(sdp_connection.address, sdp_connection.net_type, sdp_connection.address_type)
 
 cdef class SDPConnection(BaseSDPConnection):
-    cdef str _address
-    cdef str _net_type
-    cdef str _address_type
-
     def __init__(self, str address not None, str net_type not None="IN", str address_type not None="IP4"):
         self.address = address
         self.net_type = net_type
@@ -671,11 +619,6 @@ def FrozenSDPConnection_new(cls, BaseSDPConnection sdp_connection):
     return cls(sdp_connection.address, sdp_connection.net_type, sdp_connection.address_type)
 
 cdef class FrozenSDPConnection(BaseSDPConnection):
-    cdef int initialized
-    cdef readonly str address
-    cdef readonly str net_type
-    cdef readonly str address_type
-
     def __init__(self, str address not None, str net_type not None="IN", str address_type not None="IP4"):
         if not self.initialized:
             _str_to_pj_str(address, &self._sdp_connection.addr)
@@ -746,8 +689,6 @@ cdef object BaseSDPAttribute_richcmp(object self, object other, int op) with gil
         return not eq
 
 cdef class BaseSDPAttribute:
-    cdef pjmedia_sdp_attr _sdp_attribute
-
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPAttribute cannot be instantiated directly")
 
@@ -767,9 +708,6 @@ def SDPAttribute_new(cls, BaseSDPAttribute sdp_attribute):
     return cls(sdp_attribute.name, sdp_attribute.value)
 
 cdef class SDPAttribute(BaseSDPAttribute):
-    cdef str _name
-    cdef str _value
-
     def __init__(self, str name not None, str value not None):
         self.name = name
         self.value = value
@@ -802,10 +740,6 @@ def FrozenSDPAttribute_new(cls, BaseSDPAttribute sdp_attribute):
     return cls(sdp_attribute.name, sdp_attribute.value)
 
 cdef class FrozenSDPAttribute(BaseSDPAttribute):
-    cdef int initialized
-    cdef readonly str name
-    cdef readonly str value
-
     def __init__(self, str name not None, str value not None):
         if not self.initialized:
             _str_to_pj_str(name, &self._sdp_attribute.name)

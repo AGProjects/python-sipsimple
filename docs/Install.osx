@@ -43,7 +43,7 @@ Step 2. Install Dependencies
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
- * cython                   http://www.cython.org                             =0.11.2
+ * cython                   http://www.cython.org                             >=0.11.3
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * eventlet                 http://pypi.python.org/pypi/eventlet/             =0.8.11
@@ -165,15 +165,7 @@ will be installed in /Library/Python/2.5/site-packages on Leopard or
 /Library/Python/2.6/site-packages on Snow Leopard:
 
 sudo easy_install -U python-gnutls dnspython twisted greenlet \
-python-application PIL pybonjour
-
-Install a proper version of Cython:
-
-curl -O http://pypi.python.org/packages/source/C/Cython/Cython-0.11.2.tar.gz
-tar zxvf Cython-0.11.2.tar.gz
-cd Cython-0.11.2
-sudo python setup.py install
-cd ..
+python-application PIL pybonjour cython
 
 
 Step 3. Install SIP SIMPLE client SDK

@@ -6,8 +6,6 @@
 #
 
 cdef class BaseCredentials:
-    cdef pjsip_cred_info _credentials
-
     def __cinit__(self, *args, **kwargs):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
         self._credentials.realm = _Credentials_realm_wildcard.pj_str
@@ -30,9 +28,6 @@ def Credentials_new(cls, BaseCredentials credentials):
     return cls(credentials.username, credentials.password)
 
 cdef class Credentials(BaseCredentials):
-    cdef str _username
-    cdef str _password
-
     def __init__(self, str username not None, str password not None):
         self.username = username
         self.password = password
@@ -65,10 +60,6 @@ def FrozenCredentials_new(cls, BaseCredentials credentials):
     return cls(credentials.username, credentials.password)
 
 cdef class FrozenCredentials(BaseCredentials):
-    cdef int initialized
-    cdef readonly str username
-    cdef readonly str password
-
     def __init__(self, str username not None, str password not None):
         if not self.initialized:
             self.username = username
@@ -149,14 +140,6 @@ def SIPURI_parse(cls, str uri_str):
     return SIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 cdef class SIPURI(BaseSIPURI):
-    cdef public str user
-    cdef public str password
-    cdef str _host
-    cdef object _port
-    cdef bint _secure
-    cdef dict _parameters
-    cdef dict _headers
-
     def __init__(self, str host not None, str user=None, str password=None, object port=None,
                  bint secure=False, dict parameters=None, dict headers=None):
         self.host = host
@@ -236,15 +219,6 @@ def FrozenSIPURI_parse(cls, str uri_str):
     return FrozenSIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
 
 cdef class FrozenSIPURI(BaseSIPURI):
-    cdef int initialized
-    cdef readonly str user
-    cdef readonly str password
-    cdef readonly str host
-    cdef readonly object port
-    cdef readonly bint secure
-    cdef readonly frozendict parameters
-    cdef readonly frozendict headers
-
     def __init__(self, str host not None, str user=None, str password=None, object port=None,
                  bint secure=False, frozendict parameters not None=frozendict(), frozendict headers not None=frozendict()):
         if not self.initialized:

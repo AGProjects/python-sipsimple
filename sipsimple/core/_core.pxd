@@ -1010,68 +1010,271 @@ cdef extern from "pjsip_ua.h":
 
 # declarations
 
+# core.util
+
+cdef class frozenlist(object):
+    # attributes
+    cdef int initialized
+    cdef list list
+    cdef long hash
+
+cdef class frozendict(object):
+    # attributes
+    cdef int initialized
+    cdef dict dict
+    cdef long hash
+
+cdef class PJSTR(object):
+    # attributes
+    cdef pj_str_t pj_str
+    cdef object str
+ 
 # core.lib
 
-cdef class PJLIB
-cdef class PJCachingPool
-cdef class PJSIPEndpoint
-cdef class PJMEDIAEndpoint
+cdef class PJLIB(object):
+    # attributes
+    cdef int _init_done
 
-# core.sound
+cdef class PJCachingPool(object):
+    # attributes
+    cdef pj_caching_pool _obj
+    cdef int _init_done
 
-cdef class AudioMixer
-cdef class ToneGenerator
-cdef class RecordingWaveFile
-cdef class WaveFile
-cdef class MixerPort
-cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
+cdef class PJSIPEndpoint(object):
+    # attributes
+    cdef pjsip_endpoint *_obj
+    cdef pj_pool_t *_pool
+    cdef pjsip_transport *_udp_transport
+    cdef pjsip_tpfactory *_tcp_transport
+    cdef pjsip_tpfactory *_tls_transport
+    cdef int _tls_verify_server
+    cdef PJSTR _tls_ca_file
+    cdef PJSTR _tls_cert_file
+    cdef PJSTR _tls_privkey_file
+    cdef object _local_ip_used
+    cdef int _tls_timeout
+    cdef object _tls_protocol
 
+    # private methods
+    cdef int _make_local_addr(self, pj_sockaddr_in *local_addr, object ip_address, int port) except -1
+    cdef int _start_udp_transport(self, int port) except -1
+    cdef int _stop_udp_transport(self) except -1
+    cdef int _start_tcp_transport(self, int port) except -1
+    cdef int _stop_tcp_transport(self) except -1
+    cdef int _start_tls_transport(self, port) except -1
+    cdef int _stop_tls_transport(self) except -1
+
+cdef class PJMEDIAEndpoint(object):
+    # attributes
+    cdef pjmedia_endpt *_obj
+    cdef int _has_speex
+    cdef int _has_g722
+    cdef int _has_g711
+    cdef int _has_ilbc
+    cdef int _has_gsm
+
+    # private methods
+    cdef list _get_codecs(self)
+    cdef list _get_all_codecs(self)
+    cdef list _get_current_codecs(self)
+    cdef int _set_codecs(self, list req_codecs, int max_sample_rate) except -1
+ 
 # core.helper
 
-cdef class BaseCredentials
-cdef class Credentials
-cdef class FrozenCredentials
-cdef class BaseSIPURI
-cdef class SIPURI
-cdef class FrozenSIPURI
+cdef class BaseCredentials(object):
+    # attributes
+    cdef pjsip_cred_info _credentials
+
+    # private methods
+    cdef pjsip_cred_info* get_cred_info(self)
+
+cdef class Credentials(BaseCredentials):
+    # attributes
+    cdef str _username
+    cdef str _password
+
+cdef class FrozenCredentials(BaseCredentials):
+    # attributes
+    cdef int initialized
+    cdef readonly str username
+    cdef readonly str password
+
+cdef class BaseSIPURI(object):
+    pass
+
+cdef class SIPURI(BaseSIPURI):
+    # attributes
+    cdef public str user
+    cdef public str password
+    cdef str _host
+    cdef object _port
+    cdef bint _secure
+    cdef dict _parameters
+    cdef dict _headers
+
+cdef class FrozenSIPURI(BaseSIPURI):
+    # attributes
+    cdef int initialized
+    cdef readonly str user
+    cdef readonly str password
+    cdef readonly str host
+    cdef readonly object port
+    cdef readonly bint secure
+    cdef readonly frozendict parameters
+    cdef readonly frozendict headers
+
 cdef SIPURI SIPURI_create(pjsip_sip_uri *base_uri)
 cdef FrozenSIPURI FrozenSIPURI_create(pjsip_sip_uri *base_uri)
 
 # core.headers
 
-cdef class BaseHeader
-cdef class Header
-cdef class FrozenHeader
-cdef class BaseContactHeader
-cdef class ContactHeader
-cdef class FrozenContactHeader
-cdef class BaseIdentityHeader
-cdef class IdentityHeader
-cdef class FrozenIdentityHeader
-cdef class FromHeader
-cdef class FrozenFromHeader
-cdef class ToHeader
-cdef class FrozenToHeader
-cdef class RouteHeader
-cdef class FrozenRouteHeader
-cdef class RecordRouteHeader
-cdef class FrozenRecordRouteHeader
-cdef class BaseRetryAfterHeader
-cdef class RetryAfterHeader
-cdef class FrozenRetryAfterHeader
-cdef class BaseViaHeader
-cdef class ViaHeader
-cdef class FrozenViaHeader
-cdef class BaseWarningHeader
-cdef class WarningHeader
-cdef class FrozenWarningHeader
-cdef class BaseEventHeader
-cdef class EventHeader
-cdef class FrozenEventHeader
-cdef class BaseSubscriptionStateHeader
-cdef class SubscriptionStateHeader
-cdef class FrozenSubscriptionStateHeader
+cdef class BaseHeader(object):
+    pass
 
+cdef class Header(BaseHeader):
+    # attributes
+    cdef str _name
+    cdef str _body
+
+cdef class FrozenHeader(BaseHeader):
+    # attributes
+    cdef readonly str name
+    cdef readonly str body
+
+cdef class BaseContactHeader(object):
+    pass
+
+cdef class ContactHeader(BaseContactHeader):
+    # attributes
+    cdef SIPURI _uri
+    cdef str _display_name
+    cdef dict _parameters
+
+cdef class FrozenContactHeader(BaseContactHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly FrozenSIPURI uri
+    cdef readonly str display_name
+    cdef readonly frozendict parameters
+
+cdef class BaseIdentityHeader(object):
+    pass
+
+cdef class IdentityHeader(BaseIdentityHeader):
+    # attributes
+    cdef SIPURI _uri
+    cdef public str display_name
+    cdef dict _parameters
+
+cdef class FrozenIdentityHeader(BaseIdentityHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly FrozenSIPURI uri
+    cdef readonly str display_name
+    cdef readonly frozendict parameters
+
+cdef class FromHeader(IdentityHeader):
+    pass
+
+cdef class FrozenFromHeader(FrozenIdentityHeader):
+    pass
+
+cdef class ToHeader(IdentityHeader):
+    pass
+
+cdef class FrozenToHeader(FrozenIdentityHeader):
+    pass
+
+cdef class RouteHeader(IdentityHeader):
+    pass
+
+cdef class FrozenRouteHeader(FrozenIdentityHeader):
+    pass
+
+cdef class RecordRouteHeader(IdentityHeader):
+    pass
+
+cdef class FrozenRecordRouteHeader(FrozenIdentityHeader):
+    pass
+
+cdef class BaseRetryAfterHeader(object):
+    pass
+
+cdef class RetryAfterHeader(BaseRetryAfterHeader):
+    # attributes
+    cdef public int seconds
+    cdef public str comment
+    cdef dict _parameters
+
+cdef class FrozenRetryAfterHeader(BaseRetryAfterHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly int seconds
+    cdef readonly str comment
+    cdef readonly frozendict parameters
+
+cdef class BaseViaHeader(object):
+    pass
+
+cdef class ViaHeader(BaseViaHeader):
+    # attributes
+    cdef str _transport
+    cdef str _host
+    cdef int _port
+    cdef dict _parameters
+
+cdef class FrozenViaHeader(BaseViaHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly str transport
+    cdef readonly str host
+    cdef readonly int port
+    cdef readonly frozendict parameters
+
+cdef class BaseWarningHeader(object):
+    pass
+
+cdef class WarningHeader(BaseWarningHeader):
+    # attributes
+    cdef int _code
+    cdef str _agent
+    cdef str _text
+
+cdef class FrozenWarningHeader(BaseWarningHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly int code
+    cdef readonly str agent
+    cdef readonly str text
+
+cdef class BaseEventHeader(object):
+    pass
+
+cdef class EventHeader(BaseEventHeader):
+    # attributes
+    cdef public event
+    cdef dict _parameters
+
+cdef class FrozenEventHeader(BaseEventHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly str event
+    cdef readonly frozendict parameters
+
+cdef class BaseSubscriptionStateHeader(object):
+    pass
+
+cdef class SubscriptionStateHeader(BaseSubscriptionStateHeader):
+    # attributes
+    cdef public state
+    cdef dict _parameters
+
+cdef class FrozenSubscriptionStateHeader(BaseSubscriptionStateHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly str state
+    cdef readonly frozendict parameters
+ 
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
 cdef ContactHeader ContactHeader_create(pjsip_contact_hdr *header)
@@ -1095,9 +1298,6 @@ cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_su
 
 # core.util
 
-cdef class frozenlist
-cdef class frozendict
-cdef class PJSTR
 cdef int _str_to_pj_str(object string, pj_str_t *pj_str) except -1
 cdef object _pj_str_to_str(pj_str_t pj_str)
 cdef object _pj_status_to_str(int status)
@@ -1113,10 +1313,67 @@ cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_ro
 
 # core.ua
 
-cdef class PJSIPThread
-cdef class PJSIPUA
-cdef class Timer
 ctypedef int (*timer_callback)(object, object) except -1 with gil
+cdef class Timer(object):
+    # attributes
+    cdef int _scheduled
+    cdef double schedule_time
+    cdef timer_callback callback
+    cdef object obj
+
+    # private methods
+    cdef int schedule(self, float delay, timer_callback callback, object obj) except -1
+    cdef int cancel(self) except -1
+    cdef int call(self) except -1
+
+cdef class PJSIPThread(object):
+    # attributes
+    cdef pj_thread_t *_obj
+    cdef long _thread_desc[PJ_THREAD_DESC_SIZE]
+
+cdef class PJSIPUA(object):
+    # attributes
+    cdef object _threads
+    cdef object _event_handler
+    cdef list _timers
+    cdef PJLIB _pjlib
+    cdef PJCachingPool _caching_pool
+    cdef PJSIPEndpoint _pjsip_endpoint
+    cdef PJMEDIAEndpoint _pjmedia_endpoint
+    cdef pjsip_module _module
+    cdef PJSTR _module_name
+    cdef pjsip_module _trace_module
+    cdef PJSTR _trace_module_name
+    cdef pjsip_module _ua_tag_module
+    cdef PJSTR _ua_tag_module_name
+    cdef pjsip_module _event_module
+    cdef PJSTR _event_module_name
+    cdef int _trace_sip
+    cdef int _ignore_missing_ack
+    cdef PJSTR _user_agent
+    cdef object _events
+    cdef object _sent_messages
+    cdef int _rtp_port_start
+    cdef int _rtp_port_stop
+    cdef int _rtp_port_index
+    cdef pj_stun_config _stun_cfg
+    cdef int _fatal_error
+    cdef set _incoming_events
+    cdef set _incoming_requests
+    cdef pjmedia_audio_change_observer _audio_change_observer
+    cdef pj_rwmutex_t *audio_change_rwlock
+    cdef list old_devices
+
+    # private methods
+    cdef object _get_sound_devices(self, int is_output)
+    cdef int _poll_log(self) except -1
+    cdef int _handle_exception(self, int is_fatal) except -1
+    cdef int _check_self(self) except -1
+    cdef int _check_thread(self) except -1
+    cdef int _add_timer(self, Timer timer) except -1
+    cdef int _remove_timer(self, Timer timer) except -1
+    cdef int _cb_rx_request(self, pjsip_rx_data *rdata) except 0
+
 cdef int _PJSIPUA_cb_rx_request(pjsip_rx_data *rdata) with gil
 cdef void _cb_detect_nat_type(void *user_data, pj_stun_nat_detect_result_ptr_const res) with gil
 cdef int _cb_trace_rx(pjsip_rx_data *rdata) with gil
@@ -1125,6 +1382,100 @@ cdef int _cb_add_user_agent_hdr(pjsip_tx_data *tdata) with gil
 cdef int _cb_add_server_hdr(pjsip_tx_data *tdata) with gil
 cdef PJSIPUA _get_ua()
 cdef int deallocate_weakref(object weak_ref, object timer) except -1 with gil
+
+# core.sound
+
+cdef class AudioMixer(object):
+    # attributes
+    cdef int _disconnect_when_idle
+    cdef int _input_volume
+    cdef int _output_volume
+    cdef bint _muted
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_conf_pool
+    cdef pj_pool_t *_snd_pool
+    cdef pjmedia_conf *_obj
+    cdef pjmedia_master_port *_master_port
+    cdef pjmedia_port *_null_port
+    cdef pjmedia_snd_port *_snd
+    cdef list _connected_slots
+    cdef readonly int ec_tail_length
+    cdef readonly int sample_rate
+    cdef readonly int slot_count
+    cdef readonly int used_slot_count
+    cdef readonly str input_device
+    cdef readonly str output_device
+    cdef readonly str real_input_device
+    cdef readonly str real_output_device
+
+    # private methods
+    cdef int _start_sound_device(self, PJSIPUA ua, str input_device, str output_device,
+                                int ec_tail_length, int revert_to_default) except -1
+    cdef int _stop_sound_device(self, PJSIPUA ua) except -1
+    cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1 with gil
+    cdef int _remove_port(self, PJSIPUA ua, unsigned int slot) except -1 with gil
+    cdef int _cb_postpoll_stop_sound(self, timer) except -1
+
+cdef class ToneGenerator(object):
+    # attributes
+    cdef int _slot
+    cdef int _volume
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_port *_obj
+    cdef Timer _timer
+    cdef readonly AudioMixer mixer
+
+    # private methods
+    cdef PJSIPUA _get_ua(self, int raise_exception)
+    cdef int _stop(self, PJSIPUA ua) except -1
+    cdef int _cb_check_done(self, timer) except -1
+
+cdef class RecordingWaveFile(object):
+    # attributes
+    cdef int _slot
+    cdef int _was_started
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_port *_port
+    cdef readonly str filename
+    cdef readonly AudioMixer mixer
+
+    # private methods
+    cdef PJSIPUA _check_ua(self)
+    cdef int _stop(self, PJSIPUA ua) except -1
+
+cdef class WaveFile(object):
+    # attributes
+    cdef object __weakref__
+    cdef object weakref
+    cdef int _slot
+    cdef int _volume
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_port *_port
+    cdef readonly str filename
+    cdef readonly AudioMixer mixer
+
+    # private methods
+    cdef PJSIPUA _check_ua(self)
+    cdef int _stop(self, PJSIPUA ua, int notify) except -1
+    cdef int _cb_eof(self, timer) except -1
+
+cdef class MixerPort(object):
+    cdef int _slot
+    cdef int _was_started
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_port *_port
+    cdef readonly AudioMixer mixer
+
+    # private methods
+    cdef PJSIPUA _check_ua(self)
+    cdef int _stop(self, PJSIPUA ua) except -1
+
+cdef int _AudioMixer_dealloc_handler(object obj) except -1
+cdef int cb_play_wav_eof(pjmedia_port *port, void *user_data) with gil
 
 # core.event
 
@@ -1140,16 +1491,115 @@ cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1
 
 # core.request
 
-cdef class Request
-cdef class IncomingRequest
+cdef class Request(object):
+    # attributes
+    cdef readonly object state
+    cdef PJSTR _method
+    cdef readonly FrozenCredentials credentials
+    cdef readonly FrozenFromHeader from_header
+    cdef readonly FrozenToHeader to_header
+    cdef readonly FrozenSIPURI request_uri
+    cdef readonly FrozenContactHeader contact_header
+    cdef readonly FrozenRouteHeader route_header
+    cdef PJSTR _call_id
+    cdef readonly int cseq
+    cdef readonly frozenlist extra_headers
+    cdef PJSTR _content_type
+    cdef PJSTR _content_subtype
+    cdef PJSTR _body
+    cdef pjsip_tx_data *_tdata
+    cdef pjsip_transaction *_tsx
+    cdef pjsip_auth_clt_sess _auth
+    cdef pjsip_route_hdr _route_header
+    cdef int _need_auth
+    cdef pj_timer_entry _timer
+    cdef int _timer_active
+    cdef int _expire_rest
+    cdef object _expire_time
+    cdef object _timeout
+
+    # private methods
+    cdef PJSIPUA _get_ua(self)
+    cdef int _cb_tsx_state(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    cdef int _cb_timer(self, PJSIPUA ua) except -1
+
+cdef class IncomingRequest(object):
+    # attributes
+    cdef readonly str state
+    cdef pjsip_transaction *_tsx
+    cdef pjsip_tx_data *_tdata
+
+    # private methods
+    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
 cdef int _IncomingRequest_dealloc_handler(object obj) except -1
 
 # core.subscription
 
-cdef class Subscription
-cdef class IncomingSubscription
+cdef class Subscription(object):
+    # attributes
+    cdef pjsip_evsub *_obj
+    cdef pjsip_dialog *_dlg
+    cdef pjsip_route_hdr _route_header
+    cdef pj_list _route_set
+    cdef readonly object state
+    cdef pj_timer_entry _timeout_timer
+    cdef int _timeout_timer_active
+    cdef pj_timer_entry _refresh_timer
+    cdef int _refresh_timer_active
+    cdef readonly FrozenFromHeader from_header
+    cdef readonly FrozenToHeader to_header
+    cdef readonly FrozenContactHeader contact_header
+    cdef readonly object event
+    cdef readonly FrozenRouteHeader route_header
+    cdef readonly FrozenCredentials credentials
+    cdef readonly int refresh
+    cdef readonly frozenlist extra_headers
+    cdef readonly object body
+    cdef readonly object content_type
+    cdef pj_time_val _subscribe_timeout
+    cdef int _want_end
+    cdef int _term_code
+    cdef object _term_reason
+    cdef int _expires
+
+    # private methods
+    cdef PJSIPUA _get_ua(self)
+    cdef int _cancel_timers(self, PJSIPUA ua, int cancel_timeout, int cancel_refresh) except -1
+    cdef int _send_subscribe(self, PJSIPUA ua, int expires, pj_time_val *timeout,
+                             object extra_headers, object content_type, object body) except -1
+    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason) except -1
+    cdef int _cb_got_response(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    cdef int _cb_timeout_timer(self, PJSIPUA ua)
+    cdef int _cb_refresh_timer(self, PJSIPUA ua)
+
+cdef class IncomingSubscription(object):
+    # attributes
+    cdef pjsip_evsub *_obj
+    cdef pjsip_dialog *_dlg
+    cdef readonly str state
+    cdef PJSTR _content_type
+    cdef PJSTR _content_subtype
+    cdef PJSTR _content
+    cdef pjsip_tx_data *_initial_response
+    cdef pjsip_transaction *_initial_tsx
+    cdef int _expires
+    cdef readonly str event
+    # TODO: add usefull attributes?
+
+    # private methods
+    cdef int _set_state(self, str state) except -1
+    cdef PJSIPUA _get_ua(self, int raise_exception)
+    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata, str event) except -1
+    cdef int _send_initial_response(self, int code) except -1
+    cdef int _send_notify(self, str reason=*) except -1
+    cdef int _terminate(self, PJSIPUA ua, str reason, int do_cleanup) except -1
+    cdef int _cb_rx_refresh(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    cdef int _cb_server_timeout(self, PJSIPUA ua) except -1
+
 cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
 cdef void _Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
                                     pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
@@ -1160,32 +1610,122 @@ cdef void _IncomingSubscription_cb_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *r
 cdef void _IncomingSubscription_cb_server_timeout(pjsip_evsub *sub) with gil
 cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil
 
-# core.invitation
-
-cdef class Invitation
-cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
-cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
-cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
-                                     pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
-cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
-cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
-
 # core.sdp
 
-cdef class BaseSDPSession
-cdef class SDPSession
-cdef class FrozenSDPSession
-cdef class BaseSDPMediaStream
-cdef class SDPMediaStream
-cdef class FrozenSDPMediaStream
-cdef class BaseSDPConnection
-cdef class SDPConnection
-cdef class FrozenSDPConnection
-cdef class SDPAttributeList
-cdef class FrozenSDPAttributeList
-cdef class BaseSDPAttribute
-cdef class SDPAttribute
-cdef class FrozenSDPAttribute
+cdef class BaseSDPConnection(object):
+    # attributes
+    cdef pjmedia_sdp_conn _sdp_connection
+
+    # private methods
+    cdef pjmedia_sdp_conn* get_sdp_connection(self)
+
+cdef class SDPConnection(BaseSDPConnection):
+    # attributes
+    cdef str _address
+    cdef str _net_type
+    cdef str _address_type
+
+cdef class FrozenSDPConnection(BaseSDPConnection):
+    # attributes
+    cdef int initialized
+    cdef readonly str address
+    cdef readonly str net_type
+    cdef readonly str address_type
+
+cdef class SDPAttributeList(list):
+    pass
+
+cdef class FrozenSDPAttributeList(frozenlist):
+    pass
+
+cdef class BaseSDPSession(object):
+    # attributes
+    cdef pjmedia_sdp_session _sdp_session
+
+    # private methods
+    cdef pjmedia_sdp_session* get_sdp_session(self)
+
+cdef class SDPSession(BaseSDPSession):
+    # attributes
+    cdef str _address
+    cdef str _user
+    cdef str _net_type
+    cdef str _address_type
+    cdef str _name
+    cdef str _info
+    cdef SDPConnection _connection
+    cdef list _attributes
+    cdef list _media
+
+    # private methods
+    cdef int _update(self) except -1
+
+cdef class FrozenSDPSession(BaseSDPSession):
+    # attributes
+    cdef int initialized
+    cdef readonly str address
+    cdef readonly unsigned int id
+    cdef readonly unsigned int version
+    cdef readonly str user
+    cdef readonly str net_type
+    cdef readonly str address_type
+    cdef readonly str name
+    cdef readonly str info
+    cdef readonly FrozenSDPConnection connection
+    cdef readonly int start_time
+    cdef readonly int stop_time
+    cdef readonly FrozenSDPAttributeList attributes
+    cdef readonly frozenlist media
+
+cdef class BaseSDPMediaStream(object):
+    # attributes
+    cdef pjmedia_sdp_media _sdp_media
+
+    # private methods
+    cdef pjmedia_sdp_media* get_sdp_media(self)
+
+cdef class SDPMediaStream(BaseSDPMediaStream):
+    # attributes
+    cdef str _media
+    cdef str _transport
+    cdef list _formats
+    cdef str _info
+    cdef SDPConnection _connection
+    cdef SDPAttributeList _attributes
+
+    # private methods
+    cdef int _update(self, SDPMediaStream media) except -1
+
+cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
+    # attributes
+    cdef int initialized
+    cdef readonly str media
+    cdef readonly int port
+    cdef readonly str transport
+    cdef readonly int port_count
+    cdef readonly frozenlist formats
+    cdef readonly str info
+    cdef readonly FrozenSDPConnection connection
+    cdef readonly FrozenSDPAttributeList attributes
+
+cdef class BaseSDPAttribute(object):
+    # attributes
+    cdef pjmedia_sdp_attr _sdp_attribute
+
+    # private methods
+    cdef pjmedia_sdp_attr* get_sdp_attribute(self)
+
+cdef class SDPAttribute(BaseSDPAttribute):
+    # attributes
+    cdef str _name
+    cdef str _value
+
+cdef class FrozenSDPAttribute(BaseSDPAttribute):
+    # attributes
+    cdef int initialized
+    cdef readonly str name
+    cdef readonly str value
+
 cdef SDPSession SDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
 cdef FrozenSDPSession FrozenSDPSession_create(pjmedia_sdp_session_ptr_const pj_session)
 cdef SDPMediaStream SDPMediaStream_create(pjmedia_sdp_media *pj_media)
@@ -1195,10 +1735,125 @@ cdef FrozenSDPConnection FrozenSDPConnection_create(pjmedia_sdp_conn *pj_conn)
 cdef SDPAttribute SDPAttribute_create(pjmedia_sdp_attr *pj_attr)
 cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr)
 
+# core.invitation
+
+cdef class SDPPayloads:
+    # attributes
+    cdef readonly FrozenSDPSession proposed_local
+    cdef readonly FrozenSDPSession proposed_remote
+    cdef readonly FrozenSDPSession active_local
+    cdef readonly FrozenSDPSession active_remote
+
+cdef class StateCallbackTimer(Timer):
+    # attributes
+    cdef object state
+    cdef object sub_state
+    cdef object rdata
+    cdef object tdata
+
+cdef class SDPCallbackTimer(Timer):
+    # attributes
+    cdef int status
+
+cdef class Invitation(object):
+    # attributes
+    cdef object __weakref__
+    cdef object weakref
+    cdef int _sdp_neg_status
+    cdef pj_list _route_set
+    cdef pj_mutex_t *_lock
+    cdef pjsip_inv_session *_invite_session
+    cdef pjsip_dialog *_dialog
+    cdef pjsip_route_hdr _route_header
+    cdef pjsip_transaction *_reinvite_transaction
+    cdef Timer _timer
+    cdef readonly str call_id
+    cdef readonly str direction
+    cdef readonly str remote_user_agent
+    cdef readonly str state
+    cdef readonly str sub_state
+    cdef readonly str transport
+    cdef readonly FrozenCredentials credentials
+    cdef readonly FrozenContactHeader local_contact_header
+    cdef readonly FrozenFromHeader from_header
+    cdef readonly FrozenToHeader to_header
+    cdef readonly FrozenRouteHeader route_header
+    cdef readonly SDPPayloads sdp
+
+    # private methods
+    cdef int init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1
+    cdef PJSIPUA _check_ua(self)
+    cdef int _do_dealloc(self) except -1
+    cdef int _update_contact_header(self, BaseContactHeader contact_header) except -1
+    cdef int _fail(self, PJSIPUA ua) except -1
+    cdef int _cb_state(self, StateCallbackTimer timer) except -1
+    cdef int _cb_sdp_done(self, SDPCallbackTimer timer) except -1
+    cdef int _cb_timer_disconnect(self, timer) except -1
+    cdef int _cb_postpoll_fail(self, timer) except -1
+
+cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
+cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
+cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
+                                     pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
+cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
+cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
+
 # core.mediatransport
 
-cdef class RTPTransport
-cdef class AudioTransport
+cdef class RTPTransport(object):
+    # attributes
+    cdef object __weakref__
+    cdef object weakref
+    cdef int _af
+    cdef int _ice_active
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_transport *_obj
+    cdef pjmedia_transport *_wrapped_transport
+    cdef object _local_rtp_addr
+    cdef readonly object ice_stun_address
+    cdef readonly object ice_stun_port
+    cdef readonly object remote_rtp_port_sdp
+    cdef readonly object remote_rtp_address_sdp
+    cdef readonly object srtp_forced
+    cdef readonly object state
+    cdef readonly object use_ice
+    cdef readonly object use_srtp
+
+    # private methods
+    cdef PJSIPUA _check_ua(self)
+    cdef int _get_info(self, pjmedia_transport_info *info) except -1
+    cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1
+
+cdef class MediaCheckTimer(Timer):
+    # attributes
+    cdef int media_check_interval
+
+cdef class AudioTransport(object):
+    # attributes
+    cdef object __weakref__
+    cdef object weakref
+    cdef int _is_offer
+    cdef int _is_started
+    cdef int _slot
+    cdef int _volume
+    cdef unsigned int _packets_received
+    cdef unsigned int _vad
+    cdef pj_mutex_t *_lock
+    cdef pj_pool_t *_pool
+    cdef pjmedia_sdp_media *_local_media
+    cdef pjmedia_stream *_obj
+    cdef pjmedia_stream_info _stream_info
+    cdef dict _cached_statistics
+    cdef Timer _timer
+    cdef readonly object direction
+    cdef readonly AudioMixer mixer
+    cdef readonly RTPTransport transport
+
+    # private methods
+    cdef PJSIPUA _check_ua(self)
+    cdef int _cb_check_rtp(self, MediaCheckTimer timer) except -1 with gil
+
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _RTPTransport_cb_ice_candidates_chosen(pjmedia_transport *tp, int status, pj_ice_candidate_pair rtp_pair, pj_ice_candidate_pair rtcp_pair, char *duration, char *local_candidates, char *remote_candidates, char *valid_list) with gil
 cdef void _RTPTransport_cb_ice_failure(pjmedia_transport *tp, char *reason) with gil

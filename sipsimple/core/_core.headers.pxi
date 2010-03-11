@@ -37,9 +37,6 @@ def Header_new(cls, BaseHeader header):
     return cls(header.name, header.body)
 
 cdef class Header(BaseHeader):
-    cdef str _name
-    cdef str _body
-
     def __init__(self, str name not None, str body not None):
         self.name = name
         self.body = body
@@ -70,9 +67,6 @@ def FrozenHeader_new(cls, BaseHeader header):
     return cls(header.name, header.body)
 
 cdef class FrozenHeader(BaseHeader):
-    cdef readonly str name
-    cdef readonly str body
-
     def __init__(self, str name not None, str body not None):
         self.name = name
         self.body = body
@@ -138,10 +132,6 @@ def ContactHeader_new(cls, BaseContactHeader header):
     return cls(SIPURI.new(header.uri), header.display_name, dict(header.parameters))
 
 cdef class ContactHeader(BaseContactHeader):
-    cdef SIPURI _uri
-    cdef str _display_name
-    cdef dict _parameters
-
     def __init__(self, SIPURI uri, str display_name=None, dict parameters=None):
         if uri is None and (display_name is not None or parameters not in (None, {})):
             raise ValueError("uri cannot be None if display_name or parameters are specified")
@@ -221,11 +211,6 @@ def FrozenContactHeader_new(cls, BaseContactHeader header):
     return cls(FrozenSIPURI.new(header.uri), header.display_name, frozendict(header.parameters))
 
 cdef class FrozenContactHeader(BaseContactHeader):
-    cdef int initialized
-    cdef readonly FrozenSIPURI uri
-    cdef readonly str display_name
-    cdef readonly frozendict parameters
-
     def __init__(self, FrozenSIPURI uri, str display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             if uri is None and (display_name is not None or parameters not in (None, {})):
@@ -302,10 +287,6 @@ def IdentityHeader_new(cls, BaseIdentityHeader contact_header):
     return cls(SIPURI.new(contact_header.uri), contact_header.display_name, dict(contact_header.parameters))
 
 cdef class IdentityHeader(BaseIdentityHeader):
-    cdef SIPURI _uri
-    cdef public str display_name
-    cdef dict _parameters
-
     property uri:
 
         def __get__(self):
@@ -332,11 +313,6 @@ def FrozenIdentityHeader_new(cls, BaseIdentityHeader contact_header):
     return cls(FrozenSIPURI.new(contact_header.uri), contact_header.display_name, frozendict(contact_header.parameters))
 
 cdef class FrozenIdentityHeader(BaseIdentityHeader):
-    cdef int initialized
-    cdef readonly FrozenSIPURI uri
-    cdef readonly str display_name
-    cdef readonly frozendict parameters
-
     def __hash__(self):
         return hash((self.uri, self.display_name, self.parameters))
 
@@ -376,7 +352,7 @@ cdef class FromHeader(IdentityHeader):
 cdef class FrozenFromHeader(FrozenIdentityHeader):
     normal_type = FromHeader
     frozen_type = FrozenFromHeader
-    
+
     def __init__(self, FrozenSIPURI uri not None, str display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.uri = uri
@@ -423,7 +399,7 @@ cdef class ToHeader(IdentityHeader):
 cdef class FrozenToHeader(FrozenIdentityHeader):
     normal_type = ToHeader
     frozen_type = FrozenToHeader
-    
+
     def __init__(self, FrozenSIPURI uri not None, str display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.uri = uri
@@ -550,10 +526,6 @@ def RetryAfterHeader_new(cls, BaseRetryAfterHeader header):
     return cls(header.seconds, header.comment, dict(header.parameters))
 
 cdef class RetryAfterHeader(BaseRetryAfterHeader):
-    cdef public int seconds
-    cdef public str comment
-    cdef dict _parameters
-
     def __init__(self, int seconds, str comment=None, dict parameters=None):
         self.seconds = seconds
         self.comment = comment
@@ -591,11 +563,6 @@ def FrozenRetryAfterHeader_new(cls, BaseRetryAfterHeader header):
     return cls(header.seconds, header.comment, frozendict(header.parameters))
 
 cdef class FrozenRetryAfterHeader(BaseRetryAfterHeader):
-    cdef int initialized
-    cdef readonly int seconds
-    cdef readonly str comment
-    cdef readonly frozendict parameters
-
     def __init__(self, int seconds, str comment=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.seconds = seconds
@@ -666,11 +633,6 @@ def ViaHeader_new(cls, BaseViaHeader header):
     return cls(header.transport, header.host, header.port, dict(header.parameters))
 
 cdef class ViaHeader(BaseViaHeader):
-    cdef str _transport
-    cdef str _host
-    cdef int _port
-    cdef dict _parameters
-
     def __init__(self, str transport not None, str host not None, int port=5060, dict parameters=None):
         self.transport = transport
         self.host = host
@@ -793,12 +755,6 @@ def FrozenViaHeader_new(cls, BaseViaHeader header):
     return cls(header.transport, header.host, header.port, frozendict(header.parameters))
 
 cdef class FrozenViaHeader(BaseViaHeader):
-    cdef int initialized
-    cdef readonly str transport
-    cdef readonly str host
-    cdef readonly int port
-    cdef readonly frozendict parameters
-
     def __init__(self, str transport not None, str host not None, int port=5060, frozendict parameters not None=frozendict()):
         if not self.initialized:
             if port <= 0 or port > 65535:
@@ -897,10 +853,6 @@ def WarningHeader_new(cls, BaseWarningHeader header):
     return cls(header.code, header.agent, header.text)
 
 cdef class WarningHeader(BaseWarningHeader):
-    cdef int _code
-    cdef str _agent
-    cdef str _text
-
     def __init__(self, int code, str agent not None, str text not None):
         self.code = code
         self.agent = agent
@@ -942,11 +894,6 @@ def FrozenWarningHeader_new(cls, BaseWarningHeader header):
     return cls(header.code, header.agent, header.text)
 
 cdef class FrozenWarningHeader(BaseWarningHeader):
-    cdef int initialized
-    cdef readonly int code
-    cdef readonly str agent
-    cdef readonly str text
-
     def __init__(self, int code, str agent not None, str text not None):
         if not self.initialized:
             if code < 100 or code > 999:
@@ -1013,9 +960,6 @@ def EventHeader_new(cls, BaseEventHeader header):
     return cls(header.event, dict(header.parameters))
 
 cdef class EventHeader(BaseEventHeader):
-    cdef public event
-    cdef dict _parameters
-
     def __init__(self, str event not None, dict parameters=None):
         self.event = event
         self.parameters = parameters if parameters is not None else {}
@@ -1049,10 +993,6 @@ def FrozenEventHeader_new(cls, BaseEventHeader header):
     return cls(header.event, frozendict(header.parameters))
 
 cdef class FrozenEventHeader(BaseEventHeader):
-    cdef int initialized
-    cdef readonly str event
-    cdef readonly frozendict parameters
-
     def __init__(self, str event not None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.event = event
@@ -1121,9 +1061,6 @@ def SubscriptionStateHeader_new(cls, BaseSubscriptionStateHeader header):
     return cls(header.state, dict(header.parameters))
 
 cdef class SubscriptionStateHeader(BaseSubscriptionStateHeader):
-    cdef public state
-    cdef dict _parameters
-
     def __init__(self, str state not None, dict parameters=None):
         self.state = state
         self.parameters = parameters if parameters is not None else {}
@@ -1183,10 +1120,6 @@ def FrozenSubscriptionStateHeader_new(cls, BaseSubscriptionStateHeader header):
     return cls(header.state, frozendict(header.parameters))
 
 cdef class FrozenSubscriptionStateHeader(BaseSubscriptionStateHeader):
-    cdef int initialized
-    cdef readonly str state
-    cdef readonly frozendict parameters
-
     def __init__(self, str state not None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.state = state
