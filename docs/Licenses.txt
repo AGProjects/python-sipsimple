@@ -1,6 +1,6 @@
 
-This document describes the licenses for the SIP SIMPLE client software and
-its dependencies.
+This document describes the licenses for the SIP SIMPLE client SDK and its
+dependencies.
 
 
 Libxml2 
@@ -204,8 +204,8 @@ or a few OS-level threads) and are synchronized with data exchanges on
 "channels". It is provided under MIT license.
 
 
-SIP SIMPLE client
------------------
+SIP SIMPLE client SDK
+---------------------
 
 This project. Its license depends on the license model used by the
 underlying Pjsip library, which can be either GPL licensed or can be used
