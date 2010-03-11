@@ -144,7 +144,8 @@ class AudioStream(object):
                 raise RuntimeError("AudioStream.initialize() may only be called in the NULL state")
             self.state = "INITIALIZING"
             self._session = session
-            if self.account.nat_traversal.use_ice:
+            remote_ice_proposal = hasattr(self, "_incoming_remote_sdp") and self._incoming_remote_sdp.has_ice_proposal
+            if self.account.nat_traversal.use_ice and remote_ice_proposal:
                 if self.account.nat_traversal.stun_server_list:
                     # Assume these are IP addresses
                     stun_servers = list((server.host, server.port) for server in self.account.nat_traversal.stun_server_list)
