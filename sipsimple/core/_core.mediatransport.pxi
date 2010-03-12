@@ -189,7 +189,7 @@ cdef class RTPTransport:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return None
                 if self._ice_active:
-                    return int(self.remote_rtp_port_ice)
+                    return self.remote_rtp_port_ice
                 self._get_info(&info)
                 if info.src_rtp_name.addr.sa_family != 0:
                     return pj_sockaddr_get_port(&info.src_rtp_name)
@@ -1088,6 +1088,7 @@ cdef void _RTPTransport_cb_ice_candidates_chosen(pjmedia_transport *tp, int stat
                 chosen_local_candidates = dict(rtp_cand_type=rtp_pair.local_type, rtp_cand_ip=rtp_pair.local_ip, rtcp_cand_type=rtcp_pair.local_type, rtcp_cand_ip=rtcp_pair.local_ip)
                 chosen_remote_candidates = dict(rtp_cand_type=rtp_pair.remote_type, rtp_cand_ip=rtp_pair.remote_ip, rtcp_cand_type=rtcp_pair.remote_type, rtcp_cand_ip=rtcp_pair.remote_ip)
                 rtp_transport.remote_rtp_address_ice, rtp_transport.remote_rtp_port_ice = rtp_pair.remote_ip.split(":")
+                rtp_transport.remote_rtp_port_ice = int(rtp_transport.remote_rtp_port_ice)
                 rtp_transport._local_rtp_candidate_type = rtp_pair.local_type
                 rtp_transport._remote_rtp_candidate_type = rtp_pair.remote_type
                 _add_event("RTPTransportICENegotiationDidSucceed", dict(obj=rtp_transport, chosen_local_candidates=chosen_local_candidates, chosen_remote_candidates=chosen_remote_candidates, duration=duration, local_candidates=local_cand_list, remote_candidates=remote_cand_list, connectivity_checks_results=v_list))
