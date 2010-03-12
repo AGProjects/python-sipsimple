@@ -72,7 +72,7 @@ class AudioStream(object):
 
     @property
     def producer_slot(self):
-        return self._audio_transport.slot if self._audio_transport else None
+        return self._audio_transport.slot if self._audio_transport and not self.muted else None
 
     @property
     def sample_rate(self):
@@ -81,6 +81,21 @@ class AudioStream(object):
     @property
     def statistics(self):
         return self._audio_transport.statistics if self._audio_transport else None
+
+    def _get_muted(self):
+        return self.__dict__.get('muted', False)
+    def _set_muted(self, value):
+        if not isinstance(value, bool):
+            raise ValueError("illegal value for muted property: %r" % (value,))
+        if value == self.muted:
+            return
+        old_producer_slot = self.producer_slot
+        self.__dict__['muted'] = value
+        notification_center = NotificationCenter()
+        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(old_consumer_slot=self.consumer_slot, new_consumer_slot=self.consumer_slot,
+                                                                                                                       old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
+    muted = property(_get_muted, _set_muted)
+    del _get_muted, _set_muted
 
 
     # RTP properties
