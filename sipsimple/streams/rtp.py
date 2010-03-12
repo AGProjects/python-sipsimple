@@ -234,7 +234,7 @@ class AudioStream(object):
 
     def update(self, local_sdp, remote_sdp, stream_index):
         with self._lock:
-            if self.remote_rtp_port != remote_sdp.media[stream_index].port:
+            if self._rtp_transport.remote_rtp_port_sdp != remote_sdp.media[stream_index].port:
                 settings = SIPSimpleSettings()
                 if self._audio_rec is not None:
                     self.bridge.remove(self._audio_rec)
