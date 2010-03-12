@@ -188,6 +188,8 @@ cdef class RTPTransport:
             try:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return None
+                if self._ice_active:
+                    return int(self.remote_rtp_port_ice)
                 self._get_info(&info)
                 if info.src_rtp_name.addr.sa_family != 0:
                     return pj_sockaddr_get_port(&info.src_rtp_name)
@@ -217,6 +219,8 @@ cdef class RTPTransport:
             try:
                 if self.state in ["NULL", "WAIT_STUN", "INVALID"]:
                     return None
+                if self._ice_active:
+                    return self.remote_rtp_address_ice
                 self._get_info(&info)
                 if pj_sockaddr_has_addr(&info.src_rtp_name):
                     return pj_sockaddr_print(&info.src_rtp_name, buf, PJ_INET6_ADDRSTRLEN, 0)
@@ -261,6 +265,16 @@ cdef class RTPTransport:
 
         def __get__(self):
             return bool(self._ice_active)
+
+    property local_rtp_candidate_type:
+
+        def __get__(self):
+            return self._local_rtp_candidate_type if self._ice_active else None
+
+    property remote_rtp_candidate_type:
+
+        def __get__(self):
+            return self._remote_rtp_candidate_type if self._ice_active else None
 
     cdef int _update_local_sdp(self, SDPSession local_sdp, int sdp_index, pjmedia_sdp_session *remote_sdp) except -1:
         cdef int status
@@ -394,6 +408,8 @@ cdef class RTPTransport:
                     raise PJSIPError("Could not stop media transport", status)
                 self.remote_rtp_address_sdp = None
                 self.remote_rtp_port_sdp = None
+                self.remote_rtp_address_ice = None
+                self.remote_rtp_port_ice = None
                 self.state = "INIT"
             elif self.state == "NULL":
                 if self._local_rtp_addr is None:
@@ -416,6 +432,9 @@ cdef class RTPTransport:
                         status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, local_ip_address, 0)
                     if status != 0:
                         raise PJSIPError("Could not init ICE bound address", status)
+                    # The state callback won't be called for the 'Candidate Gathering' state because transport is not
+                    # yet initialized, so we fake it. -Saul
+                    _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=self, state="Candidate Gathering"))
                     with nogil:
                         status = pjmedia_ice_create2(media_endpoint, NULL, 2, &ice_cfg, &_ice_cb, 0, transport_address)
                     if status != 0:
@@ -1068,6 +1087,9 @@ cdef void _RTPTransport_cb_ice_candidates_chosen(pjmedia_transport *tp, int stat
                         v_list.append([item_id, component_id, source, destination, nomination, state])
                 chosen_local_candidates = dict(rtp_cand_type=rtp_pair.local_type, rtp_cand_ip=rtp_pair.local_ip, rtcp_cand_type=rtcp_pair.local_type, rtcp_cand_ip=rtcp_pair.local_ip)
                 chosen_remote_candidates = dict(rtp_cand_type=rtp_pair.remote_type, rtp_cand_ip=rtp_pair.remote_ip, rtcp_cand_type=rtcp_pair.remote_type, rtcp_cand_ip=rtcp_pair.remote_ip)
+                rtp_transport.remote_rtp_address_ice, rtp_transport.remote_rtp_port_ice = rtp_pair.remote_ip.split(":")
+                rtp_transport._local_rtp_candidate_type = rtp_pair.local_type
+                rtp_transport._remote_rtp_candidate_type = rtp_pair.remote_type
                 _add_event("RTPTransportICENegotiationDidSucceed", dict(obj=rtp_transport, chosen_local_candidates=chosen_local_candidates, chosen_remote_candidates=chosen_remote_candidates, duration=duration, local_candidates=local_cand_list, remote_candidates=remote_cand_list, connectivity_checks_results=v_list))
     except:
         ua._handle_exception(1)
@@ -1087,7 +1109,30 @@ cdef void _RTPTransport_cb_ice_failure(pjmedia_transport *tp, char *reason) with
             rtp_transport = (<object> rtp_transport_void)()
             if rtp_transport is None:
                 return
-            _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=reason))
+            _reason = reason
+            if _reason != "media stop requested":
+                rtp_transport._local_rtp_candidate_type = None
+                rtp_transport._remote_rtp_candidate_type = None
+                _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_reason))
+    except:
+        ua._handle_exception(1)
+
+cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, char *state) with gil:
+    cdef void *rtp_transport_void = NULL
+    cdef RTPTransport rtp_transport
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        if tp != NULL:
+            rtp_transport_void = (<void **> (tp.name + 1))[0]
+        if rtp_transport_void != NULL:
+            rtp_transport = (<object> rtp_transport_void)()
+            if rtp_transport is None:
+                return
+            _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=rtp_transport, state=state))
     except:
         ua._handle_exception(1)
 
@@ -1111,4 +1156,5 @@ cdef pjmedia_ice_cb _ice_cb
 _ice_cb.on_ice_complete = _RTPTransport_cb_ice_complete
 _ice_cb.on_ice_candidates_chosen = _RTPTransport_cb_ice_candidates_chosen
 _ice_cb.on_ice_failure = _RTPTransport_cb_ice_failure
+_ice_cb.on_ice_state = _RTPTransport_cb_ice_state
 

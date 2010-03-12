@@ -444,6 +444,7 @@ cdef extern from "pjmedia.h":
         void on_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
         void on_ice_candidates_chosen(pjmedia_transport *tp, int status, pj_ice_candidate_pair rtp_pair, pj_ice_candidate_pair rtcp_pair, char *duration, char *local_candidates, char *remote_candidates, char *valid_list) with gil
         void on_ice_failure(pjmedia_transport *tp, char *reason) with gil
+        void on_ice_state(pjmedia_transport *tp, char *state) with gil
     int pjmedia_ice_create2(pjmedia_endpt *endpt, char *name, unsigned int comp_cnt, pj_ice_strans_cfg *cfg,
                             pjmedia_ice_cb *cb, unsigned int options, pjmedia_transport **p_tp) nogil
 
@@ -1811,10 +1812,14 @@ cdef class RTPTransport(object):
     cdef pjmedia_transport *_obj
     cdef pjmedia_transport *_wrapped_transport
     cdef object _local_rtp_addr
+    cdef str _local_rtp_candidate_type
+    cdef str _remote_rtp_candidate_type
     cdef readonly object ice_stun_address
     cdef readonly object ice_stun_port
     cdef readonly object remote_rtp_port_sdp
     cdef readonly object remote_rtp_address_sdp
+    cdef readonly object remote_rtp_port_ice
+    cdef readonly object remote_rtp_address_ice
     cdef readonly object srtp_forced
     cdef readonly object state
     cdef readonly object use_ice
@@ -1857,6 +1862,7 @@ cdef class AudioTransport(object):
 cdef void _RTPTransport_cb_ice_complete(pjmedia_transport *tp, pj_ice_strans_op op, int status) with gil
 cdef void _RTPTransport_cb_ice_candidates_chosen(pjmedia_transport *tp, int status, pj_ice_candidate_pair rtp_pair, pj_ice_candidate_pair rtcp_pair, char *duration, char *local_candidates, char *remote_candidates, char *valid_list) with gil
 cdef void _RTPTransport_cb_ice_failure(pjmedia_transport *tp, char *reason) with gil
+cdef void _RTPTransport_cb_ice_state(pjmedia_transport *tp, char *state) with gil
 cdef void _AudioTransport_cb_dtmf(pjmedia_stream *stream, void *user_data, int digit) with gil
 cdef dict _pj_math_stat_to_dict(pj_math_stat *stat)
 cdef dict _pjmedia_rtcp_stream_stat_to_dict(pjmedia_rtcp_stream_stat *stream_stat)
