@@ -438,6 +438,7 @@ class Session(object):
                 error = 'media stream timed out while starting'
             else:
                 error = 'media stream failed: %s' % e.data.reason
+            self.start_time = datetime.now()
             self._fail(originator='local', code=code, reason=reason, error=error)
         except InvitationDidFailError, e:
             notification_center.remove_observer(self, sender=self._invitation)
