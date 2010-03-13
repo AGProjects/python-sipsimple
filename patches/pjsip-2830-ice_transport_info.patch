@@ -290,12 +290,12 @@
 +{
 +    const char *names[] = {
 +	"Null",
-+	"Candidate Gathering",
-+	"Candidate Gathering Complete",
-+	"Session Initialized",
-+	"Negotiation In Progress",
-+	"Negotiation Success",
-+	"Negotiation Failed"
++	"ICE Candidates Gathering",
++	"ICE Candidates Gathered",
++	"ICE Session Initialized",
++	"ICE Negotiation In Progress",
++	"ICE Negotiation Succeded",
++	"ICE Negotiation Failed"
 +    };
 +
 +    PJ_ASSERT_RETURN(state <= PJ_ICE_STRANS_STATE_FAILED, "???");

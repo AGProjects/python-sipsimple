@@ -432,9 +432,9 @@ cdef class RTPTransport:
                         status = pj_sockaddr_init(ice_cfg.af, &ice_cfg.stun.cfg.bound_addr, local_ip_address, 0)
                     if status != 0:
                         raise PJSIPError("Could not init ICE bound address", status)
-                    # The state callback won't be called for the 'Candidate Gathering' state because transport is not
+                    # The state callback won't be called for the 'ICE Candidates Gathering' state because transport is not
                     # yet initialized, so we fake it. -Saul
-                    _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=self, state="Candidate Gathering"))
+                    _add_event("RTPTransportICENegotiationStateDidChange", dict(obj=self, state="ICE Candidates Gathering"))
                     with nogil:
                         status = pjmedia_ice_create2(media_endpoint, NULL, 2, &ice_cfg, &_ice_cb, 0, transport_address)
                     if status != 0:
