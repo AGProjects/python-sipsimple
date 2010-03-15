@@ -153,9 +153,9 @@ class Registration(object):
 class Message(object):
     implements(IObserver)
 
-    def __init__(self, from_header, to_header, route_header, content_type, body, credentials=None):
+    def __init__(self, from_header, to_header, route_header, content_type, body, credentials=None, extra_headers=[]):
         self._request = Request("MESSAGE", from_header, to_header, to_header.uri, route_header,
-                                credentials=credentials, content_type=content_type, body=body)
+                                credentials=credentials, extra_headers=extra_headers, content_type=content_type, body=body)
         self._lock = RLock()
 
     from_header = property(lambda self: self._request.from_header)
