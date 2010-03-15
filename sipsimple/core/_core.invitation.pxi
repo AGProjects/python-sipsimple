@@ -635,6 +635,13 @@ cdef class Invitation:
                     self._reinvite_transaction = NULL
             if state == "disconnected":
                 event_dict["disconnect_reason"] = "user request"
+                if 'Reason' in event_dict['headers']:
+                    try:
+                        protocol, cause, text = event_dict['headers']['Reason'].body.split(";")
+                        reason = text.split("=")[1].strip('"')
+                        event_dict["disconnect_reason"] = reason
+                    except (ValueError, IndexError):
+                        pass
                 if not self._invite_session.cancelling and rdata is None and self._invite_session.cause > 0:
                     # pjsip internally generates 408 and 503
                     if self._invite_session.cause == 408:
