@@ -294,7 +294,7 @@
 +	"ICE Candidates Gathered",
 +	"ICE Session Initialized",
 +	"ICE Negotiation In Progress",
-+	"ICE Negotiation Succeded",
++	"ICE Negotiation Succeeded",
 +	"ICE Negotiation Failed"
 +    };
 +
