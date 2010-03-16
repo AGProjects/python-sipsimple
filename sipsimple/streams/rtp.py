@@ -92,7 +92,7 @@ class AudioStream(object):
         old_producer_slot = self.producer_slot
         self.__dict__['muted'] = value
         notification_center = NotificationCenter()
-        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(old_consumer_slot=self.consumer_slot, new_consumer_slot=self.consumer_slot,
+        notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=False, producer_slot_changed=True,
                                                                                                                        old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
     muted = property(_get_muted, _set_muted)
     del _get_muted, _set_muted
@@ -255,7 +255,8 @@ class AudioStream(object):
                 self.notification_center.add_observer(self, sender=self._audio_transport)
                 self._audio_transport.start(local_sdp, remote_sdp, stream_index, no_media_timeout=settings.rtp.timeout,
                                             media_check_interval=settings.rtp.timeout)
-                self.notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot,
+                self.notification_center.post_notification('AudioPortDidChangeSlots', sender=self, data=TimestampedNotificationData(consumer_slot_changed=True, producer_slot_changed=True,
+                                                                                                                                    old_consumer_slot=old_consumer_slot, new_consumer_slot=self.consumer_slot,
                                                                                                                                     old_producer_slot=old_producer_slot, new_producer_slot=self.producer_slot))
                 self._check_hold(self._audio_transport.direction, True)
                 self.notification_center.post_notification("AudioStreamDidChangeRTPParameters", self, TimestampedNotificationData())
