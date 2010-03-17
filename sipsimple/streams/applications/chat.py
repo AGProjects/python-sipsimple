@@ -112,7 +112,7 @@ class CPIMIdentity(ChatIdentity):
 class CPIMMessage(ChatMessage):
     standard_namespace = u'urn:ietf:params:cpim-headers:'
 
-    headers_re = re.compile(r'(?:(.+?)\.)?(.+?):\s*(.+?)\r\n')
+    headers_re = re.compile(r'(?:([^:]+?)\.)?(.+?):\s*(.+?)\r\n')
     subject_re = re.compile(r'^(?:;lang=([a-z]{1,8}(?:-[a-z0-9]{1,8})*)\s+)?(.*)$')
     namespace_re = re.compile(r'^(?:(\S+) ?)?<(.*)>$')
 
