@@ -27,7 +27,7 @@ from zope.interface import implements
 
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, Registration, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
-from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
+from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread
@@ -470,6 +470,10 @@ class Account(SettingsObject):
     __str__ = __repr__
 
 
+class BonjourSIPSettings(SettingsGroup):
+    transport_list = Setting(type=SIPTransportList, default=SIPTransportList(['udp']))
+
+
 class BonjourAccount(SettingsObject):
     """
     Object represeting a bonjour account. Contains configuration settings and
@@ -500,6 +504,7 @@ class BonjourAccount(SettingsObject):
     display_name = Setting(type=str, default=None, nillable=True)
 
     rtp = RTPSettings
+    sip = BonjourSIPSettings
     tls = TLSSettings
 
     def __init__(self):
