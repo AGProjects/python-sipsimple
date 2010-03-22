@@ -37,6 +37,7 @@ from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, Cont
 from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 from msrplib.transport import make_response, make_report
 
+from sipsimple.account import Account
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.payloads.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
@@ -116,26 +117,30 @@ class MSRPStreamBase(object):
         try:
             self.session = session
             outgoing = direction=='outgoing'
-            if (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
-                credentials = self.account.credentials
-                if self.account.nat_traversal.msrp_relay is None:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.uri.user,
-                                              password=credentials.password if credentials else '')
-                    self.transport = settings.msrp.transport
+            if isinstance(self.account, Account):
+                if (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
+                    credentials = self.account.credentials
+                    if self.account.nat_traversal.msrp_relay is None:
+                        relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                                  username=self.account.uri.user,
+                                                  password=credentials.password if credentials else '')
+                        self.transport = settings.msrp.transport
+                    else:
+                        relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                                  username=self.account.uri.user,
+                                                  password=credentials.password if credentials else '',
+                                                  host=self.account.nat_traversal.msrp_relay.host,
+                                                  port=self.account.nat_traversal.msrp_relay.port,
+                                                  use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
+                        self.transport = self.account.nat_traversal.msrp_relay.transport
+                    if self.transport != settings.msrp.transport:
+                        raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
                 else:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.uri.user,
-                                              password=credentials.password if credentials else '',
-                                              host=self.account.nat_traversal.msrp_relay.host,
-                                              port=self.account.nat_traversal.msrp_relay.port,
-                                              use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
-                    self.transport = self.account.nat_traversal.msrp_relay.transport
-                if self.transport != settings.msrp.transport:
-                    raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
+                    relay = None
+                    self.transport = settings.msrp.transport
             else:
                 relay = None
-                self.transport = settings.msrp.transport
+                self.transport = self.account.msrp.transport
             if not outgoing and relay is None and self.transport == 'tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
                 raise MSRPStreamError("cannot create incoming MSRP stream without a certificate and private key")
             logger = NotificationProxyLogger()
@@ -276,7 +281,7 @@ class ChatStream(MSRPStreamBase):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message':
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if isinstance (account, Account) and SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
