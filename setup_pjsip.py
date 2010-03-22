@@ -90,7 +90,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-ice_status_callbacks.patch",
                    "patches/pjsip-2830-add_mixer_port.patch",
                    "patches/pjsip-2830-ice_transport_info.patch",
-                   "patches/pjsip-2830-fix_mixer_port.patch"]
+                   "patches/pjsip-2830-fix_mixer_port.patch",
+                   "patches/pjsip-2830-reuse-thread-desc-in-pa-port.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
