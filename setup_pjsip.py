@@ -67,7 +67,8 @@ class PJSIP_build_ext(build_ext):
                    "#define PJSIP_MAX_PKT_LEN 65536",
                    "#define PJSIP_UNESCAPE_IN_PLACE 1",
                    "#define PJMEDIA_HAS_L16_CODEC 0",
-                   "#define PJ_ICE_MAX_CHECKS 256"]
+                   "#define PJ_ICE_MAX_CHECKS 256",
+                   "#define PJ_LOG_MAX_LEVEL 6"]
     patch_files = ["patches/sdp_neg_cancel_remote_offer_r2669.patch",
                    "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-cancel_sdp_neg_on_sending_negative_reply_to_reinvite.patch",
@@ -91,7 +92,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-add_mixer_port.patch",
                    "patches/pjsip-2830-ice_transport_info.patch",
                    "patches/pjsip-2830-fix_mixer_port.patch",
-                   "patches/pjsip-2830-reuse-thread-desc-in-pa-port.patch"]
+                   "patches/pjsip-2830-reuse-thread-desc-in-pa-port.patch",
+                   "patches/pjsip-2830-fix_headphones_plug_crash.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
