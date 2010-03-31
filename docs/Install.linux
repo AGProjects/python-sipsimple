@@ -52,7 +52,9 @@ On Debian you can install the dependencies using apt-get:
 
 sudo apt-get install python-gnutls python-application python-lxml \
 python-dnspython python-twisted-core python-zopeinterface \
-python-twisted-names python-xml python-imaging cython
+python-twisted-names python-imaging cython python-setuptools \
+devscripts subversion build-essential cdbs debhelper \
+python-all-dev libasound2-dev libssl-dev
 
 Alternatively, on non-Debian systems you can use the easy_install script
 provided by the python-setuptools package to install the packages:
