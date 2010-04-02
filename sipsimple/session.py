@@ -874,7 +874,7 @@ class Session(object):
 
     @run_in_green_thread
     def unhold(self):
-        if not self.on_hold or not self._hold_in_progress:
+        if not self.on_hold and not self._hold_in_progress:
             return
         self._hold_in_progress = False
         streams = self.streams if self.streams is not None else self.proposed_streams

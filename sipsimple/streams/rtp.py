@@ -276,7 +276,7 @@ class AudioStream(object):
 
     def unhold(self):
         with self._lock:
-            if not self.on_hold_by_local or self._hold_request == 'unhold':
+            if (not self.on_hold_by_local and self._hold_request != 'hold') or self._hold_request == 'unhold':
                 return
             if self.state == "ESTABLISHED" and self._hold_request == 'hold':
                 self.bridge.add(self)
