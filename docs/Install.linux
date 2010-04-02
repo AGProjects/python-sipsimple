@@ -46,7 +46,6 @@ the following packages, notice the minimum version numbers:
  * greenlet                 http://pypi.python.org/pypi/greenlet/             >=0.2
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
- * pybonjour                http://code.google.com/p/pybonjour/               >=1.1.1
 
 On Debian you can install the dependencies using apt-get:
 
@@ -60,15 +59,12 @@ Alternatively, on non-Debian systems you can use the easy_install script
 provided by the python-setuptools package to install the packages:
 
 sudo easy_install -U lxml python-gnutls python-application \
-dnspython twisted PIL pybonjour
+dnspython twisted PIL
 
 Install greenlet by using easy_install script:
 
 sudo easy_install greenlet
 
-Install pybonjour by using easy_install script:
-
-sudo easy_install pybonjour
 
 
 Step 3. Install SIP SIMPLE client SDK

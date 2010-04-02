@@ -50,7 +50,6 @@ Step 2. Install Dependencies
  * greenlet                 http://pypi.python.org/pypi/greenlet/             >=0.2
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
- * pybonjour                http://code.google.com/p/pybonjour/               >=1.1.1
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
@@ -165,7 +164,7 @@ will be installed in /Library/Python/2.5/site-packages on Leopard or
 /Library/Python/2.6/site-packages on Snow Leopard:
 
 sudo easy_install -U python-gnutls dnspython twisted greenlet \
-python-application PIL pybonjour cython
+python-application PIL cython
 
 
 Step 3. Install SIP SIMPLE client SDK
