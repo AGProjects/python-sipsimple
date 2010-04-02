@@ -88,9 +88,10 @@ def run_in_twisted_thread(func):
 #
 
 class Command(object):
-    def __init__(self, name, event=None):
+    def __init__(self, name, event=None, **kwargs):
         self.name = name
         self.event = event or coros.event()
+        self.__dict__.update(kwargs)
 
     def signal(self):
         self.event.send()
