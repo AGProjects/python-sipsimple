@@ -11,10 +11,9 @@ Package: python-sipsimple
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-application (>= 1.2.1), python-twisted-core (>= 8.1.0), python-dnspython (>= 1.6), python-gnutls, python-xcaplib (>= 1.0.12), python-msrplib (>= 0.11.0), python-eventlet (>=0.8.11)
 Provides: ${python:Provides}
-Description: Python SIP SIMPLE framework
- The SIP SIMPLE Python framework allows for easy development of Internet
- communication end-points based on SIP and related protocols for voice,
- rich presence, session based instant messaging (IM), file transfers and
- desktop sharing. Other media types can be easily added by using an
- extensible high-level API.
+Description: Python SIP SIMPLE client SDK
+ SIP SIMPLE client is a Software Development Kit for easy development of Real
+ Time Applications based on SIP and related protocols for Presence, Audio,
+ Instant Messaging (IM), File Transfers and Desktop Sharing.  Other media
+ types can be easily added by using an extensible high-level API.
 
