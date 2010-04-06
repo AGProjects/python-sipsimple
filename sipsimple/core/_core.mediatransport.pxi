@@ -885,8 +885,6 @@ cdef class AudioTransport:
 
     def update_direction(self, direction):
         cdef int status
-        cdef int status1 = 0
-        cdef int status2 = 0
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_stream *stream
 
@@ -905,27 +903,7 @@ cdef class AudioTransport:
                 raise SIPCoreError("Unknown direction: %s" % direction)
             if direction == self.direction:
                 return
-            if "send" in self.direction:
-                if "send" not in direction:
-                    with nogil:
-                        status1 = pjmedia_stream_pause(stream, PJMEDIA_DIR_ENCODING)
-            else:
-                if "send" in direction:
-                    with nogil:
-                        status1 = pjmedia_stream_resume(stream, PJMEDIA_DIR_ENCODING)
-            if "recv" in self.direction:
-                if "recv" not in direction:
-                    with nogil:
-                        status2 = pjmedia_stream_pause(stream, PJMEDIA_DIR_DECODING)
-            else:
-                if "recv" in direction:
-                    with nogil:
-                        status2 = pjmedia_stream_resume(stream, PJMEDIA_DIR_DECODING)
             self.direction = direction
-            if status1 != 0:
-                raise SIPCoreError("Could not pause or resume encoding: %s" % _pj_status_to_str(status1))
-            if status2 != 0:
-                raise SIPCoreError("Could not pause or resume decoding: %s" % _pj_status_to_str(status2))
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
