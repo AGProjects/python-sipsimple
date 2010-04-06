@@ -295,7 +295,9 @@ class BonjourServices(object):
     def __init__(self, account):
         self.account = account
         self._command_channel = coros.queue()
+        self._discover_timer = None
         self._files = []
+        self._register_timer = None
         self._select_proc = None
         self._stopped = True
 
@@ -329,7 +331,6 @@ class BonjourServices(object):
     def restart_discovery(self):
         command = Command('discover')
         self._command_channel.send(command)
-        command.wait()
 
     def restart_registration(self):
         command = Command('unregister')
@@ -337,7 +338,6 @@ class BonjourServices(object):
         command.wait()
         command = Command('register')
         reactor.callLater(1, self._command_channel.send, command)
-        command.wait()
 
     def _register_cb(self, file, flags, error_code, name, regtype, domain):
         notification_center = NotificationCenter()
@@ -348,10 +348,26 @@ class BonjourServices(object):
             error = bonjour.BonjourError(error_code)
             notification_center.post_notification('BonjourAccountRegistrationDidFail', sender=self.account,
                                                   data=TimestampedNotificationData(code=error_code, reason=str(error)))
+            old_files = []
+            for file in (f for f in self._files[:] if f.type=='registration'):
+                old_files.append(file)
+                self._files.remove(file)
+            self._select_proc.kill(RestartSelect)
+            for file in old_files:
+                file.close()
+            # Since we're in the register callback, there is no active timer
+            # since the only other place where this timer is set is the error
+            # handling when the bonjour file is initially created. Assuming
+            # this callback doesn't get called multiple times on error for the
+            # same file, that is. So just to be on the safe side... -Luci
+            if self._register_timer is not None:
+                self._register_timer.cancel()
+            self._register_timer = reactor.callLater(1, self._command_channel.send, Command('register'))
 
     def _browse_cb(self, file, flags, interface_index, error_code, service_name, regtype, reply_domain):
         notification_center = NotificationCenter()
         if error_code != bonjour.kDNSServiceErr_NoError:
+            self._discover_timer = reactor.callLater(1, self._command_channel.send, Command('discover'))
             return
         if not (flags & bonjour.kDNSServiceFlagsAdd):
             uri = SIPURI.parse(service_name.strip('<>').encode('utf-8'))
@@ -359,9 +375,15 @@ class BonjourServices(object):
                 notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account,
                                                       data=TimestampedNotificationData(uri=uri))
             return
-        file = BonjourFile(bonjour.DNSServiceResolve(0, interface_index, service_name, regtype, reply_domain, self._resolve_cb), 'resolution')
-        self._files.append(file)
-        self._select_proc.kill(RestartSelect)
+        try:
+            file = bonjour.DNSServiceResolve(0, interface_index, service_name, regtype, reply_domain, self._resolve_cb)
+        except bonjour.BonjourError:
+            # Maybe we should log the error, but how? -Luci
+            pass
+        else:
+            bonjour_file = BonjourFile(file, 'resolution')
+            self._files.append(bonjour_file)
+            self._select_proc.kill(RestartSelect)
 
     def _resolve_cb(self, file, flags, interface_index, error_code, fullname, host_target, port, txtrecord):
         notification_center = NotificationCenter()
@@ -395,6 +417,9 @@ class BonjourServices(object):
                 handler(command)
 
     def _CH_unregister(self, command):
+        if self._register_timer is not None:
+            self._register_timer.cancel()
+            self._register_timer = None
         old_files = []
         for file in (f for f in self._files[:] if f.type=='registration'):
             old_files.append(file)
@@ -408,29 +433,63 @@ class BonjourServices(object):
 
     def _CH_register(self, command):
         notification_center = NotificationCenter()
+        if self._register_timer is not None and self._register_timer.active():
+            self._register_timer.cancel()
+        self._register_timer = None
         notification_center.post_notification('BonjourAccountWillRegister', sender=self.account, data=TimestampedNotificationData())
         display_name = "%s (%s)" % (self.account.display_name, platform.node() if platform.node()[-6:] != '.local' else platform.node()[:-6])
+        new_files = []
         for transport in self.account.sip.transport_list:
             if transport == 'tls' and not self.account.tls.certificate:
                 continue
             contact = self.account.contact[transport]
             txtdata = dict(txtvers=1, name=display_name, contact="<%s>" % str(contact))
-            self._files.append(BonjourFile(bonjour.DNSServiceRegister(name=str(contact), regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'), port=contact.port, callBack=self._register_cb, txtRecord=bonjour.TXTRecord(items=txtdata)), 'registration'))
+            try:
+                file = bonjour.DNSServiceRegister(name=str(contact),
+                                                  regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'),
+                                                  port=contact.port,
+                                                  callBack=self._register_cb,
+                                                  txtRecord=bonjour.TXTRecord(items=txtdata))
+            except bonjour.BonjourError, e:
+                notification_center.post_notification('BonjourAccountRegistrationDidFail', sender=self.account,
+                                                      data=TimestampedNotificationData(code=e.errorCode, reason=str(e)))
+                for file in new_files:
+                    file.close()
+                self._register_timer = reactor.callLater(1, self._command_channel.send, Command('register', command.event))
+                return
+            else:
+                new_files.append(BonjourFile(file, 'registration'))
+        self._files.extend(new_files)
         self._select_proc.kill(RestartSelect)
         command.signal()
 
     def _CH_discover(self, command):
         notification_center = NotificationCenter()
+        if self._discover_timer is not None and self._discover_timer.active():
+            self._discover_timer.cancel()
+        self._discover_timer = None
         notification_center.post_notification('BonjourAccountWillRestartDiscovery', sender=self.account, data=TimestampedNotificationData())
         old_files = []
         for file in (f for f in self._files[:] if f.type=='discovery'):
             old_files.append(file)
             self._files.remove(file)
-        for transport in self.account.sip.transport_list:
-            self._files.append(BonjourFile(bonjour.DNSServiceBrowse(regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'), callBack=self._browse_cb), 'discovery'))
         self._select_proc.kill(RestartSelect)
         for file in old_files:
             file.close()
+        new_files = []
+        for transport in self.account.sip.transport_list:
+            try:
+                file = bonjour.DNSServiceBrowse(regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'), callBack=self._browse_cb)
+            except bonjour.BonjourError:
+                # Maybe we should log the error, but how? -Luci
+                for file in new_files:
+                    file.close()
+                self._discover_timer = reactor.callLater(1, self._command_channel.send, Command('discover', command.event))
+                return
+            else:
+                new_files.append(BonjourFile(file, 'discovery'))
+        self._files.extend(new_files)
+        self._select_proc.kill(RestartSelect)
         command.signal()
 
     def _CH_process_results(self, command):
@@ -438,6 +497,7 @@ class BonjourServices(object):
             try:
                 bonjour.DNSServiceProcessResult(file.file)
             except:
+                # Should we close the file? The documentation doesn't say anything about this. -Luci
                 import traceback
                 traceback.print_exc()
         # reinsert the files which were not closed in the select list
@@ -446,6 +506,12 @@ class BonjourServices(object):
         self._select_proc.kill(RestartSelect)
 
     def _CH_stop(self, command):
+        if self._discover_timer is not None:
+            self._discover_timer.cancel()
+            self._discover_timer = None
+        if self._register_timer is not None:
+            self._register_timer.cancel()
+            self._register_timer = None
         old_files = self._files
         self._files = []
         self._select_proc.kill(RestartSelect)
