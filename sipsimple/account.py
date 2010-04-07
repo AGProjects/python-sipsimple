@@ -630,8 +630,6 @@ class Account(SettingsObject):
     def __init__(self, id):
         self.id = id
 
-        self.uri = SIPURI(user=self.id.username, host=self.id.domain)
-
         self._active = False
         self._registrar = AccountRegistrar(self)
         self._started = False
@@ -707,6 +705,10 @@ class Account(SettingsObject):
         credentials.verify_peer = self.tls.verify_server
         return credentials
 
+    @property
+    def uri(self):
+        return SIPURI(user=self.id.username, host=self.id.domain)
+
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
         handler(notification)
@@ -727,6 +729,11 @@ class Account(SettingsObject):
                     self._registrar.deactivate()
             elif set(['password', 'sip.outbound_proxy', 'sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.register:
                 self._registrar.reload_settings()
+
+    @run_in_green_thread
+    def _NH_CFGSettingsObjectDidChangeID(self, notification):
+        if self._started and self.enabled and self.sip.register:
+            self._registrar.reload_settings()
 
     def _activate(self):
         if self._active:
@@ -777,6 +784,8 @@ class BonjourAccount(SettingsObject):
      * SIPAccountDidActivate
      * SIPAccountDidDeactivate
     """
+
+    __metaclass__ = Singleton
 
     implements(IObserver)
 

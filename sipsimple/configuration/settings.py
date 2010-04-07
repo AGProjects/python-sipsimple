@@ -7,6 +7,8 @@ SIP SIMPLE settings.
 Definition of general (non-account related) settings.
 """
 
+from application.python.util import Singleton
+
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger
@@ -68,6 +70,8 @@ class TLSSettings(SettingsGroup):
 
 
 class SIPSimpleSettings(SettingsObject):
+    __metaclass__ = Singleton
+
     __id__ = 'SIPSimpleSettings'
 
     default_account = Setting(type=str, default='bonjour@local', nillable=True)

@@ -63,6 +63,21 @@ class ConfigurationManager(object):
         else:
             self._update_dict(self.data.setdefault(name, {}), data)
 
+    def rename(self, group, old_name, new_name):
+        """
+        Rename the object identified by old_name within the specified group to
+        new_name. Cannot be called before start().
+        """
+        if self.backend is None:
+            raise RuntimeError("ConfigurationManager cannot be used unless started")
+        if group is not None:
+            group_data = self.data.get(group, {})
+            self.data.setdefault(group, {})[new_name] = group_data.pop(old_name, {})
+            if not group_data:
+                self.data.pop(group, None)
+        else:
+            self.data[new_name] = self.data.pop(old_name, {})
+
     def delete(self, group, name):
         """
         Delete an object identified by a name in the specified group. Cannot be
@@ -109,7 +124,6 @@ class ConfigurationManager(object):
             return self.data[group].keys()
         except:
             return []
-
 
     def save(self):
         """
@@ -160,27 +174,53 @@ class ModifiedValue(object):
 
 class SettingsObjectID(object):
     """
-    Simple write-once descriptor used for SettingsObject subclasses which have
-    dynamic ids.
+    Simple descriptor used for SettingsObject subclasses which have dynamic ids.
     """
     def __init__(self, type):
         self.type = type
-        self.objects = WeakKeyDictionary()
+        self.values = WeakKeyDictionary()
+        self.oldvalues = WeakKeyDictionary()
+        self.dirty = WeakKeyDictionary()
 
     def __get__(self, obj, objtype):
         if obj is None:
             return self
         try:
-            return self.objects[obj]
+            return self.values[obj]
         except KeyError:
             raise AttributeError("SettingsObject ID has not been defined")
 
     def __set__(self, obj, value):
-        if self.objects.get(obj, value) != value:
-            raise AttributeError("SettingsObject ID cannot be overwritten")
         if not isinstance(value, self.type):
             value = self.type(value)
-        self.objects[obj] = value
+        # check whether the old value is the same as the new value
+        if obj in self.values and self.values[obj] == value:
+            return
+        self.dirty[obj] = obj in self.values
+        self.oldvalues[obj] = self.values.get(obj, value)
+        self.values[obj] = value
+
+    def isdirty(self, obj):
+        """
+        Returns True if the ID has been changed on the specified configuration
+        object.
+        """
+        return self.dirty.get(obj, False)
+
+    def clear_dirty(self, obj):
+        """
+        Clears the dirty flag for the ID on the specified configuration object.
+        """
+        del self.dirty[obj]
+        self.oldvalues[obj] = self.values[obj]
+
+    def get_old(self, obj):
+        return self.oldvalues.get(obj, None)
+
+    def undo(self, obj):
+        if obj in self.oldvalues:
+            self.dirty.pop(obj, None)
+            self.values[obj] = self.oldvalues[obj]
 
 
 class Setting(object):
@@ -408,9 +448,7 @@ class SettingsObject(SettingsState):
     """
     Subclass for top-level configuration objects. These objects are identifiable
     by either a global id (set in the __id__ attribute of the class) or a local
-    id passed as the sole argument when instantiating SettingsObjects. Since
-    SettingsObject is a Singleton, there is only one instance of the subclasses
-    per id.
+    id passed as the sole argument when instantiating SettingsObjects.
 
     For SettingsObject subclasses which are meant to be used exclusively with a
     local id, the class attribute __id__ should be left to the value None; if
@@ -422,8 +460,6 @@ class SettingsObject(SettingsState):
     created (i.e. there weren't any settings saved in the configuration), but
     also when the object is retrieved from the configuration.
     """
-
-    __metaclass__ = Singleton
 
     __group__ = None
     __id__ = None
@@ -457,13 +493,19 @@ class SettingsObject(SettingsState):
         posted as well.
         """
         modified_settings = self.get_modified()
-        if not modified_settings:
+        id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
+        if not modified_settings and not (id_descriptor and id_descriptor.isdirty(self)):
             return
 
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
         
         try:
+            if id_descriptor and id_descriptor.isdirty(self):
+                old = id_descriptor.get_old(self)
+                new = self.__id__
+                configuration.rename(self.__group__, old, new)
+                notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=old, new_id=new))
             configuration.update(self.__group__, self.__id__, self.__getstate__())
             configuration.save()
         except Exception, e:
@@ -476,21 +518,17 @@ class SettingsObject(SettingsState):
 
     def delete(self):
         """
-        Remove this object from the persistent configuration. This also removes
-        the object from Singleton's registry.
+        Remove this object from the persistent configuration.
         """
         if self.__id__ is self.__class__.__id__:
             raise TypeError("cannot delete %s instance with default id" % self.__class__.__name__)
-        try:
-            key = [key for key, value in self.__class__._instances.iteritems() if value is self][0]
-        except IndexError:
-            pass
-        else:
-            del self.__class__._instances[key]
         configuration = ConfigurationManager()
-        configuration.delete(self.__group__, self.__id__)
+        id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
+        if id_descriptor and id_descriptor.isdirty(self):
+            configuration.delete(self.__group__, id_descriptor.get_old(self))
+        else:
+            configuration.delete(self.__group__, self.__id__)
         configuration.save()
-
 
     def clone(self, new_id):
         """
