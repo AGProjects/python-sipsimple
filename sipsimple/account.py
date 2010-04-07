@@ -677,12 +677,12 @@ class Account(SettingsObject):
         return self._registrar.contact
 
     @property
-    def registered(self):
-        return self._registrar.registered if self._registrar else False
-
-    @property
     def credentials(self):
         return Credentials(self.id.username, self.password)
+
+    @property
+    def registered(self):
+        return self._registrar.registered if self._registrar else False
 
     @property
     def tls_credentials(self):
@@ -804,7 +804,6 @@ class BonjourAccount(SettingsObject):
     def __init__(self):
         username = ''.join(random.sample(string.lowercase, 8))
         self.contact = ContactURI('%s@%s' % (username, host.default_ip))
-        self.uri = SIPURI(user=self.contact.username, host=self.contact.domain)
         self.credentials = None
 
         self._active = False
@@ -869,6 +868,10 @@ class BonjourAccount(SettingsObject):
         credentials = X509Credentials(certificate, private_key, trusted)
         credentials.verify_peer = self.tls.verify_server
         return credentials
+
+    @property
+    def uri(self):
+        return SIPURI(user=self.contact.username, host=self.contact.domain)
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null())
