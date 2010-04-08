@@ -873,6 +873,8 @@ class BonjourAccount(SettingsObject):
                 else:
                     self._deactivate()
             if 'display_name' in notification.data.modified:
+                if notification.data.modified['display_name'].new == "":
+                    self.display_name = os.getenv('USER')
                 self._bonjour_services.restart_registration()
             if any(option in notification.data.modified for option in ('sip.transport_list','tls.certificate')):
                 notification_center = NotificationCenter()
