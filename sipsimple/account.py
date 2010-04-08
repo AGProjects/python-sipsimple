@@ -517,6 +517,8 @@ class BonjourServices(object):
         self._select_proc.kill(RestartSelect)
         for file in old_files:
             file.close()
+        notification_center = NotificationCenter()
+        notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=TimestampedNotificationData())
         command.signal()
 
     @run_in_green_thread
