@@ -54,6 +54,7 @@ class RTPSettings(SettingsGroup):
 
 
 class SIPSettings(SettingsGroup):
+    invite_timeout = Setting(type=NonNegativeInteger, default=180, nillable=True)
     udp_port = Setting(type=Port, default=0)
     tcp_port = Setting(type=Port, default=0)
     tls_port = Setting(type=Port, default=0)

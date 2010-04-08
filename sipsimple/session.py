@@ -166,35 +166,41 @@ class Session(object):
                 local_sdp.connection.address = stun_addresses[0]
             self._invitation.send_invite(FromHeader(self.account.uri, self.account.display_name), to_header, RouteHeader(self.route.get_uri()),
                                          ContactHeader(self.account.contact[self.route.transport]), local_sdp, self.account.credentials)
-            while True:
-                notification = self._channel.wait()
-                if notification.name == 'SIPInvitationGotSDPUpdate':
-                    if notification.data.succeeded:
-                        local_sdp = notification.data.local_sdp
-                        remote_sdp = notification.data.remote_sdp
-                        break
-                    else:
-                        for stream in self.proposed_streams:
-                            notification_center.remove_observer(self, sender=stream)
-                            stream.deactivate()
-                            stream.end()
-                        self._fail(originator='remote', code=received_code, reason=received_reason, error='SDP negotiation failed: %s' % notification.data.error)
-                        return
-                elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'early':
-                        if notification.data.code == 180:
-                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
-                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
-                    elif notification.data.state == 'connecting':
-                        received_code = notification.data.code
-                        received_reason = notification.data.reason
-                    elif notification.data.state == 'connected':
-                        if not connected:
-                            connected = True
-                            notification_center.post_notification('SIPSessionDidProcessTransaction', self,
-                                                                  TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
-                        else:
-                            unhandled_notifications.append(notification)
+            try:
+                with api.timeout(settings.sip.invite_timeout):
+                    while True:
+                        notification = self._channel.wait()
+                        if notification.name == 'SIPInvitationGotSDPUpdate':
+                            if notification.data.succeeded:
+                                local_sdp = notification.data.local_sdp
+                                remote_sdp = notification.data.remote_sdp
+                                break
+                            else:
+                                for stream in self.proposed_streams:
+                                    notification_center.remove_observer(self, sender=stream)
+                                    stream.deactivate()
+                                    stream.end()
+                                self._fail(originator='remote', code=received_code, reason=received_reason, error='SDP negotiation failed: %s' % notification.data.error)
+                                return
+                        elif notification.name == 'SIPInvitationChangedState':
+                            if notification.data.state == 'early':
+                                if notification.data.code == 180:
+                                    notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                                notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
+                            elif notification.data.state == 'connecting':
+                                received_code = notification.data.code
+                                received_reason = notification.data.reason
+                            elif notification.data.state == 'connected':
+                                if not connected:
+                                    connected = True
+                                    notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                                          TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
+                                else:
+                                    unhandled_notifications.append(notification)
+            except api.TimeoutError:
+                self.greenlet = None
+                self.end()
+                return
 
             notification_center.post_notification('SIPSessionWillStart', self, TimestampedNotificationData())
             stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
@@ -656,6 +662,7 @@ class Session(object):
     def add_stream(self, stream):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
 
         received_code = None
         received_reason = None
@@ -686,38 +693,45 @@ class Session(object):
 
             received_invitation_state = False
             received_sdp_update = False
-            while not received_invitation_state or not received_sdp_update:
-                notification = self._channel.wait()
-                if notification.name == 'SIPInvitationGotSDPUpdate':
-                    received_sdp_update = True
-                    if notification.data.succeeded:
-                        local_sdp = notification.data.local_sdp
-                        remote_sdp = notification.data.remote_sdp
-                        for s in self.streams:
-                            s.update(local_sdp, remote_sdp, s.index)
-                    else:
-                        self._fail_proposal(originator='local', error='SDP negotiation failed: %s' % notification.data.error)
-                        return
-                elif notification.name == 'SIPInvitationChangedState':
-                    if notification.data.state == 'early':
-                        if notification.data.code == 180:
-                            notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
-                        notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
-                    elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
-                        received_invitation_state = True
-                        notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
-                        if 200 <= notification.data.code < 300:
-                            received_code = notification.data.code
-                            received_reason = notification.data.reason
-                        else:
-                            notification_center.remove_observer(self, sender=stream)
-                            stream.deactivate()
-                            stream.end()
-                            notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='local', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
-                            self.state = 'connected'
-                            self.proposed_streams = None
-                            self.greenlet = None
-                            return
+            try:
+                with api.timeout(settings.sip.invite_timeout):
+                    while not received_invitation_state or not received_sdp_update:
+                        notification = self._channel.wait()
+                        if notification.name == 'SIPInvitationGotSDPUpdate':
+                            received_sdp_update = True
+                            if notification.data.succeeded:
+                                local_sdp = notification.data.local_sdp
+                                remote_sdp = notification.data.remote_sdp
+                                for s in self.streams:
+                                    s.update(local_sdp, remote_sdp, s.index)
+                            else:
+                                self._fail_proposal(originator='local', error='SDP negotiation failed: %s' % notification.data.error)
+                                return
+                        elif notification.name == 'SIPInvitationChangedState':
+                            if notification.data.state == 'early':
+                                if notification.data.code == 180:
+                                    notification_center.post_notification('SIPSessionGotRingIndication', self, TimestampedNotificationData())
+                                notification_center.post_notification('SIPSessionGotProvisionalResponse', self, TimestampedNotificationData(code=notification.data.code, reason=notification.data.reason))
+                            elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
+                                received_invitation_state = True
+                                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                                if 200 <= notification.data.code < 300:
+                                    received_code = notification.data.code
+                                    received_reason = notification.data.reason
+                                else:
+                                    notification_center.remove_observer(self, sender=stream)
+                                    stream.deactivate()
+                                    stream.end()
+                                    notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='local', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
+                                    self.state = 'connected'
+                                    self.proposed_streams = None
+                                    self.greenlet = None
+                                    return
+            except api.TimeoutError:
+                self.greenlet = None
+                self.cancel_proposal()
+                return
+
             try:
                 remote_media = remote_sdp.media[stream.index]
             except IndexError:
