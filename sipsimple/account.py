@@ -545,7 +545,7 @@ class SIPSettings(SettingsGroup):
 
 class RTPSettings(SettingsGroup):
     audio_codec_list = Setting(type=AudioCodecList, default=None, nillable=True)
-    srtp_encryption = Setting(type=SRTPEncryption, default='optional')
+    srtp_encryption = Setting(type=SRTPEncryption, default='disabled')
     use_srtp_without_tls = Setting(type=bool, default=False)
 
 
