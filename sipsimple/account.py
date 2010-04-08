@@ -29,7 +29,7 @@ from twisted.internet import reactor
 from zope.interface import implements
 
 from sipsimple import bonjour
-from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, Registration, RouteHeader, SIPURI
+from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
@@ -370,7 +370,7 @@ class BonjourServices(object):
             self._discover_timer = reactor.callLater(1, self._command_channel.send, Command('discover'))
             return
         if not (flags & bonjour.kDNSServiceFlagsAdd):
-            uri = SIPURI.parse(service_name.strip('<>').encode('utf-8'))
+            uri = FrozenSIPURI.parse(service_name.strip('<>').encode('utf-8'))
             if uri != self.account.contact[uri.parameters.get('transport', 'udp')]:
                 notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account,
                                                       data=TimestampedNotificationData(uri=uri))
@@ -391,7 +391,7 @@ class BonjourServices(object):
             txt = bonjour.TXTRecord.parse(txtrecord)
             contact = txt['contact'].strip('<>') if 'contact' in txt else None
             if contact:
-                uri = SIPURI.parse(contact)
+                uri = FrozenSIPURI.parse(contact)
                 transport = uri.parameters.get('transport', 'udp')
                 if transport in self.account.sip.transport_list and uri != self.account.contact[transport]:
                     notification_center.post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
