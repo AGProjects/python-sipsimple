@@ -173,10 +173,6 @@ class Route(object):
 class Timestamp(datetime):
     _timestamp_re = re.compile(r'(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})T(?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(\.(?P<secfrac>\d{1,}))?((?P<UTC>Z)|((?P<tzsign>\+|-)(?P<tzhour>\d{2}):(?P<tzminute>\d{2})))')
 
-    def __init__(self, *args, **kwargs):
-        if kwargs:
-            datetime.__init__(self, *args, **kwargs)
-
     @classmethod
     def utc_offset(cls):
         timediff = datetime.now() - datetime.utcnow()
