@@ -10,13 +10,14 @@ Description
 -----------
 
 SIP SIMPLE client SDK is a Software Development Kit for development of Real
-Time Applications based on SIP and related protocols for media transport
-like Presence, Audio and Instant Messaging (IM). Other media types can be
-easily added by using an extensible high-level API.
+Time Applications based on SIP and related protocols for Audio, Instant
+Messaging, File Transfers, Desktop Sharing and Presence. Other media types
+can be easily added by using an extensible high-level API.
 
 The software has undergone in the past years several interoperability tests
 at SIPIT (http://www.sipit.net) and today is of industry strength quality.
-The SIP stack is provided by PJSIP (http://www.pjsip.org PJSIP)
+
+The SIP stack is provided by PJSIP (http://www.pjsip.org)
 
 
 Background
@@ -44,12 +45,12 @@ with minimal changes on any platform that supports C and Python development
 environments.
 
 To see SIP SIMPLE client SDK features in action you can try Blink from
-http://icanblink.com.
+http://icanblink.com
 
 For an up to date status of the readiness for the features listed bellow
 visit project web site.
 
-General Features
+General
 
  * Written in Python programming language
  * Non-blocking asynchronous engine
@@ -69,7 +70,7 @@ General Features
  * Wide-band Internet codecs: Speex and G722
  * PSTN compatible codecs: G711, iLBC, GSM
 
-Supported media types:
+Supported media
 
  * Audio (RTP/sRTP)
  * Instant Messaging (MSRP)
@@ -77,13 +78,6 @@ Supported media types:
  * Desktop Sharing (VNC over MSRP)
 
 All media types can be combined together in the same SIP session.
-
-The library uses a separated from the core lookup mechanism for the next hop
-routing. This important feature allows the library to be used for building
-SIP clients that operate in combination with any SIP provider (by employing
-RFC 3263 DNS lookups), in a server-less LAN operation (using Bonjour
-protocol) or integrated into a network overlay developed by a third party
-(e.g. P2PSIP overlay).
 
 
 Normative References
@@ -95,7 +89,7 @@ SIP Signaling
  * Session Description Protocol (RFC4566)
  * An Offer/Answer Model with Session Description Protocol (RFC4566)
 
-Location Discovery
+Address Resolution
 
  * RFC3263 next hop resolution lookup
  * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-03
@@ -103,20 +97,25 @@ Location Discovery
 NAT Traversal
 
  * SIP Signaling: Symmetric Response Routing Symmetric media (RFC3581)
- * RTP media (Audio and Video): ICE, Interactive Connectivity Establishment (draft-ietf-mmusic-ice-19)
- * MSRP media (Instant Messaging and File Transfer): MSRP protocol relay extension (RFC4976)
+ * RTP media (Audio and Video): ICE, Interactive Connectivity Establishment
+   (draft-ietf-mmusic-ice-19)
+ * MSRP media (Instant Messaging and File Transfer): MSRP protocol relay
+   extension (RFC4976)
   
 Voice over IP
 
  * RTP, A Transport Protocol for Real-Time Applications (RFC3550)
- * Real Time Control Protocol (RTCP) attribute in Session Description Protocol (SDP) (RFC3605)
+ * Real Time Control Protocol (RTCP) attribute in Session Description
+   Protocol (SDP) (RFC3605)
  * SRTP, The Secure Real-time Transport Protocol (RFC3711)
- * Generation and parsing of telephone-events payload in both RTP and SDP (RFC2833)
+ * Generation and parsing of telephone-events payload in both RTP and SDP
+   (RFC2833)
 
 Instant Messaging
 
  * CPIM, Common Presence and Instant Messaging: (RFC3862)
- * Session Initiation Protocol (SIP) Extension for Instant Messaging (RFC3428)
+ * Session Initiation Protocol (SIP) Extension for Instant Messaging
+   (RFC3428)
  * MSRP Protocol (RFC4975)
  * Indication of Message Composition for Instant Messaging (RFC3994)
  * Message Summary Event Package (RFC3842)
@@ -131,12 +130,9 @@ Conferencing
  * Conference Event Package (RFC4575)
  * A Framework for Conferencing with the Session Initiation Protocol (RFC4353)
  * SIP Call Control - Conferencing for User Agents (RFC4579)
- * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat-05)
+ * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat-06)
 
 Presence
-
-All server-side features have been built-in and tested with OpenSIPS
-Presence Agent and OpenXCAP server.
 
  * SIP Specific Event Notification (RFC3265)
  * SIP Extension for Event State Publication (RFC3903) 
@@ -151,7 +147,7 @@ Presence Agent and OpenXCAP server.
  * Resource Lists (RFC4826)
  * RLS Services (RFC4826)
  * PIDF manipulation (RFC4827)
- * XCAP Diff (draft-ietf-simple-xcap-diff-09.txt)
+ * XCAP Diff (draft-ietf-simple-xcap-diff-14)
  * OMA specification org.openmobilealliance.xcap-directory
  * OMA specification oma_status.icon
 

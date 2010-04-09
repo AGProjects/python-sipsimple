@@ -12,8 +12,8 @@ Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, python-application (>= 1.2.1), python-twisted-core (>= 8.1.0), python-dnspython (>= 1.6), python-gnutls, python-xcaplib (>= 1.0.12), python-msrplib (>= 0.11.1), python-eventlet-0.8
 Provides: ${python:Provides}
 Description: Python SIP SIMPLE client SDK
- SIP SIMPLE client is a Software Development Kit for easy development of Real
- Time Applications based on SIP and related protocols for Presence, Audio,
- Instant Messaging (IM), File Transfers and Desktop Sharing.  Other media
- types can be easily added by using an extensible high-level API.
+ SIP SIMPLE client SDK is a Software Development Kit for development of Real
+ Time Applications based on SIP and related protocols for Audio, Instant
+ Messaging, File Transfers, Desktop Sharing and Presence. Other media types
+ can be easily added by using an extensible high-level API.
 
