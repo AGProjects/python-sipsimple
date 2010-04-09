@@ -1,6 +1,6 @@
 
-Installation procedure for SIP SIMPLE client SDK on Linux
----------------------------------------------------------
+SIP SIMPLE client SDK installation on Linux
+-------------------------------------------
 
 Copyright (c) 2008-2010 AG Projects
 http://ag-projects.com
@@ -9,8 +9,6 @@ Home page: http://sipsimpleclient.com
 
 This document described the installation procedure on Linux operating
 systems.
-
-Fore more information see the installation guide available at:
 
 
 Step 1. Prerequisites
@@ -47,24 +45,11 @@ the following packages, notice the minimum version numbers:
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
 
-On Debian you can install the dependencies using apt-get:
+You can use the easy_install script provided by the python-setuptools
+package to install the packages:
 
-sudo apt-get install python-gnutls python-application python-lxml \
-python-dnspython python-twisted-core python-zopeinterface \
-python-twisted-names python-imaging cython python-setuptools \
-devscripts subversion build-essential cdbs debhelper \
-python-all-dev libasound2-dev libssl-dev
-
-Alternatively, on non-Debian systems you can use the easy_install script
-provided by the python-setuptools package to install the packages:
-
-sudo easy_install -U lxml python-gnutls python-application \
-dnspython twisted PIL
-
-Install greenlet by using easy_install script:
-
-sudo easy_install greenlet
-
+sudo easy_install -U cython dnspython twisted lxml python-gnutls \
+python-application dnspython twisted PIL
 
 
 Step 3. Install SIP SIMPLE client SDK
@@ -72,7 +57,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. Eventlet
+ 1. Eventlet and Greenlet
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -85,6 +70,18 @@ if [ -d python-eventlet ]; then
 else
         darcs get http://devel.ag-projects.com/repositories/python-eventlet
         cd python-eventlet
+        sudo python setup.py install
+fi
+cd ..
+
+# Greenlet
+if [ -d python-greenlet ]; then
+        cd python-greenlet
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-greenlet
+        cd python-greenlet
         sudo python setup.py install
 fi
 cd ..
@@ -113,7 +110,7 @@ else
 fi
 cd ..
 
-# SIP SIMPLE library
+# SIP SIMPLE
 if [ -d python-sipsimple ]; then
 	cd python-sipsimple
 	darcs pull -a
@@ -121,8 +118,6 @@ else
 	darcs get http://devel.ag-projects.com/repositories/python-sipsimple
 fi
 cd..
-
-Build and install SIP SIMPLE library:
 
 cd python-sipsimple
 sudo python setup.py build_ext --pjsip-clean-compile
@@ -140,3 +135,4 @@ fi
 cd..
 
 sudo python setup.py install
+

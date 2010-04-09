@@ -1,0 +1,71 @@
+
+SIP SIMPLE client SDK installation on Debian Linux
+--------------------------------------------------
+
+Copyright (c) 2008-2010 AG Projects
+http://ag-projects.com
+
+Home page: http://sipsimpleclient.com
+
+This document describes the installation procedure on Debian unstable
+operating system from the official public repository provided by AG
+Projects. The same procedure works for Ubuntu version 9.10.
+
+
+Configure Repository
+--------------------
+
+Install the AG Projects debian software signing key: 
+
+wget http://download.ag-projects.com/agp-debian-gpg.key
+sudo apt-key add agp-debian-gpg.key
+
+Add these lines to /etc/apt/sources.list
+
+###################################################
+# AG Projects software
+deb	http://ag-projects.com/debian unstable main
+deb-src http://ag-projects.com/debian unstable main
+###################################################
+
+Then run:
+
+sudo apt-get update
+
+
+Install SIP SIMPLE client SDK
+------------------------------
+
+sudo apt-get install python-sipsimple
+
+
+Install the Command Line Clients
+--------------------------------
+
+sudo apt-get install sipclients 
+
+
+Creating Debian Packages
+------------------------
+
+Install the building dependencies:
+
+sudo apt-get install python-gnutls python-application python-lxml \
+python-dnspython python-twisted-core python-zopeinterface \
+python-twisted-names python-imaging cython python-setuptools \
+devscripts subversion build-essential cdbs debhelper \
+python-all-dev libasound2-dev libssl-dev
+
+Obtain the source code using darcs as described in Install.linux document.
+
+Create under each repository a clean distribution file:
+
+python setup.py sdist
+
+Change to ./dist directory. and untar the file created at the step above.
+Change directory to the newly created folder and type:
+
+debuild
+
+You will find the .deb and related files in the upper directory.
+
