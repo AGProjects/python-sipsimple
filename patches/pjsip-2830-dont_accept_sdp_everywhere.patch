@@ -1,0 +1,22 @@
+Index: pjsip/src/pjsip-ua/sip_inv.c
+==================================================================
+--- pjsip/src/pjsip-ua/sip_inv.c	(revision 3114)
++++ pjsip/src/pjsip-ua/sip_inv.c	(working copy)
+@@ -1462,6 +1462,17 @@
+ 	return PJMEDIA_SDP_EINSDP;
+     }
+ 
++    /* Only accept SDP in INVITE and ACK requests, 183 provisional response
++     * and 200 final response.
++     */
++    if (!(msg->type == PJSIP_REQUEST_MSG && msg->line.req.method.id == PJSIP_INVITE_METHOD) &&
++        !(msg->type == PJSIP_REQUEST_MSG && msg->line.req.method.id == PJSIP_ACK_METHOD) &&
++        !(msg->type == PJSIP_RESPONSE_MSG && msg->line.status.code == 183) &&
++        !(msg->type == PJSIP_RESPONSE_MSG && msg->line.status.code == 200)) {
++		PJ_LOG(4,(inv->obj_name, "ignored SDP body"));
++        return PJ_SUCCESS;
++    }
++
+     /* Get/attach invite session's transaction data */
+     tsx_inv_data = (struct tsx_inv_data*) tsx->mod_data[mod_inv.mod.id];
+     if (tsx_inv_data == NULL) {
