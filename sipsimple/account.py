@@ -11,6 +11,7 @@ from __future__ import absolute_import
 import os
 import platform
 import random
+import re
 import string
 
 from itertools import chain
@@ -391,12 +392,13 @@ class BonjourServices(object):
             txt = bonjour.TXTRecord.parse(txtrecord)
             contact = txt['contact'].strip('<>') if 'contact' in txt else None
             if contact:
+                display_name = txt['name'] if 'name' in txt else None
+                host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
                 uri = FrozenSIPURI.parse(contact)
                 transport = uri.parameters.get('transport', 'udp')
                 if transport in self.account.sip.transport_list and uri != self.account.contact[transport]:
                     notification_center.post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
-                                                          data=TimestampedNotificationData(display_name=txt['name'] if 'name' in txt else None,
-                                                                                           uri=uri))
+                                                          data=TimestampedNotificationData(display_name=display_name, host=host, uri=uri))
             BonjourFile(file, 'resolution').close()
 
     def _process_files(self):
@@ -437,13 +439,12 @@ class BonjourServices(object):
             self._register_timer.cancel()
         self._register_timer = None
         notification_center.post_notification('BonjourAccountWillRegister', sender=self.account, data=TimestampedNotificationData())
-        display_name = "%s (%s)" % (self.account.display_name, platform.node() if platform.node()[-6:] != '.local' else platform.node()[:-6])
         new_files = []
         for transport in self.account.sip.transport_list:
             if transport == 'tls' and not self.account.tls.certificate:
                 continue
             contact = self.account.contact[transport]
-            txtdata = dict(txtvers=1, name=display_name, contact="<%s>" % str(contact))
+            txtdata = dict(txtvers=1, name=self.account.display_name, contact="<%s>" % str(contact))
             try:
                 file = bonjour.DNSServiceRegister(name=str(contact),
                                                   regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'),
