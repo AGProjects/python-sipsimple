@@ -35,7 +35,7 @@ from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
-from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread
+from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread, user_info
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
@@ -795,7 +795,7 @@ class BonjourAccount(SettingsObject):
 
     id = property(lambda self: self.__id__)
     enabled = Setting(type=bool, default=True)
-    display_name = Setting(type=str, default=os.getenv('USER'), nillable=False)
+    display_name = Setting(type=str, default=user_info.fullname, nillable=False)
 
     rtp = RTPSettings
     sip = BonjourSIPSettings
@@ -888,8 +888,6 @@ class BonjourAccount(SettingsObject):
                 else:
                     self._deactivate()
             if 'display_name' in notification.data.modified:
-                if notification.data.modified['display_name'].new == "":
-                    self.display_name = os.getenv('USER')
                 self._bonjour_services.restart_registration()
             if any(option in notification.data.modified for option in ('sip.transport_list','tls.certificate')):
                 notification_center = NotificationCenter()

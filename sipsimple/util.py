@@ -9,10 +9,12 @@ from __future__ import absolute_import, with_statement
 
 __all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
            "Command", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData",
-           "call_in_green_thread", "call_in_twisted_thread", "combinations", "limit", "makedirs"]
+           "call_in_green_thread", "call_in_twisted_thread", "combinations", "limit", "makedirs",
+           "user_info"]
 
 import errno
 import os
+import platform
 import re
 import socket
 import sys
@@ -20,6 +22,7 @@ from datetime import datetime, timedelta
 
 from application.notification import NotificationData
 from application.python.decorator import decorator, preserve_signature
+from application.python.util import Singleton
 from eventlet import coros
 from eventlet.twistedutil import callInGreenThread
 from twisted.python import threadable
@@ -296,5 +299,35 @@ def makedirs(path):
         if e.errno == errno.EEXIST and os.path.isdir(path): # directory exists
             return
         raise
+
+
+# Utility objects
+#
+
+class UserInfo(object):
+    __metaclass__ = Singleton
+
+    def __repr__(self):
+        attribs = ', '.join('%s=%r' % (attr, getattr(self, attr)) for attr in ('username', 'fullname'))
+        return '%s(%s)' % (self.__class__.__name__, attribs)
+
+    @property
+    def username(self):
+        if platform.system() == 'Windows':
+            return os.getenv('USERNAME')
+        else:
+            import pwd
+            return pwd.getpwuid(os.getuid()).pw_name
+
+    @property
+    def fullname(self):
+        if platform.system() == 'Windows':
+            return os.getenv('USERNAME')
+        else:
+            import pwd
+            return pwd.getpwuid(os.getuid()).pw_gecos.split(',', 1)[0] or pwd.getpwuid(os.getuid()).pw_name
+
+user_info = UserInfo()
+del UserInfo
 
 
