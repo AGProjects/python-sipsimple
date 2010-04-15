@@ -538,6 +538,11 @@ class BonjourServices(object):
             self.restart_registration()
 
 
+class AuthSettings(SettingsGroup):
+    username = Setting(type=str, default=None, nillable=True)
+    password = Setting(type=str, default='')
+
+
 class SIPSettings(SettingsGroup):
     outbound_proxy = Setting(type=SIPProxyAddress, default=None, nillable=True)
     register = Setting(type=bool, default=True)
@@ -615,9 +620,9 @@ class Account(SettingsObject):
 
     id = SettingsObjectID(type=SIPAddress)
     enabled = Setting(type=bool, default=False)
-    password = Setting(type=str, default='')
     display_name = Setting(type=str, default=None, nillable=True)
 
+    auth = AuthSettings
     sip = SIPSettings
     rtp = RTPSettings
     dialog_event = DialogEventSettings
@@ -679,7 +684,7 @@ class Account(SettingsObject):
 
     @property
     def credentials(self):
-        return Credentials(self.id.username, self.password)
+        return Credentials(self.auth.username or self.id.username, self.auth.password)
 
     @property
     def registered(self):
@@ -728,7 +733,7 @@ class Account(SettingsObject):
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
-            elif set(['password', 'sip.outbound_proxy', 'sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.register:
+            elif set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.register:
                 self._registrar.reload_settings()
 
     @run_in_green_thread
@@ -756,6 +761,14 @@ class Account(SettingsObject):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.id)
     __str__ = __repr__
+
+    def __setstate__(self, data):
+        # This restores the password from its previous location as a top level setting
+        # after it was moved under the auth group.
+        SettingsObject.__setstate__(self, data)
+        if not data.get('auth', {}).get('password') and data.get('password'):
+            self.auth.password = data.pop('password')
+            self.save()
 
 
 class BonjourSIPSettings(SettingsGroup):

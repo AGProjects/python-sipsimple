@@ -1092,12 +1092,14 @@ cdef class BaseCredentials(object):
 cdef class Credentials(BaseCredentials):
     # attributes
     cdef str _username
+    cdef str _realm
     cdef str _password
 
 cdef class FrozenCredentials(BaseCredentials):
     # attributes
     cdef int initialized
     cdef readonly str username
+    cdef readonly str realm
     cdef readonly str password
 
 cdef class BaseSIPURI(object):

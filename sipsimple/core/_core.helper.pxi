@@ -8,7 +8,6 @@
 cdef class BaseCredentials:
     def __cinit__(self, *args, **kwargs):
         global _Credentials_scheme_digest, _Credentials_realm_wildcard
-        self._credentials.realm = _Credentials_realm_wildcard.pj_str
         self._credentials.scheme = _Credentials_scheme_digest.pj_str
         self._credentials.data_type = PJSIP_CRED_DATA_PLAIN_PASSWD
 
@@ -16,20 +15,21 @@ cdef class BaseCredentials:
         raise TypeError("BaseCredentials cannot be instantiated directly")
 
     def __repr__(self):
-        return "%s(%r, %r)" % (self.__class__.__name__, self.username, self.password)
+        return "%s(%r, %r, %r)" % (self.__class__.__name__, self.username, self.password, self.realm)
 
     def __str__(self):
-        return '<%s for "%s">' % (self.__class__.__name__, self.username)
+        return '<%s for "%s@%s">' % (self.__class__.__name__, self.username, self.realm)
 
     cdef pjsip_cred_info* get_cred_info(self):
         return &self._credentials
 
 def Credentials_new(cls, BaseCredentials credentials):
-    return cls(credentials.username, credentials.password)
+    return cls(credentials.username, credentials.password, credentials.realm)
 
 cdef class Credentials(BaseCredentials):
-    def __init__(self, str username not None, str password not None):
+    def __init__(self, str username not None, str password not None, str realm='*'):
         self.username = username
+        self.realm = realm
         self.password = password
 
     property username:
@@ -40,6 +40,15 @@ cdef class Credentials(BaseCredentials):
         def __set__(self, str username not None):
             _str_to_pj_str(username, &self._credentials.username)
             self._username = username
+
+    property realm:
+
+        def __get__(self):
+            return self._realm
+
+        def __set__(self, str realm not None):
+            _str_to_pj_str(realm, &self._credentials.realm)
+            self._realm = realm
 
     property password:
 
@@ -57,19 +66,21 @@ del Credentials_new
 def FrozenCredentials_new(cls, BaseCredentials credentials):
     if isinstance(credentials, FrozenCredentials):
         return credentials
-    return cls(credentials.username, credentials.password)
+    return cls(credentials.username, credentials.password, credentials.realm)
 
 cdef class FrozenCredentials(BaseCredentials):
-    def __init__(self, str username not None, str password not None):
+    def __init__(self, str username not None, str password not None, str realm='*'):
         if not self.initialized:
             self.username = username
+            self.realm = realm
             self.password = password
             _str_to_pj_str(self.username, &self._credentials.username)
+            _str_to_pj_str(self.realm, &self._credentials.realm)
             _str_to_pj_str(self.password, &self._credentials.data)
             initialized = 1
 
     def __hash__(self):
-        return hash((self.username, self.password))
+        return hash((self.username, self.realm, self.password))
 
     new = classmethod(FrozenCredentials_new)
 
@@ -350,6 +361,5 @@ cdef FrozenSIPURI FrozenSIPURI_create(pjsip_sip_uri *uri):
 #
 
 cdef PJSTR _Credentials_scheme_digest = PJSTR("digest")
-cdef PJSTR _Credentials_realm_wildcard = PJSTR("*")
 
 
