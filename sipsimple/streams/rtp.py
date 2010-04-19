@@ -306,6 +306,7 @@ class AudioStream(object):
                         pass # this would happen if stream was on hold
                 else:
                     self.state = "ENDED"
+                self._session = None
 
     def send_dtmf(self, digit):
         with self._lock:
