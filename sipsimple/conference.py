@@ -12,12 +12,12 @@ __all__ = ['AudioConference']
 from threading import RLock
 
 from sipsimple.application import SIPApplication
-from sipsimple.audio import AudioBridge, AudioDevice
+from sipsimple.audio import AudioDevice, RootAudioBridge
 
 
 class AudioConference(object):
     def __init__(self):
-        self.bridge = AudioBridge(SIPApplication.voice_audio_mixer)
+        self.bridge = RootAudioBridge(SIPApplication.voice_audio_mixer)
         self.device = AudioDevice(SIPApplication.voice_audio_mixer)
         self.on_hold = False
         self.streams = []

@@ -21,7 +21,7 @@ from zope.interface import implements
 from sipsimple.core import AudioMixer, Engine, PJSIPTLSError, SIPCoreError
 
 from sipsimple.account import AccountManager
-from sipsimple.audio import AudioBridge, AudioDevice
+from sipsimple.audio import AudioDevice, RootAudioBridge
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.session import SessionManager
@@ -159,7 +159,7 @@ class SIPApplication(object):
             except SIPCoreError:
                 voice_mixer = AudioMixer(None, None, settings.audio.sample_rate, settings.audio.tail_length)
         self.voice_audio_device = AudioDevice(voice_mixer)
-        self.voice_audio_bridge = AudioBridge(voice_mixer)
+        self.voice_audio_bridge = RootAudioBridge(voice_mixer)
         self.voice_audio_bridge.add(self.voice_audio_device)
         try:
             alert_mixer = AudioMixer(None, alert_device, settings.audio.sample_rate, 0)
@@ -171,7 +171,7 @@ class SIPApplication(object):
         if settings.audio.silent:
             alert_mixer.output_volume = 0
         self.alert_audio_device = AudioDevice(alert_mixer)
-        self.alert_audio_bridge = AudioBridge(alert_mixer)
+        self.alert_audio_bridge = RootAudioBridge(alert_mixer)
         self.alert_audio_bridge.add(self.alert_audio_device)
 
         settings.audio.input_device = voice_mixer.input_device
@@ -268,7 +268,7 @@ class SIPApplication(object):
                     except SIPCoreError:
                         voice_mixer = AudioMixer(None, None, settings.audio.sample_rate, settings.audio.tail_length)
                 self.voice_audio_device = AudioDevice(voice_mixer)
-                self.voice_audio_bridge = AudioBridge(voice_mixer)
+                self.voice_audio_bridge = RootAudioBridge(voice_mixer)
                 self.voice_audio_bridge.add(self.voice_audio_device)
                 try:
                     alert_mixer = AudioMixer(None, alert_device, settings.audio.sample_rate, 0)
@@ -278,7 +278,7 @@ class SIPApplication(object):
                     except SIPCoreError:
                         alert_mixer = AudioMixer(None, None, settings.audio.sample_rate, 0)
                 self.alert_audio_device = AudioDevice(alert_mixer)
-                self.alert_audio_bridge = AudioBridge(alert_mixer)
+                self.alert_audio_bridge = RootAudioBridge(alert_mixer)
                 self.alert_audio_bridge.add(self.alert_audio_device)
                 if settings.audio.silent:
                     alert_mixer.output_volume = 0

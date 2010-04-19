@@ -7,7 +7,7 @@ Audio support.
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'WavePlayer', 'WaveRecorder']
+__all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'RootAudioBridge', 'WavePlayer', 'WaveRecorder']
 
 import os
 import weakref
@@ -212,6 +212,100 @@ class AudioBridge(object):
                     self.mixer.disconnect_slots(notification.data.old_producer_slot, self.multiplexer.slot)
                 if notification.data.new_producer_slot is not None:
                     self.mixer.connect_slots(notification.data.new_producer_slot, self.multiplexer.slot)
+                for other in (wr() for wr in self.ports):
+                    if other is None or other is notification.sender or other.consumer_slot is None:
+                        continue
+                    if notification.data.old_producer_slot is not None:
+                        self.mixer.disconnect_slots(notification.data.old_producer_slot, other.consumer_slot)
+                    if notification.data.new_producer_slot is not None:
+                        self.mixer.connect_slots(notification.data.new_producer_slot, other.consumer_slot)
+
+    @staticmethod
+    def _remove_port(selfwr, portwr):
+        self = selfwr()
+        if self is not None:
+            with self._lock:
+                self.ports.discard(portwr)
+
+
+class RootAudioBridge(object):
+    """
+    A RootAudioBridge is a container for objects providing the IAudioPort
+    interface. It connects all such objects in a full-mesh such that all audio
+    producers are connected to all consumers.
+
+    The difference between a RootAudioBridge and an AudioBridge is that the
+    RootAudioBridge does not implement the IAudioPort interface. This makes it
+    more efficient.
+    """
+
+    implements(IObserver)
+
+    def __init__(self, mixer):
+        self.mixer = mixer
+        self.ports = set()
+        self._lock = RLock()
+        notification_center = NotificationCenter()
+        notification_center.add_observer(ObserverWeakrefProxy(self), name='AudioPortDidChangeSlots')
+
+    def __del__(self):
+        for port1, port2 in ((wr1(), wr2()) for wr1, wr2 in combinations(self.ports, 2)):
+            if port1 is None or port2 is None:
+                continue
+            if port1.producer_slot is not None and port2.consumer_slot is not None:
+                self.mixer.disconnect_slots(port1.producer_slot, port2.consumer_slot)
+            if port2.producer_slot is not None and port1.consumer_slot is not None:
+                self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
+        self.ports.clear()
+
+    def add(self, port):
+        with self._lock:
+            if not IAudioPort.providedBy(port):
+                raise TypeError("expected object implementing IAudioPort, got %s" % port.__class__.__name__)
+            if port.mixer is not self.mixer:
+                raise ValueError("expected port with Mixer %r, got %r" % (self.mixer, port.mixer))
+            if weakref.ref(port) in self.ports:
+                return
+            for other in (wr() for wr in self.ports):
+                if other is None:
+                    continue
+                if other.producer_slot is not None and port.consumer_slot is not None:
+                    self.mixer.connect_slots(other.producer_slot, port.consumer_slot)
+                if port.producer_slot is not None and other.consumer_slot is not None:
+                    self.mixer.connect_slots(port.producer_slot, other.consumer_slot)
+            # This hack is required because a weakly referenced object keeps a
+            # strong reference to weak references of itself and thus to any
+            # callbacks registered in those weak references. To be more
+            # precise, we don't want the port to have a strong reference to
+            # ourselves. -Luci
+            self.ports.add(weakref.ref(port, partial(self._remove_port, weakref.ref(self))))
+
+    def remove(self, port):
+        with self._lock:
+            if weakref.ref(port) not in self.ports:
+                raise ValueError("port %r is not part of this bridge" % port)
+            for other in (wr() for wr in self.ports):
+                if other is None:
+                    continue
+                if other.producer_slot is not None and port.consumer_slot is not None:
+                    self.mixer.disconnect_slots(other.producer_slot, port.consumer_slot)
+                if port.producer_slot is not None and other.consumer_slot is not None:
+                    self.mixer.disconnect_slots(port.producer_slot, other.consumer_slot)
+            self.ports.remove(weakref.ref(port))
+
+    def handle_notification(self, notification):
+        with self._lock:
+            if weakref.ref(notification.sender) not in self.ports:
+                return
+            if notification.data.consumer_slot_changed:
+                for other in (wr() for wr in self.ports):
+                    if other is None or other is notification.sender or other.producer_slot is None:
+                        continue
+                    if notification.data.old_consumer_slot is not None:
+                        self.mixer.disconnect_slots(other.producer_slot, notification.data.old_consumer_slot)
+                    if notification.data.new_consumer_slot is not None:
+                        self.mixer.connect_slots(other.producer_slot, notification.data.new_consumer_slot)
+            if notification.data.producer_slot_changed:
                 for other in (wr() for wr in self.ports):
                     if other is None or other is notification.sender or other.consumer_slot is None:
                         continue
