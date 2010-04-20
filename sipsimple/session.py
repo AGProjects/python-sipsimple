@@ -947,7 +947,7 @@ class Session(object):
         finally:
             for stream in streams:
                 stream.end()
-        notification_center.remove_observer(self, sender=self._invitation)
+            notification_center.remove_observer(self, sender=self._invitation)
         self.greenlet = None
         self.state = 'terminated'
         if cancelling:
@@ -1305,6 +1305,7 @@ class Session(object):
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator=notification.data.originator, method='INVITE', code=notification.data.code, reason=notification.data.reason))
                         self.end_time = datetime.now()
                         notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator=notification.data.originator, end_reason=notification.data.disconnect_reason))
+                    notification_center.remove_observer(self, sender=self._invitation)
             finally:
                 self.greenlet = None
 
