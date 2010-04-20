@@ -1,6 +1,6 @@
 
-SIP SIMPLE client SDK installation on Debian Linux
---------------------------------------------------
+SIP SIMPLE client SDK installation on Debian and Ubuntu
+-------------------------------------------------------
 
 Copyright (c) 2008-2010 AG Projects
 http://ag-projects.com
@@ -20,27 +20,43 @@ Install the AG Projects debian software signing key:
 wget http://download.ag-projects.com/agp-debian-gpg.key
 sudo apt-key add agp-debian-gpg.key
 
-Add these lines to /etc/apt/sources.list
+Add these lines to /etc/apt/sources.list:
 
-###################################################
-# AG Projects software
+Debian Unstable
+---------------
+
 deb	http://ag-projects.com/debian unstable main
 deb-src http://ag-projects.com/debian unstable main
-###################################################
 
-Then run:
+Debian Stable
+-------------
+
+deb	http://ag-projects.com/debian stable main
+deb-src http://ag-projects.com/debian stable main
+
+
+Ubuntu Karmic (9.10)
+--------------------
+
+deb	http://ag-projects.com/ubuntu karmic main
+deb-src http://ag-projects.com/ubuntu karmic main
+
+
+Ubuntu Lucid (10.04)
+--------------------
+
+deb	http://ag-projects.com/ubuntu lucid main
+deb-src http://ag-projects.com/ubuntu lucid main
+
+Update the list of available packages:
 
 sudo apt-get update
 
-
-Install SIP SIMPLE client SDK
-------------------------------
+Install SIP SIMPLE client SDK:
 
 sudo apt-get install python-sipsimple
 
-
-Install the Command Line Clients
---------------------------------
+Install the Command Line Clients:
 
 sudo apt-get install sipclients 
 
@@ -68,4 +84,3 @@ Change directory to the newly created folder and type:
 debuild
 
 You will find the .deb and related files in the upper directory.
-
