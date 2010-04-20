@@ -1,3 +1,15 @@
+python-sipsimple (0.14.2) unstable; urgency=low
+
+  * Improved organization of attributes/properties in accounts
+  * Added patch to not consider SDP in all requests/responses
+  * Added host name to the BonjourAccountDidAddNeighbour notification
+  * Improved default value of BonjourAccount's display_name setting
+  * Added support for authentication username
+  * Raised required cython version
+  * Added RootAudioBridge to skip not needed audio processing
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 20 Apr 2010 10:02:32 +0200
+
 python-sipsimple (0.14.1) unstable; urgency=low
 
   * Added missing dependency for AVAHI's Bonjour compatibility
