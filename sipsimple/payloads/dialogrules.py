@@ -18,7 +18,7 @@ __all__ = ['cp_namespace',
            'DialogRules']
 
 
-dlg_namespace = 'urn:ietf:params:xml:ns:dialog-rules'
+dlg_namespace = 'http://openxcap.org/ns/dialog-rules'
 
 class DialogRulesApplication(CommonPolicyApplication): pass
 DialogRulesApplication.register_namespace(dlg_namespace, prefix='dr')
