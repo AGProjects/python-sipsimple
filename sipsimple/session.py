@@ -446,7 +446,7 @@ class Session(object):
             if isinstance(e, api.TimeoutError) and wait_count > 0:
                 error = 'media stream timed out while starting'
             elif isinstance(e, api.TimeoutError) and wait_count == 0:
-                error = 'ACK missing'
+                error = 'No ACK received'
                 reason_header = ReasonHeader('SIP')
                 reason_header.cause = 500
                 reason_header.text = 'Missing ACK'
