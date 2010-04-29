@@ -235,6 +235,11 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
         elif header_name == "Route":
             multi_header = True
             header_data = FrozenRouteHeader_create(<pjsip_routing_hdr *> header)
+        elif header_name == "Reason":
+            value = _pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue)
+            protocol, sep, params_str = value.partition(';')
+            params = frozendict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';')]])
+            header_data = FrozenReasonHeader(protocol, params)
         elif header_name == "Record-Route":
             multi_header = True
             header_data = FrozenRecordRouteHeader_create(<pjsip_routing_hdr *> header)

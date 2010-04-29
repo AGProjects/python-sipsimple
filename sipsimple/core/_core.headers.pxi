@@ -1152,6 +1152,133 @@ cdef class FrozenSubscriptionStateHeader(BaseSubscriptionStateHeader):
 del FrozenSubscriptionStateHeader_new
 
 
+cdef object BaseReasonHeader_richcmp(object self, object other, object op) with gil:
+    cdef int eq = 1
+    if op not in [2,3]:
+        return NotImplemented
+    if not isinstance(other, BaseSubscriptionStateHeader):
+        return NotImplemented
+    if op == 2:
+        return self.protocol == other.protocol and self.parameters == other.parameters
+    else:
+        return self.protocol != other.protocol or self.parameters != other.parameters
+
+cdef class BaseReasonHeader:
+    normal_type = ReasonHeader
+    frozen_type = FrozenReasonHeader
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("%s cannot be instantiated directly" % self.__class__.__name__)
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.protocol, self.parameters)
+
+    def __str__(self):
+        return "%s: %s" % (self.name, self.body)
+
+    def __richcmp__(self, other, op):
+        return BaseReasonHeader_richcmp(self, other, op)
+
+    property name:
+
+        def __get__(self):
+            return "Reason"
+
+    property body:
+
+        def __get__(self):
+            if self.parameters:
+                parameters = " ;" + " ;".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                             for name, value in self.parameters.iteritems()])
+            else:
+                parameters = ""
+            return self.protocol + parameters
+
+def ReasonHeader_new(cls, BaseReasonHeader header):
+    return cls(header.state, dict(header.parameters))
+
+cdef class ReasonHeader(BaseReasonHeader):
+    def __init__(self, str protocol not None, dict parameters=None):
+        self.protocol = protocol
+        self.parameters = parameters if parameters is not None else {}
+
+    property cause:
+
+        def __get__(self):
+            cause = self.parameters.get("cause", None)
+            if cause is not None:
+                cause = int(cause)
+            return cause
+
+        def __set__(self, object cause):
+            cdef int cause_i
+            if cause is None:
+                self.parameters.pop("cause", None)
+            else:
+                cause_i = int(cause)
+                self.parameters["cause"] = str(cause_i)
+
+    property text:
+
+        def __get__(self):
+            text = self.parameters.get("text", None)
+            if text is not None:
+                text = text.strip('"')
+            return text
+
+        def __set__(self, str text):
+            if text is None:
+                self.parameters.pop("text", None)
+            else:
+                if not text.startswith('"'):
+                    text = '"'+text
+                if not text[1:].endswith('"'):
+                    text = text+'"'
+                self.parameters["text"] = text
+
+    new = classmethod(ReasonHeader_new)
+
+del ReasonHeader_new
+
+def FrozenReasonHeader_new(cls, BaseReasonHeader header):
+    if isinstance(header, cls):
+        return header
+    return cls(header.protocol, frozendict(header.parameters))
+
+cdef class FrozenReasonHeader(BaseReasonHeader):
+    def __init__(self, str protocol not None, frozendict parameters not None=frozendict()):
+        if not self.initialized:
+            self.protocol = protocol
+            self.parameters = parameters
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.protocol, self.parameters))
+
+    def __richcmp__(self, other, op):
+        return BaseReasonHeader_richcmp(self, other, op)
+
+    property cause:
+
+        def __get__(self):
+            cause = self.parameters.get("cause", None)
+            if cause is not None:
+                cause = int(cause)
+            return cause
+
+    property text:
+
+        def __get__(self):
+            text = self.parameters.get("text", None)
+            if text is not None:
+                text = text.strip('"')
+            return text
+
+    new = classmethod(FrozenReasonHeader_new)
+
+del FrozenReasonHeader_new
+
+
 # Factory functions
 #
 
@@ -1372,3 +1499,4 @@ cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_su
     if header.retry_after != -1:
         parameters["retry-after"] = str(header.retry_after)
     return FrozenSubscriptionStateHeader(_pj_str_to_str(header.sub_state), frozendict(parameters))
+

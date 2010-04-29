@@ -1277,6 +1277,20 @@ cdef class FrozenSubscriptionStateHeader(BaseSubscriptionStateHeader):
     cdef int initialized
     cdef readonly str state
     cdef readonly frozendict parameters
+
+cdef class BaseReasonHeader(object):
+    pass
+
+cdef class ReasonHeader(BaseReasonHeader):
+    # attributes
+    cdef public str protocol
+    cdef public dict parameters
+
+cdef class FrozenReasonHeader(BaseReasonHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly str protocol
+    cdef readonly frozendict parameters
  
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)

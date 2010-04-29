@@ -650,8 +650,7 @@ cdef class Invitation:
                     event_dict['reason'] = 'Request Timeout'
                 elif rdata is not None and 'Reason' in event_dict['headers']:
                     try:
-                        protocol, cause, text = event_dict['headers']['Reason'].body.split(";")
-                        reason = text.split("=")[1].strip('"')
+                        reason = event_dict['headers']['Reason'].text
                         event_dict["disconnect_reason"] = reason
                     except (ValueError, IndexError):
                         pass

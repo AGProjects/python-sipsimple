@@ -21,7 +21,7 @@ from eventlet.coros import queue
 from zope.interface import implements
 
 from sipsimple.core import Engine, Invitation, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
-from sipsimple.core import ContactHeader, FromHeader, RouteHeader, WarningHeader
+from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
 from sipsimple.account import AccountManager
@@ -430,8 +430,9 @@ class Session(object):
                         unhandled_notifications.append(notification)
         except (MediaStreamDidFailError, api.TimeoutError), e:
             if self._invitation.state == 'connecting':
+                ack_received = False if isinstance(e, api.TimeoutError) and wait_count == 0 else 'unknown'
                 # pjsip's invite session object does not inform us whether the ACK was received or not
-                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received='unknown'))
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=ack_received))
             elif self._invitation.state == 'connected' and not connected:
                 # we didn't yet get to process the SIPInvitationChangedState (state -> connected) notification
                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=True))
@@ -441,12 +442,18 @@ class Session(object):
                 stream.end()
             code = 200 if self._invitation.state not in ('incoming', 'early') else 0
             reason = sip_status_messages[200] if self._invitation.state not in ('incoming', 'early') else None
-            if isinstance(e, api.TimeoutError):
+            reason_header = None
+            if isinstance(e, api.TimeoutError) and wait_count > 0:
                 error = 'media stream timed out while starting'
+            elif isinstance(e, api.TimeoutError) and wait_count == 0:
+                error = 'ACK missing'
+                reason_header = ReasonHeader('SIP')
+                reason_header.cause = 500
+                reason_header.text = 'Missing ACK'
             else:
                 error = 'media stream failed: %s' % e.data.reason
             self.start_time = datetime.now()
-            self._fail(originator='local', code=code, reason=reason, error=error)
+            self._fail(originator='local', code=code, reason=reason, error=error, reason_header=reason_header)
         except InvitationDidFailError, e:
             notification_center.remove_observer(self, sender=self._invitation)
             for stream in self.proposed_streams:
@@ -1070,7 +1077,7 @@ class Session(object):
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
 
-    def _fail(self, originator, code, reason, error):
+    def _fail(self, originator, code, reason, error, reason_header=None):
         notification_center = NotificationCenter()
         prev_inv_state = self._invitation.state
         self.state = 'terminating'
@@ -1079,9 +1086,9 @@ class Session(object):
         if self._invitation.state not in (None, 'disconnecting', 'disconnected'):
             try:
                 if self._invitation.direction == 'incoming' and self._invitation.state in ('incoming', 'early'):
-                    self._invitation.send_response(500)
+                    self._invitation.send_response(500, extra_headers=[reason_header] if reason_header is not None else [])
                 else:
-                    self._invitation.end()
+                    self._invitation.end(extra_headers=[reason_header] if reason_header is not None else [])
                 with api.timeout(1):
                     while True:
                         notification = self._channel.wait()
