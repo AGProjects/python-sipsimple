@@ -37,7 +37,7 @@ the following packages, notice the minimum version numbers:
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
- * cython                   http://www.cython.org                             >=0.11.3
+ * cython                   http://www.cython.org                             >=0.11.2
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * eventlet                 http://pypi.python.org/pypi/eventlet/             =0.8.11

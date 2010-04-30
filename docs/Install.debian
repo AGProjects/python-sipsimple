@@ -7,8 +7,8 @@ http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
 
-This document describes the installation procedure on Debian unstable
-operating system from the official public repository provided by AG
+This document describes the installation procedure on Debian and Ubuntu
+operating systems from the official public repository maintained by AG
 Projects.
 
 
@@ -22,11 +22,13 @@ sudo apt-key add agp-debian-gpg.key
 
 Add these lines to /etc/apt/sources.list:
 
+
 Debian Unstable
 ---------------
 
 deb	http://ag-projects.com/debian unstable main
 deb-src http://ag-projects.com/debian unstable main
+
 
 Debian Stable
 -------------
@@ -47,6 +49,7 @@ Ubuntu Lucid (10.04)
 
 deb	http://ag-projects.com/ubuntu lucid main
 deb-src http://ag-projects.com/ubuntu lucid main
+
 
 Update the list of available packages:
 
@@ -78,9 +81,11 @@ Create under each repository a clean distribution file:
 
 python setup.py sdist
 
-Change to ./dist directory. and untar the file created at the step above.
-Change directory to the newly created folder and type:
+Go to the ./dist directory and untar the file created at the step above.
+
+Go to the newly created directory and type:
 
 debuild
 
-You will find the .deb and related files in the upper directory.
+The .deb and related files are built in the upper directory.
+
