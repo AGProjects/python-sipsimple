@@ -77,9 +77,9 @@ make
 sudo make install
 cd ..
 
-curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.4.tar.bz2
-tar -xjvf libgcrypt-1.4.4.tar.bz2
-cd libgcrypt-1.4.4
+curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.5.tar.bz2
+tar -xjvf libgcrypt-1.4.5.tar.bz2
+cd libgcrypt-1.4.5
 CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
 sudo make install
@@ -87,9 +87,9 @@ cd ..
 
 # Install GNUTLS
 # ==============
-curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.1.tar.bz2
-tar -xjvf gnutls-2.8.1.tar.bz2
-cd gnutls-2.8.1
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.6.tar.bz2
+tar -xjvf gnutls-2.8.6.tar.bz2
+cd gnutls-2.8.6
 CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
@@ -102,6 +102,10 @@ tar -xzvf lxml-2.2beta4.tar.gz
 cd lxml-2.2beta4
 sudo python setup.py install --static-deps
 cd ..
+
+Upgrade MacOSX python setup tools:
+
+sudo easy_install --script-dir /usr/bin -U setuptools
 
 
 Step 2.2. Install Dependencies (MacOSX 10.6 Snow Leopard only)
@@ -124,9 +128,9 @@ make
 sudo make install
 cd ..
 
-curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.4.tar.bz2
-tar -xjvf libgcrypt-1.4.4.tar.bz2
-cd libgcrypt-1.4.4
+curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.5.tar.bz2
+tar -xjvf libgcrypt-1.4.5.tar.bz2
+cd libgcrypt-1.4.5
 CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
 sudo make install
@@ -134,9 +138,9 @@ cd ..
 
 # Install GNUTLS
 # ==============
-curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.1.tar.bz2
-tar -xjvf gnutls-2.8.1.tar.bz2
-cd gnutls-2.8.1
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.6.tar.bz2
+tar -xjvf gnutls-2.8.6.tar.bz2
+cd gnutls-2.8.6
 CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
@@ -144,20 +148,10 @@ cd ..
 
 # Install lxml python module
 # ==========================
-# NOTE: This must be executed WITHOUT Cython installed. Otherwise it won't work.
-STATIC_DEPS=true sudo easy_install lxml==2.2.4
-
-
-# Create some links required by python-gnutls
-sudo ln -s /usr/local/lib/libgnutls-extra.26.dylib /usr/local/lib/libgnutls-extra.so.26 
-sudo ln -s /usr/local/lib/libgnutls.26.dylib /usr/local/lib/libgnutls.so.26
+STATIC_DEPS=true sudo easy_install lxml
 
 
 Step 2.3. Install Common Dependencies
-
-Upgrade MacOSX python setup tools:
-
-sudo easy_install --script-dir /usr/bin -U setuptools
 
 Install Python dependencies by using the easy_install tool. The software
 will be installed in /Library/Python/2.5/site-packages on Leopard or
