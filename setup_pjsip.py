@@ -184,7 +184,7 @@ class PJSIP_build_ext(build_ext):
         cflags = "-O3 -fPIC"
         if sys.platform == "darwin":
             if platform.mac_ver()[0].startswith('10.6'):
-                cflags += " -arch x86_64"
+                cflags += " -arch i386 -arch x86_64"
             else:
                 cflags += " -arch ppc -arch i386"
         if self.pjsip_disable_assertions:

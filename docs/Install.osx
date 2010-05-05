@@ -115,7 +115,7 @@ Step 2.2. Install Dependencies (MacOSX 10.6 Snow Leopard only)
 curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
 tar -xjvf libgpg-error-1.7.tar.bz2
 cd libgpg-error-1.7
-CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..
@@ -123,7 +123,7 @@ cd ..
 curl -O http://ftp.gnu.org/pub/gnu/gnutls/libtasn1-2.2.tar.gz
 tar zxvf libtasn1-2.2.tar.gz 
 cd libtasn1-2.2
-./configure
+CFLAGS="-arch i386 -arch x86_64" ./configure --disable-dependency-tracking
 make
 sudo make install
 cd ..
@@ -131,7 +131,7 @@ cd ..
 curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.5.tar.bz2
 tar -xjvf libgcrypt-1.4.5.tar.bz2
 cd libgcrypt-1.4.5
-CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
+CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
 sudo make install
 cd ..
@@ -141,7 +141,7 @@ cd ..
 curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.6.tar.bz2
 tar -xjvf gnutls-2.8.6.tar.bz2
 cd gnutls-2.8.6
-CFLAGS="-arch x86_64" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
+CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..
