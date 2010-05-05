@@ -20,7 +20,7 @@ setup(name         = "python-sipsimple",
       platforms    = ["Platform Independent"],
       classifiers  = [
           "Development Status :: 4 - Beta",
-          #"Development Status :: 5 - Production/Stable",
+          "Development Status :: 5 - Production/Stable",
           #"Development Status :: 6 - Mature",
           "Intended Audience :: Service Providers",
           "License :: GNU Lesser General Public License (LGPL)",
