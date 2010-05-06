@@ -1,15 +1,14 @@
 
-SIP SIMPLE client SDK installation on Debian and Ubuntu
--------------------------------------------------------
+SIP SIMPLE client SDK installation on Debian
+--------------------------------------------
 
 Copyright (c) 2008-2010 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
 
-This document describes the installation procedure on Debian and Ubuntu
-operating systems from the official public repository maintained by AG
-Projects.
+This document describes the installation procedure on Debian operating
+systems from the official public repository maintained by AG Projects.
 
 
 Configure Repository
@@ -35,20 +34,6 @@ Debian Stable
 
 deb	http://ag-projects.com/debian stable main
 deb-src http://ag-projects.com/debian stable main
-
-
-Ubuntu Karmic (9.10)
---------------------
-
-deb	http://ag-projects.com/ubuntu karmic main
-deb-src http://ag-projects.com/ubuntu karmic main
-
-
-Ubuntu Lucid (10.04)
---------------------
-
-deb	http://ag-projects.com/ubuntu lucid main
-deb-src http://ag-projects.com/ubuntu lucid main
 
 
 Update the list of available packages:
