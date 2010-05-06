@@ -5,6 +5,15 @@ import sys
 import os
 import platform
 
+# Hack to set environment variables before importing distutils
+# modules that will fetch them and set the compiler and linker
+# to be used. -Saul
+
+if sys.platform == "darwin" and platform.python_version().startswith('2.5'):
+    os.environ['CC'] = "gcc-4.0 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+    os.environ['ARCHFLAGS'] = "-arch i386"
+    os.environ['LDSHARED'] = "gcc-4.0 -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+
 from distutils.errors import DistutilsError
 from distutils import log
 from Cython.Distutils import build_ext
@@ -183,14 +192,17 @@ class PJSIP_build_ext(build_ext):
         log.info("Configuring PJSIP")
         cflags = "-O3 -fPIC"
         if sys.platform == "darwin":
-            if platform.mac_ver()[0].startswith('10.6'):
+            if platform.mac_ver()[0].startswith('10.6') and not platform.python_version().startswith('2.5'):
                 cflags += " -arch i386 -arch x86_64"
             else:
-                cflags += " -arch ppc -arch i386"
+                cflags += " -arch i386 -mmacosx-version-min=10.5 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
+        if sys.platform == "darwin" and platform.python_version().startswith('2.5'):
+            env['CC'] = "gcc-4.0"
+            env['LDFLAGS'] = "-arch i386 -L/Developer/SDKs/MacOSX10.5.sdk/usr/lib"
         distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
         if "#define PJSIP_HAS_TLS_TRANSPORT 1\n" not in open(os.path.join(self.svn_dir, "pjsip", "include", "pjsip", "sip_autoconf.h")).readlines():
             os.remove(os.path.join(self.svn_dir, "build.mak"))
@@ -209,6 +221,13 @@ class PJSIP_build_ext(build_ext):
         extension.define_macros.append((("PJ_SVN_REVISION"), str(get_svn_revision(self.svn_dir))))
         extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
         extension.extra_compile_args = ["-Wno-unused-variable"]
+
+        if sys.platform == "darwin" and platform.python_version().startswith('2.5'):
+            extension.extra_link_args.append("-mmacosx-version-min=10.5")
+            extension.extra_compile_args.append("-mmacosx-version-min=10.5")
+            extension.library_dirs.append("/Developer/SDKs/MacOSX10.5.sdk/usr/lib")
+            extension.include_dirs.append("/Developer/SDKs/MacOSX10.5.sdk/usr/include")
+
         extension.depends = build_mak_vars["PJ_LIB_FILES"].split()
         self.libraries = extension.depends[:]
         self.libraries.append(("%(PJ_DIR)s/pjmedia/lib/libpjsdp-%(LIB_SUFFIX)s" % build_mak_vars).replace("$(TARGET_NAME)", build_mak_vars["TARGET_NAME"]))
