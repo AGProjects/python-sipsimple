@@ -1,0 +1,180 @@
+
+Installation procedure for SIP SIMPLE client SDK on MacOSX Leopard
+------------------------------------------------------------------
+
+Copyright (c) 2008-2010 AG Projects
+http://ag-projects.com
+
+Home page: http://sipsimpleclient.com
+
+This document describes the installation procedure on MacOSX Leopard 10.5.
+
+The installation procedure consists of the steps described below:
+
+Step 1. Prerequisites
+Step 2. Install Dependencies
+Step 3. Install SIP SIMPLE client SDK
+
+
+Step 1. Prerequisites
+---------------------
+
+ * MacOSX 10.5 (Leopard)
+ * Intel 32 bit architecture
+ * Apple Developer tools (XCode)
+ * darcs version control tool from http://www.darcs.net
+
+The procedure below relies on the standard available Python interpreter that
+comes with MacOSX (version 2.5).  Make sure that during the building process
+you are not involving external tools or libraries like the ones provided by
+Fink or Darwin Ports distributions.
+
+
+Step 2. Install Dependencies
+----------------------------
+
+ * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
+ * python-application       http://pypi.python.org/simple/python-application  >=1.1.5
+ * python-lxml              http://codespeak.net/lxml                         >=2.1.2
+ * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
+ * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
+ * cython                   http://www.cython.org                             >=0.11.3
+ * dnspython                http://www.dnspython.org                          >=1.6.0
+ * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
+ * eventlet                 http://pypi.python.org/pypi/eventlet/             =0.8.11
+ * greenlet                 http://pypi.python.org/pypi/greenlet/             >=0.2
+ * zope-interface           http://www.zope.org                               >=3.3.1
+ * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
+
+Build and install C dependencies, the software will be installed under
+/usr/local folder:
+
+# Install GNUTLS dependencies
+# ===========================
+curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
+tar -xjvf libgpg-error-1.7.tar.bz2
+cd libgpg-error-1.7
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+make
+sudo make install
+cd ..
+
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/libtasn1-2.2.tar.gz
+tar zxvf libtasn1-2.2.tar.gz 
+cd libtasn1-2.2
+./configure
+make
+sudo make install
+cd ..
+
+curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.5.tar.bz2
+tar -xjvf libgcrypt-1.4.5.tar.bz2
+cd libgcrypt-1.4.5
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
+make
+sudo make install
+cd ..
+
+# Install GNUTLS
+# ==============
+curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.6.tar.bz2
+tar -xjvf gnutls-2.8.6.tar.bz2
+cd gnutls-2.8.6
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
+make
+sudo make install
+cd ..
+
+# Install lxml python module
+# ==========================
+curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta4.tar.gz
+tar -xzvf lxml-2.2beta4.tar.gz
+cd lxml-2.2beta4
+sudo python setup.py install --static-deps
+cd ..
+
+Upgrade MacOSX python setup tools:
+
+sudo easy_install --script-dir /usr/bin -U setuptools
+
+Install Python dependencies by using the easy_install tool. The software
+will be installed in /Library/Python/2.5/site-packages.
+
+sudo easy_install -U python-gnutls dnspython twisted greenlet \
+python-application PIL cython
+
+
+Step 3. Install SIP SIMPLE client SDK
+-------------------------------------
+
+The SDK consists of four parts:
+
+ 1. Eventlet
+ 2. XCAP library
+ 3. MSRP library
+ 4. SIP SIMPLE library
+
+# Eventlet
+if [ -d python-eventlet ]; then
+        cd python-eventlet
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-eventlet
+        cd python-eventlet
+        sudo python setup.py install
+fi
+cd ..
+
+# XCAP library
+if [ -d python-xcaplib ]; then
+        cd python-xcaplib
+        darcs pull -a 
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+        sudo python setup.py install
+fi
+cd ..
+
+# MSRP library
+if [ -d python-msrplib ]; then
+        cd python-msrplib
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+        sudo python setup.py install
+fi
+cd ..
+
+# SIP SIMPLE library
+if [ -d python-sipsimple ]; then
+	cd python-sipsimple
+	darcs pull -a
+else 
+	darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+fi
+cd..
+
+Build and install SIP SIMPLE library:
+
+cd python-sipsimple
+sudo python setup.py build_ext --pjsip-clean-compile
+sudo python setup.py install
+
+Additional, you can install the command line interface scripts that can be
+used to test the SDK.
+
+if [ -d sipclients ]; then
+	cd sipclients
+	darcs pull -a
+else 
+	darcs get http://devel.ag-projects.com/repositories/sipclients
+fi
+cd..
+
+sudo python setup.py install
+

@@ -1,38 +1,43 @@
 
-Installation procedure for SIP SIMPLE client SDK on MacOSX
-----------------------------------------------------------
+Installation procedure for SIP SIMPLE client SDK on MacOSX Snow Leopard
+-----------------------------------------------------------------------
 
 Copyright (c) 2008-2010 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
 
-This document describes the installation procedure on MacOSX Leopard 10.5
-and Snow Leopard 10.6.
+This document describes the installation procedure on MacOSX Snow Leopard
+10.6.
 
 The installation procedure consists of the steps described below:
 
 Step 1. Prerequisites
 Step 2. Install Dependencies
-    Step 2.1. Install Dependencies (Leopard only)
-    Step 2.2. Install Dependencies (Snow Leopard only)
-    Step 2.3. Install Common Dependencies
 Step 3. Install SIP SIMPLE client SDK
 
 
 Step 1. Prerequisites
 ---------------------
 
- * MacOSX 10.5 (Leopard) or MacOSX 10.6 (Snow Leopard)
- * Intel architecture
+ * MacOSX 10.5 MacOSX 10.6 (Snow Leopard)
+ * Intel 32bit or 64bit architectures
  * Apple Developer tools (XCode)
- * On Snow Leopard, the 10.4 SDK must be installed from XCode package
  * darcs version control tool from http://www.darcs.net
 
 The procedure below relies on the standard available Python interpreter that
-comes with MacOSX (version 2.5 on Leopard and 2.6 on Snow Leopard). Make
-sure that during the building process you are not involving external tools
-or libraries like the ones provided by Fink or Darwin Ports distributions.
+comes with MacOSX Snow Leopard (version 2.6). Make sure that during the
+building process you are not involving external tools or libraries like the
+ones provided by Fink or Darwin Ports distributions.
+
+64bit architecture is supported by default and works only with Python 2.6.
+
+To build the software for 32 bit architecture you must use Python 2.5 by
+changing the default system Python interpreter as follows:
+
+sudo defaults write com.apple.versioner.python Version 2.5. 
+
+The instructions below refer only to the 64 bit version.
 
 
 Step 2. Install Dependencies
@@ -53,62 +58,6 @@ Step 2. Install Dependencies
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
-
-
-Step 2.1. Install Dependencies (MacOSX 10.5 Leopard only)
-
-cd ~/work
-
-# Install GNUTLS dependencies
-# ===========================
-curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
-tar -xjvf libgpg-error-1.7.tar.bz2
-cd libgpg-error-1.7
-CFLAGS="-arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
-make
-sudo make install
-cd ..
-
-curl -O http://ftp.gnu.org/pub/gnu/gnutls/libtasn1-2.2.tar.gz
-tar zxvf libtasn1-2.2.tar.gz 
-cd libtasn1-2.2
-./configure
-make
-sudo make install
-cd ..
-
-curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.5.tar.bz2
-tar -xjvf libgcrypt-1.4.5.tar.bz2
-cd libgcrypt-1.4.5
-CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
-make
-sudo make install
-cd ..
-
-# Install GNUTLS
-# ==============
-curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.6.tar.bz2
-tar -xjvf gnutls-2.8.6.tar.bz2
-cd gnutls-2.8.6
-CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
-make
-sudo make install
-cd ..
-
-# Install lxml python module
-# ==========================
-curl -O http://pypi.python.org/packages/source/l/lxml/lxml-2.2beta4.tar.gz
-tar -xzvf lxml-2.2beta4.tar.gz
-cd lxml-2.2beta4
-sudo python setup.py install --static-deps
-cd ..
-
-Upgrade MacOSX python setup tools:
-
-sudo easy_install --script-dir /usr/bin -U setuptools
-
-
-Step 2.2. Install Dependencies (MacOSX 10.6 Snow Leopard only)
 
 # Install GNUTLS dependencies
 # ===========================
@@ -150,12 +99,8 @@ cd ..
 # ==========================
 STATIC_DEPS=true sudo easy_install lxml
 
-
-Step 2.3. Install Common Dependencies
-
 Install Python dependencies by using the easy_install tool. The software
-will be installed in /Library/Python/2.5/site-packages on Leopard or
-/Library/Python/2.6/site-packages on Snow Leopard:
+will be installed in /Library/Python/2.6/site-packages.
 
 sudo easy_install -U python-gnutls dnspython twisted greenlet \
 python-application PIL cython
