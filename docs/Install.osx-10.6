@@ -22,7 +22,7 @@ Step 1. Prerequisites
 
  * MacOSX 10.5 MacOSX 10.6 (Snow Leopard)
  * Intel 32bit or 64bit architectures
- * Apple Developer tools (XCode)
+ * Apple Developer tools (XCode) including 10.5 SDK
  * darcs version control tool from http://www.darcs.net
 
 The procedure below relies on the standard available Python interpreter that
@@ -30,14 +30,22 @@ comes with MacOSX Snow Leopard (version 2.6). Make sure that during the
 building process you are not involving external tools or libraries like the
 ones provided by Fink or Darwin Ports distributions.
 
-64bit architecture is supported by default and works only with Python 2.6.
+64bit
+----
 
-To build the software for 32 bit architecture you must use Python 2.5 by
-changing the default system Python interpreter as follows:
+64bit architecture is supported and works with Python 2.6 and GCC compiler
+version 4.2 which are the default options on Snow Leopard.
 
-sudo defaults write com.apple.versioner.python Version 2.5. 
+32bit
+-----
 
-The instructions below refer only to the 64 bit version.
+You must set the default compiler to GCC 4.0:
+
+sudo ln -sf /usr/bin/gcc-4.0 /usr/bin/gcc
+
+and set the default Python interpreter to version 2.5:
+
+sudo defaults write com.apple.versioner.python Version 2.5
 
 
 Step 2. Install Dependencies
@@ -60,7 +68,6 @@ Build and install C dependencies, the software will be installed under
 /usr/local folder:
 
 # Install GNUTLS dependencies
-# ===========================
 curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
 tar -xjvf libgpg-error-1.7.tar.bz2
 cd libgpg-error-1.7
@@ -86,7 +93,6 @@ sudo make install
 cd ..
 
 # Install GNUTLS
-# ==============
 curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.6.tar.bz2
 tar -xjvf gnutls-2.8.6.tar.bz2
 cd gnutls-2.8.6
@@ -95,15 +101,15 @@ make
 sudo make install
 cd ..
 
-# Install lxml python module
-# ==========================
-STATIC_DEPS=true sudo easy_install lxml
 
 Install Python dependencies by using the easy_install tool. The software
 will be installed in /Library/Python/2.6/site-packages.
 
 sudo easy_install -U python-gnutls dnspython twisted greenlet \
 python-application PIL cython
+
+# Install lxml python module
+STATIC_DEPS=true sudo easy_install lxml
 
 
 Step 3. Install SIP SIMPLE client SDK
