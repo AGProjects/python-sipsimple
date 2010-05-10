@@ -55,6 +55,7 @@ class AudioStream(object):
         self._rtp_transport = None
         self._session = None
         self._try_ice = False
+        self._use_srtp = False
 
         self.bridge.add(self.device)
 
@@ -166,11 +167,14 @@ class AudioStream(object):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'audio':
             raise UnknownStreamError
-        if remote_stream.transport != 'RTP/AVP':
-            raise InvalidStreamError("expected RTP/AVP transport in audio stream, got %s" % remote_stream.transport)
+        if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
+            raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in audio stream, got %s" % remote_stream.transport)
         stream = cls(account)
         stream._incoming_remote_sdp = remote_sdp
         stream._incoming_stream_index = stream_index
+        stream._incoming_stream_has_srtp = remote_stream.transport == 'RTP/SAVP'
+        if not stream._incoming_stream_has_srtp and account.rtp.srtp_encryption == "mandatory":
+            raise InvalidStreamError("remote offer doesn't contain SRTP, but it's mandatory for us")
         return stream
 
     def initialize(self, session, direction):
@@ -181,8 +185,11 @@ class AudioStream(object):
             self._session = session
             if hasattr(self, "_incoming_remote_sdp"):
                 self._try_ice = self.account.nat_traversal.use_ice and self._incoming_remote_sdp.has_ice_proposal
+                self._use_srtp = self._incoming_stream_has_srtp and ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
+                del self._incoming_stream_has_srtp
             else:
                 self._try_ice = self.account.nat_traversal.use_ice
+                self._use_srtp = ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
             if self._try_ice:
                 if self.account.nat_traversal.stun_server_list:
                     # Assume these are IP addresses
@@ -438,9 +445,8 @@ class AudioStream(object):
 
     def _init_rtp_transport(self, stun_servers=None):
         self._rtp_args = dict()
-        self._rtp_args["use_srtp"] = ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls)
-                                      and self.account.rtp.srtp_encryption != "disabled")
-        self._rtp_args["srtp_forced"] = self._rtp_args["use_srtp"] and self.account.rtp.srtp_encryption == "mandatory"
+        self._rtp_args["use_srtp"] = self._use_srtp
+        self._rtp_args["srtp_forced"] = self._use_srtp and self.account.rtp.srtp_encryption == "mandatory"
         self._rtp_args["use_ice"] = self._try_ice
         self._stun_servers = [(None, None)]
         if stun_servers:
