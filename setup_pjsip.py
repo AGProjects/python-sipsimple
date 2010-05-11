@@ -1,3 +1,5 @@
+from __future__ import with_statement
+
 import subprocess
 import re
 import itertools
@@ -201,8 +203,10 @@ class PJSIP_build_ext(build_ext):
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         if sys.platform == "darwin" and platform.python_version().startswith('2.5'):
-            env['CC'] = "gcc-4.0"
             env['LDFLAGS'] = "-arch i386 -L/Developer/SDKs/MacOSX10.5.sdk/usr/lib"
+            with open(os.path.join(self.svn_dir, "user.mak"), "w") as f:
+                f.write("export CC=gcc-4.0 -c\n")
+                f.write("export LD=gcc-4.0\n")
         distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
         if "#define PJSIP_HAS_TLS_TRANSPORT 1\n" not in open(os.path.join(self.svn_dir, "pjsip", "include", "pjsip", "sip_autoconf.h")).readlines():
             os.remove(os.path.join(self.svn_dir, "build.mak"))
