@@ -142,11 +142,11 @@ class AudioBridge(object):
 
     @property
     def consumer_slot(self):
-        return self.demultiplexer.slot
+        return self.demultiplexer.slot if self.demultiplexer.is_active else None
 
     @property
     def producer_slot(self):
-        return self.multiplexer.slot
+        return self.multiplexer.slot if self.multiplexer.is_active else None
 
     def add(self, port):
         with self._lock:
@@ -190,6 +190,22 @@ class AudioBridge(object):
                 if port.producer_slot is not None and other.consumer_slot is not None:
                     self.mixer.disconnect_slots(port.producer_slot, other.consumer_slot)
             self.ports.remove(weakref.ref(port))
+
+    def stop(self):
+        with self._lock:
+            for port1 in (wr() for wr in self.ports):
+                if port1 is None:
+                    continue
+                for port2 in (wr() for wr in self.ports):
+                    if port2 is None or port2 is port1:
+                        continue
+                    if port1.producer_slot is not None and port2.consumer_slot is not None:
+                        self.mixer.disconnect_slots(port1.producer_slot, port2.consumer_slot)
+                    if port2.producer_slot is not None and port1.consumer_slot is not None:
+                        self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
+            self.ports.clear()
+            self.multiplexer.stop()
+            self.demultiplexer.stop()
 
     def handle_notification(self, notification):
         with self._lock:

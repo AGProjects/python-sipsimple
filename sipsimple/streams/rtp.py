@@ -32,6 +32,8 @@ class AudioStream(object):
 
     implements(IMediaStream, IAudioPort, IObserver)
 
+    _streams = []
+
     type = 'audio'
     priority = 1
 
@@ -181,6 +183,7 @@ class AudioStream(object):
 
     def initialize(self, session, direction):
         with self._lock:
+            self.bridge.add(self.device)
             if self.state != "NULL":
                 raise RuntimeError("AudioStream.initialize() may only be called in the NULL state")
             self.state = "INITIALIZING"
@@ -317,12 +320,9 @@ class AudioStream(object):
                     self.state = "ENDED"
                     self.notification_center.post_notification("MediaStreamDidEnd", self,
                                                                TimestampedNotificationData())
-                    try:
-                        self.bridge.remove(self)
-                    except ValueError:
-                        pass # this would happen if stream was on hold
                 else:
                     self.state = "ENDED"
+                self.bridge.stop()
                 self._session = None
 
     def send_dtmf(self, digit):
