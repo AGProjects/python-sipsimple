@@ -30,22 +30,23 @@ comes with MacOSX Snow Leopard (version 2.6). Make sure that during the
 building process you are not involving external tools or libraries like the
 ones provided by Fink or Darwin Ports distributions.
 
+
 64bit
 ----
 
 64bit architecture is supported and works with Python 2.6 and GCC compiler
-version 4.2 which are the default options on Snow Leopard.
+version 4.2, which are the default options on Snow Leopard.
+
 
 32bit
 -----
 
-You must set the default compiler to GCC 4.0:
-
-sudo ln -sf /usr/bin/gcc-4.0 /usr/bin/gcc
-
-and set the default Python interpreter to version 2.5:
+Set the default Python interpreter to version 2.5:
 
 sudo defaults write com.apple.versioner.python Version 2.5
+
+The SDK setup process will detect this, will use gcc-4.0 during the build
+process and will generate 32bit binaries for i386 architecture.
 
 
 Step 2. Install Dependencies
