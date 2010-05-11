@@ -298,6 +298,7 @@ class BonjourServices(object):
         self._command_channel = coros.queue()
         self._discover_timer = None
         self._files = []
+        self._neighbours = set()
         self._register_timer = None
         self._select_proc = None
         self._stopped = True
@@ -372,7 +373,8 @@ class BonjourServices(object):
             return
         if not (flags & bonjour.kDNSServiceFlagsAdd):
             uri = FrozenSIPURI.parse(service_name.strip('<>').encode('utf-8'))
-            if uri != self.account.contact[uri.parameters.get('transport', 'udp')]:
+            if uri != self.account.contact[uri.parameters.get('transport', 'udp')] and uri in self._neighbours:
+                self._neighbours.remove(uri)
                 notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account,
                                                       data=TimestampedNotificationData(uri=uri))
             return
@@ -396,7 +398,8 @@ class BonjourServices(object):
                 host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
                 uri = FrozenSIPURI.parse(contact)
                 transport = uri.parameters.get('transport', 'udp')
-                if transport in self.account.sip.transport_list and uri != self.account.contact[transport]:
+                if transport in self.account.sip.transport_list and uri != self.account.contact[transport] and uri not in self._neighbours:
+                    self._neighbours.add(uri)
                     notification_center.post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
                                                           data=TimestampedNotificationData(display_name=display_name, host=host, uri=uri))
             BonjourFile(file, 'resolution').close()
