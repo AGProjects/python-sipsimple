@@ -1,6 +1,9 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
+import platform
+
+
 # classes
 
 cdef class AudioMixer:
@@ -131,9 +134,9 @@ cdef class AudioMixer:
 
     def __cinit__(self, *args, **kwargs):
         self._connected_slots = list()
-        IF UNAME_SYSNAME == "Darwin":
+        if platform.system() == "Darwin" and not platform.mac_ver()[0].startswith("10.6"):
             self._disconnect_when_idle = 1
-        ELSE:
+        else:
             self._disconnect_when_idle = 0
         self._input_volume = 100
         self._output_volume = 100
