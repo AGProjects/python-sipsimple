@@ -452,6 +452,9 @@ class Session(object):
                 reason_header.text = 'Missing ACK'
             else:
                 error = 'media stream failed: %s' % e.data.reason
+                reason_header = ReasonHeader('SIP')
+                reason_header.cause = 500
+                reason_header.text = e.data.reason
             self.start_time = datetime.now()
             self._fail(originator='local', code=code, reason=reason, error=error, reason_header=reason_header)
         except InvitationDidFailError, e:
