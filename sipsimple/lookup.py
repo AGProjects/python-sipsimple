@@ -127,15 +127,12 @@ class DNSResolver(dns.resolver.Resolver):
     def _get_authoritative_ns(self, domain):
         self.nameservers = self.original_nameservers
         for domain in domain_iterator(domain):
-            start_time = time()
             try:
                 answer = dns.resolver.Resolver.query(self, domain, rdatatype.NS)
             except dns.resolver.Timeout:
-                raise
+                return self.original_nameservers
             except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
                 continue
-            finally:
-                self.lifetime -= min(self.lifetime, time()-start_time)
             additional_addresses = dict((rset.name.to_text(), rset) for rset in answer.response.additional if rset.rdtype == rdatatype.A)
             ns_hostnames = set(r.to_text() for r in answer.rrset)
             ns_addresses = []
@@ -143,17 +140,12 @@ class DNSResolver(dns.resolver.Resolver):
                 if hostname in additional_addresses:
                     ns_addresses.extend(r.address for r in additional_addresses[hostname])
                 else:
-                    start_time = time()
                     try:
                         a_answer = dns.resolver.Resolver.query(self, hostname, rdatatype.A)
-                    except dns.resolver.Timeout:
-                        raise
                     except exception.DNSException:
                         continue
-                    finally:
-                        self.lifetime -= min(self.lifetime, time()-start_time)
                     ns_addresses.extend(r.address for r in a_answer.rrset)
-            return ns_addresses
+            return ns_addresses or self.original_nameservers
         else:
             return self.original_nameservers
 
