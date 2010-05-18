@@ -396,7 +396,7 @@ class SIPProxyAddress(object):
             return None
         match = cls._description_re.match(description)
         if match is None:
-            raise ValueError("illegal MSRP relay address: %s" % description)
+            raise ValueError("illegal SIP proxy address: %s" % description)
         return cls(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
 
 
