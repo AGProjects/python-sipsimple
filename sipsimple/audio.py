@@ -140,6 +140,9 @@ class AudioBridge(object):
                 self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
         self.ports.clear()
 
+    def __contains__(self, port):
+        return weakref.ref(port) in self.ports
+
     @property
     def consumer_slot(self):
         return self.demultiplexer.slot if self.demultiplexer.is_active else None
@@ -273,6 +276,9 @@ class RootAudioBridge(object):
             if port2.producer_slot is not None and port1.consumer_slot is not None:
                 self.mixer.disconnect_slots(port2.producer_slot, port1.consumer_slot)
         self.ports.clear()
+
+    def __contains__(self, port):
+        return weakref.ref(port) in self.ports
 
     def add(self, port):
         with self._lock:

@@ -519,7 +519,7 @@ class AudioStream(object):
                                                        TimestampedNotificationData(filename=self._audio_rec.filename))
         if not self.on_hold:
             self.bridge.add(self._audio_rec)
-        else:
+        elif self._audio_rec in self.bridge:
             self.bridge.remove(self._audio_rec)
 
     def _stop_recording(self):
