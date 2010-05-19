@@ -123,7 +123,8 @@ class MSRPStreamBase(object):
                     if self.account.nat_traversal.msrp_relay is None:
                         relay = MSRPRelaySettings(domain=self.account.uri.host,
                                                   username=self.account.uri.user,
-                                                  password=credentials.password if credentials else '')
+                                                  password=credentials.password if credentials else '',
+                                                  use_tls=settings.msrp.transport=='tls')
                         self.transport = settings.msrp.transport
                     else:
                         relay = MSRPRelaySettings(domain=self.account.uri.host,
