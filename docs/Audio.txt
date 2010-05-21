@@ -1,0 +1,56 @@
+
+Audio Device Sharing on Debian and Ubuntu Linux
+-----------------------------------------------
+
+To share the audio device with other applications you must create or modify
+/etc/asound.conf as follows:
+
+pcm.card0 {
+  type hw
+  card 0
+}
+pcm.dmix0 {
+  type dmix
+  ipc_key 34521
+  slave {
+    pcm "card0"
+    rate 16000
+    period_size 320
+    buffer_size 10240
+  }
+}
+pcm.dsnoop0 {
+  type dsnoop
+  ipc_key 34521
+  slave {
+    pcm "card0"
+    rate 16000
+    period_size 320
+    buffer_size 10240
+  }
+}
+pcm.asym0 {
+  type asym
+  playback.pcm "dmix0"
+  capture.pcm "dsnoop0"
+}
+pcm.pasym0 {
+  type plug
+  slave.pcm "asym0"
+}
+pcm.dsp0 {
+  type plug
+  slave.pcm "asym0"
+}
+ctl.dsp0 {
+  type hw
+  card 0
+}
+pcm.!default {
+  type plug
+  slave.pcm "asym0"
+}
+ctl.!default {
+  type hw
+  card 0
+}
