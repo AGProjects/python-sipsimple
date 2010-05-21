@@ -1,9 +1,13 @@
 
-Audio Device Sharing on Debian and Ubuntu Linux
------------------------------------------------
+Audio Device Sharing on Linux
+-----------------------------
 
-To share the audio device with other applications you must create or modify
-/etc/asound.conf as follows:
+Some audio devices support hardware mixing, these device can be opened
+multiple times from different application natively.
+
+For audio devices that can be opened only once there are various
+work-arounds, one of them is to create or modify /etc/asound.conf as
+follows:
 
 pcm.card0 {
   type hw
