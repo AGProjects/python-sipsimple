@@ -3,11 +3,20 @@ Audio Device Sharing on Linux
 -----------------------------
 
 Some audio devices support hardware mixing, these device can be opened
-multiple times from different application natively.
+multiple times from different application natively. If this is not the case,
+you will notice that is not possible to use SIP SIMPLE client SDK and play
+music or use other audio applications at the same time with the default
+system configuration.
 
-For audio devices that can be opened only once there are various
-work-arounds, one of them is to create or modify /etc/asound.conf as
-follows:
+For audio devices that can be opened only once, there are workarounds. More
+information about them can be found in section 'The card does not support
+hardware mixing', at:
+
+http://alsa.opensrc.org/index.php/AlsaSharing
+
+One of these workarounds is to create or modify /etc/asound.conf, for all
+uses in the system or ~/.asoundrc, valid only for the user that runs
+python-simsiple as follows:
 
 pcm.card0 {
   type hw
@@ -58,3 +67,23 @@ ctl.!default {
   type hw
   card 0
 }
+
+
+What the above configuration does, is to create a special device called
+asym0 (you may rename this as you wish) of type asym. asym is an ALSA plugin
+that combines plugins like dsnoop and dmix into one full-duplex device. The
+dsnoop and dmix plugins allows for concurrent access from multiple
+applications to the same physical audio device for input and output
+respectively mixing and converting the sample rates accordingly.
+
+Then instruct SIP SIMPLE client SDK to use asym0 as the main device:
+
+sip-settings -g set audio.input_device=asym0
+sip-settings -g set audio.output_device=asym0
+sip-settings -g set audio.alert_device=asym0
+
+Note. It is important that other applications in the system also access the
+same virtual device, otherwise is still possible to block the access to the
+audio card by opening it first from an application that does not use asym0
+as default device.
+
