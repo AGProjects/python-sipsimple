@@ -405,13 +405,13 @@ class ChatStream(MSRPStreamBase):
                 timestamp = datetime.now()
             msg = CPIMMessage(content, content_type, sender=self.local_identity, recipients=recipients, courtesy_recipients=courtesy_recipients,
                               subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers)
-            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='yes', notify_progress=True)
+            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report=self.account.msrp.failure_report, success_report=self.account.msrp.success_report, notify_progress=True)
         else:
             if recipients is not None and recipients != [self.remote_identity]:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
             if courtesy_recipients or subject or timestamp or required or additional_headers:
                 raise ChatStreamError('Additional message meta-data cannot be sent, because CPIM wrapper is not used')
-            self._enqueue_message(message_id, content, content_type, failure_report='partial', success_report='yes', notify_progress=True)
+            self._enqueue_message(message_id, content, content_type, failure_report=self.account.msrp.failure_report, success_report=self.account.msrp.success_report, notify_progress=True)
         return message_id
 
     def send_composing_indication(self, state, refresh, last_active=None, recipients=None):
@@ -427,11 +427,11 @@ class ChatStream(MSRPStreamBase):
             elif not self.private_messages_allowed and recipients != [self.remote_identity]:
                 raise ChatStreamError('The remote end does not support private messages')
             msg = CPIMMessage(content, IsComposingMessage.content_type, sender=self.local_identity, recipients=recipients, timestamp=datetime.now())
-            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='partial', success_report='no')
+            self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report=self.account.msrp.failure_report, success_report='no')
         else:
             if recipients is not None and recipients != [self.remote_identity]:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
-            self._enqueue_message(message_id, content, IsComposingMessage.content_type, failure_report='partial', success_report='no', notify_progress=False)
+            self._enqueue_message(message_id, content, IsComposingMessage.content_type, failure_report=self.account.msrp.failure_report, success_report='no', notify_progress=False)
         return message_id
 
 
@@ -517,8 +517,8 @@ class FileTransferStream(MSRPStreamBase):
         self.file_selector = file_selector
         if file_selector is not None:
             self.outgoing_file = OutgoingFile(file_selector.fd, file_selector.size, content_type=file_selector.type)
-            self.outgoing_file.headers['Success-Report'] = SuccessReportHeader('yes')
-            self.outgoing_file.headers['Failure-Report'] = FailureReportHeader('partial')
+            self.outgoing_file.headers['Success-Report'] = SuccessReportHeader(self.account.msrp.success_report)
+            self.outgoing_file.headers['Failure-Report'] = FailureReportHeader(self.account.msrp.failure_report)
 
     @classmethod
     def new_from_sdp(cls, account, remote_sdp, stream_index):
