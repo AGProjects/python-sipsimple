@@ -45,10 +45,6 @@ class LogsSettings(SettingsGroup):
     pjsip_level = Setting(type=NonNegativeInteger, default=5)
 
 
-class MSRPSettings(SettingsGroup):
-    transport = Setting(type=MSRPTransport, default='tls')
-
-
 class RTPSettings(SettingsGroup):
     port_range = Setting(type=PortRange, default=PortRange(50000, 50400))
     timeout = Setting(type=NonNegativeInteger, default=30)
@@ -82,7 +78,6 @@ class SIPSimpleSettings(SettingsObject):
     desktop_sharing = DesktopSharingSettings
     file_transfer = FileTransferSettings
     logs = LogsSettings
-    msrp = MSRPSettings
     rtp = RTPSettings
     sip = SIPSettings
     tls = TLSSettings

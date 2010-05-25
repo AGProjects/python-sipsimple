@@ -39,7 +39,6 @@ from msrplib.transport import make_response, make_report
 
 from sipsimple.account import Account
 from sipsimple.core import SDPAttribute, SDPMediaStream
-from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.payloads.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
 from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMIdentity, CPIMMessage, CPIMParserError
@@ -111,34 +110,29 @@ class MSRPStreamBase(object):
     @run_in_green_thread
     def initialize(self, session, direction):
         self.greenlet = api.getcurrent()
-        settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self)
         try:
             self.session = session
             outgoing = direction=='outgoing'
-            if isinstance(self.account, Account):
-                if (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
-                    credentials = self.account.credentials
-                    if self.account.nat_traversal.msrp_relay is None:
-                        relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                                  username=self.account.uri.user,
-                                                  password=credentials.password if credentials else '',
-                                                  use_tls=settings.msrp.transport=='tls')
-                        self.transport = settings.msrp.transport
-                    else:
-                        relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                                  username=self.account.uri.user,
-                                                  password=credentials.password if credentials else '',
-                                                  host=self.account.nat_traversal.msrp_relay.host,
-                                                  port=self.account.nat_traversal.msrp_relay.port,
-                                                  use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
-                        self.transport = self.account.nat_traversal.msrp_relay.transport
-                    if self.transport != settings.msrp.transport:
-                        raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
+            if isinstance(self.account, Account) and (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
+                credentials = self.account.credentials
+                if self.account.nat_traversal.msrp_relay is None:
+                    relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                              username=self.account.uri.user,
+                                              password=credentials.password if credentials else '',
+                                              use_tls=self.account.msrp.transport=='tls')
+                    self.transport = self.account.msrp.transport
                 else:
-                    relay = None
-                    self.transport = settings.msrp.transport
+                    relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                              username=self.account.uri.user,
+                                              password=credentials.password if credentials else '',
+                                              host=self.account.nat_traversal.msrp_relay.host,
+                                              port=self.account.nat_traversal.msrp_relay.port,
+                                              use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
+                    self.transport = self.account.nat_traversal.msrp_relay.transport
+                if self.transport != self.account.msrp.transport:
+                    raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
             else:
                 relay = None
                 self.transport = self.account.msrp.transport
@@ -282,7 +276,7 @@ class ChatStream(MSRPStreamBase):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message':
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if isinstance (account, Account) and SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if isinstance (account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
@@ -531,7 +525,7 @@ class FileTransferStream(MSRPStreamBase):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message' or 'file-selector' not in remote_stream.attributes:
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if isinstance (account, Account) and SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if isinstance (account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
@@ -854,7 +848,7 @@ class DesktopSharingStream(MSRPStreamBase):
         accept_types = remote_stream.attributes.getfirst('accept-types', None)
         if accept_types is None or 'application/x-rfb' not in accept_types.split():
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if isinstance (account, Account) and SIPSimpleSettings().msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if isinstance (account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         remote_setup = remote_stream.attributes.getfirst('setup', 'active')

@@ -596,6 +596,8 @@ class TLSSettings(SettingsGroup):
 class PSTNSettings(SettingsGroup):
     pass
 
+class MSRPSettings(SettingsGroup):
+    transport = Setting(type=MSRPTransport, default='tls')
 
 class Account(SettingsObject):
     """
@@ -631,6 +633,7 @@ class Account(SettingsObject):
     dialog_event = DialogEventSettings
     nat_traversal = NatTraversalSettings
     message_summary = MessageSummarySettings
+    msrp = MSRPSettings
     presence = PresenceSettings
     xcap = XCAPSettings
     tls = TLSSettings
