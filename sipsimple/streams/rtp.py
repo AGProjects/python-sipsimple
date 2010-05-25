@@ -189,7 +189,9 @@ class AudioStream(object):
             self.state = "INITIALIZING"
             self._session = session
             if hasattr(self, "_incoming_remote_sdp"):
-                self._try_ice = self.account.nat_traversal.use_ice and self._incoming_remote_sdp.has_ice_proposal
+                # ICE attributes could come at the session level or at the media level
+                remote_stream = self._incoming_remote_sdp.media[self._incoming_stream_index]
+                self._try_ice = self.account.nat_traversal.use_ice and ((remote_stream.has_ice_attributes or self._incoming_remote_sdp.has_ice_attributes) and remote_stream.has_ice_candidates)
                 self._use_srtp = self._incoming_stream_has_srtp and ((self._session.transport == "tls" or self.account.rtp.use_srtp_without_tls) and self.account.rtp.srtp_encryption != "disabled")
                 self._try_forced_srtp = self._incoming_stream_has_srtp_forced
                 if self._incoming_stream_has_srtp_forced and not self._use_srtp:

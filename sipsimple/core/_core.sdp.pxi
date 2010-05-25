@@ -45,15 +45,11 @@ cdef class BaseSDPSession:
             self._sdp_session.attr[index] = (<BaseSDPAttribute>attr).get_sdp_attribute()
         return &self._sdp_session
 
-    property has_ice_proposal:
+    property has_ice_attributes:
+
         def __get__(self):
-            if self.attributes and all(['ice-pwd' in self.attributes, 'ice-ufrag' in self.attributes, 'candidate' in self.attributes]):
-                return True
-            for media in [media for media in self.media if media.media == 'audio']:
-                if all(['ice-pwd' in media.attributes, 'ice-ufrag' in media.attributes, 'candidate' in media.attributes]):
-                    return True
-            return False
-            
+            return self.attributes and all(['ice-pwd' in self.attributes, 'ice-ufrag' in self.attributes])
+
 def SDPSession_new(cls, BaseSDPSession sdp_session):
     connection = SDPConnection.new(sdp_session.connection) if (sdp_session.connection is not None) else None
     attributes = [SDPAttribute.new(attr) for attr in sdp_session.attributes]
@@ -363,6 +359,16 @@ cdef class BaseSDPMediaStream:
                 if attribute.name == "crypto":
                     return True
             return False
+
+    property has_ice_attributes:
+
+        def __get__(self):
+            return self.attributes and all(['ice-pwd' in self.attributes, 'ice-ufrag' in self.attributes])
+
+    property has_ice_candidates:
+
+        def __get__(self):
+            return self.attributes and 'candidate' in self.attributes
 
     cdef pjmedia_sdp_media* get_sdp_media(self):
         self._sdp_media.attr_count = len(self.attributes)
