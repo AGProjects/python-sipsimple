@@ -12,7 +12,7 @@ __all__ = [# Base datatypes
            # Audio datatypes
            'AudioCodecList', 'AudioInputDevice', 'AudioOutputDevice', 'SampleRate',
            # Address and transport datatypes
-           'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'MSRPRelayAddress',
+           'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
            'MSRPFailureReport', 'MSRPSuccessReport', 'MSRPTransport', 
            'SIPTransport', 'SIPTransportList', 'SRTPEncryption', 'TLSProtocol',
@@ -256,6 +256,15 @@ class Hostname(str):
         return value
 
 
+class IPAddress(str):
+    _ip_re = re.compile(r"^(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$")
+    def __new__(cls, value):
+        value = str(value)
+        if not cls._ip_re.match(value):
+            raise ValueError("illegal IP address: %s" % value)
+        return value
+
+
 class DomainList(List):
     type = str
     _domain_re = re.compile(r"^[a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*$")
@@ -312,6 +321,31 @@ class EndpointAddress(object):
         match = cls._description_re.match(description)
         if match is None:
             raise ValueError("illegal endpoint address: %s" % description)
+        return cls(**match.groupdict())
+
+
+class EndpointIPAddress(EndpointAddress):
+    _description_re = re.compile(r"^(?P<host>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:(?P<port>\d+))?$")
+
+    def __init__(self, host, port=None):
+        self.host = IPAddress(host)
+        self.port = Port(port if port is not None else self.default_port)
+        if self.port == 0:
+            raise ValueError("illegal port value: 0")
+
+    def __setstate__(self, state):
+        match = self._description_re.match(state)
+        if match is None:
+            raise ValueError("illegal value: %s, must be an IP address" % state)
+        self.__init__(**match.groupdict())
+
+    @classmethod
+    def from_description(cls, description):
+        if not description:
+            return None
+        match = cls._description_re.match(description)
+        if match is None:
+            raise ValueError("illegal value: %s, must be an IP address" % description)
         return cls(**match.groupdict())
 
 
@@ -401,7 +435,7 @@ class SIPProxyAddress(object):
         return cls(**dict((k, v) for k, v in match.groupdict().iteritems() if v is not None))
 
 
-class STUNServerAddress(EndpointAddress):
+class STUNServerAddress(EndpointIPAddress):
     default_port = 3478
 
 
