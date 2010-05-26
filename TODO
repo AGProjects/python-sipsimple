@@ -7,3 +7,4 @@ MSRP report headers:
    * is-composing indication: success report no, failure report partial
    * file transfer: success report yes, failure report yes
    * desktop sharing: success report no, failure report partial
+ * prepare for how to deal with the session when the reports themselves get lost
