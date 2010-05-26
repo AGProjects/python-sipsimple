@@ -29,8 +29,7 @@ class AudioConference(object):
         with self._lock:
             if stream in self.streams:
                 return
-            stream.device.input_muted = True
-            stream.device.output_muted = True
+            stream.bridge.remove(stream.device)
             self.bridge.add(stream.bridge)
             self.streams.append(stream)
 
@@ -38,8 +37,7 @@ class AudioConference(object):
         with self._lock:
             self.streams.remove(stream)
             self.bridge.remove(stream.bridge)
-            stream.device.input_muted = False
-            stream.device.output_muted = False
+            stream.bridge.add(stream.device)
 
     def hold(self):
         with self._lock:
