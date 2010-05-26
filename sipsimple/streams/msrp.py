@@ -147,7 +147,7 @@ class MSRPStreamBase(object):
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self._create_local_media(full_local_path)
         except api.GreenletExit:
-            ndata = TimestampedNotificationData(context=context, failure=Failure(), reason='SIP session ended before media could initialize')
+            ndata = TimestampedNotificationData(context='initialize', failure=Failure(), reason='SIP session ended before media could initialize')
             notification_center.post_notification('MediaStreamDidFail', self, ndata)
             raise
         except Exception, ex:
