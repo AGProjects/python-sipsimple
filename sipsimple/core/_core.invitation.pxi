@@ -651,7 +651,8 @@ cdef class Invitation:
                 elif rdata is not None and 'Reason' in event_dict['headers']:
                     try:
                         reason = event_dict['headers']['Reason'].text
-                        event_dict["disconnect_reason"] = reason
+                        if reason:
+                            event_dict["disconnect_reason"] = reason
                     except (ValueError, IndexError):
                         pass
                 self._invite_session.mod_data[ua._module.id] = NULL
