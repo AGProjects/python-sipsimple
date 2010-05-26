@@ -48,7 +48,7 @@ cdef class BaseSDPSession:
     property has_ice_attributes:
 
         def __get__(self):
-            return self.attributes and all(['ice-pwd' in self.attributes, 'ice-ufrag' in self.attributes])
+            return set(self.attributes).issuperset(['ice-pwd', 'ice-ufrag'])
 
 def SDPSession_new(cls, BaseSDPSession sdp_session):
     connection = SDPConnection.new(sdp_session.connection) if (sdp_session.connection is not None) else None
@@ -363,12 +363,12 @@ cdef class BaseSDPMediaStream:
     property has_ice_attributes:
 
         def __get__(self):
-            return self.attributes and all(['ice-pwd' in self.attributes, 'ice-ufrag' in self.attributes])
+            return set(self.attributes).issuperset(['ice-pwd', 'ice-ufrag'])
 
     property has_ice_candidates:
 
         def __get__(self):
-            return self.attributes and 'candidate' in self.attributes
+            return 'candidate' in self.attributes
 
     cdef pjmedia_sdp_media* get_sdp_media(self):
         self._sdp_media.attr_count = len(self.attributes)
