@@ -14,8 +14,7 @@ __all__ = [# Base datatypes
            # Address and transport datatypes
            'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
-           'MSRPFailureReport', 'MSRPSuccessReport', 'MSRPTransport', 
-           'SIPTransport', 'SIPTransportList', 'SRTPEncryption', 'TLSProtocol',
+           'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption', 'TLSProtocol',
            # Path datatypes
            'Path']
 
@@ -461,24 +460,6 @@ class XCAPRoot(str):
             port = Port(uri.port)
             if port == 0:
                 raise ValueError("illegal port value: 0")
-        return value
-
-
-class MSRPFailureReport(str):
-    available_values = ('yes', 'no', 'partial')
-    def __new__(cls, value):
-        value = str(value)
-        if value not in cls.available_values:
-            raise ValueError("illegal value for MSRP failure report: %s" % value)
-        return value
-
-
-class MSRPSuccessReport(str):
-    available_values = ('yes', 'no')
-    def __new__(cls, value):
-        value = str(value)
-        if value not in cls.available_values:
-            raise ValueError("illegal value for MSRP success report: %s" % value)
         return value
 
 

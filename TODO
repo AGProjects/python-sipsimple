@@ -1,10 +1,6 @@
 See http://sipsimpleclient.com/report/3
 
 MSRP report headers:
- * revert patch http://devel.ag-projects.com/cgi-bin/darcsweb.cgi?r=python-sipsimple;a=commitdiff;h=20100525133949-56b4d-fb3a588cbbd28ae8f8a27fff6391ba0bd58a0025.gz
- * set report headers to the following values:
-   * chat: success report yes, failure report yes
-   * is-composing indication: success report no, failure report partial
-   * file transfer: success report yes, failure report yes
-   * desktop sharing: success report no, failure report partial
  * prepare for how to deal with the session when the reports themselves get lost
+
+

@@ -32,7 +32,7 @@ from zope.interface import implements
 from sipsimple import bonjour
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
-from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, MSRPFailureReport, MSRPSuccessReport, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
+from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread, user_info
@@ -598,8 +598,6 @@ class PSTNSettings(SettingsGroup):
     pass
 
 class MSRPSettings(SettingsGroup):
-    failure_report = Setting(type=MSRPFailureReport, default='yes')
-    success_report = Setting(type=MSRPSuccessReport, default='yes')
     transport = Setting(type=MSRPTransport, default='tls')
 
 class Account(SettingsObject):
