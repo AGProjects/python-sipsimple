@@ -111,7 +111,9 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-do_not_close_stream_too_fast.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
-    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch"]
+    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
+                    "patches/portaudio-pa_linux_alsa.c_pulse_1.patch",
+                    "patches/portaudio-pa_linux_alsa.c_pulse_2.patch"]
 
     trunk_overrides = []
 

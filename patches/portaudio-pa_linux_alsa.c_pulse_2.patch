@@ -1,0 +1,28 @@
+--- src/hostapi/alsa/pa_linux_alsa.c	(revision 1418)
++++ src/hostapi/alsa/pa_linux_alsa.c	(working copy)
+@@ -315,7 +315,10 @@
+     }
+ 
+     PaUtil_FreeMemory( alsaHostApi );
+-    snd_config_update_free_global();
++// damencho, removed fo compability with pulseaudio versions before 0.9.16
++// segfault application:
++// bugtrack alsa: 0002124: snd_config_update_free_global kills applications using user space alsa plugins
++//    snd_config_update_free_global();
+ }
+ 
+ /** Determine max channels and default latencies.
+@@ -2788,6 +2807,13 @@
+ 
+         *shouldPoll = 0;
+     }
++    else
++    {
++        // not actually used
++        unsigned long framesAvail = 0;
++        // now check for xrun
++        PaAlsaStreamComponent_GetAvailableFrames(self, &framesAvail, xrun );
++    }
+ 
+ error:
+     return result;
