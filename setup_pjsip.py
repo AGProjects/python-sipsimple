@@ -111,9 +111,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-do_not_close_stream_too_fast.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
-    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
-                    "patches/portaudio-1420-compile_snow_leopard.patch",
-                    "patches/portaudio-1420-pa_mac_core_x64_assert_fix.patch"]
+    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch"]
+
     trunk_overrides = []
 
     user_options = build_ext.user_options
@@ -133,6 +132,7 @@ class PJSIP_build_ext(build_ext):
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
         self.pjsip_build_dir = os.environ.get("PJSIP_BUILD_DIR", None)
         self.pjsip_svn_repo = self.pjsip_svn_repos["1.0"]
+        self.portaudio_svn_revision = os.environ.get("PORTAUDIO_SVN_REVISION", "1433")
 
     def check_cython_version(self):
         from Cython.Compiler.Version import version as cython_version
@@ -167,10 +167,9 @@ class PJSIP_build_ext(build_ext):
             else:
                 svn_updated = self.pjsip_clean_compile or new_svn_rev != old_svn_rev
                 if svn_updated:
-                    log.info("Fetching updates from PJSIP SVN repository")
                     distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
                     distutils_exec_process("svn status \"%s\" | grep ^\?| awk '{print $2}' | xargs -I '{}' rm '{}'" % (self.svn_dir,), True, shell=True)
-                    distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
+                    self.update_from_svn()
                     if self.pjsip_svn_repo == self.pjsip_svn_repos["1.0"]:
                         for override_file, override_revision in self.trunk_overrides:
                             distutils_exec_process(["svn", "merge", "-r", "%d:%d" % (new_svn_rev, override_revision), "/".join([self.pjsip_svn_repos["trunk"], override_file]), os.path.join(self.svn_dir, override_file)], True)
@@ -179,13 +178,28 @@ class PJSIP_build_ext(build_ext):
         print "Using SVN revision %d" % new_svn_rev
         return svn_updated
 
+    def update_from_svn(self):
+        log.info("Fetching updates from PJSIP SVN repository")
+        distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
+
     def patch_pjsip(self):
         log.info("Patching PJSIP")
         open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
         for patch_file in self.patch_files:
             distutils_exec_process(["patch", "--forward", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
-        log.info("Patching PortAudio")
+        self.set_portaudio_revision()
+
+    def set_portaudio_revision(self):
+        log.info("Setting PortAudio revision to %s" % self.portaudio_svn_revision)
         self.portaudio_dir = os.path.join(self.svn_dir, "third_party", "portaudio");
+        third_party_dir = os.path.join(self.svn_dir, "third_party");
+        with open(os.path.join(self.portaudio_dir, 'svn_externals'), 'w+') as f:
+            f.write("portaudio -r%s https://www.portaudio.com/repos/portaudio/trunk\n" % self.portaudio_svn_revision)
+        distutils_exec_process(["svn", "propset", "svn:externals", third_party_dir, "-F", os.path.join(self.portaudio_dir, "svn_externals")], True)
+        self.update_from_svn()
+
+    def patch_portaudio(self):
+        log.info("Patching PortAudio")
         distutils_exec_process(["svn", "revert", "-R", self.portaudio_dir], True)
         for patch_file in self.portaudio_patch_files:
             distutils_exec_process(["patch", "--forward", "-d", self.portaudio_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
@@ -253,6 +267,7 @@ class PJSIP_build_ext(build_ext):
             svn_updated = self.fetch_pjsip_from_svn()
             if svn_updated:
                 self.patch_pjsip()
+                self.patch_portaudio()
             compile_needed = svn_updated
             if not os.path.exists(os.path.join(self.svn_dir, "build.mak")) or self.pjsip_clean_compile:
                 self.configure_pjsip()
