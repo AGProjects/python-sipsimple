@@ -10,12 +10,14 @@ system configuration.
 
 For audio devices that can be opened only once, there are workarounds. More
 information about them can be found in section 'The card does not support
-hardware mixing', at:
+hardware mixing', at http://alsa.opensrc.org/index.php/AlsaSharing
 
-http://alsa.opensrc.org/index.php/AlsaSharing
 
-One of these workarounds is to create or modify /etc/asound.conf, for all
-uses in the system or ~/.asoundrc, valid only for the user that runs
+Using dmix and dsnoop ALSA plugins
+----------------------------------
+
+One of the workarounds is to create or modify /etc/asound.conf, for all uses
+in the system or ~/.asoundrc, valid only for the user that runs
 python-simsiple as follows:
 
 pcm.card0 {
@@ -61,29 +63,58 @@ ctl.dsp0 {
 }
 pcm.!default {
   type plug
-  slave.pcm "asym0"
+  slave.pcm "pasym0"
 }
 ctl.!default {
   type hw
   card 0
 }
 
-
 What the above configuration does, is to create a special device called
-asym0 (you may rename this as you wish) of type asym. asym is an ALSA plugin
-that combines plugins like dsnoop and dmix into one full-duplex device. The
-dsnoop and dmix plugins allows for concurrent access from multiple
-applications to the same physical audio device for input and output
+pasym0 (you may rename this as you wish) that used asym plugin, whihc is an
+ALSA plugin that combines plugins like dsnoop and dmix into one full-duplex
+device. The dsnoop and dmix plugins allows for concurrent access from
+multiple applications to the same physical audio device for input and output
 respectively mixing and converting the sample rates accordingly.
 
-Then instruct SIP SIMPLE client SDK to use asym0 as the main device:
+You can instruct SIP SIMPLE client SDK to use pasym0 as the main device:
 
-sip-settings -g set audio.input_device=asym0
-sip-settings -g set audio.output_device=asym0
-sip-settings -g set audio.alert_device=asym0
+sip-settings -g set audio.input_device=pasym0
+sip-settings -g set audio.output_device=pasym0
+sip-settings -g set audio.alert_device=pasym0
 
 Note. It is important that other applications in the system also access the
 same virtual device, otherwise is still possible to block the access to the
-audio card by opening it first from an application that does not use asym0
-as default device.
+audio card by opening it first from an application that does not use pasym0
+as the default device.  For example is not possible to use this setup while
+other applications use PulseAudio or other sound server that access the
+audio device directly.
+
+
+Using PulseAudio
+----------------
+
+Another workaround is to configure ALSA to route requests that are meant for
+the audio card to the PulseAudio sound server, which in turn is performing
+the mixing from all applications and accessed the ALSA device directly.
+
+For this create or modify /etc/asound.conf, for all uses in the system or
+~/.asoundrc, valid only for the user that runs python-simsiple as follows:
+
+pcm.pulse {
+    type pulse
+}
+ctl.pulse {
+    type pulse
+}
+pcm.!default {
+    type pulse
+}
+ctl.!default {
+    type pulse
+}
+
+Note. PulseAudio may introduce additional delay into the processing. This
+solution is more compatible with other applications but less performant than
+when using dmix and dsnoop plugins.
 
