@@ -209,6 +209,10 @@ class DNSLookup(object):
             resolver.timeout = timeout
             resolver.lifetime = lifetime
 
+            # If the host part of the URI is an IP address, we will not do any lookup
+            if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
+                return [(uri.host, uri.port or service_port)]
+
             record_name = '%s.%s' % (service_prefix, uri.host)
             services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
             if services[record_name]:
