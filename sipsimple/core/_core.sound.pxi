@@ -333,7 +333,10 @@ cdef class AudioMixer:
         if status != 0:
             raise SIPCoreError('Audio change lock could not be acquired for read', status)
        
-        try:     
+        try:
+            if pjmedia_snd_get_dev_count() == 0:
+                input_device = None
+                output_device = None
             if input_device == "system_default":
                 input_device_i = -1
             if output_device == "system_default":
