@@ -354,7 +354,7 @@ class WavePlayer(object):
 
     def __init__(self, mixer, filename, volume=100, loop_count=1, pause_time=0, initial_play=True):
         self.mixer = mixer
-        self.filename = filename
+        self.filename = str(filename)
         self.initial_play = initial_play
         self.loop_count = loop_count
         self.pause_time = pause_time
@@ -457,7 +457,7 @@ class WaveRecorder(object):
 
     def __init__(self, mixer, filename):
         self.mixer = mixer
-        self.filename = filename
+        self.filename = str(filename)
         self._recording_wave_file = None
 
     @property
