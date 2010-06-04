@@ -1032,6 +1032,12 @@ class Session(object):
             notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='local', on_hold=True, partial=any(not stream.on_hold_by_local for stream in hold_supported_streams)))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
+            if not self._hold_in_progress:
+                for stream in self.streams:
+                    stream.unhold()
+                self._send_unhold()
+            else:
+                self._hold_in_progress = False
 
     def _send_unhold(self):
         self.state = 'sending_proposal'
@@ -1079,6 +1085,10 @@ class Session(object):
             notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='local', on_hold=False, partial=False))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
+            if self._hold_in_progress:
+                for stream in self.streams:
+                    stream.hold()
+                self._send_hold()
 
     def _fail(self, originator, code, reason, error, reason_header=None):
         notification_center = NotificationCenter()
