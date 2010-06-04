@@ -1,6 +1,8 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+import re
+
 
 # Classes
 #
@@ -106,6 +108,9 @@ cdef class BaseSIPURI:
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSIPURI cannot be instantiated directly")
 
+    def __reduce__(self):
+        return (self.__class__.__name__, (self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers), None)
+
     def __repr__(self):
         return "%s(%r, %r, %r, %r, %r, %r, %r)" % (self.__class__.__name__, self.host, self.user, self.password, self.port, self.secure, self.parameters, self.headers)
 
@@ -134,6 +139,34 @@ cdef class BaseSIPURI:
 
     def __richcmp__(self, other, op):
         return BaseSIPURI_richcmp(self, other, op)
+
+    def matches(self, address):
+        match = re.match(r'^((?P<scheme>sip|sips):)?(?P<username>.+?)(@(?P<domain>.+?)(:(?P<port>\d+?))?)?(;(?P<parameters>.+?))?(\?(?P<headers>.+?))?$', address)
+        if match is None:
+            return False
+        components = match.groupdict()
+        if components['scheme'] is not None:
+            expected_scheme = 'sips' if self.secure else 'sip'
+            if components['scheme'] != expected_scheme:
+                return False
+        if components['username'] != self.user:
+            return False
+        if components['domain'] is not None and components['domain'] != self.host:
+            return False
+        if components['port'] is not None and int(components['port']) != self.port:
+            return False
+        if components['parameters']:
+            parameters = dict([(name, value) for name, sep, value in [param.partition('=') for param in components['parameters'].split(';')]])
+            expected_parameters = dict([(name, str(value) if value is not None else None) for name, value in self.parameters.iteritems() if name in parameters])
+            if parameters != expected_parameters:
+                return False
+        if components['headers']:
+            headers = dict([(name, value) for name, sep, value in [header.partition('=') for header in components['headers'].split('&')]])
+            expected_headers = dict([(name, str(value) if value is not None else None) for name, value in self.headers.iteritems() if name in headers])
+            if headers != expected_headers:
+                return False
+        return True
+
 
 def SIPURI_new(cls, BaseSIPURI sipuri):
     return cls(user=sipuri.user, password=sipuri.password, host=sipuri.host, port=sipuri.port, secure=sipuri.secure, parameters=dict(sipuri.parameters), headers=dict(sipuri.headers))
