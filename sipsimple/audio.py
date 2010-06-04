@@ -159,9 +159,9 @@ class AudioBridge(object):
                 raise ValueError("expected port with Mixer %r, got %r" % (self.mixer, port.mixer))
             if weakref.ref(port) in self.ports:
                 return
-            if port.consumer_slot is not None:
+            if port.consumer_slot is not None and self.demultiplexer.slot:
                 self.mixer.connect_slots(self.demultiplexer.slot, port.consumer_slot)
-            if port.producer_slot is not None:
+            if port.producer_slot is not None and self.multiplexer.slot:
                 self.mixer.connect_slots(port.producer_slot, self.multiplexer.slot)
             for other in (wr() for wr in self.ports):
                 if other is None:
@@ -181,9 +181,9 @@ class AudioBridge(object):
         with self._lock:
             if weakref.ref(port) not in self.ports:
                 raise ValueError("port %r is not part of this bridge" % port)
-            if port.consumer_slot is not None:
+            if port.consumer_slot is not None and self.demultiplexer.slot:
                 self.mixer.disconnect_slots(self.demultiplexer.slot, port.consumer_slot)
-            if port.producer_slot is not None:
+            if port.producer_slot is not None and self.multiplexer.slot:
                 self.mixer.disconnect_slots(port.producer_slot, self.multiplexer.slot)
             for other in (wr() for wr in self.ports):
                 if other is None:
