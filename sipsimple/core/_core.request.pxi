@@ -99,6 +99,7 @@ cdef class Request:
         request_uri_str = PJSTR(str(request_uri))
         self.route_header = FrozenRouteHeader.new(route_header)
         self.route_header.uri.parameters.dict["lr"] = None # always send lr parameter in Route header
+        self.route_header.uri.parameters.dict["hide"] = None # always hide Route header
         if contact_header is not None:
             self.contact_header = FrozenContactHeader.new(contact_header)
             contact_header_str = PJSTR(contact_header.body)

@@ -165,6 +165,7 @@ cdef class Invitation:
             self.credentials = FrozenCredentials.new(credentials) if credentials is not None else None
             self.route_header = FrozenRouteHeader.new(route_header)
             self.route_header.uri.parameters.dict["lr"] = None # always send lr parameter in Route header
+            self.route_header.uri.parameters.dict["hide"] = None # always hide Route header
             self.local_contact_header = FrozenContactHeader.new(contact_header)
             self.sdp.proposed_local = FrozenSDPSession.new(sdp) if sdp is not None else None
 
