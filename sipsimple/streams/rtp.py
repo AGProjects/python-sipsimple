@@ -337,19 +337,13 @@ class AudioStream(object):
                 if not e.args[0].endswith("(PJ_ETOOMANY)"):
                     raise
 
-    def start_recording(self, filename=None):
+    def start_recording(self, filename):
         with self._lock:
             if self.state != "ESTABLISHED":
                 raise RuntimeError("AudioStream.start_recording() may only be called in the ESTABLISHED state")
             if self._audio_rec is not None:
                 raise RuntimeError("Already recording audio to a file")
-            settings = SIPSimpleSettings()
-            if filename is None:
-                direction = self._session.direction
-                remote = "%s@%s" % (self._session.remote_identity.uri.user, self._session.remote_identity.uri.host)
-                filename = "%s-%s-%s.wav" % (datetime.now().strftime("%Y%m%d-%H%M%S"), remote, direction)
-            recording_path = os.path.join(settings.audio.directory.normalized, self.account.id)
-            self._audio_rec = WaveRecorder(self.mixer, os.path.join(recording_path, filename))
+            self._audio_rec = WaveRecorder(self.mixer, filename)
             self._check_recording()
 
     def stop_recording(self):
