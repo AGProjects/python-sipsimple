@@ -554,14 +554,14 @@ class Session(object):
 
         unhandled_notifications = []
 
+        streams = [stream for stream in streams if stream in self.proposed_streams]
         for stream in self.proposed_streams:
             if stream in streams:
                 notification_center.add_observer(self, sender=stream)
                 stream.initialize(self, direction='incoming')
-        self.proposed_streams = streams
 
         try:
-            wait_count = len(self.proposed_streams)
+            wait_count = len(streams)
             while wait_count > 0:
                 notification = self._channel.wait()
                 if notification.name == 'MediaStreamDidInitialize':
@@ -569,7 +569,7 @@ class Session(object):
 
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
             local_sdp.version += 1
-            stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
+            stream_map = dict((stream.index, stream) for stream in streams)
             for index, media in enumerate(self._invitation.sdp.proposed_remote.media):
                 stream = stream_map.get(index, None)
                 if stream is not None:
@@ -610,10 +610,10 @@ class Session(object):
                 notification_center.post_notification('SIPSessionDidChangeHoldState', self, TimestampedNotificationData(originator='remote', on_hold=bool(on_hold_streams),
                                                       partial=bool(on_hold_streams) and any(not stream.on_hold_by_remote for stream in hold_supported_streams)))
 
-            for stream in self.proposed_streams:
+            for stream in streams:
                 stream.start(local_sdp, remote_sdp, stream.index)
             with api.timeout(self.media_stream_timeout):
-                wait_count = len(self.proposed_streams)
+                wait_count = len(streams)
                 while wait_count > 0 or self._channel:
                     notification = self._channel.wait()
                     if notification.name == 'MediaStreamDidStart':
@@ -634,11 +634,11 @@ class Session(object):
         else:
             self.greenlet = None
             self.state = 'connected'
-            notification_center.post_notification('SIPSessionGotAcceptProposal', self, TimestampedNotificationData(originator='remote', streams=self.proposed_streams))
-            self.streams = self.streams + self.proposed_streams
+            notification_center.post_notification('SIPSessionGotAcceptProposal', self, TimestampedNotificationData(originator='remote', streams=streams, proposed_streams=self.proposed_streams))
+            self.streams = self.streams + streams
             proposed_streams = self.proposed_streams
             self.proposed_streams = None
-            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='add', streams=proposed_streams))
+            notification_center.post_notification('SIPSessionDidRenegotiateStreams', self, TimestampedNotificationData(originator='remote', action='add', streams=streams))
             for notification in unhandled_notifications:
                 self.handle_notification(notification)
             if self._hold_in_progress:
@@ -781,7 +781,7 @@ class Session(object):
         else:
             self.greenlet = None
             self.state = 'connected'
-            notification_center.post_notification('SIPSessionGotAcceptProposal', self, TimestampedNotificationData(originator='local', streams=self.proposed_streams))
+            notification_center.post_notification('SIPSessionGotAcceptProposal', self, TimestampedNotificationData(originator='local', streams=self.proposed_streams, proposed_streams=self.proposed_streams))
             self.streams = self.streams + self.proposed_streams
             proposed_streams = self.proposed_streams
             self.proposed_streams = None
