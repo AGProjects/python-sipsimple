@@ -13,7 +13,6 @@ Sharing and handling of the actual media streams.
 __all__ = ['MSRPStreamError', 'ChatStreamError', 'ChatStream', 'FileSelector', 'FileTransferStream', 'IDesktopSharingHandler', 'DesktopSharingHandlerBase',
            'InternalVNCViewerHandler', 'InternalVNCServerHandler', 'ExternalVNCViewerHandler', 'ExternalVNCServerHandler', 'DesktopSharingStream']
 
-
 import os
 import re
 import random
@@ -87,6 +86,8 @@ class MSRPStreamBase(object):
         self.session = None
         self.msrp_session = None
         self.shutting_down = False
+        self.local_role = None
+        self.remote_role = None
 
     def _create_local_media(self, uri_path):
         transport = "TCP/TLS/MSRP" if uri_path[-1].use_tls else "TCP/MSRP"
@@ -97,6 +98,7 @@ class MSRPStreamBase(object):
             attributes.append(SDPAttribute("accept-types", " ".join(self.accept_types)))
         if self.accept_wrapped_types is not None:
             attributes.append(SDPAttribute("accept-wrapped-types", " ".join(self.accept_wrapped_types)))
+        attributes.append(SDPAttribute("setup", self.local_role))
         return SDPMediaStream(self.media_type, uri_path[-1].port or 12345, transport, formats=["*"], attributes=attributes)
 
     ## The public API (the IMediaStream interface)
@@ -115,7 +117,7 @@ class MSRPStreamBase(object):
         try:
             self.session = session
             outgoing = direction=='outgoing'
-            if isinstance(self.account, Account) and (outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound):
+            if isinstance(self.account, Account) and not self.account.nat_traversal.use_msrp_acm and ((outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound)):
                 credentials = self.account.credentials
                 if self.account.nat_traversal.msrp_relay is None:
                     relay = MSRPRelaySettings(domain=self.account.uri.host,
@@ -139,11 +141,22 @@ class MSRPStreamBase(object):
             if not outgoing and relay is None and self.transport == 'tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
                 raise MSRPStreamError("cannot create incoming MSRP stream without a certificate and private key")
             logger = NotificationProxyLogger()
-            self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
             local_uri = URI(host=host.default_ip,
                             port=0,
                             use_tls=self.transport=='tls',
                             credentials=self.account.tls_credentials)
+            from sipsimple.application import SIPApplication
+            if outgoing and self.account.nat_traversal.use_msrp_acm and SIPApplication.local_nat_type == 'open':
+                # We start the transport as passive, because we expect the other end to become active. -Saul
+                self.msrp_connector = get_acceptor(relay=None, use_acm=True, logger=logger)
+                self.local_role = 'actpass'
+            elif not outgoing and self.account.nat_traversal.use_msrp_acm and self.remote_role == 'actpass':
+                behind_nat = SIPApplication.local_nat_type != 'open'
+                self.msrp_connector = get_connector(relay=None, logger=logger) if behind_nat else get_acceptor(relay=None, use_acm=True, logger=logger)
+                self.local_role = 'active' if behind_nat else 'passive'
+            else:
+                self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
+                self.local_role = 'active' if outgoing else 'passive'
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self._create_local_media(full_local_path)
         except api.GreenletExit:
@@ -176,6 +189,14 @@ class MSRPStreamBase(object):
             remote_transport = 'tls' if full_remote_path[0].use_tls else 'tcp'
             if self.transport != remote_transport:
                 raise MSRPStreamError("remote transport ('%s') different from local transport ('%s')" % (remote_transport, self.transport))
+            if self.account.nat_traversal.use_msrp_acm and self.local_role == 'actpass':
+                remote_setup = remote_media.attributes.getfirst('setup', 'passive')
+                if remote_setup == 'passive':
+                    # Need to create a new transport, as we change fromn passive to active
+                    logger = NotificationProxyLogger()
+                    local_uri = self.msrp_connector.local_uri
+                    self.msrp_connector = get_connector(relay=None, logger=logger)
+                    self.msrp_connector.prepare(local_uri)
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
             if self.use_msrp_session:
@@ -280,6 +301,10 @@ class ChatStream(MSRPStreamBase):
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
+        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
+        if remote_setup == 'passive':
+            raise InvalidStreamError("remote indicated passive role")
+        stream.remote_role = remote_setup
         if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
             raise InvalidStreamError("mismatching directions in chat stream")
         return stream
@@ -529,6 +554,10 @@ class FileTransferStream(MSRPStreamBase):
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
+        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
+        if remote_setup == 'passive':
+            raise InvalidStreamError("remote indicated passive role")
+        stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         stream.file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
         if (remote_stream.direction, stream.direction) != ('sendonly', 'recvonly'):
             raise InvalidStreamError("mismatching directions in file transfer stream")
@@ -557,7 +586,7 @@ class FileTransferStream(MSRPStreamBase):
                 notification_center.post_notification('FileTransferStreamDidFinish', self, TimestampedNotificationData())
         else:
             notification_center.post_notification('FileTransferStreamDidNotDeliverChunk', self, data)
-    
+
     def _handle_SEND(self, chunk):
         notification_center = NotificationCenter()
         if self.direction=='sendonly':
@@ -592,9 +621,9 @@ class IDesktopSharingHandler(Interface):
 
 class DesktopSharingHandlerBase(object):
     implements(IDesktopSharingHandler, IObserver)
-    
+
     type = None
-    
+
     def __new__(cls, *args, **kw):
         if cls is DesktopSharingHandlerBase:
             raise TypeError("DesktopSharingHandlerBase cannot be instantiated directly")
@@ -743,7 +772,7 @@ class ExternalVNCViewerHandler(DesktopSharingHandlerBase):
 
 class ExternalVNCServerHandler(DesktopSharingHandlerBase):
     type = 'passive'
-    
+
     def __init__(self, address, connect_timeout=3):
         DesktopSharingHandlerBase.__init__(self)
         self.address = address
@@ -851,13 +880,18 @@ class DesktopSharingStream(MSRPStreamBase):
         expected_transport = 'TCP/TLS/MSRP' if isinstance(account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
-        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
-        if remote_setup == 'active':
-            return cls(account, handler=InternalVNCServerHandler())
-        elif remote_setup == 'passive':
-            return cls(account, handler=InternalVNCViewerHandler())
+        remote_rfbsetup = remote_stream.attributes.getfirst('rfbsetup', 'active')
+        if remote_rfbsetup == 'active':
+            stream = cls(account, handler=InternalVNCServerHandler())
+        elif remote_rfbsetup == 'passive':
+            stream = cls(account, handler=InternalVNCViewerHandler())
         else:
-            raise InvalidStreamError("unknown setup attribute in the remote desktop sharing stream")
+            raise InvalidStreamError("unknown rfbsetup attribute in the remote desktop sharing stream")
+        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
+        if remote_setup == 'passive':
+            raise InvalidStreamError("remote indicated passive role")
+        stream.remote_role = remote_setup
+        return stream
 
     def initialize(self, session, direction):
         NotificationCenter().add_observer(self, sender=self.handler)
@@ -866,7 +900,7 @@ class DesktopSharingStream(MSRPStreamBase):
 
     def _create_local_media(self, uri_path):
         local_media = MSRPStreamBase._create_local_media(self, uri_path)
-        local_media.attributes.append(SDPAttribute('setup', self.handler.type))
+        local_media.attributes.append(SDPAttribute('rfbsetup', self.handler.type))
         return local_media
 
     def _msrp_reader(self):
