@@ -18,14 +18,15 @@ from eventlet import coros
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.core import AudioMixer, Engine, PJSIPTLSError, SIPCoreError
+from sipsimple.core import AudioMixer, Engine, PJSIPTLSError, SIPCoreError, SIPURI
 
-from sipsimple.account import AccountManager
+from sipsimple.account import Account, AccountManager
 from sipsimple.audio import AudioDevice, RootAudioBridge
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.session import SessionManager
-from sipsimple.util import call_in_twisted_thread, run_in_green_thread, classproperty, TimestampedNotificationData
+from sipsimple.util import call_in_twisted_thread, run_in_green_thread, classproperty, Command, TimestampedNotificationData
 
 
 class ApplicationAttribute(object):
@@ -51,9 +52,12 @@ class SIPApplication(object):
     voice_audio_bridge = ApplicationAttribute(value=None)
 
     _channel = ApplicationAttribute(value=coros.queue())
+    _nat_detect_channel = ApplicationAttribute(value=coros.queue())
     _lock = ApplicationAttribute(value=RLock())
 
     engine = Engine()
+
+    local_nat_type = ApplicationAttribute(value='unknown')
 
     def start(self, config_backend):
         with self._lock:
@@ -184,9 +188,14 @@ class SIPApplication(object):
         session_manager.start()
 
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
+        notification_center.add_observer(self, name='SIPEngineDetectedNATType')
+        notification_center.add_observer(self, name='SystemIPAddressDidChange')
 
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self, data=TimestampedNotificationData())
+
+        self._detect_nat_type()
+        self._nat_detect_channel.send(Command('detect_nat'))
 
     def stop(self):
         with self._lock:
@@ -194,7 +203,7 @@ class SIPApplication(object):
                 return
             prev_state = self.state
             self.state = 'stopping'
-        
+
         self.end_reason = 'application request'
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPApplicationWillEnd', sender=self, data=TimestampedNotificationData())
@@ -411,4 +420,53 @@ class SIPApplication(object):
         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
         settings.save()
 
+    @run_in_green_thread
+    def _detect_nat_type(self):
+        account_manager = AccountManager()
+        engine = Engine()
+        lookup = DNSLookup()
+
+        serial = 0
+        while True:
+            restart_detection = False
+            command = self._nat_detect_channel.wait()
+            if command.name != 'detect_nat':
+                continue
+            for account in (account for account in account_manager.iter_accounts() if isinstance(account, Account)):
+                if account.nat_traversal.stun_server_list:
+                    stun_servers = []
+                    for server in account.nat_traversal.stun_server_list:
+                        try:
+                            servers = lookup.lookup_service(SIPURI(host=server.host, port=server.port), 'stun').wait()
+                            stun_servers.extend(servers)
+                        except DNSLookupError:
+                            continue
+                else:
+                    try:
+                        stun_servers = lookup.lookup_service(SIPURI(host=account.id.domain), 'stun').wait()
+                    except DNSLookupError:
+                        continue
+                for stun_server, stun_port in stun_servers:
+                    serial += 1
+                    engine.detect_nat_type(stun_server, stun_port, user_data=serial)
+                    command = self._nat_detect_channel.wait()
+                    if command.name == 'process_nat_detection' and command.data.user_data == serial and command.data.succeeded:
+                        self.local_nat_type = command.data.nat_type.lower()
+                        restart_detection = True
+                        break
+                    elif command.name == 'detect_nat':
+                        self._nat_detect_channel.send(command)
+                        restart_detection = True
+                        break
+                if restart_detection:
+                    break
+            else:
+                self.local_nat_type = 'unknown'
+                reactor.callLater(60, self._nat_detect_channel.send, Command('detect_nat'))
+
+    def _NH_SystemIPAddressDidChange(self, notification):
+        self._nat_detect_channel.send(Command('detect_nat'))
+
+    def _NH_SIPEngineDetectedNATType(self, notification):
+        self._nat_detect_channel.send(Command('process_nat_detection', data=notification.data))
 
