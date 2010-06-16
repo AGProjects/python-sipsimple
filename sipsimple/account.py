@@ -570,7 +570,7 @@ class NatTraversalSettings(SettingsGroup):
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
     use_msrp_relay_for_outbound = Setting(type=bool, default=False)
-    use_msrp_acm = Setting(type=bool, default=True)
+    use_msrp_acm = Setting(type=bool, default=False)
 
 
 class MessageSummarySettings(SettingsGroup):
