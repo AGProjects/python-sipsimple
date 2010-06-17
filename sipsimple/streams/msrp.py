@@ -154,6 +154,10 @@ class MSRPStreamBase(object):
                 behind_nat = SIPApplication.local_nat_type != 'open'
                 self.msrp_connector = get_connector(relay=None, logger=logger) if behind_nat else get_acceptor(relay=None, use_acm=True, logger=logger)
                 self.local_role = 'active' if behind_nat else 'passive'
+            elif not outgoing and self.account.nat_traversal.use_msrp_acm and self.remote_role == 'passive':
+                # Not allowed by the draft but play nice for interoperability. -Saul
+                self.msrp_connector = get_connector(relay=None, logger=logger)
+                self.local_role = 'active'
             else:
                 self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
                 self.local_role = 'active' if outgoing else 'passive'
@@ -301,10 +305,7 @@ class ChatStream(MSRPStreamBase):
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
-        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
-        if remote_setup == 'passive':
-            raise InvalidStreamError("remote indicated passive role")
-        stream.remote_role = remote_setup
+        stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
             raise InvalidStreamError("mismatching directions in chat stream")
         return stream
@@ -554,9 +555,6 @@ class FileTransferStream(MSRPStreamBase):
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         stream = cls(account)
-        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
-        if remote_setup == 'passive':
-            raise InvalidStreamError("remote indicated passive role")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         stream.file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
         if (remote_stream.direction, stream.direction) != ('sendonly', 'recvonly'):
@@ -887,10 +885,7 @@ class DesktopSharingStream(MSRPStreamBase):
             stream = cls(account, handler=InternalVNCViewerHandler())
         else:
             raise InvalidStreamError("unknown rfbsetup attribute in the remote desktop sharing stream")
-        remote_setup = remote_stream.attributes.getfirst('setup', 'active')
-        if remote_setup == 'passive':
-            raise InvalidStreamError("remote indicated passive role")
-        stream.remote_role = remote_setup
+        stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         return stream
 
     def initialize(self, session, direction):
