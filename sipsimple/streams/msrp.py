@@ -364,7 +364,7 @@ class ChatStream(MSRPStreamBase):
 
     def _on_transaction_response(self, message_id, response):
         if message_id in self.sent_messages and response.code != 200:
-            self.sent_message.remove(message_id)
+            self.sent_messages.remove(message_id)
             data = TimestampedNotificationData(message_id=message_id, message=response, code=response.code, reason=response.comment)
             NotificationCenter().post_notification('ChatStreamDidNotDeliverMessage', self, data)
 
