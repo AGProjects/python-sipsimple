@@ -37,7 +37,6 @@ from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 from msrplib.transport import make_response, make_report
 
 from sipsimple.account import Account
-from sipsimple.application import SIPApplication
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.payloads.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
 from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
@@ -146,6 +145,7 @@ class MSRPStreamBase(object):
                             port=0,
                             use_tls=self.transport=='tls',
                             credentials=self.account.tls_credentials)
+            from sipsimple.application import SIPApplication
             if outgoing and self.account.nat_traversal.use_msrp_acm and SIPApplication.local_nat_type == 'open':
                 # We start the transport as passive, because we expect the other end to become active. -Saul
                 self.msrp_connector = get_acceptor(relay=None, use_acm=True, logger=logger)
