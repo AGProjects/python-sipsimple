@@ -146,18 +146,27 @@ class MSRPStreamBase(object):
                             use_tls=self.transport=='tls',
                             credentials=self.account.tls_credentials)
             from sipsimple.application import SIPApplication
-            if outgoing and self.account.nat_traversal.use_msrp_acm and SIPApplication.local_nat_type == 'open':
-                # We start the transport as passive, because we expect the other end to become active. -Saul
-                self.msrp_connector = get_acceptor(relay=None, use_acm=True, logger=logger)
-                self.local_role = 'actpass'
-            elif not outgoing and self.account.nat_traversal.use_msrp_acm and self.remote_role == 'actpass':
-                behind_nat = SIPApplication.local_nat_type != 'open'
-                self.msrp_connector = get_connector(relay=None, logger=logger) if behind_nat else get_acceptor(relay=None, use_acm=True, logger=logger)
-                self.local_role = 'active' if behind_nat else 'passive'
-            elif not outgoing and self.account.nat_traversal.use_msrp_acm and self.remote_role == 'passive':
-                # Not allowed by the draft but play nice for interoperability. -Saul
-                self.msrp_connector = get_connector(relay=None, logger=logger)
-                self.local_role = 'active'
+            if self.account.nat_traversal.use_msrp_acm:
+                if outgoing:
+                    if SIPApplication.local_nat_type == 'open':
+                        # We start the transport as passive, because we expect the other end to become active. -Saul
+                        self.msrp_connector = get_acceptor(relay=None, use_acm=True, logger=logger)
+                        self.local_role = 'actpass'
+                    else:
+                        self.msrp_connector = get_connector(relay=None, use_acm=True, logger=logger)
+                        self.local_role = 'active'
+                else:
+                    if self.remote_role == 'actpass':
+                        behind_nat = SIPApplication.local_nat_type != 'open'
+                        self.msrp_connector = get_connector(relay=None, logger=logger) if behind_nat else get_acceptor(relay=None, use_acm=True, logger=logger)
+                        self.local_role = 'active' if behind_nat else 'passive'
+                    elif self.remote_role == 'passive':
+                        # Not allowed by the draft but play nice for interoperability. -Saul
+                        self.msrp_connector = get_connector(relay=None, use_acm=True, logger=logger)
+                        self.local_role = 'active'
+                    else:
+                        self.msrp_connector = get_acceptor(relay=None, use_acm=True, logger=logger)
+                        self.local_role = 'passive'
             else:
                 self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
                 self.local_role = 'active' if outgoing else 'passive'
