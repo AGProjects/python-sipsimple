@@ -16,7 +16,7 @@ from application.notification import IObserver, Notification, NotificationCenter
 from application.python.decorator import decorator, preserve_signature
 from application.python.util import Singleton
 from application.system import host
-from eventlet import api
+from eventlet import api, coros
 from eventlet.coros import queue
 from zope.interface import implements
 
@@ -27,7 +27,7 @@ from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 from sipsimple.account import AccountManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
-from sipsimple.util import TimestampedNotificationData, run_in_green_thread
+from sipsimple.util import TimestampedNotificationData, run_in_green_thread, run_in_twisted_thread
 
 
 class MediaStreamDidFailError(Exception):
@@ -1367,15 +1367,38 @@ class SessionManager(object):
 
     def __init__(self):
         self.sessions = []
+        self.state = None
+        self._channel = coros.queue()
 
     def start(self):
+        self.state = 'starting'
         notification_center = NotificationCenter()
+        notification_center.post_notification('SIPSessionManagerWillStart', self, TimestampedNotificationData())
         notification_center.add_observer(self, 'SIPInvitationChangedState')
         notification_center.add_observer(self, 'SIPSessionNewIncoming')
         notification_center.add_observer(self, 'SIPSessionNewOutgoing')
         notification_center.add_observer(self, 'SIPSessionDidFail')
         notification_center.add_observer(self, 'SIPSessionDidEnd')
+        self.state = 'started'
+        notification_center.post_notification('SIPSessionManagerDidStart', self, TimestampedNotificationData())
 
+    def stop(self):
+        self.state = 'stopping'
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPSessionManagerWillEnd', self, TimestampedNotificationData())
+        for session in self.sessions:
+            session.end()
+        while self.sessions:
+            self._channel.wait()
+        notification_center.remove_observer(self, 'SIPInvitationChangedState')
+        notification_center.remove_observer(self, 'SIPSessionNewIncoming')
+        notification_center.remove_observer(self, 'SIPSessionNewOutgoing')
+        notification_center.remove_observer(self, 'SIPSessionDidFail')
+        notification_center.remove_observer(self, 'SIPSessionDidEnd')
+        self.state = 'stopped'
+        notification_center.post_notification('SIPSessionManagerDidEnd', self, TimestampedNotificationData())
+
+    @run_in_twisted_thread
     def handle_notification(self, notification):
         if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'incoming':
             account_manager = AccountManager()
@@ -1390,5 +1413,7 @@ class SessionManager(object):
             self.sessions.append(notification.sender)
         elif notification.name in ('SIPSessionDidFail', 'SIPSessionDidEnd'):
             self.sessions.remove(notification.sender)
+            if self.state == 'stopping':
+                self._channel.send(notification)
 
 

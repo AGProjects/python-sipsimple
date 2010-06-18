@@ -14,7 +14,7 @@ from threading import RLock, Thread
 
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
-from eventlet import coros
+from eventlet import coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
@@ -217,7 +217,9 @@ class SIPApplication(object):
     def _shutdown_subsystems(self):
         # shutdown middleware components
         account_manager = AccountManager()
-        account_manager.stop()
+        session_manager = SessionManager()
+        procs = [proc.spawn(account_manager.stop), proc.spawn(session_manager.stop)]
+        proc.waitall(procs)
 
         # shutdown engine
         engine = Engine()
