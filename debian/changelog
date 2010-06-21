@@ -1,3 +1,45 @@
+python-sipsimple (0.15.0) unstable; urgency=low
+
+  * Updated documentation
+  * Added Acknowledgments section
+  * Added support for MSRP Alternative Connection Model
+  * Added NAT detector to SIPApplication object
+  * Don't fail a DNS lookup if an IP address is provided
+  * Made filename argument of start_recording mandatory
+  * Added proposed_streams attribute to SIPSessionGotAcceptProposal
+  * Hide Route header when sending requests out
+  * Fixed adding/removing ports on a bridge after stop was called
+  * Improved SIPURI with pickling and matching capabilities
+  * Improved hold/unhold cascading in Session
+  * Modified WavePlayer and WaveRecorder to allow unicode objects as filename
+  * Fixed crash when system has no soundcard at all
+  * Added ability to select PortAudio revision
+  * Fixed use of the Reason header for determining call disconnect reason
+  * Fixed handling of stream added to conference
+  * Only accept IP addresses for the STUN server list
+  * Moved MSRP transport setting to the account
+  * Fixed ICE support detection
+  * Added configuration instructions for audio device sharing in Linux
+  * Fixed starting of recording on AudioStream while on hold
+  * Fixed MSRP transport used for contacting the relay
+  * Fixed error message in SIPProxyAddress configuration data type
+  * Modified DNSLookup to not timeout completely if NS queries fail
+  * Modified AudioMixer so that it keeps the sound device open on MacOSX 10.6
+  * Added permanent references to AudioStream to keep pjsip from crashing
+  * Fixed Bonjour neighbour discovery handling
+  * Improved sRTP negotiation capabilities
+  * Fixed the build process on MacOSX 10.6
+  * Split the installation instructions for Debian and Ubuntu
+  * Split the installation instructions for MacOSX 10.5 and 10.6
+  * Allow use of cython 0.11.2
+  * Fixed handling of missing ACK in Session
+  * Fixed dialog rules payload namespace
+  * Added pjmedia patch not to close a media stream too fast
+  * Allocate thread descriptor from pool in portaudio callback
+  * Fixed receiving a BYE without receiving a final response to INVITE
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 21 Jun 2010 12:59:04 +0200
+
 python-sipsimple (0.14.2) unstable; urgency=low
 
   * Improved organization of attributes/properties in accounts
