@@ -32,7 +32,7 @@ from zope.interface import implements
 from sipsimple import bonjour
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
-from sipsimple.configuration.datatypes import AudioCodecList, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
+from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread, user_info
@@ -570,7 +570,6 @@ class NatTraversalSettings(SettingsGroup):
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
     use_msrp_relay_for_outbound = Setting(type=bool, default=False)
-    use_msrp_acm = Setting(type=bool, default=False)
 
 
 class MessageSummarySettings(SettingsGroup):
@@ -599,6 +598,7 @@ class PSTNSettings(SettingsGroup):
 
 class MSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tls')
+    connection_model = Setting(type=MSRPConnectionModel, default='relay')
 
 class Account(SettingsObject):
     """
@@ -782,7 +782,7 @@ class BonjourSIPSettings(SettingsGroup):
     transport_list = Setting(type=SIPTransportList, default=SIPTransportList(['udp']))
 
 
-class BonjourMSRPSettings(MSRPSettings):
+class BonjourMSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tcp')
 
 

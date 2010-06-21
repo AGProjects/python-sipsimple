@@ -117,7 +117,7 @@ class MSRPStreamBase(object):
         try:
             self.session = session
             outgoing = direction=='outgoing'
-            if isinstance(self.account, Account) and not self.account.nat_traversal.use_msrp_acm and ((outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound)):
+            if isinstance(self.account, Account) and not self.account.msrp.connection_model == 'acm' and ((outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound)):
                 credentials = self.account.credentials
                 if self.account.nat_traversal.msrp_relay is None:
                     relay = MSRPRelaySettings(domain=self.account.uri.host,
@@ -146,7 +146,7 @@ class MSRPStreamBase(object):
                             use_tls=self.transport=='tls',
                             credentials=self.account.tls_credentials)
             from sipsimple.application import SIPApplication
-            if self.account.nat_traversal.use_msrp_acm:
+            if isinstance(self.account, Account) and self.account.msrp.connection_model == 'acm':
                 if outgoing:
                     if SIPApplication.local_nat_type == 'open':
                         # We start the transport as passive, because we expect the other end to become active. -Saul
@@ -202,7 +202,7 @@ class MSRPStreamBase(object):
             remote_transport = 'tls' if full_remote_path[0].use_tls else 'tcp'
             if self.transport != remote_transport:
                 raise MSRPStreamError("remote transport ('%s') different from local transport ('%s')" % (remote_transport, self.transport))
-            if self.account.nat_traversal.use_msrp_acm and self.local_role == 'actpass':
+            if isinstance(self.account, Account) and self.account.msrp.connection_model == 'acm' and self.local_role == 'actpass':
                 remote_setup = remote_media.attributes.getfirst('setup', 'passive')
                 if remote_setup == 'passive':
                     # Need to create a new transport, as we change fromn passive to active

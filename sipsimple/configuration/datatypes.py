@@ -14,7 +14,7 @@ __all__ = [# Base datatypes
            # Address and transport datatypes
            'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
-           'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption', 'TLSProtocol',
+           'MSRPConnectionModel', 'MSRPTransport', 'SIPTransport', 'SIPTransportList', 'SRTPEncryption', 'TLSProtocol',
            # Path datatypes
            'Path']
 
@@ -462,6 +462,14 @@ class XCAPRoot(str):
                 raise ValueError("illegal port value: 0")
         return value
 
+
+class MSRPConnectionModel(str):
+    available_values = ('relay', 'acm')
+    def __new__(cls, value):
+        value = str(value)
+        if value not in cls.available_values:
+            raise ValueError("illegal value for MSRP NAT model: %s" % value)
+        return value
 
 class MSRPTransport(str):
     available_values = ('tls', 'tcp')
