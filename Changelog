@@ -1,3 +1,101 @@
+python-sipsimple (0.15.0) unstable; urgency=low
+
+  * Updated documentation
+  * Added Acknowledgments section
+  * Added support for MSRP Alternative Connection Model
+  * Added NAT detector to SIPApplication object
+  * Don't fail a DNS lookup if an IP address is provided
+  * Made filename argument of start_recording mandatory
+  * Added proposed_streams attribute to SIPSessionGotAcceptProposal
+  * Hide Route header when sending requests out
+  * Fixed adding/removing ports on a bridge after stop was called
+  * Improved SIPURI with pickling and matching capabilities
+  * Improved hold/unhold cascading in Session
+  * Modified WavePlayer and WaveRecorder to allow unicode objects as filename
+  * Fixed crash when system has no soundcard at all
+  * Added ability to select PortAudio revision
+  * Fixed use of the Reason header for determining call disconnect reason
+  * Fixed handling of stream added to conference
+  * Only accept IP addresses for the STUN server list
+  * Moved MSRP transport setting to the account
+  * Fixed ICE support detection
+  * Added configuration instructions for audio device sharing in Linux
+  * Fixed starting of recording on AudioStream while on hold
+  * Fixed MSRP transport used for contacting the relay
+  * Fixed error message in SIPProxyAddress configuration data type
+  * Modified DNSLookup to not timeout completely if NS queries fail
+  * Modified AudioMixer so that it keeps the sound device open on MacOSX 10.6
+  * Added permanent references to AudioStream to keep pjsip from crashing
+  * Fixed Bonjour neighbour discovery handling
+  * Improved sRTP negotiation capabilities
+  * Fixed the build process on MacOSX 10.6
+  * Split the installation instructions for Debian and Ubuntu
+  * Split the installation instructions for MacOSX 10.5 and 10.6
+  * Allow use of cython 0.11.2
+  * Fixed handling of missing ACK in Session
+  * Fixed dialog rules payload namespace
+  * Added pjmedia patch not to close a media stream too fast
+  * Allocate thread descriptor from pool in portaudio callback
+  * Fixed receiving a BYE without receiving a final response to INVITE
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 21 Jun 2010 12:59:04 +0200
+
+python-sipsimple (0.14.2) unstable; urgency=low
+
+  * Improved organization of attributes/properties in accounts
+  * Added patch to not consider SDP in all requests/responses
+  * Added host name to the BonjourAccountDidAddNeighbour notification
+  * Improved default value of BonjourAccount's display_name setting
+  * Added support for authentication username
+  * Raised required cython version
+  * Added RootAudioBridge to skip not needed audio processing
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 20 Apr 2010 10:02:32 +0200
+
+python-sipsimple (0.14.1) unstable; urgency=low
+
+  * Added missing dependency for AVAHI's Bonjour compatibility
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 09 Apr 2010 18:29:03 +0200
+
+python-sipsimple (0.14.0) unstable; urgency=low
+
+  * Added handling for PJMEDIA_SDPNEG errors in Session
+  * Use transport in general settings when not using a MSRP Relay
+  * Added missing presence and dialog settings
+  * Do not post MSRPLibraryLog for debug level
+  * Added reason argument to reject and reject_proposal methods of Session
+  * Add ability to CANCEL re-INVITEs
+  * Changed the way NotificationProxyLogger sends MSRP trace notifications
+  * Modified the AudioStream to initialize the audio device once it starts
+  * Added Intel architecture to Prerequisites
+  * Calculate ICE candidate priority according to draft
+  * Use regular nomination in ICE instead of aggressive
+  * Changed DNSLookup to fallback to using local nameservers if NS queries
+    fail
+  * Added instructions for installing the cli scripts
+  * Added new setting account.sip.enable_outbound_proxy
+  * Fixed CPIM implementation and improved ChatStream interface
+  * Added notifications for ICE negotiation status
+  * Refactored audio support
+  * Don't initialize ICE transport if remote SDP doesn't offer ICE
+  * Proper forward declaration of Cython objects
+  * Save session start time when media stream did timeout
+  * Added audio conference support
+  * Set disconnect_reason and failure_reason to the Reason header value if
+    present (RFC 3326)
+  * Added sip.transport_list setting to BonjourAccount
+  * Added MSRP settings to Bonjour account
+  * Added publishing and discovery support to BonjourAccount
+  * Modified AudioTransport to not pause/resume the stream on hold/unhold
+  * Add support for ICE keepalive
+  * Changed defauls for use sRTP and codec list for better interoperability
+  * Added a timeout when sending (re-)INVITEs
+  * Updated documentation
+  * Numerous bugfixes
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 09 Apr 2010 13:36:50 +0200
+
 python-sipsimple (0.12.0) unstable; urgency=low
 
   * Removed obsolete desktopsharing.py file
