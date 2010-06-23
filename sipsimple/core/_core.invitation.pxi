@@ -1,8 +1,13 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-import weakref
+# python imports
 
+import weakref
+from errno import EADDRNOTAVAIL
+
+
+# classes
 
 cdef class SDPPayloads:
     def __init__(self):

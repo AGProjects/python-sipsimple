@@ -8,6 +8,7 @@ import sys
 import time
 import traceback
 import os
+from errno import EBADF
 
 
 # classes

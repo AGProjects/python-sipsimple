@@ -287,7 +287,14 @@ def combinations(iterable, r):
         yield tuple(pool[i] for i in indices)
 
 
-def limit(value, min=float("-infinity"), max=float("+infinity")):
+try:
+    negative_infinite = float('-infinity')
+    positive_infinite = float('infinity')
+except ValueError:
+    negative_infinite = -1e300000
+    positive_infinite = 1e300000
+
+def limit(value, min=negative_infinite, max=positive_infinite):
     from __builtin__ import min as minimum, max as maximum
     return maximum(min, minimum(value, max))
 

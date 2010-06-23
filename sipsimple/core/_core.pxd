@@ -15,12 +15,6 @@ cdef extern from "stdlib.h":
 cdef extern from "string.h":
     void *memcpy(void *s1, void *s2, int n)
 
-cdef extern from "sys/errno.h":
-    enum:
-        EADDRINUSE
-        EBADF
-        EADDRNOTAVAIL
-
 # Python C imports
 
 cdef extern from "Python.h":

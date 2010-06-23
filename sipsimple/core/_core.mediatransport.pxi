@@ -1,6 +1,11 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
+# python imports
+
+from errno import EADDRINUSE
+
+
 # classes
 
 cdef class RTPTransport:

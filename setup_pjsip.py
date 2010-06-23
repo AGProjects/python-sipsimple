@@ -61,7 +61,7 @@ def get_svn_repo_url(svn_dir):
     environment = dict((name, value) for name, value in os.environ.iteritems() if name!='LANG' and not name.startswith('LC_'))
     environment['LC_ALL'] = 'C'
     svn_info = distutils_exec_process(["svn", "info", svn_dir], True, env=environment)
-    return re.search("URL: (.*)", svn_info).group(1)
+    return re.search("URL: (.*)", svn_info).group(1).strip()
 
 def get_svn_revision(svn_dir, max_revision=None):
     environment = dict((name, value) for name, value in os.environ.iteritems() if name!='LANG' and not name.startswith('LC_'))
@@ -146,7 +146,7 @@ class PJSIP_build_ext(build_ext):
         self.svn_dir = os.path.join(self.pjsip_build_dir or self.build_temp, "pjsip")
         if not os.path.exists(self.svn_dir):
             log.info("Fetching PJSIP from SVN repository")
-            distutils_exec_process(["svn", "co", "-r", self.pjsip_svn_revision, self.pjsip_svn_repo, self.svn_dir], True, input='t\n')
+            distutils_exec_process(["svn", "co", "-r", self.pjsip_svn_revision, self.pjsip_svn_repo, self.svn_dir], True, input='t'+os.linesep)
             new_svn_rev = get_svn_revision(self.svn_dir)
             svn_updated = True
         else:
@@ -183,7 +183,7 @@ class PJSIP_build_ext(build_ext):
 
     def update_from_svn(self):
         log.info("Fetching updates from PJSIP SVN repository")
-        distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t\n')
+        distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t'+os.linesep)
 
     def patch_pjsip(self):
         log.info("Patching PJSIP")
@@ -224,7 +224,14 @@ class PJSIP_build_ext(build_ext):
             with open(os.path.join(self.svn_dir, "user.mak"), "w") as f:
                 f.write("export CC=gcc-4.0 -c\n")
                 f.write("export LD=gcc-4.0\n")
-        distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
+            distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
+        elif sys.platform == "win32":
+            # TODO: add support for building with other compilers like Visual Studio. -Saul
+            env['CFLAGS'] += " -Ic:/openssl/include"
+            env['LDFLAGS'] = "-Lc:/openssl/lib/MinGW"
+            distutils_exec_process(["bash", "configure"], True, cwd=self.svn_dir, env=env)
+        else:
+            distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
         if "#define PJSIP_HAS_TLS_TRANSPORT 1\n" not in open(os.path.join(self.svn_dir, "pjsip", "include", "pjsip", "sip_autoconf.h")).readlines():
             os.remove(os.path.join(self.svn_dir, "build.mak"))
             raise DistutilsError("PJSIP TLS support was disabled, OpenSSL development files probably not present on this system")
