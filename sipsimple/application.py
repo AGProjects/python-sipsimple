@@ -114,12 +114,12 @@ class SIPApplication(object):
                        tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transport_list else None,
                        tls_port=settings.sip.tls_port if 'tls' in settings.sip.transport_list else None,
                        # TLS
-                       tls_protocol=settings.tls.protocol,
-                       tls_verify_server=account.tls.verify_server if account else False,
-                       tls_ca_file=os.path.expanduser(settings.tls.ca_list) if settings.tls.ca_list else None,
-                       tls_cert_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
-                       tls_privkey_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
-                       tls_timeout=settings.tls.timeout,
+                       tls_protocol='TLSv1',
+                       tls_verify_server=False,
+                       tls_ca_file=None,
+                       tls_cert_file=None,
+                       tls_privkey_file=None,
+                       tls_timeout=1000,
                        # rtp
                        rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
                        # audio
@@ -129,21 +129,24 @@ class SIPApplication(object):
                        trace_sip=True,
                       )
         try:
-            try:
-                engine.start(**options)
-            except PJSIPTLSError, e:
-                notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
-                options['tls_protocol'] = 'TLSv1'
-                options['tls_verify_server'] = False
-                options['tls_ca_file'] = None
-                options['tls_cert_file'] = None
-                options['tls_privkey_file'] = None
-                options['tls_timeout'] = 1000
-                engine.start(**options)
+            engine.start(**options)
         except SIPCoreError:
             self.end_reason = 'engine failed'
             reactor.stop()
             return
+
+        # initialize TLS
+        try:
+            engine.set_tls_options(port=settings.sip.tls_port,
+                                   protocol=settings.tls.protocol,
+                                   verify_server=account.tls.verify_server if account else False,
+                                   ca_file=os.path.expanduser(settings.tls.ca_list) if settings.tls.ca_list else None,
+                                   cert_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
+                                   privkey_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
+                                   timeout=settings.tls.timeout)
+        except Exception, e:
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
 
         # initialize audio objects
         alert_device = settings.audio.alert_device
@@ -338,7 +341,7 @@ class SIPApplication(object):
                                            cert_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
                                            privkey_file=os.path.expanduser(account.tls.certificate) if account and account.tls.certificate else None,
                                            timeout=settings.tls.timeout)
-                except PJSIPTLSError, e:
+                except Exception, e:
                     notification_center = NotificationCenter()
                     notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
             if 'rtp.port_range' in notification.data.modified:
@@ -358,7 +361,7 @@ class SIPApplication(object):
                                            cert_file=os.path.expanduser(account.tls.certificate) if account.tls.certificate else None,
                                            privkey_file=os.path.expanduser(account.tls.certificate) if account.tls.certificate else None,
                                            timeout=settings.tls.timeout)
-                except PJSIPTLSError, e:
+                except Exception, e:
                     notification_center = NotificationCenter()
                     notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
 
