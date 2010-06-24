@@ -1,0 +1,208 @@
+Index: pjmedia/include/pjmedia-codec/g722.h
+===================================================================
+--- pjmedia/include/pjmedia-codec/g722.h	(revisión: 3201)
++++ pjmedia/include/pjmedia-codec/g722.h	(revisión: 3202)
+@@ -78,6 +78,21 @@
+ PJ_DECL(pj_status_t) pjmedia_codec_g722_deinit(void);
+ 
+ 
++/**
++ * Set the G.722 codec encoder and decoder level adjustment.
++ * If the value is non-zero, then PCM input samples to the encoder will 
++ * be shifted right by this value, and similarly PCM output samples from
++ * the decoder will be shifted left by this value.
++ *
++ * Default value is PJMEDIA_G722_DEFAULT_PCM_SHIFT.
++ *
++ * @param val		The value
++ *
++ * @return		PJ_SUCCESS on success.
++ */
++PJ_DECL(pj_status_t) pjmedia_codec_g722_set_pcm_shift(unsigned val);
++
++
+ PJ_END_DECL
+ 
+ 
+Index: pjmedia/include/pjmedia-codec/config.h
+===================================================================
+--- pjmedia/include/pjmedia-codec/config.h	(revisión: 3201)
++++ pjmedia/include/pjmedia-codec/config.h	(revisión: 3202)
+@@ -98,6 +98,40 @@
+ 
+ 
+ /**
++ * Default G.722 codec encoder and decoder level adjustment. The G.722
++ * specifies that it uses 14 bit PCM for input and output, while PJMEDIA
++ * normally uses 16 bit PCM, so the conversion is done by applying
++ * level adjustment. If the value is non-zero, then PCM input samples to
++ * the encoder will be shifted right by this value, and similarly PCM
++ * output samples from the decoder will be shifted left by this value.
++ *
++ * This can be changed at run-time after initialization by calling
++ * #pjmedia_codec_g722_set_pcm_shift().
++ *
++ * Default: 2.
++ */
++#ifndef PJMEDIA_G722_DEFAULT_PCM_SHIFT
++#   define PJMEDIA_G722_DEFAULT_PCM_SHIFT	    2
++#endif
++
++
++/**
++ * Specifies whether G.722 PCM shifting should be stopped when clipping
++ * detected in the decoder. Enabling this feature can be useful when
++ * talking to G.722 implementation that uses 16 bit PCM for G.722 input/
++ * output (for any reason it seems to work) and the PCM shifting causes
++ * audio clipping.
++ *
++ * See also #PJMEDIA_G722_DEFAULT_PCM_SHIFT.
++ *
++ * Default: enabled.
++ */
++#ifndef PJMEDIA_G722_STOP_PCM_SHIFT_ON_CLIPPING
++#   define PJMEDIA_G722_STOP_PCM_SHIFT_ON_CLIPPING  1
++#endif
++
++
++/**
+  * Enable the features provided by Intel IPP libraries, for example
+  * codecs such as G.729, G.723.1, G.726, G.728, G.722.1, and AMR.
+  *
+Index: pjmedia/src/pjmedia-codec/g722/g722_enc.c
+===================================================================
+--- pjmedia/src/pjmedia-codec/g722/g722_enc.c	(revisión: 3201)
++++ pjmedia/src/pjmedia-codec/g722/g722_enc.c	(revisión: 3202)
+@@ -543,7 +543,7 @@
+     PJ_ASSERT_RETURN(*out_size >= (nsamples >> 1), PJ_ETOOSMALL);
+     
+     for(i = 0; i < nsamples; i += 2) {
+-	tx_qmf(enc, in[i]>>2, in[i+1]>>2, &xlow, &xhigh);
++	tx_qmf(enc, in[i], in[i+1], &xlow, &xhigh);
+ 
+ 	/* low band encoder */
+ 	ilow = block1l (xlow, enc->slow, enc->detlow) ;
+Index: pjmedia/src/pjmedia-codec/g722/g722_dec.c
+===================================================================
+--- pjmedia/src/pjmedia-codec/g722/g722_dec.c	(revisión: 3201)
++++ pjmedia/src/pjmedia-codec/g722/g722_dec.c	(revisión: 3202)
+@@ -504,7 +504,6 @@
+     unsigned i;
+     int ilowr, ylow, rlow, dlowt;
+     int ihigh, rhigh, dhigh;
+-    int pcm1, pcm2;
+     pj_uint8_t *in_ = (pj_uint8_t*) in;
+ 
+     PJ_ASSERT_RETURN(dec && in && in_size && out && nsamples, PJ_EINVAL);
+@@ -529,9 +528,7 @@
+ 	dec->shigh = block4h (dec, dhigh) ;
+ 	/* rhigh <= output high band pcm */
+ 
+-	rx_qmf(dec, rlow, rhigh, &pcm1, &pcm2);
+-	out[i*2] = (pj_int16_t)(pcm1 << 2);
+-	out[i*2+1] = (pj_int16_t)(pcm2 << 2);
++	rx_qmf(dec, rlow, rhigh, &out[i*2], &out[i*2+1]);
+     }
+ 
+     *nsamples = in_size << 1;
+Index: pjmedia/src/pjmedia-codec/g722.c
+===================================================================
+--- pjmedia/src/pjmedia-codec/g722.c	(revisión: 3201)
++++ pjmedia/src/pjmedia-codec/g722.c	(revisión: 3202)
+@@ -133,6 +133,7 @@
+     pj_pool_t		    *pool;
+     pj_mutex_t		    *mutex;
+     pjmedia_codec	     codec_list;
++    unsigned		     pcm_shift;
+ } g722_codec_factory;
+ 
+ 
+@@ -141,6 +142,8 @@
+ {
+     g722_enc_t		 encoder;
+     g722_dec_t		 decoder;
++    unsigned		 pcm_shift;
++    pj_int16_t		 pcm_clip_mask;
+     pj_bool_t		 plc_enabled;
+     pj_bool_t		 vad_enabled;
+     pjmedia_silence_det	*vad;
+@@ -167,6 +170,7 @@
+     g722_codec_factory.base.op = &g722_factory_op;
+     g722_codec_factory.base.factory_data = NULL;
+     g722_codec_factory.endpt = endpt;
++    g722_codec_factory.pcm_shift = PJMEDIA_G722_DEFAULT_PCM_SHIFT;
+ 
+     g722_codec_factory.pool = pjmedia_endpt_create_pool(endpt, "g722", 1000, 
+ 						        1000);
+@@ -240,6 +244,17 @@
+     return status;
+ }
+ 
++
++/*
++ * Set level adjustment.
++ */
++PJ_DEF(pj_status_t) pjmedia_codec_g722_set_pcm_shift(unsigned val)
++{
++    g722_codec_factory.pcm_shift = val;
++    return PJ_SUCCESS;
++}
++
++
+ /* 
+  * Check if factory can allocate the specified codec. 
+  */
+@@ -446,6 +461,9 @@
+ 
+     g722_data->vad_enabled = (attr->setting.vad != 0);
+     g722_data->plc_enabled = (attr->setting.plc != 0);
++    g722_data->pcm_shift = g722_codec_factory.pcm_shift;
++    g722_data->pcm_clip_mask = (pj_int16_t)(1<<g722_codec_factory.pcm_shift)-1;
++    g722_data->pcm_clip_mask <<= (16-g722_codec_factory.pcm_shift);
+ 
+     TRACE_((THIS_FILE, "G722 codec opened: vad=%d, plc=%d",
+ 			g722_data->vad_enabled, g722_data->plc_enabled));
+@@ -565,6 +583,17 @@
+ 	}
+     }
+ 
++    /* Adjust input signal level from 16-bit to 14-bit */
++    if (g722_data->pcm_shift) {
++	pj_int16_t *p, *end;
++
++	p = (pj_int16_t*)input->buf;
++	end = p + input->size;
++	while (p < end) {
++	    *p++ >>= g722_data->pcm_shift;
++	}
++    }
++
+     /* Encode to temporary buffer */
+     output->size = output_buf_len;
+     status = g722_enc_encode(&g722_data->encoder, (pj_int16_t*)input->buf, 
+@@ -623,6 +652,25 @@
+     }
+ 
+     pj_assert(output->size == SAMPLES_PER_FRAME);
++
++    /* Adjust input signal level from 14-bit to 16-bit */
++    if (g722_data->pcm_shift) {
++	pj_int16_t *p, *end;
++
++	p = (pj_int16_t*)output->buf;
++	end = p + output->size;
++	while (p < end) {
++#if PJMEDIA_G722_STOP_PCM_SHIFT_ON_CLIPPING
++	    /* If there is clipping, stop the PCM shifting */
++	    if (*p & g722_data->pcm_clip_mask) {
++		g722_data->pcm_shift = 0;
++		break;
++	    }
++#endif
++	    *p++ <<= g722_data->pcm_shift;
++	}
++    }
++
+     output->size = SAMPLES_PER_FRAME * 2;
+     output->type = PJMEDIA_FRAME_TYPE_AUDIO;
+     output->timestamp = input->timestamp;
