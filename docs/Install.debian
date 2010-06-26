@@ -22,15 +22,15 @@ sudo apt-key add agp-debian-gpg.key
 Add these lines to /etc/apt/sources.list:
 
 
-Debian Unstable
----------------
+Debian Unstable (Sid)
+---------------------
 
 deb	http://ag-projects.com/debian unstable main
 deb-src http://ag-projects.com/debian unstable main
 
 
-Debian Stable
--------------
+Debian Stable (Lenny)
+---------------------
 
 deb	http://ag-projects.com/debian stable main
 deb-src http://ag-projects.com/debian stable main
@@ -40,9 +40,11 @@ Update the list of available packages:
 
 sudo apt-get update
 
+
 Install SIP SIMPLE client SDK:
 
 sudo apt-get install python-sipsimple
+
 
 Install the Command Line Clients:
 

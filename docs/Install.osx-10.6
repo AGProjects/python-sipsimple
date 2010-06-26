@@ -104,7 +104,7 @@ cd ..
 Install Python dependencies by using the easy_install tool. The software
 will be installed in /Library/Python/2.6/site-packages.
 
-sudo easy_install -U python-gnutls dnspython twisted greenlet \
+sudo easy_install -U python-gnutls dnspython twisted \
 python-application PIL cython
 
 # Install lxml python module
@@ -116,7 +116,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. Eventlet
+ 1. Eventlet and Greenlet
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -129,6 +129,18 @@ if [ -d python-eventlet ]; then
 else
         darcs get http://devel.ag-projects.com/repositories/python-eventlet
         cd python-eventlet
+        sudo python setup.py install
+fi
+cd ..
+
+# Greenlet
+if [ -d python-greenlet ]; then
+        cd python-greenlet
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-greenlet
+        cd python-greenlet
         sudo python setup.py install
 fi
 cd ..

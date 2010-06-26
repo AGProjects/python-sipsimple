@@ -40,12 +40,13 @@ Update the list of available packages:
 
 sudo apt-get update
 
+
 Install SIP SIMPLE client SDK:
 
 sudo apt-get install python-sipsimple
 
+
 Install the Command Line Clients:
 
 sudo apt-get install sipclients
-
 
