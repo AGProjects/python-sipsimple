@@ -1020,10 +1020,8 @@ class AccountManager(object):
         return self.accounts.itervalues()
 
     def find_account(self, contact_uri):
-        contact_address = '%s@%s' % (contact_uri.user, contact_uri.host)
-
         # compare contact_address with account contact
-        exact_matches = (account for account in self.accounts.itervalues() if account.enabled and account.contact==contact_address)
+        exact_matches = (account for account in self.accounts.itervalues() if account.enabled and account.contact.username==contact_uri.user)
         # compare username in contact URI with account username
         loose_matches = (account for account in self.accounts.itervalues() if account.enabled and account.id.username==contact_uri.user)
         return chain(exact_matches, loose_matches, [None]).next()
