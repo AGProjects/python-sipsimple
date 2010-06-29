@@ -1062,7 +1062,8 @@ class AccountManager(object):
 
     def _get_default_account(self):
         settings = SIPSimpleSettings()
-        return self.accounts.get(settings.default_account, None)
+        account = self.accounts.get(settings.default_account, None)
+        return None if isinstance(account, BonjourAccount) and not account.available else account
 
     def _set_default_account(self, account):
         if account is not None and not account.enabled:
