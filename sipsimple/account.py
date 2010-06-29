@@ -29,13 +29,18 @@ from gnutls.interfaces.twisted import X509Credentials
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple import bonjour
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread, user_info
+
+try:
+    from sipsimple import bonjour
+except:
+    bonjour = Null
+
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
@@ -785,6 +790,11 @@ class BonjourSIPSettings(SettingsGroup):
 class BonjourMSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tcp')
 
+class BonjourAccountEnabledSetting(Setting):
+    def __get__(self, obj, objtype):
+        if obj is None:
+            return self
+        return self.values.get(obj, self.default) and bonjour is not Null
 
 class BonjourAccount(SettingsObject):
     """
@@ -814,7 +824,8 @@ class BonjourAccount(SettingsObject):
     __id__ = SIPAddress('bonjour@local')
 
     id = property(lambda self: self.__id__)
-    enabled = Setting(type=bool, default=True)
+    available = property(lambda self: bonjour is not Null)
+    enabled = BonjourAccountEnabledSetting(type=bool, default=True)
     display_name = Setting(type=str, default=user_info.fullname, nillable=False)
 
     rtp = RTPSettings
