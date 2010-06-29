@@ -9,7 +9,6 @@ multiple SIP accounts and their properties.
 from __future__ import absolute_import
 
 import os
-import platform
 import random
 import re
 import string
