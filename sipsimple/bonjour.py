@@ -48,6 +48,8 @@ application callbacks) are always unicode instances.
 
 """
 
+from __future__ import absolute_import
+
 
 __author__   = 'Christopher Stawarz <cstawarz@csail.mit.edu>'
 __version__  = '1.1.1'
@@ -60,6 +62,7 @@ import re
 import socket
 import sys
 
+from application.python.util import Null
 
 
 ################################################################################
@@ -85,8 +88,14 @@ _global_lock = _DummyLock()
 
 if sys.platform == 'win32':
     # Need to use the stdcall variants
-    _libdnssd = ctypes.windll.dnssd
-    _CFunc = ctypes.WINFUNCTYPE
+    try:
+        _libdnssd = ctypes.windll.dnssd
+    except:
+        _libdnssd = _CFunc = Null
+        available = False
+    else:
+        _CFunc = ctypes.WINFUNCTYPE
+        available = True
 else:
     if sys.platform == 'darwin':
         _libdnssd = 'libSystem.B.dylib'
@@ -106,8 +115,14 @@ else:
             from eventlet.green.threading import RLock
             _global_lock = RLock()
 
-    _libdnssd = ctypes.cdll.LoadLibrary(_libdnssd)
-    _CFunc = ctypes.CFUNCTYPE
+    try:
+        _libdnssd = ctypes.cdll.LoadLibrary(_libdnssd)
+    except:
+        _libdnssd = _CFunc = Null
+        available = False
+    else:
+        _CFunc = ctypes.CFUNCTYPE
+        available = True
 
 
 

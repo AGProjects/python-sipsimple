@@ -28,17 +28,13 @@ from gnutls.interfaces.twisted import X509Credentials
 from twisted.internet import reactor
 from zope.interface import implements
 
+from sipsimple import bonjour
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
-from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, limit, run_in_green_thread, run_in_twisted_thread, user_info
-
-try:
-    from sipsimple import bonjour
-except:
-    bonjour = Null
+from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, classproperty, limit, run_in_green_thread, run_in_twisted_thread, user_info
 
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager']
@@ -789,11 +785,18 @@ class BonjourSIPSettings(SettingsGroup):
 class BonjourMSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tcp')
 
+
 class BonjourAccountEnabledSetting(Setting):
     def __get__(self, obj, objtype):
         if obj is None:
             return self
-        return self.values.get(obj, self.default) and bonjour is not Null
+        return bonjour.available and self.values.get(obj, self.default)
+
+    def __set__(self, obj, value):
+        if not bonjour.available:
+            raise RuntimeError('mdns support is not available')
+        Setting.__set__(self, obj, value)
+
 
 class BonjourAccount(SettingsObject):
     """
@@ -823,7 +826,6 @@ class BonjourAccount(SettingsObject):
     __id__ = SIPAddress('bonjour@local')
 
     id = property(lambda self: self.__id__)
-    available = property(lambda self: bonjour is not Null)
     enabled = BonjourAccountEnabledSetting(type=bool, default=True)
     display_name = Setting(type=str, default=user_info.fullname, nillable=False)
 
@@ -874,6 +876,10 @@ class BonjourAccount(SettingsObject):
 
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+
+    @classproperty
+    def mdns_available(self):
+        return bonjour.available
 
     @property
     def registered(self):
@@ -983,6 +989,12 @@ class AccountManager(object):
         # and the other accounts
         names = configuration.get_names(Account.__group__)
         [Account(id) for id in names if id != bonjour_account.id]
+        default_account = self.default_account
+        if (default_account is not None and not default_account.enabled) or default_account is None:
+            try:
+                self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+            except StopIteration:
+                self.default_account = None
 
     def start(self):
         """
@@ -1062,8 +1074,7 @@ class AccountManager(object):
 
     def _get_default_account(self):
         settings = SIPSimpleSettings()
-        account = self.accounts.get(settings.default_account, None)
-        return None if isinstance(account, BonjourAccount) and not account.available else account
+        return self.accounts.get(settings.default_account, None)
 
     def _set_default_account(self, account):
         if account is not None and not account.enabled:
