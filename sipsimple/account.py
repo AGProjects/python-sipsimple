@@ -990,7 +990,7 @@ class AccountManager(object):
         names = configuration.get_names(Account.__group__)
         [Account(id) for id in names if id != bonjour_account.id]
         default_account = self.default_account
-        if (default_account is not None and not default_account.enabled) or default_account is None:
+        if default_account is None or not default_account.enabled:
             try:
                 self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
             except StopIteration:
