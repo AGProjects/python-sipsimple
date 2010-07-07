@@ -37,6 +37,7 @@ Required MSYS and MinGW packages:
  * make (bin)
  * sed (bin)
  * grep (bin)
+ * gawk (bin)
  * findutils (bin)
  * patch (bin)
  * tar (bin)
@@ -62,6 +63,7 @@ Required MSYS and MinGW packages:
  * libz (dll)
  * gdb (bin)
  * libexpat (dll)
+ * win32api (dev)
 
 To install the above dependencies in an easy way, download AG Projects
 installer from http://download.ag-projects.com/SipClient/Windows/SipSimpleIDE.exe
