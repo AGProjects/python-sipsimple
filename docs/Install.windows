@@ -1,3 +1,4 @@
+
 SIP SIMPLE client SDK installation on Microsoft Windows
 -------------------------------------------------------
 
@@ -7,5 +8,220 @@ http://ag-projects.com
 Home page: http://sipsimpleclient.com
 
 This document describes the installation procedure on Microsoft Windows
-operating systems.
+operating systems. Windows XP, Windows Vista and Windows 7 are supported.
+
+
+Step 1. Prerequisites
+---------------------
+	
+The building process is designed to work with MinGW compiler. A proper
+MSYS/MinGW setup is necessary along with Python (>= 2.5).  The development
+version of the following packages are also needed:
+
+ * openssl
+ * gnutls >=2.4.1
+ * python-setuptools =>0.6c9
+ * subversion and darcs version control tools
+
+Required MSYS and MinGW packages:
+
+# MSYS (http://sourceforge.net/projects/mingw/files/MSYS/)
+ * MsysCORE (bin)
+ * libregex (dll)
+ * libtermcap (dll)
+ * coreutils (bin)
+ * libintl (dll)
+ * libiconv (dll)
+ * bash (bin)
+ * wget (bin)
+ * make (bin)
+ * sed (bin)
+ * grep (bin)
+ * findutils (bin)
+ * patch (bin)
+ * tar (bin)
+ * bzip2 (bin)
+ * gzip (bin)
+ * diffutils (bin)
+
+# MinGW (http://sourceforge.net/projects/mingw/files/MinGW/)
+ * gcc-core (bin)
+ * libgcc (dll)
+ * gcc-c++ (bin)
+ * binutils (bin)
+ * less (bin)
+ * gmp (dev)
+ * libgmp (dll)
+ * pthreads (dev)
+ * libpthread (dll)
+ * mpc (dev)
+ * libmpc (dll)
+ * mpfr (dev)
+ * libmpfr (dll)
+ * mingwrt (dev)
+ * libz (dll)
+ * gdb (bin)
+ * libexpat (dll)
+
+To install the above dependencies in an easy way, download AG Projects
+installer from http://download.ag-projects.com/SipClient/Windows/SipSimpleIDE.exe
+
+The installer includes the following components:
+
+ * MSYS environment
+ * MinGW compiler
+ * Darcs and subversion version control tools
+ * Python (2.6.5)
+ * python-srtuptools (0.6c11)
+ * GNUTLS (2.8.6)
+ * OpenSSL (1.0.0a)
+ * Apple Bonjour SDK
+ * Miscrosoft VC 2008 Redistributable
+
+When using the installer select the default options proposed by the installer.
+
+After the above dependencies have been installed, the distutils Python
+package needs to be configured to use MinGW as the compiler.  In order
+to do so, create a file called 'distutls.cfg' in C:\Python26\Lib\distutils\
+with the following content:
+
+
+-- BEGIN distutils.cfg --
+[build]
+compiler=mingw32
+[build_ext]
+compiler=mingw32
+-- END distutils.cfg --
+
+Make sure the extension of the created file is .cfg
+
+
+Step 2. Install python dependencies
+-----------------------------------
+
+The following python packages need to be installed. Notice the minimum
+version numbers:
+
+ * python-gnutls            http://pypi.python.org/simple/python-gnutls       dev
+ * python-application       http://pypi.python.org/simple/python-application  dev
+ * python-lxml              http://codespeak.net/lxml                         ==2.2.4
+ * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
+ * python-greenlet          http://download.ag-projects.com/SipClient         =0.4.0
+ * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
+ * cython                   http://www.cython.org                             >=0.11.2
+ * dnspython                http://www.dnspython.org                          >=1.6.0
+ * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
+ * zope-interface           http://www.zope.org                               >=3.3.1
+
+You must use the easy_install script provided by the python-setuptools
+package to install the packages:
+
+easy_install -U cython dnspython twisted lxml==2.2.4 dnspython
+
+Some packages need to be installed manually:
+
+# python-application
+if [ -d python-application ]; then
+        cd python-application
+        darcs pull -a 
+else
+        darcs get http://devel.ag-projects.com/repositories/python-application
+        cd python-application
+fi
+python setup.py install
+cd ..
+
+# python-cjson
+if [ -d python-cjson ]; then
+        cd python-cjson
+        darcs pull -a 
+else
+        darcs get http://devel.ag-projects.com/repositories/python-cjson
+        cd python-cjson
+fi
+python setup.py build
+python setup.py install
+cd ..
+
+# python-gnutls
+if [ -d python-gnutls ]; then
+        cd python-gnutls
+        darcs pull -a 
+else
+        darcs get http://devel.ag-projects.com/repositories/python-gnutls
+        cd python-gnutls
+fi
+python setup.py build
+python setup.py install
+cd ..
+
+
+Step 3. Install SIP SIMPLE client SDK
+-------------------------------------
+
+The SDK consists of four parts:
+
+ 1. Eventlet and Greenlet
+ 2. XCAP library
+ 3. MSRP library
+ 4. SIP SIMPLE library
+
+# Greenlet
+if [ -d python-greenlet ]; then
+        cd python-greenlet
+        darcs pull -a 
+else
+        darcs get http://devel.ag-projects.com/repositories/python-greenlet
+        cd python-greenlet
+fi
+python setup.py install
+cd ..
+
+# Eventlet
+if [ -d python-eventlet ]; then
+        cd python-eventlet
+        darcs pull -a 
+else
+        darcs get http://devel.ag-projects.com/repositories/python-eventlet
+        cd python-eventlet
+fi
+python setup.py install
+cd ..
+
+# XCAP library
+if [ -d python-xcaplib ]; then
+        cd python-xcaplib
+        darcs pull -a 
+else
+        darcs get http://devel.ag-projects.com/repositories/python-xcaplib
+        cd python-xcaplib
+fi
+python setup.py install
+cd ..
+
+# MSRP library
+if [ -d python-msrplib ]; then
+        cd python-msrplib
+        darcs pull -a
+else
+        darcs get http://devel.ag-projects.com/repositories/python-msrplib
+        cd python-msrplib
+fi
+python setup.py install
+cd ..
+
+# SIP SIMPLE
+if [ -d python-sipsimple ]; then
+	cd python-sipsimple
+	darcs pull -a
+else 
+	darcs get http://devel.ag-projects.com/repositories/python-sipsimple
+        cd python-sipsimple
+fi
+python setup.py build_ext --pjsip-clean-compile
+python setup.py install
+cd ..
+
+
+The software has been installed in C:\Python26\Lib\site-packages
 
