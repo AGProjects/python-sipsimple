@@ -85,10 +85,8 @@ The installer includes the following components:
 When using the installer select the default options proposed by the installer.
 
 After the above dependencies have been installed, the distutils Python
-package needs to be configured to use MinGW as the compiler.  In order
-to do so, create a file called 'distutls.cfg' in C:\Python26\Lib\distutils\
-with the following content:
-
+package needs to be configured to use MinGW as the compiler. Create the file
+C:\Python26\Lib\distutils\distutils.cfg with the following content:
 
 -- BEGIN distutils.cfg --
 [build]
@@ -96,8 +94,6 @@ compiler=mingw32
 [build_ext]
 compiler=mingw32
 -- END distutils.cfg --
-
-Make sure the extension of the created file is .cfg
 
 
 Step 2. Install python dependencies
