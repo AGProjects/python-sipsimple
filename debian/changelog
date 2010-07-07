@@ -1,3 +1,16 @@
+python-sipsimple (0.15.1) unstable; urgency=low
+
+  * Added support for Microsoft Windows
+  * Added PJSIP patch for adaptive G722 bitshifting 
+  * Improved the initialization of the TLS options when starting the Engine
+  * Added support for terminating sessions in SessionManager
+  * Don't enable bonjour account if bonjour support is not detected
+  * Modified account matching rule for incoming sessions to ignore IP address
+  * Added thread attribute to SIPApplication as the Thread the reactor runs in
+  * Improved synchronization of the audio devices with corresponding entries
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 07 Jul 2010 17:17:42 +0200
+
 python-sipsimple (0.15.0) unstable; urgency=low
 
   * Updated documentation
