@@ -66,7 +66,9 @@ Required MSYS and MinGW packages:
  * win32api (dev)
 
 To install the above dependencies in an easy way, download AG Projects
-installer from http://download.ag-projects.com/SipClient/Windows/SipSimpleIDE.exe
+installer from: 
+
+http://download.ag-projects.com/SipClient/Windows/SipSimpleIDE.exe
 
 The installer includes the following components:
 
