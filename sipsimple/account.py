@@ -74,6 +74,7 @@ class AccountRegistrar(object):
         self.registered = False
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
+        self._dns_wait = 1
         self._refresh_timer = None
         self._register_wait = 1
         self._registration = None
@@ -141,7 +142,11 @@ class AccountRegistrar(object):
             try:
                 routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
             except DNSLookupError, e:
-                raise SIPAccountRegistrationError(error='DNS lookup failed: %s' % e, timeout=random.uniform(1, 2))
+                timeout = random.uniform(self._dns_wait, 2*self._dns_wait)
+                self._dns_wait = limit(2*self._dns_wait, max=30)
+                raise SIPAccountRegistrationError(error='DNS lookup failed: %s' % e, timeout=timeout)
+            else:
+                self._dns_wait = 1
 
             # Rebuild contact
             self.contact = ContactURI('%s@%s' % (self.contact.username, host.default_ip))
