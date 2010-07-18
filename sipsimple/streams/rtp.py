@@ -357,7 +357,7 @@ class AudioStream(object):
     #
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_DNSLookupDidFail(self, notification):

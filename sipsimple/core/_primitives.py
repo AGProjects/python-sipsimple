@@ -56,7 +56,7 @@ class Registration(object):
                 NotificationCenter().post_notification("SIPRegistrationDidNotEnd", sender=self, data=TimestampedNotificationData(code=0, reason=e.args[0]))
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_SIPRequestDidSucceed(self, notification):
@@ -183,7 +183,7 @@ class Message(object):
             self._request.end()
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_SIPRequestDidSucceed(self, notification):
@@ -245,7 +245,7 @@ class Publication(object):
             NotificationCenter().post_notification("SIPPublicationWillEnd", sender=self, data=TimestampedNotificationData())
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_SIPRequestDidSucceed(self, notification):

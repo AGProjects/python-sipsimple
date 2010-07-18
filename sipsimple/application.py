@@ -246,7 +246,7 @@ class SIPApplication(object):
         return cls.voice_audio_bridge.mixer if cls.voice_audio_bridge else None
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_SIPEngineDidEnd(self, notification):

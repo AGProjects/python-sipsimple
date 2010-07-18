@@ -242,7 +242,7 @@ class AccountRegistrar(object):
 
     @run_in_twisted_thread
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_SIPRegistrationDidSucceed(self, notification):
@@ -532,7 +532,7 @@ class BonjourServices(object):
 
     @run_in_green_thread
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_SystemIPAddressDidChange(self, notification):
@@ -728,7 +728,7 @@ class Account(SettingsObject):
         return SIPURI(user=self.id.username, host=self.id.domain)
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     @run_in_green_thread
@@ -916,7 +916,7 @@ class BonjourAccount(SettingsObject):
         return SIPURI(user=self.contact.username, host=self.contact.domain)
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     @run_in_green_thread
@@ -1044,7 +1044,7 @@ class AccountManager(object):
         return chain(exact_matches, loose_matches, [None]).next()
 
     def handle_notification(self, notification):
-        handler = getattr(self, '_NH_%s' % notification.name, Null())
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
