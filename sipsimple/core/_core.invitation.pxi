@@ -558,6 +558,7 @@ cdef class Invitation:
 
     cdef int _cb_state(self, StateCallbackTimer timer) except -1:
         cdef int status
+        cdef bint pjsip_error = False
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_sdp_session_ptr_const sdp
         cdef pjsip_inv_session *invite_session
@@ -596,6 +597,7 @@ cdef class Invitation:
                 # we either sent a cancel or a negative reply to an incoming INVITE
                 if self._invite_session.cancelling or (self.state in ("incoming", "early") and self.direction == "incoming" and rdata is None):
                     # we caused the disconnect so send the transition to the disconnecting state
+                    pjsip_error = True
                     event_dict = dict(obj=self, prev_state=self.state, state="disconnecting", originator="local")
                     self.state = "disconnecting"
                     _add_event("SIPInvitationChangedState", event_dict)
@@ -640,7 +642,7 @@ cdef class Invitation:
                         pjmedia_sdp_neg_cancel_remote_offer(self._invite_session.neg)
                     self._reinvite_transaction = NULL
             if state == "disconnected":
-                event_dict["disconnect_reason"] = "user request"
+                event_dict["disconnect_reason"] = "user request" if not pjsip_error else "internal error"
                 if not self._invite_session.cancelling and rdata is None and self._invite_session.cause > 0:
                     # pjsip internally generates 408 and 503
                     if self._invite_session.cause == 408:

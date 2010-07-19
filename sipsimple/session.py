@@ -197,6 +197,8 @@ class Session(object):
                                                                           TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
                                 else:
                                     unhandled_notifications.append(notification)
+                            elif notification.data.state == 'disconnected':
+                                raise InvitationDidFailError(notification.sender, notification.data)
             except api.TimeoutError:
                 self.greenlet = None
                 self.end()
@@ -249,6 +251,8 @@ class Session(object):
                                                                   TimestampedNotificationData(originator='local', method='INVITE', code=received_code, reason=received_reason))
                         else:
                             unhandled_notifications.append(notification)
+                    elif notification.data.state == 'disconnected':
+                        raise InvitationDidFailError(notification.sender, notification.data)
         except (MediaStreamDidFailError, api.TimeoutError), e:
             for stream in self.proposed_streams:
                 notification_center.remove_observer(self, sender=stream)
@@ -392,6 +396,8 @@ class Session(object):
                             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received=True))
                         elif notification.data.prev_state == 'connected':
                             unhandled_notifications.append(notification)
+                    elif notification.data.state == 'disconnected':
+                        raise InvitationDidFailError(notification.sender, notification.data)
             wait_count = 0
             stream_map = dict((stream.index, stream) for stream in self.proposed_streams)
             for index, local_media in enumerate(local_sdp.media):
@@ -426,6 +432,8 @@ class Session(object):
                                 notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason='OK', ack_received=True))
                             elif notification.data.prev_state == 'connected':
                                 unhandled_notifications.append(notification)
+                        elif notification.data.state == 'disconnected':
+                            raise InvitationDidFailError(notification.sender, notification.data)
                     else:
                         unhandled_notifications.append(notification)
         except (MediaStreamDidFailError, api.TimeoutError), e:
@@ -603,6 +611,8 @@ class Session(object):
                     if notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=200, reason=sip_status_messages[200], ack_received='unknown'))
                         received_invitation_state = True
+                    elif notification.data.state == 'disconnected':
+                        raise InvitationDidFailError(notification.sender, notification.data)
 
             on_hold_streams = set(stream for stream in self.streams if stream.hold_supported and stream.on_hold_by_remote)
             if on_hold_streams != prev_on_hold_streams:
@@ -738,6 +748,8 @@ class Session(object):
                                     self.proposed_streams = None
                                     self.greenlet = None
                                     return
+                            elif notification.data.state == 'disconnected':
+                                raise InvitationDidFailError(notification.sender, notification.data)
             except api.TimeoutError:
                 self.greenlet = None
                 self.cancel_proposal()
@@ -826,6 +838,8 @@ class Session(object):
                     elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                    elif notification.data.state == 'disconnected':
+                        raise InvitationDidFailError(notification.sender, notification.data)
         except InvitationDidFailError, e:
             self.greenlet = None
             self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
@@ -866,6 +880,8 @@ class Session(object):
                             notification_center.post_notification('SIPSessionGotRejectProposal', self, TimestampedNotificationData(originator='remote', code=notification.data.code, reason=notification.data.reason, streams=self.proposed_streams))
                         elif notification.data.code == 200:
                             self.end()
+                    elif notification.data.state == 'disconnected':
+                        raise InvitationDidFailError(notification.sender, notification.data)
                     break
         except SIPCoreError, e:
             self.proposed_streams = None
@@ -1019,6 +1035,8 @@ class Session(object):
                     elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                    elif notification.data.state == 'disconnected':
+                        raise InvitationDidFailError(notification.sender, notification.data)
         except InvitationDidFailError, e:
             self.greenlet = None
             self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
@@ -1073,6 +1091,8 @@ class Session(object):
                     elif notification.data.state == 'connected' and notification.data.sub_state == 'normal':
                         received_invitation_state = True
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
+                    elif notification.data.state == 'disconnected':
+                        raise InvitationDidFailError(notification.sender, notification.data)
         except InvitationDidFailError, e:
             self.greenlet = None
             self.handle_notification(Notification('SIPInvitationChangedState', e.invitation, e.data))
