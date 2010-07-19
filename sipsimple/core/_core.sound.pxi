@@ -399,12 +399,12 @@ cdef class AudioMixer:
                     with nogil:
                         pjsip_endpt_release_pool(endpoint, snd_pool)
                     self._snd_pool = NULL
-                    return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
+                    return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
                 elif status == PJMEDIA_ENOSNDREC:
                     with nogil:
                         pjsip_endpt_release_pool(endpoint, snd_pool)
                     self._snd_pool = NULL
-                    return self._start_sound_device(ua, input_device, None, ec_tail_length, revert_to_default)
+                    return self._start_sound_device(ua, None, output_device, ec_tail_length, revert_to_default)
                 elif status != 0:
                     raise PJSIPError("Could not create sound device", status)
                 if input_device is not None and output_device is not None:
