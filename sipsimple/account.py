@@ -708,7 +708,7 @@ class Account(SettingsObject):
         # however this is not a time consuming operation (~ 3000 req/sec). -Luci
         settings = SIPSimpleSettings()
         if self.tls.certificate is not None:
-            certificate_data = open(os.path.expanduser(self.tls.certificate)).read()
+            certificate_data = open(self.tls.certificate.normalized).read()
             certificate = X509Certificate(certificate_data)
             private_key = X509PrivateKey(certificate_data)
         else:
@@ -716,7 +716,7 @@ class Account(SettingsObject):
             private_key = None
         if settings.tls.ca_list is not None:
             # we should read all certificates in the file, rather than just the first -Luci
-            trusted = [X509Certificate(open(os.path.expanduser(settings.tls.ca_list)).read())]
+            trusted = [X509Certificate(open(settings.tls.ca_list.normalized).read())]
         else:
             trusted = []
         credentials = X509Credentials(certificate, private_key, trusted)
@@ -896,7 +896,7 @@ class BonjourAccount(SettingsObject):
         # however this is not a time consuming operation (~ 3000 req/sec). -Luci
         settings = SIPSimpleSettings()
         if self.tls.certificate is not None:
-            certificate_data = open(os.path.expanduser(self.tls.certificate)).read()
+            certificate_data = open(self.tls.certificate.normalized).read()
             certificate = X509Certificate(certificate_data)
             private_key = X509PrivateKey(certificate_data)
         else:
@@ -904,7 +904,7 @@ class BonjourAccount(SettingsObject):
             private_key = None
         if settings.tls.ca_list is not None:
             # we should read all certificates in the file, rather than just the first -Luci
-            trusted = [X509Certificate(open(os.path.expanduser(settings.tls.ca_list)).read())]
+            trusted = [X509Certificate(open(settings.tls.ca_list.normalized).read())]
         else:
             trusted = []
         credentials = X509Credentials(certificate, private_key, trusted)
