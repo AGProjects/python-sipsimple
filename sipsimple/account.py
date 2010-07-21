@@ -399,7 +399,7 @@ class BonjourServices(object):
             txt = bonjour.TXTRecord.parse(txtrecord)
             contact = txt['contact'].strip('<>') if 'contact' in txt else None
             if contact:
-                display_name = txt['name'] if 'name' in txt else None
+                display_name = txt['name'].decode('utf-8') if 'name' in txt else None
                 host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
                 uri = FrozenSIPURI.parse(contact)
                 transport = uri.parameters.get('transport', 'udp')
@@ -452,6 +452,7 @@ class BonjourServices(object):
             if transport == 'tls' and not self.account.tls.certificate:
                 continue
             contact = self.account.contact[transport]
+            # When account.display_name will be a unicode object, a encode('utf-8') is required here. -Luci
             txtdata = dict(txtvers=1, name=self.account.display_name, contact="<%s>" % str(contact))
             try:
                 file = bonjour.DNSServiceRegister(name=str(contact),
