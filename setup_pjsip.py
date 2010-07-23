@@ -113,8 +113,8 @@ class PJSIP_build_ext(build_ext):
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
-                    "patches/portaudio-pa_linux_alsa.c_pulse_1.patch",
-                    "patches/portaudio-pa_linux_alsa.c_pulse_2.patch"]
+                    "patches/portaudio-1420-compile_snow_leopard.patch",
+                    "patches/portaudio-1420-pa_mac_core_x64_assert_fix.patch"]
 
     trunk_overrides = []
 
@@ -135,7 +135,7 @@ class PJSIP_build_ext(build_ext):
         self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
         self.pjsip_build_dir = os.environ.get("PJSIP_BUILD_DIR", None)
         self.pjsip_svn_repo = self.pjsip_svn_repos["1.0"]
-        self.portaudio_svn_revision = os.environ.get("PORTAUDIO_SVN_REVISION", "1433")
+        self.portaudio_svn_revision = os.environ.get("PORTAUDIO_SVN_REVISION", "1412")
 
     def check_cython_version(self):
         from Cython.Compiler.Version import version as cython_version
