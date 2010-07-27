@@ -37,7 +37,7 @@ from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, classproperty, limit, run_in_green_thread, run_in_twisted_thread, user_info
 
 
-__all__ = ['Account', 'BonjourAccount', 'AccountManager']
+__all__ = ['Account', 'BonjourAccount', 'AccountManager', 'AccountExists']
 
 
 class ContactURI(SIPAddress):
@@ -62,6 +62,8 @@ class SIPAccountRegistrationError(Exception):
         self.timeout = timeout
 
 class RestartSelect(Exception): pass
+
+class AccountExists(ValueError): pass
 
 
 class AccountRegistrar(object):
@@ -606,6 +608,19 @@ class MSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tls')
     connection_model = Setting(type=MSRPConnectionModel, default='relay')
 
+
+class AccountID(SettingsObjectID):
+    def __init__(self):
+        SettingsObjectID.__init__(self, type=SIPAddress)
+
+    def __set__(self, account, id):
+        if not isinstance(id, self.type):
+            id = self.type(id)
+        if AccountManager().has_account(id):
+            raise AccountExists('SIP address in use by another account')
+        SettingsObjectID.__set__(self, account, id)
+
+
 class Account(SettingsObject):
     """
     Object represeting a SIP account. Contains configuration settings and
@@ -630,7 +645,7 @@ class Account(SettingsObject):
 
     __group__ = 'Accounts'
 
-    id = SettingsObjectID(type=SIPAddress)
+    id = AccountID()
     enabled = Setting(type=bool, default=False)
     display_name = Setting(type=str, default=None, nillable=True)
 
