@@ -1,3 +1,18 @@
+python-sipsimple (0.15.2) unstable; urgency=low
+
+  * Added check to ensure uniqueness of accounts' IDs
+  * Revert G722 adaptive bitshifting that broke re-INVITES
+  * Added python-lxml dependency and sorted dependencies order
+  * Fixed handling unicode characters in the bonjour neighbours' display names
+  * Made use of the normalized property of Path configuration datatype
+  * Fixed handling the case when an internal pjsip invitation error occurs
+  * Fixed falling back to the None device when opening an AudioMixer
+  * Null is already an instance, no need to instantiate it anymore
+  * Added exponential timeout to DNS lookups for register
+  * Lower PortAudio revision to 1412 and removed pulse patches
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Tue, 27 Jul 2010 18:08:44 +0200
+
 python-sipsimple (0.15.1) unstable; urgency=low
 
   * Added support for Microsoft Windows
