@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Dan Pascu <dan@ag-projects.com>
 Uploaders: Adrian Georgescu <ag@ag-projects.com>, Lucian Stanescu <luci@ag-projects.com>, Saul Ibarra <saul@ag-projects.com>
 Build-Depends: cdbs (>= 0.4.47), debhelper (>= 7), python-all-dev (>= 2.5), python-support, cython (>= 0.11.2), libasound2-dev, libssl-dev, subversion
-Standards-Version: 3.8.4
+Standards-Version: 3.9.0
 Homepage: http://sipsimpleclient.com
 
 Package: python-sipsimple
