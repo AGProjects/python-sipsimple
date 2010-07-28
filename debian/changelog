@@ -10,8 +10,9 @@ python-sipsimple (0.15.2) unstable; urgency=low
   * Null is already an instance, no need to instantiate it anymore
   * Added exponential timeout to DNS lookups for register
   * Lower PortAudio revision to 1412 and removed pulse patches
+  * Bumped Standards-Version to 3.9.0
 
- -- Adrian Georgescu <ag@ag-projects.com>  Tue, 27 Jul 2010 18:08:44 +0200
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 28 Jul 2010 10:39:05 +0200
 
 python-sipsimple (0.15.1) unstable; urgency=low
 
