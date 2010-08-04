@@ -350,7 +350,7 @@ class Rule(XMLElement):
                            Actions.qname: 1,
                            Transformations.qname: 2}
 
-    id = XMLAttribute('id', type=str, required=True, test_equal=True)
+    id = XMLAttribute('id', type=unicode, required=True, test_equal=True)
     conditions = XMLElementChild('conditions', type=Conditions, required=False, test_equal=True)
     actions = XMLElementChild('actions', type=Actions, required=False, test_equal=True)
     transformations = XMLElementChild('transformations', type=Transformations, required=False, test_equal=True)

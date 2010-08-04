@@ -66,7 +66,7 @@ class Entry(XMLElement, ListElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    uri = XMLAttribute('uri', type=str, required=True, test_equal=True)
+    uri = XMLAttribute('uri', type=unicode, required=True, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
     _xml_id = uri
 
@@ -75,8 +75,8 @@ class Entry(XMLElement, ListElement):
         self.uri = uri
         self.display_name = display_name
 
-    def __str__(self):
-        return self.display_name and '"%s" <%s>' % (self.display_name, self.uri) or self.uri
+    def __unicode__(self):
+        return self.display_name and u'"%s" <%s>' % (self.display_name, self.uri) or self.uri
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.uri, self.display_name)
@@ -97,7 +97,7 @@ class EntryRef(XMLElement, ListElement):
         self.ref = ref
         self.display_name = display_name
 
-    def __str__(self):
+    def __unicode__(self):
         return self.display_name and '"%s" <%s>' % (self.display_name, self.ref) or self.ref
 
     def __repr__(self):
@@ -119,7 +119,7 @@ class External(XMLElement, ListElement):
         self.anchor = anchor
         self.display_name = display_name
 
-    def __str__(self):
+    def __unicode__(self):
         return self.display_name and '"%s" <%s>' % (self.display_name, self.anchor) or self.anchor
 
     def __repr__(self):
@@ -135,7 +135,7 @@ class List(XMLListElement, ListElement):
                            EntryRef.qname: 1,
                            External.qname: 1}
 
-    name = XMLAttribute('name', type=str, required=False, test_equal=True)
+    name = XMLAttribute('name', type=unicode, required=False, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
     _xml_id = name
 
@@ -190,12 +190,12 @@ class List(XMLListElement, ListElement):
     def _del_item(self, value):
         self.element.remove(value.element)
 
-    def __str__(self):
-        name = 'List element'
+    def __unicode__(self):
+        name = u'List element'
         if self.name is not None:
-            name += ' %s' % str(self.name)
+            name += u' %s' % self.name
         if self.display_name is not None:
-            name += ' (%s)' % str(self.display_name)
+            name += u' (%s)' % self.display_name
         return name
 
     def __repr__(self):

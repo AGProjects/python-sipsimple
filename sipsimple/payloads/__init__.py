@@ -88,13 +88,13 @@ class XMLApplication(object):
 ## Children descriptors
 
 class XMLAttribute(object):
-    def __init__(self, name, xmlname=None, type=str, default=None, parser=None, builder=None, required=False, test_equal=True, onset=None, ondel=None):
+    def __init__(self, name, xmlname=None, type=unicode, default=None, parser=None, builder=None, required=False, test_equal=True, onset=None, ondel=None):
         self.name = name
         self.xmlname = xmlname or name
         self.type = type
         self.default = default
         self.parser = parser or (lambda value: value)
-        self.builder = builder or (lambda value: str(value))
+        self.builder = builder or (lambda value: unicode(value))
         self.required = required
         self.test_equal = test_equal
         self.onset = onset
@@ -576,7 +576,7 @@ class XMLListMixin(list):
 
 class XMLStringElement(XMLElement):
     _xml_lang = False # To be defined in subclass
-    _xml_value_type = str # To be defined in subclass
+    _xml_value_type = unicode # To be defined in subclass
 
     lang = XMLAttribute('lang', xmlname='{http://www.w3.org/XML/1998/namespace}lang', type=str, required=False, test_equal=True)
     
@@ -594,10 +594,7 @@ class XMLStringElement(XMLElement):
 
     def _build_element(self, *args, **kwargs):
         if self.value is not None:
-            try:
-                self.element.text = str(self.value)
-            except ValueError:
-                self.element.text = self.value.decode('utf-8')
+            self.element.text = unicode(self.value)
         else:
             self.element.text = None
         if not self._xml_lang and self.lang is not None:
@@ -617,13 +614,13 @@ class XMLStringElement(XMLElement):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.value, self.lang)
 
-    def __str__(self):
-        return str(self.value)
+    def __unicode__(self):
+        return unicode(self.value)
 
     def __eq__(self, obj):
         if self._xml_lang and not (hasattr(obj, 'lang') and self.lang == obj.lang):
             return False
-        return self.value == str(obj)
+        return self.value == unicode(obj)
 
     def __hash__(self):
         return hash(self.value)
@@ -634,8 +631,6 @@ class XMLEmptyElement(XMLElement):
         XMLElement.__init__(self)
     def __repr__(self):
         return '%s()' % self.__class__.__name__
-    def __str__(self):
-        return self.__class__.__name__
     def __eq__(self, obj):
         return type(self) == type(obj)
     def __hash__(self):
