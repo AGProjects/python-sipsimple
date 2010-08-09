@@ -932,7 +932,11 @@ class Session(object):
             api.kill(self.greenlet, api.GreenletExit())
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
-        if self._invitation is None or self._invitation.state in (None, 'disconnecting', 'disconnected'):
+        if self._invitation is None or self._invitation.state is None:
+            # The invitation was not yet constructed
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
+            return
+        if self._invitation.state in ('disconnecting', 'disconnected'):
             return
         self.state = 'terminating'
         if self._invitation.state == 'connected':
