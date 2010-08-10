@@ -171,7 +171,10 @@ class PJSIP_build_ext(build_ext):
                 svn_updated = self.pjsip_clean_compile or new_svn_rev != old_svn_rev
                 if svn_updated:
                     distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
-                    distutils_exec_process("svn status \"%s\" | grep ^\?| awk '{print $2}' | xargs -I '{}' rm '{}'" % (self.svn_dir,), True, shell=True)
+                    if sys.platform == "win32":
+                        distutils_exec_process("bash svn status \"%s\" | grep ^\?| awk '{print $2}' | xargs -I '{}' rm '{}'" % (self.svn_dir,), True, shell=True)
+                    else:
+                        distutils_exec_process("svn status \"%s\" | grep ^\?| awk '{print $2}' | xargs -I '{}' rm '{}'" % (self.svn_dir,), True, shell=True)
                     self.update_from_svn()
                     if self.pjsip_svn_repo == self.pjsip_svn_repos["1.0"]:
                         for override_file, override_revision in self.trunk_overrides:
