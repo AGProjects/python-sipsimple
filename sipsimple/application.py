@@ -222,6 +222,12 @@ class SIPApplication(object):
         procs = [proc.spawn(account_manager.stop), proc.spawn(session_manager.stop)]
         proc.waitall(procs)
 
+        # workaround to prevent the Engine from hanging: set devices to None before shutting down
+        # this code will block the twisted thread, but the middleware is already stopped so it is safe to do so - Saul
+        settings = SIPSimpleSettings()
+        self.voice_audio_bridge.mixer.set_sound_devices(None, None, settings.audio.tail_length)
+        self.alert_audio_bridge.mixer.set_sound_devices(None, None, 0)
+
         # shutdown engine
         engine = Engine()
         engine.stop()
