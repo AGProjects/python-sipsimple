@@ -49,6 +49,7 @@ ResourceListsApplication.register_namespace(namespace, prefix='rl')
 ## Marker mixins
 
 class ListElement(object): pass
+class EntryExtension(object): pass
 
 
 ## Elements
@@ -63,6 +64,7 @@ class DisplayName(XMLStringElement):
 class Entry(XMLElement, ListElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
+    _xml_extension_type = EntryExtension
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
