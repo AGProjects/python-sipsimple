@@ -1,3 +1,14 @@
+python-sipsimple (0.15.3) unstable; urgency=low
+
+  * Changed default codec list to have G722 as first choice
+  * Fixed handling of case when session is ended before INVITE is sent
+  * Fixed subversion command execution for Windows
+  * Set all devices to None before shutdown
+  * Made the reactor thread a daemon thread
+  * Bumped Standards-Version to 3.9.1
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 13 Aug 2010 11:06:45 +0200
+
 python-sipsimple (0.15.2) unstable; urgency=low
 
   * Added check to ensure uniqueness of account IDs
