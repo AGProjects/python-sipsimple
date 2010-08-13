@@ -79,6 +79,7 @@ class SIPApplication(object):
 
         # start the reactor thread
         self.thread = Thread(name='Reactor Thread', target=self._run_reactor)
+        self.thread.setDaemon(True)
         self.thread.start()
 
     def _run_reactor(self):
