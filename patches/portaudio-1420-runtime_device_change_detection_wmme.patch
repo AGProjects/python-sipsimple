@@ -1,0 +1,363 @@
+diff -r 72f180130a42 build/temp.win32-2.6/Release/pjsip/third_party/portaudio/src/hostapi/wmme/pa_win_wmme.c
+--- src/hostapi/wmme/pa_win_wmme.c	Wed Aug 11 19:38:40 2010 +0200
++++ src/hostapi/wmme/pa_win_wmme.c	Sat Aug 14 11:42:36 2010 +0200
+@@ -117,6 +117,7 @@
+ #include <stdlib.h>
+ #include <math.h>
+ #include <windows.h>
++#include <dbt.h>
+ #include <mmsystem.h>
+ #ifndef UNDER_CE
+ #include <process.h>
+@@ -153,9 +154,9 @@
+ 
+ /* use CreateThread for CYGWIN, _beginthreadex for all others */
+ #ifndef __CYGWIN__
+-#define CREATE_THREAD (HANDLE)_beginthreadex( 0, 0, ProcessingThreadProc, stream, 0, &stream->processingThreadId )
++#define CREATE_THREAD(ThreadProc, arg, threadId) (HANDLE)_beginthreadex( 0, 0, ThreadProc, arg, 0, threadId )
+ #else
+-#define CREATE_THREAD CreateThread( 0, 0, ProcessingThreadProc, stream, 0, &stream->processingThreadId )
++#define CREATE_THREAD(ThreadProc, arg, threadId) CreateThread( 0, 0, ThreadProc, arg, 0, threadId                    )
+ #endif
+ 
+ #if (defined(UNDER_CE))
+@@ -223,6 +224,8 @@
+ #endif /* __cplusplus */
+ 
+ static void Terminate( struct PaUtilHostApiRepresentation *hostApi );
++static PaError RescanDevices( struct PaUtilHostApiRepresentation *hostApi );
++static DWORD WINAPI DeviceDetectionThreadProc( void *pArg );
+ static PaError OpenStream( struct PaUtilHostApiRepresentation *hostApi,
+                            PaStream** stream,
+                            const PaStreamParameters *inputParameters,
+@@ -1076,7 +1079,7 @@
+     InitializeDefaultDeviceIdsFromEnv( winMmeHostApi );
+ 
+     (*hostApi)->Terminate = Terminate;
+-    (*hostApi)->RescanDevices = NULL;
++    (*hostApi)->RescanDevices = RescanDevices;
+     (*hostApi)->OpenStream = OpenStream;
+     (*hostApi)->IsFormatSupported = IsFormatSupported;
+ 
+@@ -1091,6 +1094,9 @@
+                                       GetStreamTime, PaUtil_DummyGetCpuLoad,
+                                       ReadStream, WriteStream, GetStreamReadAvailable, GetStreamWriteAvailable );
+ 
++    HANDLE deviceDetectionThread;
++    deviceDetectionThread = CREATE_THREAD(DeviceDetectionThreadProc, (void*)(winMmeHostApi), NULL);
++
+     return result;
+ 
+ error:
+@@ -2758,6 +2764,302 @@
+     return result;
+ }
+ 
++/* compare stored vs actual list of devices, and update the list if there are
++    new or removed devices.
++*/
++static PaError RescanDevices( struct PaUtilHostApiRepresentation *hostApi )
++{ 
++    PaError result = paNoError;
++    int i;
++    PaWinMmeHostApiRepresentation *winMmeHostApi = (PaWinMmeHostApiRepresentation*)hostApi;
++    int inputDeviceCount, outputDeviceCount, maximumPossibleDeviceCount;
++    PaWinMmeDeviceInfo *deviceInfoArray;
++    int deviceInfoInitializationSucceeded;
++    PaTime defaultLowLatency, defaultHighLatency;
++    PaHostApiIndex hostApiIndex = Pa_HostApiTypeIdToHostApiIndex(hostApi->info.type);
++
++    maximumPossibleDeviceCount = 0;
++
++    inputDeviceCount = waveInGetNumDevs();
++    if( inputDeviceCount > 0 ) maximumPossibleDeviceCount += inputDeviceCount + 1;
++
++    outputDeviceCount = waveOutGetNumDevs();
++    if( outputDeviceCount > 0 ) maximumPossibleDeviceCount += outputDeviceCount + 1;
++
++    if( inputDeviceCount + 1 == winMmeHostApi->inputDeviceCount && outputDeviceCount + 1 == winMmeHostApi->outputDeviceCount)
++    {
++        /* No new devices in list */
++        return paNoError;
++    }
++    hostApi->info.deviceCount = 0;
++    hostApi->info.defaultInputDevice = paNoDevice;
++    hostApi->info.defaultOutputDevice = paNoDevice;
++    winMmeHostApi->inputDeviceCount = 0;
++    winMmeHostApi->outputDeviceCount = 0;
++
++    /* WARN: doc says this operation is time consuming */
++    PaUtil_GroupFreeMemory( winMmeHostApi->allocations, hostApi->deviceInfos );
++    if( maximumPossibleDeviceCount > 0 )
++    {
++        hostApi->deviceInfos = (PaDeviceInfo**)PaUtil_GroupAllocateMemory(
++                winMmeHostApi->allocations, sizeof(PaDeviceInfo*) * maximumPossibleDeviceCount );
++        if( !hostApi->deviceInfos ) return paInsufficientMemory;
++
++        /* allocate all device info structs in a contiguous block */
++        deviceInfoArray = (PaWinMmeDeviceInfo*)PaUtil_GroupAllocateMemory(
++                winMmeHostApi->allocations, sizeof(PaWinMmeDeviceInfo) * maximumPossibleDeviceCount );
++        if( !deviceInfoArray ) return paInsufficientMemory;
++
++
++        winMmeHostApi->winMmeDeviceIds = (UINT*)PaUtil_GroupAllocateMemory(
++                winMmeHostApi->allocations, sizeof(int) * maximumPossibleDeviceCount );
++        if( !winMmeHostApi->winMmeDeviceIds ) return paInsufficientMemory;
++
++        GetDefaultLatencies( &defaultLowLatency, &defaultHighLatency );
++
++        /* Rescan input devices */
++        if( inputDeviceCount > 0 )
++        {
++            /* -1 is the WAVE_MAPPER */ 
++            for( i = -1; i < inputDeviceCount; ++i )
++            {
++                UINT winMmeDeviceId = (UINT)((i==-1) ? WAVE_MAPPER : i);
++                PaWinMmeDeviceInfo *wmmeDeviceInfo = &deviceInfoArray[ hostApi->info.deviceCount ];
++                PaDeviceInfo *deviceInfo = &wmmeDeviceInfo->inheritedDeviceInfo;
++                deviceInfo->structVersion = 2;
++                deviceInfo->hostApi = hostApiIndex;
++
++                deviceInfo->maxInputChannels = 0;
++                deviceInfo->maxOutputChannels = 0;
++
++                deviceInfo->defaultLowInputLatency = defaultLowLatency;
++                deviceInfo->defaultLowOutputLatency = defaultLowLatency;
++                deviceInfo->defaultHighInputLatency = defaultHighLatency;
++                deviceInfo->defaultHighOutputLatency = defaultHighLatency;
++
++                result = InitializeInputDeviceInfo( winMmeHostApi, wmmeDeviceInfo,
++                        winMmeDeviceId, &deviceInfoInitializationSucceeded );
++                if( result != paNoError )
++                    return result;
++
++                if( deviceInfoInitializationSucceeded )
++                {
++                    if( hostApi->info.defaultInputDevice == paNoDevice )
++                        hostApi->info.defaultInputDevice = hostApi->info.deviceCount;
++
++                    winMmeHostApi->winMmeDeviceIds[ hostApi->info.deviceCount ] = winMmeDeviceId;
++                    hostApi->deviceInfos[ hostApi->info.deviceCount ] = deviceInfo;
++
++                    winMmeHostApi->inputDeviceCount++;
++                    hostApi->info.deviceCount++;
++                }
++            }
++        }
++
++        /* Rescan output devices */
++        if( outputDeviceCount > 0 )
++        {
++            /* -1 is the WAVE_MAPPER */
++            for( i = -1; i < outputDeviceCount; ++i )
++            {
++                UINT winMmeDeviceId = (UINT)((i==-1) ? WAVE_MAPPER : i);
++                PaWinMmeDeviceInfo *wmmeDeviceInfo = &deviceInfoArray[ hostApi->info.deviceCount ];
++                PaDeviceInfo *deviceInfo = &wmmeDeviceInfo->inheritedDeviceInfo;
++                deviceInfo->structVersion = 2;
++                deviceInfo->hostApi = hostApiIndex;
++
++                deviceInfo->maxInputChannels = 0;
++                deviceInfo->maxOutputChannels = 0;
++
++                deviceInfo->defaultLowInputLatency = defaultLowLatency;
++                deviceInfo->defaultLowOutputLatency = defaultLowLatency;
++                deviceInfo->defaultHighInputLatency = defaultHighLatency;
++                deviceInfo->defaultHighOutputLatency = defaultHighLatency; 
++
++                result = InitializeOutputDeviceInfo( winMmeHostApi, wmmeDeviceInfo,
++                        winMmeDeviceId, &deviceInfoInitializationSucceeded );
++                if( result != paNoError )
++                    return result;
++
++                if( deviceInfoInitializationSucceeded )
++                {
++                    if( hostApi->info.defaultOutputDevice == paNoDevice )
++                        hostApi->info.defaultOutputDevice = hostApi->info.deviceCount;
++
++                    winMmeHostApi->winMmeDeviceIds[ hostApi->info.deviceCount ] = winMmeDeviceId;
++                    hostApi->deviceInfos[ hostApi->info.deviceCount ] = deviceInfo;
++
++                    winMmeHostApi->outputDeviceCount++;
++                    hostApi->info.deviceCount++;
++                }
++            }
++        }
++    }    
++    return paNoError;
++}
++
++/* Processes OS messages arriving at the hWnd window */
++INT_PTR WINAPI ProcessOSMessage( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
++{
++    /* winMmeHostApi is used in order to query the number of audio devices currently handled by PA */
++    static PaWinMmeHostApiRepresentation *winMmeHostApi_ = NULL;
++    switch( message )
++    {
++        case WM_CREATE:
++            /* Initialize hostApi pointer on the first run. */
++            if (winMmeHostApi_ == NULL)
++            {
++                CREATESTRUCT *CrtStrPtr = (CREATESTRUCT *) lParam;
++                winMmeHostApi_ = (PaWinMmeHostApiRepresentation*)(CrtStrPtr->lpCreateParams);
++            }
++            break;
++        case WM_DEVICECHANGE:
++            /* Possible insertion or removal of device. There's some issues:
++
++                - Some devices/drivers does not trigger arrival nor
++                removecomplete events, but only devnodes_changed events.
++                Therefore, we process all of those type of events.
++
++                - Some hardware can send many devnodes_changed events at the
++                same time (up to ~15 of such events). These batches are
++                detected using temporal locality, using constMaxBatchPeriod_
++                and processedTimeStamp_. Once the device is detected, the
++                rest of redundant events are discarded.  In order to know if
++                there's a new device or not, actual audio devices count is
++                compared to stored audio devices count (via winMmeHostApi_).
++                A possible improvement would be to process each message in a
++                separate thread.
++
++                - Hardware takes some time to settle and be recognized by
++                drivers. A small window of time is given in order to account
++                for this (constMaxSettleTime_);
++
++                Settle time should be slightly lower than batch period.
++            */
++            if ( wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE || wParam == DBT_DEVNODES_CHANGED )
++            {
++                const int constMaxBatchPeriod_ = 3; /* seconds */
++                const int constMaxSettleTime_ = (constMaxBatchPeriod_ * 1000) - 500; /* milliseconds */
++
++                /* Initialize reference timestamp on first run, using a past
++                time, so that first event belongs to a new batch. */
++                static time_t processedTimeStamp_ = 0;
++                if ( processedTimeStamp_ == 0 ) processedTimeStamp_ = time( NULL ) - ( constMaxBatchPeriod_ * 2 );
++
++                /* Loop that allows hardware to settle */
++                int settleTimeLeft = constMaxSettleTime_;
++                while ( settleTimeLeft > 0 )
++                {
++                    /* Check if actual devices lists (I/O) sizes have actually
++                    changed before notifying upper levels */
++                    if( waveInGetNumDevs() + 1 != winMmeHostApi_->inputDeviceCount || waveOutGetNumDevs() + 1 != winMmeHostApi_->outputDeviceCount)
++                    {
++                        /* Hardware actually changed */
++                        PaUtil_DevicesChanged( paUtilHardwareDevicesChanged );
++                        processedTimeStamp_ = time( NULL );
++                        break;
++                    }
++                    else
++                    {
++                        /* Hardware hasn't changed [yet] */
++                        //if ( difftime( time( NULL ), processedTimeStamp_ ) < constMaxBatchPeriod_ )
++                        {
++                            /* We're still in the same batch of messages, disregard */
++                            //processedTimeStamp_ = time( NULL );
++                        }
++                        /* Hardware settling pass... */
++                        Sleep(250);
++                        settleTimeLeft -= 250;
++                    }
++                }
++            }
++            break;
++        case WM_CLOSE:
++            if ( ! DestroyWindow( hWnd ) )
++            {
++                PA_DEBUG(("ProcessOSMessage: Couldn't destroy message window.\n"));
++            }
++            break;
++        case WM_DESTROY:
++            PostQuitMessage( 0 );
++            break;
++        default:
++            break;
++    }
++    return 1;
++}
++
++
++/* Creates the window that will receive OS messages */
++static PaError CreateOSMessagesWindow( PaWinMmeHostApiRepresentation *winMmeHostApi )
++{
++    PaError result = paUnanticipatedHostError;
++
++    /* Set up and register window class */
++    WNDCLASSEX wndClass;
++    ZeroMemory( &wndClass, sizeof(WNDCLASSEX) );
++    wndClass.cbSize = sizeof(WNDCLASSEX);
++    wndClass.style = CS_OWNDC;
++    wndClass.lpfnWndProc = (WNDPROC)(ProcessOSMessage);
++    wndClass.hInstance = (HINSTANCE)(GetModuleHandle( 0 ));
++    wndClass.lpszClassName = "DeviceChangeMessageWindow";
++
++    if ( RegisterClassEx(&wndClass) )
++    {
++        /* Create the window that will receive OS messages */
++        HWND hWnd = CreateWindowEx( 0, "DeviceChangeMessageWindow", NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, (LPVOID)(winMmeHostApi) );
++        if ( hWnd != NULL )
++        {
++            if ( UpdateWindow( hWnd ) != 0 )
++            {
++                result = paNoError;
++            }
++        }
++    }
++
++    return result;
++}
++
++static PaError DispatchOSMessages()
++{
++    PaError result = paNoError;
++    MSG msg; 
++    int retVal;
++
++    /* Process OS messages with low cpu-usage wait loop */
++    while( (retVal = GetMessage( &msg, NULL, 0, 0 ) ) != 0 ) 
++    { 
++        if ( retVal == -1 )
++        {
++            PA_DEBUG("DispatchOSMessages: Couldn't process OS message.\n");
++            result = paUnanticipatedHostError;
++            break;
++        }
++        else
++        {
++            TranslateMessage( &msg );
++            DispatchMessage( &msg );
++        }
++    } 
++
++    return result;
++}
++static DWORD WINAPI DeviceDetectionThreadProc( void *pArg )
++{
++    PaWinMmeHostApiRepresentation *winMmeHostApi = (PaWinMmeHostApiRepresentation*)(pArg);
++    DWORD result = -1;
++
++    if ( CreateOSMessagesWindow(winMmeHostApi) == paNoError )
++    {
++        if ( DispatchOSMessages() == paNoError )
++        {
++            result = 0;
++        }
++    }
++
++    return result;
++}
++
+ 
+ static DWORD WINAPI ProcessingThreadProc( void *pArg )
+ {
+@@ -3312,7 +3614,7 @@
+         if( result != paNoError ) goto error;
+ 
+         /* Create thread that waits for audio buffers to be ready for processing. */
+-        stream->processingThread = CREATE_THREAD;
++        stream->processingThread = CREATE_THREAD(ProcessingThreadProc, stream, &stream->processingThreadId);
+         if( !stream->processingThread )
+         {
+             result = paUnanticipatedHostError;
