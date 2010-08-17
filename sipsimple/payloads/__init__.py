@@ -3,6 +3,7 @@
 
 import os
 import sys
+import urllib
 
 from lxml import etree
 
@@ -18,7 +19,9 @@ __all__ = ['ParserError',
            'XMLStringElement',
            'XMLEmptyElement',
            'XMLListElement',
-           'XMLListRootElement']
+           'XMLListRootElement',
+           'uri_attribute_builder',
+           'uri_attribute_parser']
 
 
 ## Exceptions
@@ -641,5 +644,14 @@ class XMLEmptyElement(XMLElement):
 
 class XMLListElement(XMLElement, XMLListMixin): pass
 class XMLListRootElement(XMLRootElement, XMLListMixin): pass
+
+
+## Useful attribute builders/parser
+
+def uri_attribute_builder(value):
+    return urllib.quote(value.encode('utf-8'))
+
+def uri_attribute_parser(value):
+    return urllib.unquote(value).decode('utf-8')
 
 

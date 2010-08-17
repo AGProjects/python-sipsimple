@@ -5,7 +5,7 @@
 Resource lists (rfc4826) handling
 """
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild
+from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, uri_attribute_builder, uri_attribute_parser
 
 __all__ = ['namespace',
            'ResourceListsApplication',
@@ -68,7 +68,7 @@ class Entry(XMLElement, ListElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    uri = XMLAttribute('uri', type=unicode, required=True, test_equal=True)
+    uri = XMLAttribute('uri', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
     _xml_id = uri
 
@@ -90,7 +90,7 @@ class EntryRef(XMLElement, ListElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    ref = XMLAttribute('ref', type=str, required=True, test_equal=True)
+    ref = XMLAttribute('ref', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
     _xml_id = ref
 
@@ -112,7 +112,7 @@ class External(XMLElement, ListElement):
     _xml_application = ResourceListsApplication
     _xml_children_order = {DisplayName.qname: 0}
 
-    anchor = XMLAttribute('anchor', type=str, required=True, test_equal=True)
+    anchor = XMLAttribute('anchor', type=unicode, required=True, test_equal=True, builder=uri_attribute_builder, parser=uri_attribute_parser)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
     _xml_id = anchor
 

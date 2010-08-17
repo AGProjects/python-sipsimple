@@ -6,6 +6,8 @@ Parses and builds application/rls-services+xml documents according to
 RFC4826.
 """
 
+import urllib
+
 from sipsimple.payloads import ValidationError, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
 from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, ResourceListsApplication
 
@@ -75,11 +77,29 @@ class Packages(XMLListElement):
         self.element.remove(value.element)
 
 
-class ResourceList(XMLStringElement):
+class ResourceList(XMLElement):
     _xml_tag = 'resource-list'
     _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
-    _xml_lang = False
+
+    def __init__(self, value):
+        XMLElement.__init__(self)
+        self.value = value
+
+    def _parse_element(self, element, *args, **kw):
+        self.value = urllib.unquote(element.text).decode('utf-8')
+
+    def _build_element(self, *args, **kw):
+        self.element.text = urllib.quote(self.value.encode('utf-8'))
+
+    def _get_value(self):
+        return self.__dict__['value']
+
+    def _set_value(self, value):
+        self.__dict__['value'] = unicode(value)
+
+    value = property(_get_value, _set_value)
+    del _get_value, _set_value
 
 
 # This is identical to the list element in resourcelists, accept for the
