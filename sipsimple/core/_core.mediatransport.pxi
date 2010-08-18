@@ -746,6 +746,9 @@ cdef class AudioTransport:
                 else:
                     direction_attr = "sendonly"
             local_media.attributes.append(SDPAttribute(direction_attr, ""))
+            for attribute in local_media.attributes:
+                if attribute.name == 'rtcp':
+                    attribute.value = attribute.value.split(' ', 1)[0]
             return local_media
         finally:
             with nogil:
