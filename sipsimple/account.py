@@ -150,14 +150,13 @@ class AccountRegistrar(object):
             else:
                 self._dns_wait = 1
 
-            # Rebuild contact
-            self.contact = ContactURI('%s@%s' % (self.contact.username, host.default_ip))
-
             # Register by trying each route in turn
             register_timeout = time() + 30
             for route in routes:
                 remaining_time = register_timeout-time()
                 if remaining_time > 0:
+                    # Rebuild contact according to route
+                    self.contact = ContactURI('%s@%s' % (self.contact.username, host.outgoing_ip_for(route.address)))
                     contact_header = ContactHeader(self.contact[route.transport])
                     route_header = RouteHeader(route.get_uri())
                     self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))

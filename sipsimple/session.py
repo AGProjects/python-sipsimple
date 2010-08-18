@@ -21,10 +21,10 @@ from eventlet.coros import queue
 from zope.interface import implements
 
 from sipsimple.core import Engine, Invitation, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
-from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, WarningHeader
+from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, ViaHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
-from sipsimple.account import AccountManager
+from sipsimple.account import AccountManager, ContactURI
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.util import TimestampedNotificationData, run_in_green_thread, run_in_twisted_thread
@@ -154,7 +154,7 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
 
-            local_ip = host.default_ip
+            local_ip = host.outgoing_ip_for(self.route.address)
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             for index, stream in enumerate(self.proposed_streams):
@@ -164,8 +164,10 @@ class Session(object):
                 stun_addresses.extend((value.split(' ', 5)[4] for value in media.attributes.getall('candidate') if value.startswith('S ')))
             if stun_addresses:
                 local_sdp.connection.address = stun_addresses[0]
-            self._invitation.send_invite(FromHeader(self.account.uri, self.account.display_name), to_header, RouteHeader(self.route.get_uri()),
-                                         ContactHeader(self.account.contact[self.route.transport]), local_sdp, self.account.credentials)
+            from_header = FromHeader(self.account.uri, self.account.display_name)
+            route_header = RouteHeader(self.route.get_uri())
+            contact_header = ContactHeader(ContactURI('%s@%s' % (self.account.contact.username, local_ip))[self.route.transport])
+            self._invitation.send_invite(from_header, to_header, route_header, contact_header, local_sdp, self.account.credentials)
             try:
                 with api.timeout(settings.sip.invite_timeout):
                     while True:
@@ -343,7 +345,7 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
 
-            local_ip = host.default_ip
+            local_ip = host.outgoing_ip_for(self._invitation.sdp.proposed_remote.connection.address)
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             if self._invitation.sdp.proposed_remote:
