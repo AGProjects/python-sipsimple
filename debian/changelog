@@ -1,3 +1,12 @@
+python-sipsimple (0.15.4) unstable; urgency=low
+
+  * Removed IP address from rtcp SDP attribute
+  * Improved logic for determining source IP address used in signalling
+  * Increased dependency version for python-application
+  * Added device change detection capability in Windows
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Wed, 18 Aug 2010 14:35:34 +0200
+
 python-sipsimple (0.15.3) unstable; urgency=low
 
   * Changed default codec list to have G722 as first choice
