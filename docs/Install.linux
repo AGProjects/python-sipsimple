@@ -33,7 +33,7 @@ Use the appropriate package manager for your Linux distribution to install
 the following packages, notice the minimum version numbers:
 
  * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
- * python-application       http://pypi.python.org/simple/python-application  >=1.2.0
+ * python-application       http://pypi.python.org/simple/python-application  >=1.2.5
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
  * python-greenlet          http://download.ag-projects.com/SipClient         =0.4.0
