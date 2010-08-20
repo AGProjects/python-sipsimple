@@ -398,7 +398,7 @@ class XMLElement(object):
         else:
             hashes = [hash(getattr(self, name)) for name, child in self._xml_attributes.items() + self._xml_element_children.items() if child.test_equal]
             if len(hashes) == 0:
-                return super(XMLElement, self).__hash__()
+                return hash((self._xml_tag, self._xml_namespace))
             return sum(hashes)
 
     def __del__(self):
