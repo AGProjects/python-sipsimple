@@ -446,7 +446,10 @@ class XMLRootElement(XMLElement):
     @classmethod
     def parse(cls, document, *args, **kwargs):
         try:
-            xml = etree.XML(document, cls._xml_parser)
+            if isinstance(document, str):
+                xml = etree.XML(document, parser=cls._xml_parser)
+            else:
+                xml = etree.parse(document, parser=cls._xml_parser).getroot()
         except etree.XMLSyntaxError, e:
             raise ParserError(str(e))
         else:
