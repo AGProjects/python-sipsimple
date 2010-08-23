@@ -51,7 +51,7 @@ class MessageSummary(object):
                     summary.message_account = rest
                     continue
                 elif field.lower() in MessageSummary.message_context_class:
-                    m = re.match("((\d)\/(\d))(\ \((\d)\/(\d)\))?", rest)
+                    m = re.match("((\d+)\/(\d+))(\ \((\d+)\/(\d+)\))?", rest)
                     if m:
                         s = {}
                         s['new_messages'] = m.groups()[1]
