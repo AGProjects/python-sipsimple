@@ -125,7 +125,7 @@ class XMLAttribute(object):
             obj.element.attrib.pop(self.xmlname, None)
         self.values[id(obj)] = value
         if self.onset:
-            self.onset(obj, self)
+            self.onset(obj, self, value)
 
     def __delete__(self, obj):
         obj.element.attrib.pop(self.xmlname, None)
@@ -171,7 +171,7 @@ class XMLElementChild(object):
         if value is not None:
             obj._insert_element(value.element)
         if self.onset:
-            self.onset(obj, self)
+            self.onset(obj, self, value)
 
     def __delete__(self, obj):
         try:
@@ -210,7 +210,7 @@ class XMLElementChoiceChild(object):
         if value is not None:
             obj._insert_element(value.element)
         if self.onset:
-            self.onset(obj, self)
+            self.onset(obj, self, value)
 
     def __delete__(self, obj):
         try:

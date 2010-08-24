@@ -124,11 +124,11 @@ class ProvideDevices(XMLListElement, TransformationElement):
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
-    def _on_all_set(self, attribute):
-        if getattr(self, attribute.name) is not None:
+    def _onset_all(self, attribute, value):
+        if value is not None:
             self.clear()
-    all = XMLElementChild('all', type=AllDevices, required=False, test_equal=True, onset=_on_all_set)
-    del _on_all_set
+    all = XMLElementChild('all', type=AllDevices, required=False, test_equal=True, onset=_onset_all)
+    del _onset_all
 
     def __init__(self, all=False, provides=[]):
         XMLListElement.__init__(self)
@@ -189,11 +189,11 @@ class ProvidePersons(XMLListElement, TransformationElement):
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
     
-    def _on_all_set(self, attribute):
-        if getattr(self, attribute.name) is not None:
+    def _onset_all(self, attribute, value):
+        if value is not None:
             self.clear()
-    all = XMLElementChild('all', type=AllPersons, required=False, test_equal=True, onset=_on_all_set)
-    del _on_all_set
+    all = XMLElementChild('all', type=AllPersons, required=False, test_equal=True, onset=_onset_all)
+    del _onset_all
 
     def __init__(self, all=False, provides=[]):
         XMLListElement.__init__(self)
@@ -266,11 +266,11 @@ class ProvideServices(XMLListElement, TransformationElement):
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
-    def _on_all_set(self, attribute):
-        if getattr(self, attribute.name) is not None:
+    def _onset_all(self, attribute, value):
+        if value is not None:
             self.clear()
-    all = XMLElementChild('all', type=AllServices, required=False, test_equal=True, onset=_on_all_set)
-    del _on_all_set
+    all = XMLElementChild('all', type=AllServices, required=False, test_equal=True, onset=_onset_all)
+    del _onset_all
 
     def __init__(self, all=False, provides=[]):
         XMLListElement.__init__(self)

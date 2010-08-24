@@ -346,11 +346,11 @@ class PlaceType(XMLListElement, PersonExtension):
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
     notes = NotesAttribute()
     
-    def _on_value_set(self, attribute):
-        if getattr(self, attribute.name) is None:
+    def _onset_value(self, attribute, value):
+        if value is None:
             self.clear()
-    value = XMLElementChild('value', type=Other, required=False, test_equal=True, onset=_on_value_set)
-    del _on_value_set
+    value = XMLElementChild('value', type=Other, required=False, test_equal=True, onset=_onset_value)
+    del _onset_value
 
     def __init__(self, id=None, since=None, until=None, notes=[], placetypes=[]):
         XMLListElement.__init__(self)

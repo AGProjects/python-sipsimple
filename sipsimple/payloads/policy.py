@@ -72,9 +72,18 @@ class IdentityExcept(XMLElement):
     _xml_tag = 'except'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
-    
-    id = XMLAttribute('id', type=str, required=False, test_equal=True, onset=(lambda self, attr: setattr(self, 'domain', None)))
-    domain = XMLAttribute('domain', type=str, required=False, test_equal=True, onset=(lambda self, attr: setattr(self, 'id', None)))
+
+    def _onset_id(self, attribute, value):
+        if value is not None:
+            self.domain = None
+    id = XMLAttribute('id', type=str, required=False, test_equal=True, onset=_onset_id)
+    del _onset_id
+
+    def _onset_domain(self, attribute, value):
+        if value is not None:
+            self.id = None
+    domain = XMLAttribute('domain', type=str, required=False, test_equal=True, onset=_onset_domain)
+    del _onset_domain
 
     def __init__(self, id=None, domain=None):
         XMLElement.__init__(self)
