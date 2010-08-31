@@ -1629,6 +1629,8 @@ class XCAPManager(object):
             presrules_lists.update(candidate_lists) # Any list will do
         notexpanded = deque(presence_lists|dialoginfo_lists|presrules_lists|not_wanted_lists|remove_from_lists)
         visited = set(notexpanded)
+        add_to_presence_list = operation.contact.subscribe_to_presence
+        add_to_dialoginfo_list = operation.contact.subscribe_to_dialoginfo
         while notexpanded:
             rlist = notexpanded.popleft()
             if rlist in not_wanted_lists and rlist in candidate_lists:
@@ -1683,15 +1685,25 @@ class XCAPManager(object):
                         entries = self._follow_rl_entry_ref(resource_lists, child)
                     except ValueError:
                         continue
-                    if any(entry.uri == operation.contact.uri for entry in entries) and rlist in remove_from_lists:
-                        to_remove.append((child, rlist))
-                        self.resource_lists.dirty = True
-                        self.rls_services.dirty = True
+                    if any(entry.uri == operation.contact.uri for entry in entries):
+                        if rlist in remove_from_lists:
+                            to_remove.append((child, rlist))
+                            self.resource_lists.dirty = True
+                            self.rls_services.dirty = True
+                        if operation.contact.subscribe_to_presence and rlist in presence_lists:
+                            add_to_presence_list = False
+                        if operation.contact.subscribe_to_dialoginfo and rlist in dialoginfo_lists:
+                            add_to_dialoginfo_list = False
                 elif isinstance(child, resourcelists.Entry):
-                    if child.uri == operation.contact.uri and rlist in remove_from_lists:
-                        to_remove.append((child, rlist))
-                        self.resource_lists.dirty = True
-                        self.rls_services.dirty = True
+                    if child.uri == operation.contact.uri:
+                        if rlist in remove_from_lists:
+                            to_remove.append((child, rlist))
+                            self.resource_lists.dirty = True
+                            self.rls_services.dirty = True
+                        if operation.contact.subscribe_to_presence and rlist in presence_lists:
+                            add_to_presence_list = False
+                        if operation.contact.subscribe_to_dialoginfo and rlist in dialoginfo_lists:
+                            add_to_dialoginfo_list = False
         # Update the dialoginfo rules
         if self.dialog_rules.supported:
             dialog_rules = self.dialog_rules.content
@@ -1832,7 +1844,7 @@ class XCAPManager(object):
                     else:
                         rule.conditions.append(common_policy.Identity([common_policy.IdentityOne(operation.contact.uri)]))
                 self.pres_rules.dirty = True
-            if self.rls_services.supported and (operation.contact.subscribe_to_presence or operation.contact.subscribe_to_dialoginfo):
+            if self.rls_services.supported and (add_to_presence_list or add_to_dialoginfo_list):
                 if operation.contact.subscribe_to_presence and not operation.contact.subscribe_to_dialoginfo:
                     good_lists = presence_lists - dialoginfo_lists
                 elif not operation.contact.subscribe_to_presence and operation.contact.subscribe_to_dialoginfo:
@@ -1846,10 +1858,10 @@ class XCAPManager(object):
                         container_lists = [(l for l in good_lists if l not in not_wanted_lists).next()]
                     except StopIteration:
                         # Then find separate lists which are not unwanted
-                        container_lists = set()
-                        if operation.contact.subscribe_to_presence:
+                        container_lists = []
+                        if add_to_presence_list:
                             try:
-                                container_lists.add((l for l in presence_lists if l not in not_wanted_lists).next())
+                                container_lists.append((l for l in presence_lists if l not in not_wanted_lists).next())
                             except StopIteration:
                                 # Too bad, we have to create a new service
                                 service_list = resourcelists.List(name=self.unique_name('subscribe_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
@@ -1860,14 +1872,13 @@ class XCAPManager(object):
                                 taken_names = [m.group(1) for m in (uri_re.match(service.uri) for service in rls_services) if m]
                                 uri = 'sip:%s@%s' % (self.unique_name('buddies', taken_names, skip_preferred_name=True).next(), self.account.id.domain)
                                 # We'll also make it a dialog service just so that it can also be used as a container for dialog
-                                service = rlsservices.Service(uri=uri, list=rlsservices.ResourceList(path), packages=['presence', 'dialog'] if operation.contact.subscribe_to_dialoginfo and rlist not in dialoginfo_lists else ['presence'])
+                                service = rlsservices.Service(uri=uri, list=rlsservices.ResourceList(path), packages=['presence', 'dialog'] if add_to_dialoginfo_list and rlist not in dialoginfo_lists else ['presence'])
                                 rls_services.append(service)
-                                container_lists.add(service_list)
-                                if operation.contact.subscribe_to_dialoginfo:
-                                    dialoginfo_lists.add(service_list)
-                        if operation.contact.subscribe_to_dialoginfo:
+                                container_lists.append(service_list)
+                                add_to_dialoginfo_list = False
+                        if add_to_dialoginfo_list:
                             try:
-                                container_lists.add((l for l in dialoginfo_lists if l not in not_wanted_lists).next())
+                                container_lists.append((l for l in dialoginfo_lists if l not in not_wanted_lists).next())
                             except StopIteration:
                                 # Too bad, we have to create a new service
                                 service_list = resourcelists.List(name=self.unique_name('subscribe_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
@@ -1880,9 +1891,10 @@ class XCAPManager(object):
                                 # We'll also make it a presence service just so that it can also be used as a container for presence
                                 service = rlsservices.Service(uri=uri, list=rlsservices.ResourceList(path), packages=['presence', 'dialog'] if operation.contact.subscribe_to_presence and rlist not in presence_lists else ['dialog'])
                                 rls_services.append(service)
-                                container_lists.clear() # Don't use the previously determined presence service
-                                container_lists.add(service_list)                        
+                                container_lists = [service_list] # Don't use the previously determined presence service
                     for container_list in container_lists:
+                        if container_list is rlist:
+                            continue
                         if len(rlist) == 0:
                             path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
                             container_list.append(resourcelists.External(path))
