@@ -8,7 +8,7 @@ Implements utilities commonly used in various parts of the library.
 from __future__ import absolute_import, with_statement
 
 __all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
-           "Command", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData",
+           "All", "Any", "Command", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData",
            "call_in_green_thread", "call_in_twisted_thread", "combinations", "limit", "makedirs",
            "user_info"]
 
@@ -89,6 +89,30 @@ def run_in_twisted_thread(func):
 
 # Utility classes
 #
+
+class AllType(object):
+    __metaclass__ = Singleton
+
+    def __repr__(self):
+        return 'All'
+
+    def __reduce__(self):
+        return (self.__class__, (), None)
+
+All = AllType()
+
+
+class AnyType(object):
+    __metaclass__ = Singleton
+
+    def __repr__(self):
+        return 'Any'
+
+    def __reduce__(self):
+        return (self.__class__, (), None)
+
+Any = AnyType()
+
 
 class Command(object):
     def __init__(self, name, event=None, **kwargs):
