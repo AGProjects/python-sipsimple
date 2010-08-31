@@ -333,6 +333,46 @@ class DNSLookup(object):
         else:
             raise DNSLookupError("No routes found for SIP URI %s" % uri)
 
+    @run_in_waitable_green_thread
+    @post_dns_lookup_notifications
+    def lookup_xcap_server(self, uri, timeout=3.0, lifetime=15.0):
+        """
+        Performs a TXT query against xcap.<uri.host> and returns all results
+        that look like HTTP URIs.
+        """
+        log_context = dict(context='lookup_xcap_server', uri=uri)
+
+        try:
+            resolver = DNSResolver()
+            resolver.cache = self.cache
+            resolver.timeout = timeout
+            resolver.lifetime = lifetime
+
+            # If the host part of the URI is an IP address, we cannot not do any lookup
+            if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
+                raise DNSLookupError("Cannot perform DNS query because the host is an IP address")
+
+            record_name = 'xcap.%s' % uri.host
+            results = []
+            try:
+                answer = resolver.query(record_name, rdatatype.TXT)
+            except dns.resolver.Timeout, e:
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=None, error=e, **log_context))
+                raise
+            except exception.DNSException, e:
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=None, error=e, **log_context))
+            else:
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=answer, error=None, **log_context))
+                for uri in list(chain(*(r.strings for r in answer.rrset))):
+                    parsed_uri = urlparse(uri)
+                    if parsed_uri.scheme in ('http', 'https') and parsed_uri.netloc:
+                        results.append(uri)
+            if not results:
+                raise DNSLookupError('No XCAP servers found for domain %s' % uri.host)
+            return results
+        except dns.resolver.Timeout:
+            raise DNSLookupError('Timeout in lookup for XCAP servers for domain %s' % uri.host)
+
 
     def _lookup_a_records(self, resolver, hostnames, additional_records=[], log_context={}):
         notification_center = NotificationCenter()
