@@ -13,8 +13,8 @@ add_contact contact={"name":"My buddy","uri":"sip:buddy@example.org","group":"Bu
 To exit, type "exit".
 """
 
+import cjson
 import os
-import json
 import shlex
 import string
 from cmd import Cmd
@@ -260,8 +260,8 @@ class Interface(Cmd):
                 arg = arg[1:-1]
             try:
                 name, value = arg.split('=', 1)
-                arguments[name] = json.read(value)
-            except (ValueError, json.ReadException):
+                arguments[name] = cjson.decode(value)
+            except (ValueError, cjson.DecodeError):
                 continue
         return arguments
 
