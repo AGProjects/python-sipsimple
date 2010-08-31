@@ -193,7 +193,7 @@ cdef class Subscription:
 
     # callback methods
 
-    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason) except -1:
+    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason, dict headers) except -1:
         cdef object prev_state = self.state
         cdef int status
         self.state = state
@@ -207,10 +207,11 @@ cdef class Subscription:
             if self._want_end:
                 _add_event("SIPSubscriptionDidEnd", dict(obj=self))
             else:
+                min_expires = headers.get('Min-Expires')
                 if self._term_reason is not None:
-                    _add_event("SIPSubscriptionDidFail", dict(obj=self, code=self._term_code, reason=self._term_reason))
+                    _add_event("SIPSubscriptionDidFail", dict(obj=self, code=self._term_code, reason=self._term_reason, min_expires=min_expires))
                 else:
-                    _add_event("SIPSubscriptionDidFail", dict(obj=self, code=code, reason=reason))
+                    _add_event("SIPSubscriptionDidFail", dict(obj=self, code=code, reason=reason, min_expires=min_expires))
         if prev_state != state:
             _add_event("SIPSubscriptionChangedState", dict(obj=self, prev_state=prev_state, state=state))
 
@@ -543,6 +544,7 @@ cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
     cdef object state
     cdef int code = 0
     cdef object reason = None
+    cdef pjsip_rx_data *rdata = NULL
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
@@ -563,7 +565,16 @@ cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
                     reason = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
                 else:
                     reason = "Subscription has expired"
-        subscription._cb_state(ua, state, code, reason)
+
+                if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE":
+                    rdata = event.body.tsx_state.src.rdata
+
+        headers_dict = dict()
+        if rdata != NULL:
+            rdata_dict = dict()
+            _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+            headers_dict = rdata_dict.get('headers', {})
+        subscription._cb_state(ua, state, code, reason, headers_dict)
     except:
         ua._handle_exception(1)
 

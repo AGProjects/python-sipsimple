@@ -1581,7 +1581,7 @@ cdef class Subscription(object):
     cdef int _cancel_timers(self, PJSIPUA ua, int cancel_timeout, int cancel_refresh) except -1
     cdef int _send_subscribe(self, PJSIPUA ua, int expires, pj_time_val *timeout,
                              object extra_headers, object content_type, object body) except -1
-    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason) except -1
+    cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason, dict headers) except -1
     cdef int _cb_got_response(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
     cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
     cdef int _cb_timeout_timer(self, PJSIPUA ua)

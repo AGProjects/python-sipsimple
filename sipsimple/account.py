@@ -29,11 +29,12 @@ from twisted.internet import reactor
 from zope.interface import implements
 
 from sipsimple import bonjour
-from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI
+from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Header, Registration, RouteHeader, SIPURI, Subscription, ToHeader
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
+from sipsimple.payloads.messagesummary import MessageSummary, ValidationError
 from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, classproperty, limit, run_in_green_thread, run_in_twisted_thread, user_info
 
 
@@ -60,6 +61,16 @@ class SIPAccountRegistrationError(Exception):
     def __init__(self, error, timeout):
         self.error = error
         self.timeout = timeout
+
+class SubscriptionError(Exception):
+    def __init__(self, error, timeout, refresh_interval=None):
+        self.error = error
+        self.refresh_interval = refresh_interval
+        self.timeout = timeout
+
+class SIPSubscriptionDidFail(Exception):
+    def __init__(self, data):
+        self.__dict__.update(data.__dict__)
 
 class RestartSelect(Exception): pass
 
@@ -268,6 +279,187 @@ class AccountRegistrar(object):
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._registration is not None:
             self._command_channel.send(Command('register'))
+
+
+class AccountMWISubscriptionHandler(object):
+    implements(IObserver)
+
+    def __init__(self, account):
+        self.account = account
+        self.subscribed = False
+        self.subscription = None
+        self._subscription_timer = None
+        self._command_channel = coros.queue()
+        self._data_channel = coros.queue()
+
+    def start(self):
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+        self._run()
+
+    def stop(self):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
+        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+        self._command_channel.send_exception(GreenletExit)
+
+    def activate(self):
+        command = Command('subscribe')
+        self._command_channel.send(command)
+
+    def deactivate(self):
+        command = Command('unsubscribe')
+        self._command_channel.send(command)
+        command.wait()
+
+    @run_in_green_thread
+    def _run(self):
+        while True:
+            command = self._command_channel.wait()
+            handler = getattr(self, '_CH_%s' % command.name)
+            handler(command)
+
+    def _CH_subscribe(self, command):
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+
+        if getattr(command, 'refresh_interval', None) is not None:
+            refresh_interval = command.refresh_interval
+        else:
+            refresh_interval = self.account.sip.subscribe_interval
+
+        if self._subscription_timer is not None and self._subscription_timer.active():
+            self._subscription_timer.cancel()
+        self._subscription_timer = None
+        if self.subscription is not None:
+            notification_center.remove_observer(self, sender=self.subscription)
+            self.subscription.end(timeout=2)
+            self.subscription = None
+
+        try:
+            # Lookup routes
+            if self.account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=self.account.sip.outbound_proxy.host,
+                             port=self.account.sip.outbound_proxy.port,
+                             parameters={'transport': self.account.sip.outbound_proxy.transport})
+            else:
+                uri = SIPURI(host=self.account.id.domain)
+            lookup = DNSLookup()
+            try:
+                routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+            except DNSLookupError, e:
+                timeout = random.uniform(15, 30)
+                raise SubscriptionError(error='DNS lookup failed: %s' % e, timeout=timeout)
+
+            timeout = time() + 30
+            for route in routes:
+                remaining_time = timeout - time()
+                if remaining_time > 0:
+                    subscription = Subscription(FromHeader(self.account.uri, self.account.display_name),
+                                                ToHeader(self.account.uri, self.account.display_name),
+                                                ContactHeader(ContactURI('%s@%s' % (self.account.contact.username, host.outgoing_ip_for(route.address)))[route.transport]),
+                                                'message-summary',
+                                                RouteHeader(route.get_uri()),
+                                                credentials=self.account.credentials,
+                                                refresh=refresh_interval)
+                    notification_center.add_observer(self, sender=subscription)
+                    subscription.subscribe(extra_headers=[Header('Supported', 'eventlist')], timeout=limit(remaining_time, min=1, max=5))
+                    try:
+                        while True:
+                            notification = self._data_channel.wait()
+                            if notification.sender is subscription and notification.name == 'SIPSubscriptionDidStart':
+                                break
+                    except SIPSubscriptionDidFail, e:
+                        notification_center.remove_observer(self, sender=subscription)
+                        if e.code == 407:
+                            # Authentication failed, so retry the subscription in some time
+                            timeout = random.uniform(60, 120)
+                            raise SubscriptionError(error='Authentication failed', timeout=timeout)
+                        elif e.code == 423:
+                            # Get the value of the Min-Expires header
+                            timeout = random.uniform(60, 120)
+                            if e.min_expires is not None and e.min_expires > refresh_interval:
+                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
+                            else:
+                                notification_center = NotificationCenter()
+                                notification_center.post_notification('SIPAccountMWIDidFail', sender=self.account, data=TimestampedNotificationData(code=e.code, reason=e.reason))
+                                command.signal()
+                                break
+                        elif e.code in (405, 406, 489):
+                            # Stop sending subscriptions
+                            notification_center = NotificationCenter()
+                            notification_center.post_notification('SIPAccountMWIDidFail', sender=self.account, data=TimestampedNotificationData(code=e.code, reason=e.reason))
+                            command.signal()
+                            break
+                        else:
+                            # Otherwise just try the next route
+                            continue
+                    else:
+                        self.subscription = subscription
+                        self.subscribed = True
+                        command.signal()
+                        break
+            else:
+                # There are no more routes to try, reschedule the subscription
+                timeout = random.uniform(60, 180)
+                raise SubscriptionError(error='No more routes to try', timeout=timeout)
+        except SubscriptionError, e:
+            self.subscribed = False
+            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
+
+    def _CH_unsubscribe(self, command):
+        notification_center = NotificationCenter()
+        # Cancel any timer which would restart the subscription process
+        if self._subscription_timer is not None and self._subscription_timer.active():
+            self._subscription_timer.cancel()
+        self._subscription_timer = None
+        self.subscribed = False
+        if self.subscription is not None:
+            subscription = self.subscription
+            self.subscription = None
+            subscription.end(timeout=2)
+            while True:
+                notification = self._data_channel.wait()
+                if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
+                    break
+            notification_center.remove_observer(self, sender=subscription)
+        command.signal()
+
+    @run_in_twisted_thread
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_SIPSubscriptionDidStart(self, notification):
+        self._data_channel.send(notification)
+
+    def _NH_SIPSubscriptionDidEnd(self, notification):
+        self._data_channel.send(notification)
+
+    def _NH_SIPSubscriptionDidFail(self, notification):
+        if notification.sender is self.subscription:
+            self._command_channel.send(Command('subscribe'))
+        else:
+            self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
+
+    def _NH_SIPSubscriptionGotNotify(self, notification):
+        if notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
+            try:
+                message_summary = MessageSummary.parse(notification.data.body)
+            except ValidationError:
+                pass
+            else:
+                notification_center = NotificationCenter()
+                notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
+
+    def _NH_SystemIPAddressDidChange(self, notification):
+        if self.subscription is not None:
+            self._command_channel.send(Command('subscribe'))
+
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
+        if self.subscription is not None:
+            self._command_channel.send(Command('subscribe'))
 
 
 class BonjourFile(object):
@@ -665,6 +857,7 @@ class Account(SettingsObject):
 
         self._active = False
         self._registrar = AccountRegistrar(self)
+        self._mwi_handler = AccountMWISubscriptionHandler(self)
         self._started = False
 
         manager = AccountManager()
@@ -683,6 +876,7 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
         self._registrar.start()
+        self._mwi_handler.start()
         if self.enabled:
             self._activate()
 
@@ -694,6 +888,8 @@ class Account(SettingsObject):
         self._deactivate()
         self._registrar.stop()
         self._registrar = None
+        self._mwi_handler.stop()
+        self._mwi_handler = None
 
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
@@ -716,6 +912,10 @@ class Account(SettingsObject):
     @property
     def registered(self):
         return self._registrar.registered if self._registrar else False
+
+    @property
+    def mwi_active(self):
+        return self._mwi_handler.subscribed if self._mwi_handler else False
 
     @property
     def tls_credentials(self):
@@ -760,13 +960,23 @@ class Account(SettingsObject):
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
-            elif set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.register:
+            elif set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list']).intersection(notification.data.modified):
+                if self.sip.register:
+                    self._registrar.reload_settings()
+                if self.message_summary.enabled:
+                    self._mwi_handler.subscribe()
+            elif set(['sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.register:
                 self._registrar.reload_settings()
+            elif set(['sip.subscribe_interval']).intersection(notification.data.modified) and self.enabled and self.message_summary.enabled:
+                self._mwi_handler.subscribe()
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChangeID(self, notification):
-        if self._started and self.enabled and self.sip.register:
-            self._registrar.reload_settings()
+        if self._started and self.enabled:
+            if self.sip.register:
+                self._registrar.reload_settings()
+            if self.message_summary.enabled:
+                self._mwi_handler.subscribe()
 
     def _activate(self):
         if self._active:
@@ -774,6 +984,8 @@ class Account(SettingsObject):
         self._active = True
         if self.sip.register:
             self._registrar.activate()
+        if self.message_summary.enabled:
+            self._mwi_handler.activate()
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
@@ -782,6 +994,7 @@ class Account(SettingsObject):
             return
         self._active = False
         self._registrar.deactivate()
+        self._mwi_handler.deactivate()
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
