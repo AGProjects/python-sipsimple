@@ -427,4 +427,10 @@ class RuleSet(XMLListRootElement):
         else:
             return super(RuleSet, self).__getitem__(key)
 
+    def __delitem__(self, key):
+        if isinstance(key, basestring):
+            del self[self.index(self[key])]
+        else:
+            super(RuleSet, self).__delitem__(key)
+
 

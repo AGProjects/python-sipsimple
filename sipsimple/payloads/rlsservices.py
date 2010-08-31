@@ -188,4 +188,10 @@ class RLSServices(XMLListRootElement):
         else:
             return super(RLSServices, self).__getitem__(key)
 
+    def __delitem__(self, key):
+        if isinstance(key, basestring):
+            del self[self.index(self[key])]
+        else:
+            super(RLSServices, self).__delitem__(key)
+
 
