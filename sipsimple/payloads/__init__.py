@@ -4,6 +4,7 @@
 import os
 import sys
 import urllib
+from collections import deque
 
 from lxml import etree
 
@@ -442,6 +443,16 @@ class XMLRootElement(XMLElement):
     # dinamically generated
     _xml_parser = None
     _xml_schema = None
+
+    def __init__(self):
+        XMLElement.__init__(self)
+        self.cache = {self.element: self}
+
+    @classmethod
+    def from_element(cls, element, *args, **kwargs):
+        obj = super(XMLRootElement, cls).from_element(element, *args, **kwargs)
+        obj.cache = {obj.element: obj}
+        return obj
     
     @classmethod
     def parse(cls, document, *args, **kwargs):
@@ -464,6 +475,47 @@ class XMLRootElement(XMLElement):
         kwargs.setdefault('encoding', self.encoding)
         kwargs.setdefault('xml_declaration', self._xml_declaration)
         return etree.tostring(element, *args, **kwargs)
+
+    def xpath(self, xpath, namespaces=None):
+        result = []
+        try:
+            nodes = self.element.xpath(xpath, namespaces=namespaces)
+        except etree.XPathError:
+            raise ValueError("illegal XPath expression")
+        for element in (node for node in nodes if isinstance(node, etree._Element)):
+            if element in self.cache:
+                result.append(self.cache[element])
+                continue
+            if element is self.element:
+                self.cache[element] = self
+                result.append(self)
+                continue
+            for ancestor in element.iterancestors():
+                if ancestor in self.cache:
+                    container = self.cache[ancestor]
+                    break
+            else:
+                container = self
+            notvisited = deque([container])
+            visited = set()
+            while notvisited:
+                container = notvisited.popleft()
+                self.cache[container.element] = container
+                if isinstance(container, XMLListMixin):
+                    children = set(child for child in container if isinstance(child, XMLElement) and child not in visited)
+                    visited.update(children)
+                    notvisited.extend(children)
+                for child in container._xml_element_children:
+                    value = getattr(container, child)
+                    if value is not None and value not in visited:
+                        visited.add(value)
+                        notvisited.append(value)
+            if element in self.cache:
+                result.append(self.cache[element])
+        return result
+
+    def get_xpath(self, element):
+        raise NotImplementedError
 
 
 ## Mixin classes

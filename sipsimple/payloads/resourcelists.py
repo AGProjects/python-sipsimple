@@ -5,6 +5,9 @@
 Resource lists (rfc4826) handling
 """
 
+from collections import deque
+from xml.sax.saxutils import quoteattr
+
 from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, uri_attribute_builder, uri_attribute_parser
 
 __all__ = ['namespace',
@@ -219,6 +222,54 @@ class ResourceLists(XMLListRootElement):
         XMLListRootElement.__init__(self)
         self._lists = {}
         self[:] = lists
+
+    def get_xpath(self, element):
+        if not isinstance(element, (List, Entry, EntryRef, External, ResourceLists)):
+            raise ValueError('can only find xpath for List, Entry, EntryRef or External elements')
+        namespaces = dict((namespace, prefix) for prefix, namespace in self._xml_application.xml_nsmap.iteritems())
+        namespaces[self._xml_namespace] = ''
+        prefix = namespaces[self._xml_namespace]
+        root_xpath = '/%s:%s' % (prefix, self._xml_tag) if prefix else '/'+self._xml_tag
+        if element is self:
+            return root_xpath
+        notexpanded = deque([self])
+        visited = set(notexpanded)
+        parents = {self: None}
+        obj = None
+        while notexpanded:
+            list = notexpanded.popleft()
+            for child in list:
+                if child is element:
+                    parents[child] = list
+                    obj = child
+                    notexpanded.clear()
+                    break
+                elif isinstance(child, List) and child not in visited:
+                    parents[child] = list
+                    notexpanded.append(child)
+                    visited.add(child)
+        if obj is None:
+            return None
+        components = []
+        while obj is not self:
+            prefix = namespaces[obj._xml_namespace]
+            name = '%s:%s' % (prefix, obj._xml_tag) if prefix else obj._xml_tag
+            if isinstance(obj, List):
+                if obj.name is not None:
+                    components.append('/%s[@%s=%s]' % (name, List.name.xmlname, quoteattr(obj.name)))
+                else:
+                    siblings = [l for l in parents[obj] if isinstance(l, List)]
+                    components.append('/%s[%d]' % (name, siblings.index(obj)+1))
+            elif isinstance(obj, Entry):
+                components.append('/%s[@%s=%s]' % (name, Entry.uri.xmlname, quoteattr(obj.uri)))
+            elif isinstance(obj, EntryRef):
+                components.append('/%s[@%s=%s]' % (name, EntryRef.ref.xmlname, quoteattr(obj.ref)))
+            elif isinstance(obj, External):
+                components.append('/%s[@%s=%s]' % (name, External.anchor.xmlname, quoteattr(obj.anchor)))
+            obj = parents[obj]
+        components.reverse()
+        xpointer = ''.join('xmlns(%s=%s)' % (prefix, namespace) for namespace, prefix in namespaces.iteritems() if prefix)
+        return root_xpath + ''.join(components) + ('?'+xpointer if xpointer else '')
 
     def _parse_element(self, element, *args, **kwargs):
         self._lists = {}
