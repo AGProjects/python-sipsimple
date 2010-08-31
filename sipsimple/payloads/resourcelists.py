@@ -271,6 +271,23 @@ class ResourceLists(XMLListRootElement):
         xpointer = ''.join('xmlns(%s=%s)' % (prefix, namespace) for namespace, prefix in namespaces.iteritems() if prefix)
         return root_xpath + ''.join(components) + ('?'+xpointer if xpointer else '')
 
+    def find_parent(self, element):
+        if not isinstance(element, (List, Entry, EntryRef, External)):
+            raise ValueError('can obly find parent for List, Entry, EntryRef or External elements')
+        if element is self:
+            return None
+        notexpanded = deque([self])
+        visited = set(notexpanded)
+        while notexpanded:
+            list = notexpanded.popleft()
+            for child in list:
+                if child is element:
+                    return list
+                elif isinstance(child, List) and child not in visited:
+                    notexpanded.append(child)
+                    visited.add(child)
+        return None
+
     def _parse_element(self, element, *args, **kwargs):
         self._lists = {}
         for child in element:

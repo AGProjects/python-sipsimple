@@ -517,6 +517,9 @@ class XMLRootElement(XMLElement):
     def get_xpath(self, element):
         raise NotImplementedError
 
+    def find_parent(self, element):
+        raise NotImplementedError
+
 
 ## Mixin classes
 
