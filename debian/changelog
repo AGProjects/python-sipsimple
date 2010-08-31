@@ -1,11 +1,34 @@
-python-sipsimple (0.15.4) unstable; urgency=low
+python-sipsimple (0.16.0) unstable; urgency=low
 
+  * Added XCAP contacts management based on OMA specifications
+  * Added support for Message Waiting Indicator
+  * Fixed handling of SUBSCRIBE response error codes in XCAPManager
+  * Added script for testing XCAPManager
+  * Added sipsimple.xcap package
+  * Added lookup_xcap_server method to DNSLookup
+  * Added timestamp to sipsimple.util.Command objects
+  * Added generic All and Any objects to sipsimple.util
+  * Added support for deleting children by id in RuleSet and RLSServices
+  * Added extension to add a display-name to common policy rules
+  * Renamed Icon payload definition to PresenceContent
+  * Added support for finding the parent of an element to sipsimple.payloads
+  * Added support for XPath to sipsimple.payloads
+  * Fixed parsing of IdentityMany policy elements
+  * Added support for parsing file-like objects with XML payloads
+  * Improved XMLElement hashes to allow list elements to be hashable
+  * Delegated encoding/decoding of URI values to sipsimple.payloads
+  * Added parser/generator for OMA pres-rules extensions
+  * Added custom extension for extra attributes to entries in resource-lists
+  * Added xcap-caps payload support
+  * Improved unicode support of XML payloads
+  * Fixed notification handling for MWI settings
+  * Fixed classproperty usage
   * Removed IP address from rtcp SDP attribute
   * Improved logic for determining source IP address used in signalling
   * Increased dependency version for python-application
   * Added device change detection capability in Windows
 
- -- Adrian Georgescu <ag@ag-projects.com>  Wed, 18 Aug 2010 14:35:34 +0200
+ -- Adrian Georgescu <ag@ag-projects.com>  Wed, 31 Aug 2010 17:05:31 +0200
 
 python-sipsimple (0.15.3) unstable; urgency=low
 
