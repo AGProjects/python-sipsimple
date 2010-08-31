@@ -963,9 +963,13 @@ class XCAPManager(object):
                             # Internal too brief
                             self.subscribe_interval *= 2
                             raise SubscriptionError(error='interval too brief', timeout=5)
-                        else:
+                        elif e.code == 408 or 500 <= e.code <= 599:
                             # Try the next route
                             continue
+                        else:
+                            # For any other code, we retry in some time
+                            timeout = random.uniform(60, 120)
+                            raise SubscriptionError(error=e.reason, timeout=timeout)
                     else:
                         self.subscription = subscription
                         command.signal()
