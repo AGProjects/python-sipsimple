@@ -898,7 +898,7 @@ class BonjourAccount(SettingsObject):
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
 
     @classproperty
-    def mdns_available(self):
+    def mdns_available(cls):
         return bonjour.available
 
     @property
