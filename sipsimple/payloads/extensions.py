@@ -5,16 +5,20 @@
 Proprietary extensions to IETF and OMA defined documents.
 """
 
-__all__ = ['rl_namespace', 'EntryAttributes']
+__all__ = ['rl_namespace', 'cp_namespace', 'EntryAttributes', 'RuleDisplayName']
 
 from lxml import etree
 
-from sipsimple.payloads import XMLElement
+from sipsimple.payloads import XMLElement, XMLStringElement
+from sipsimple.payloads.policy import CommonPolicyApplication, Rule, RuleExtension
 from sipsimple.payloads.resourcelists import Entry, EntryExtension, ResourceListsApplication
 
 
 rl_namespace = 'urn:ag-projects:xml:ns:resource-lists'
 ResourceListsApplication.register_namespace(rl_namespace, prefix='agp-rl')
+
+cp_namespace = 'urn:ag-projects:xml:ns:common-policy'
+CommonPolicyApplication.register_namespace(cp_namespace, prefix='agp-cp')
 
 
 class EntryAttributes(XMLElement, EntryExtension):
@@ -95,5 +99,14 @@ class EntryAttributes(XMLElement, EntryExtension):
         self._attributes.update(attributes)
 
 Entry.register_extension('attributes', EntryAttributes)
+
+
+class RuleDisplayName(XMLStringElement, RuleExtension):
+    _xml_tag = 'display-name'
+    _xml_namespace = cp_namespace
+    _xml_application = CommonPolicyApplication
+    _xml_lang = True
+
+Rule.register_extension('display_name', RuleDisplayName)
 
 

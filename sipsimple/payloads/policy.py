@@ -18,6 +18,7 @@ __all__ = ['namespace',
            'ConditionElement',
            'ActionElement',
            'TransformationElement',
+           'RuleExtension',
            'IdentityOne',
            'IdentityExcept',
            'IdentityMany',
@@ -42,6 +43,7 @@ CommonPolicyApplication.register_namespace(namespace, prefix='cp')
 class ConditionElement(object): pass
 class ActionElement(object): pass
 class TransformationElement(object): pass
+class RuleExtension(object): pass
 
 
 ## Elements
@@ -354,6 +356,7 @@ class Transformations(XMLListElement):
 class Rule(XMLElement):
     _xml_tag = 'rule'
     _xml_namespace = namespace
+    _xml_extension_type = RuleExtension
     _xml_application = CommonPolicyApplication
     _xml_children_order = {Conditions.qname: 0,
                            Actions.qname: 1,
