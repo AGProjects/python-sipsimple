@@ -960,14 +960,19 @@ class Account(SettingsObject):
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
-            elif set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list']).intersection(notification.data.modified):
+            elif self.enabled and 'message_summary.enabled' in notification.data.modified:
+                if self.message_summary.enabled:
+                    self._mwi_handler.activate()
+                else:
+                    self._mwi_handler.deactivate()
+            elif self.enabled and set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list']).intersection(notification.data.modified):
                 if self.sip.register:
                     self._registrar.reload_settings()
                 if self.message_summary.enabled:
                     self._mwi_handler.subscribe()
-            elif set(['sip.register_interval']).intersection(notification.data.modified) and self.enabled and self.sip.register:
+            elif self.enabled and 'sip.register_interval' in notification.data.modified and self.sip.register:
                 self._registrar.reload_settings()
-            elif set(['sip.subscribe_interval']).intersection(notification.data.modified) and self.enabled and self.message_summary.enabled:
+            elif self.enabled and 'sip.subscribe_interval' in notification.data.modified and self.message_summary.enabled:
                 self._mwi_handler.subscribe()
 
     @run_in_green_thread
