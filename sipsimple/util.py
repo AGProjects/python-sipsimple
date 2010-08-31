@@ -115,9 +115,10 @@ Any = AnyType()
 
 
 class Command(object):
-    def __init__(self, name, event=None, **kwargs):
+    def __init__(self, name, event=None, timestamp=None, **kwargs):
         self.name = name
         self.event = event or coros.event()
+        self.timestamp = timestamp or datetime.utcnow()
         self.__dict__.update(kwargs)
 
     def signal(self):
