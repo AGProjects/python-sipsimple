@@ -460,11 +460,11 @@ class AccountMWISubscriptionHandler(object):
 
     def _NH_SystemIPAddressDidChange(self, notification):
         if self.subscription is not None:
-            self._command_channel.send(Command('subscribe'))
+            self._subscription_timer = reactor.callLater(1, self._command_channel.send, Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self.subscription is not None:
-            self._command_channel.send(Command('subscribe'))
+            self._subscription_timer = reactor.callLater(1, self._command_channel.send, Command('subscribe'))
 
 
 class BonjourFile(object):
