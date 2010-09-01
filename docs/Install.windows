@@ -95,6 +95,9 @@ compiler=mingw32
 compiler=mingw32
 -- END distutils.cfg --
 
+Make sure when creating the configuration file above that no other extension
+than .cfg is appended to the file (for example .txt).
+
 
 Step 2. Install python dependencies
 -----------------------------------
@@ -165,6 +168,9 @@ The SDK consists of four parts:
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
+
+Make sure that the path where you download the software below does not
+contain any space in its name.
 
 # Greenlet
 if [ -d python-greenlet ]; then
