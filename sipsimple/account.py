@@ -365,7 +365,7 @@ class AccountMWISubscriptionHandler(object):
                                                 refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)
                     try:
-                        subscription.subscribe(extra_headers=[Header('Supported', 'eventlist')], timeout=limit(remaining_time, min=1, max=5))
+                        subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
                     except (PJSIPError, SIPCoreError):
                         timeout = random.uniform(60, 120)
                         raise SubscriptionError(error='Internal error', timeout=timeout)
