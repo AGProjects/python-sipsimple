@@ -443,6 +443,7 @@ class AccountMWISubscriptionHandler(object):
         else:
             self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
 
+    @run_in_green_thread
     def _NH_SIPSubscriptionGotNotify(self, notification):
         if notification.sender is self.subscription and notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
             try:
