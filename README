@@ -147,9 +147,8 @@ Presence
  * Resource Lists (RFC4826)
  * RLS Services (RFC4826)
  * PIDF manipulation (RFC4827)
- * XCAP Diff (draft-ietf-simple-xcap-diff-14)
- * OMA specification org.openmobilealliance.xcap-directory
- * OMA specification oma_status.icon
+ * XCAP Diff
+ * OMA specifications for XCAP storage and presence
 
 
 Support
