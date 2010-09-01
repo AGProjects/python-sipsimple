@@ -38,11 +38,11 @@ class MessageSummary(object):
                     tmp_header = []
                 continue
             else:
-                try:
-                    field = line.split(":")[0].strip()
-                    rest = "".join(line.split(":")[1:]).strip()
-                except IndexError:
+                field, sep, rest = line.partition(':')
+                if not field and not rest:
                     raise ValidationError("incorrect line format")
+                field = field.strip()
+                rest = rest.strip()
 
                 if field.lower() == "messages-waiting":
                     summary.messages_waiting = BooleanValue(rest)
