@@ -970,11 +970,11 @@ class Account(SettingsObject):
                 if self.sip.register:
                     self._registrar.reload_settings()
                 if self.message_summary.enabled:
-                    self._mwi_handler.subscribe()
+                    self._mwi_handler.activate()
             elif self.enabled and 'sip.register_interval' in notification.data.modified and self.sip.register:
                 self._registrar.reload_settings()
             elif self.enabled and 'sip.subscribe_interval' in notification.data.modified and self.message_summary.enabled:
-                self._mwi_handler.subscribe()
+                self._mwi_handler.activate()
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChangeID(self, notification):
@@ -982,7 +982,7 @@ class Account(SettingsObject):
             if self.sip.register:
                 self._registrar.reload_settings()
             if self.message_summary.enabled:
-                self._mwi_handler.subscribe()
+                self._mwi_handler.activate()
 
     def _activate(self):
         if self._active:
