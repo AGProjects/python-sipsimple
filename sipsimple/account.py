@@ -444,7 +444,7 @@ class AccountMWISubscriptionHandler(object):
             self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
-        if notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
+        if notification.sender is self.subscription and notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
             try:
                 message_summary = MessageSummary.parse(notification.data.body)
             except ValidationError:
