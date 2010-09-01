@@ -125,7 +125,8 @@ cdef class Subscription:
             self._send_subscribe(ua, 0, &end_timeout, [], None, None)
         except PJSIPError, e:
             self._term_reason = e.args[0]
-            pjsip_evsub_terminate(self._obj, 1)
+            if self._obj != NULL:
+                pjsip_evsub_terminate(self._obj, 1)
 
     # private methods
 
