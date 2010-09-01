@@ -242,7 +242,8 @@ cdef class Subscription:
         global sip_status_messages
         self._term_code = PJSIP_SC_TSX_TIMEOUT
         self._term_reason = sip_status_messages[PJSIP_SC_TSX_TIMEOUT]
-        pjsip_evsub_terminate(self._obj, 1)
+        if self._obj != NULL:
+            pjsip_evsub_terminate(self._obj, 1)
 
     cdef int _cb_refresh_timer(self, PJSIPUA ua):
         try:
@@ -250,7 +251,8 @@ cdef class Subscription:
                                  self.extra_headers, self.content_type, self.body)
         except PJSIPError, e:
             self._term_reason = e.args[0]
-            pjsip_evsub_terminate(self._obj, 1)
+            if self._obj != NULL:
+                pjsip_evsub_terminate(self._obj, 1)
 
 
 cdef class IncomingSubscription:
