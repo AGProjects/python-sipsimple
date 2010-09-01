@@ -40,8 +40,8 @@ Features
 --------
 
 The library has cross platform capabilities on Linux OS, Mac OSX (Leopard
-and Snow Leopard) and Microsoft Windows (roadmap). The library should work
-with minimal changes on any platform that supports C and Python development
+and Snow Leopard) and Microsoft Windows.  The library should work with
+minimal changes on any platform that supports C and Python development
 environments.
 
 To see SIP SIMPLE client SDK features in action you can try Blink from
