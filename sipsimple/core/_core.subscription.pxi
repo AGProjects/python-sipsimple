@@ -225,7 +225,7 @@ cdef class Subscription:
         expires_hdr = <pjsip_generic_int_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
         if expires_hdr != NULL:
             expires = expires_hdr.ivalue
-        if self.state != "TERMINATED":
+        if self.state != "TERMINATED" and self._want_end != 1:
             self._cancel_timers(ua, 1, 0)
             refresh.sec = max(1, min(expires - self.expire_warning_time, expires/2))
             refresh.msec = 0
