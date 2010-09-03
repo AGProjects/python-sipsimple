@@ -23,8 +23,10 @@ python-sipsimple (0.16.0) unstable; urgency=low
   * Delegated encoding/decoding of URI values to sipsimple.payloads
   * Improved unicode support of XML payloads
   * Removed IP address from rtcp SDP attribute
+  * Avoid refreshing subscription if no NOTIFY was received after
+    an un-SUBSCRIBE
 
- -- Adrian Georgescu <ag@ag-projects.com>  Wed, 31 Aug 2010 17:05:31 +0200
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 03 Sep 2010 10:08:12 +0200
 
 python-sipsimple (0.15.3) unstable; urgency=low
 

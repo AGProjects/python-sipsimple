@@ -1,3 +1,60 @@
+python-sipsimple (0.16.0) unstable; urgency=low
+
+  * Added XCAP contacts management based on OMA specifications
+  * Added parser/generator for OMA pres-rules extensions
+  * Added custom extension for extra attributes to entries in resource-lists
+  * Added xcap-caps payload support
+  * Added support for Message Waiting Indicator (MWI)
+  * Added SIPAccountMWIDidFail and SIPAccountMWIDidGetSummary notifications
+  * Added min_expires attribute to SipSubscriptionDidFail notification
+  * Added audio device change detection capability in Windows
+  * Improved logic for determining source IP address used in signalling
+  * Added lookup_xcap_server method to DNSLookup
+  * Added timestamp to sipsimple.util.Command objects
+  * Added generic All and Any objects to sipsimple.util
+  * Added support for deleting children by id in RuleSet and RLSServices
+  * Added extension to add a display-name to common policy rules
+  * Renamed Icon payload definition to PresenceContent
+  * Added support for finding the parent of an element to sipsimple.payloads
+  * Added support for XPath to sipsimple.payloads
+  * Fixed parsing of IdentityMany policy elements
+  * Added support for parsing file-like objects with XML payloads
+  * Improved XMLElement hashes to allow list elements to be hashable
+  * Delegated encoding/decoding of URI values to sipsimple.payloads
+  * Improved unicode support of XML payloads
+  * Removed IP address from rtcp SDP attribute
+  * Avoid refreshing subscription if no NOTIFY was received after
+    an un-SUBSCRIBE
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 03 Sep 2010 10:08:12 +0200
+
+python-sipsimple (0.15.3) unstable; urgency=low
+
+  * Changed default codec list to have G722 as first choice
+  * Fixed handling of case when session is ended before INVITE is sent
+  * Fixed subversion command execution for Windows
+  * Set all devices to None before shutdown
+  * Made the reactor thread a daemon thread
+  * Bumped Standards-Version to 3.9.1
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 13 Aug 2010 11:06:45 +0200
+
+python-sipsimple (0.15.2) unstable; urgency=low
+
+  * Added check to ensure uniqueness of account IDs
+  * Revert G722 adaptive bitshifting that broke re-INVITES
+  * Added python-lxml dependency and sorted dependencies order
+  * Fixed handling unicode characters in the bonjour neighbour display names
+  * Made use of the normalized property of Path configuration datatype
+  * Fixed handling the case when an internal pjsip invitation error occurs
+  * Fixed falling back to the None device when opening an AudioMixer
+  * Null is already an instance, no need to instantiate it anymore
+  * Added exponential timeout to DNS lookups for register
+  * Lower PortAudio revision to 1412 and removed pulse patches
+  * Bumped Standards-Version to 3.9.0
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 28 Jul 2010 10:39:05 +0200
+
 python-sipsimple (0.15.1) unstable; urgency=low
 
   * Added support for Microsoft Windows
