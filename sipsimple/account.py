@@ -8,7 +8,6 @@ multiple SIP accounts and their properties.
 
 from __future__ import absolute_import
 
-import os
 import random
 import re
 import string
@@ -29,7 +28,7 @@ from twisted.internet import reactor
 from zope.interface import implements
 
 from sipsimple import bonjour
-from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Header, Registration, RouteHeader, SIPURI, Subscription, ToHeader, PJSIPError, SIPCoreError
+from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, PJSIPError, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SIPTransportList, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
