@@ -457,7 +457,7 @@ class XMLRootElement(XMLElement):
     @classmethod
     def parse(cls, document, *args, **kwargs):
         try:
-            if isinstance(document, str):
+            if isinstance(document, basestring):
                 xml = etree.XML(document, parser=cls._xml_parser)
             else:
                 xml = etree.parse(document, parser=cls._xml_parser).getroot()
