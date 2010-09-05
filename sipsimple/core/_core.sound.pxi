@@ -134,7 +134,9 @@ cdef class AudioMixer:
 
     def __cinit__(self, *args, **kwargs):
         self._connected_slots = list()
-        if platform.system() == "Darwin" and not platform.mac_ver()[0].startswith("10.6"):
+        if platform.system() == "Darwin":
+            # At some point Snow Leopard did not like this, but it works now 2010-09-05
+            # and not platform.mac_ver()[0].startswith("10.6"):
             self._disconnect_when_idle = 1
         else:
             self._disconnect_when_idle = 0
