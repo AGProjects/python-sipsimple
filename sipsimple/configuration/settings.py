@@ -13,7 +13,7 @@ from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger
 from sipsimple.configuration.datatypes import AudioCodecList, AudioInputDevice, AudioOutputDevice, SampleRate
-from sipsimple.configuration.datatypes import MSRPTransport, Port, PortRange, SIPTransportList, TLSProtocol
+from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList, TLSProtocol
 from sipsimple.configuration.datatypes import Path
 
 
