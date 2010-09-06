@@ -169,7 +169,7 @@ class SIPAddress(str):
             username, domain = address.split('@')
             Hostname(domain)
         except ValueError:
-            raise ValueError("illegal SIP address: %s" % address)
+            raise ValueError("illegal SIP address: %s, must be in user@domain format" % address)
         return str.__new__(cls, address)
 
     username = property(lambda self: self.split('@')[0])
