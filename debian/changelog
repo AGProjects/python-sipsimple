@@ -1,3 +1,14 @@
+python-sipsimple (0.16.1) unstable; urgency=low
+
+  * Fixed XML document parsing for unicode objects
+  * Changed default audio sample rate to 44100
+  * Stop using audio device when idle on Snow Leopard
+  * Added short description for a legal sip address format
+  * Send MWI subscription to voicemail_uri if specified
+  * Fixed broken dependency to python-aplication for non-Debian systems
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 06 Sep 2010 15:55:28 +0200
+
 python-sipsimple (0.16.0) unstable; urgency=low
 
   * Added XCAP contacts management based on OMA specifications
