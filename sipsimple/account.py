@@ -355,8 +355,9 @@ class AccountMWISubscriptionHandler(object):
             for route in routes:
                 remaining_time = timeout - time()
                 if remaining_time > 0:
+                    subscription_uri = SIPURI(user=self.account.message_summary.voicemail_uri.username, host=self.account.message_summary.voicemail_uri.domain) if self.account.message_summary.voicemail_uri is not None else self.account.uri
                     subscription = Subscription(FromHeader(self.account.uri, self.account.display_name),
-                                                ToHeader(self.account.uri, self.account.display_name),
+                                                ToHeader(subscription_uri),
                                                 ContactHeader(ContactURI('%s@%s' % (self.account.contact.username, host.outgoing_ip_for(route.address)))[route.transport]),
                                                 'message-summary',
                                                 RouteHeader(route.get_uri()),
@@ -777,7 +778,7 @@ class NatTraversalSettings(SettingsGroup):
 
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    voicemail_uri = Setting(type=str, default=None, nillable=True)
+    voicemail_uri = Setting(type=SIPAddress, default=None, nillable=True)
 
 
 class XCAPSettings(SettingsGroup):
@@ -964,7 +965,7 @@ class Account(SettingsObject):
                     self._registrar.activate()
                 else:
                     self._registrar.deactivate()
-            elif self.enabled and 'message_summary.enabled' in notification.data.modified:
+            elif self.enabled and set(['message_summary.enabled', 'message_summary.voicemail_uri']).intersection(notification.data.modified):
                 if self.message_summary.enabled:
                     self._mwi_handler.activate()
                 else:
