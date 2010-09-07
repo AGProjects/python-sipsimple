@@ -770,7 +770,7 @@ class XCAPManager(object):
         else:
             try:
                 lookup = DNSLookup()
-                uri = random.choice(lookup.lookup_xcap_server(self.accound.uri))
+                uri = random.choice(lookup.lookup_xcap_server(self.account.uri).wait())
             except DNSLookupError:
                 self.timer = self._schedule_command(60,  Command('initialize', command.event))
                 return

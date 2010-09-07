@@ -11,7 +11,9 @@ resources prior the starting of a SIP session.
 from __future__ import absolute_import
 
 import re
+from itertools import chain
 from time import time
+from urlparse import urlparse
 
 # patch dns.entropy module which is not thread-safe
 import dns
@@ -341,6 +343,7 @@ class DNSLookup(object):
         that look like HTTP URIs.
         """
         log_context = dict(context='lookup_xcap_server', uri=uri)
+        notification_center = NotificationCenter()
 
         try:
             resolver = DNSResolver()
