@@ -891,10 +891,10 @@ class Account(SettingsObject):
         self._started = False
 
         self._deactivate()
-        self._registrar.stop()
-        self._registrar = None
         self._mwi_handler.stop()
         self._mwi_handler = None
+        self._registrar.stop()
+        self._registrar = None
 
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
@@ -1003,8 +1003,8 @@ class Account(SettingsObject):
         if not self._active:
             return
         self._active = False
-        self._registrar.deactivate()
         self._mwi_handler.deactivate()
+        self._registrar.deactivate()
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
