@@ -9,7 +9,6 @@ application.
 
 from __future__ import absolute_import, with_statement
 
-import os
 from threading import RLock, Thread
 
 from application.notification import IObserver, NotificationCenter
@@ -18,7 +17,7 @@ from eventlet import coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.core import AudioMixer, Engine, PJSIPTLSError, SIPCoreError, SIPURI
+from sipsimple.core import AudioMixer, Engine, SIPCoreError, SIPURI
 
 from sipsimple.account import Account, AccountManager
 from sipsimple.audio import AudioDevice, RootAudioBridge
