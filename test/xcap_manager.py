@@ -476,6 +476,8 @@ class Interface(Cmd):
                 raise ValueError('expected object items in attribute dialoginfo_policies of contact object')
             contact.dialoginfo_policies = [self.get_dialoginfo_policy(policy) for policy in dialoginfo_policies]
         for attr, value in obj.iteritems():
+            if attr in ('subscribe_to_presence', 'subscribe_to_dialoginfo'):
+                value = True if value == 'True' else False
             setattr(contact, attr, value)
         return contact
 
