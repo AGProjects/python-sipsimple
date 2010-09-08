@@ -2585,6 +2585,9 @@ class XCAPManager(object):
                             transformation.value = value
                         else:
                             rule.transformations.remove(transformation)
+        elif self.oma_compliant:
+            # No transformations are allowed if action is not 'allow'
+            rule.transformations = []
         if not any(isinstance(condition, (common_policy.Identity, omapolicy.ExternalList)) for condition in rule.conditions):
             if self.oma_compliant and self.resource_lists.supported and (rule.id.startswith('wp_prs_allow_onelist_') or rule.id.startswith('wp_prs_onelist_')):
                 resource_lists = self.resource_lists.content
