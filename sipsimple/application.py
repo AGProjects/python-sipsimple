@@ -77,9 +77,9 @@ class SIPApplication(object):
             raise
 
         # start the reactor thread
-        self.thread = Thread(name='Reactor Thread', target=self._run_reactor)
-        self.thread.setDaemon(True)
-        self.thread.start()
+        self._reactor_thread = Thread(name='Reactor Thread', target=self._run_reactor)
+        self._reactor_thread.setDaemon(True)
+        self._reactor_thread.start()
 
     def _run_reactor(self):
         from eventlet.twistedutil import join_reactor
@@ -213,6 +213,10 @@ class SIPApplication(object):
         notification_center.post_notification('SIPApplicationWillEnd', sender=self, data=TimestampedNotificationData())
         if prev_state != 'starting':
             self._shutdown_subsystems()
+
+        # wait for the reactor thread to end
+        # TODO: timeout should be removed when the Engine is fixed so that it never hangs. -Saul
+        self._reactor_thread.join(15.0)
 
     @run_in_green_thread
     def _shutdown_subsystems(self):
