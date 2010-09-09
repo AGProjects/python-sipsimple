@@ -3,4 +3,11 @@ See http://sipsimpleclient.com/report/3
 MSRP report headers:
  * prepare for how to deal with the session when the reports themselves get lost
 
+- allow the FileSelector to compute the hash later, with a specific method
+  which will be execute in another thread and which will notify the caller
+  using notifications about the progress and when it's done, allowing the
+  caller to continue.
 
+- end a session while in accepting state (after 1 dec)
+- model file transfer after desktop sharing (use handlers on termination)
+  have internal/external handlers (notifications based or file bridges)
