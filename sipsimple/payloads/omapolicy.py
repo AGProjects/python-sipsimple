@@ -12,7 +12,7 @@ import urllib
 
 from lxml import etree
 
-from sipsimple.payloads import XMLAttribute, XMLElement, XMLEmptyElement, XMLListElement, ValidationError
+from sipsimple.payloads import XMLEmptyElement, XMLListElement
 from sipsimple.payloads.policy import ConditionElement
 from sipsimple.payloads.presrules import PresRulesApplication
 

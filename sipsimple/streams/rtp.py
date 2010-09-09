@@ -10,8 +10,6 @@ from __future__ import with_statement
 
 __all__ = ['AudioStream']
 
-import os
-from datetime import datetime
 from threading import RLock
 
 from application.notification import IObserver, NotificationCenter, NotificationData

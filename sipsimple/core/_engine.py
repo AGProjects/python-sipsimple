@@ -12,7 +12,7 @@ import sys
 import traceback
 import atexit
 from datetime import datetime
-from threading import Thread, RLock, currentThread
+from threading import Thread, RLock
 
 from application.python.util import Singleton
 from application.notification import NotificationCenter, NotificationData

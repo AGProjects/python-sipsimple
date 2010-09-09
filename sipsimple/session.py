@@ -21,7 +21,7 @@ from eventlet.coros import queue
 from zope.interface import implements
 
 from sipsimple.core import Engine, Invitation, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, sip_status_messages
-from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, ViaHeader, WarningHeader
+from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
 from sipsimple.account import AccountManager, ContactURI
