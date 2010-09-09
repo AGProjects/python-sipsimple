@@ -355,7 +355,10 @@ class AccountMWISubscriptionHandler(object):
             for route in routes:
                 remaining_time = timeout - time()
                 if remaining_time > 0:
-                    subscription_uri = SIPURI(user=self.account.message_summary.voicemail_uri.username, host=self.account.message_summary.voicemail_uri.domain) if self.account.message_summary.voicemail_uri is not None else self.account.uri
+                    if self.account.message_summary.voicemail_uri is not None:
+                        subscription_uri = SIPURI(user=self.account.message_summary.voicemail_uri.username, host=self.account.message_summary.voicemail_uri.domain)
+                    else:
+                        subscription_uri = self.account.uri
                     subscription = Subscription(FromHeader(self.account.uri, self.account.display_name),
                                                 ToHeader(subscription_uri),
                                                 ContactHeader(ContactURI('%s@%s' % (self.account.contact.username, host.outgoing_ip_for(route.address)))[route.transport]),
