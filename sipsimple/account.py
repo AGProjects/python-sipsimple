@@ -978,9 +978,9 @@ class Account(SettingsObject):
                     self._registrar.reload_settings()
                 if self.message_summary.enabled:
                     self._mwi_handler.activate()
-            elif self.enabled and 'sip.register_interval' in notification.data.modified and self.sip.register:
+            elif self.enabled and self.sip.register and 'sip.register_interval' in notification.data.modified:
                 self._registrar.reload_settings()
-            elif self.enabled and 'sip.subscribe_interval' in notification.data.modified and self.message_summary.enabled:
+            elif self.enabled and self.message_summary.enabled and 'sip.subscribe_interval' in notification.data.modified:
                 self._mwi_handler.activate()
 
     @run_in_green_thread
