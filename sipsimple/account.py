@@ -370,7 +370,7 @@ class AccountMWISubscriptionHandler(object):
                     try:
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
                     except (PJSIPError, SIPCoreError):
-                        timeout = random.uniform(60, 120)
+                        timeout = 5
                         raise SubscriptionError(error='Internal error', timeout=timeout)
                     try:
                         while True:
@@ -462,12 +462,12 @@ class AccountMWISubscriptionHandler(object):
                 notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        if self.subscription is not None:
-            self._subscription_timer = reactor.callLater(1, self._command_channel.send, Command('subscribe'))
+        if self.subscription is not None and self._subscription_timer is None:
+            self._subscription_timer = reactor.callLater(0, self._command_channel.send, Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self.subscription is not None:
-            self._subscription_timer = reactor.callLater(1, self._command_channel.send, Command('subscribe'))
+        if self.subscription is not None and self._subscription_timer is None:
+            self._subscription_timer = reactor.callLater(0, self._command_channel.send, Command('subscribe'))
 
 
 class BonjourFile(object):
