@@ -13,7 +13,7 @@ from threading import RLock, Thread
 
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
-from eventlet import coros, proc
+from eventlet import api, coros, proc
 from twisted.internet import reactor
 from zope.interface import implements
 
@@ -77,9 +77,7 @@ class SIPApplication(object):
             raise
 
         # start the reactor thread
-        self._reactor_thread = Thread(name='Reactor Thread', target=self._run_reactor)
-        self._reactor_thread.setDaemon(True)
-        self._reactor_thread.start()
+        Thread(name='Reactor Thread', target=self._run_reactor).start()
 
     def _run_reactor(self):
         from eventlet.twistedutil import join_reactor
@@ -214,10 +212,6 @@ class SIPApplication(object):
         if prev_state != 'starting':
             self._shutdown_subsystems()
 
-        # wait for the reactor thread to end
-        # TODO: timeout should be removed when the Engine is fixed so that it never hangs. -Saul
-        self._reactor_thread.join(15.0)
-
     @run_in_green_thread
     def _shutdown_subsystems(self):
         # shutdown middleware components
@@ -235,11 +229,15 @@ class SIPApplication(object):
         # shutdown engine
         engine = Engine()
         engine.stop()
-        while True:
-            notification = self._channel.wait()
-            if notification.name == 'SIPEngineDidEnd':
-                break
-
+        # TODO: timeout should be removed when the Engine is fixed so that it never hangs. -Saul
+        try:
+            with api.timeout(15):
+                while True:
+                    notification = self._channel.wait()
+                    if notification.name == 'SIPEngineDidEnd':
+                        break
+        except api.TimeoutError:
+            pass
         # stop the reactor
         reactor.stop()
 
