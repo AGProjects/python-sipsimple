@@ -6,7 +6,7 @@ Implements a SIP Account management system that allows the definition of
 multiple SIP accounts and their properties.
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, with_statement
 
 import random
 import re
