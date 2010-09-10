@@ -77,7 +77,8 @@ class SIPApplication(object):
             raise
 
         # start the reactor thread
-        Thread(name='Reactor Thread', target=self._run_reactor).start()
+        self.thread = Thread(name='Reactor Thread', target=self._run_reactor)
+        self.thread.start()
 
     def _run_reactor(self):
         from eventlet.twistedutil import join_reactor
