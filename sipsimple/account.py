@@ -19,8 +19,7 @@ from weakref import WeakKeyDictionary
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
 from application.system import host
-from eventlet import coros, proc
-from eventlet.api import GreenletExit
+from eventlet import api, coros, proc
 from eventlet.green import select
 from gnutls.crypto import X509Certificate, X509PrivateKey
 from gnutls.interfaces.twisted import X509Credentials
@@ -101,7 +100,7 @@ class AccountRegistrar(object):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._command_channel.send_exception(GreenletExit)
+        self._command_channel.send_exception(api.GreenletExit)
 
     def activate(self):
         command = Command('register')
@@ -301,7 +300,7 @@ class AccountMWISubscriptionHandler(object):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._command_channel.send_exception(GreenletExit)
+        self._command_channel.send_exception(api.GreenletExit)
 
     def activate(self):
         command = Command('subscribe')
@@ -403,6 +402,22 @@ class AccountMWISubscriptionHandler(object):
                             # Otherwise just try the next route
                             continue
                     else:
+                        try:
+                            with api.timeout(5):
+                                while True:
+                                    notification = self._data_channel.wait()
+                                    if notification.sender is subscription and notification.name == 'SIPSubscriptionGotNotify':
+                                        if notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
+                                            try:
+                                                message_summary = MessageSummary.parse(notification.data.body)
+                                            except ValidationError:
+                                                pass
+                                            else:
+                                                notification_center = NotificationCenter()
+                                                notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
+                                        break
+                        except api.TimeoutError:
+                            pass
                         self.subscription = subscription
                         self.subscribed = True
                         command.signal()
@@ -450,8 +465,10 @@ class AccountMWISubscriptionHandler(object):
         else:
             self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
 
-    @run_in_green_thread
     def _NH_SIPSubscriptionGotNotify(self, notification):
+        if self.subscription is None:
+            self._data_channel.send(notification)
+            return
         if notification.sender is self.subscription and notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
             try:
                 message_summary = MessageSummary.parse(notification.data.body)
@@ -521,7 +538,7 @@ class BonjourServices(object):
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         self._select_proc.kill()
-        self._command_channel.send_exception(GreenletExit)
+        self._command_channel.send_exception(api.GreenletExit)
 
     def activate(self):
         self._stopped = False
