@@ -785,7 +785,7 @@ class RTPSettings(SettingsGroup):
 
 
 class DialogEventSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
+    enabled = Setting(type=bool, default=False)
 
 
 class NatTraversalSettings(SettingsGroup):
