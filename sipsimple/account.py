@@ -809,7 +809,7 @@ class XCAPSettings(SettingsGroup):
 
 class PresenceSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
-    use_rls = Setting(type=bool, default=True)
+    use_rls = Setting(type=bool, default=False)
 
 
 class TLSSettings(SettingsGroup):
