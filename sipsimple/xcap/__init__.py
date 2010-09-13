@@ -586,6 +586,8 @@ class XCAPManager(object):
         Initializes the XCAP manager, by loading any saved data from disk. Needs
         to be called before any other method and in a green thread.
         """
+        if not cache_directory:
+            raise RuntimeError("A cache directory for XCAP documents must me specified")
         self.cache_directory = cache_directory
         cache_directory = os.path.join(cache_directory, self.account.id)
         for document in self.documents:
