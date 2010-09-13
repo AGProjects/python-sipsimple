@@ -312,6 +312,14 @@ class Contact(object):
         self.subscribe_to_presence = True
         self.subscribe_to_dialoginfo = True
 
+    def __eq__(self, other):
+        return (self.name == other.name and self.uri == other.uri and self.group == other.group and self.attributes == other.attributes and
+               self.presence_policies == other.presence_policies and self.dialoginfo_policies == other.dialoginfo_policies and
+               self.subscribe_to_presence == other.subscribe_to_presence and self.subscribe_to_dialoginfo == other.subscribe_to_dialoginfo)
+
+    def __hash__(self):
+        return hash(self.uri)
+
 
 class Service(object):
     def __init__(self, uri, packages, entries=None):
@@ -324,21 +332,33 @@ class CatchAllCondition(object):
     def __init__(self, exceptions=None):
         self.exceptions = exceptions or []
 
+    def __eq__(self, other):
+        return self.exceptions == other.exceptions
+
 
 class DomainCondition(object):
     def __init__(self, domain, exceptions=None):
         self.domain = domain
         self.exceptions = exceptions or []
 
+    def __eq__(self, other):
+        return self.domain == other.domain and self.exceptions == other.exceptions
+
 
 class DomainException(object):
     def __init__(self, domain):
         self.domain = domain
 
+    def __eq__(self, other):
+        return self.domain == other.domain
+
 
 class UserException(object):
     def __init__(self, uri):
         self.uri = uri
+
+    def __eq__(self, other):
+        return self.uri == other.uri
 
 
 class Policy(object):
@@ -360,6 +380,13 @@ class Policy(object):
                 return True
         else:
             return False
+
+    def __eq__(self, other):
+        return (self.id == other.id and self.action == other.action and self.name == other.name and self.validity == other.validity and
+               self.sphere == other.sphere and self.multi_identity_conditions == other.multi_identity_conditions)
+
+    def __hash__(self):
+        return hash(self.id)
 
 
 # elements to represent provide_(devices|persons|services) components for pres-rules
@@ -391,6 +418,16 @@ class PresencePolicy(Policy):
         self.provide_unknown_attributes = None
         self.provide_all_attributes = True
 
+    def __eq__(self, other):
+        return (super(PresencePolicy, self).__eq__(other) and self.provide_devices == other.provide_devices and
+               self.provide_persons == other.provide_persons and self.provide_services == other.provide_services and
+               self.provide_activities == other.provide_activities and self.provide_class == other.provide_class and
+               self.provide_device_id == other.provide_device_id and self.provide_mood == other.provide_mood and
+               self.provide_place_is == other.provide_place_is and self.provide_place_type == other.provide_place_type and
+               self.provide_privacy == other.provide_privacy and self.provide_relationship == other.provide_relationship and
+               self.provide_status_icon == other.provide_status_icon and self.provide_sphere == other.provide_sphere and
+               self.provide_time_offset == other.provide_time_offset and self.provide_user_input == other.provide_user_input and
+               self.provide_unknown_attributes == other.provide_unknown_attributes and self.provide_all_attributes == other.provide_all_attributes)
 
 class DialoginfoPolicy(Policy):
     pass
