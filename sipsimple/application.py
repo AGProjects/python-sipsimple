@@ -25,7 +25,7 @@ from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.session import SessionManager
-from sipsimple.util import call_in_twisted_thread, run_in_green_thread, classproperty, Command, TimestampedNotificationData
+from sipsimple.util import run_in_twisted_thread, run_in_green_thread, classproperty, Command, TimestampedNotificationData
 
 
 class ApplicationAttribute(object):
@@ -252,8 +252,9 @@ class SIPApplication(object):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
+    @run_in_twisted_thread
     def _NH_SIPEngineDidEnd(self, notification):
-        call_in_twisted_thread(self._channel.send, notification)
+        self._channel.send(notification)
 
     def _NH_SIPEngineDidFail(self, notification):
         if not self.running:
