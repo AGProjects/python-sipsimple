@@ -24,6 +24,7 @@ from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
 from application.system import host, unlink
 from eventlet import api, coros
+from eventlet.green.httplib import BadStatusLine
 from xcaplib.green import XCAPClient
 from xcaplib.error import HTTPError
 from zope.interface import implements
@@ -105,6 +106,8 @@ class Document(object):
             document = self.client.get(self.application, etagnot=self.etag, globaltree=self.global_tree, headers={'Accept': self.payload_type.content_type}, filename=self.filename)
             self.content = self.payload_type.parse(document)
             self.etag = document.etag
+        except BadStatusLine, e:
+            raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
         except URLError, e:
             raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
         except HTTPError, e:
@@ -139,6 +142,8 @@ class Document(object):
                 response = self.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
             else:
                 response = self.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
+        except BadStatusLine, e:
+            raise XCAPError("failed to update %s document: %s" % (self.name, e))
         except URLError, e:
             raise XCAPError("failed to update %s document: %s" % (self.name, e))
         except HTTPError, e:
@@ -264,6 +269,8 @@ class StatusIconDocument(Document):
                 response = self.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
             else:
                 response = self.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
+        except BadStatusLine, e:
+            raise XCAPError("failed to update %s document: %s" % (self.name, e))
         except URLError, e:
             raise XCAPError("failed to update %s document: %s" % (self.name, e))
         except HTTPError, e:
