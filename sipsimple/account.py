@@ -388,13 +388,11 @@ class AccountMWISubscriptionHandler(object):
                             if e.min_expires is not None and e.min_expires > refresh_interval:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
                             else:
-                                notification_center = NotificationCenter()
                                 notification_center.post_notification('SIPAccountMWIDidFail', sender=self.account, data=TimestampedNotificationData(code=e.code, reason=e.reason))
                                 command.signal()
                                 break
                         elif e.code in (405, 406, 489):
                             # Stop sending subscriptions
-                            notification_center = NotificationCenter()
                             notification_center.post_notification('SIPAccountMWIDidFail', sender=self.account, data=TimestampedNotificationData(code=e.code, reason=e.reason))
                             command.signal()
                             break
@@ -414,7 +412,6 @@ class AccountMWISubscriptionHandler(object):
                                                 pass
                                             else:
                                                 self.account.message_summary.server_advertised_uri = message_summary.message_account
-                                                notification_center = NotificationCenter()
                                                 notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
                                         break
                         except api.TimeoutError:
@@ -432,7 +429,6 @@ class AccountMWISubscriptionHandler(object):
             self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
 
     def _CH_unsubscribe(self, command):
-        notification_center = NotificationCenter()
         # Cancel any timer which would restart the subscription process
         if self._subscription_timer is not None and self._subscription_timer.active():
             self._subscription_timer.cancel()
@@ -446,7 +442,7 @@ class AccountMWISubscriptionHandler(object):
                 notification = self._data_channel.wait()
                 if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
                     break
-            notification_center.remove_observer(self, sender=subscription)
+            NotificationCenter().remove_observer(self, sender=subscription)
         command.signal()
 
     @run_in_twisted_thread
@@ -477,8 +473,7 @@ class AccountMWISubscriptionHandler(object):
                 pass
             else:
                 self.account.message_summary.server_advertised_uri = message_summary.message_account
-                notification_center = NotificationCenter()
-                notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
+                NotificationCenter().post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
 
     def _NH_SystemIPAddressDidChange(self, notification):
         if self.subscription is not None and self._subscription_timer is None:
