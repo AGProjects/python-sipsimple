@@ -413,6 +413,7 @@ class AccountMWISubscriptionHandler(object):
                                             except ValidationError:
                                                 pass
                                             else:
+                                                self.account.message_summary.server_advertised_uri = message_summary.message_account
                                                 notification_center = NotificationCenter()
                                                 notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
                                         break
@@ -475,6 +476,7 @@ class AccountMWISubscriptionHandler(object):
             except ValidationError:
                 pass
             else:
+                self.account.message_summary.server_advertised_uri = message_summary.message_account
                 notification_center = NotificationCenter()
                 notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
 
@@ -799,6 +801,11 @@ class NatTraversalSettings(SettingsGroup):
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     voicemail_uri = Setting(type=SIPAddress, default=None, nillable=True)
+    server_advertised_uri = None # this is the URI we get back from the server when using MWI
+
+    @property
+    def uri(self):
+        return self.voicemail_uri or self.server_advertised_uri
 
 
 class XCAPSettings(SettingsGroup):
