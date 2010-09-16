@@ -819,9 +819,6 @@ class TLSSettings(SettingsGroup):
     verify_server = Setting(type=bool, default=False)
 
 
-class PSTNSettings(SettingsGroup):
-    pass
-
 class MSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tls')
     connection_model = Setting(type=MSRPConnectionModel, default='relay')
@@ -877,7 +874,6 @@ class Account(SettingsObject):
     presence = PresenceSettings
     xcap = XCAPSettings
     tls = TLSSettings
-    pstn = PSTNSettings
 
     def __init__(self, id):
         self.id = id
