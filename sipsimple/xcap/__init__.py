@@ -586,6 +586,10 @@ class XCAPManager(object):
     del _get_state, _set_state
 
     @property
+    def cached_documents(self):
+        return [document for document in self.dialog_rules, self.pidf_manipulation, self.pres_rules, self.resource_lists, self.rls_services, self.status_icon, self.server_caps if document.cached]
+
+    @property
     def documents(self):
         return [self.dialog_rules, self.pidf_manipulation, self.pres_rules, self.resource_lists, self.rls_services, self.status_icon]
 
@@ -634,7 +638,7 @@ class XCAPManager(object):
             raise RuntimeError("A cache directory for XCAP documents must me specified")
         self.cache_directory = cache_directory
         cache_directory = os.path.join(cache_directory, self.account.id)
-        for document in self.documents:
+        for document in self.cached_documents:
             document.load_from_cache(cache_directory)
         try:
             self.journal = cPickle.load(open(self.journal_filename, 'rb'))
