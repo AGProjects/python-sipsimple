@@ -83,8 +83,10 @@ class AccountRegistrar(object):
         username = ''.join(random.sample(string.lowercase, 8))
         self.contact = ContactURI('%s@%s' % (username, host.default_ip))
         self.registered = False
+        self._command_greenlet = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
+        self._current_command = None
         self._dns_wait = 1
         self._refresh_timer = None
         self._register_wait = 1
@@ -107,6 +109,9 @@ class AccountRegistrar(object):
         self._command_channel.send(command)
 
     def deactivate(self):
+        if self._current_command is not None and self._current_command.name != 'unregister':
+            api.kill(self._command_greenlet, api.GreenletExit())
+            self._run()
         command = Command('unregister')
         self._command_channel.send(command)
         command.wait()
@@ -117,10 +122,12 @@ class AccountRegistrar(object):
 
     @run_in_green_thread
     def _run(self):
+        self._command_greenlet = api.getcurrent()
         while True:
-            command = self._command_channel.wait()
+            self._current_command = command = self._command_channel.wait()
             handler = getattr(self, '_CH_%s' % command.name)
             handler(command)
+            self._current_command = None
 
     def _CH_register(self, command):
         notification_center = NotificationCenter()
@@ -287,8 +294,10 @@ class AccountMWISubscriptionHandler(object):
         self.subscribed = False
         self.subscription = None
         self._subscription_timer = None
+        self._command_greenlet = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
+        self._current_command = None
 
     def start(self):
         notification_center = NotificationCenter()
@@ -307,16 +316,21 @@ class AccountMWISubscriptionHandler(object):
         self._command_channel.send(command)
 
     def deactivate(self):
+        if self._current_command is not None and self._current_command.name != 'unsubscribe':
+            api.kill(self._command_greenlet, api.GreenletExit())
+            self._run()
         command = Command('unsubscribe')
         self._command_channel.send(command)
         command.wait()
 
     @run_in_green_thread
     def _run(self):
+        self._command_greenlet = api.getcurrent()
         while True:
-            command = self._command_channel.wait()
+            self._current_command = command = self._command_channel.wait()
             handler = getattr(self, '_CH_%s' % command.name)
             handler(command)
+            self._current_command = None
 
     def _CH_subscribe(self, command):
         notification_center = NotificationCenter()
