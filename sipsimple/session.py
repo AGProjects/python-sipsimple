@@ -345,7 +345,8 @@ class Session(object):
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
 
-            local_ip = host.outgoing_ip_for(self._invitation.sdp.proposed_remote.connection.address)
+            sdp_connection = self._invitation.sdp.proposed_remote.connection or (media.connection for media in self._invitation.sdp.proposed_remote.media if media.connection is not None).next()
+            local_ip = host.outgoing_ip_for(sdp_connection.address)
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             if self._invitation.sdp.proposed_remote:
