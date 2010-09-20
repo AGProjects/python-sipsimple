@@ -5,12 +5,12 @@
 Proprietary extensions to IETF and OMA defined documents.
 """
 
-__all__ = ['rl_namespace', 'cp_namespace', 'EntryAttributes', 'RuleDisplayName']
+__all__ = ['rl_namespace', 'cp_namespace', 'EntryAttributes', 'FalseCondition', 'RuleDisplayName']
 
 from lxml import etree
 
 from sipsimple.payloads import XMLElement, XMLStringElement
-from sipsimple.payloads.policy import CommonPolicyApplication, Rule, RuleExtension
+from sipsimple.payloads.policy import CommonPolicyApplication, ConditionElement, Rule, RuleExtension
 from sipsimple.payloads.resourcelists import Entry, EntryExtension, ResourceListsApplication
 
 
@@ -99,6 +99,14 @@ class EntryAttributes(XMLElement, EntryExtension):
         self._attributes.update(attributes)
 
 Entry.register_extension('attributes', EntryAttributes)
+
+
+# A condition element in the AG Projects namespace, it will always be evaluated to false
+# because it's not understood by servers
+class FalseCondition(XMLElement, ConditionElement):
+    _xml_tag = 'false-condition'
+    _xml_namespace = cp_namespace
+    _xml_application = CommonPolicyApplication
 
 
 class RuleDisplayName(XMLStringElement, RuleExtension):

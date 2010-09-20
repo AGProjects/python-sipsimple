@@ -53,7 +53,7 @@
     <xs:complexType name="identityType">
         <xs:complexContent>
             <xs:restriction base="xs:anyType">
-                <xs:choice  minOccurs="0" maxOccurs="unbounded">
+                <xs:choice  minOccurs="1" maxOccurs="unbounded">
                     <xs:element name="one" type="cp:oneType"/>
                     <xs:element name="many" type="cp:manyType"/>
                     <xs:any namespace="##other" processContents="lax"/>

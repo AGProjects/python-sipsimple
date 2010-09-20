@@ -327,7 +327,6 @@ class Contact(object):
     def __hash__(self):
         return hash(self.uri)
 
-
 class Service(object):
     def __init__(self, uri, packages, entries=None):
         self.uri = uri
@@ -341,6 +340,11 @@ class CatchAllCondition(object):
 
     def __eq__(self, other):
         return self.exceptions == other.exceptions
+
+
+class CatchNoneCondition(object):
+    def __eq__(self, other):
+        return self.__class__.__name__ == other.__class__.__name__
 
 
 class DomainCondition(object):
@@ -1805,6 +1809,29 @@ class XCAPManager(object):
         # Remove the elements we wanted to remove
         for child, parent in to_remove:
             parent.remove(child)
+        # Identity elements can't be empty
+        if self.pres_rules.supported:
+            pres_rules = self.pres_rules.content
+            for rule in pres_rules:
+                try:
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                except StopIteration:
+                    continue # Ignore rules whose actions we don't understand
+                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                    if len(condition) == 0:
+                        rule.conditions.remove(condition)
+                        rule.conditions.append(extensions.FalseCondition())
+        if self.dialog_rules.supported:
+            dialog_rules = self.dialog_rules.content
+            for rule in dialog_rules:
+                try:
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
+                except StopIteration:
+                    continue # Ignore rules whose actions we don't understand
+                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                    if len(condition) == 0:
+                        rule.conditions.remove(condition)
+                        rule.conditions.append(extensions.FalseCondition())
         # Preferred candidates are candidates where if added, the pres-rules and rls-services document need not be modified.
         preferred_candidate_lists = presrules_lists.intersection(candidate_lists)
         if operation.contact.subscribe_to_presence:
@@ -2299,6 +2326,29 @@ class XCAPManager(object):
                         self.rls_services.dirty = True
         for child, parent in to_remove:
             parent.remove(child)
+        # Identity elements can't be empty
+        if self.pres_rules.supported:
+            pres_rules = self.pres_rules.content
+            for rule in pres_rules:
+                try:
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                except StopIteration:
+                    continue # Ignore rules whose actions we don't understand
+                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                    if len(condition) == 0:
+                        rule.conditions.remove(condition)
+                        rule.conditions.append(extensions.FalseCondition())
+        if self.dialog_rules.supported:
+            dialog_rules = self.dialog_rules.content
+            for rule in dialog_rules:
+                try:
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
+                except StopIteration:
+                    continue # Ignore rules whose actions we don't understand
+                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                    if len(condition) == 0:
+                        rule.conditions.remove(condition)
+                        rule.conditions.append(extensions.FalseCondition())
 
     def _OH_add_presence_policy(self, operation):
         if not self.pres_rules.supported or operation.policy.id in ('wp_prs_unlisted', 'wp_prs_allow_unlisted', 'wp_prs_grantedcontacts', 'wp_prs_blockedcontacts', 'wp_prs_block_anonymous', 'wp_prs_allow_own'):
@@ -2390,7 +2440,6 @@ class XCAPManager(object):
             self.resource_lists.dirty = True
         else:
             identity_condition = common_policy.Identity()
-            rule.conditions.append(identity_condition)
             for multi_identity_condition in (operation.policy.multi_identity_conditions or []):
                 if isinstance(multi_identity_condition, CatchAllCondition):
                     condition = common_policy.IdentityMany()
@@ -2406,6 +2455,10 @@ class XCAPManager(object):
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, UserException):
                             condition.append(common_policy.IdentityExcept(id=exception.uri))
+            if len(identity_condition) == 0:
+                rule.conditions.append(extensions.FalseCondition())
+            else:
+                rule.conditions.append(identity_condition)
         pres_rules.append(rule)
         self.pres_rules.dirty = True
 
@@ -2647,10 +2700,11 @@ class XCAPManager(object):
                 path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
                 rule.conditions.append(omapolicy.ExternalList([path]))
                 self.resource_lists.dirty = True
-            else:
-                rule.conditions.append(common_policy.Identity())
-        if 'multi_identity_conditions' in operation.attributes:
+        try:
             identity_condition = (condition for condition in rule.conditions if isinstance(condition, common_policy.Identity)).next()
+        except StopIteration:
+            identity_condition = common_policy.Identity()
+        if 'multi_identity_conditions' in operation.attributes:
             for multi_identity_condition in [id_condition for id_condition in identity_condition if isinstance(id_condition, common_policy.IdentityMany)]:
                 identity_condition.remove(multi_identity_condition)
             for multi_identity_condition in (operation.attributes.pop('multi_identity_conditions') or []):
@@ -2668,6 +2722,11 @@ class XCAPManager(object):
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, UserException):
                             condition.append(common_policy.IdentityExcept(id=exception.uri))
+        # Identity condition can't be empty
+        if not identity_condition:
+            rule.conditions.append(extensions.FalseCondition())
+        else:
+            rule.conditions.append(identity_condition)
         self.pres_rules.dirty = True
 
     def _OH_remove_presence_policy(self, operation):
@@ -2696,7 +2755,6 @@ class XCAPManager(object):
         if operation.policy.validity:
             rule.conditions.append(common_policy.Validity(operation.policy.validity))
         identity_condition = common_policy.Identity()
-        rule.conditions.append(identity_condition)
         for multi_identity_condition in (operation.policy.multi_identity_conditions or []):
             if isinstance(multi_identity_condition, CatchAllCondition):
                 condition = common_policy.IdentityMany()
@@ -2712,6 +2770,10 @@ class XCAPManager(object):
                 for exception in multi_identity_condition.exceptions:
                     if isinstance(exception, UserException):
                         condition.append(common_policy.IdentityExcept(id=exception.uri))
+        if len(identity_condition) == 0:
+            rule.conditions.append(extensions.FalseCondition())
+        else:
+            rule.conditions.append(identity_condition)
         dialog_rules.append(rule)
         self.dialog_rules.dirty = True
 
@@ -2766,10 +2828,11 @@ class XCAPManager(object):
                     condition[:] = validity
                 else:
                     rule.conditions.remove(condition)
-        if not any(isinstance(condition, common_policy.Identity) for condition in rule.conditions):
-            rule.conditions.append(common_policy.Identity())
-        if 'multi_identity_conditions' in operation.attributes:
+        try:
             identity_condition = (condition for condition in rule.conditions if isinstance(condition, common_policy.Identity)).next()
+        except StopIteration:
+            identity_condition = common_policy.Identity()
+        if 'multi_identity_conditions' in operation.attributes:
             for multi_identity_condition in [id_condition for id_condition in identity_condition if isinstance(id_condition, common_policy.IdentityMany)]:
                 identity_condition.remove(multi_identity_condition)
             for multi_identity_condition in (operation.attributes.pop('multi_identity_conditions') or []):
@@ -2787,6 +2850,11 @@ class XCAPManager(object):
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, UserException):
                             condition.append(common_policy.IdentityExcept(id=exception.uri))
+        # Identity condition can't be empty
+        if len(identity_condition) == 0:
+            rule.conditions.append(extensions.FalseCondition())
+        else:
+            rule.conditions.append(identity_condition)
         self.dialog_rules.dirty = True
 
     def _OH_remove_dialoginfo_policy(self, operation):
