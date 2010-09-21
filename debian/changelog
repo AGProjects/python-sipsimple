@@ -1,8 +1,27 @@
 python-sipsimple (0.16.2) unstable; urgency=low
 
-  * TBW
+  * Fixed handling of SDP c line inside the media stream
+  * Added cached_documents property to XCAPManager
+  * Fixed XCAP server DNS lookups
+  * Handle BadStatusLine exception when fetching/updating documents
+  * Added equal and hash methods to Contact, Policy and condition classes
+  * Raise RuntimeError if no cache directory is provided for XCAP documents
+  * Don't keep old transformations if updated rule's action is not 'allow'
+  * Removed some unnecessary NotificationCenter instantiations
+  * Added properties for handling the server advertised voicemail URI
+  * Enable ICE by default
+  * Disable dialog event by default
+  * Increase default Subscribe and Publish intervals to 3600
+  * Disable RLS by default
+  * Added back thread attribute in SIPApplication
+  * Properly fix race condition when first NOTIFY for MWI arrives
+  * Avoid adding more than one MWI subscribe operation to the command channel
+  * End MWI subscription before ending registration
+  * Fixed waiting timeout for engine shutdown
+  * Changed name for reactor thread attribute and join thread on stop
+  * Fixed boolean parameters in xcap_manager test script
 
- -- Adrian Georgescu <ag@ag-projects.com>  Tue, 21 Sep 2010 14:09:29 +0200
+ -- Adrian Georgescu <ag@ag-projects.com>  Tue, 21 Sep 2010 14:33:09 +0200
 
 python-sipsimple (0.16.1) unstable; urgency=low
 
