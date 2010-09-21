@@ -237,7 +237,7 @@ class AccountRegistrar(object):
                     notification = self._data_channel.wait()
                     if notification.sender is self._registration and notification.name == 'SIPRegistrationDidEnd':
                         break
-            except SIPRegistrationDidNotEnd, e:
+            except (SIPRegistrationDidFail, SIPRegistrationDidNotEnd), e:
                 notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account,
                                                       data=TimestampedNotificationData(code=e.code,
                                                                                        reason=e.reason,
@@ -452,10 +452,13 @@ class AccountMWISubscriptionHandler(object):
             subscription = self.subscription
             self.subscription = None
             subscription.end(timeout=2)
-            while True:
-                notification = self._data_channel.wait()
-                if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
-                    break
+            try:
+                while True:
+                    notification = self._data_channel.wait()
+                    if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
+                        break
+            except SIPSubscriptionDidFail:
+                pass
             NotificationCenter().remove_observer(self, sender=subscription)
         command.signal()
 
