@@ -1,3 +1,9 @@
+python-sipsimple (0.16.2) unstable; urgency=low
+
+  * TBW
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Tue, 21 Sep 2010 14:09:29 +0200
+
 python-sipsimple (0.16.1) unstable; urgency=low
 
   * Fixed XML document parsing for unicode objects
