@@ -3198,7 +3198,7 @@ class XCAPManager(object):
                     if contact.group is None and rlist in buddy_lists and list_name is not None:
                         contact.group = list_name
                     if contact.name is None and rlist in buddy_lists and child.display_name:
-                        contact.name = child.display_name
+                        contact.name = child.display_name.value
                     if rlist in list_presence_policies:
                         contact.presence_policies.update(list_presence_policies[rlist])
                     if not contact.subscribe_to_presence and rlist in presence_lists:
