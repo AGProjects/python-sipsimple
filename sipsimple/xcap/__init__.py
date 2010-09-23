@@ -2221,7 +2221,7 @@ class XCAPManager(object):
                 contact.subscribe_to_dialoginfo = operation.contact.subscribe_to_dialoginfo
             contact.attributes = dict((key, value) for key, value in contact.attributes.iteritems() if value is not None)
             # Now we can delete the contact and add it again
-            ops = [RemoveContactOperation(uri=operation.contact.uri), AddContactOperation(contact=contact)]
+            ops = [RemoveContactOperation(contact=operation.contact), AddContactOperation(contact=contact)]
             for op in ops:
                 handler = getattr(self, '_OH_%s' % op.name)
                 handler(op)
