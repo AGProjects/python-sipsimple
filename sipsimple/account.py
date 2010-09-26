@@ -229,25 +229,26 @@ class AccountRegistrar(object):
         if self._refresh_timer is not None and self._refresh_timer.active():
             self._refresh_timer.cancel()
             self._refresh_timer = None
+        registered = self.registered
         self.registered = False
         if self._registration is not None:
-            self._registration.end(timeout=2)
-            try:
-                while True:
-                    notification = self._data_channel.wait()
-                    if notification.sender is self._registration and notification.name == 'SIPRegistrationDidEnd':
-                        break
-            except (SIPRegistrationDidFail, SIPRegistrationDidNotEnd), e:
-                notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account,
-                                                      data=TimestampedNotificationData(code=e.code,
-                                                                                       reason=e.reason,
-                                                                                       registration=self._registration))
-            else:
-                notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self.account,
-                                                      data=TimestampedNotificationData(registration=self._registration))
-            finally:
-                notification_center.remove_observer(self, sender=self._registration)
-                self._registration = None
+            if registered:
+                self._registration.end(timeout=2)
+                try:
+                    while True:
+                        notification = self._data_channel.wait()
+                        if notification.sender is self._registration and notification.name == 'SIPRegistrationDidEnd':
+                            break
+                except (SIPRegistrationDidFail, SIPRegistrationDidNotEnd), e:
+                    notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account,
+                                                          data=TimestampedNotificationData(code=e.code,
+                                                                                           reason=e.reason,
+                                                                                           registration=self._registration))
+                else:
+                    notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self.account,
+                                                          data=TimestampedNotificationData(registration=self._registration))
+            notification_center.remove_observer(self, sender=self._registration)
+            self._registration = None
         command.signal()
 
     def _CH_reload_settings(self, command):
