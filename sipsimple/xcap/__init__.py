@@ -555,8 +555,6 @@ class XCAPManager(object):
         self.account = account
         self.cache_directory = None
         self.client = None
-        self.command_channel = coros.queue()
-        self.data_channel = coros.queue()
         self.journal = []
         self.last_fetch_time = datetime.fromtimestamp(0)
         self.not_executed_fetch = None
@@ -567,6 +565,8 @@ class XCAPManager(object):
         self.subscription_timer = None
         self.timer = None
         self.transaction_level = 0
+        self._command_channel = coros.queue()
+        self._data_channel = coros.queue()
 
         self.server_caps = XCAPCapsDocument()
         self.dialog_rules = DialogRulesDocument()
@@ -651,7 +651,7 @@ class XCAPManager(object):
         else:
             for operation in self.journal:
                 operation.applied = False
-        self.run()
+        self._run()
 
     def start(self):
         """
@@ -665,7 +665,7 @@ class XCAPManager(object):
         notification_center.add_observer(self, sender=self.account)
         notification_center.add_observer(self, sender=SIPSimpleSettings())
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
-        self.command_channel.send(Command('initialize'))
+        self._command_channel.send(Command('initialize'))
         notification_center.post_notification('XCAPManagerDidStart', sender=self, data=TimestampedNotificationData())
 
     def stop(self):
@@ -686,7 +686,7 @@ class XCAPManager(object):
         if self.subscription_timer is not None and self.subscription_timer.active():
             self.subscription_timer.cancel()
         command = Command('unsubscribe')
-        self.command_channel.send(command)
+        self._command_channel.send(command)
         command.wait()
         if self.state == 'stopping':
             self.client = None
@@ -704,110 +704,110 @@ class XCAPManager(object):
             return
         self.transaction_level -= 1
         if self.transaction_level == 0 and self.journal:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def add_group(self, group):
         operation = AddGroupOperation(group=group)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def rename_group(self, old_name, new_name):
         operation = RenameGroupOperation(old_name=old_name, new_name=new_name)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def remove_group(self, group):
         operation = RemoveGroupOperation(group=group)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def add_contact(self, contact):
         operation = AddContactOperation(contact=contact)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def update_contact(self, contact, **attributes):
         operation = UpdateContactOperation(contact=contact, attributes=attributes)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def remove_contact(self, contact):
         operation = RemoveContactOperation(contact=contact)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def add_presence_policy(self, policy):
         operation = AddPresencePolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def update_presence_policy(self, policy, **attributes):
         operation = UpdatePresencePolicyOperation(policy=policy, attributes=attributes)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def remove_presence_policy(self, policy):
         operation = RemovePresencePolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def add_dialoginfo_policy(self, policy):
         operation = AddDialoginfoPolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def update_dialoginfo_policy(self, policy, **attributes):
         operation = UpdateDialoginfoPolicyOperation(policy=policy, attributes=attributes)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def remove_dialoginfo_policy(self, policy):
         operation = RemoveDialoginfoPolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def set_status_icon(self, icon):
         operation = SetStatusIconOperation(icon=icon)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_twisted_thread
     def set_offline_status(self, status):
         operation = SetOfflineStatusOperation(status=status)
         self.journal.append(operation)
         if self.transaction_level == 0:
-            self.command_channel.send(Command('update'))
+            self._command_channel.send(Command('update'))
 
     @run_in_green_thread
-    def run(self):
+    def _run(self):
         while True:
-            command = self.command_channel.wait()
+            command = self._command_channel.wait()
             handler = getattr(self, '_CH_%s' % command.name)
             handler(command)
 
@@ -856,8 +856,8 @@ class XCAPManager(object):
 
         self.subscribe_interval = limit(self.account.sip.subscribe_interval, min=60)
         self.state = 'fetching'
-        self.command_channel.send(Command('fetch', documents=self.document_names))
-        self.command_channel.send(Command('subscribe', command.event))
+        self._command_channel.send(Command('fetch', documents=self.document_names))
+        self._command_channel.send(Command('subscribe', command.event))
 
     def _CH_reload(self, command):
         if self.state in ('stopping', 'stopped'):
@@ -870,13 +870,13 @@ class XCAPManager(object):
             self.subscribe_interval = limit(self.account.sip.subscribe_interval, min=60)
         if set(['id', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
             self.state = 'initializing'
-            self.command_channel.send(Command('initialize', command.event))
+            self._command_channel.send(Command('initialize', command.event))
         elif self.subscription is None and self.account.xcap.use_xcap_diff:
-            self.command_channel.send(Command('subscribe', command.event))
+            self._command_channel.send(Command('subscribe', command.event))
         elif self.subscription is not None and not self.account.xcap.use_xcap_diff:
-            self.command_channel.send(Command('subscribe', command.event))
+            self._command_channel.send(Command('subscribe', command.event))
         elif set(['sip.subscribe_interval', 'sip.transport_list']).intersection(command.modified):
-            self.command_channel.send(Command('subscribe', command.event))
+            self._command_channel.send(Command('subscribe', command.event))
         else:
             command.signal()
 
@@ -910,7 +910,7 @@ class XCAPManager(object):
 
         self.state = 'updating'
         self.journal.insert(0, NormalizeOperation())
-        self.command_channel.send(Command('update', command.event))
+        self._command_channel.send(Command('update', command.event))
 
     def _CH_update(self, command):
         if self.state not in ('insync', 'updating'):
@@ -941,7 +941,7 @@ class XCAPManager(object):
             for operation in journal:
                 operation.applied = False
             self.state = 'fetching'
-            self.command_channel.send(Command('fetch', documents=self.document_names)) # Try to fetch them all just in case
+            self._command_channel.send(Command('fetch', documents=self.document_names)) # Try to fetch them all just in case
         except XCAPError:
             self.timer = self._schedule_command(60, Command('update'))
         else:
@@ -950,7 +950,7 @@ class XCAPManager(object):
             self._load_data()
             command.signal()
             if self.not_executed_fetch is not None:
-                self.command_channel.send(self.not_executed_fetch)
+                self._command_channel.send(self.not_executed_fetch)
                 self.not_executed_fetch = None
         self._save_journal()
 
@@ -1002,7 +1002,7 @@ class XCAPManager(object):
                     try:
                         subscription.subscribe(body=body, content_type=content_type, timeout=limit(remaining_time, min=1, max=5))
                         while True:
-                            notification = self.data_channel.wait()
+                            notification = self._data_channel.wait()
                             if notification.sender is subscription and notification.name == 'SIPSubscriptionDidStart':
                                 break
                     except SIPCoreError:
@@ -1034,7 +1034,7 @@ class XCAPManager(object):
                 raise SubscriptionError(error='no more routes to try', timeout=timeout)
         except SubscriptionError, e:
             # There was an error, so do a fetch instead
-            self.command_channel.send(Command('fetch', documents=self.document_names))
+            self._command_channel.send(Command('fetch', documents=self.document_names))
             self.subscription_timer = self._schedule_command(e.timeout, Command('subscribe', command.event))
 
     def _CH_unsubscribe(self, command):
@@ -1043,7 +1043,7 @@ class XCAPManager(object):
             self.subscription = None
             subscription.end()
             while True:
-                notification = self.data_channel.wait()
+                notification = self._data_channel.wait()
                 if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
                     break
         command.signal()
@@ -2906,34 +2906,34 @@ class XCAPManager(object):
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
         if set(['xcap.xcap_root', 'xcap.use_xcap_diff', 'id', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
-            self.command_channel.send(Command('reload', modified=notification.data.modified))
+            self._command_channel.send(Command('reload', modified=notification.data.modified))
 
     def _NH_SIPSubscriptionDidStart(self, notification):
-        self.data_channel.send(notification)
+        self._data_channel.send(notification)
 
     def _NH_SIPSubscriptionDidEnd(self, notification):
-        self.data_channel.send(notification)
+        self._data_channel.send(notification)
 
     def _NH_SIPSubscriptionDidFail(self, notification):
         if notification.sender is not self.subscription:
-            self.data_channel.send_exception(SIPSubscriptionDidFail(notification.data.__dict__))
+            self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data.__dict__))
         else:
-            self.command_channel.send(Command('subscribe'))
+            self._command_channel.send(Command('subscribe'))
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
         if notification.data.headers.get('Content-Type', Null)[0] == xcapdiff.XCAPDiff.content_type:
             try:
                 xcap_diff = xcapdiff.XCAPDiff.parse(notification.data.body)
             except ParserError:
-                self.command_channel.send(Command('fetch', documents=self.document_names))
+                self._command_channel.send(Command('fetch', documents=self.document_names))
             else:
                 applications = set(child.selector.auid for child in xcap_diff if isinstance(child, xcapdiff.Document))
                 documents = [document.name for document in self.documents if document.application in applications]
-                self.command_channel.send(Command('fetch', documents=documents))
+                self._command_channel.send(Command('fetch', documents=documents))
 
     def _NH_SystemIPAddressDidChange(self, notification):
         if self.subscription is not None:
-            self.command_channel.send(Command('subscribe'))
+            self._command_channel.send(Command('subscribe'))
 
     def _load_data(self):
         if not self.resource_lists.supported:
@@ -3289,7 +3289,7 @@ class XCAPManager(object):
 
     def _schedule_command(self, timeout, command):
         from twisted.internet import reactor
-        timer = reactor.callLater(timeout, self.command_channel.send, command)
+        timer = reactor.callLater(timeout, self._command_channel.send, command)
         timer.command = command
         return timer
 
