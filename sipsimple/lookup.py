@@ -366,10 +366,10 @@ class DNSLookup(object):
                 notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=None, error=e, **log_context))
             else:
                 notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=answer, error=None, **log_context))
-                for uri in list(chain(*(r.strings for r in answer.rrset))):
-                    parsed_uri = urlparse(uri)
+                for result_uri in list(chain(*(r.strings for r in answer.rrset))):
+                    parsed_uri = urlparse(result_uri)
                     if parsed_uri.scheme in ('http', 'https') and parsed_uri.netloc:
-                        results.append(uri)
+                        results.append(result_uri)
             if not results:
                 raise DNSLookupError('No XCAP servers found for domain %s' % uri.host)
             return results
