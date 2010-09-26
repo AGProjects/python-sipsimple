@@ -565,8 +565,10 @@ class XCAPManager(object):
         self.subscription_timer = None
         self.timer = None
         self.transaction_level = 0
+        self._command_greenlet = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
+        self._current_command = None
 
         self.server_caps = XCAPCapsDocument()
         self.dialog_rules = DialogRulesDocument()
@@ -685,6 +687,9 @@ class XCAPManager(object):
             self.timer.cancel()
         if self.subscription_timer is not None and self.subscription_timer.active():
             self.subscription_timer.cancel()
+        if self._current_command is not None and self._current_command.name in ('subscribe'):
+            api.kill(self._command_greenlet, api.GreenletExit())
+            self._run()
         command = Command('unsubscribe')
         self._command_channel.send(command)
         command.wait()
@@ -806,10 +811,12 @@ class XCAPManager(object):
 
     @run_in_green_thread
     def _run(self):
+        self._command_greenlet = api.getcurrent()
         while True:
-            command = self._command_channel.wait()
+            self._current_command = command = self._command_channel.wait()
             handler = getattr(self, '_CH_%s' % command.name)
             handler(command)
+            self._current_command = None
 
     # command handlers
     #
@@ -1041,11 +1048,14 @@ class XCAPManager(object):
         if self.subscription is not None:
             subscription = self.subscription
             self.subscription = None
-            subscription.end()
-            while True:
-                notification = self._data_channel.wait()
-                if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
-                    break
+            subscription.end(timeout=2)
+            try:
+                while True:
+                    notification = self._data_channel.wait()
+                    if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
+                        break
+            except SIPSubscriptionDidFail:
+                pass
         command.signal()
 
     # operation handlers
