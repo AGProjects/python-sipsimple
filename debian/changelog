@@ -1,5 +1,14 @@
 python-sipsimple (0.16.2) unstable; urgency=low
 
+  * Enhanced xcap-diff subscription termination
+  * Don't try to unregister if we weren't registered at all
+  * Changed visibility of command and data channels to private
+  * Fixed handling bogus TXT records for XCAP server lookups
+  * Fixed contact edit in XCAPManager when it needs to be removed and readded
+  * Avoid using SubHandlingValue object inside XCAPManager
+  * Fixed building contact name on XCAP manager
+  * Fixed use of XCAP identity conditions
+  * Fixed handling of SIPRegistrationDidFail and SIPSubscriptionDidFail exceptions
   * Fixed handling of SDP c line inside the media stream
   * Added cached_documents property to XCAPManager
   * Fixed XCAP server DNS lookups
@@ -21,7 +30,7 @@ python-sipsimple (0.16.2) unstable; urgency=low
   * Changed name for reactor thread attribute and join thread on stop
   * Fixed boolean parameters in xcap_manager test script
 
- -- Adrian Georgescu <ag@ag-projects.com>  Tue, 21 Sep 2010 14:33:09 +0200
+ -- Adrian Georgescu <ag@ag-projects.com>  Mon, 27 Sep 2010 17:57:27 +0200
 
 python-sipsimple (0.16.1) unstable; urgency=low
 
