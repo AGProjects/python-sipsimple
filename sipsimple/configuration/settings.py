@@ -46,13 +46,13 @@ class LogsSettings(SettingsGroup):
 
 
 class RTPSettings(SettingsGroup):
-    port_range = Setting(type=PortRange, default=PortRange(50000, 50400))
+    port_range = Setting(type=PortRange, default=PortRange(50000, 50500))
     timeout = Setting(type=NonNegativeInteger, default=30)
-    audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('speex', 'G722', 'PCMU', 'PCMA')))
+    audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('G722', 'speex', 'PCMU', 'PCMA')))
 
 
 class SIPSettings(SettingsGroup):
-    invite_timeout = Setting(type=NonNegativeInteger, default=180, nillable=True)
+    invite_timeout = Setting(type=NonNegativeInteger, default=90, nillable=True)
     udp_port = Setting(type=Port, default=0)
     tcp_port = Setting(type=Port, default=0)
     tls_port = Setting(type=Port, default=0)
@@ -62,7 +62,7 @@ class SIPSettings(SettingsGroup):
 class TLSSettings(SettingsGroup):
     ca_list = Setting(type=Path, default=None, nillable=True)
     protocol = Setting(type=TLSProtocol, default='TLSv1')
-    timeout = Setting(type=NonNegativeInteger, default=1000)
+    timeout = Setting(type=NonNegativeInteger, default=3000)
 
 
 class SIPSimpleSettings(SettingsObject):
