@@ -119,7 +119,7 @@ class SIPApplication(object):
                        tls_ca_file=None,
                        tls_cert_file=None,
                        tls_privkey_file=None,
-                       tls_timeout=1000,
+                       tls_timeout=3000,
                        # rtp
                        rtp_port_range=(settings.rtp.port_range.start, settings.rtp.port_range.end),
                        # audio
