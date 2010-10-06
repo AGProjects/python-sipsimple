@@ -1638,7 +1638,7 @@ class XCAPManager(object):
             for rule in pres_rules:
                 # Action is used to ignore rules whose actions we don't understand
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                 except StopIteration:
                     action = None
                 if not operation.contact.presence_policies or rule.id not in (policy.id for policy in operation.contact.presence_policies) or action is None:
@@ -1819,7 +1819,7 @@ class XCAPManager(object):
             pres_rules = self.pres_rules.content
             for rule in pres_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
@@ -1830,7 +1830,7 @@ class XCAPManager(object):
             dialog_rules = self.dialog_rules.content
             for rule in dialog_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
@@ -1863,7 +1863,7 @@ class XCAPManager(object):
                         rule.conditions = []
                     else:
                         try:
-                            action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                            action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                         except StopIteration:
                             continue # We don't understand this rule, ignore the request to add to this policy
                     # If we have an identity condition, use that one
@@ -2099,7 +2099,7 @@ class XCAPManager(object):
                 contact.presence_policies = set()
                 for rule in pres_rules:
                     try:
-                        action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                        action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                     except StopIteration:
                         continue # Ignore rules whose actions we don't understand
                     policy = PresencePolicy(rule.id, action)
@@ -2121,7 +2121,7 @@ class XCAPManager(object):
                 contact.dialoginfo_policies = set()
                 for rule in dialog_rules:
                     try:
-                        action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
+                        action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
                     except StopIteration:
                         continue # Ignore rules whose actions we don't understand
                     policy = DialoginfoPolicy(rule.id, action)
@@ -2263,7 +2263,7 @@ class XCAPManager(object):
             pres_rules = self.pres_rules.content
             for rule in pres_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 for condition in (rule.conditions or []):
@@ -2288,7 +2288,7 @@ class XCAPManager(object):
             # Remove any reference to the uri and add it to the correct rule
             for rule in dialog_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 for condition in (rule.conditions or []):
@@ -2336,7 +2336,7 @@ class XCAPManager(object):
             pres_rules = self.pres_rules.content
             for rule in pres_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
@@ -2347,7 +2347,7 @@ class XCAPManager(object):
             dialog_rules = self.dialog_rules.content
             for rule in dialog_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
@@ -2505,7 +2505,7 @@ class XCAPManager(object):
                 rule.id.startswith('wp_prs_onelist') or any(isinstance(condition, omapolicy.ExternalList) for condition in (rule.conditions or []))):
             # We canot add multi identity conditions to this rule, so create a new one using whatever data from the old one
             try:
-                action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
             except StopIteration:
                 action = None
             policy = PresencePolicy(None, operation.attributes.pop('action', action))
@@ -2622,7 +2622,7 @@ class XCAPManager(object):
                 else:
                     rule.conditions.remove(condition)
         try:
-            action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+            action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
         except StopIteration:
             action = None
         if action == 'allow':
@@ -2985,7 +2985,7 @@ class XCAPManager(object):
             pres_rules = self.pres_rules.content
             for rule in pres_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 policy = PresencePolicy(rule.id, action)
@@ -3077,7 +3077,7 @@ class XCAPManager(object):
             dialog_rules = self.dialog_rules.content
             for rule in dialog_rules:
                 try:
-                    action = (unicode(action.value) for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
+                    action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
                 policy = DialoginfoPolicy(rule.id, action)
