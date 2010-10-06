@@ -320,9 +320,11 @@ class Contact(object):
         self.subscribe_to_dialoginfo = True
 
     def __eq__(self, other):
-        return (self.name == other.name and self.uri == other.uri and self.group == other.group and self.attributes == other.attributes and
-               self.presence_policies == other.presence_policies and self.dialoginfo_policies == other.dialoginfo_policies and
-               self.subscribe_to_presence == other.subscribe_to_presence and self.subscribe_to_dialoginfo == other.subscribe_to_dialoginfo)
+        if isinstance(other, Contact):
+            return (self.name == other.name and self.uri == other.uri and self.group == other.group and self.attributes == other.attributes and
+                    self.presence_policies == other.presence_policies and self.dialoginfo_policies == other.dialoginfo_policies and
+                    self.subscribe_to_presence == other.subscribe_to_presence and self.subscribe_to_dialoginfo == other.subscribe_to_dialoginfo)
+        return False
 
     def __hash__(self):
         return hash(self.uri)
@@ -339,7 +341,9 @@ class CatchAllCondition(object):
         self.exceptions = exceptions or []
 
     def __eq__(self, other):
-        return self.exceptions == other.exceptions
+        if isinstance(other, CatchAllCondition):
+            return self.exceptions == other.exceptions
+        return False
 
 
 class DomainCondition(object):
@@ -348,7 +352,9 @@ class DomainCondition(object):
         self.exceptions = exceptions or []
 
     def __eq__(self, other):
-        return self.domain == other.domain and self.exceptions == other.exceptions
+        if isinstance(other, DomainCondition):
+            return self.domain == other.domain and self.exceptions == other.exceptions
+        return False
 
 
 class DomainException(object):
@@ -356,7 +362,9 @@ class DomainException(object):
         self.domain = domain
 
     def __eq__(self, other):
-        return self.domain == other.domain
+        if isinstance(other, DomainException):
+            return self.domain == other.domain
+        return False
 
 
 class UserException(object):
@@ -364,7 +372,9 @@ class UserException(object):
         self.uri = uri
 
     def __eq__(self, other):
-        return self.uri == other.uri
+        if isinstance(other, UserException):
+            return self.uri == other.uri
+        return False
 
 
 class Policy(object):
@@ -388,8 +398,10 @@ class Policy(object):
             return False
 
     def __eq__(self, other):
-        return (self.id == other.id and self.action == other.action and self.name == other.name and self.validity == other.validity and
-               self.sphere == other.sphere and self.multi_identity_conditions == other.multi_identity_conditions)
+        if isinstance(other, Policy):
+            return (self.id == other.id and self.action == other.action and self.name == other.name and self.validity == other.validity and
+                    self.sphere == other.sphere and self.multi_identity_conditions == other.multi_identity_conditions)
+        return False
 
     def __hash__(self):
         return hash(self.id)
