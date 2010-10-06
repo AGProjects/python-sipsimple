@@ -1006,15 +1006,11 @@ class Account(SettingsObject):
                     self._mwi_handler.activate()
                 else:
                     self._mwi_handler.deactivate()
-            elif self.enabled and set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list']).intersection(notification.data.modified):
-                if self.sip.register:
+            elif self.enabled:
+                if set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']).intersection(notification.data.modified) and self.sip.register:
                     self._registrar.reload_settings()
-                if self.message_summary.enabled:
+                if set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.subscribe_interval']).intersection(notification.data.modified) and self.message_summary.enabled:
                     self._mwi_handler.activate()
-            elif self.enabled and self.sip.register and 'sip.register_interval' in notification.data.modified:
-                self._registrar.reload_settings()
-            elif self.enabled and self.message_summary.enabled and 'sip.subscribe_interval' in notification.data.modified:
-                self._mwi_handler.activate()
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChangeID(self, notification):
