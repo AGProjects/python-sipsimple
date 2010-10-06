@@ -682,7 +682,7 @@ class XCAPManager(object):
             self.timer.cancel()
         if self.subscription_timer is not None and self.subscription_timer.active():
             self.subscription_timer.cancel()
-        if self._current_command is not None and self._current_command.name in ('subscribe'):
+        if self._current_command is not None and self._current_command.name == 'subscribe':
             api.kill(self._command_greenlet, api.GreenletExit())
             self._run()
         command = Command('unsubscribe')
