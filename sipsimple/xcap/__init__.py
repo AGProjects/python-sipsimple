@@ -342,11 +342,6 @@ class CatchAllCondition(object):
         return self.exceptions == other.exceptions
 
 
-class CatchNoneCondition(object):
-    def __eq__(self, other):
-        return self.__class__.__name__ == other.__class__.__name__
-
-
 class DomainCondition(object):
     def __init__(self, domain, exceptions=None):
         self.domain = domain
