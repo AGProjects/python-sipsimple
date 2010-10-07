@@ -31,7 +31,7 @@ from zope.interface import implements
 
 from sipsimple.account import ContactURI
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import ContactHeader, FromHeader, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
+from sipsimple.core import ContactHeader, FromHeader, PJSIPError, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
 from sipsimple.payloads import dialogrules, extensions, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
@@ -43,8 +43,9 @@ class XCAPError(Exception): pass
 class FetchRequiredError(XCAPError): pass
 
 class SubscriptionError(Exception):
-    def __init__(self, error, timeout):
+    def __init__(self, error, timeout, refresh_interval=None):
         self.error = error
+        self.refresh_interval = refresh_interval
         self.timeout = timeout
 
 class SIPSubscriptionDidFail(Exception):
@@ -973,12 +974,18 @@ class XCAPManager(object):
             return
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
+
+        if getattr(command, 'refresh_interval', None) is not None:
+            refresh_interval = command.refresh_interval
+        else:
+            refresh_interval = self.subscribe_interval
+
         if self.subscription_timer is not None and self.subscription_timer.active():
             self.subscription_timer.cancel()
         self.subscription_timer = None
         if self.subscription is not None:
             notification_center.remove_observer(self, sender=self.subscription)
-            self.subscription.end()
+            self.subscription.end(timeout=2)
             self.subscription = None
         try:
             if self.account.sip.outbound_proxy is not None:
@@ -1009,10 +1016,14 @@ class XCAPManager(object):
                                                 'xcap-diff',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=self.account.credentials,
-                                                refresh=self.subscribe_interval)
+                                                refresh=refresh_interval)
                     notification_center.add_observer(self, sender=subscription)
                     try:
                         subscription.subscribe(body=body, content_type=content_type, timeout=limit(remaining_time, min=1, max=5))
+                    except (PJSIPError, SIPCoreError):
+                        timeout = 5
+                        raise SubscriptionError(error='Internal error', timeout=timeout)
+                    try:
                         while True:
                             notification = self.data_channel.wait()
                             if notification.sender is subscription and notification.name == 'SIPSubscriptionDidStart':
@@ -1026,28 +1037,32 @@ class XCAPManager(object):
                             timeout = random.uniform(60, 120)
                             raise SubscriptionError(error='authentication failed', timeout=timeout)
                         elif e.code == 423:
-                            # Internal too brief
-                            self.subscribe_interval *= 2
-                            raise SubscriptionError(error='interval too brief', timeout=5)
-                        elif e.code == 408 or 500 <= e.code <= 599:
-                            # Try the next route
-                            continue
-                        else:
-                            # For any other code, we retry in some time
+                            # Get the value of the Min-Expires header
                             timeout = random.uniform(60, 120)
-                            raise SubscriptionError(error=e.reason, timeout=timeout)
+                            if e.min_expires is not None and e.min_expires > refresh_interval:
+                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
+                            else:
+                                command.signal()
+                                break
+                        elif e.code in (405, 406, 489):
+                            # Stop sending subscriptions
+                            command.signal()
+                            break
+                        else:
+                            # Otherwise just try the next route
+                            continue
                     else:
                         self.subscription = subscription
                         command.signal()
                         break
             else:
                 # No more routes to try, reschedule the subscription
-                timeout = random.uniform(60, 120)
+                timeout = random.uniform(60, 180)
                 raise SubscriptionError(error='no more routes to try', timeout=timeout)
         except SubscriptionError, e:
             # There was an error, so do a fetch instead
             self.command_channel.send(Command('fetch', documents=self.document_names))
-            self.subscription_timer = self._schedule_command(e.timeout, Command('subscribe', command.event))
+            self.subscription_timer = self._schedule_command(e.timeout, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
 
     def _CH_unsubscribe(self, command):
         if self.subscription is not None:
@@ -1061,6 +1076,7 @@ class XCAPManager(object):
                         break
             except SIPSubscriptionDidFail:
                 pass
+            NotificationCenter().remove_observer(self, sender=subscription)
         command.signal()
 
     # operation handlers
