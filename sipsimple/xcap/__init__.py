@@ -887,9 +887,7 @@ class XCAPManager(object):
         if set(['id', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
             self.state = 'initializing'
             self.command_channel.send(Command('initialize', command.event))
-        elif self.subscription is None and self.account.xcap.use_xcap_diff:
-            self.command_channel.send(Command('subscribe', command.event))
-        elif self.subscription is not None and not self.account.xcap.use_xcap_diff:
+        elif self.subscription is None:
             self.command_channel.send(Command('subscribe', command.event))
         elif set(['sip.subscribe_interval', 'sip.transport_list']).intersection(command.modified):
             self.command_channel.send(Command('subscribe', command.event))
@@ -983,8 +981,6 @@ class XCAPManager(object):
             self.subscription.end()
             self.subscription = None
         try:
-            if not self.account.xcap.use_xcap_diff:
-                raise SubscriptionError(error='xcap-diff is disabled', timeout=120)
             if self.account.sip.outbound_proxy is not None:
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host,
                              port=self.account.sip.outbound_proxy.port,
@@ -2924,7 +2920,7 @@ class XCAPManager(object):
         handler(notification)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        if set(['xcap.xcap_root', 'xcap.use_xcap_diff', 'id', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+        if set(['xcap.xcap_root', 'id', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
             self.command_channel.send(Command('reload', modified=notification.data.modified))
 
     def _NH_SIPSubscriptionDidStart(self, notification):

@@ -824,7 +824,6 @@ class MessageSummarySettings(SettingsGroup):
 class XCAPSettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
-    use_xcap_diff = Setting(type=bool, default=True)
 
 
 class PresenceSettings(SettingsGroup):
