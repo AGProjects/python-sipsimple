@@ -250,7 +250,9 @@ class Setting(object):
         if value is None and not self.nillable:
             raise ValueError("Setting attribute is not nillable")
         if value is DefaultValue:
-            self.values.pop(obj, None)
+            if obj in self.values:
+                self.values.pop(obj)
+                self.dirty[obj] = True
             return
 
         if value is not None and not isinstance(value, self.type):
@@ -285,7 +287,7 @@ class Setting(object):
         try:
             self.oldvalues[obj] = self.values[obj]
         except KeyError:
-            pass
+            self.oldvalues.pop(obj, None)
 
     def get_old(self, obj):
         return self.oldvalues.get(obj, self.default)
