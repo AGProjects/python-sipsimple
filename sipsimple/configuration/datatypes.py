@@ -1,14 +1,12 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""
-Definitions of datatypes for use in configuration settings.
-"""
+"""Definitions of datatypes for use in configuration settings"""
 
 __all__ = [# Base datatypes
            'List',
            # Generic datatypes
-           'ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'SIPAddress',
+           'ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'PositiveInteger', 'SIPAddress',
            # Audio datatypes
            'AudioCodecList', 'AudioInputDevice', 'AudioOutputDevice', 'SampleRate',
            # Address and transport datatypes
@@ -158,6 +156,14 @@ class NonNegativeInteger(int):
         value = int(value)
         if value < 0:
             raise ValueError("non-negative int expected, found %d" % value)
+        return value
+
+
+class PositiveInteger(int):
+    def __new__(cls, value):
+        value = int(value)
+        if value <= 0:
+            raise ValueError("positive int expected, found %d" % value)
         return value
 
 
