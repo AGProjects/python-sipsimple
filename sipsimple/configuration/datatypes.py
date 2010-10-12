@@ -317,7 +317,7 @@ class EndpointAddress(object):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash((self.host, self.port, self.transport))
+        return hash((self.host, self.port))
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.host, self.port)
