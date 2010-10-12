@@ -1047,12 +1047,10 @@ class XCAPManager(object):
                             if e.min_expires is not None and e.min_expires > refresh_interval:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
                             else:
-                                command.signal()
-                                break
+                                raise SubscriptionError(error='Interval too short', timeout=timeout)
                         elif e.code in (405, 406, 489):
-                            # Stop sending subscriptions
-                            command.signal()
-                            break
+                            timeout = random.uniform(60, 120)
+                            raise SubscriptionError(error='Subscription error', timeout=timeout)
                         else:
                             # Otherwise just try the next route
                             continue
@@ -2954,6 +2952,8 @@ class XCAPManager(object):
         if notification.sender is not self.subscription:
             self.data_channel.send_exception(SIPSubscriptionDidFail(notification.data.__dict__))
         else:
+            # The server terminated the subscription without us asking, fetch in case we missed a NOTIFY
+            self.command_channel.send(Command('fetch', documents=self.document_names))
             self.command_channel.send(Command('subscribe'))
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
