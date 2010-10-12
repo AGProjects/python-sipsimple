@@ -242,6 +242,9 @@ class PortRange(object):
         except AttributeError:
             return False
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __hash__(self):
         return hash((self.start, self.end))
 
@@ -310,6 +313,9 @@ class EndpointAddress(object):
         except AttributeError:
             return False
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __hash__(self):
         return hash((self.host, self.port, self.transport))
 
@@ -377,6 +383,9 @@ class MSRPRelayAddress(object):
         except AttributeError:
             return False
 
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
     def __hash__(self):
         return hash((self.host, self.port, self.transport))
 
@@ -420,6 +429,9 @@ class SIPProxyAddress(object):
             return (self.host, self.port, self.transport) == (other.host, other.port, other.transport)
         except AttributeError:
             return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __hash__(self):
         return hash((self.host, self.port, self.transport))
