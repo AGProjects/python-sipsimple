@@ -252,7 +252,7 @@ class PortRange(object):
         return '%s(start=%r, end=%r)' % (self.__class__.__name__, self.start, self.end)
 
     def __unicode__(self):
-        return u'%s-%d' % (self.start, self.end)
+        return u'%d-%d' % (self.start, self.end)
 
 
 class Hostname(str):
