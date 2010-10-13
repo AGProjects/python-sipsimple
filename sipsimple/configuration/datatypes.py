@@ -214,7 +214,7 @@ class SampleRate(int):
 class Port(int):
     def __new__(cls, value):
         value = int(value)
-        if value < 0 or value > 65535:
+        if not (0 <= value <= 65535):
             raise ValueError("illegal port value: %s" % value)
         return value
 
