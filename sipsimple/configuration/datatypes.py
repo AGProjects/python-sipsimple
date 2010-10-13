@@ -8,7 +8,7 @@ __all__ = [# Base datatypes
            # Generic datatypes
            'ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'PositiveInteger', 'SIPAddress',
            # Audio datatypes
-           'AudioCodecList', 'AudioInputDevice', 'AudioOutputDevice', 'SampleRate',
+           'AudioCodecList', 'SampleRate',
            # Address and transport datatypes
            'Port', 'PortRange', 'Hostname', 'DomainList', 'EndpointAddress', 'EndpointIPAddress', 'MSRPRelayAddress',
            'SIPProxyAddress', 'STUNServerAddress', 'STUNServerAddressList', 'XCAPRoot',
@@ -195,14 +195,6 @@ class AudioCodecList(List):
         self.__dict__['values'] = values
     values = property(_get_values, _set_values)
     del _get_values, _set_values
-
-
-class AudioInputDevice(str):
-    pass
-
-
-class AudioOutputDevice(str):
-    pass
 
 
 class SampleRate(int):

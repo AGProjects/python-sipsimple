@@ -12,7 +12,7 @@ from application.python.util import Singleton
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger
-from sipsimple.configuration.datatypes import AudioCodecList, AudioInputDevice, AudioOutputDevice, SampleRate
+from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList, TLSProtocol
 from sipsimple.configuration.datatypes import Path
 
@@ -21,9 +21,9 @@ __all__ = ['SIPSimpleSettings']
 
 
 class AudioSettings(SettingsGroup):
-    alert_device = Setting(type=AudioOutputDevice, default='system_default', nillable=True)
-    input_device = Setting(type=AudioInputDevice, default='system_default', nillable=True)
-    output_device = Setting(type=AudioOutputDevice, default='system_default', nillable=True)
+    alert_device = Setting(type=str, default='system_default', nillable=True)
+    input_device = Setting(type=str, default='system_default', nillable=True)
+    output_device = Setting(type=str, default='system_default', nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
     sample_rate = Setting(type=SampleRate, default=44100)
     silent = Setting(type=bool, default=False)
