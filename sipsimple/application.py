@@ -27,6 +27,8 @@ from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.session import SessionManager
 from sipsimple.util import run_in_twisted_thread, run_in_green_thread, classproperty, Command, TimestampedNotificationData
 
+from xcaplib import client as xcap_client
+
 
 class ApplicationAttribute(object):
     def __init__(self, value):
@@ -96,6 +98,8 @@ class SIPApplication(object):
         notification_center = NotificationCenter()
         session_manager = SessionManager()
         settings = SIPSimpleSettings()
+
+        xcap_client.DEFAULT_HEADERS = {'User-Agent': settings.user_agent}
 
         notification_center.post_notification('SIPApplicationWillStart', sender=self, data=TimestampedNotificationData())
         if self.state == 'stopping':

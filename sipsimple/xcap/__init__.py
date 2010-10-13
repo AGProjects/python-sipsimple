@@ -588,11 +588,6 @@ class XCAPManager(object):
         self.rls_services = RLSServicesDocument()
         self.status_icon = StatusIconDocument()
 
-        # Set XCAP requests User-Agent
-        from xcaplib import client as xcap_client
-        xcap_client.DEFAULT_HEADERS = {'User-Agent': SIPSimpleSettings().user_agent}
-        del xcap_client
-
     def _get_state(self):
         return self.__dict__['state']
 
