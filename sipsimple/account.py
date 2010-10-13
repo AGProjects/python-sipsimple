@@ -869,7 +869,9 @@ class Account(SettingsObject):
 
     Notifications sent by instances of Account:
      * CFGSettingsObjectDidChange
+     * SIPAccountWillActivate
      * SIPAccountDidActivate
+     * SIPAccountWillDeactivate
      * SIPAccountDidDeactivate
     """
 
@@ -1022,21 +1024,23 @@ class Account(SettingsObject):
     def _activate(self):
         if self._active:
             return
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPAccountWillActivate', sender=self, data=TimestampedNotificationData())
         self._active = True
         if self.sip.register:
             self._registrar.activate()
         if self.message_summary.enabled:
             self._mwi_handler.activate()
-        notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
         if not self._active:
             return
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPAccountWillDeactivate', sender=self, data=TimestampedNotificationData())
         self._active = False
         self._mwi_handler.deactivate()
         self._registrar.deactivate()
-        notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def __repr__(self):
@@ -1088,7 +1092,9 @@ class BonjourAccount(SettingsObject):
 
     Notifications sent by instances of Account:
      * CFGSettingsObjectDidChange
+     * SIPAccountWillActivate
      * SIPAccountDidActivate
+     * SIPAccountWillDeactivate
      * SIPAccountDidDeactivate
     """
 
@@ -1208,17 +1214,19 @@ class BonjourAccount(SettingsObject):
     def _activate(self):
         if self._active:
             return
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPAccountWillActivate', sender=self, data=TimestampedNotificationData())
         self._active = True
         self._bonjour_services.activate()
-        notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
         if not self._active:
             return
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPAccountWillDeactivate', sender=self, data=TimestampedNotificationData())
         self._active = False
         self._bonjour_services.deactivate()
-        notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def __repr__(self):
