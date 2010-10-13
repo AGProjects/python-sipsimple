@@ -206,7 +206,12 @@ class AudioOutputDevice(str):
 
 
 class SampleRate(int):
-    pass
+    valid_values = (16000, 32000, 44100, 48000)
+    def __new__(cls, value):
+        value = int(value)
+        if value not in cls.valid_values:
+            raise ValueError("illegal sample rate: %d" % value)
+        return value
 
 
 ## Address and transport datatypes
