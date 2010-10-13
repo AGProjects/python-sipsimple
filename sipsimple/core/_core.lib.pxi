@@ -91,7 +91,7 @@ cdef class PJSIPEndpoint:
         cdef pj_str_t local_ip_pj
         cdef pj_str_t *local_ip_p = NULL
         cdef int status
-        if port < 0 or port > 65535:
+        if not (0 <= port <= 65535):
             raise SIPCoreError("Invalid port: %d" % port)
         if ip_address is not None and ip_address is not "0.0.0.0":
             local_ip_p = &local_ip_pj

@@ -661,7 +661,7 @@ cdef class ViaHeader(BaseViaHeader):
             return self._port
 
         def __set__(self, int port):
-            if port <= 0 or port > 65535:
+            if not (0 < port <= 65535):
                 raise ValueError("Invalid port: %d" % port)
             self._port = port
 
@@ -757,7 +757,7 @@ def FrozenViaHeader_new(cls, BaseViaHeader header):
 cdef class FrozenViaHeader(BaseViaHeader):
     def __init__(self, str transport not None, str host not None, int port=5060, frozendict parameters not None=frozendict()):
         if not self.initialized:
-            if port <= 0 or port > 65535:
+            if not (0 < port <= 65535):
                 raise ValueError("Invalid port: %d" % port)
             self.transport = transport
             self.host = host

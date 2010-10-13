@@ -362,7 +362,7 @@ cdef class PJSIPUA:
             self._pjsip_endpoint._stop_udp_transport()
         else:
             port = value
-            if port < 0 or port > 65535:
+            if not (0 <= port <= 65535):
                 raise ValueError("Not a valid UDP port: %d" % value)
             if self._pjsip_endpoint._udp_transport != NULL:
                 if port == self._pjsip_endpoint._udp_transport.local_name.port:
@@ -387,7 +387,7 @@ cdef class PJSIPUA:
             self._pjsip_endpoint._stop_tcp_transport()
         else:
             port = value
-            if port < 0 or port > 65535:
+            if not (0 <= port <= 65535):
                 raise ValueError("Not a valid TCP port: %d" % value)
             if self._pjsip_endpoint._tcp_transport != NULL:
                 if port == self._pjsip_endpoint._tcp_transport.addr_name.port:
@@ -416,7 +416,7 @@ cdef class PJSIPUA:
             self._check_self()
             _rtp_port_start, _rtp_port_stop = value
             for port in value:
-                if port < 0 or port > 65535:
+                if not (0 <= port <= 65535):
                     raise SIPCoreError("RTP port values should be between 0 and 65535")
             if _rtp_port_stop <= _rtp_port_start:
                 raise SIPCoreError("Second RTP port should be a larger number than first RTP port")
@@ -502,7 +502,7 @@ cdef class PJSIPUA:
             self._pjsip_endpoint._stop_tls_transport()
         else:
             c_port = port
-            if c_port < 0 or c_port > 65535:
+            if not (0 <= c_port <= 65535):
                 raise ValueError("Not a valid TCP port: %d" % port)
             if protocol not in _tls_protocol_mapping:
                 raise ValueError("Unknown TLS protocol: %s" % protocol)
