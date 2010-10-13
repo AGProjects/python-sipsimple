@@ -15,19 +15,18 @@ from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
 from eventlet import api, coros, proc
 from twisted.internet import reactor
+from xcaplib import client as xcap_client
 from zope.interface import implements
-
-from sipsimple.core import AudioMixer, Engine, SIPCoreError, SIPURI
 
 from sipsimple.account import Account, AccountManager
 from sipsimple.audio import AudioDevice, RootAudioBridge
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
+from sipsimple.core import AudioMixer, Engine, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.session import SessionManager
 from sipsimple.util import run_in_twisted_thread, run_in_green_thread, classproperty, Command, TimestampedNotificationData
 
-from xcaplib import client as xcap_client
 
 
 class ApplicationAttribute(object):
