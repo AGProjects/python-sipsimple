@@ -417,9 +417,9 @@ cdef class PJSIPUA:
             _rtp_port_start, _rtp_port_stop = value
             for port in value:
                 if not (0 <= port <= 65535):
-                    raise SIPCoreError("RTP port values should be between 0 and 65535")
+                    raise SIPCoreError("RTP port range values should be between 0 and 65535")
             if _rtp_port_stop <= _rtp_port_start:
-                raise SIPCoreError("Second RTP port should be a larger number than first RTP port")
+                raise SIPCoreError("RTP port range ending should be a larger than its start")
             self._rtp_port_start = _rtp_port_start
             self._rtp_port_stop = _rtp_port_stop
             self._rtp_port_index = random.randrange(_rtp_port_start, _rtp_port_stop, 2) - 50
