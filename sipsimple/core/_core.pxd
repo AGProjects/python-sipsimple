@@ -1365,7 +1365,8 @@ cdef class PJSIPUA(object):
     cdef object _events
     cdef object _sent_messages
     cdef int _rtp_port_start
-    cdef int _rtp_port_stop
+    cdef int _rtp_port_count
+    cdef int _rtp_port_usable_count
     cdef int _rtp_port_index
     cdef pj_stun_config _stun_cfg
     cdef int _fatal_error

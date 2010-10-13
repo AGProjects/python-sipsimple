@@ -407,22 +407,27 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self._check_self()
-            return (self._rtp_port_start, self._rtp_port_stop)
+            return (self._rtp_port_start, self._rtp_port_start + self._rtp_port_count)
 
         def __set__(self, value):
             cdef int _rtp_port_start
             cdef int _rtp_port_stop
+            cdef int _rtp_port_count
+            cdef int _rtp_port_usable_count
             cdef int port
             self._check_self()
-            _rtp_port_start, _rtp_port_stop = value
             for port in value:
                 if not (0 <= port <= 65535):
                     raise SIPCoreError("RTP port range values should be between 0 and 65535")
-            if _rtp_port_stop <= _rtp_port_start:
-                raise SIPCoreError("RTP port range ending should be a larger than its start")
+            _rtp_port_start, _rtp_port_stop = value
+            _rtp_port_count = _rtp_port_stop - _rtp_port_start
+            _rtp_port_usable_count = _rtp_port_count - _rtp_port_count % 2 # we need an even number of ports, so we won't use the last one if an odd number is provided
+            if _rtp_port_usable_count < 2:
+                raise SIPCoreError("RTP port range should contain at least 2 ports")
             self._rtp_port_start = _rtp_port_start
-            self._rtp_port_stop = _rtp_port_stop
-            self._rtp_port_index = random.randrange(_rtp_port_start, _rtp_port_stop, 2) - 50
+            self._rtp_port_count = _rtp_port_count
+            self._rtp_port_usable_count = _rtp_port_usable_count
+            self._rtp_port_index = 0
 
     property user_agent:
 

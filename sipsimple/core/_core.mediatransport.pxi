@@ -447,13 +447,13 @@ cdef class RTPTransport:
                     (<void **> (self._obj.name + 1))[0] = <void *> self.weakref
                 else:
                     status = PJ_EBUG
-                    for i in xrange(ua._rtp_port_index, ua._rtp_port_index + ua._rtp_port_stop - ua._rtp_port_start, 2):
-                        port = ua._rtp_port_start + i % (ua._rtp_port_stop - ua._rtp_port_start)
+                    for i in xrange(ua._rtp_port_index, ua._rtp_port_index + ua._rtp_port_usable_count, 2):
+                        port = ua._rtp_port_start + i % ua._rtp_port_usable_count
                         with nogil:
                             status = pjmedia_transport_udp_create3(media_endpoint, af, NULL, local_ip_address,
                                                                    port, 0, transport_address)
                         if status != PJ_ERRNO_START_SYS + EADDRINUSE:
-                            ua._rtp_port_index = (i + 2) % (ua._rtp_port_stop - ua._rtp_port_start)
+                            ua._rtp_port_index = (i + 2) % ua._rtp_port_usable_count
                             break
                     if status != 0:
                         raise PJSIPError("Could not create UDP/RTP media transport", status)
