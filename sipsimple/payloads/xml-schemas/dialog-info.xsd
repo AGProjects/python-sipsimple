@@ -7,7 +7,7 @@
   attributeFormDefault="unqualified">
   <!-- This import brings in the XML language attribute xml:lang-->
   <xs:import namespace="http://www.w3.org/XML/1998/namespace"
-     schemaLocation="http://www.w3.org/2001/03/xml.xsd"/>
+     schemaLocation="xml.xsd"/>
   <xs:element name="dialog-info">
     <xs:complexType>
       <xs:sequence>

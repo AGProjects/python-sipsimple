@@ -9,7 +9,7 @@
      attribute xml:lang-->
 
  <xs:import namespace="http://www.w3.org/XML/1998/namespace"
-  schemaLocation="http://www.w3.org/2001/xml.xsd"/>
+  schemaLocation="xml.xsd"/>
 
 <!-- ROOT -->
  <xs:element name="servcaps" type="tns:servcapstype"/>
