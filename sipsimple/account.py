@@ -1339,7 +1339,7 @@ class AccountManager(object):
                         self.default_account = None
 
     def _NH_CFGSettingsObjectDidChangeID(self, notification):
-        self.accounts[notification.data.old_id] = self.accounts.pop(notification.data.new_id)
+        self.accounts[notification.data.new_id] = self.accounts.pop(notification.data.old_id)
 
     def _internal_add_account(self, account):
         """
@@ -1348,6 +1348,7 @@ class AccountManager(object):
         self.accounts[account.id] = account
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
+        notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChangeID')
         notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _internal_remove_account(self, account):
@@ -1357,6 +1358,7 @@ class AccountManager(object):
         del self.accounts[account.id]
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
+        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChangeID')
         notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _get_default_account(self):
