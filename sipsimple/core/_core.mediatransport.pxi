@@ -513,7 +513,7 @@ cdef class AudioTransport:
         self._volume = 100
 
     def __init__(self, AudioMixer mixer, RTPTransport transport,
-                 BaseSDPSession remote_sdp=None, int sdp_index=0, enable_silence_detection=True, list codecs=None):
+                 BaseSDPSession remote_sdp=None, int sdp_index=0, enable_silence_detection=False, list codecs=None):
         cdef int status
         cdef pj_pool_t *pool
         cdef pjmedia_endpt *media_endpoint
