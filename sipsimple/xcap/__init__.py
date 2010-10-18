@@ -960,9 +960,10 @@ class XCAPManager(object):
         except XCAPError:
             self.timer = self._schedule_command(60, Command('update'))
         else:
-            self.state = 'insync'
             del self.journal[:len(journal)]
-            self._load_data()
+            if not self.journal:
+                self.state = 'insync'
+                self._load_data()
             command.signal()
             if self.not_executed_fetch is not None:
                 self.command_channel.send(self.not_executed_fetch)
