@@ -848,6 +848,9 @@ class AccountID(SettingsObjectID):
     def __set__(self, account, id):
         if not isinstance(id, self.type):
             id = self.type(id)
+        # check whether the old value is the same as the new value
+        if account in self.values and self.values[account] == id:
+            return
         if AccountManager().has_account(id):
             raise AccountExists('SIP address in use by another account')
         SettingsObjectID.__set__(self, account, id)
@@ -878,8 +881,9 @@ class Account(SettingsObject):
     implements(IObserver)
 
     __group__ = 'Accounts'
+    __id__ = AccountID()
 
-    id = AccountID()
+    id = __id__
     enabled = Setting(type=bool, default=False)
     display_name = Setting(type=str, default=None, nillable=True)
 
@@ -895,8 +899,6 @@ class Account(SettingsObject):
     tls = TLSSettings
 
     def __init__(self, id):
-        self.id = id
-
         self._active = False
         self._registrar = AccountRegistrar(self)
         self._mwi_handler = AccountMWISubscriptionHandler(self)
@@ -1335,6 +1337,9 @@ class AccountManager(object):
                         self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
                     except StopIteration:
                         self.default_account = None
+
+    def _NH_CFGSettingsObjectDidChangeID(self, notification):
+        self.accounts[notification.data.old_id] = self.accounts.pop(notification.data.new_id)
 
     def _internal_add_account(self, account):
         """

@@ -502,20 +502,21 @@ class SettingsObject(SettingsState):
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
         
+        if id_descriptor and id_descriptor.isdirty(self):
+            old = id_descriptor.get_old(self)
+            new = self.__id__
+            configuration.rename(self.__group__, old, new)
+            notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=old, new_id=new))
+        if modified_settings:
+            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+        configuration.update(self.__group__, self.__id__, self.__getstate__())
         try:
-            if id_descriptor and id_descriptor.isdirty(self):
-                old = id_descriptor.get_old(self)
-                new = self.__id__
-                configuration.rename(self.__group__, old, new)
-                notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=old, new_id=new))
-            configuration.update(self.__group__, self.__id__, self.__getstate__())
             configuration.save()
         except Exception, e:
             import traceback
             traceback.print_exc()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, modified=modified_settings, exception=e))
         finally:
-            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
             self.clear_dirty()
 
     def delete(self):
