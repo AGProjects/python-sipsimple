@@ -11,3 +11,7 @@ MSRP report headers:
 - end a session while in accepting state (after 1 dec)
 - model file transfer after desktop sharing (use handlers on termination)
   have internal/external handlers (notifications based or file bridges)
+
+- use an ordered dict for keeping accounts in the AccountManager ?!?
+  see http://code.activestate.com/recipes/576693/
+
