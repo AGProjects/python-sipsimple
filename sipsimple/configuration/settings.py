@@ -11,7 +11,7 @@ from application.python.util import Singleton
 
 from sipsimple import __version__
 from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
-from sipsimple.configuration.datatypes import NonNegativeInteger
+from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
 from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList, TLSProtocol
 from sipsimple.configuration.datatypes import Path
@@ -42,7 +42,7 @@ class FileTransferSettings(SettingsGroup):
 
 
 class LogsSettings(SettingsGroup):
-    pjsip_level = Setting(type=NonNegativeInteger, default=5)
+    pjsip_level = Setting(type=PJSIPLogLevel, default=5)
 
 
 class RTPSettings(SettingsGroup):

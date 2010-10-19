@@ -7,6 +7,8 @@ __all__ = [# Base datatypes
            'List',
            # Generic datatypes
            'ContentType', 'ContentTypeList', 'CountryCode', 'NonNegativeInteger', 'PositiveInteger', 'SIPAddress',
+           # Custom datatypes
+           'PJSIPLogLevel',
            # Audio datatypes
            'AudioCodecList', 'SampleRate',
            # Address and transport datatypes
@@ -180,6 +182,16 @@ class SIPAddress(str):
 
     username = property(lambda self: self.split('@')[0])
     domain = property(lambda self: self.split('@')[1])
+
+
+## Custom datatypes
+
+class PJSIPLogLevel(int):
+    def __new__(cls, value):
+        value = int(value)
+        if not (0 <= value <= 5):
+            raise ValueError("expected an integer number between 0 and 5, found %d" % value)
+        return value
 
 
 ## Audio datatypes
