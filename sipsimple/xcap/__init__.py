@@ -1998,11 +1998,7 @@ class XCAPManager(object):
                     for container_list in container_lists:
                         if container_list is rlist:
                             continue
-                        if len(rlist) == 0:
-                            path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-                            container_list.append(resourcelists.External(path))
-                        else:
-                            container_list.append(resourcelists.Entry(operation.contact.uri))
+                        container_list.append(resourcelists.Entry(operation.contact.uri))
                     self.rls_services.dirty = True
         if rlist is not fallback_candidate:
             resource_lists.remove(fallback_candidate)
