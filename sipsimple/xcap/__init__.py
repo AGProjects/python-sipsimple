@@ -1648,8 +1648,8 @@ class XCAPManager(object):
                         dialoginfo_lists.update(expanded_list)
         else:
             # Any list will do
-            presence_lists.update(candidate_lists)
-            dialoginfo_lists.update(candidate_lists)
+            presence_lists.update(l for l in candidate_lists if l is not fallback_candidate)
+            dialoginfo_lists.update(l for l in candidate_lists if l is not fallback_candidate)
         # Filter out condidates based on presence policy
         if self.pres_rules.supported:
             pres_rules = self.pres_rules.content
@@ -1694,7 +1694,7 @@ class XCAPManager(object):
                                 continue
                         elif isinstance(condition, common_policy.Identity):
                             if condition.matches(operation.contact.uri):
-                                policy_lists[rule.id].update(candidate_lists) # Any list will do
+                                policy_lists[rule.id].update(l for l in candidate_lists if l is not fallback_candidate) # Any list will do
             if remaining_policies:
                 # Some policies do not exist, they need to be added; therefore, no list will do
                 pass
@@ -1704,9 +1704,9 @@ class XCAPManager(object):
                     lists = lists.intersection(policy_lists.popitem()[1])
                 presrules_lists.update(lists)
             else:
-                presrules_lists.update(candidate_lists) # Any list will do
+                presrules_lists.update(l for l in candidate_lists if l is not fallback_candidate) # Any list will do
         else:
-            presrules_lists.update(candidate_lists) # Any list will do
+            presrules_lists.update(l for l in candidate_lists if l is not fallback_candidate) # Any list will do
         notexpanded = deque(presence_lists|dialoginfo_lists|presrules_lists|not_wanted_lists|remove_from_lists)
         visited = set(notexpanded)
         add_to_presence_list = operation.contact.subscribe_to_presence
