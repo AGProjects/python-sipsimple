@@ -804,7 +804,7 @@ class DialogEventSettings(SettingsGroup):
 
 
 class NatTraversalSettings(SettingsGroup):
-    use_ice = Setting(type=bool, default=True)
+    use_ice = Setting(type=bool, default=False)
     stun_server_list = Setting(type=STUNServerAddressList, default=None, nillable=True)
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
     use_msrp_relay_for_inbound = Setting(type=bool, default=True)
