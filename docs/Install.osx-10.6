@@ -75,7 +75,7 @@ make
 sudo make install
 cd ..
 
-curl -O http://ftp.gnu.org/pub/gnu/gnutls/libtasn1-2.2.tar.gz
+curl -O http://ftp.gnu.org/pub/gnu/libtasn1/libtasn1-2.2.tar.gz
 tar zxvf libtasn1-2.2.tar.gz 
 cd libtasn1-2.2
 CFLAGS="-arch i386 -arch x86_64" ./configure --disable-dependency-tracking
@@ -197,4 +197,8 @@ fi
 sudo python setup.py install
 cd ..
 
+If Python 2.5 was used for installation, set the default Python interpreter
+of the user that runs the software to version 2.5:
+
+defaults write com.apple.versioner.python Version 2.5
 
