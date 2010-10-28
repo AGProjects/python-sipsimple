@@ -1507,12 +1507,12 @@ class XCAPManager(object):
                         if not all_references and not list_removed:
                             # If the external reference would not point to any other *thing*, remove it
                             remove_elements.append((child, rlist))
-                        elif list_removed:
+                        elif list_removed and isinstance(new_parent, resourcelists.List):
                             # If the parent is removed, the child needs to be moved
                             move_elements.append((child, new_parent))
                         visited.update(ref_lists)
                     else:
-                        if list_removed and all_references:
+                        if list_removed and all_references and isinstance(new_parent, resourcelists.List):
                             # If the parent is removed, the child needs to be moved
                             move_elements.append((child, new_parent))
                         notexpanded.extend((l, False, None) for l in ref_lists)
