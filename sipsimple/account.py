@@ -628,6 +628,7 @@ class BonjourServices(object):
 
     def _resolve_cb(self, file, flags, interface_index, error_code, fullname, host_target, port, txtrecord):
         notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
         if error_code == bonjour.kDNSServiceErr_NoError:
             txt = bonjour.TXTRecord.parse(txtrecord)
             contact = txt['contact'].strip('<>') if 'contact' in txt else None
@@ -636,7 +637,7 @@ class BonjourServices(object):
                 host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
                 uri = FrozenSIPURI.parse(contact)
                 transport = uri.parameters.get('transport', 'udp')
-                if transport in self.account.sip.transport_list and uri != self.account.contact[transport] and uri not in self._neighbours:
+                if transport in settings.sip.transport_list and uri != self.account.contact[transport] and uri not in self._neighbours:
                     self._neighbours.add(uri)
                     notification_center.post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
                                                           data=TimestampedNotificationData(display_name=display_name, host=host, uri=uri))
@@ -676,12 +677,13 @@ class BonjourServices(object):
 
     def _CH_register(self, command):
         notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
         if self._register_timer is not None and self._register_timer.active():
             self._register_timer.cancel()
         self._register_timer = None
         notification_center.post_notification('BonjourAccountWillRegister', sender=self.account, data=TimestampedNotificationData())
         new_files = []
-        for transport in self.account.sip.transport_list:
+        for transport in settings.sip.transport_list:
             if transport == 'tls' and not self.account.tls.certificate:
                 continue
             contact = self.account.contact[transport]
@@ -708,6 +710,7 @@ class BonjourServices(object):
 
     def _CH_discover(self, command):
         notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
         if self._discover_timer is not None and self._discover_timer.active():
             self._discover_timer.cancel()
         self._discover_timer = None
@@ -720,7 +723,7 @@ class BonjourServices(object):
         for file in old_files:
             file.close()
         new_files = []
-        for transport in self.account.sip.transport_list:
+        for transport in settings.sip.transport_list:
             try:
                 file = bonjour.DNSServiceBrowse(regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'), callBack=self._browse_cb)
             except bonjour.BonjourError:
@@ -1059,10 +1062,6 @@ class Account(SettingsObject):
             self.save()
 
 
-class BonjourSIPSettings(SettingsGroup):
-    transport_list = Setting(type=SIPTransportList, default=SIPTransportList(['udp']))
-
-
 class BonjourMSRPSettings(SettingsGroup):
     transport = Setting(type=MSRPTransport, default='tcp')
 
@@ -1113,7 +1112,6 @@ class BonjourAccount(SettingsObject):
     display_name = Setting(type=str, default=user_info.fullname, nillable=False)
 
     rtp = RTPSettings
-    sip = BonjourSIPSettings
     msrp = BonjourMSRPSettings
     tls = TLSSettings
 
