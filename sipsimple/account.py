@@ -758,6 +758,7 @@ class BonjourServices(object):
         old_files = self._files
         self._files = []
         self._select_proc.kill(RestartSelect)
+        self._neighbours = set()
         for file in old_files:
             file.close()
         notification_center = NotificationCenter()
