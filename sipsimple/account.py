@@ -807,7 +807,7 @@ class DialogEventSettings(SettingsGroup):
     enabled = Setting(type=bool, default=False)
 
 
-class NatTraversalSettings(SettingsGroup):
+class NATTraversalSettings(SettingsGroup):
     use_ice = Setting(type=bool, default=False)
     stun_server_list = Setting(type=STUNServerAddressList, default=None, nillable=True)
     msrp_relay = Setting(type=MSRPRelayAddress, default=None, nillable=True)
@@ -895,7 +895,7 @@ class Account(SettingsObject):
     sip = SIPSettings
     rtp = RTPSettings
     dialog_event = DialogEventSettings
-    nat_traversal = NatTraversalSettings
+    nat_traversal = NATTraversalSettings
     message_summary = MessageSummarySettings
     msrp = MSRPSettings
     presence = PresenceSettings
@@ -1125,7 +1125,7 @@ class BonjourAccount(SettingsObject):
         self._bonjour_services = BonjourServices(self)
 
         # initialize nat settings
-        self.nat_traversal = NatTraversalSettings()
+        self.nat_traversal = NATTraversalSettings()
         self.nat_traversal.use_ice = False
         self.nat_traversal.msrp_relay = None
         self.nat_traversal.use_msrp_relay_for_inbound = False
