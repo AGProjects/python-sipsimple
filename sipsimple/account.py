@@ -317,6 +317,7 @@ class AccountMWISubscriptionHandler(object):
         self._command_channel.send(command)
 
     def deactivate(self):
+        self.account.message_summary.server_advertised_uri = None
         if self._current_command is not None and self._current_command.name != 'unsubscribe':
             api.kill(self._command_greenlet, api.GreenletExit())
             self._run()
