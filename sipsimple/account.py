@@ -959,6 +959,11 @@ class Account(SettingsObject):
         manager = AccountManager()
         manager._internal_remove_account(self)
 
+    @run_in_green_thread
+    def reregister(self):
+        if self._started and self.sip.register:
+            self._registrar.reactivate()
+
     @property
     def contact(self):
         return self._registrar.contact
