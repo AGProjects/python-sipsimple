@@ -426,7 +426,7 @@ class AccountMWISubscriptionHandler(object):
                                             except ValidationError:
                                                 pass
                                             else:
-                                                self.account.message_summary.server_advertised_uri = message_summary.message_account
+                                                self.account.message_summary.server_advertised_uri = message_summary.message_account.replace('sip:', '', 1)
                                                 notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
                                         break
                         except api.TimeoutError:
@@ -490,7 +490,7 @@ class AccountMWISubscriptionHandler(object):
             except ValidationError:
                 pass
             else:
-                self.account.message_summary.server_advertised_uri = message_summary.message_account
+                self.account.message_summary.server_advertised_uri = message_summary.message_account.replace('sip:', '', 1)
                 NotificationCenter().post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
 
     def _NH_SystemIPAddressDidChange(self, notification):
