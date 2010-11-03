@@ -1003,20 +1003,22 @@ class Account(SettingsObject):
                     self._activate()
                 else:
                     self._deactivate()
-            elif self.enabled and 'sip.register' in notification.data.modified:
-                if self.sip.register:
-                    self._registrar.activate()
-                else:
-                    self._registrar.deactivate()
-            elif self.enabled and set(['message_summary.enabled', 'message_summary.voicemail_uri']).intersection(notification.data.modified):
-                if self.message_summary.enabled:
-                    self._mwi_handler.activate()
-                else:
-                    self._mwi_handler.deactivate()
             elif self.enabled:
-                if set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']).intersection(notification.data.modified) and self.sip.register:
-                    self._registrar.reload_settings()
-                if set(['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.subscribe_interval']).intersection(notification.data.modified) and self.message_summary.enabled:
+                registrar_attributes = ['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']
+                voicemail_attributes = ['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.subscribe_interval', 'message_summary.voicemail_uri']
+                if 'sip.register' in notification.data.modified:
+                    if self.sip.register:
+                        self._registrar.activate()
+                    else:
+                        self._registrar.deactivate()
+                elif self.sip.registrer and set(registrar_attributes).intersection(notification.data.modified):
+                        self._registrar.reload_settings()
+                if 'message_summary.enabled' in notification.data.modified):
+                    if self.message_summary.enabled:
+                        self._mwi_handler.activate()
+                    else:
+                        self._mwi_handler.deactivate()
+                elif self.message_summary.enabled and set(voicemail_attributes).intersection(notification.data.modified):
                     self._mwi_handler.activate()
 
     @run_in_green_thread
