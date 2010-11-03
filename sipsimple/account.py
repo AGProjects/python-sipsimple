@@ -303,6 +303,7 @@ class AccountMWISubscriptionHandler(object):
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
         self._current_command = None
+        self.server_advertised_uri = None # this is the voicemail URI we get back from the server
 
     def start(self):
         notification_center = NotificationCenter()
@@ -321,7 +322,7 @@ class AccountMWISubscriptionHandler(object):
         self._command_channel.send(command)
 
     def deactivate(self):
-        self.account.message_summary.server_advertised_uri = None
+        self.server_advertised_uri = None
         if self._current_command is not None and self._current_command.name != 'unsubscribe':
             api.kill(self._command_greenlet, api.GreenletExit())
             self._run()
@@ -435,7 +436,7 @@ class AccountMWISubscriptionHandler(object):
                                             except ValidationError:
                                                 pass
                                             else:
-                                                self.account.message_summary.server_advertised_uri = message_summary.message_account.replace('sip:', '', 1) or None
+                                                self.server_advertised_uri = message_summary.message_account.replace('sip:', '', 1) or None
                                                 notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
                                         break
                         except api.TimeoutError:
@@ -499,7 +500,7 @@ class AccountMWISubscriptionHandler(object):
             except ValidationError:
                 pass
             else:
-                self.account.message_summary.server_advertised_uri = message_summary.message_account.replace('sip:', '', 1) or None
+                self.server_advertised_uri = message_summary.message_account.replace('sip:', '', 1) or None
                 NotificationCenter().post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
 
     def _NH_SystemIPAddressDidChange(self, notification):
@@ -828,11 +829,6 @@ class NATTraversalSettings(SettingsGroup):
 class MessageSummarySettings(SettingsGroup):
     enabled = Setting(type=bool, default=True)
     voicemail_uri = Setting(type=SIPAddress, default=None, nillable=True)
-    server_advertised_uri = None # this is the URI we get back from the server when using MWI
-
-    @property
-    def uri(self):
-        return self.server_advertised_uri or self.voicemail_uri
 
 
 class XCAPSettings(SettingsGroup):
@@ -1004,6 +1000,10 @@ class Account(SettingsObject):
     @property
     def uri(self):
         return SIPURI(user=self.id.username, host=self.id.domain)
+
+    @property
+    def voicemail_uri(self):
+        return self._mwi_handler and self._mwi_handler.server_advertised_uri or self.message_summary.voicemail_uri
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
