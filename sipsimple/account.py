@@ -1014,7 +1014,7 @@ class Account(SettingsObject):
                         self._registrar.deactivate()
                 elif self.sip.registrer and set(registrar_attributes).intersection(notification.data.modified):
                         self._registrar.reload_settings()
-                if 'message_summary.enabled' in notification.data.modified):
+                if 'message_summary.enabled' in notification.data.modified:
                     if self.message_summary.enabled:
                         self._mwi_handler.activate()
                     else:
