@@ -824,7 +824,7 @@ class MessageSummarySettings(SettingsGroup):
 
     @property
     def uri(self):
-        return self.voicemail_uri or self.server_advertised_uri
+        return self.server_advertised_uri or self.voicemail_uri
 
 
 class XCAPSettings(SettingsGroup):
