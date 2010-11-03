@@ -116,6 +116,10 @@ class AccountRegistrar(object):
         self._command_channel.send(command)
         command.wait()
 
+    def reactivate(self):
+        self._command_channel.send(Command('unregister'))
+        self._command_channel.send(Command('register'))
+
     def reload_settings(self):
         command = Command('reload_settings')
         self._command_channel.send(command)
@@ -324,6 +328,10 @@ class AccountMWISubscriptionHandler(object):
         command = Command('unsubscribe')
         self._command_channel.send(command)
         command.wait()
+
+    def reactivate(self):
+        self._command_channel.send(Command('unsubscribe'))
+        self._command_channel.send(Command('subscribe'))
 
     @run_in_green_thread
     def _run(self):
