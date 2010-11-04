@@ -17,3 +17,6 @@ MSRP report headers:
 - use an ordered dict for keeping accounts in the AccountManager ?!?
   see http://code.activestate.com/recipes/576693/
 
+- NB: make the middleware unicode friendly (ticket #121)
+  http://sipsimpleclient.com/ticket/121
+
