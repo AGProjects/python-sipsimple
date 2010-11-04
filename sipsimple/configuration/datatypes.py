@@ -372,7 +372,7 @@ class EndpointIPAddress(EndpointAddress):
 class MSRPRelayAddress(object):
     _description_re = re.compile(r"^(?P<host>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|([a-zA-Z0-9\-_]+(\.[a-zA-Z0-9\-_]+)*))(:(?P<port>\d+))?(;transport=(?P<transport>.+))?$")
 
-    def __init__(self, host, port=0, transport='tls'):
+    def __init__(self, host, port=2855, transport='tls'):
         self.host = Hostname(host)
         self.port = Port(port)
         self.transport = MSRPTransport(transport)
