@@ -213,12 +213,13 @@ class PublicationError(Exception):
 class Publication(object):
     implements(IObserver)
 
-    def __init__(self, from_header, event, content_type, credentials=None, duration=300):
+    def __init__(self, from_header, event, content_type, credentials=None, duration=300, extra_headers=[]):
         self.from_header = from_header
         self.event = event
         self.content_type = content_type
         self.credentials = credentials
         self.duration = duration
+        self.extra_headers = extra_headers
         self._last_etag = None
         self._current_request = None
         self._last_request = None
@@ -314,14 +315,13 @@ class Publication(object):
 
     def _make_and_send_request(self, body, route_header, timeout, do_publish):
         notification_center = NotificationCenter()
-        extra_headers = []
-        extra_headers.append(Header("Event", self.event))
-        extra_headers.append(Header("Expires",  str(int(self.duration) if do_publish else 0)))
+        self.extra_headers.append(Header("Event", self.event))
+        self.extra_headers.append(Header("Expires",  str(int(self.duration) if do_publish else 0)))
         if self._last_etag is not None:
-            extra_headers.append(Header("SIP-If-Match", self._last_etag))
+            self.extra_headers.append(Header("SIP-If-Match", self._last_etag))
         content_type = (self.content_type if body is not None else None)
         request = Request("PUBLISH", self.from_header, ToHeader.new(self.from_header), self.from_header.uri, route_header,
-                          credentials=self.credentials, cseq=1, extra_headers=extra_headers,
+                          credentials=self.credentials, cseq=1, extra_headers=self.extra_headers,
                           content_type=content_type, body=body)
         notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
