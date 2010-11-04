@@ -325,11 +325,12 @@ class DNSLookup(object):
                         return routes
                     else:
                         # If SRV lookup fails, try A lookup
-                        addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
                         transport = 'tls' if uri.secure else 'udp'
-                        port = 5061 if transport=='tls' else 5060
-                        if addresses[uri.host]:
-                            return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
+                        if transport in supported_transports:
+                            addresses = self._lookup_a_records(resolver, [uri.host], log_context=log_context)
+                            port = 5061 if transport=='tls' else 5060
+                            if addresses[uri.host]:
+                                return [Route(address=addr, port=port, transport=transport) for addr in addresses[uri.host]]
         except dns.resolver.Timeout:
             raise DNSLookupError("Timeout in lookup for routes for SIP URI %s" % uri)
         else:
