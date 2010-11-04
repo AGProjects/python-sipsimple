@@ -928,6 +928,7 @@ class Account(SettingsObject):
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
         self._registrar.start()
         self._mwi_handler.start()
@@ -947,6 +948,7 @@ class Account(SettingsObject):
 
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
     def delete(self):
         call_in_green_thread(self.stop)
@@ -1159,6 +1161,7 @@ class BonjourAccount(SettingsObject):
 
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
         self._bonjour_services.start()
         if self.enabled:
@@ -1174,6 +1177,7 @@ class BonjourAccount(SettingsObject):
 
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
     @classproperty
     def mdns_available(cls):
