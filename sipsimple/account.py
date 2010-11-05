@@ -413,14 +413,11 @@ class AccountMWISubscriptionHandler(object):
                             if e.min_expires is not None and e.min_expires > refresh_interval:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
                             else:
-                                notification_center.post_notification('SIPAccountMWIDidFail', sender=self.account, data=TimestampedNotificationData(code=e.code, reason=e.reason))
-                                command.signal()
-                                break
+                                timeout = 10800     # 3 hours
+                                raise SubscriptionError(error='Incorrect Min-Expires header value', timeout=timeout)
                         elif e.code in (405, 406, 489):
-                            # Stop sending subscriptions
-                            notification_center.post_notification('SIPAccountMWIDidFail', sender=self.account, data=TimestampedNotificationData(code=e.code, reason=e.reason))
-                            command.signal()
-                            break
+                            timeout = 10800     # 3 hours
+                            raise SubscriptionError(error='Method or event not supported', timeout=timeout)
                         else:
                             # Otherwise just try the next route
                             continue
