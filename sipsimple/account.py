@@ -366,6 +366,8 @@ class AccountMWISubscriptionHandler(object):
                 uri = SIPURI(host=self.account.sip.outbound_proxy.host,
                              port=self.account.sip.outbound_proxy.port,
                              parameters={'transport': self.account.sip.outbound_proxy.transport})
+            elif self.account.message_summary.voicemail_uri is not None and not self.account.sip.always_use_my_proxy:
+                uri = SIPURI(host=self.account.message_summary.voicemail_uri.domain)
             else:
                 uri = SIPURI(host=self.account.id.domain)
             lookup = DNSLookup()
