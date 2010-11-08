@@ -531,7 +531,7 @@ class SRTPEncryption(str):
 
 
 class TLSProtocol(str):
-    available_values = ('TLSv1', 'SSLv2', 'SSL3', 'SSL23')
+    available_values = ('TLSv1',)
     def __new__(cls, value):
         value = str(value)
         if value not in cls.available_values:
