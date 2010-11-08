@@ -1033,7 +1033,7 @@ class Account(SettingsObject):
                     self._deactivate()
             elif self.enabled:
                 registrar_attributes = ['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']
-                voicemail_attributes = ['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.subscribe_interval', 'message_summary.voicemail_uri']
+                voicemail_attributes = ['auth.password', 'auth.username', 'sip.always_use_my_proxy', 'sip.outbound_proxy', 'sip.transport_list', 'sip.subscribe_interval', 'message_summary.voicemail_uri']
                 if 'sip.register' in notification.data.modified:
                     if self.sip.register:
                         self._registrar.activate()
