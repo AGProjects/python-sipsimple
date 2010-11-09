@@ -315,13 +315,15 @@ class Publication(object):
 
     def _make_and_send_request(self, body, route_header, timeout, do_publish):
         notification_center = NotificationCenter()
-        self.extra_headers.append(Header("Event", self.event))
-        self.extra_headers.append(Header("Expires",  str(int(self.duration) if do_publish else 0)))
+        extra_headers = []
+        extra_headers.append(Header("Event", self.event))
+        extra_headers.append(Header("Expires",  str(int(self.duration) if do_publish else 0)))
         if self._last_etag is not None:
-            self.extra_headers.append(Header("SIP-If-Match", self._last_etag))
+            extra_headers.append(Header("SIP-If-Match", self._last_etag))
+        extra_headers.extend(self.extra_headers)
         content_type = (self.content_type if body is not None else None)
         request = Request("PUBLISH", self.from_header, ToHeader.new(self.from_header), self.from_header.uri, route_header,
-                          credentials=self.credentials, cseq=1, extra_headers=self.extra_headers,
+                          credentials=self.credentials, cseq=1, extra_headers=extra_headers,
                           content_type=content_type, body=body)
         notification_center.add_observer(self, sender=request)
         if self._current_request is not None:
