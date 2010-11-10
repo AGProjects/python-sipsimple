@@ -622,7 +622,7 @@ class BonjourServices(object):
             return
         if not (flags & bonjour.kDNSServiceFlagsAdd):
             uri = FrozenSIPURI.parse(service_name.strip('<>').encode('utf-8'))
-            if uri != self.account.contact[uri.parameters.get('transport', 'udp')] and uri in self._neighbours:
+            if uri in self._neighbours:
                 self._neighbours.remove(uri)
                 NotificationCenter().post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account,
                                                       data=TimestampedNotificationData(uri=uri))
