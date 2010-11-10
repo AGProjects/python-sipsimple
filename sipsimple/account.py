@@ -627,9 +627,8 @@ class BonjourServices(object):
             return
         try:
             file = bonjour.DNSServiceResolve(0, interface_index, service_name, regtype, reply_domain, self._resolve_cb)
-        except bonjour.BonjourError:
-            # Maybe we should log the error, but how? -Luci
-            pass
+        except bonjour.BonjourError, e:
+            notification_center.post_notification('BonjourAccountDiscoveryFailure', sender=self.account, data=TimestampedNotificationData(error=str(e)))
         else:
             bonjour_file = BonjourFile(file, 'resolution')
             self._files.append(bonjour_file)
@@ -740,8 +739,8 @@ class BonjourServices(object):
         for transport in settings.sip.transport_list:
             try:
                 file = bonjour.DNSServiceBrowse(regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'), callBack=self._browse_cb)
-            except bonjour.BonjourError:
-                # Maybe we should log the error, but how? -Luci
+            except bonjour.BonjourError, e:
+                notification_center.post_notification('BonjourAccountDiscoveryDidFail', sender=self.account, data=TimestampedNotificationData(reason=str(e)))
                 for file in new_files:
                     file.close()
                 self._discover_timer = reactor.callLater(1, self._command_channel.send, Command('discover', command.event))
