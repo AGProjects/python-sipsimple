@@ -1230,7 +1230,6 @@ class BonjourAccount(SettingsObject):
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        # activate/deactivate the account
         if self._started:
             if 'enabled' in notification.data.modified:
                 if self.enabled:
