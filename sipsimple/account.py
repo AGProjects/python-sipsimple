@@ -522,6 +522,7 @@ class BonjourFile(object):
             instance = object.__new__(cls)
             instance.type = type
             instance.file = file
+            instance.active = False
             cls.instances[file] = instance
         return instance
 
@@ -584,9 +585,8 @@ class BonjourServices(object):
     def restart_registration(self):
         command = Command('unregister')
         self._command_channel.send(command)
-        command.wait()
         command = Command('register')
-        reactor.callLater(1, self._command_channel.send, command)
+        self._command_channel.send(command)
 
     def _register_cb(self, file, flags, error_code, name, regtype, domain):
         notification_center = NotificationCenter()
@@ -650,17 +650,18 @@ class BonjourServices(object):
                     self._neighbours.add(uri)
                     notification_center.post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
                                                           data=TimestampedNotificationData(display_name=display_name, host=host, uri=uri))
-            BonjourFile(file, 'resolution').close()
+        BonjourFile(file, 'resolution').close()
 
     def _process_files(self):
         while True:
             try:
-                ready = select.select(self._files, [], [])
+                ready = select.select([f for f in self._files if not f.active], [], [])[0]
             except RestartSelect:
                 continue
             else:
-                self._files = [f for f in self._files if f not in ready[0] and not f.closed]
-                self._command_channel.send(Command('process_results', files=[f for f in ready[0] if not f.closed]))
+                for file in ready:
+                    file.active = True
+                self._command_channel.send(Command('process_results', files=[f for f in ready if not f.closed]))
 
     def _handle_commands(self):
         while True:
@@ -759,9 +760,9 @@ class BonjourServices(object):
                 # Should we close the file? The documentation doesn't say anything about this. -Luci
                 import traceback
                 traceback.print_exc()
-        # reinsert the files which were not closed in the select list
-        for file in (f for f in command.files if not f.closed):
-            self._files.append(file)
+        for file in command.files:
+            file.active = False
+        self._files = [f for f in self._files if not f.closed]
         self._select_proc.kill(RestartSelect)
 
     def _CH_stop(self, command):
