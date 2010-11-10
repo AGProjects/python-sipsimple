@@ -578,11 +578,8 @@ class BonjourServices(object):
         self._stopped = True
 
     def restart_discovery(self):
-        command = Command('undiscover')
-        self._command_channel.send(command)
-        command.wait()
         command = Command('discover')
-        reactor.callLater(1, self._command_channel.send, command)
+        self._command_channel.send(command)
 
     def restart_registration(self):
         command = Command('unregister')
@@ -617,6 +614,7 @@ class BonjourServices(object):
             self._register_timer = reactor.callLater(1, self._command_channel.send, Command('register'))
 
     def _browse_cb(self, file, flags, interface_index, error_code, service_name, regtype, reply_domain):
+        notification_center = NotificationCenter()
         if error_code != bonjour.kDNSServiceErr_NoError:
             self._discover_timer = reactor.callLater(1, self._command_channel.send, Command('discover'))
             return
@@ -624,7 +622,7 @@ class BonjourServices(object):
             uri = FrozenSIPURI.parse(service_name.strip('<>').encode('utf-8'))
             if uri in self._neighbours:
                 self._neighbours.remove(uri)
-                NotificationCenter().post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account,
+                notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account,
                                                       data=TimestampedNotificationData(uri=uri))
             return
         try:
@@ -638,6 +636,7 @@ class BonjourServices(object):
             self._select_proc.kill(RestartSelect)
 
     def _resolve_cb(self, file, flags, interface_index, error_code, fullname, host_target, port, txtrecord):
+        notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
         if error_code == bonjour.kDNSServiceErr_NoError:
             txt = bonjour.TXTRecord.parse(txtrecord)
@@ -650,7 +649,7 @@ class BonjourServices(object):
                 supported_transport = transport in settings.sip.transport_list and (transport!='tls' or self.account.tls.certificate is not None)
                 if supported_transport and uri != self.account.contact[transport] and uri not in self._neighbours:
                     self._neighbours.add(uri)
-                    NotificationCenter().post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
+                    notification_center.post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
                                                           data=TimestampedNotificationData(display_name=display_name, host=host, uri=uri))
             BonjourFile(file, 'resolution').close()
 
@@ -682,7 +681,8 @@ class BonjourServices(object):
         self._select_proc.kill(RestartSelect)
         for file in old_files:
             file.close()
-        NotificationCenter().post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=TimestampedNotificationData())
+        notification_center = NotificationCenter()
+        notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=TimestampedNotificationData())
         command.signal()
 
     def _CH_register(self, command):
@@ -718,11 +718,13 @@ class BonjourServices(object):
         self._select_proc.kill(RestartSelect)
         command.signal()
 
-    def _CH_undiscover(self, command):
+    def _CH_discover(self, command):
+        notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
         if self._discover_timer is not None and self._discover_timer.active():
             self._discover_timer.cancel()
         self._discover_timer = None
+        notification_center.post_notification('BonjourAccountWillInitiateDiscovery', sender=self.account, data=TimestampedNotificationData())
         old_files = []
         for file in (f for f in self._files[:] if f.type=='discovery'):
             old_files.append(file)
@@ -730,20 +732,10 @@ class BonjourServices(object):
         self._select_proc.kill(RestartSelect)
         for file in old_files:
             file.close()
-        # Even if we close all the files the processing callback is not fired. Remove neighbours manually. -Saul
-        for uri in self._neighbours:
-            NotificationCenter().post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=TimestampedNotificationData(uri=uri))
-        self._neighbours = set()
-        NotificationCenter().post_notification('BonjourAccountDiscoveryDidEnd', sender=self.account, data=TimestampedNotificationData())
-        command.signal()
-
-    def _CH_discover(self, command):
-        notification_center = NotificationCenter()
-        settings = SIPSimpleSettings()
-        if self._discover_timer is not None and self._discover_timer.active():
-            self._discover_timer.cancel()
-        self._discover_timer = None
-        notification_center.post_notification('BonjourAccountWillStartDiscovery', sender=self.account, data=TimestampedNotificationData())
+        transport_list = settings.sip.transport_list
+        for uri in [uri for uri in self._neighbours if uri.parameters.get('transport', 'udp') not in transport_list]:
+            self._neighbours.remove(uri)
+            notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=TimestampedNotificationData(uri=uri))
         new_files = []
         for transport in settings.sip.transport_list:
             try:
@@ -758,7 +750,6 @@ class BonjourServices(object):
                 new_files.append(BonjourFile(file, 'discovery'))
         self._files.extend(new_files)
         self._select_proc.kill(RestartSelect)
-        notification_center.post_notification('BonjourAccountDiscoveryDidStart', sender=self.account, data=TimestampedNotificationData())
         command.signal()
 
     def _CH_process_results(self, command):
@@ -787,7 +778,8 @@ class BonjourServices(object):
         self._neighbours = set()
         for file in old_files:
             file.close()
-        NotificationCenter().post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=TimestampedNotificationData())
+        notification_center = NotificationCenter()
+        notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=TimestampedNotificationData())
         command.signal()
 
     @run_in_green_thread
@@ -1171,9 +1163,10 @@ class BonjourAccount(SettingsObject):
             return
         self._started = True
 
+        settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
-        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=settings)
 
         self._bonjour_services.start()
         if self.enabled:
@@ -1187,9 +1180,10 @@ class BonjourAccount(SettingsObject):
         self._deactivate()
         self._bonjour_services.stop()
 
+        settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
-        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=settings)
 
     @classproperty
     def mdns_available(cls):
@@ -1236,12 +1230,12 @@ class BonjourAccount(SettingsObject):
                     self._activate()
                 else:
                     self._deactivate()
-            if self.enabled and 'display_name' in notification.data.modified:
-                self._bonjour_services.restart_registration()
-            if self.enabled and set(['sip.transport_list', 'tls.certificate']).intersection(notification.data.modified):
-                NotificationCenter().post_notification('BonjourNeighbourDiscoveryWillRestart', sender=self, data=TimestampedNotificationData())
-                self._bonjour_services.restart_discovery()
-                self._bonjour_services.restart_registration()
+            if self.enabled:
+                if 'display_name' in notification.data.modified:
+                    self._bonjour_services.restart_registration()
+                if set(['sip.transport_list', 'tls.certificate']).intersection(notification.data.modified):
+                    self._bonjour_services.restart_discovery()
+                    self._bonjour_services.restart_registration()
 
     def _activate(self):
         if self._active:
