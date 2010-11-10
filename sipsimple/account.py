@@ -647,7 +647,8 @@ class BonjourServices(object):
                 host = re.match(r'^(.*?)(\.local)?\.?$', host_target).group(1)
                 uri = FrozenSIPURI.parse(contact)
                 transport = uri.parameters.get('transport', 'udp')
-                if transport in settings.sip.transport_list and uri != self.account.contact[transport] and uri not in self._neighbours:
+                supported_transport = transport in settings.sip.transport_list and (transport!='tls' or self.account.tls.certificate is not None)
+                if supported_transport and uri != self.account.contact[transport] and uri not in self._neighbours:
                     self._neighbours.add(uri)
                     NotificationCenter().post_notification('BonjourAccountDidAddNeighbour', sender=self.account,
                                                           data=TimestampedNotificationData(display_name=display_name, host=host, uri=uri))
