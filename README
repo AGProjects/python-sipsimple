@@ -130,7 +130,7 @@ Conferencing
  * Conference Event Package (RFC4575)
  * A Framework for Conferencing with the Session Initiation Protocol (RFC4353)
  * SIP Call Control - Conferencing for User Agents (RFC4579)
- * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat-06)
+ * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat-06) - roadmap
 
 Presence
 
@@ -147,8 +147,10 @@ Presence
  * Resource Lists (RFC4826)
  * RLS Services (RFC4826)
  * PIDF manipulation (RFC4827)
- * XCAP Diff
- * OMA specifications for XCAP storage and presence
+ * XCAP Diff (RFC5874)
+ * OMA Reference Release Definition for XDM v1.1 and Presence SIMPLE v1.1
+   Implementation Guidelines
+ * OMA XML  Document Management V1.1
 
 
 Support
