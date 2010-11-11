@@ -10,7 +10,7 @@ Definition of general (non-account related) settings.
 from application.python.util import Singleton
 
 from sipsimple import __version__
-from sipsimple.configuration import Setting, SettingsGroup, SettingsObject
+from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
 from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList, TLSProtocol
@@ -51,11 +51,15 @@ class RTPSettings(SettingsGroup):
     audio_codec_list = Setting(type=AudioCodecList, default=AudioCodecList(('G722', 'speex', 'PCMU', 'PCMA')))
 
 
+def sip_port_validator(port, sibling_port):
+    if port == sibling_port != 0:
+        raise ValueError("the TCP and TLS ports must be different")
+
 class SIPSettings(SettingsGroup):
     invite_timeout = Setting(type=NonNegativeInteger, default=90, nillable=True)
     udp_port = Setting(type=Port, default=0)
-    tcp_port = Setting(type=Port, default=0)
-    tls_port = Setting(type=Port, default=0)
+    tcp_port = CorrelatedSetting(type=Port, sibling='tls_port', validator=sip_port_validator, default=0)
+    tls_port = CorrelatedSetting(type=Port, sibling='tcp_port', validator=sip_port_validator, default=0)
     transport_list = Setting(type=SIPTransportList, default=SIPTransportList(('tls', 'tcp', 'udp')))
 
 
