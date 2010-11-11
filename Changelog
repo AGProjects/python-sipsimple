@@ -1,3 +1,89 @@
+python-sipsimple (0.16.2) unstable; urgency=low
+
+  * Fixed memory and file descriptor leaks in BonjourServices
+  * Added notifications for Bonjour discovery failures
+  * Refactored Bonjour re-discovery after settings change
+  * Ignore TLS contacts if the Boujour account doesn't have a certificate
+  * Refresh MWI subscription if always_use_my_proxy setting changes
+  * Use always_use_my_proxy setting for MWI subscriptions
+  * Set minimum time for refreshing a subscription to 30 seconds
+  * Wait for 3 hours if MWI subscription fails instead of stopping it
+  * Fixed bonjour discovery when SIP transport list is changed
+  * Made accounts also listen for config changes from SIPSimpleSettings
+  * Do not return routes with unsupported transport from the DNS lookup
+  * Set MSRPRelayAddress setting default port to 2855
+  * Moved server_advertised_uri attribute to the mwi handler
+  * Added reregister method on Account
+  * Added reactivate methods for registrar and mwi
+  * Prefer the server advertised voicemail URI over the user setting
+  * Added account.sip.always_use_my_proxy setting
+  * Use None when the server advertised voicemail URI is an empty string
+  * Reset the server advertised voicemail URI when MWI is disabled
+  * Fixed handling of multiple settings changed at the same time
+  * Remove sip: from the server advertised voicemail uri when saving it
+  * Use capital case letters for acronyms
+  * Remove transport_list setting from BonjourAccount
+  * Reset bonjour neighbours on account deactivation
+  * Turn off ICE by default
+  * Limit PJSIP log level setting value between 0 and 5 to avoid crashes
+  * Fixed handling of Account id change in AccountManager
+  * Fixed handling of the id change of an Account and other SettingsObjects
+  * Made XCAPManager not transition to insync if journal is not empty
+  * Made audio device settings strings and removed unnecessary empty subclases
+  * Made SampleRate only accept valid rates
+  * Added SIPAccountWillActivate and SIPAccountWillDeactivate notifications
+  * Set XCAP User-Agent on application start
+  * Use xml.xsd from local folder instead of importing it remotely
+  * Trigger a XCAP document fetch on some subscription errors
+  * Make port test consistent with the rest of the code
+  * Simplified port range handling and fixed case for odd ports number
+  * Fixed port boundary checks
+  * Fixed incorrect __hash__ method
+  * Use UA string as User-Agent header for XCAP requests
+  * Avoind unnecessary conversion to unicode in PortRange conversion
+  * Added missing __ne__ method to some data types
+  * Fixed saving configuration after assigning DefaultValue to a setting
+  * Added PositiveInteger datatype
+  * Enhanced xcapdiff subscription process
+  * Removed use_xcap_diff setting
+  * Rollback: Changed visibility of command and data channels
+  * Rollback: Avoid using SubHandlingValue object inside XCAPManager
+  * Fixed account elements reload on settings change
+  * Synced Engine default options with settings
+  * Improved default values for various global settings
+  * Use the specific version of cython 0.12.1 for building the package
+  * Enhanced xcapdiff subscription termination
+  * Don't try to unregister if we weren't registered at all
+  * Changed visibility of command and data channels to private
+  * Fixed handling bogus TXT records for XCAP server lookups
+  * Fixed contact edit in XCAPManager when it needs to be removed and readded
+  * Avoid using SubHandlingValue object inside XCAPManager
+  * Fixed building contact name on XCAP manager
+  * Fixed use of identity conditions
+  * Fixed handling of SIPRegistrationDidFail and SIPSubscriptionDidFail exceptions
+  * Fixed handling of SDP c line inside the media stream
+  * Don't wait for pending operations to finish on shutdown
+  * Added cached_cocuments property to XCAPManager
+  * Handle BadStatusLine exception when fetching/updating documents
+  * Added equal and hash methods to Contact, Policy and condition classes
+  * Raise RuntimeError if no cache directory is provided for XCAP documents
+  * Don't keep old transformations if updated rule's action is not 'allow'
+  * Removed some unnecessary NotificationCenter instantiations
+  * Added properties for handling the server advertised voicemail URI
+  * Enable ICE by default
+  * Disable dialog event by default
+  * Increase default subscribe and publish intervals
+  * Added back thread attribute in SIPApplication
+  * Properly fix race condition when first NOTIFY for MWI arrives
+  * Avoid adding more than one MWI subscribe operation to the command channel
+  * Fixed waiting timeout for engine shutdown
+  * Changed name for reactor thread attribute and join thread on stop
+  * Moved Changelog back to toplevel
+  * Fixed boolean parameters in xcap_manager test script
+  * End MWI subscription before ending registration
+
+ -- Adrian Georgescu <ag@ag-projects.com>  Thu, 11 Nov 2010 13:31:38 +0100
+
 python-sipsimple (0.16.1) unstable; urgency=low
 
   * Fixed XML document parsing for unicode objects
