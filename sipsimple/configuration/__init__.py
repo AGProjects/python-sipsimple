@@ -248,7 +248,7 @@ class Setting(object):
 
     def __set__(self, obj, value):
         if value is None and not self.nillable:
-            raise ValueError("Setting attribute is not nillable")
+            raise ValueError("setting attribute is not nillable")
         if value is DefaultValue:
             if obj in self.values:
                 self.values.pop(obj)
