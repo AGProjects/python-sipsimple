@@ -70,7 +70,6 @@ python-sipsimple (0.16.2) unstable; urgency=low
   * Don't keep old transformations if updated rule's action is not 'allow'
   * Removed some unnecessary NotificationCenter instantiations
   * Added properties for handling the server advertised voicemail URI
-  * Enable ICE by default
   * Disable dialog event by default
   * Increase default subscribe and publish intervals
   * Added back thread attribute in SIPApplication
