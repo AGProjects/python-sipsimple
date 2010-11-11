@@ -13,7 +13,7 @@ from application.python.util import Singleton
 from sipsimple.util import TimestampedNotificationData
 
 __all__ = ['ConfigurationError', 'ObjectNotFoundError', 'ConfigurationManager', 'DefaultValue',
-           'SettingsObjectID', 'Setting', 'SettingsGroup', 'SettingsObject', 'SettingsObjectExtension']
+           'SettingsObjectID', 'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObject', 'SettingsObjectExtension']
 
 
 ## Exceptions
@@ -298,6 +298,31 @@ class Setting(object):
             self.values[obj] = self.oldvalues[obj]
         else:
             self.values.pop(obj, None)
+
+
+class CorrelatedSetting(Setting):
+    """
+    Descriptor represeting a setting in a configuration object that is
+    correlated with another setting on the same configuration object.
+
+    Sibling is the name of the sibling setting and validator is a callable
+    that will receive the setting value and the sibling setting value and
+    should raise an exception if the setting value is not acceptable relative
+    to the sibling setting value.
+
+    If a setting is set to the object DefaultValue, it will be reset to the
+    default. Also, only Setting attributes with nillable=True can be assigned
+    the value None. All other values are passed to the type specified.
+    """
+    def __init__(self, type, sibling, validator, default=None, nillable=False):
+        Setting.__init__(self, type, default, nillable)
+        self.sibling = sibling
+        self.validator = validator
+
+    def __set__(self, obj, value):
+        sibling_value = getattr(obj, self.sibling)
+        self.validator(value, sibling_value)
+        Setting.__set__(self, obj, value)
 
 
 class SettingsState(object):
