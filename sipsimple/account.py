@@ -831,17 +831,17 @@ class NATTraversalSettings(SettingsGroup):
 
 
 class MessageSummarySettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
+    enabled = Setting(type=bool, default=False)
     voicemail_uri = Setting(type=SIPAddress, default=None, nillable=True)
 
 
 class XCAPSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
+    enabled = Setting(type=bool, default=False)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
 
 
 class PresenceSettings(SettingsGroup):
-    enabled = Setting(type=bool, default=True)
+    enabled = Setting(type=bool, default=False)
     use_rls = Setting(type=bool, default=False)
 
 
