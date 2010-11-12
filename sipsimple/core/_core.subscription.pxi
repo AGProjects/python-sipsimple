@@ -227,7 +227,7 @@ cdef class Subscription:
             expires = expires_hdr.ivalue
         if self.state != "TERMINATED" and not self._want_end:
             self._cancel_timers(ua, 1, 0)
-            refresh.sec = max(30, min(expires - self.expire_warning_time, expires/2))
+            refresh.sec = max(1, expires - self.expire_warning_time, expires/2)
             refresh.msec = 0
             status = pjsip_endpt_schedule_timer(ua._pjsip_endpoint._obj, &self._refresh_timer, &refresh)
             if status == 0:
