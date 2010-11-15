@@ -736,13 +736,15 @@ cdef class PJSIPUA:
                 sub._init(self, rdata, _pj_str_to_str(event_hdr.event_type))
         elif method_name == "MESSAGE":
             message_params = dict()
-            message_params["request_uri"] = FrozenSIPURI_create(<pjsip_sip_uri *> pjsip_uri_get_uri(rdata.msg_info.msg.line.req.uri))
-            message_params["from_header"] = FrozenFromHeader_create(rdata.msg_info.from_hdr)
-            message_params["to_header"] = FrozenToHeader_create(rdata.msg_info.to_hdr)
+            event_dict = dict()
+            _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+            message_params["request_uri"] = event_dict["request_uri"]
+            message_params["from_header"] = event_dict["headers"].get("From", None)
+            message_params["to_header"] = event_dict["headers"].get("To", None)
             message_params["content_type"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
             message_params["content_subtype"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
-            message_params["body"] = PyString_FromStringAndSize(<char *> rdata.msg_info.msg.body.data,
-                                                                rdata.msg_info.msg.body.len)
+            message_params["headers"] = event_dict["headers"]
+            message_params["body"] = event_dict["body"]
             _add_event("SIPEngineGotMessage", message_params)
             status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
             if status != 0:
