@@ -1230,7 +1230,7 @@ class BonjourAccount(SettingsObject):
                     self._activate()
                 else:
                     self._deactivate()
-            if self.enabled:
+            elif self.enabled:
                 if 'display_name' in notification.data.modified:
                     self._bonjour_services.restart_registration()
                 if set(['sip.transport_list', 'tls.certificate']).intersection(notification.data.modified):
