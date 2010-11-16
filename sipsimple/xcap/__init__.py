@@ -879,7 +879,7 @@ class XCAPManager(object):
     def _CH_reload(self, command):
         if self.state in ('stopping', 'stopped'):
             return
-        if 'id' in command.modified:
+        if set(['id', 'xcap.xcap_root']).intersection(command.modified):
             for document in self.documents:
                 document.cache_directory = os.path.join(self.cache_directory, self.account.id)
                 document.reset()
