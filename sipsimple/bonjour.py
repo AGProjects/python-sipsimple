@@ -2063,6 +2063,9 @@ class TXTRecord(object):
         del self._items[name]
         self._names.remove(name)
 
+    def get(self, name, default=None):
+        return self._items.get(name.lower(), (name, default))[1]
+
     @classmethod
     def parse(cls, data, strict=False):
         """
