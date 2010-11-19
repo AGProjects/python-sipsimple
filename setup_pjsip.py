@@ -110,7 +110,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-allocate_thread_desc_from_pool.patch",
                    "patches/pjsip-2830-do_not_close_stream_too_fast.patch",
                    "patches/pjsip-2830-hide_route_header.patch",
-                   "patches/pjsip-2830-runtime_device_change_detection_wmme.patch"]
+                   "patches/pjsip-2830-runtime_device_change_detection_wmme.patch",
+                   "patches/pjsip-2830-fix_crash_with_retry_after_header.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
