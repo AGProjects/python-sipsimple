@@ -22,6 +22,7 @@ from datetime import datetime
 
 from application.notification import NotificationCenter, NotificationData, IObserver
 from application.system import host
+from functools import partial
 from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements, Interface, Attribute
@@ -391,7 +392,7 @@ class ChatStream(MSRPStreamBase):
             if success_report is not None:
                 chunk.add_header(SuccessReportHeader(success_report))
             try:
-                self.msrp_session.send_chunk(chunk, response_cb=lambda response: self._on_transaction_response(message_id, response))
+                self.msrp_session.send_chunk(chunk, response_cb=partial(self._on_transaction_response, message_id))
             except Exception, e:
                 ndata = TimestampedNotificationData(context='sending', failure=Failure(), reason=str(e))
                 notification_center.post_notification('MediaStreamDidFail', self, ndata)
