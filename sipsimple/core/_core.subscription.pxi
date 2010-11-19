@@ -279,13 +279,14 @@ cdef class IncomingSubscription:
 
     def __dealloc__(self):
         cdef PJSIPUA ua = self._get_ua(0)
+        self.state = None
         if self._initial_response != NULL:
             pjsip_dlg_send_response(self._dlg, self._initial_tsx, self._initial_response)
             self._initial_response = NULL
             self._initial_tsx = NULL
         if self._obj != NULL:
             pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
-            pjsip_evsub_terminate(self._obj, 1)
+            pjsip_evsub_terminate(self._obj, 0)
             self._obj = NULL
             self._dlg = NULL
 
@@ -698,6 +699,8 @@ cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx,
         if subscription_void == NULL:
             return
         subscription = <object> subscription_void
+        if subscription.state is None:
+            return
         if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
             event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
             _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY" and
