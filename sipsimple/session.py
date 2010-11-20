@@ -282,8 +282,15 @@ class Session(object):
             else:
                 if e.data.originator == 'remote':
                     notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=e.data.code, reason=e.data.reason))
-                code = e.data.code if e.data.originator == 'remote' else 0
-                reason = e.data.reason if e.data.originator == 'remote' else None
+                if e.data.originator == 'remote':
+                    code = e.data.code
+                    reason = e.data.reason
+                elif e.data.disconnect_reason == 'timeout':
+                    code = 408
+                    reason = 'timeout'
+                else:
+                    code = 0
+                    reason = None
                 if e.data.originator == 'remote' and code // 100 == 3:
                     redirect_identities = e.data.headers.get('Contact', [])
                 else:
