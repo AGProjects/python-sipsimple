@@ -119,7 +119,7 @@ version numbers:
 You must use the easy_install script provided by the python-setuptools
 package to install the packages:
 
-easy_install -U cython=0.12.1 dnspython twisted lxml==2.2.4
+easy_install -U cython==0.12.1 dnspython twisted lxml==2.2.4
 
 Some packages need to be installed manually:
 
