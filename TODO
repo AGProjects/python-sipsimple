@@ -7,19 +7,17 @@ http://sipsimpleclient.com/report/3
 Bug fixes
 ---------
 
-- Save configuration thread-safe
-- Bonjour fixes
-- MSRP report headers:
- * prepare for how to deal with the session when the reports themselves get lost
- * this seem to be caused by a bug in msrplib, the callback for send_chunk
- * is not properly working when multiple chunks fail to be sent
++ Save configuration thread-safe
 
-- allow the FileSelector to compute the hash later, with a specific method
++ Allow the FileSelector to compute the hash later, with a specific method
   which will be execute in another thread and which will notify the caller
   using notifications about the progress and when it's done, allowing the
   caller to continue.
 
+- How to deal with the session when the MSRP reports themselves get lost
+
 - end a session while in accepting state (after 1 dec)
+
 - model file transfer after desktop sharing (use handlers on termination)
   have internal/external handlers (notifications based or file bridges)
 
