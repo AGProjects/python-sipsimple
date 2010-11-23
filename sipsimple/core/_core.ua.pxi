@@ -677,11 +677,14 @@ cdef class PJSIPUA:
     cdef int _cb_rx_request(self, pjsip_rx_data *rdata) except 0:
         global _event_hdr_name
         cdef int status
+        cdef int bad_request
         cdef pjsip_tx_data *tdata = NULL
         cdef pjsip_hdr_ptr_const hdr_add
         cdef IncomingRequest request
         cdef Invitation inv
         cdef IncomingSubscription sub
+        cdef list extra_headers
+        cdef dict event_dict
         cdef dict message_params
         cdef pj_str_t tsx_key
         cdef pjsip_via_hdr *top_via, *via
@@ -735,20 +738,39 @@ cdef class PJSIPUA:
                 sub = IncomingSubscription()
                 sub._init(self, rdata, _pj_str_to_str(event_hdr.event_type))
         elif method_name == "MESSAGE":
+            bad_request = 0
+            extra_headers = []
             message_params = dict()
             event_dict = dict()
             _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
             message_params["request_uri"] = event_dict["request_uri"]
             message_params["from_header"] = event_dict["headers"].get("From", None)
             message_params["to_header"] = event_dict["headers"].get("To", None)
-            message_params["content_type"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.type)
-            message_params["content_subtype"] = _pj_str_to_str(rdata.msg_info.msg.body.content_type.subtype)
             message_params["headers"] = event_dict["headers"]
             message_params["body"] = event_dict["body"]
-            _add_event("SIPEngineGotMessage", message_params)
-            status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
-            if status != 0:
-                raise PJSIPError("Could not create response", status)
+            if message_params["headers"].get("Content-Type", None) is not None:
+                content_type = message_params["headers"].get("Content-Type")[0]
+                message_params["content_type"] = content_type.split("/")[0]
+                message_params["content_subtype"] = content_type.split("/")[1]
+                if message_params["headers"].get("Content-Length", 0) > 0 and message_params["body"] is None:
+                    bad_request = 1
+                    extra_headers.append(WarningHeader(399, "local", "Missing body"))
+            else:
+                message_params["content_type"] = None
+                message_params["content_subtype"] = None
+                if message_params["headers"].get("Content-Length", 0) > 0 and message_params["body"] is None:
+                    bad_request = 1
+                    extra_headers.append(WarningHeader(399, "local", "Missing Content-Type header"))
+            if bad_request:
+                status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 400, NULL, &tdata)
+                if status != 0:
+                    raise PJSIPError("Could not create response", status)
+                _add_headers_to_tdata(tdata, extra_headers)
+            else:
+                _add_event("SIPEngineGotMessage", message_params)
+                status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
+                if status != 0:
+                    raise PJSIPError("Could not create response", status)
         elif method_name != "ACK":
             status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 405, NULL, &tdata)
             if status != 0:
