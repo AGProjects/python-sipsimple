@@ -279,9 +279,8 @@ cdef class IncomingSubscription:
 
     def __dealloc__(self):
         cdef PJSIPUA ua = self._get_ua(0)
-        if self._initial_response != NULL:
-            self._initial_response = NULL
-            self._initial_tsx = NULL
+        self._initial_response = NULL
+        self._initial_tsx = NULL
         if self._obj != NULL:
             pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
             pjsip_evsub_terminate(self._obj, 0)
