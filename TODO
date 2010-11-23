@@ -1,26 +1,24 @@
++ Contacts manager http://sipsimpleclient.com/ticket/123
 
-Major tasks
------------
++ Inbound Presence http://sipsimpleclient.com/ticket/130
 
-http://sipsimpleclient.com/report/3
-
-Bug fixes
----------
++ Outbound Presence http://sipsimpleclient.com/ticket/118
 
 + Save configuration thread-safe
 
-+ Allow the FileSelector to compute the hash later, with a specific method
++ Make middleware unicode friendly http://sipsimpleclient.com/ticket/121
+
+- Allow the FileSelector to compute the hash later, with a specific method
   which will be execute in another thread and which will notify the caller
   using notifications about the progress and when it's done, allowing the
-  caller to continue.
+  caller to continue
 
-- How to deal with the session when the MSRP reports themselves get lost
+- End a session while in accepting state (requires session serialization
+  http://sipsimpleclient.com/ticket/107
 
-- end a session while in accepting state (after 1 dec)
-
-- model file transfer after desktop sharing (use handlers on termination)
+- Model file transfer after desktop sharing (use handlers on termination)
   have internal/external handlers (notifications based or file bridges)
 
-- use an ordered dict for keeping accounts in the AccountManager ?!?
+- Use an ordered dict for keeping accounts in the AccountManager ?!?
   see http://code.activestate.com/recipes/576693/
 
