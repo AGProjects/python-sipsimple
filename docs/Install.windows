@@ -116,6 +116,8 @@ version numbers:
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
 
+Open the MSYS console.
+
 You must use the easy_install script provided by the python-setuptools
 package to install the packages:
 
