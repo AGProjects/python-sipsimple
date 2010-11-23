@@ -5,6 +5,8 @@
 # Classes
 #
 
+import re
+
 
 cdef object BaseSDPSession_richcmp(object self, object other, int op) with gil:
     cdef int eq = 1
@@ -313,6 +315,28 @@ cdef class FrozenSDPSession(BaseSDPSession):
 del FrozenSDPSession_new
 
 
+class MediaCodec(object):
+    def __init__(self, name, rate):
+        self.name = name
+        self.rate = int(rate)
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.name, self.rate)
+
+    def __str__(self):
+        return "%s/%s" % (self.name, self.rate)
+
+    def __eq__(self, other):
+        if isinstance(other, MediaCodec):
+            return self.name == other.name and self.rate == other.rate
+        elif isinstance(other, (str, unicode)):
+            return self.__str__() == other
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
 cdef object BaseSDPMediaStream_richcmp(object self, object other, int op) with gil:
     cdef int eq = 1
     if op not in [2,3]:
@@ -329,6 +353,8 @@ cdef object BaseSDPMediaStream_richcmp(object self, object other, int op) with g
         return not eq
 
 cdef class BaseSDPMediaStream:
+    rtpmap_re = re.compile(r"""^(?:\d+)\s+(?P<name>\w+)/(?P<rate>\d+)(?:/\w+)?$""", re.IGNORECASE | re.MULTILINE)
+
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPMediaStream cannot be instantiated directly")
 
@@ -441,6 +467,11 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
                 _str_to_pj_str(format, &self._sdp_media.desc.fmt[index])
             self._formats = formats
 
+    property codec_list:
+
+        def __get__(self):
+            return self._codec_list
+
     property info:
 
         def __get__(self):
@@ -479,6 +510,7 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
             if not isinstance(attributes, SDPAttributeList):
                 attributes = SDPAttributeList(attributes)
             self._attributes = attributes
+            self._codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
 
     cdef int _update(self, SDPMediaStream media) except -1:
         if len(self._attributes) > len(media._attributes):
@@ -545,6 +577,7 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             else:
                 self._sdp_media.conn = connection.get_sdp_connection()
             self.attributes = FrozenSDPAttributeList(attributes) if not isinstance(attributes, FrozenSDPAttributeList) else attributes
+            self.codec_list = frozenlist([MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))]) # iterators are not supported -Dan
             self.initialized = 1
 
     def __hash__(self):

@@ -1701,6 +1701,7 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
     cdef str _media
     cdef str _transport
     cdef list _formats
+    cdef list _codec_list
     cdef str _info
     cdef SDPConnection _connection
     cdef SDPAttributeList _attributes
@@ -1716,6 +1717,7 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
     cdef readonly str transport
     cdef readonly int port_count
     cdef readonly frozenlist formats
+    cdef readonly frozenlist codec_list
     cdef readonly str info
     cdef readonly FrozenSDPConnection connection
     cdef readonly FrozenSDPAttributeList attributes
