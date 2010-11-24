@@ -82,6 +82,20 @@ cdef class FrozenHeader(BaseHeader):
 del FrozenHeader_new
 
 
+class ContentType(str):
+    def __init__(self, value):
+        if '' in value.partition('/'):
+            raise ValueError('invalid content type')
+
+    @property
+    def type(self):
+        return self.partition('/')[0]
+
+    @property
+    def subtype(self):
+        return self.partition('/')[2]
+
+
 cdef object BaseContactHeader_richcmp(object self, object other, object op) with gil:
     cdef int eq = 1
     if op not in [2,3]:
