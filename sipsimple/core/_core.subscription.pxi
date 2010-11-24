@@ -234,9 +234,19 @@ cdef class Subscription:
                 self._refresh_timer_active = 1
 
     cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
-        cdef dict event_dict = dict(obj=self)
+        cdef dict event_dict = dict()
+        cdef dict notify_dict = dict(obj=self)
         _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
-        _add_event("SIPSubscriptionGotNotify", event_dict)
+        notify_dict["request_uri"] = event_dict["request_uri"]
+        notify_dict["from_header"] = event_dict["headers"].get("From", None)
+        notify_dict["to_header"] = event_dict["headers"].get("To", None)
+        notify_dict["headers"] = event_dict["headers"]
+        notify_dict["body"] = event_dict["body"]
+        content_type, params = notify_dict["headers"].get("Content-Type", (None, None))
+        notify_dict["content_type"] = ContentType(content_type) if content_type else None
+        event = notify_dict["headers"].get("Event", None)
+        notify_dict["event"] = event.event if event else None
+        _add_event("SIPSubscriptionGotNotify", notify_dict)
 
     cdef int _cb_timeout_timer(self, PJSIPUA ua):
         global sip_status_messages
