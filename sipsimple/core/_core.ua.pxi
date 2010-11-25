@@ -739,7 +739,7 @@ cdef class PJSIPUA:
                 sub._init(self, rdata, _pj_str_to_str(event_hdr.event_type))
         elif method_name == "MESSAGE":
             bad_request = 0
-            extra_headers = []
+            extra_headers = list()
             message_params = dict()
             event_dict = dict()
             _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
