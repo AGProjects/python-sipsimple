@@ -1204,13 +1204,15 @@ class Session(object):
             handler(notification)
 
     def _NH_SIPInvitationChangedState(self, notification):
-        notification_center = NotificationCenter()
+        if self.state == 'terminated':
+            return
         if self.greenlet is not None:
             if notification.data.state == 'disconnected' and notification.data.prev_state != 'disconnecting':
                 self._channel.send_exception(InvitationDidFailError(notification.sender, notification.data))
             else:
                 self._channel.send(notification)
         else:
+            notification_center = NotificationCenter()
             self.greenlet = api.getcurrent()
             try:
                 if notification.data.state == 'connected' and notification.data.sub_state == 'received_proposal':
