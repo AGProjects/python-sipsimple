@@ -2953,7 +2953,7 @@ class XCAPManager(object):
             self.command_channel.send(Command('subscribe'))
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
-        if notification.data.headers.get('Content-Type', Null)[0] == xcapdiff.XCAPDiff.content_type:
+        if notification.data.content_type == xcapdiff.XCAPDiff.content_type:
             try:
                 xcap_diff = xcapdiff.XCAPDiff.parse(notification.data.body)
             except ParserError:

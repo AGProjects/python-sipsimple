@@ -429,7 +429,7 @@ class AccountMWISubscriptionHandler(object):
                                 while True:
                                     notification = self._data_channel.wait()
                                     if notification.sender is subscription and notification.name == 'SIPSubscriptionGotNotify':
-                                        if notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
+                                        if notification.data.event == 'message-summary' and notification.data.body:
                                             try:
                                                 message_summary = MessageSummary.parse(notification.data.body)
                                             except ValidationError:
@@ -493,7 +493,7 @@ class AccountMWISubscriptionHandler(object):
         if self.subscription is None:
             self._data_channel.send(notification)
             return
-        if notification.sender is self.subscription and notification.data.headers.get('Event', Null).event == 'message-summary' and notification.data.body:
+        if notification.sender is self.subscription and notification.data.event == 'message-summary' and notification.data.body:
             try:
                 message_summary = MessageSummary.parse(notification.data.body)
             except ValidationError:
