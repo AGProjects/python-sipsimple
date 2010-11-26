@@ -1,3 +1,21 @@
+python-sipsimple (0.16.3) unstable; urgency=low
+
+  * Changed some option defaults to False
+  * Do not impose limits on the subscription interval
+  * Added all parsed SIP headers to SIPEngineGotMessage notification
+  * Refactored bonjour code to be more efficient and handle all use cases
+  * Fixed crash when parsing Retry-After header
+  * Fixed MSRP chunk transaction status callback
+  * Set the response code and reason when outgoing session times out
+  * Don't answer SUBSCRIBE while deallocating
+  * Fixed crash when Content-Type header is missing for MESSAGE
+  * Do not create an audio stream if not compatible codecs are found
+  * Created ContentType object for representing content type in notifications
+  * Added extra attributes to SIPSubscriptionGotNotify notification
+  * Fixed race condition in Session that caused exceptions in some situations
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 26 Nov 2010 15:18:48 +0100
+
 python-sipsimple (0.16.2) unstable; urgency=low
 
   * Fixed memory and file descriptor leaks in BonjourServices
