@@ -316,7 +316,8 @@ del FrozenSDPSession_new
 
 
 class MediaCodec(object):
-    def __init__(self, name, rate):
+    def __init__(self, payload_type, name, rate):
+        self.payload_type =int(payload_type)
         self.name = name
         self.rate = int(rate)
 
@@ -353,7 +354,7 @@ cdef object BaseSDPMediaStream_richcmp(object self, object other, int op) with g
         return not eq
 
 cdef class BaseSDPMediaStream:
-    rtpmap_re = re.compile(r"""^(?:\d+)\s+(?P<name>\w+)/(?P<rate>\d+)(?:/\w+)?$""", re.IGNORECASE | re.MULTILINE)
+    rtpmap_re = re.compile(r"""^(?P<payload_type>\d+)\s+(?P<name>\w+)/(?P<rate>\d+)(?:/\w+)?$""", re.IGNORECASE | re.MULTILINE)
 
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPMediaStream cannot be instantiated directly")
@@ -510,7 +511,24 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
             if not isinstance(attributes, SDPAttributeList):
                 attributes = SDPAttributeList(attributes)
             self._attributes = attributes
-            self._codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
+            self._codec_list = list()
+            rtpmap_codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
+            for format in [int(format) for format in self.formats]:
+                try:
+                    codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
+                except IndexError:
+                    if format not in (0, 3, 8, 9):
+                        continue
+                    if format == 0:
+                        self._codec_list.append(MediaCodec(0, "PCMU", 8000))
+                    elif format == 3:
+                        self._codec_list.append(MediaCodec(3, "GSM", 8000))
+                    elif format == 8:
+                        self._codec_list.append(MediaCodec(8, "PCMA", 8000))
+                    elif format == 9:
+                        self._codec_list.append(MediaCodec(9, "G722", 8000))
+                else:
+                    self._codec_list.append(codec)
 
     cdef int _update(self, SDPMediaStream media) except -1:
         if len(self._attributes) > len(media._attributes):
@@ -577,7 +595,25 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             else:
                 self._sdp_media.conn = connection.get_sdp_connection()
             self.attributes = FrozenSDPAttributeList(attributes) if not isinstance(attributes, FrozenSDPAttributeList) else attributes
-            self.codec_list = frozenlist([MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))]) # iterators are not supported -Dan
+            rtpmap_codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
+            codec_list = list()
+            for format in [int(format) for format in self.formats]:
+                try:
+                    codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
+                except IndexError:
+                    if format not in (0, 3, 8, 9):
+                        continue
+                    if format == 0:
+                        codec_list.append(MediaCodec(0, "PCMU", 8000))
+                    elif format == 3:
+                        codec_list.append(MediaCodec(3, "GSM", 8000))
+                    elif format == 8:
+                        codec_list.append(MediaCodec(8, "PCMA", 8000))
+                    elif format == 9:
+                        codec_list.append(MediaCodec(9, "G722", 8000))
+                else:
+                    codec_list.append(codec)
+            self.codec_list = frozenlist(codec_list)
             self.initialized = 1
 
     def __hash__(self):
