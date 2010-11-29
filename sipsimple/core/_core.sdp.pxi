@@ -512,23 +512,24 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
                 attributes = SDPAttributeList(attributes)
             self._attributes = attributes
             self._codec_list = list()
-            rtpmap_codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
-            for format in [int(format) for format in self.formats]:
-                try:
-                    codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
-                except IndexError:
-                    if format not in (0, 3, 8, 9):
-                        continue
-                    if format == 0:
-                        self._codec_list.append(MediaCodec(0, "PCMU", 8000))
-                    elif format == 3:
-                        self._codec_list.append(MediaCodec(3, "GSM", 8000))
-                    elif format == 8:
-                        self._codec_list.append(MediaCodec(8, "PCMA", 8000))
-                    elif format == 9:
-                        self._codec_list.append(MediaCodec(9, "G722", 8000))
-                else:
-                    self._codec_list.append(codec)
+            if self._media in ("audio", "video"):
+                rtpmap_codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
+                for format in [int(format) for format in self.formats]:
+                    try:
+                        codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
+                    except IndexError:
+                        if format not in (0, 3, 8, 9):
+                            continue
+                        if format == 0:
+                            self._codec_list.append(MediaCodec(0, "PCMU", 8000))
+                        elif format == 3:
+                            self._codec_list.append(MediaCodec(3, "GSM", 8000))
+                        elif format == 8:
+                            self._codec_list.append(MediaCodec(8, "PCMA", 8000))
+                        elif format == 9:
+                            self._codec_list.append(MediaCodec(9, "G722", 8000))
+                    else:
+                        self._codec_list.append(codec)
 
     cdef int _update(self, SDPMediaStream media) except -1:
         if len(self._attributes) > len(media._attributes):
@@ -597,22 +598,23 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             self.attributes = FrozenSDPAttributeList(attributes) if not isinstance(attributes, FrozenSDPAttributeList) else attributes
             rtpmap_codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
             codec_list = list()
-            for format in [int(format) for format in self.formats]:
-                try:
-                    codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
-                except IndexError:
-                    if format not in (0, 3, 8, 9):
-                        continue
-                    if format == 0:
-                        codec_list.append(MediaCodec(0, "PCMU", 8000))
-                    elif format == 3:
-                        codec_list.append(MediaCodec(3, "GSM", 8000))
-                    elif format == 8:
-                        codec_list.append(MediaCodec(8, "PCMA", 8000))
-                    elif format == 9:
-                        codec_list.append(MediaCodec(9, "G722", 8000))
-                else:
-                    codec_list.append(codec)
+            if self.media in ("audio", "video"):
+                for format in [int(format) for format in self.formats]:
+                    try:
+                        codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
+                    except IndexError:
+                        if format not in (0, 3, 8, 9):
+                            continue
+                        if format == 0:
+                            codec_list.append(MediaCodec(0, "PCMU", 8000))
+                        elif format == 3:
+                            codec_list.append(MediaCodec(3, "GSM", 8000))
+                        elif format == 8:
+                            codec_list.append(MediaCodec(8, "PCMA", 8000))
+                        elif format == 9:
+                            codec_list.append(MediaCodec(9, "G722", 8000))
+                    else:
+                        codec_list.append(codec)
             self.codec_list = frozenlist(codec_list)
             self.initialized = 1
 
