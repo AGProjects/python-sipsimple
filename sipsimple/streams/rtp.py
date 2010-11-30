@@ -171,7 +171,9 @@ class AudioStream(object):
             raise UnknownStreamError
         if remote_stream.transport not in ('RTP/AVP', 'RTP/SAVP'):
             raise InvalidStreamError("expected RTP/AVP or RTP/SAVP transport in audio stream, got %s" % remote_stream.transport)
-        if not set(codec.name.upper() for codec in remote_stream.codec_list).intersection(set(codec.upper() for codec in account.rtp.audio_codec_list or settings.rtp.audio_codec_list)):
+        supported_codecs = account.rtp.audio_codec_list or settings.rtp.audio_codec_list
+        common_codecs = [codec for codec in remote_stream.codec_list if codec in supported_codecs]
+        if not common_codecs:
             raise InvalidStreamError("no compatible codecs found")
         stream = cls(account)
         stream._incoming_remote_sdp = remote_sdp

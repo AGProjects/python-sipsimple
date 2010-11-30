@@ -316,8 +316,7 @@ del FrozenSDPSession_new
 
 
 class MediaCodec(object):
-    def __init__(self, payload_type, name, rate):
-        self.payload_type =int(payload_type)
+    def __init__(self, name, rate):
         self.name = name
         self.rate = int(rate)
 
@@ -329,9 +328,12 @@ class MediaCodec(object):
 
     def __eq__(self, other):
         if isinstance(other, MediaCodec):
-            return self.name == other.name and self.rate == other.rate
-        elif isinstance(other, (str, unicode)):
-            return self.__str__() == other
+            return self.name.lower() == other.name.lower() and self.rate == other.rate
+        elif isinstance(other, basestring):
+            if '/' in other:
+                return self.__str__().lower() == other.lower()
+            else:
+                return self.name.lower() == other.lower()
         return False
 
     def __ne__(self, other):
@@ -354,7 +356,24 @@ cdef object BaseSDPMediaStream_richcmp(object self, object other, int op) with g
         return not eq
 
 cdef class BaseSDPMediaStream:
-    rtpmap_re = re.compile(r"""^(?P<payload_type>\d+)\s+(?P<name>\w+)/(?P<rate>\d+)(?:/\w+)?$""", re.IGNORECASE | re.MULTILINE)
+    rtpmap_re = re.compile(r"""^(?P<type>\d+)\s+(?P<name>[-\w]+)/(?P<rate>\d+)(?:/\w+)?$""", re.IGNORECASE | re.MULTILINE)
+    rtp_mappings = { 0: MediaCodec('PCMU',  8000),
+                     3: MediaCodec('GSM',   8000),
+                     4: MediaCodec('G723',  8000),
+                     5: MediaCodec('DVI4',  8000),
+                     6: MediaCodec('DVI4', 16000),
+                     7: MediaCodec('LPC',   8000),
+                     8: MediaCodec('PCMA',  8000),
+                     9: MediaCodec('G722',  8000),
+                    10: MediaCodec('L16',  44100), # 2 channels
+                    11: MediaCodec('L16',  44100), # 1 channel
+                    12: MediaCodec('QCELP', 8000),
+                    13: MediaCodec('CN',    8000),
+                    14: MediaCodec('MPA',  90000),
+                    15: MediaCodec('G728',  8000),
+                    16: MediaCodec('DVI4', 11025),
+                    17: MediaCodec('DVI4', 22050),
+                    18: MediaCodec('G729',  8000)}
 
     def __init__(self, *args, **kwargs):
         raise TypeError("BaseSDPMediaStream cannot be instantiated directly")
@@ -511,25 +530,14 @@ cdef class SDPMediaStream(BaseSDPMediaStream):
             if not isinstance(attributes, SDPAttributeList):
                 attributes = SDPAttributeList(attributes)
             self._attributes = attributes
-            self._codec_list = list()
             if self._media in ("audio", "video"):
-                rtpmap_codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
-                for format in [int(format) for format in self.formats]:
-                    try:
-                        codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
-                    except IndexError:
-                        if format not in (0, 3, 8, 9):
-                            continue
-                        if format == 0:
-                            self._codec_list.append(MediaCodec(0, "PCMU", 8000))
-                        elif format == 3:
-                            self._codec_list.append(MediaCodec(3, "GSM", 8000))
-                        elif format == 8:
-                            self._codec_list.append(MediaCodec(8, "PCMA", 8000))
-                        elif format == 9:
-                            self._codec_list.append(MediaCodec(9, "G722", 8000))
-                    else:
-                        self._codec_list.append(codec)
+                rtp_mappings = self.rtp_mappings.copy()
+                rtpmap_lines = '\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']) # iterators are not supported -Dan
+                rtpmap_codecs = dict([(int(type), MediaCodec(name, rate)) for type, name, rate in self.rtpmap_re.findall(rtpmap_lines)])
+                rtp_mappings.update(rtpmap_codecs)
+                self._codec_list = [rtp_mappings.get(int(format), MediaCodec('Unknown', 0)) for format in self.formats]
+            else:
+                self._codec_list = list()
 
     cdef int _update(self, SDPMediaStream media) except -1:
         if len(self._attributes) > len(media._attributes):
@@ -572,7 +580,6 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             for attr in attributes:
                 if not isinstance(attr, FrozenSDPAttribute):
                     raise TypeError("Items in FrozenSDPMediaStream attribute list must be FrozenSDPAttribute instances")
-            
             self.media = media
             _str_to_pj_str(media, &self._sdp_media.desc.media)
             self.port = port
@@ -596,26 +603,14 @@ cdef class FrozenSDPMediaStream(BaseSDPMediaStream):
             else:
                 self._sdp_media.conn = connection.get_sdp_connection()
             self.attributes = FrozenSDPAttributeList(attributes) if not isinstance(attributes, FrozenSDPAttributeList) else attributes
-            rtpmap_codec_list = [MediaCodec(*args) for args in self.rtpmap_re.findall('\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']))] # iterators are not supported -Dan
-            codec_list = list()
             if self.media in ("audio", "video"):
-                for format in [int(format) for format in self.formats]:
-                    try:
-                        codec = [codec for codec in rtpmap_codec_list if codec.payload_type == format][0]
-                    except IndexError:
-                        if format not in (0, 3, 8, 9):
-                            continue
-                        if format == 0:
-                            codec_list.append(MediaCodec(0, "PCMU", 8000))
-                        elif format == 3:
-                            codec_list.append(MediaCodec(3, "GSM", 8000))
-                        elif format == 8:
-                            codec_list.append(MediaCodec(8, "PCMA", 8000))
-                        elif format == 9:
-                            codec_list.append(MediaCodec(9, "G722", 8000))
-                    else:
-                        codec_list.append(codec)
-            self.codec_list = frozenlist(codec_list)
+                rtp_mappings = self.rtp_mappings.copy()
+                rtpmap_lines = '\n'.join([attr.value for attr in attributes if attr.name=='rtpmap']) # iterators are not supported -Dan
+                rtpmap_codecs = dict([(int(type), MediaCodec(name, rate)) for type, name, rate in self.rtpmap_re.findall(rtpmap_lines)])
+                rtp_mappings.update(rtpmap_codecs)
+                self.codec_list = frozenlist([rtp_mappings.get(int(format), MediaCodec('Unknown', 0)) for format in self.formats])
+            else:
+                self.codec_list = frozenlist()
             self.initialized = 1
 
     def __hash__(self):
