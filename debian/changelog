@@ -1,3 +1,11 @@
+python-sipsimple (0.16.4) unstable; urgency=low
+
+  * Fixed accessing Message-Account in MWI payload as it could be None
+  * Fixed building codec list when rtpmap line is missing
+  * Match codec names case insensitive
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 30 Nov 2010 10:32:03 +0100
+
 python-sipsimple (0.16.3) unstable; urgency=low
 
   * Changed some option defaults to False
