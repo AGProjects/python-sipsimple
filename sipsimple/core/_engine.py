@@ -22,7 +22,8 @@ from sipsimple import __version__
 
 class Engine(Thread):
     __metaclass__ = Singleton
-    default_start_options = {"udp_port": 0,
+    default_start_options = {"ip_address": None,
+                             "udp_port": 0,
                              "tcp_port": None,
                              "tls_port": None,
                              "tls_protocol": "TLSv1",
@@ -78,7 +79,7 @@ class Engine(Thread):
         with self._lock:
             try:
                 self._thread_started = True
-                self._ua = PJSIPUA(self._handle_event, ip_address=None, **init_options)
+                self._ua = PJSIPUA(self._handle_event, **init_options)
                 Thread.start(self)
             except:
                 self._thread_started = False
