@@ -5,7 +5,9 @@
 ##################################################################
 [project attributes]
 proj.directory-list = [{'dirloc': loc('.'),
-                        'excludes': [u'_darcs'],
+                        'excludes': [u'_darcs',
+                                     u'sipsimple/core/_core.c',
+                                     u'build'],
                         'filter': 'All Source Files',
                         'include_hidden': True,
                         'recursive': True,
