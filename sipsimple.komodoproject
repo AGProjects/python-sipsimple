@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Komodo Project File - DO NOT EDIT -->
-<project id="e481c590-e969-46bf-9d30-47a6fbbb1353" kpf_version="4" name="sipsimple.kpf">
+<project id="e481c590-e969-46bf-9d30-47a6fbbb1353" kpf_version="5" name="sipsimple.komodoproject">
 <preference-set idref="e481c590-e969-46bf-9d30-47a6fbbb1353">
+  <string relative="path" id="import_dirname"></string>
   <string id="import_exclude_matches">*.*~;*.bak;*.tmp;CVS;.#*;*.pyo;*.pyc;.svn;*%*;_darcs</string>
   <string id="import_include_matches"></string>
   <boolean id="import_live">1</boolean>
