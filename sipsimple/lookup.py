@@ -106,50 +106,25 @@ class DNSCache(object):
 class DNSResolver(dns.resolver.Resolver):
     """
     The resolver used by DNSLookup.
-    
+
     The lifetime setting on it applies to all the queries made on this resolver.
     Each time a query is performed, its duration is subtracted from the lifetime
     value.
     """
 
-    def __init__(self, *args, **kwargs):
-        dns.resolver.Resolver.__init__(self, *args, **kwargs)
-        self.original_nameservers = self.nameservers
+    def __init__(self):
+        dns.resolver.Resolver.__init__(self, configure=False)
+        default_resolver = dns.resolver.get_default_resolver()
+        self.search = default_resolver.search
+        self.domain = default_resolver.domain
+        self.nameservers = ['8.8.8.8', '8.8.4.4']
 
-    def query(self, qname, *args, **kwargs):
-        if not qname.endswith('.'):
-            qname += '.'
-        self.nameservers = self._get_authoritative_ns(qname)
+    def query(self, *args, **kw):
         start_time = time()
         try:
-            return dns.resolver.Resolver.query(self, qname, *args, **kwargs)
+            return dns.resolver.Resolver.query(self, *args, **kw)
         finally:
             self.lifetime -= min(self.lifetime, time()-start_time)
-
-    def _get_authoritative_ns(self, domain):
-        self.nameservers = self.original_nameservers
-        for domain in domain_iterator(domain):
-            try:
-                answer = dns.resolver.Resolver.query(self, domain, rdatatype.NS)
-            except dns.resolver.Timeout:
-                return self.original_nameservers
-            except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers):
-                continue
-            additional_addresses = dict((rset.name.to_text(), rset) for rset in answer.response.additional if rset.rdtype == rdatatype.A)
-            ns_hostnames = set(r.to_text() for r in answer.rrset)
-            ns_addresses = []
-            for hostname in ns_hostnames:
-                if hostname in additional_addresses:
-                    ns_addresses.extend(r.address for r in additional_addresses[hostname])
-                else:
-                    try:
-                        a_answer = dns.resolver.Resolver.query(self, hostname, rdatatype.A)
-                    except exception.DNSException:
-                        continue
-                    ns_addresses.extend(r.address for r in a_answer.rrset)
-            return ns_addresses or self.original_nameservers
-        else:
-            return self.original_nameservers
 
 
 class SRVResult(object):
