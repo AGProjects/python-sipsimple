@@ -429,10 +429,10 @@ class ChatStream(MSRPStreamBase):
         """
         if self.direction=='recvonly':
             raise ChatStreamError('Cannot send message on recvonly stream')
-        if not contains_mime_type(self.accept_types, content_type):
-            raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
         message_id = '%x' % random.getrandbits(64)
         if self.cpim_enabled:
+            if not contains_mime_type(self.accept_wrapped_types, content_type):
+                raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
             if not recipients:
                 recipients = [self.remote_identity]
             elif not self.private_messages_allowed and recipients != [self.remote_identity]:
@@ -443,6 +443,8 @@ class ChatStream(MSRPStreamBase):
                               subject=subject, timestamp=timestamp, required=required, additional_headers=additional_headers)
             self._enqueue_message(message_id, str(msg), 'message/cpim', failure_report='yes', success_report='yes', notify_progress=True)
         else:
+            if not contains_mime_type(self.accept_types, content_type):
+                raise ChatStreamError('Invalid content_type for outgoing message: %r' % content_type)
             if recipients is not None and recipients != [self.remote_identity]:
                 raise ChatStreamError('Private messages are not available, because CPIM wrapper is not used')
             if courtesy_recipients or subject or timestamp or required or additional_headers:
