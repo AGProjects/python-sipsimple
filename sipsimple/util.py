@@ -8,7 +8,7 @@ Implements utilities commonly used in various parts of the library.
 from __future__ import absolute_import, with_statement
 
 __all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
-           "All", "Any", "Command", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData",
+           "All", "Any", "Command", "InterruptCommand", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData",
            "call_in_green_thread", "call_in_twisted_thread", "combinations", "limit", "makedirs",
            "user_info"]
 
@@ -126,6 +126,9 @@ class Command(object):
 
     def wait(self):
         return self.event.wait()
+
+
+class InterruptCommand(Exception): pass
 
 
 class MultilingualText(unicode):
