@@ -336,12 +336,12 @@ class DNSLookup(object):
             try:
                 answer = resolver.query(record_name, rdatatype.TXT)
             except dns.resolver.Timeout, e:
-                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=None, error=e, **log_context))
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
                 raise
             except exception.DNSException, e:
-                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=None, error=e, **log_context))
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
             else:
-                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), answer=answer, error=None, **log_context))
+                notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='TXT', query_name=str(record_name), nameservers=resolver.nameservers, answer=answer, error=None, **log_context))
                 for result_uri in list(chain(*(r.strings for r in answer.rrset))):
                     parsed_uri = urlparse(result_uri)
                     if parsed_uri.scheme in ('http', 'https') and parsed_uri.netloc:
@@ -364,13 +364,13 @@ class DNSLookup(object):
                 try:
                     answer = resolver.query(hostname, rdatatype.A)
                 except dns.resolver.Timeout, e:
-                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), answer=None, error=e, **log_context))
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
                     raise
                 except exception.DNSException, e:
-                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), answer=None, error=e, **log_context))
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
                     addresses[hostname] = []
                 else:
-                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), answer=answer, error=None, **log_context))
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='A', query_name=str(hostname), nameservers=resolver.nameservers, answer=answer, error=None, **log_context))
                     addresses[hostname] = [r.address for r in answer.rrset]
         return addresses
 
@@ -389,12 +389,12 @@ class DNSLookup(object):
                 try:
                     answer = resolver.query(srv_name, rdatatype.SRV)
                 except dns.resolver.Timeout, e:
-                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='SRV', query_name=str(srv_name), answer=None, error=e, **log_context))
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='SRV', query_name=str(srv_name), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
                     raise
                 except exception.DNSException, e:
-                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='SRV', query_name=str(srv_name), answer=None, error=e, **log_context))
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='SRV', query_name=str(srv_name), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
                 else:
-                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='SRV', query_name=str(srv_name), answer=answer, error=None, **log_context))
+                    notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='SRV', query_name=str(srv_name), nameservers=resolver.nameservers, answer=answer, error=None, **log_context))
                     addresses = self._lookup_a_records(resolver, [r.target.to_text() for r in answer.rrset], answer.response.additional, log_context)
                     for record in answer.rrset:
                         services[srv_name].extend(SRVResult(record.priority, record.weight, record.port, addr) for addr in addresses.get(record.target.to_text(), ()))
@@ -408,12 +408,12 @@ class DNSLookup(object):
         try:
             answer = resolver.query(domain, rdatatype.NAPTR)
         except dns.resolver.Timeout, e:
-            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NAPTR', query_name=str(domain), answer=None, error=e, **log_context))
+            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NAPTR', query_name=str(domain), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
             raise
         except exception.DNSException, e:
-            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NAPTR', query_name=str(domain), answer=None, error=e, **log_context))
+            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NAPTR', query_name=str(domain), nameservers=resolver.nameservers, answer=None, error=e, **log_context))
         else:
-            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NAPTR', query_name=str(domain), answer=answer, error=None, **log_context))
+            notification_center.post_notification('DNSLookupTrace', sender=self, data=TimestampedNotificationData(query_type='NAPTR', query_name=str(domain), nameservers=resolver.nameservers, answer=answer, error=None, **log_context))
             records = [r for r in answer.rrset if r.service.lower() in services]
             services = self._lookup_srv_records(resolver, [r.replacement.to_text() for r in records], answer.response.additional, log_context)
             for record in records:
