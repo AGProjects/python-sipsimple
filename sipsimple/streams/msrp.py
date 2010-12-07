@@ -195,7 +195,7 @@ class MSRPStreamBase(object):
             remote_media = remote_sdp.media[stream_index]
             remote_accept_types = remote_media.attributes.getfirst('accept-types')
             # TODO: update accept_types and accept_wrapped_types from remote_media
-            self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim')
+            self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim') and contains_mime_type(remote_accept_types.split(), 'message/cpim')
             remote_uri_path = remote_media.attributes.getfirst('path')
             if remote_uri_path is None:
                 raise AttributeError("remote SDP media does not have 'path' attribute")
