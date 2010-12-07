@@ -23,7 +23,7 @@ from sipsimple.audio import AudioDevice, RootAudioBridge
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioMixer, Engine, SIPCoreError, SIPURI
-from sipsimple.lookup import DNSLookup, DNSLookupError
+from sipsimple.lookup import DNSLookup, DNSLookupError, DNSManager
 from sipsimple.session import SessionManager
 from sipsimple.util import run_in_twisted_thread, run_in_green_thread, classproperty, Command, TimestampedNotificationData
 
@@ -93,6 +93,7 @@ class SIPApplication(object):
 
     def _initialize_subsystems(self):
         account_manager = AccountManager()
+        dns_manager = DNSManager()
         engine = Engine()
         notification_center = NotificationCenter()
         session_manager = SessionManager()
@@ -190,6 +191,7 @@ class SIPApplication(object):
         settings.save()
 
         # initialize middleware components
+        dns_manager.start()
         account_manager.start()
         session_manager.start()
 
@@ -219,9 +221,10 @@ class SIPApplication(object):
     @run_in_green_thread
     def _shutdown_subsystems(self):
         # shutdown middleware components
+        dns_manager = DNSManager()
         account_manager = AccountManager()
         session_manager = SessionManager()
-        procs = [proc.spawn(account_manager.stop), proc.spawn(session_manager.stop)]
+        procs = [proc.spawn(dns_manager.stop), proc.spawn(account_manager.stop), proc.spawn(session_manager.stop)]
         proc.waitall(procs)
 
         # shutdown engine

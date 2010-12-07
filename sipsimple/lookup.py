@@ -32,6 +32,7 @@ sys.modules['dns.entropy'] = dns.entropy
 del partial, randint, randrange, sys
 
 # replace standard select and socket modules with versions from eventlet
+from eventlet import coros, proc
 from eventlet.green import select
 from eventlet.green import socket
 import dns.resolver
@@ -40,11 +41,14 @@ dns.resolver.socket = socket
 dns.query.select = select
 dns.query.socket = socket
 
-from application.notification import NotificationCenter
+from application.notification import IObserver, NotificationCenter
 from application.python.decorator import decorator, preserve_signature
+from application.python.util import Null, Singleton
 from dns import exception, rdatatype
+from twisted.internet import reactor
+from zope.interface import implements
 
-from sipsimple.util import Route, TimestampedNotificationData, limit, run_in_waitable_green_thread
+from sipsimple.util import Command, InterruptCommand, Route, TimestampedNotificationData, limit, run_in_twisted_thread, run_in_waitable_green_thread
 
 
 def domain_iterator(domain):
@@ -90,7 +94,6 @@ class DNSCache(object):
         return self.data.get(key, None)
 
     def put(self, key, value):
-        from twisted.internet import reactor
         expiration = value.expiration-time()
         if expiration > 0:
             self.data[key] = value
@@ -114,10 +117,10 @@ class DNSResolver(dns.resolver.Resolver):
 
     def __init__(self):
         dns.resolver.Resolver.__init__(self, configure=False)
-        default_resolver = dns.resolver.get_default_resolver()
-        self.search = default_resolver.search
-        self.domain = default_resolver.domain
-        self.nameservers = ['8.8.8.8', '8.8.4.4']
+        dns_manager = DNSManager()
+        self.search = dns_manager.search
+        self.domain = dns_manager.domain
+        self.nameservers = dns_manager.nameservers
 
     def query(self, *args, **kw):
         start_time = time()
@@ -420,5 +423,113 @@ class DNSLookup(object):
                 pointers.extend(NAPTRResult(record.service.lower(), record.order, record.preference, r.priority, r.weight, r.port, r.address) for r in services.get(record.replacement.to_text(), ()))
         pointers.sort(key=lambda result: (result.order, result.preference))
         return pointers
+
+
+class DNSManager(object): # check name -Dan
+    __metaclass__ = Singleton
+
+    implements(IObserver)
+
+    def __init__(self):
+        default_resolver = dns.resolver.Resolver()
+        self.search = default_resolver.search
+        self.domain = default_resolver.domain
+        self.nameservers = default_resolver.nameservers
+        self.google_nameservers = ['8.8.8.8', '8.8.4.4']
+        self.probed_domain = 'sip2sip.info.'
+        self._channel = coros.queue()
+        self._proc = None
+        self._timer = None
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+
+    def _get_nameservers(self):
+        return self.__dict__['nameservers']
+
+    def _set_nameservers(self, value):
+        old_value = self.__dict__.get('nameservers', Null)
+        self.__dict__['nameservers'] = value
+        if old_value is Null:
+            NotificationCenter().post_notification('DNSResolverDidInitialize', sender=self, data=TimestampedNotificationData(nameservers=value))
+        elif value != old_value:
+            NotificationCenter().post_notification('DNSNameserversDidChange', sender=self, data=TimestampedNotificationData(nameservers=value))
+
+    nameservers = property(_get_nameservers, _set_nameservers)
+    del _get_nameservers, _set_nameservers
+
+    def start(self):
+        self._proc = proc.spawn(self._run)
+        self._channel.send(Command('probe_dns'))
+
+    def stop(self):
+        if self._proc is not None:
+            self._proc.kill()
+            self._proc = None
+        if self._timer is not None and self._timer.active():
+            self._timer.cancel()
+        self._timer = None
+
+    def _run(self):
+        while True:
+            try:
+                command = self._channel.wait()
+                handler = getattr(self, '_CH_%s' % command.name)
+                handler(command)
+            except InterruptCommand:
+                pass
+
+    def _CH_probe_dns(self, command):
+        if self._timer is not None and self._timer.active():
+            self._timer.cancel()
+        self._timer = None
+        resolver = dns.resolver.Resolver()
+        self.domain = resolver.domain
+        self.search = resolver.search
+        local_nameservers = resolver.nameservers
+        # probe local resolver
+        resolver.timeout = 1
+        resolver.lifetime = 3
+        try:
+            answer = resolver.query(self.probed_domain, rdatatype.NAPTR)
+            if not any(record.rdtype == rdatatype.NAPTR for record in answer.rrset):
+                raise exception.DNSException("No NAPTR records found")
+            answer = resolver.query("_sip._udp.%s" % self.probed_domain, rdatatype.SRV)
+            if not any(record.rdtype == rdatatype.SRV for record in answer.rrset):
+                raise exception.DNSException("No SRV records found")
+        except (dns.resolver.Timeout, exception.DNSException):
+            pass
+        else:
+            self.nameservers = resolver.nameservers
+            return
+        # local resolver failed. probe google resolver
+        resolver.nameservers = self.google_nameservers
+        resolver.timeout = 2
+        resolver.lifetime = 4
+        try:
+            answer = resolver.query(self.probed_domain, rdatatype.NAPTR)
+            if not any(record.rdtype == rdatatype.NAPTR for record in answer.rrset):
+                raise exception.DNSException("No NAPTR records found")
+        except (dns.resolver.Timeout, exception.DNSException):
+            pass
+        else:
+            self.nameservers = resolver.nameservers
+            return
+        # google resolver failed. fallback to local resolver and schedule another probe for later
+        self.nameservers = local_nameservers
+        self._timer = reactor.callLater(15, self._channel.send, Command('probe_dns'))
+
+    @run_in_twisted_thread
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_SystemIPAddressDidChange(self, notification):
+        self._proc.kill(InterruptCommand)
+        self._channel.send(Command('probe_dns'))
+
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
+        self._proc.kill(InterruptCommand)
+        self._channel.send(Command('probe_dns'))
 
 

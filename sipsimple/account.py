@@ -94,12 +94,14 @@ class AccountRegistrar(object):
 
     def start(self):
         notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._run()
 
     def stop(self):
         notification_center = NotificationCenter()
+        notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_channel.send_exception(api.GreenletExit)
@@ -282,6 +284,10 @@ class AccountRegistrar(object):
     def _NH_SIPRegistrationDidNotEnd(self, notification):
         self._data_channel.send_exception(SIPRegistrationDidNotEnd(notification.data))
 
+    def _NH_DNSNameserversDidChange(self, notification):
+        if self._registration is not None:
+            self._command_channel.send(Command('register'))
+
     def _NH_SystemIPAddressDidChange(self, notification):
         if self._registration is not None:
             self._command_channel.send(Command('register'))
@@ -307,12 +313,14 @@ class AccountMWISubscriptionHandler(object):
 
     def start(self):
         notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._run()
 
     def stop(self):
         notification_center = NotificationCenter()
+        notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_channel.send_exception(api.GreenletExit)
@@ -501,6 +509,10 @@ class AccountMWISubscriptionHandler(object):
             else:
                 self.server_advertised_uri = message_summary.message_account and message_summary.message_account.replace('sip:', '', 1) or None
                 NotificationCenter().post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
+
+    def _NH_DNSNameserversDidChange(self, notification):
+        if self.subscription is not None and self._subscription_timer is None:
+            self._subscription_timer = reactor.callLater(0, self._command_channel.send, Command('subscribe'))
 
     def _NH_SystemIPAddressDidChange(self, notification):
         if self.subscription is not None and self._subscription_timer is None:
