@@ -318,6 +318,11 @@ class ChatStream(MSRPStreamBase):
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
             raise InvalidStreamError("mismatching directions in chat stream")
+        remote_accept_types = remote_stream.attributes.getfirst('accept-types')
+        if remote_accept_types is None:
+            raise InvalidStreamError("remote SDP media does not have 'accept-types' attribute")
+        if not any(contains_mime_type(cls.accept_types, mime_type) for mime_type in remote_accept_types.split()):
+            raise InvalidStreamError("no compatible media types found")
         return stream
 
     @property
