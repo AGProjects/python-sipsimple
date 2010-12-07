@@ -6,6 +6,7 @@
 [project attributes]
 proj.directory-list = [{'dirloc': loc('.'),
                         'excludes': [u'_darcs',
+                                     u'.komodotools',
                                      u'sipsimple/core/_core.c',
                                      u'build'],
                         'filter': 'All Source Files',
