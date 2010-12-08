@@ -727,7 +727,7 @@ class BonjourServices(object):
                 pass
             else:
                 service_description = file.service_description
-                transport = uri.parameters.get('transport', 'udp')
+                transport = uri.transport
                 supported_transport = transport in settings.sip.transport_list and (transport!='tls' or self.account.tls.certificate is not None)
                 if supported_transport and uri != self.account.contact[transport]:
                     notification_name = 'BonjourAccountDidUpdateNeighbour' if service_description in self._neighbours else 'BonjourAccountDidAddNeighbour'
@@ -862,7 +862,7 @@ class BonjourServices(object):
         self._select_proc.kill(RestartSelect)
         for file in old_files:
             file.close()
-        for service_description in [service for service, uri in self._neighbours.iteritems() if uri.parameters.get('transport', 'udp') not in supported_transports]:
+        for service_description in [service for service, uri in self._neighbours.iteritems() if uri.transport not in supported_transports]:
             del self._neighbours[service_description]
             notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=TimestampedNotificationData(neighbour=service_description))
         discovered_transports = set(file.transport for file in self._files if isinstance(file, BonjourDiscoveryFile))

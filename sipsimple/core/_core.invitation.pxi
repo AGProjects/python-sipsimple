@@ -165,7 +165,7 @@ cdef class Invitation:
             if timeout is not None and timeout <= 0:
                 raise ValueError("Timeout value must be positive")
 
-            self.transport = route_header.uri.parameters.get("transport", "udp")
+            self.transport = route_header.uri.transport
             self.direction = "outgoing"
             self.credentials = FrozenCredentials.new(credentials) if credentials is not None else None
             self.route_header = FrozenRouteHeader.new(route_header)
@@ -178,8 +178,8 @@ cdef class Invitation:
             to_header_str = PJSTR(to_header.body)
             contact_header_str = PJSTR(self.local_contact_header.body)
             target_uri = SIPURI.new(to_header.uri)
-            if target_uri.parameters.get("transport", "udp").lower() != self.transport:
-                target_uri.parameters["transport"] = self.transport
+            if target_uri.transport.lower() != self.transport:
+                target_uri.transport = self.transport
             target_str = PJSTR(str(target_uri))
 
             with nogil:

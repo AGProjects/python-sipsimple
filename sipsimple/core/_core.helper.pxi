@@ -140,6 +140,18 @@ cdef class BaseSIPURI:
     def __richcmp__(self, other, op):
         return BaseSIPURI_richcmp(self, other, op)
 
+    property transport:
+        def __get__(self):
+            return self.parameters.get('transport', 'udp')
+
+        def __set__(self, str transport not None):
+            if isinstance(self, FrozenSIPURI):
+                raise AttributeError("can't set readonly attribute")
+            if transport.lower() == 'udp':
+                self.parameters.pop('transport', None)
+            else:
+                self.parameters['transport'] = transport
+
     def matches(self, address):
         match = re.match(r'^((?P<scheme>sip|sips):)?(?P<username>.+?)(@(?P<domain>.+?)(:(?P<port>\d+?))?)?(;(?P<parameters>.+?))?(\?(?P<headers>.+?))?$', address)
         if match is None:
