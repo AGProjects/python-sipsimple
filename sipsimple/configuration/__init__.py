@@ -569,8 +569,8 @@ class SettingsObject(SettingsState):
         """
         Register an extension of this SettingsObject. All Settings and
         SettingsGroups defined in the extension will be added to this
-        SettingsObject, overwriting any attributes with the same name. Other
-        attriutes in the extension are ignored.
+        SettingsObject, overwriting any attributes with the same name.
+        Other attributes in the extension are ignored.
         """
         if not issubclass(extension, SettingsObjectExtension):
             raise TypeError("expected subclass of SettingsObjectExtension, got %r" % (extension,))
