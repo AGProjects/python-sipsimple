@@ -533,8 +533,8 @@ class SettingsObject(SettingsState):
             configuration.rename(self.__group__, old, new)
             notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=old, new_id=new))
         if modified_settings:
+            configuration.update(self.__group__, self.__id__, self.__getstate__())
             notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
-        configuration.update(self.__group__, self.__id__, self.__getstate__())
         try:
             configuration.save()
         except Exception, e:
