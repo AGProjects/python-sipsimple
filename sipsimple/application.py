@@ -116,7 +116,7 @@ class SIPApplication(object):
                        ignore_missing_ack=False,
                        udp_port=settings.sip.udp_port if 'udp' in settings.sip.transport_list else None,
                        tcp_port=settings.sip.tcp_port if 'tcp' in settings.sip.transport_list else None,
-                       tls_port=settings.sip.tls_port if 'tls' in settings.sip.transport_list else None,
+                       tls_port=None,
                        # TLS
                        tls_protocol='TLSv1',
                        tls_verify_server=False,
@@ -141,7 +141,7 @@ class SIPApplication(object):
 
         # initialize TLS
         try:
-            engine.set_tls_options(port=settings.sip.tls_port,
+            engine.set_tls_options(port=settings.sip.tls_port if 'tls' in settings.sip.transport_list else None,
                                    protocol=settings.tls.protocol,
                                    verify_server=account.tls.verify_server if account else False,
                                    ca_file=settings.tls.ca_list.normalized if settings.tls.ca_list else None,
