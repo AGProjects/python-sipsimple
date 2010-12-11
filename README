@@ -41,7 +41,7 @@ The library has cross platform capabilities on Linux OS, Mac OSX and
 Microsoft Windows.  The library should work with minimal changes on any
 platform that supports C and Python development environments.
 
-The SDK is suitable for building end-points like SIP clients or a SIP
+The SDK is suitable for building end-points like SIP clients or SIP
 Application Servers.  To see what the SDK is capable of, you can try Blink
 from http://icanblink.com
 
