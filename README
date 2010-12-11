@@ -9,15 +9,13 @@ http://ag-projects.com
 Description
 -----------
 
-SIP SIMPLE client SDK is a Software Development Kit for development of Real
-Time Applications based on SIP and related protocols for Audio, Instant
-Messaging, File Transfers, Desktop Sharing and Presence. Other media types
-can be easily added by using an extensible high-level API.
+SIP SIMPLE client SDK is a Software Development Kit for easy development of
+SIP end-points that support rich media like Audio, Instant Messaging, File
+Transfers, Desktop Sharing and Presence.  Other media types can be easily
+added by using an extensible high-level API.
 
 The software has undergone in the past years several interoperability tests
 at SIPIT (http://www.sipit.net) and today is of industry strength quality.
-
-The SIP stack is provided by PJSIP (http://www.pjsip.org)
 
 
 Background
@@ -39,16 +37,14 @@ busy line appearance.
 Features
 --------
 
-The library has cross platform capabilities on Linux OS, Mac OSX (Leopard
-and Snow Leopard) and Microsoft Windows.  The library should work with
-minimal changes on any platform that supports C and Python development
-environments.
+The library has cross platform capabilities on Linux OS, Mac OSX and
+Microsoft Windows.  The library should work with minimal changes on any
+platform that supports C and Python development environments.
 
-To see SIP SIMPLE client SDK features in action you can try Blink from
-http://icanblink.com
+The SDK is suitable for building end-points like SIP clients or a SIP
+Application Servers.  To see what the SDK is capable of, you can try Blink
+from http://icanblink.com
 
-For an up to date status of the readiness for the features listed bellow
-visit project web site.
 
 General
 
@@ -130,7 +126,7 @@ Conferencing
  * Conference Event Package (RFC4575)
  * A Framework for Conferencing with the Session Initiation Protocol (RFC4353)
  * SIP Call Control - Conferencing for User Agents (RFC4579)
- * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat-06) - roadmap
+ * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat-07)
 
 Presence
 
