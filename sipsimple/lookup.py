@@ -425,7 +425,7 @@ class DNSLookup(object):
         return pointers
 
 
-class DNSManager(object): # check name -Dan
+class DNSManager(object):
     __metaclass__ = Singleton
 
     implements(IObserver)
