@@ -8,6 +8,8 @@ multiple SIP accounts and their properties.
 
 from __future__ import absolute_import, with_statement
 
+__all__ = ['Account', 'BonjourAccount', 'AccountManager', 'AccountExists']
+
 import random
 import re
 import string
@@ -36,9 +38,6 @@ from sipsimple.payloads.messagesummary import MessageSummary, ValidationError
 from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, call_in_green_thread, run_in_green_thread
 from sipsimple.util import TimestampedNotificationData, classproperty, limit, user_info
-
-
-__all__ = ['Account', 'BonjourAccount', 'AccountManager', 'AccountExists']
 
 
 class ContactURI(SIPAddress):
