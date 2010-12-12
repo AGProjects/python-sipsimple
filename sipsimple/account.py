@@ -33,7 +33,9 @@ from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionMode
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads.messagesummary import MessageSummary, ValidationError
-from sipsimple.util import Command, TimestampedNotificationData, call_in_green_thread, call_in_twisted_thread, classproperty, limit, run_in_green_thread, run_in_twisted_thread, user_info
+from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
+from sipsimple.threading.green import Command, call_in_green_thread, run_in_green_thread
+from sipsimple.util import TimestampedNotificationData, classproperty, limit, user_info
 
 
 __all__ = ['Account', 'BonjourAccount', 'AccountManager', 'AccountExists']

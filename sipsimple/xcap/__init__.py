@@ -36,7 +36,9 @@ from sipsimple.core import ContactHeader, FromHeader, PJSIPError, RouteHeader, T
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
 from sipsimple.payloads import dialogrules, extensions, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
-from sipsimple.util import All, Any, Command, TimestampedNotificationData, limit, makedirs, run_in_green_thread, run_in_twisted_thread
+from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading.green import Command, run_in_green_thread
+from sipsimple.util import All, Any, TimestampedNotificationData, limit, makedirs
 from sipsimple.xcap.uri import XCAPURI
 
 

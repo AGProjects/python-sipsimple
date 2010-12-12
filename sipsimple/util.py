@@ -7,25 +7,17 @@ Implements utilities commonly used in various parts of the library.
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ["classproperty", "run_in_green_thread", "run_in_waitable_green_thread", "run_in_twisted_thread",
-           "All", "Any", "Command", "InterruptCommand", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData",
-           "call_in_green_thread", "call_in_twisted_thread", "combinations", "limit", "makedirs",
-           "user_info"]
+__all__ = ["All", "Any", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData", "classproperty", "combinations", "limit", "makedirs", "user_info"]
 
 import errno
 import os
 import platform
 import re
 import socket
-import sys
 from datetime import datetime, timedelta
 
 from application.notification import NotificationData
-from application.python.decorator import decorator, preserve_signature
 from application.python.util import Singleton
-from eventlet import coros
-from eventlet.twistedutil import callInGreenThread
-from twisted.python import threadable
 
 
 # Descriptors and decorators
@@ -40,51 +32,6 @@ def classproperty(function):
         def __delete__(self, instance):
             raise AttributeError("read-only attribute cannot be deleted")
     return Descriptor()
-
-
-@decorator
-def run_in_green_thread(func):
-    @preserve_signature(func)
-    def wrapper(*args, **kwargs):
-        from twisted.internet import reactor
-        if threadable.isInIOThread():
-            callInGreenThread(func, *args, **kwargs)
-        else:
-            reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
-    return wrapper
-
-
-@decorator
-def run_in_waitable_green_thread(func):
-    @preserve_signature(func)
-    def wrapper(*args, **kwargs):
-        from twisted.internet import reactor
-        event = coros.event()
-        def wrapped_func():
-            try:
-                result = func(*args, **kwargs)
-            except:
-                event.send_exception(*sys.exc_info())
-            else:
-                event.send(result)
-        if threadable.isInIOThread():
-            callInGreenThread(wrapped_func)
-        else:
-            reactor.callFromThread(callInGreenThread, wrapped_func)
-        return event
-    return wrapper
-
-
-@decorator
-def run_in_twisted_thread(func):
-    @preserve_signature(func)
-    def wrapper(*args, **kwargs):
-        from twisted.internet import reactor
-        if threadable.isInIOThread():
-            func(*args, **kwargs)
-        else:
-            reactor.callFromThread(func, *args, **kwargs)
-    return wrapper
 
 
 # Utility classes
@@ -112,23 +59,6 @@ class AnyType(object):
         return (self.__class__, (), None)
 
 Any = AnyType()
-
-
-class Command(object):
-    def __init__(self, name, event=None, timestamp=None, **kwargs):
-        self.name = name
-        self.event = event or coros.event()
-        self.timestamp = timestamp or datetime.utcnow()
-        self.__dict__.update(kwargs)
-
-    def signal(self):
-        self.event.send()
-
-    def wait(self):
-        return self.event.wait()
-
-
-class InterruptCommand(Exception): pass
 
 
 class MultilingualText(unicode):
@@ -277,22 +207,6 @@ class TimestampedNotificationData(NotificationData):
 
 # Utility functions
 #
-
-def call_in_green_thread(func, *args, **kwargs):
-    from twisted.internet import reactor
-    if threadable.isInIOThread():
-        callInGreenThread(*args, **kwargs)
-    else:
-        reactor.callFromThread(callInGreenThread, func, *args, **kwargs)
-
-
-def call_in_twisted_thread(func, *args, **kwargs):
-    from twisted.internet import reactor
-    if threadable.isInIOThread():
-        func(*args, **kwargs)
-    else:
-        reactor.callFromThread(func, *args, **kwargs)
-
 
 def combinations(iterable, r):
     # combinations('ABCD', 2) --> AB AC AD BC BD CD

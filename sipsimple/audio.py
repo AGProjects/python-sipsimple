@@ -19,7 +19,9 @@ from eventlet import coros
 from zope.interface import Attribute, Interface, implements
 
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile
-from sipsimple.util import Command, TimestampedNotificationData, combinations, makedirs, run_in_green_thread, run_in_twisted_thread
+from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading.green import Command, run_in_green_thread
+from sipsimple.util import TimestampedNotificationData, combinations, makedirs
 
 
 class IAudioPort(Interface):

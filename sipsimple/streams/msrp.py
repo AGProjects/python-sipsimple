@@ -42,7 +42,9 @@ from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.payloads.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
 from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
 from sipsimple.streams.applications.chat import ChatIdentity, ChatMessage, CPIMMessage, CPIMParserError
-from sipsimple.util import run_in_green_thread, run_in_twisted_thread, TimestampedNotificationData
+from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading.green import run_in_green_thread
+from sipsimple.util import TimestampedNotificationData
 
 
 class MSRPStreamError(StreamError): pass

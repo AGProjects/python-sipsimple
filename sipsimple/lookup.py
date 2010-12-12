@@ -48,7 +48,9 @@ from dns import exception, rdatatype
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.util import Command, InterruptCommand, Route, TimestampedNotificationData, limit, run_in_twisted_thread, run_in_waitable_green_thread
+from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading.green import Command, InterruptCommand, run_in_waitable_green_thread
+from sipsimple.util import Route, TimestampedNotificationData, limit
 
 
 def domain_iterator(domain):

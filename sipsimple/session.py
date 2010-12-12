@@ -27,7 +27,9 @@ from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 from sipsimple.account import AccountManager, ContactURI
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
-from sipsimple.util import TimestampedNotificationData, run_in_green_thread, run_in_twisted_thread
+from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading.green import run_in_green_thread
+from sipsimple.util import TimestampedNotificationData
 
 
 class MediaStreamDidFailError(Exception):

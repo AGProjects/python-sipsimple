@@ -25,7 +25,9 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioMixer, Engine, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup, DNSLookupError, DNSManager
 from sipsimple.session import SessionManager
-from sipsimple.util import run_in_twisted_thread, run_in_green_thread, classproperty, Command, TimestampedNotificationData
+from sipsimple.threading import ThreadManager, run_in_twisted_thread
+from sipsimple.threading.green import Command, run_in_green_thread
+from sipsimple.util import classproperty, TimestampedNotificationData
 
 
 
@@ -64,6 +66,9 @@ class SIPApplication(object):
             if self.state is not None:
                 raise RuntimeError("SIPApplication cannot be started from '%s' state" % self.state)
             self.state = 'starting'
+
+        thread_manager = ThreadManager()
+        thread_manager.start()
 
         account_manager = AccountManager()
         configuration_manager = ConfigurationManager()
@@ -239,6 +244,9 @@ class SIPApplication(object):
                         break
         except api.TimeoutError:
             pass
+        # stop threads
+        thread_manager = ThreadManager()
+        thread_manager.stop()
         # stop the reactor
         reactor.stop()
 
