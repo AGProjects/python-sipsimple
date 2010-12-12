@@ -9,6 +9,8 @@ application.
 
 from __future__ import absolute_import, with_statement
 
+__all__ = ["SIPApplication"]
+
 from threading import RLock, Thread
 
 from application.notification import IObserver, NotificationCenter
