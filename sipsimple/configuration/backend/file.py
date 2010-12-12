@@ -1,9 +1,7 @@
 # Copyright (C) 2009-2010 AG Projects. See LICENSE for details.
 #
 
-"""
-Configuration backend for storing settings in a simple plain text format.
-"""
+"""Configuration backend for storing settings in a simple plain text format"""
 
 __all__ = ["FileParserError", "FileBuilderError", "FileBackend"]
 

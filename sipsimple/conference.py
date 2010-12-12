@@ -1,9 +1,7 @@
 # Copyright (C) 2010 AG Projects. See LICENSE for details.
 #
 
-"""
-Audio support.
-"""
+"""Audio conference support"""
 
 from __future__ import absolute_import, with_statement
 

@@ -1,9 +1,7 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""
-Chat related objects, including CPIM support as defined in RFC3862.
-"""
+"""Chat related objects, including CPIM support as defined in RFC3862"""
 
 __all__ = ['ChatIdentity', 'ChatMessage', 'CPIMParserError', 'CPIMIdentity', 'CPIMHeader', 'CPIMMessage']
 

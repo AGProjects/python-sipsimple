@@ -1,7 +1,7 @@
 # Copyright (C) 2009 AG Projects. See LICENSE for details.
 #
 
-"""Base definitions for concrete implementations of configuration backends."""
+"""Base definitions for concrete implementations of configuration backends"""
 
 __all__ = ['ConfigurationBackendError', 'IConfigurationBackend']
 

@@ -1,9 +1,7 @@
 # Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
 #
 
-"""
-Implements utilities commonly used in various parts of the library.
-"""
+"""Implements utilities commonly used in various parts of the library"""
 
 from __future__ import absolute_import, with_statement
 
