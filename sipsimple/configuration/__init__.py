@@ -8,8 +8,9 @@ from __future__ import with_statement
 __all__ = ['ConfigurationError', 'ObjectNotFoundError', 'ConfigurationManager', 'DefaultValue',
            'SettingsObjectID', 'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObject', 'SettingsObjectExtension']
 
-from weakref import WeakKeyDictionary
+from itertools import chain
 from threading import Lock
+from weakref import WeakKeyDictionary
 
 from application.notification import NotificationCenter
 from application.python.util import Singleton
@@ -196,8 +197,12 @@ class SettingsObjectID(object):
                 value = self.type(value)
             if obj in self.values and self.values[obj] == value:
                 return
+            if obj in self.oldvalues and self.oldvalues[obj] == value:
+                self.values[obj] = self.oldvalues[obj]
+                self.dirty[obj] = False
+                return
             try:
-                other_obj = (key for key, val in self.values.iteritems() if val==value).next()
+                other_obj = (key for key, val in chain(self.values.iteritems(), self.oldvalues.iteritems()) if val==value).next()
             except StopIteration:
                 pass
             else:
@@ -229,16 +234,7 @@ class SettingsObjectID(object):
 
     def undo(self, obj):
         with self.lock:
-            old_value = self.oldvalues[obj]
-            if self.values[obj] == old_value:
-                return
-            try:
-                other_obj = (key for key, val in self.values.iteritems() if val==old_value).next()
-            except StopIteration:
-                pass
-            else:
-                raise ValueError('SettingsObject ID already used by another %s' % other_obj.__class__.__name__)
-            self.values[obj] = old_value
+            self.values[obj] = self.oldvalues[obj]
             self.dirty[obj] = False
 
 
