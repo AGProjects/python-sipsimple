@@ -3,11 +3,15 @@
 
 """Generic configuration management"""
 
+from __future__ import with_statement
+
 from weakref import WeakKeyDictionary
+from threading import Lock
 
 from application.notification import NotificationCenter
 from application.python.util import Singleton
 
+from sipsimple.threading import run_in_thread
 from sipsimple.util import TimestampedNotificationData
 
 __all__ = ['ConfigurationError', 'ObjectNotFoundError', 'ConfigurationManager', 'DefaultValue',
@@ -174,6 +178,9 @@ class SettingsObjectID(object):
     """
     Simple descriptor used for SettingsObject subclasses which have dynamic ids.
     """
+
+    lock = Lock() # need a class lock because SettingsObject IDs are correlated
+
     def __init__(self, type):
         self.type = type
         self.values = WeakKeyDictionary()
@@ -181,44 +188,58 @@ class SettingsObjectID(object):
         self.dirty = WeakKeyDictionary()
 
     def __get__(self, obj, objtype):
-        if obj is None:
-            return self
-        try:
-            return self.values[obj]
-        except KeyError:
-            raise AttributeError("SettingsObject ID has not been defined")
+        return self if obj is None else self.values[obj]
 
     def __set__(self, obj, value):
-        if not isinstance(value, self.type):
-            value = self.type(value)
-        # check whether the old value is the same as the new value
-        if obj in self.values and self.values[obj] == value:
-            return
-        self.dirty[obj] = obj in self.values
-        self.oldvalues[obj] = self.values.get(obj, value)
-        self.values[obj] = value
+        with self.lock:
+            if not isinstance(value, self.type):
+                value = self.type(value)
+            if obj in self.values and self.values[obj] == value:
+                return
+            try:
+                other_obj = (key for key, val in self.values.iteritems() if val==value).next()
+            except StopIteration:
+                pass
+            else:
+                raise ValueError('SettingsObject ID already used by another %s' % other_obj.__class__.__name__)
+            if obj in self.values:
+                self.values[obj] = value
+                self.dirty[obj] = True
+            else:
+                self.values[obj] = self.oldvalues[obj] = value
+                self.dirty[obj] = False
 
-    def isdirty(self, obj):
+    def get_modified(self, obj):
         """
-        Returns True if the ID has been changed on the specified configuration
-        object.
+        Returns a ModifiedValue instance with references to the old and new
+        values or None if not modified.
         """
-        return self.dirty.get(obj, False)
-
-    def clear_dirty(self, obj):
-        """
-        Clears the dirty flag for the ID on the specified configuration object.
-        """
-        del self.dirty[obj]
-        self.oldvalues[obj] = self.values[obj]
+        with self.lock:
+            try:
+                if self.dirty.get(obj, False):
+                    return ModifiedValue(old=self.oldvalues[obj], new=self.values[obj])
+                else:
+                    return None
+            finally:
+                self.oldvalues[obj] = self.values[obj]
+                self.dirty[obj] = False
 
     def get_old(self, obj):
-        return self.oldvalues.get(obj, None)
+        return self.oldvalues[obj]
 
     def undo(self, obj):
-        if obj in self.oldvalues:
-            self.dirty.pop(obj, None)
-            self.values[obj] = self.oldvalues[obj]
+        with self.lock:
+            old_value = self.oldvalues[obj]
+            if self.values[obj] == old_value:
+                return
+            try:
+                other_obj = (key for key, val in self.values.iteritems() if val==old_value).next()
+            except StopIteration:
+                pass
+            else:
+                raise ValueError('SettingsObject ID already used by another %s' % other_obj.__class__.__name__)
+            self.values[obj] = old_value
+            self.dirty[obj] = False
 
 
 class Setting(object):
@@ -238,6 +259,7 @@ class Setting(object):
         self.values = WeakKeyDictionary()
         self.oldvalues = WeakKeyDictionary()
         self.dirty = WeakKeyDictionary()
+        self.lock = Lock()
 
     def __get__(self, obj, objtype):
         if obj is None:
@@ -245,57 +267,86 @@ class Setting(object):
         return self.values.get(obj, self.default)
 
     def __set__(self, obj, value):
-        if value is None and not self.nillable:
-            raise ValueError("setting attribute is not nillable")
-        if value is DefaultValue:
-            if obj in self.values:
-                self.values.pop(obj)
-                self.dirty[obj] = True
-            return
+        with self.lock:
+            if value is None and not self.nillable:
+                raise ValueError("setting attribute is not nillable")
+            if value is DefaultValue:
+                if obj in self.values:
+                    self.values.pop(obj)
+                    self.dirty[obj] = True
+                return
 
-        if value is not None and not isinstance(value, self.type):
-            value = self.type(value)
-        # check whether the old value is the same as the new value
-        if obj in self.values and self.values[obj] == value:
-            return
+            if value is not None and not isinstance(value, self.type):
+                value = self.type(value)
+            # check whether the old value is the same as the new value
+            if obj in self.values and self.values[obj] == value:
+                return
 
-        self.values[obj] = value
-        self.dirty[obj] = True
+            self.values[obj] = value
+            self.dirty[obj] = True
 
-    def isset(self, obj):
-        """
-        Returns True if the setting is set to a different value than the
-        default on the specified configuration object.
-        """
-        return obj in self.values
+    def __getstate__(self, obj):
+        value = self.values.get(obj, DefaultValue)
+        if value in (None, DefaultValue):
+            pass
+        elif issubclass(self.type, bool):
+            value = u'true' if value else u'false'
+        elif issubclass(self.type, (int, long, basestring)):
+            value = unicode(value)
+        else:
+            try:
+                value = value.__getstate__()
+            except AttributeError:
+                raise TypeError("Setting type %s does not provide __getstate__" % value.__class__.__name__)
+        return value
 
-    def isdirty(self, obj):
-        """
-        Returns True if the setting was changed on the specified configuration
-        object.
-        """
-        return self.dirty.get(obj, False)
+    def __setstate__(self, obj, value):
+        with self.lock:
+            if value is None and not self.nillable:
+                raise ValueError("setting attribute is not nillable")
+            if value is None:
+                pass
+            elif issubclass(self.type, bool):
+                if value.lower() in ('true', 'yes', 'on', '1'):
+                    value = True
+                elif value.lower() in ('false', 'no', 'off', '0'):
+                    value = False
+                else:
+                    raise ValueError("invalid boolean value: %s" % (value,))
+            elif issubclass(self.type, (int, long, basestring)):
+                value = self.type(value)
+            else:
+                object = self.type.__new__(self.type)
+                object.__setstate__(value)
+                value = object
+            self.oldvalues[obj] = self.values[obj] = value
+            self.dirty[obj] = False
 
-    def clear_dirty(self, obj):
+    def get_modified(self, obj):
         """
-        Clears the dirty flag for this setting on the specified configuration
-        object.
+        Returns a ModifiedValue instance with references to the old and new
+        values or None if not modified.
         """
-        self.dirty.pop(obj, None)
-        try:
-            self.oldvalues[obj] = self.values[obj]
-        except KeyError:
-            self.oldvalues.pop(obj, None)
-
-    def get_old(self, obj):
-        return self.oldvalues.get(obj, self.default)
+        with self.lock:
+            try:
+                if self.dirty.get(obj, False):
+                    return ModifiedValue(old=self.oldvalues.get(obj, self.default), new=self.values.get(obj, self.default))
+                else:
+                    return None
+            finally:
+                try:
+                    self.oldvalues[obj] = self.values[obj]
+                except KeyError:
+                    self.oldvalues.pop(obj, None)
+                self.dirty[obj] = False
 
     def undo(self, obj):
-        self.dirty.pop(obj, None)
-        if obj in self.oldvalues:
-            self.values[obj] = self.oldvalues[obj]
-        else:
-            self.values.pop(obj, None)
+        with self.lock:
+            if obj in self.oldvalues:
+                self.values[obj] = self.oldvalues[obj]
+            else:
+                self.values.pop(obj, None)
+            self.dirty[obj] = False
 
 
 class CorrelatedSetting(Setting):
@@ -312,15 +363,19 @@ class CorrelatedSetting(Setting):
     default. Also, only Setting attributes with nillable=True can be assigned
     the value None. All other values are passed to the type specified.
     """
+
+    correlation_lock = Lock()
+
     def __init__(self, type, sibling, validator, default=None, nillable=False):
         Setting.__init__(self, type, default, nillable)
         self.sibling = sibling
         self.validator = validator
 
     def __set__(self, obj, value):
-        sibling_value = getattr(obj, self.sibling)
-        self.validator(value, sibling_value)
-        Setting.__set__(self, obj, value)
+        with self.correlation_lock:
+            sibling_value = getattr(obj, self.sibling)
+            self.validator(value, sibling_value)
+            Setting.__set__(self, obj, value)
 
 
 class SettingsState(object):
@@ -341,21 +396,11 @@ class SettingsState(object):
             if isinstance(attribute, SettingsGroupMeta):
                 modified_settings = getattr(self, name).get_modified()
                 modified.update(dict((name+'.'+k if k else name, v) for k,v in modified_settings.iteritems()))
-            elif isinstance(attribute, Setting) and attribute.isdirty(self):
-                modified[name] = ModifiedValue(old=attribute.get_old(self), new=getattr(self, name))
+            elif isinstance(attribute, Setting):
+                modified_value = attribute.get_modified(self)
+                if modified_value is not None:
+                    modified[name] = modified_value
         return modified
-
-    def clear_dirty(self):
-        """
-        Clears the dirty flag in all settings contained in this configuration
-        object and all its descendents.
-        """
-        for name in dir(self.__class__):
-            attribute = getattr(self.__class__, name, None)
-            if isinstance(attribute, SettingsGroupMeta):
-                getattr(self, name).clear_dirty()
-            elif isinstance(attribute, Setting) and attribute.isdirty(self):
-                attribute.clear_dirty(self)
 
     def clone(self):
         """
@@ -377,25 +422,12 @@ class SettingsState(object):
             if isinstance(attribute, SettingsGroupMeta):
                 state[name] = getattr(self, name).__getstate__()
             elif isinstance(attribute, Setting):
-                if attribute.isset(self):
-                    value = getattr(self, name)
-                    if value is None:
-                        pass
-                    elif issubclass(attribute.type, bool):
-                        value = u'true' if value else u'false'
-                    elif issubclass(attribute.type, (int, long, basestring)):
-                        value = unicode(value)
-                    else:
-                        try:
-                            value = value.__getstate__()
-                        except AttributeError:
-                            raise TypeError("Setting type %s does not provide __getstate__" % value.__class__.__name__)
-                    state[name] = value
-                else:
-                    state[name] = DefaultValue
+                state[name] = attribute.__getstate__(self)
         return state
 
     def __setstate__(self, state):
+        configuration_manager = ConfigurationManager()
+        notification_center = NotificationCenter()
         for name, value in state.iteritems():
             attribute = getattr(self.__class__, name, None)
             if isinstance(attribute, SettingsGroupMeta):
@@ -403,33 +435,12 @@ class SettingsState(object):
                 try:
                     group.__setstate__(value)
                 except ValueError, e:
-                    configuration_manager = ConfigurationManager()
-                    notification_center = NotificationCenter()
                     notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
             elif isinstance(attribute, Setting):
                 try:
-                    if value is None:
-                        pass
-                    elif issubclass(attribute.type, bool):
-                        if value.lower() in ('true', 'yes', 'on', '1'):
-                            value = True
-                        elif value.lower() in ('false', 'no', 'off', '0'):
-                            value = False
-                        else:
-                            raise ValueError("invalid boolean value: %s" % (value,))
-                    elif issubclass(attribute.type, (int, long, basestring)):
-                        value = attribute.type(value)
-                    else:
-                        object = attribute.type.__new__(attribute.type)
-                        object.__setstate__(value)
-                        value = object
-                    setattr(self, name, value)
+                    attribute.__setstate__(self, value)
                 except ValueError, e:
-                    configuration_manager = ConfigurationManager()
-                    notification_center = NotificationCenter()
                     notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
-                else:
-                    attribute.clear_dirty(self)
 
 
 class SettingsGroupMeta(type):
@@ -499,13 +510,14 @@ class SettingsObject(SettingsState):
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
         try:
-            data = configuration.get(cls.__group__, id)
+            data = configuration.get(cls.__group__, unicode(id))
         except ObjectNotFoundError:
             pass
         else:
             instance.__setstate__(data)
         return instance
 
+    @run_in_thread('file-io')
     def save(self):
         """
         Use the ConfigurationManager to store the object under its id in the
@@ -517,21 +529,20 @@ class SettingsObject(SettingsState):
         or not. If the save does fail, a CFGManagerSaveFailed notification is
         posted as well.
         """
-        modified_settings = self.get_modified()
         id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
-        if not modified_settings and not (id_descriptor and id_descriptor.isdirty(self)):
+        modified_id = id_descriptor.get_modified(self) if id_descriptor else None
+        modified_settings = self.get_modified()
+        if not modified_id and not modified_settings:
             return
 
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
-        
-        if id_descriptor and id_descriptor.isdirty(self):
-            old = id_descriptor.get_old(self)
-            new = self.__id__
-            configuration.rename(self.__group__, old, new)
-            notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=old, new_id=new))
+
+        if modified_id:
+            configuration.rename(self.__group__, unicode(modified_id.old), unicode(modified_id.new))
+            notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
         if modified_settings:
-            configuration.update(self.__group__, self.__id__, self.__getstate__())
+            configuration.update(self.__group__, unicode(self.__id__), self.__getstate__())
             notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
         try:
             configuration.save()
@@ -539,9 +550,8 @@ class SettingsObject(SettingsState):
             import traceback
             traceback.print_exc()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, modified=modified_settings, exception=e))
-        finally:
-            self.clear_dirty()
 
+    @run_in_thread('file-io')
     def delete(self):
         """
         Remove this object from the persistent configuration.
@@ -549,11 +559,11 @@ class SettingsObject(SettingsState):
         if self.__id__ is self.__class__.__id__:
             raise TypeError("cannot delete %s instance with default id" % self.__class__.__name__)
         configuration = ConfigurationManager()
-        id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
-        if id_descriptor and id_descriptor.isdirty(self):
-            configuration.delete(self.__group__, id_descriptor.get_old(self))
+        if isinstance(self.__class__.__id__, SettingsObjectID):
+            id = self.__class__.__id__.get_old(self) # we need the id that wasn't yet saved
         else:
-            configuration.delete(self.__group__, self.__id__)
+            id = self.__id__
+        configuration.delete(self.__group__, unicode(id))
         configuration.save()
 
     def clone(self, new_id):

@@ -992,21 +992,6 @@ class MSRPSettings(SettingsGroup):
     connection_model = Setting(type=MSRPConnectionModel, default='relay')
 
 
-class AccountID(SettingsObjectID):
-    def __init__(self):
-        SettingsObjectID.__init__(self, type=SIPAddress)
-
-    def __set__(self, account, id):
-        if not isinstance(id, self.type):
-            id = self.type(id)
-        # check whether the old value is the same as the new value
-        if account in self.values and self.values[account] == id:
-            return
-        if AccountManager().has_account(id):
-            raise AccountExists('SIP address in use by another account')
-        SettingsObjectID.__set__(self, account, id)
-
-
 class Account(SettingsObject):
     """
     Object represeting a SIP account. Contains configuration settings and
@@ -1032,7 +1017,7 @@ class Account(SettingsObject):
     implements(IObserver)
 
     __group__ = 'Accounts'
-    __id__ = AccountID()
+    __id__ = SettingsObjectID(type=SIPAddress)
 
     id = __id__
     enabled = Setting(type=bool, default=False)
