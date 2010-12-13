@@ -857,7 +857,7 @@ class XCAPManager(object):
                 # XCAP server must always return some content for xcap-caps
                 self.timer = self._schedule_command(60,  Command('initialize', command.event))
                 return
-            if not set(['pres-rules', 'resource-lists', 'rls-services']).issubset(set(self.server_caps.content.auids)):
+            if not set(self.server_caps.content.auids).issuperset(('pres-rules', 'resource-lists', 'rls-services')):
                 # Server must support at least pres-rules, resource-lists and rls-services
                 self.timer = self._schedule_command(60,  Command('initialize', command.event))
                 return
