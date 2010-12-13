@@ -6,9 +6,10 @@ import os
 import glob
 
 from setup_pjsip import PJSIP_build_ext
-
 import sipsimple
 
+def find_packages(toplevel):
+    return [directory.replace('/', '.') for directory, subdirs, files in os.walk(toplevel) if '__init__.py' in files]
 
 setup(name         = "python-sipsimple",
       version      = sipsimple.__version__,
@@ -25,7 +26,7 @@ setup(name         = "python-sipsimple",
           "Operating System :: OS Independent",
           "Programming Language :: Python"
       ],
-      packages     = ["sipsimple", "sipsimple.core", "sipsimple.streams", "sipsimple.streams.applications", "sipsimple.payloads", "sipsimple.configuration", "sipsimple.configuration.backend", "sipsimple.threading", "sipsimple.xcap" ],
+      packages     = find_packages('sipsimple'),
       package_data = {
           'sipsimple.payloads' : ['xml-schemas/*']
       },
