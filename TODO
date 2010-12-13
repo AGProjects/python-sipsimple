@@ -4,8 +4,6 @@
 
 + Outbound Presence http://sipsimpleclient.com/ticket/118
 
-+ Save configuration thread-safe
-
 + Make middleware unicode friendly http://sipsimpleclient.com/ticket/121
 
 - Allow the FileSelector to compute the hash later, with a specific method
