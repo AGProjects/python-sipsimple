@@ -5,6 +5,9 @@
 
 from __future__ import with_statement
 
+__all__ = ['ConfigurationError', 'ObjectNotFoundError', 'ConfigurationManager', 'DefaultValue',
+           'SettingsObjectID', 'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObject', 'SettingsObjectExtension']
+
 from weakref import WeakKeyDictionary
 from threading import Lock
 
@@ -13,9 +16,6 @@ from application.python.util import Singleton
 
 from sipsimple.threading import run_in_thread
 from sipsimple.util import TimestampedNotificationData
-
-__all__ = ['ConfigurationError', 'ObjectNotFoundError', 'ConfigurationManager', 'DefaultValue',
-           'SettingsObjectID', 'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObject', 'SettingsObjectExtension']
 
 
 ## Exceptions
