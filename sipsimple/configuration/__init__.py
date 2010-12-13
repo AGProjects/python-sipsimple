@@ -269,17 +269,15 @@ class Setting(object):
             if value is DefaultValue:
                 if obj in self.values:
                     self.values.pop(obj)
-                    self.dirty[obj] = True
+                    self.dirty[obj] = obj in self.oldvalues
                 return
 
             if value is not None and not isinstance(value, self.type):
                 value = self.type(value)
-            # check whether the old value is the same as the new value
             if obj in self.values and self.values[obj] == value:
                 return
-
             self.values[obj] = value
-            self.dirty[obj] = True
+            self.dirty[obj] = value != self.oldvalues.get(obj, DefaultValue)
 
     def __getstate__(self, obj):
         value = self.values.get(obj, DefaultValue)
