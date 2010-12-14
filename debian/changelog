@@ -22,7 +22,6 @@ python-sipsimple (0.16.5) unstable; urgency=low
   * Added ThreadManager and moved thread related stuff from util to threading
   * Reformatted some module docstrings
   * Made configuration thread safe
-  * Added sipsimple.threading to list of installed packages
   * Automated finding python packages in setup.py
 
  -- Adrian Georgescu <ag@ag-projects.com>  Tue, 14 Dec 2010 15:43:55 +0100
