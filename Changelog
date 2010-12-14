@@ -1,3 +1,32 @@
+python-sipsimple (0.16.5) unstable; urgency=low
+
+  * Fixed matching of media codecs on incoming calls
+  * Allow ip_address to be specified on engine start
+  * Fixed accepted types checking when using CPIM
+  * Fixed CPIM support detection
+  * Generate InvalidStreamError if no compatible payload types are found
+    in ChatStream
+  * Added nameservers used for lookup to the DNSLookupTrace notification
+  * Added InterruptCommand exception
+  * Added DNS resolver autodetection capabilities
+  * Made accessing to the transport parameter of a SIP URI easier
+  * Fixed TLS transport initialization
+  * Fixed XCAPManager shutdown
+  * Adapt XCAPManager test script to changes in the middleware
+  * Handle ConnectionLost error in XCAPManager
+  * Only use fallback candidate list as the last resort
+  * Avoid creating a external reference on the subscriptions lists
+  * Avoid moving external references to resource-lists toplevel
+  * Don't initialize XCAPManager if the server doesn't support certain auids
+  * Reset cached documents if XCAP root changes
+  * Added ThreadManager and moved thread related stuff from util to threading
+  * Reformatted some module docstrings
+  * Made configuration thread safe
+  * Automated finding python packages in setup.py
+  * Updated documentation
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 14 Dec 2010 16:57:07 +0100
+
 python-sipsimple (0.16.4) unstable; urgency=low
 
   * Fixed accessing Message-Account in MWI payload as it could be None
