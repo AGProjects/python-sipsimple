@@ -5,7 +5,7 @@
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'RootAudioBridge', 'WavePlayer', 'WaveRecorder']
+__all__ = ['IAudioPort', 'AudioDevice', 'AudioBridge', 'RootAudioBridge', 'WavePlayer', 'WavePlayerError', 'WaveRecorder']
 
 import os
 import weakref
@@ -18,8 +18,11 @@ from zope.interface import Attribute, Interface, implements
 
 from sipsimple.core import MixerPort, RecordingWaveFile, SIPCoreError, WaveFile
 from sipsimple.threading import run_in_twisted_thread
-from sipsimple.threading.green import Command, run_in_green_thread
+from sipsimple.threading.green import Command, run_in_waitable_green_thread
 from sipsimple.util import TimestampedNotificationData, combinations, makedirs
+
+
+class WavePlayerError(Exception): pass
 
 
 class IAudioPort(Interface):
@@ -396,7 +399,21 @@ class WavePlayer(object):
             return
         self._channel.send(Command('stop'))
 
-    @run_in_green_thread
+    @run_in_waitable_green_thread
+    def play(self):
+        if self._state != 'stopped':
+            raise WavePlayerError('already playing')
+        self._state = 'started'
+        self._channel = coros.queue()
+        self._current_loop = 0
+        if self.initial_play:
+            self._channel.send(Command('play'))
+        else:
+            from twisted.internet import reactor
+            reactor.callLater(self.pause_time, self._channel.send, Command('play'))
+        self._run().wait()
+
+    @run_in_waitable_green_thread
     def _run(self):
         notification_center = NotificationCenter()
         try:
@@ -410,7 +427,7 @@ class WavePlayer(object):
                         self._wave_file.start()
                     except SIPCoreError, e:
                         notification_center.post_notification('WavePlayerDidFail', sender=self, data=TimestampedNotificationData(error=e))
-                        break
+                        raise WavePlayerError(e)
                     else:
                         if self._current_loop == 0:
                             notification_center.post_notification('WavePlayerDidStart', sender=self, data=TimestampedNotificationData())
