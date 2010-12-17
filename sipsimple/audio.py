@@ -379,19 +379,8 @@ class WavePlayer(object):
     def producer_slot(self):
         return self._wave_file.slot if self._wave_file else None
 
-    @run_in_twisted_thread
     def start(self):
-        if self._state != 'stopped':
-            return
-        self._state = 'started'
-        self._channel = coros.queue()
-        self._current_loop = 0
-        if self.initial_play:
-            self._channel.send(Command('play'))
-        else:
-            from twisted.internet import reactor
-            reactor.callLater(self.pause_time, self._channel.send, Command('play'))
-        self._run()
+        self.play()
 
     @run_in_twisted_thread
     def stop(self):
