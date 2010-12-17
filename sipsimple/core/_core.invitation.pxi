@@ -180,8 +180,6 @@ cdef class Invitation:
             to_header_str = PJSTR(to_header.body)
             contact_header_str = PJSTR(self.local_contact_header.body)
             target_uri = SIPURI.new(to_header.uri)
-            if target_uri.transport.lower() != self.transport:
-                target_uri.transport = self.transport
             target_str = PJSTR(str(target_uri))
 
             with nogil:
