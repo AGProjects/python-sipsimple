@@ -399,7 +399,7 @@ cdef class IncomingRequest:
         cdef int status
         cdef PJSIPUA ua = _get_ua()
         if self.state != "incoming":
-            SIPCoreInvalidStateError('Can only answer an incoming request in the "incoming" state, '
+            raise SIPCoreInvalidStateError('Can only answer an incoming request in the "incoming" state, '
                                      'object is currently in the "%s" state' % self.state)
         if code < 200 or code >= 700:
             raise ValueError("Invalid SIP final response code: %d" % code)

@@ -300,7 +300,7 @@ cdef class IncomingSubscription:
     def reject(self, int code):
         cdef PJSIPUA ua = self._get_ua(1)
         if self.state != "incoming":
-            SIPCoreInvalidStateError('Can only reject an incoming SUBSCRIBE in the "incoming" state, '+
+            raise SIPCoreInvalidStateError('Can only reject an incoming SUBSCRIBE in the "incoming" state, '+
                                      'object is currently in the "%s" state' % self.state)
         if code < 300 or code >= 700:
             raise ValueError("Invalid negative SIP response code: %d" % code)
@@ -316,7 +316,7 @@ cdef class IncomingSubscription:
         cdef int status
         cdef PJSIPUA ua = self._get_ua(1)
         if self.state != "incoming":
-            SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE as pending in the "incoming" state, '+
+            raise SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE as pending in the "incoming" state, '+
                                      'object is currently in the "%s" state' % self.state)
         self._send_initial_response(202)
         self._set_state("pending")
@@ -327,7 +327,7 @@ cdef class IncomingSubscription:
         cdef object content_type_match
         cdef PJSIPUA ua = self._get_ua(1)
         if self.state != "incoming":
-            SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE in the "incoming" state, '+
+            raise SIPCoreInvalidStateError('Can only accept an incoming SUBSCRIBE in the "incoming" state, '+
                                      'object is currently in the "%s" state' % self.state)
         if (content_type is None and content is not None) or (content_type is not None and content is None):
             raise ValueError('Either both or neither of the "content_type" and "content" arguments should be specified')
@@ -363,7 +363,7 @@ cdef class IncomingSubscription:
         if self.state == "terminated":
             return
         if self.state not in ("pending", "active"):
-            SIPCoreInvalidStateError('Can only end an incoming SUBSCRIBE session in the "pending" or '+
+            raise SIPCoreInvalidStateError('Can only end an incoming SUBSCRIBE session in the "pending" or '+
                                      '"active" state, object is currently in the "%s" state' % self.state)
         self._terminate(ua, reason, 1)
 
