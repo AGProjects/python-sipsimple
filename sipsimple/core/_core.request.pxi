@@ -386,18 +386,28 @@ cdef class IncomingRequest:
         self.peer_address = None
 
     def __dealloc__(self):
-        cdef int status
-        if self._tdata != NULL:
-            status = pjsip_tsx_send_msg(self._tsx, self._tdata)
-            if status != 0:
-                pjsip_tsx_terminate(self._tsx, 500)
-            self._tdata = NULL
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            return
+        if self._tsx != NULL:
+            pjsip_tsx_terminate(self._tsx, 500)
             self._tsx = NULL
+        if self._tdata != NULL:
+            pjsip_tx_data_dec_ref(self._tdata)
+            self._tdata = NULL
 
     def answer(self, int code, str reason=None, object extra_headers=None):
         cdef dict event_dict
         cdef int status
-        cdef PJSIPUA ua = _get_ua()
+        cdef PJSIPUA ua
+        try:
+            ua = _get_ua()
+        except SIPCoreError:
+            self._tsx = NULL
+            self._tdata = NULL
+            return
         if self.state != "incoming":
             raise SIPCoreInvalidStateError('Can only answer an incoming request in the "incoming" state, '
                                      'object is currently in the "%s" state' % self.state)
@@ -432,7 +442,6 @@ cdef class IncomingRequest:
             self._tdata = NULL
             raise PJSIPError("Could not create transaction for incoming request", status)
         pjsip_tsx_recv_msg(self._tsx, rdata)
-        _add_handler(_IncomingRequest_dealloc_handler, self, &_dealloc_handler_queue)
         self.state = "incoming"
         self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
         event_dict = dict(obj=self)
@@ -478,12 +487,4 @@ cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) 
     except:
         ua._handle_exception(1)
 
-cdef int _IncomingRequest_dealloc_handler(object obj) except -1:
-    cdef IncomingRequest req = obj
-    cdef PJSIPUA ua = _get_ua()
-    if req._tdata != NULL:
-        pjsip_tsx_terminate(req._tsx, 500)
-        pjsip_tx_data_dec_ref(req._tdata)
-        req._tsx = NULL
-        req._tdata = NULL
-    req.state = "answered"
+
