@@ -959,7 +959,7 @@ cdef PJSIPUA _get_ua():
     global _ua
     cdef PJSIPUA ua
     if _ua == NULL:
-        raise SIPCoreError("PJSIPUA is not instanced")
+        raise SIPCoreError("PJSIPUA is not instantiated")
     ua = <object> _ua
     ua._check_thread()
     return ua
