@@ -35,6 +35,7 @@ class Registration(object):
     is_registered = property(lambda self: self._last_request is not None)
     contact_uri = property(lambda self: None if self._last_request is None else self._last_request.contact_uri)
     expires_in = property(lambda self: 0 if self._last_request is None else self._last_request.expires_in)
+    peer_address = property(lambda self: None if self._last_request is None else self._last_request.peer_address)
 
     def register(self, contact_header, route_header, timeout=None):
         with self._lock:
@@ -166,6 +167,7 @@ class Message(object):
     credentials = property(lambda self: self._request.credentials)
     is_sent = property(lambda self: self._request.state != "INIT")
     in_progress = property(lambda self: self._request.state == "IN_PROGRESS")
+    peer_address = property(lambda self: self._request.peer_address)
 
     def send(self, timeout=None):
         notification_center = NotificationCenter()
@@ -228,6 +230,7 @@ class Publication(object):
 
     is_published = property(lambda self: self._last_request is not None)
     expires_in = property(lambda self: 0 if self._last_request is None else self._last_request.expires_in)
+    peer_address = property(lambda self: None if self._last_request is None else self._last_request.peer_address)
 
     def publish(self, body, route_header, timeout=None):
         with self._lock:

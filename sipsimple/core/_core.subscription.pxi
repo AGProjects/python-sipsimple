@@ -17,6 +17,7 @@ cdef class Subscription:
         pj_timer_entry_init(&self._refresh_timer, 1, <void *> self, _Subscription_cb_timer)
         self._refresh_timer_active = 0
         self.extra_headers = frozenlist()
+        self.peer_address = None
 
     def __init__(self, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
                  object event, RouteHeader route_header not None, Credentials credentials=None, int refresh=300):
@@ -286,6 +287,7 @@ cdef class IncomingSubscription:
 
     def __cinit__(self):
         self.state = None
+        self.peer_address = None
 
     def __dealloc__(self):
         cdef PJSIPUA ua = self._get_ua(0)
@@ -418,6 +420,7 @@ cdef class IncomingSubscription:
                 self._expires = min(expires_header.ivalue, 3600)
         self._set_state("incoming")
         self.event = event
+        self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
         event_dict = dict(obj=self)
         _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
         transport = rdata.tp_info.transport.type_name.lower()
@@ -610,6 +613,12 @@ cdef void _Subscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_e
             _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
             event.body.tsx_state.tsx.status_code / 100 == 2):
             rdata = event.body.tsx_state.src.rdata
+            if rdata != NULL:
+                if subscription.peer_address is None:
+                    subscription.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+                else:
+                    subscription.peer_address.ip = rdata.pkt_info.src_name
+                    subscription.peer_address.port = rdata.pkt_info.src_port
             subscription._cb_got_response(ua, rdata)
     except:
         ua._handle_exception(1)
@@ -628,6 +637,12 @@ cdef void _Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p
         if subscription_void == NULL:
             return
         subscription = <object> subscription_void
+        if rdata != NULL:
+            if subscription.peer_address is None:
+                subscription.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+            else:
+                subscription.peer_address.ip = rdata.pkt_info.src_name
+                subscription.peer_address.port = rdata.pkt_info.src_port
         subscription._cb_notify(ua, rdata)
     except:
         ua._handle_exception(1)
@@ -671,6 +686,12 @@ cdef void _IncomingSubscription_cb_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *r
             p_st_code[0] = 481
             return
         subscription = <object> subscription_void
+        if rdata != NULL:
+            if subscription.peer_address is None:
+                subscription.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+            else:
+                subscription.peer_address.ip = rdata.pkt_info.src_name
+                subscription.peer_address.port = rdata.pkt_info.src_port
         p_st_code[0] = subscription._cb_rx_refresh(ua, rdata)
     except:
         ua._handle_exception(1)
@@ -695,6 +716,7 @@ cdef void _IncomingSubscription_cb_server_timeout(pjsip_evsub *sub) with gil:
 cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil:
     cdef void *subscription_void
     cdef IncomingSubscription subscription
+    cdef pjsip_rx_data *rdata
     cdef dict event_dict
     cdef PJSIPUA ua
     try:
@@ -711,13 +733,20 @@ cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx,
             _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY" and
             event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED):
             event_dict = dict(obj=subscription)
+            rdata = event.body.tsx_state.src.rdata
+            if rdata != NULL:
+                if subscription.peer_address is None:
+                    subscription.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+                else:
+                    subscription.peer_address.ip = rdata.pkt_info.src_name
+                    subscription.peer_address.port = rdata.pkt_info.src_port
             if (event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and
                 event.body.tsx_state.tsx.status_code / 100 == 2):
-                _pjsip_msg_to_dict(event.body.tsx_state.src.rdata.msg_info.msg, event_dict)
+                _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
                 _add_event("SIPIncomingSubscriptionNotifyDidSucceed", event_dict)
             else:
                 if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                    _pjsip_msg_to_dict(event.body.tsx_state.src.rdata.msg_info.msg, event_dict)
+                    _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
                 else:
                     event_dict["code"] = event.body.tsx_state.tsx.status_code
                     event_dict["reason"] = _pj_str_to_str(event.body.tsx_state.tsx.status_text)

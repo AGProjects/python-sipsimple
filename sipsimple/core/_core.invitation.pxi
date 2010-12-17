@@ -54,6 +54,7 @@ cdef class Invitation:
         self.transport = None
         self.direction = None
         self.call_id = None
+        self.peer_address = None
 
     cdef int init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1:
         cdef int status
@@ -109,6 +110,7 @@ cdef class Invitation:
                     self.sdp.proposed_remote = FrozenSDPSession_create(sdp)
             self._invite_session.mod_data[ua._module.id] = <void *> self.weakref
             self.call_id = _pj_str_to_str(self._dialog.call_id.id)
+            self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
             event_dict = dict(obj=self, prev_state=self.state, state="incoming", originator="remote")
             _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
             self.state = "incoming"
@@ -786,6 +788,11 @@ cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil:
                         e.body.tsx_state.src.rdata.msg_info.msg.type == PJSIP_REQUEST_MSG):
                         rdata = e.body.tsx_state.src.rdata
             if rdata != NULL:
+                if invitation.peer_address is None:
+                    invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+                else:
+                    invitation.peer_address.ip = rdata.pkt_info.src_name
+                    invitation.peer_address.port = rdata.pkt_info.src_port
                 rdata_dict = dict()
                 _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
             if tdata != NULL:
@@ -838,6 +845,11 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
             if invitation is None:
                 return
             if rdata != NULL:
+                if invitation.peer_address is None:
+                    invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+                else:
+                    invitation.peer_address.ip = rdata.pkt_info.src_name
+                    invitation.peer_address.port = rdata.pkt_info.src_port
                 rdata_dict = dict()
                 _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
             with nogil:
@@ -877,6 +889,12 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
             invitation = (<object> inv.mod_data[ua._module.id])()
             if invitation is None:
                 return
+            if rdata != NULL:
+                if invitation.peer_address is None:
+                    invitation.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+                else:
+                    invitation.peer_address.ip = rdata.pkt_info.src_name
+                    invitation.peer_address.port = rdata.pkt_info.src_port
             if ((tsx.state == PJSIP_TSX_STATE_TERMINATED or tsx.state == PJSIP_TSX_STATE_COMPLETED) and
                 invitation._reinvite_transaction != NULL and invitation._reinvite_transaction == tsx):
                 if rdata != NULL:

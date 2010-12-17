@@ -1006,6 +1006,10 @@ class Session(object):
             return self._local_identity
 
     @property
+    def peer_address(self):
+        return self._invitation.peer_address if self._invitation is not None else None
+
+    @property
     def remote_identity(self):
         if self._invitation is not None and self._invitation.remote_identity is not None:
             return self._invitation.remote_identity

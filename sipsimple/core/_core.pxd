@@ -1503,10 +1503,16 @@ cdef int _process_handler_queue(PJSIPUA ua, _handler_queue *queue) except -1
 
 # core.request
 
+cdef class EndpointAddress(object):
+    # attributes
+    cdef readonly str ip
+    cdef readonly int port
+
 cdef class Request(object):
     # attributes
     cdef readonly object state
     cdef PJSTR _method
+    cdef readonly EndpointAddress peer_address
     cdef readonly FrozenCredentials credentials
     cdef readonly FrozenFromHeader from_header
     cdef readonly FrozenToHeader to_header
@@ -1540,6 +1546,7 @@ cdef class IncomingRequest(object):
     cdef readonly str state
     cdef pjsip_transaction *_tsx
     cdef pjsip_tx_data *_tdata
+    cdef readonly EndpointAddress peer_address
 
     # private methods
     cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
@@ -1561,6 +1568,7 @@ cdef class Subscription(object):
     cdef int _timeout_timer_active
     cdef pj_timer_entry _refresh_timer
     cdef int _refresh_timer_active
+    cdef readonly EndpointAddress peer_address
     cdef readonly FrozenFromHeader from_header
     cdef readonly FrozenToHeader to_header
     cdef readonly FrozenContactHeader contact_header
@@ -1600,6 +1608,7 @@ cdef class IncomingSubscription(object):
     cdef pjsip_transaction *_initial_tsx
     cdef int _expires
     cdef readonly str event
+    cdef readonly EndpointAddress peer_address
     # TODO: add usefull attributes?
 
     # private methods
@@ -1787,6 +1796,7 @@ cdef class Invitation(object):
     cdef readonly str state
     cdef readonly str sub_state
     cdef readonly str transport
+    cdef readonly EndpointAddress peer_address
     cdef readonly FrozenCredentials credentials
     cdef readonly FrozenContactHeader local_contact_header
     cdef readonly FrozenFromHeader from_header

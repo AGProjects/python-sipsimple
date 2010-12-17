@@ -7,6 +7,19 @@ from datetime import datetime, timedelta
 
 # main classes
 
+cdef class EndpointAddress:
+
+    def __init__(self, ip, port):
+        self.ip = ip
+        self.port = port
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.ip, self.port)
+
+    def __str__(self):
+        return "%s:%d" % (self.ip, self.port)
+
+
 cdef class Request:
     expire_warning_time = 30
 
@@ -53,6 +66,7 @@ cdef class Request:
 
     def __cinit__(self, *args, **kwargs):
         self.state = "INIT"
+        self.peer_address = None
         pj_timer_entry_init(&self._timer, 0, <void *> self, _Request_cb_timer)
         self._timer_active = 0
 
@@ -232,6 +246,11 @@ cdef class Request:
         cdef int status
         if rdata != NULL:
             self.to_header = FrozenToHeader_create(rdata.msg_info.to_hdr)
+            if self.peer_address is None:
+                self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+            else:
+                self.peer_address.ip = rdata.pkt_info.src_name
+                self.peer_address.port = rdata.pkt_info.src_port
         if self._tsx.state == PJSIP_TSX_STATE_PROCEEDING:
             if rdata == NULL:
                 return 0
@@ -364,6 +383,9 @@ cdef class Request:
 cdef class IncomingRequest:
     # public methods
 
+    def __cinit__(self, *args, **kwargs):
+        self.peer_address = None
+
     def __dealloc__(self):
         cdef int status
         if self._tdata != NULL:
@@ -415,6 +437,7 @@ cdef class IncomingRequest:
         pjsip_tsx_recv_msg(self._tsx, rdata)
         _add_handler(_IncomingRequest_dealloc_handler, self, &_dealloc_handler_queue)
         self.state = "incoming"
+        self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
         event_dict = dict(obj=self)
         _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
         _add_event("SIPIncomingRequestGotRequest", event_dict)
