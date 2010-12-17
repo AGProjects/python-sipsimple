@@ -1548,8 +1548,8 @@ cdef class IncomingRequest(object):
     cdef pjsip_tx_data *_tdata
     cdef readonly EndpointAddress peer_address
 
-    # private methods
-    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    # methods
+    cdef int init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
 
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
@@ -1611,10 +1611,10 @@ cdef class IncomingSubscription(object):
     cdef readonly EndpointAddress peer_address
     # TODO: add usefull attributes?
 
-    # private methods
+    # methods
     cdef int _set_state(self, str state) except -1
     cdef PJSIPUA _get_ua(self, int raise_exception)
-    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata, str event) except -1
+    cdef int init(self, PJSIPUA ua, pjsip_rx_data *rdata, str event) except -1
     cdef int _send_initial_response(self, int code) except -1
     cdef int _send_notify(self, str reason=*) except -1
     cdef int _terminate(self, PJSIPUA ua, str reason, int do_cleanup) except -1

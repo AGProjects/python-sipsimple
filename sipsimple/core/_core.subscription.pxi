@@ -283,8 +283,6 @@ cdef class IncomingSubscription:
                 return None
             return self._content.str
 
-    # public methods
-
     def __cinit__(self):
         self.state = None
         self.peer_address = None
@@ -369,8 +367,6 @@ cdef class IncomingSubscription:
                                      '"active" state, object is currently in the "%s" state' % self.state)
         self._terminate(ua, reason, 1)
 
-    # private methods
-
     cdef int _set_state(self, str state) except -1:
         cdef str prev_state
         prev_state = self.state
@@ -395,7 +391,7 @@ cdef class IncomingSubscription:
         else:
             return ua
 
-    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata, str event) except -1:
+    cdef int init(self, PJSIPUA ua, pjsip_rx_data *rdata, str event) except -1:
         global _incoming_subs_cb
         cdef str transport
         cdef FrozenSIPURI request_uri

@@ -712,7 +712,7 @@ cdef class PJSIPUA:
                 raise PJSIPError("Could not create response", status)
         elif method_name in self._incoming_requests:
             request = IncomingRequest()
-            request._init(self, rdata)
+            request.init(self, rdata)
         elif method_name == "OPTIONS":
             status = pjsip_endpt_create_response(self._pjsip_endpoint._obj, rdata, 200, NULL, &tdata)
             if status != 0:
@@ -736,7 +736,7 @@ cdef class PJSIPUA:
                     raise PJSIPError("Could not create response", status)
             else:
                 sub = IncomingSubscription()
-                sub._init(self, rdata, _pj_str_to_str(event_hdr.event_type))
+                sub.init(self, rdata, _pj_str_to_str(event_hdr.event_type))
         elif method_name == "MESSAGE":
             bad_request = 0
             extra_headers = list()

@@ -381,7 +381,6 @@ cdef class Request:
 
 
 cdef class IncomingRequest:
-    # public methods
 
     def __cinit__(self, *args, **kwargs):
         self.peer_address = None
@@ -421,9 +420,7 @@ cdef class IncomingRequest:
         self._tsx = NULL
         _add_event("SIPIncomingRequestSentResponse", event_dict)
 
-    # private methods
-
-    cdef int _init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+    cdef int init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         cdef dict event_dict
         cdef int status
         status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 500, NULL, &self._tdata)
