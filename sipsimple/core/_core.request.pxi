@@ -401,13 +401,7 @@ cdef class IncomingRequest:
     def answer(self, int code, str reason=None, object extra_headers=None):
         cdef dict event_dict
         cdef int status
-        cdef PJSIPUA ua
-        try:
-            ua = _get_ua()
-        except SIPCoreError:
-            self._tsx = NULL
-            self._tdata = NULL
-            return
+        cdef PJSIPUA ua = _get_ua()
         if self.state != "incoming":
             raise SIPCoreInvalidStateError('Can only answer an incoming request in the "incoming" state, '
                                      'object is currently in the "%s" state' % self.state)
