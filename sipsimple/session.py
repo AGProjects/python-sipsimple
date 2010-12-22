@@ -24,7 +24,7 @@ from sipsimple.core import Engine, Invitation, PJSIPError, SIPCoreError, SIPCore
 from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
-from sipsimple.account import AccountManager, ContactURI
+from sipsimple.account import AccountManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.threading import run_in_twisted_thread
@@ -168,7 +168,7 @@ class Session(object):
                 local_sdp.connection.address = stun_addresses[0]
             from_header = FromHeader(self.account.uri, self.account.display_name)
             route_header = RouteHeader(self.route.get_uri())
-            contact_header = ContactHeader(ContactURI('%s@%s' % (self.account.contact.username, local_ip))[self.route.transport])
+            contact_header = ContactHeader(self.account.contact[self.route])
             self._invitation.send_invite(from_header, to_header, route_header, contact_header, local_sdp, self.account.credentials)
             try:
                 with api.timeout(settings.sip.invite_timeout):

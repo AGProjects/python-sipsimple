@@ -22,7 +22,7 @@ from urllib2 import URLError
 
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
-from application.system import host, unlink
+from application.system import unlink
 from eventlet import api, coros
 from eventlet.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost
@@ -30,7 +30,6 @@ from xcaplib.green import XCAPClient
 from xcaplib.error import HTTPError
 from zope.interface import implements
 
-from sipsimple.account import ContactURI
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import ContactHeader, FromHeader, PJSIPError, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
 from sipsimple.lookup import DNSLookup, DNSLookupError
@@ -1015,7 +1014,7 @@ class XCAPManager(object):
                 if remaining_time > 0:
                     subscription = Subscription(FromHeader(self.account.uri, self.account.display_name),
                                                 ToHeader(self.account.uri, self.account.display_name),
-                                                ContactHeader(ContactURI('%s@%s' % (self.account.contact, host.outgoing_ip_for(route.address)))[route.transport]),
+                                                ContactHeader(self.account.contact[route]),
                                                 'xcap-diff',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=self.account.credentials,

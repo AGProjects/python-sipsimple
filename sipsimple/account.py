@@ -37,15 +37,31 @@ from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads.messagesummary import MessageSummary, ValidationError
 from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, call_in_green_thread, run_in_green_thread
-from sipsimple.util import TimestampedNotificationData, classproperty, limit, user_info
+from sipsimple.util import Route, TimestampedNotificationData, classproperty, limit, user_info
 
 
-class ContactURI(SIPAddress):
-    def __getitem__(self, transport):
-        if transport in ('tls', 'tcp', 'udp'):
-            parameters = {} if transport=='udp' else {'transport': transport}
-            return SIPURI(user=self.username, host=self.domain, port=getattr(Engine(), '%s_port' % transport), parameters=parameters)
-        return SIPAddress.__getitem__(self, transport)
+class ContactURIFactory(object):
+    def __init__(self, username=None):
+        self.username = username or ''.join(random.sample(string.lowercase, 8))
+
+    def __repr__(self):
+        return '%s(username=%r)' % (self.__class__.__name__, self.username)
+
+    def __getitem__(self, key):
+        if isinstance(key, basestring):
+            transport = key
+            ip = host.default_ip
+        elif isinstance(key, Route):
+            route = key
+            transport = route.transport
+            ip = host.outgoing_ip_for(route.address)
+        else:
+            raise KeyError("key must be a transport name or Route instance")
+        port = getattr(Engine(), '%s_port' % transport, None)
+        if port is None:
+            raise KeyError("unsupported transport: %s" % transport)
+        parameters = {} if transport=='udp' else {'transport': transport}
+        return SIPURI(user=self.username, host=ip, port=port, parameters=parameters)
 
 
 class SIPRegistrationDidFail(Exception):
@@ -81,8 +97,6 @@ class AccountRegistrar(object):
 
     def __init__(self, account):
         self.account = account
-        username = ''.join(random.sample(string.lowercase, 8))
-        self.contact = ContactURI('%s@%s' % (username, host.default_ip))
         self.registered = False
         self._command_greenlet = None
         self._command_channel = coros.queue()
@@ -178,9 +192,7 @@ class AccountRegistrar(object):
             for route in routes:
                 remaining_time = register_timeout-time()
                 if remaining_time > 0:
-                    # Rebuild contact according to route
-                    self.contact = ContactURI('%s@%s' % (self.contact.username, host.outgoing_ip_for(route.address)))
-                    contact_header = ContactHeader(self.contact[route.transport])
+                    contact_header = ContactHeader(self.account.contact[route])
                     route_header = RouteHeader(route.get_uri())
                     self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
                     try:
@@ -396,7 +408,7 @@ class AccountMWISubscriptionHandler(object):
                         subscription_uri = self.account.uri
                     subscription = Subscription(FromHeader(self.account.uri, self.account.display_name),
                                                 ToHeader(subscription_uri),
-                                                ContactHeader(ContactURI('%s@%s' % (self.account.contact.username, host.outgoing_ip_for(route.address)))[route.transport]),
+                                                ContactHeader(self.account.contact[route]),
                                                 'message-summary',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=self.account.credentials,
@@ -1035,6 +1047,7 @@ class Account(SettingsObject):
     tls = TLSSettings
 
     def __init__(self, id):
+        self.contact = ContactURIFactory()
         self._active = False
         self._registrar = AccountRegistrar(self)
         self._mwi_handler = AccountMWISubscriptionHandler(self)
@@ -1087,10 +1100,6 @@ class Account(SettingsObject):
     def reregister(self):
         if self._started and self.sip.register:
             self._registrar.reactivate()
-
-    @property
-    def contact(self):
-        return self._registrar.contact
 
     @property
     def credentials(self):
@@ -1261,8 +1270,7 @@ class BonjourAccount(SettingsObject):
     tls = TLSSettings
 
     def __init__(self):
-        username = ''.join(random.sample(string.lowercase, 8))
-        self.contact = ContactURI('%s@%s' % (username, host.default_ip))
+        self.contact = ContactURIFactory()
         self.credentials = None
 
         self._active = False
@@ -1338,7 +1346,7 @@ class BonjourAccount(SettingsObject):
 
     @property
     def uri(self):
-        return SIPURI(user=self.contact.username, host=self.contact.domain)
+        return SIPURI(user=self.contact.username, host=host.default_ip)
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
