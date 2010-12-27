@@ -34,7 +34,8 @@ from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
-from sipsimple.payloads.messagesummary import MessageSummary, ValidationError
+from sipsimple.payloads import ValidationError
+from sipsimple.payloads.messagesummary import MessageSummary
 from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, call_in_green_thread, run_in_green_thread
 from sipsimple.util import Route, TimestampedNotificationData, classproperty, limit, user_info
