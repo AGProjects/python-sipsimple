@@ -14,6 +14,10 @@
 - End a session while in accepting state (requires session serialization
   http://sipsimpleclient.com/ticket/107
 
+- No 180 ringing indication notification when sending re-INVITE
+
+- Add keepalive for MSRP stream by sending empty SEND
+
 - Model file transfer after desktop sharing (use handlers on termination)
   have internal/external handlers (notifications based or file bridges)
 
