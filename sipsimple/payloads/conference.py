@@ -580,7 +580,7 @@ class CallInfo(XMLElement):
         XMLElement.__init__(self)
         self.sip = sip
 
-class Endpoint(XMLElement):
+class Endpoint(XMLListElement):
     _xml_tag = 'endpoint'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
@@ -595,11 +595,10 @@ class Endpoint(XMLElement):
     joining_info = XMLElementChild('joining_info', type=JoiningInfo, required=False, test_equal=True)
     disconnection_method = XMLElementChild('disconnection_method', type=DisconnectionMethod, required=False, test_equal=True)
     disconnection_info = XMLElementChild('disconnection_info', type=DisconnectionInfo, required=False, test_equal=True)
-    media = XMLElementChild('media', type=Media, required=False, test_equal=True)
     call_info = XMLElementChild('call_info', type=CallInfo, required=False, test_equal=True)
 
-    def __init__(self, entity, state='full', display_text=None, referred=None, status=None, joining_method=None, joining_info=None, disconnection_method=None, disconnection_info=None, media=None, call_info=None):
-        XMLElement.__init__(self)
+    def __init__(self, entity, state='full', display_text=None, referred=None, status=None, joining_method=None, joining_info=None, disconnection_method=None, disconnection_info=None, call_info=None, media=[]):
+        XMLListElement.__init__(self)
         self.entity = entity
         self.state = state
         self.display_text = display_text
@@ -609,8 +608,30 @@ class Endpoint(XMLElement):
         self.joining_info = joining_info
         self.disconnection_method = disconnection_method
         self.disconnection_info = disconnection_info
-        self.media = media
         self.call_info = call_info
+        self[0:0] = media
+
+    def _build_element(self, *args, **kwargs):
+        for child in self:
+            child.to_element(*args, **kwargs)
+
+    def _del_item(self, value):
+        self.element.remove(value.element)
+
+    def _parse_element(self, element, *args, **kwargs):
+        for child in element:
+            child_cls = self._xml_application.get_element(child.tag)
+            if child_cls is not None and child_cls is Media:
+                try:
+                    list.append(self, child_cls.from_element(child, *args, **kwargs))
+                except ValidationError:
+                    pass
+
+    def _add_item(self, value):
+        if not isinstance(value, (Media)):
+            raise TypeError("User element can't contain %s element" % value.__class__.__name__)
+        self._insert_element(value.element)
+        return value
 
 class User(XMLListElement):
     _xml_tag = 'user'
