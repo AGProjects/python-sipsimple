@@ -159,7 +159,7 @@ class UrisTypeList(XMLListElement):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [UrisTypeEntry]] else False):
+            if child_cls is not None and child_cls is UrisTypeEntry:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
@@ -204,7 +204,7 @@ class ConfUris(UrisTypeList):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [ConfUrisEntry]] else False):
+            if child_cls is not None and child_cls is ConfUrisEntry:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
@@ -234,7 +234,7 @@ class ServiceUris(UrisTypeList):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [ServiceUrisEntry]] else False):
+            if child_cls is not None and child_cls is ServiceUrisEntry:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
@@ -317,7 +317,7 @@ class AvailableMedia(XMLListElement):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [AvailableMediaEntry]] else False):
+            if child_cls is not None and child_cls is AvailableMediaEntry:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
@@ -438,7 +438,7 @@ class Roles(XMLListElement):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [Role]] else False):
+            if child_cls is not None and child_cls is Role:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
@@ -668,7 +668,7 @@ class User(XMLListElement):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [Endpoint]] else False):
+            if child_cls is not None and child_cls is Endpoint:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
@@ -702,7 +702,7 @@ class Users(XMLListElement):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [User]] else False):
+            if child_cls is not None and child_cls is User:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
@@ -739,7 +739,7 @@ class SidebarsByVal(XMLListElement):
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
             child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [SidebarsByValEntry]] else False):
+            if child_cls is not None and child_cls is SidebarsByValEntry:
                 try:
                     list.append(self, child_cls.from_element(child, *args, **kwargs))
                 except ValidationError:
