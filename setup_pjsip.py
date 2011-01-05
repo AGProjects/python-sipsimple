@@ -215,7 +215,11 @@ class PJSIP_build_ext(build_ext):
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
-        cflags = "-O3 -fPIC"
+        if self.debug:
+            log.info("PJSIP will be built with debugging symbols")
+            cflags = "-O0 -g -fPIC"
+        else:
+            cflags = "-O3 -fPIC"
         if sys.platform == "darwin":
             if platform.mac_ver()[0].startswith('10.6') and not platform.python_version().startswith('2.5'):
                 cflags += " -arch i386 -arch x86_64"
