@@ -943,6 +943,7 @@ class BonjourServices(object):
             self.restart_registration()
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
+        api.sleep(5) # wait for things to stabilize
         if self._files:
             self.restart_discovery()
             self.restart_registration()
