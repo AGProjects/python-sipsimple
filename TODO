@@ -14,8 +14,6 @@
 - End a session while in accepting state (requires session serialization
   http://sipsimpleclient.com/ticket/107
 
-- No 180 ringing indication notification when sending re-INVITE
-
 - Sometime Bonjour publishes 127.0.0.1 as IP address
 
 - Add keepalive for MSRP stream by sending empty SEND
