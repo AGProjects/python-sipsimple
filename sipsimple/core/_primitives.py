@@ -134,7 +134,7 @@ class Registration(object):
         else:
             call_id = None
             cseq = 1
-        request = Request("REGISTER", self.from_header, ToHeader.new(self.from_header), SIPURI(self.from_header.uri.host), route_header,
+        request = Request("REGISTER", SIPURI(self.from_header.uri.host), self.from_header, ToHeader.new(self.from_header), route_header,
                           credentials=self.credentials, contact_header=contact_header, call_id=call_id,
                           cseq=cseq, extra_headers=[Header("Expires", str(int(self.duration) if do_register else 0))])
         notification_center.add_observer(self, sender=request)
@@ -155,7 +155,7 @@ class Message(object):
     implements(IObserver)
 
     def __init__(self, from_header, to_header, route_header, content_type, body, credentials=None, extra_headers=[]):
-        self._request = Request("MESSAGE", from_header, to_header, to_header.uri, route_header,
+        self._request = Request("MESSAGE", to_header.uri, from_header, to_header, route_header,
                                 credentials=credentials, extra_headers=extra_headers, content_type=content_type, body=body)
         self._lock = RLock()
 
@@ -325,7 +325,7 @@ class Publication(object):
             extra_headers.append(Header("SIP-If-Match", self._last_etag))
         extra_headers.extend(self.extra_headers)
         content_type = (self.content_type if body is not None else None)
-        request = Request("PUBLISH", self.from_header, ToHeader.new(self.from_header), self.from_header.uri, route_header,
+        request = Request("PUBLISH", self.from_header.uri, self.from_header, ToHeader.new(self.from_header), route_header,
                           credentials=self.credentials, cseq=1, extra_headers=extra_headers,
                           content_type=content_type, body=body)
         notification_center.add_observer(self, sender=request)
