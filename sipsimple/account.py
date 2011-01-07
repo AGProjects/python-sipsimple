@@ -700,6 +700,8 @@ class BonjourServices(object):
             if self._discover_timer is None:
                 self._discover_timer = reactor.callLater(1, self._command_channel.send, Command('discover'))
             return
+        if reply_domain != 'local.':
+            return
         if flags & bonjour.kDNSServiceFlagsAdd:
             try:
                 resolution_file = (f for f in self._files if isinstance(f, BonjourResolutionFile) and f.discovery_file==file and f.service_description==service_description).next()
