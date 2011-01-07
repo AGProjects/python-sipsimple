@@ -931,6 +931,8 @@ class Session(object):
 
     @run_in_green_thread
     def end(self):
+        if self.state is None:
+            return
         if self.greenlet is not None:
             api.kill(self.greenlet, api.GreenletExit())
         self.greenlet = api.getcurrent()
