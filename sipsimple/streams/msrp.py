@@ -557,7 +557,7 @@ class FileSelector(object):
                 break
             sha1.update(content)
         # unexpected as it may be, using a regular expression is the fastest method to do this
-        hash = 'sha1:' + ':'.join(self._byte_re.findall(sha1.hexdigest().upper()))
+        hash = 'sha1:' + ':'.join(self.__class__._byte_re.findall(sha1.hexdigest().upper()))
         self.fd.seek(0)
 
 
