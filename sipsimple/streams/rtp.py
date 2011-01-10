@@ -423,6 +423,9 @@ class AudioStream(object):
         self.notification_center.post_notification("AudioStreamGotDTMF", self,
                                                    NotificationData(timestamp=notification.data.timestamp, digit=notification.data.digit))
 
+    def _NH_RTPAudioTransportDidTimeout(self, notification):
+        self.notification_center.post_notification("AudioStreamDidTimeout", self, TimestampedNotificationData())
+
     def _NH_RTPTransportICENegotiationStateDidChange(self, notification):
         self.notification_center.post_notification("AudioStreamICENegotiationStateDidChange", self, data=notification.data)
 

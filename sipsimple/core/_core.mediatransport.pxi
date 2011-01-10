@@ -969,7 +969,7 @@ cdef class AudioTransport:
                 status = pjmedia_stream_get_stat(stream, &stat)
             if status == 0:
                 if self._packets_received == stat.rx.pkt and self.direction == "sendrecv":
-                    _add_event("RTPAudioTransportDidNotGetRTP", dict(obj=self, got_any=(stat.rx.pkt != 0)))
+                    _add_event("RTPAudioTransportDidTimeout", dict(obj=self))
                 self._packets_received = stat.rx.pkt
                 if timer.media_check_interval > 0:
                     self._timer = MediaCheckTimer(timer.media_check_interval)
