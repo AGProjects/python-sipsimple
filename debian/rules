@@ -2,6 +2,7 @@
 
 DEB_PYTHON_SYSTEM=pysupport
 DEB_COMPRESS_EXCLUDE := .py
+DEB_DH_STRIP_ARGS := --dbg-package=python-sipsimple-dbg
 
 export PJSIP_SVN_REVISION=2553
 #export PJSIP_BUILD_DIR=/tmp/debuild-sipsimple
@@ -11,3 +12,29 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 
 clean::
 	-rm -rf build dist MANIFEST
+
+build/python-sipsimple::
+	for i in $(cdbs_python_build_versions); do \
+	  python$$i ./setup.py build; \
+	done
+
+install/python-sipsimple::
+	for i in $(cdbs_python_build_versions); do \
+	  python$$i ./setup.py install --root $(CURDIR)/debian/python-sipsimple; \
+	done
+
+build/python-sipsimple-dbg::
+	for i in $(cdbs_python_build_versions); do \
+	  python$$i-dbg ./setup.py build; \
+	done
+
+install/python-sipsimple-dbg::
+	for i in $(cdbs_python_build_versions); do \
+	  python$$i-dbg ./setup.py install --root $(CURDIR)/debian/python-sipsimple-dbg; \
+	done
+	find debian/python-sipsimple-dbg -type f ! -name '*_d.so' -exec rm -f {} \;
+	find debian/python-sipsimple-dbg -depth -empty -exec rmdir {} \;
+
+binary-strip/python-sipsimple-dbg::                                                                                                                                                     
+	cd debian/python-sipsimple-dbg/usr/lib/debug/usr/lib && mv pyshared pymodules
+

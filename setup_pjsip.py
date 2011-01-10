@@ -215,7 +215,7 @@ class PJSIP_build_ext(build_ext):
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
-        if self.debug:
+        if self.debug or hasattr(sys, 'gettotalrefcount'):
             log.info("PJSIP will be built with debugging symbols")
             cflags = "-O0 -g -fPIC"
         else:
