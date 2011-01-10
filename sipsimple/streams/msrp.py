@@ -546,6 +546,20 @@ class FileSelector(object):
         items = [('name', self.name and '"%s"' % self.name), ('type', self.type), ('size', self.size), ('hash', self.hash)]
         return ' '.join('%s:%s' % (name, value) for name, value in items if value is not None)
 
+    def compute_hash(self):
+        if self.fd is None:
+            return
+        sha1 = hashlib.sha1()
+        self.fd.seek(0)
+        while True:
+            content = self.fd.read(65536)
+            if not content:
+                break
+            sha1.update(content)
+        # unexpected as it may be, using a regular expression is the fastest method to do this
+        hash = 'sha1:' + ':'.join(self._byte_re.findall(sha1.hexdigest().upper()))
+        self.fd.seek(0)
+
 
 class FileTransferStream(MSRPStreamBase):
 
