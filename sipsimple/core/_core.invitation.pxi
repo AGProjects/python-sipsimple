@@ -140,7 +140,7 @@ cdef class Invitation:
 
         return 0
 
-    def send_invite(self, FromHeader from_header not None, ToHeader to_header not None, RouteHeader route_header not None, ContactHeader contact_header not None,
+    def send_invite(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, RouteHeader route_header not None, ContactHeader contact_header not None,
                     SDPSession sdp not None, Credentials credentials=None, list extra_headers not None=list(), timeout=None):
         cdef int status
         cdef pj_mutex_t *lock = self._lock
@@ -154,7 +154,7 @@ cdef class Invitation:
         cdef PJSTR contact_header_str
         cdef PJSTR from_header_str
         cdef PJSTR to_header_str
-        cdef PJSTR target_str
+        cdef PJSTR request_uri_str
 
         ua = _get_ua()
 
@@ -184,12 +184,11 @@ cdef class Invitation:
             from_header_str = PJSTR(from_header.body)
             to_header_str = PJSTR(to_header.body)
             contact_header_str = PJSTR(self.local_contact_header.body)
-            target_uri = SIPURI.new(to_header.uri)
-            target_str = PJSTR(str(target_uri))
+            request_uri_str = PJSTR(str(request_uri))
 
             with nogil:
                 status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_header_str.pj_str,
-                                              &to_header_str.pj_str, &target_str.pj_str, dialog_address)
+                                              &to_header_str.pj_str, &request_uri_str.pj_str, dialog_address)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
 

@@ -407,7 +407,7 @@ class AccountMWISubscriptionHandler(object):
                         subscription_uri = SIPURI(user=self.account.message_summary.voicemail_uri.username, host=self.account.message_summary.voicemail_uri.domain)
                     else:
                         subscription_uri = self.account.uri
-                    subscription = Subscription(FromHeader(self.account.uri, self.account.display_name),
+                    subscription = Subscription(subscription_uri, FromHeader(self.account.uri, self.account.display_name),
                                                 ToHeader(subscription_uri),
                                                 ContactHeader(self.account.contact[route]),
                                                 'message-summary',

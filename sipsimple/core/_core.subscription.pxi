@@ -19,7 +19,7 @@ cdef class Subscription:
         self.extra_headers = frozenlist()
         self.peer_address = None
 
-    def __init__(self, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
+    def __init__(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
                  object event, RouteHeader route_header not None, Credentials credentials=None, int refresh=300):
         global _subs_cb
         cdef PJSTR from_header_str
@@ -45,7 +45,7 @@ cdef class Subscription:
         from_header_str = PJSTR(from_header.body)
         to_header_str = PJSTR(to_header.body)
         contact_header_str = PJSTR(contact_header.body)
-        request_uri_str = PJSTR(str(to_header.uri))
+        request_uri_str = PJSTR(str(request_uri))
         _str_to_pj_str(self.event, &event_pj)
         status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_header_str.pj_str,
                                       &to_header_str.pj_str, &request_uri_str.pj_str, &self._dlg)
