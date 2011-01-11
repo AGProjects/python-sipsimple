@@ -1798,6 +1798,7 @@ cdef class Invitation(object):
     cdef readonly EndpointAddress peer_address
     cdef readonly FrozenCredentials credentials
     cdef readonly FrozenContactHeader local_contact_header
+    cdef readonly FrozenContactHeader remote_contact_header
     cdef readonly FrozenFromHeader from_header
     cdef readonly FrozenToHeader to_header
     cdef readonly FrozenRouteHeader route_header

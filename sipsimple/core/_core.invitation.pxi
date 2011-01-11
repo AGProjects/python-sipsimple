@@ -46,6 +46,7 @@ cdef class Invitation:
         self.to_header = None
         self.route_header = None
         self.local_contact_header = None
+        self.remote_contact_header = None
         self.credentials = None
         self.sdp = SDPPayloads()
         self.remote_user_agent = None
@@ -115,6 +116,10 @@ cdef class Invitation:
             _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
             self.state = "incoming"
             self.remote_user_agent = event_dict['headers']['User-Agent'].body if 'User-Agent' in event_dict['headers'] else None
+            try:
+                self.remote_contact_header = event_dict['headers']['Contact'][0]
+            except LookupError:
+                pass
             _add_event("SIPInvitationChangedState", event_dict)
 
             self.from_header = FrozenFromHeader_create(rdata.msg_info.from_hdr)
@@ -621,6 +626,12 @@ cdef class Invitation:
                     self.remote_user_agent = event_dict['headers']['User-Agent'].body
                 elif 'Server' in event_dict['headers']:
                     self.remote_user_agent = event_dict['headers']['Server'].body
+
+            if state not in ('disconnecting', 'disconnected') and rdata is not None:
+                try:
+                    self.remote_contact_header = event_dict['headers']['Contact'][0]
+                except LookupError:
+                    pass
 
             if state == "connected":
                 if sub_state == "received_proposal":
