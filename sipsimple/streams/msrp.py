@@ -353,6 +353,8 @@ class ChatStream(MSRPStreamBase):
     def _handle_SEND(self, chunk):
         if self.direction=='sendonly':
             return
+        if not chunk.data:
+            return
         if chunk.content_type.lower() == 'message/cpim':
             try:
                 message = CPIMMessage.parse(chunk.data)
