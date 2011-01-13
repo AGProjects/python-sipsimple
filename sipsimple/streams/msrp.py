@@ -377,7 +377,7 @@ class ChatStream(MSRPStreamBase):
                                                 refresh=data.refresh.value if data.refresh is not None else None,
                                                 content_type=data.contenttype.value if data.contenttype is not None else None,
                                                 last_active=data.last_active.value if data.last_active is not None else None,
-                                                sender=message.sender)
+                                                sender=message.sender, recipients=message.recipients)
             notification_center.post_notification('ChatStreamGotComposingIndication', self, ndata)
         else:
             notification_center.post_notification('ChatStreamGotMessage', self, TimestampedNotificationData(message=message))
