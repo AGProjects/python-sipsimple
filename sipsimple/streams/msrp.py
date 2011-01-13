@@ -82,6 +82,7 @@ class MSRPStreamBase(object):
         self.greenlet = None
         self.local_identity = ChatIdentity(self.account.uri, self.account.display_name)
         self.local_media = None
+        self.remote_media = None
         self.remote_identity = None ## will be filled in by start()
         self.msrp = None ## Placeholder for the MSRPTransport that will be set when started
         self.msrp_connector = None
@@ -195,6 +196,7 @@ class MSRPStreamBase(object):
             context = 'sdp_negotiation'
             self.remote_identity = ChatIdentity(self.session.remote_identity.uri, self.session.remote_identity.display_name)
             remote_media = remote_sdp.media[stream_index]
+            self.remote_media = remote_media
             remote_accept_types = remote_media.attributes.getfirst('accept-types')
             # TODO: update accept_types and accept_wrapped_types from remote_media
             self.cpim_enabled = contains_mime_type(self.accept_types, 'message/cpim') and contains_mime_type(remote_accept_types.split(), 'message/cpim')
