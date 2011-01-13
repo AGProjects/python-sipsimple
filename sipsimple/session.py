@@ -294,10 +294,12 @@ class ConferenceSubscriptionHandler(object):
             self._command_channel.send(Command('unsubscribe'))
 
     def _NH_DNSNameserversDidChange(self, notification):
-        self._command_channel.send(Command('subscribe'))
+        if self.subscription:
+            self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        self._command_channel.send(Command('subscribe'))
+        if self.subscription:
+            self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self.subscription is not None and self._subscription_timer is None:
