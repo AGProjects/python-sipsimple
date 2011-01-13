@@ -23,6 +23,7 @@ from datetime import datetime
 from application.notification import NotificationCenter, NotificationData, IObserver
 from application.system import host
 from functools import partial
+from itertools import chain
 from twisted.internet.error import ConnectionDone
 from twisted.python.failure import Failure
 from zope.interface import implements, Interface, Attribute
@@ -331,7 +332,8 @@ class ChatStream(MSRPStreamBase):
 
     @property
     def private_messages_allowed(self):
-        return self.cpim_enabled # and isfocus and 'private-messages' in chatroom
+        remote_chatroom_capabilities = chain(*(attr.split() for attr in self.remote_media.attributes.getall('chatroom')))
+        return self.cpim_enabled and self.session.remote_focus and 'private-messages' in remote_chatroom_capabilities
 
     # TODO: chatroom, recvonly/sendonly (in start)?
 
