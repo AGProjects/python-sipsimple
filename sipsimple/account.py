@@ -37,7 +37,7 @@ from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
 from sipsimple.payloads.messagesummary import MessageSummary
 from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
-from sipsimple.threading.green import Command, call_in_green_thread, run_in_green_thread
+from sipsimple.threading.green import Command, InterruptCommand, call_in_green_thread, run_in_green_thread
 from sipsimple.util import Route, TimestampedNotificationData, classproperty, limit, user_info
 
 
@@ -99,10 +99,9 @@ class AccountRegistrar(object):
     def __init__(self, account):
         self.account = account
         self.registered = False
-        self._command_greenlet = None
+        self._command_proc = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
-        self._current_command = None
         self._dns_wait = 1
         self._refresh_timer = None
         self._register_wait = 1
@@ -113,23 +112,21 @@ class AccountRegistrar(object):
         notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
-        self._run()
+        self._command_proc = proc.spawn(self._run)
 
     def stop(self):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._command_channel.send_exception(api.GreenletExit)
+        self._command_proc.kill()
 
     def activate(self):
         command = Command('register')
         self._command_channel.send(command)
 
     def deactivate(self):
-        if self._current_command is not None and self._current_command.name != 'unregister':
-            api.kill(self._command_greenlet, api.GreenletExit())
-            self._run()
+        self._command_proc.kill(InterruptCommand)
         command = Command('unregister')
         self._command_channel.send(command)
         command.wait()
@@ -142,14 +139,14 @@ class AccountRegistrar(object):
         command = Command('reload_settings')
         self._command_channel.send(command)
 
-    @run_in_green_thread
     def _run(self):
-        self._command_greenlet = api.getcurrent()
         while True:
-            self._current_command = command = self._command_channel.wait()
-            handler = getattr(self, '_CH_%s' % command.name)
-            handler(command)
-            self._current_command = None
+            try:
+                command = self._command_channel.wait()
+                handler = getattr(self, '_CH_%s' % command.name)
+                handler(command)
+            except InterruptCommand:
+                pass
 
     def _CH_register(self, command):
         notification_center = NotificationCenter()
@@ -319,10 +316,9 @@ class AccountMWISubscriptionHandler(object):
         self.subscribed = False
         self.subscription = None
         self._subscription_timer = None
-        self._command_greenlet = None
+        self._command_proc = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
-        self._current_command = None
         self.server_advertised_uri = None # this is the voicemail URI we get back from the server
 
     def start(self):
@@ -330,14 +326,14 @@ class AccountMWISubscriptionHandler(object):
         notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
-        self._run()
+        self._command_proc = proc.spawn(self._run)
 
     def stop(self):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._command_channel.send_exception(api.GreenletExit)
+        self._command_proc.kill()
 
     def activate(self):
         command = Command('subscribe')
@@ -345,9 +341,7 @@ class AccountMWISubscriptionHandler(object):
 
     def deactivate(self):
         self.server_advertised_uri = None
-        if self._current_command is not None and self._current_command.name != 'unsubscribe':
-            api.kill(self._command_greenlet, api.GreenletExit())
-            self._run()
+        self._command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
         self._command_channel.send(command)
         command.wait()
@@ -356,14 +350,14 @@ class AccountMWISubscriptionHandler(object):
         self._command_channel.send(Command('unsubscribe'))
         self._command_channel.send(Command('subscribe'))
 
-    @run_in_green_thread
     def _run(self):
-        self._command_greenlet = api.getcurrent()
         while True:
-            self._current_command = command = self._command_channel.wait()
-            handler = getattr(self, '_CH_%s' % command.name)
-            handler(command)
-            self._current_command = None
+            try:
+                command = self._command_channel.wait()
+                handler = getattr(self, '_CH_%s' % command.name)
+                handler(command)
+            except InterruptCommand:
+                pass
 
     def _CH_subscribe(self, command):
         notification_center = NotificationCenter()

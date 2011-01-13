@@ -23,7 +23,7 @@ from urllib2 import URLError
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
 from application.system import unlink
-from eventlet import api, coros
+from eventlet import api, coros, proc
 from eventlet.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost
 from xcaplib.green import XCAPClient
@@ -36,7 +36,7 @@ from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
 from sipsimple.payloads import dialogrules, extensions, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
 from sipsimple.threading import run_in_twisted_thread
-from sipsimple.threading.green import Command, run_in_green_thread
+from sipsimple.threading.green import Command, InterruptCommand
 from sipsimple.util import All, Any, TimestampedNotificationData, limit, makedirs
 from sipsimple.xcap.uri import XCAPURI
 
@@ -571,10 +571,9 @@ class XCAPManager(object):
         self.subscription_timer = None
         self.timer = None
         self.transaction_level = 0
-        self.command_greenlet = None
+        self.command_proc = None
         self.command_channel = coros.queue()
         self.data_channel = coros.queue()
-        self.current_command = None
 
         self.server_caps = XCAPCapsDocument()
         self.dialog_rules = DialogRulesDocument()
@@ -659,7 +658,7 @@ class XCAPManager(object):
         else:
             for operation in self.journal:
                 operation.applied = False
-        self._run()
+        self.command_proc = proc.spawn(self._run)
 
     def start(self):
         """
@@ -693,9 +692,7 @@ class XCAPManager(object):
             self.timer.cancel()
         if self.subscription_timer is not None and self.subscription_timer.active():
             self.subscription_timer.cancel()
-        if self._current_command is not None and self._current_command.name != 'unsubscribe':
-            api.kill(self.command_greenlet, api.GreenletExit())
-            self._run()
+        self.command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
         self.command_channel.send(command)
         command.wait()
@@ -816,14 +813,14 @@ class XCAPManager(object):
         if self.transaction_level == 0:
             self.command_channel.send(Command('update'))
 
-    @run_in_green_thread
     def _run(self):
-        self.command_greenlet = api.getcurrent()
         while True:
-            self._current_command = command = self.command_channel.wait()
-            handler = getattr(self, '_CH_%s' % command.name)
-            handler(command)
-            self._current_command = None
+            try:
+                command = self.command_channel.wait()
+                handler = getattr(self, '_CH_%s' % command.name)
+                handler(command)
+            except InterruptCommand:
+                pass
 
     # command handlers
     #
