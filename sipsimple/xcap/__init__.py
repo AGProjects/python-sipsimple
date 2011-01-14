@@ -688,8 +688,10 @@ class XCAPManager(object):
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         if self.timer is not None and self.timer.active():
             self.timer.cancel()
+        self.timer = None
         if self.subscription_timer is not None and self.subscription_timer.active():
             self.subscription_timer.cancel()
+        self.subscription_timer = None
         self.command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
         self.command_channel.send(command)
