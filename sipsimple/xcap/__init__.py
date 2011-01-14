@@ -572,8 +572,6 @@ class XCAPManager(object):
         self.timer = None
         self.transaction_level = 0
         self.command_proc = None
-        self.command_channel = coros.queue()
-        self.data_channel = coros.queue()
 
         self.server_caps = XCAPCapsDocument()
         self.dialog_rules = DialogRulesDocument()
