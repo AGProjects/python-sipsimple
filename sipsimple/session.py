@@ -93,6 +93,7 @@ class ConferenceSubscriptionHandler(object):
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
         self._proc = None
+        self._wakeup_timer = None
         self._start()
 
     def _start(self):
@@ -231,6 +232,9 @@ class ConferenceSubscriptionHandler(object):
         if self._subscription_timer is not None and self._subscription_timer.active():
             self._subscription_timer.cancel()
         self._subscription_timer = None
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
         self.subscribed = False
         if self.subscription is not None:
             subscription = self.subscription
@@ -302,8 +306,12 @@ class ConferenceSubscriptionHandler(object):
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self.subscription is not None and self._subscription_timer is None:
-            self._subscription_timer = reactor.callLater(0, self._command_channel.send, Command('subscribe'))
+        if self._wakeup_timer is None:
+            def wakeup_action():
+                if self.subscription is not None:
+                    self._command_channel.send(Command('subscribe'))
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
 class Session(object):

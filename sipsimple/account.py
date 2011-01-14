@@ -106,6 +106,7 @@ class AccountRegistrar(object):
         self._refresh_timer = None
         self._register_wait = 1
         self._registration = None
+        self._wakeup_timer = None
 
     def start(self):
         notification_center = NotificationCenter()
@@ -152,7 +153,6 @@ class AccountRegistrar(object):
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
 
-        # Cancel any timer which would refresh the registration
         if self._refresh_timer is not None and self._refresh_timer.active():
             self._refresh_timer.cancel()
         self._refresh_timer = None
@@ -246,6 +246,9 @@ class AccountRegistrar(object):
         if self._refresh_timer is not None and self._refresh_timer.active():
             self._refresh_timer.cancel()
         self._refresh_timer = None
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
         registered = self.registered
         self.registered = False
         if self._registration is not None:
@@ -304,8 +307,12 @@ class AccountRegistrar(object):
             self._command_channel.send(Command('register'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self._registration is not None:
-            self._command_channel.send(Command('register'))
+        if self._wakeup_timer is None:
+            def wakeup_action():
+                if self._registration is not None:
+                    self._command_channel.send(Command('register'))
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
 class AccountMWISubscriptionHandler(object):
@@ -316,6 +323,7 @@ class AccountMWISubscriptionHandler(object):
         self.subscribed = False
         self.subscription = None
         self._subscription_timer = None
+        self._wakeup_timer = None
         self._command_proc = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
@@ -473,6 +481,9 @@ class AccountMWISubscriptionHandler(object):
         if self._subscription_timer is not None and self._subscription_timer.active():
             self._subscription_timer.cancel()
         self._subscription_timer = None
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
         self.subscribed = False
         if self.subscription is not None:
             subscription = self.subscription
@@ -527,8 +538,12 @@ class AccountMWISubscriptionHandler(object):
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self.subscription is not None and self._subscription_timer is None:
-            self._subscription_timer = reactor.callLater(0, self._command_channel.send, Command('subscribe'))
+        if self._wakeup_timer is None:
+            def wakeup_action():
+                if self.subscription is not None:
+                    self._command_channel.send(Command('subscribe'))
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
 class BonjourFile(object):
@@ -626,6 +641,7 @@ class BonjourServices(object):
         self._discover_timer = None
         self._register_timer = None
         self._update_timer = None
+        self._wakeup_timer = None
 
     def start(self):
         notification_center = NotificationCenter()
@@ -917,6 +933,9 @@ class BonjourServices(object):
         if self._update_timer is not None and self._update_timer.active():
             self._update_timer.cancel()
         self._update_timer = None
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
         old_files = self._files
         self._files = []
         self._select_proc.kill(RestartSelect)
@@ -928,7 +947,7 @@ class BonjourServices(object):
             notification_center.post_notification('BonjourAccountRegistrationDidEnd', sender=self.account, data=TimestampedNotificationData(transport=transport))
         command.signal()
 
-    @run_in_green_thread
+    @run_in_twisted_thread
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
@@ -939,10 +958,13 @@ class BonjourServices(object):
             self.restart_registration()
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
-        api.sleep(5) # wait for things to stabilize
-        if self._files:
-            self.restart_discovery()
-            self.restart_registration()
+        if self._wakeup_timer is None:
+            def wakeup_action():
+                if self._files:
+                    self.restart_discovery()
+                    self.restart_registration()
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
 class AuthSettings(SettingsGroup):

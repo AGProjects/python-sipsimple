@@ -442,6 +442,7 @@ class DNSManager(object):
         self._channel = coros.queue()
         self._proc = None
         self._timer = None
+        self._wakeup_timer = None
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
@@ -471,6 +472,9 @@ class DNSManager(object):
         if self._timer is not None and self._timer.active():
             self._timer.cancel()
         self._timer = None
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
 
     def _run(self):
         while True:
@@ -531,7 +535,11 @@ class DNSManager(object):
         self._channel.send(Command('probe_dns'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
-        self._proc.kill(InterruptCommand)
-        self._channel.send(Command('probe_dns'))
+        if self._wakeup_timer is None:
+            def wakeup_action():
+                self._proc.kill(InterruptCommand)
+                self._channel.send(Command('probe_dns'))
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
