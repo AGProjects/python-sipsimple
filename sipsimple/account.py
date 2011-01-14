@@ -511,16 +511,15 @@ class AccountMWISubscriptionHandler(object):
         self._data_channel.send(notification)
 
     def _NH_SIPSubscriptionDidFail(self, notification):
-        if notification.sender is self.subscription:
-            self._command_channel.send(Command('subscribe'))
-        else:
+        if self.subscription is None:
             self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
+        else:
+            self._command_channel.send(Command('subscribe'))
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
         if self.subscription is None:
             self._data_channel.send(notification)
-            return
-        if notification.sender is self.subscription and notification.data.event == 'message-summary' and notification.data.body:
+        elif notification.data.event == 'message-summary' and notification.data.body:
             try:
                 message_summary = MessageSummary.parse(notification.data.body)
             except ValidationError:
