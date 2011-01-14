@@ -90,9 +90,9 @@ class ConferenceSubscriptionHandler(object):
         self.subscribed = False
         self.subscription = None
         self._subscription_timer = None
+        self._command_proc = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
-        self._proc = None
         self._wakeup_timer = None
         self._start()
 
@@ -102,7 +102,7 @@ class ConferenceSubscriptionHandler(object):
         notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
-        self._proc = proc.spawn(self._run)
+        self._command_proc = proc.spawn(self._run)
 
     def _stop(self):
         notification_center = NotificationCenter()
@@ -110,11 +110,11 @@ class ConferenceSubscriptionHandler(object):
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self._proc.kill(InterruptCommand)
+        self._command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
         self._command_channel.send(command)
         command.wait()
-        self._proc.kill()
+        self._command_proc.kill()
         self.session = None
 
     def _run(self):
