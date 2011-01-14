@@ -88,11 +88,11 @@ class ConferenceSubscriptionHandler(object):
         self.account = session.account
         self.session = session
         self.subscribed = False
-        self.subscription = None
-        self._subscription_timer = None
         self._command_proc = None
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
+        self._subscription = None
+        self._subscription_timer = None
         self._wakeup_timer = None
         self._start()
 
@@ -133,10 +133,10 @@ class ConferenceSubscriptionHandler(object):
         if self._subscription_timer is not None and self._subscription_timer.active():
             self._subscription_timer.cancel()
         self._subscription_timer = None
-        if self.subscription is not None:
-            notification_center.remove_observer(self, sender=self.subscription)
-            self.subscription.end(timeout=2)
-            self.subscription = None
+        if self._subscription is not None:
+            notification_center.remove_observer(self, sender=self._subscription)
+            self._subscription.end(timeout=2)
+            self._subscription = None
 
         try:
             # Lookup routes
@@ -215,7 +215,7 @@ class ConferenceSubscriptionHandler(object):
                                         break
                         except api.TimeoutError:
                             pass
-                        self.subscription = subscription
+                        self._subscription = subscription
                         self.subscribed = True
                         command.signal()
                         break
@@ -236,9 +236,9 @@ class ConferenceSubscriptionHandler(object):
             self._wakeup_timer.cancel()
         self._wakeup_timer = None
         self.subscribed = False
-        if self.subscription is not None:
-            subscription = self.subscription
-            self.subscription = None
+        if self._subscription is not None:
+            subscription = self._subscription
+            self._subscription = None
             subscription.end(timeout=2)
             try:
                 while True:
@@ -262,13 +262,13 @@ class ConferenceSubscriptionHandler(object):
         self._data_channel.send(notification)
 
     def _NH_SIPSubscriptionDidFail(self, notification):
-        if self.subscription is None:
+        if self._subscription is None:
             self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
         else:
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
-        if self.subscription is None:
+        if self._subscription is None:
             self._data_channel.send(notification)
         elif notification.data.event == 'conference' and notification.data.body:
             try:
@@ -298,17 +298,17 @@ class ConferenceSubscriptionHandler(object):
             self._command_channel.send(Command('unsubscribe'))
 
     def _NH_DNSNameserversDidChange(self, notification):
-        if self.subscription:
+        if self._subscription:
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        if self.subscription:
+        if self._subscription:
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._wakeup_timer is None:
             def wakeup_action():
-                if self.subscription is not None:
+                if self._subscription is not None:
                     self._command_channel.send(Command('subscribe'))
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
