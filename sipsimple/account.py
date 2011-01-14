@@ -245,7 +245,7 @@ class AccountRegistrar(object):
         # Cancel any timer which would restart the registration process
         if self._refresh_timer is not None and self._refresh_timer.active():
             self._refresh_timer.cancel()
-            self._refresh_timer = None
+        self._refresh_timer = None
         registered = self.registered
         self.registered = False
         if self._registration is not None:
