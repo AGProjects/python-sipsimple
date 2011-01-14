@@ -559,6 +559,7 @@ class XCAPManager(object):
         self.account = account
         self.cache_directory = None
         self.client = None
+        self.command_proc = None
         self.command_channel = coros.queue()
         self.data_channel = coros.queue()
         self.journal = []
@@ -571,7 +572,6 @@ class XCAPManager(object):
         self.subscription_timer = None
         self.timer = None
         self.transaction_level = 0
-        self.command_proc = None
 
         self.server_caps = XCAPCapsDocument()
         self.dialog_rules = DialogRulesDocument()
