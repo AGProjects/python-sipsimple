@@ -572,6 +572,7 @@ class XCAPManager(object):
         self.subscription_timer = None
         self.timer = None
         self.transaction_level = 0
+        self.wakeup_timer = None
 
         self.server_caps = XCAPCapsDocument()
         self.dialog_rules = DialogRulesDocument()
@@ -669,7 +670,9 @@ class XCAPManager(object):
         notification_center.post_notification('XCAPManagerWillStart', sender=self, data=TimestampedNotificationData())
         notification_center.add_observer(self, sender=self.account)
         notification_center.add_observer(self, sender=SIPSimpleSettings())
+        notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self.command_channel.send(Command('initialize'))
         notification_center.post_notification('XCAPManagerDidStart', sender=self, data=TimestampedNotificationData())
 
@@ -685,13 +688,18 @@ class XCAPManager(object):
         self.state = 'stopping'
         notification_center.remove_observer(self, sender=self.account)
         notification_center.remove_observer(self, sender=SIPSimpleSettings())
+        notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
+        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         if self.timer is not None and self.timer.active():
             self.timer.cancel()
         self.timer = None
         if self.subscription_timer is not None and self.subscription_timer.active():
             self.subscription_timer.cancel()
         self.subscription_timer = None
+        if self.wakeup_timer is not None and self.wakeup_timer.active():
+            self.wakeup_timer.cancel()
+        self.wakeup_timer = None
         self.command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
         self.command_channel.send(command)
@@ -2957,9 +2965,22 @@ class XCAPManager(object):
                 documents = [document.name for document in self.documents if document.application in applications]
                 self.command_channel.send(Command('fetch', documents=documents))
 
+    def _NH_DNSNameserversDidChange(self, notification):
+        if self.subscription is not None:
+            self.command_channel.send(Command('subscribe'))
+
     def _NH_SystemIPAddressDidChange(self, notification):
         if self.subscription is not None:
             self.command_channel.send(Command('subscribe'))
+
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
+        if self._wakeup_timer is None:
+            from twisted.internet import reactor
+            def wakeup_action():
+                if self.subscription is not None:
+                    self.command_channel.send(Command('subscribe'))
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
     def _load_data(self):
         if not self.resource_lists.supported:
