@@ -85,7 +85,6 @@ class ConferenceSubscriptionHandler(object):
     implements(IObserver)
 
     def __init__(self, session):
-        self.account = session.account
         self.session = session
         self.subscribed = False
         self._command_proc = None
@@ -140,12 +139,13 @@ class ConferenceSubscriptionHandler(object):
 
         try:
             # Lookup routes
-            if self.account.sip.outbound_proxy is not None:
-                uri = SIPURI(host=self.account.sip.outbound_proxy.host,
-                             port=self.account.sip.outbound_proxy.port,
-                             parameters={'transport': self.account.sip.outbound_proxy.transport})
-            elif self.account.sip.always_use_my_proxy:
-                uri = SIPURI(host=self.account.id.domain)
+            account = self.session.account
+            if account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=account.sip.outbound_proxy.host,
+                             port=account.sip.outbound_proxy.port,
+                             parameters={'transport': account.sip.outbound_proxy.transport})
+            elif account.sip.always_use_my_proxy:
+                uri = SIPURI(host=account.id.domain)
             else:
                 uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
             lookup = DNSLookup()
@@ -159,13 +159,13 @@ class ConferenceSubscriptionHandler(object):
             for route in routes:
                 remaining_time = timeout - time()
                 if remaining_time > 0:
-                    subscription = Subscription(SIPURI.new(self.session._invitation.remote_contact_header.uri), FromHeader(self.account.uri, self.account.display_name),
+                    subscription = Subscription(SIPURI.new(self.session._invitation.remote_contact_header.uri), FromHeader(account.uri, account.display_name),
                                                 ToHeader(SIPURI.new(self.session.remote_identity.uri)),
-                                                ContactHeader(self.account.contact[route]),
+                                                ContactHeader(account.contact[route]),
                                                 'conference',
                                                 RouteHeader(route.get_uri()),
-                                                credentials=self.account.credentials,
-                                                refresh=self.account.sip.subscribe_interval)
+                                                credentials=account.credentials,
+                                                refresh=account.sip.subscribe_interval)
                     notification_center.add_observer(self, sender=subscription)
                     try:
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
@@ -186,7 +186,7 @@ class ConferenceSubscriptionHandler(object):
                         elif e.code == 423:
                             # Get the value of the Min-Expires header
                             timeout = random.uniform(60, 120)
-                            if e.min_expires is not None and e.min_expires > self.account.sip.subscribe_interval:
+                            if e.min_expires is not None and e.min_expires > account.sip.subscribe_interval:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
                             else:
                                 # Stop subscription
