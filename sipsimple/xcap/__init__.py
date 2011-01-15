@@ -2947,7 +2947,7 @@ class XCAPManager(object):
         self.data_channel.send(notification)
 
     def _NH_SIPSubscriptionDidFail(self, notification):
-        if notification.sender is not self.subscription:
+        if self.subscription is None:
             self.data_channel.send_exception(SIPSubscriptionDidFail(notification.data.__dict__))
         else:
             # The server terminated the subscription without us asking, fetch in case we missed a NOTIFY
