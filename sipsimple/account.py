@@ -98,6 +98,7 @@ class AccountRegistrar(object):
 
     def __init__(self, account):
         self.account = account
+        self.active = False
         self.registered = False
         self._command_proc = None
         self._command_channel = coros.queue()
@@ -125,8 +126,10 @@ class AccountRegistrar(object):
     def activate(self):
         command = Command('register')
         self._command_channel.send(command)
+        self.active = True
 
     def deactivate(self):
+        self.active = False
         self._command_proc.kill(InterruptCommand)
         command = Command('unregister')
         self._command_channel.send(command)
@@ -299,17 +302,17 @@ class AccountRegistrar(object):
         self._data_channel.send_exception(SIPRegistrationDidNotEnd(notification.data))
 
     def _NH_DNSNameserversDidChange(self, notification):
-        if self._registration is not None:
+        if self.active:
             self._command_channel.send(Command('register'))
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        if self._registration is not None:
+        if self.active:
             self._command_channel.send(Command('register'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._wakeup_timer is None:
             def wakeup_action():
-                if self._registration is not None:
+                if self.active:
                     self._command_channel.send(Command('register'))
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
@@ -320,6 +323,7 @@ class AccountMWISubscriptionHandler(object):
 
     def __init__(self, account):
         self.account = account
+        self.active = False
         self.subscribed = False
         self.server_advertised_uri = None # the voicemail URI we get back from the server
         self._command_proc = None
@@ -346,8 +350,10 @@ class AccountMWISubscriptionHandler(object):
     def activate(self):
         command = Command('subscribe')
         self._command_channel.send(command)
+        self.active = True
 
     def deactivate(self):
+        self.active = False
         self.server_advertised_uri = None
         self._command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
@@ -529,17 +535,17 @@ class AccountMWISubscriptionHandler(object):
                 NotificationCenter().post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
 
     def _NH_DNSNameserversDidChange(self, notification):
-        if self._subscription is not None:
+        if self.active:
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        if self._subscription is not None:
+        if self.active:
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._wakeup_timer is None:
             def wakeup_action():
-                if self._subscription is not None:
+                if self.active:
                     self._command_channel.send(Command('subscribe'))
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize

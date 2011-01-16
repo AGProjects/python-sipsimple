@@ -639,6 +639,10 @@ class XCAPManager(object):
     def xcap_root(self):
         return self.client.root if self.client else None
 
+    @property
+    def active(self):
+        return self.state not in ('initializing', 'stopping', 'stopped')
+
     def load(self, cache_directory):
         """
         Initializes the XCAP manager, by loading any saved data from disk. Needs
@@ -2966,18 +2970,18 @@ class XCAPManager(object):
                 self.command_channel.send(Command('fetch', documents=documents))
 
     def _NH_DNSNameserversDidChange(self, notification):
-        if self.subscription is not None:
+        if self.active:
             self.command_channel.send(Command('subscribe'))
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        if self.subscription is not None:
+        if self.active:
             self.command_channel.send(Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._wakeup_timer is None:
             from twisted.internet import reactor
             def wakeup_action():
-                if self.subscription is not None:
+                if self.active:
                     self.command_channel.send(Command('subscribe'))
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize

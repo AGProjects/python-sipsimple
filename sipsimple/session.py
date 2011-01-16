@@ -86,6 +86,7 @@ class ConferenceSubscriptionHandler(object):
 
     def __init__(self, session):
         self.session = session
+        self.active = False
         self.subscribed = False
         self._command_proc = None
         self._command_channel = coros.queue()
@@ -109,6 +110,7 @@ class ConferenceSubscriptionHandler(object):
         notification_center.remove_observer(self, name='DNSNameserversDidChange')
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+        self.active = False
         self._command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
         self._command_channel.send(command)
@@ -282,6 +284,7 @@ class ConferenceSubscriptionHandler(object):
     def _NH_SIPSessionDidStart(self, notification):
         if self.session.remote_focus:
             self._command_channel.send(Command('subscribe'))
+            self.active = True
 
     @run_in_green_thread
     def _NH_SIPSessionDidEnd(self, notification):
@@ -292,23 +295,25 @@ class ConferenceSubscriptionHandler(object):
         self._stop()
 
     def _NH_SIPSessionDidRenegotiateStreams(self, notification):
-        if self.session.remote_focus and not self.subscribed:
+        if self.session.remote_focus and not self.active:
             self._command_channel.send(Command('subscribe'))
-        elif not self.session.remote_focus and self.subscribed:
+            self.active = True
+        elif not self.session.remote_focus and self.active:
             self._command_channel.send(Command('unsubscribe'))
+            self.active = False
 
     def _NH_DNSNameserversDidChange(self, notification):
-        if self._subscription:
+        if self.active:
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemIPAddressDidChange(self, notification):
-        if self._subscription:
+        if self.active:
             self._command_channel.send(Command('subscribe'))
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._wakeup_timer is None:
             def wakeup_action():
-                if self._subscription is not None:
+                if self.active:
                     self._command_channel.send(Command('subscribe'))
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
