@@ -133,7 +133,17 @@ cdef class Invitation:
                 with nogil:
                     pjsip_dlg_terminate(dialog_address[0])
                 self._dialog = NULL
-            raise
+            else:
+                with nogil:
+                    status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 500, NULL, &tdata)
+                if status != 0:
+                    raise PJSIPError("Could not create response", status)
+                with nogil:
+                    status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
+                if status != 0:
+                    with nogil:
+                        pjsip_tx_data_dec_ref(tdata)
+                    raise PJSIPError("Could not send response", status)
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
