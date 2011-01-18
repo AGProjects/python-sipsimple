@@ -905,6 +905,8 @@ cdef extern from "pjsip.h":
     int pjsip_dlg_send_response(pjsip_dialog *dlg, pjsip_transaction *tsx, pjsip_tx_data *tdata) nogil
     void pjsip_dlg_inc_lock(pjsip_dialog *dlg) nogil
     void pjsip_dlg_dec_lock(pjsip_dialog *dlg) nogil
+    int pjsip_dlg_inc_session(pjsip_dialog *dlg, pjsip_module *mod) nogil
+    int pjsip_dlg_dec_session(pjsip_dialog *dlg, pjsip_module *mod) nogil
 
 cdef extern from "pjsip-simple/evsub_msg.h":
     struct pjsip_event_hdr:
