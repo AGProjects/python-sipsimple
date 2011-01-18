@@ -381,7 +381,7 @@ cdef class IncomingSubscription:
             if self.state != "incoming":
                 raise SIPCoreInvalidStateError('Can only reject an incoming SUBSCRIBE in the "incoming" state, '+
                                         'object is currently in the "%s" state' % self.state)
-            if code < 300 or code >= 700:
+            if not (300 <= code < 700):
                 raise ValueError("Invalid negative SIP response code: %d" % code)
             self._send_initial_response(code)
             pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
