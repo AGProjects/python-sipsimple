@@ -599,6 +599,45 @@ cdef class IncomingSubscription:
         # PJSIP holds the dialog lock when this callback is entered
         self._terminate(ua, "timeout", 1)
 
+    cdef int _cb_tsx(self, PJSIPUA ua, pjsip_event *event) except -1:
+        # PJSIP holds the dialog lock when this callback is entered
+        cdef pjsip_rx_data *rdata
+        cdef dict event_dict
+
+        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY" and
+            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED):
+            event_dict = dict(obj=self)
+            rdata = event.body.tsx_state.src.rdata
+            if rdata != NULL:
+                if self.peer_address is None:
+                    self.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
+                else:
+                    self.peer_address.ip = rdata.pkt_info.src_name
+                    self.peer_address.port = rdata.pkt_info.src_port
+            if (event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and
+                event.body.tsx_state.tsx.status_code / 100 == 2):
+                _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+                _add_event("SIPIncomingSubscriptionNotifyDidSucceed", event_dict)
+            else:
+                if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
+                    _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+                else:
+                    event_dict["code"] = event.body.tsx_state.tsx.status_code
+                    event_dict["reason"] = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
+                _add_event("SIPIncomingSubscriptionNotifyDidFail", event_dict)
+        elif (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAS and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
+            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED and
+            event.body.tsx_state.type == PJSIP_EVENT_TX_MSG):
+            event_dict = dict(obj=self)
+            _pjsip_msg_to_dict(event.body.tsx_state.src.tdata.msg, event_dict)
+            _add_event("SIPIncomingSubscriptionAnsweredSubscribe", event_dict)
+            if self.state == "terminated" and self._obj != NULL:
+                pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
+                self._obj = NULL
 
 # callback functions
 
@@ -766,8 +805,6 @@ cdef void _IncomingSubscription_cb_server_timeout(pjsip_evsub *sub) with gil:
 cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil:
     cdef void *subscription_void
     cdef IncomingSubscription subscription
-    cdef pjsip_rx_data *rdata
-    cdef dict event_dict
     cdef PJSIPUA ua
     try:
         ua = _get_ua()
@@ -778,41 +815,7 @@ cdef void _IncomingSubscription_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx,
         if subscription_void == NULL:
             return
         subscription = <object> subscription_void
-        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
-            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
-            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY" and
-            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED):
-            event_dict = dict(obj=subscription)
-            rdata = event.body.tsx_state.src.rdata
-            if rdata != NULL:
-                if subscription.peer_address is None:
-                    subscription.peer_address = EndpointAddress(rdata.pkt_info.src_name, rdata.pkt_info.src_port)
-                else:
-                    subscription.peer_address.ip = rdata.pkt_info.src_name
-                    subscription.peer_address.port = rdata.pkt_info.src_port
-            if (event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and
-                event.body.tsx_state.tsx.status_code / 100 == 2):
-                _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
-                _add_event("SIPIncomingSubscriptionNotifyDidSucceed", event_dict)
-            else:
-                if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
-                    _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
-                else:
-                    event_dict["code"] = event.body.tsx_state.tsx.status_code
-                    event_dict["reason"] = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
-                _add_event("SIPIncomingSubscriptionNotifyDidFail", event_dict)
-        elif (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
-            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAS and
-            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
-            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED and
-            event.body.tsx_state.type == PJSIP_EVENT_TX_MSG):
-            event_dict = dict(obj=subscription)
-            _pjsip_msg_to_dict(event.body.tsx_state.src.tdata.msg, event_dict)
-            _add_event("SIPIncomingSubscriptionAnsweredSubscribe", event_dict)
-            if subscription.state == "terminated" and subscription._obj != NULL:
-                pjsip_evsub_set_mod_data(subscription._obj, ua._event_module.id, NULL)
-                subscription._obj = NULL
-                subscription._dlg = NULL
+        subscription._cb_tsx(ua, event)
     except:
         ua._handle_exception(1)
 

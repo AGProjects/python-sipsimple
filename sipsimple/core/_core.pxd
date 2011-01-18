@@ -1621,6 +1621,7 @@ cdef class IncomingSubscription(object):
     cdef int _terminate(self, PJSIPUA ua, str reason, int do_cleanup) except -1
     cdef int _cb_rx_refresh(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
     cdef int _cb_server_timeout(self, PJSIPUA ua) except -1
+    cdef int _cb_tsx(self, PJSIPUA ua, pjsip_event *event) except -1
 
 cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
 cdef void _Subscription_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
