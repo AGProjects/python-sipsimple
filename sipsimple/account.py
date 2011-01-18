@@ -318,7 +318,7 @@ class AccountRegistrar(object):
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
-class AccountMWISubscriptionHandler(object):
+class AccountMWISubscriber(object):
     implements(IObserver)
 
     def __init__(self, account):
@@ -1075,7 +1075,7 @@ class Account(SettingsObject):
         self.contact = ContactURIFactory()
         self._active = False
         self._registrar = AccountRegistrar(self)
-        self._mwi_handler = AccountMWISubscriptionHandler(self)
+        self._mwi_subscriber = AccountMWISubscriber(self)
         self._started = False
 
         manager = AccountManager()
@@ -1095,7 +1095,7 @@ class Account(SettingsObject):
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
         self._registrar.start()
-        self._mwi_handler.start()
+        self._mwi_subscriber.start()
         if self.enabled:
             self._activate()
 
@@ -1105,8 +1105,8 @@ class Account(SettingsObject):
         self._started = False
 
         self._deactivate()
-        self._mwi_handler.stop()
-        self._mwi_handler = None
+        self._mwi_subscriber.stop()
+        self._mwi_subscriber = None
         self._registrar.stop()
         self._registrar = None
 
@@ -1136,7 +1136,7 @@ class Account(SettingsObject):
 
     @property
     def mwi_active(self):
-        return self._mwi_handler.subscribed if self._mwi_handler else False
+        return self._mwi_subscriber.subscribed if self._mwi_subscriber else False
 
     @property
     def tls_credentials(self):
@@ -1165,7 +1165,7 @@ class Account(SettingsObject):
 
     @property
     def voicemail_uri(self):
-        return self._mwi_handler and self._mwi_handler.server_advertised_uri or self.message_summary.voicemail_uri
+        return self._mwi_subscriber and self._mwi_subscriber.server_advertised_uri or self.message_summary.voicemail_uri
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -1192,11 +1192,11 @@ class Account(SettingsObject):
                     self._registrar.reload_settings()
                 if 'message_summary.enabled' in notification.data.modified:
                     if self.message_summary.enabled:
-                        self._mwi_handler.activate()
+                        self._mwi_subscriber.activate()
                     else:
-                        self._mwi_handler.deactivate()
+                        self._mwi_subscriber.deactivate()
                 elif self.message_summary.enabled and set(voicemail_attributes).intersection(notification.data.modified):
-                    self._mwi_handler.activate()
+                    self._mwi_subscriber.activate()
 
     @run_in_green_thread
     def _NH_CFGSettingsObjectDidChangeID(self, notification):
@@ -1204,7 +1204,7 @@ class Account(SettingsObject):
             if self.sip.register:
                 self._registrar.reload_settings()
             if self.message_summary.enabled:
-                self._mwi_handler.activate()
+                self._mwi_subscriber.activate()
 
     def _activate(self):
         if self._active:
@@ -1215,7 +1215,7 @@ class Account(SettingsObject):
         if self.sip.register:
             self._registrar.activate()
         if self.message_summary.enabled:
-            self._mwi_handler.activate()
+            self._mwi_subscriber.activate()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
@@ -1224,7 +1224,7 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountWillDeactivate', sender=self, data=TimestampedNotificationData())
         self._active = False
-        self._mwi_handler.deactivate()
+        self._mwi_subscriber.deactivate()
         self._registrar.deactivate()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
