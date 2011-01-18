@@ -57,6 +57,7 @@ class SIPApplication(object):
 
     _channel = ApplicationAttribute(value=coros.queue())
     _nat_detect_channel = ApplicationAttribute(value=coros.queue())
+    _wakeup_timer = ApplicationAttribute(value=None)
     _lock = ApplicationAttribute(value=RLock())
 
     engine = Engine()
@@ -204,7 +205,9 @@ class SIPApplication(object):
 
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange')
         notification_center.add_observer(self, name='SIPEngineDetectedNATType')
+        notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
 
         self.state = 'started'
         notification_center.post_notification('SIPApplicationDidStart', sender=self, data=TimestampedNotificationData())
@@ -227,6 +230,11 @@ class SIPApplication(object):
 
     @run_in_green_thread
     def _shutdown_subsystems(self):
+        # cleanup internals
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
+
         # shutdown middleware components
         dns_manager = DNSManager()
         account_manager = AccountManager()
@@ -501,8 +509,21 @@ class SIPApplication(object):
                 self.local_nat_type = 'unknown'
                 reactor.callLater(60, self._nat_detect_channel.send, Command('detect_nat'))
 
+    def _NH_DNSNameserversDidChange(self, notification):
+        if self.running:
+            self._nat_detect_channel.send(Command('detect_nat'))
+
     def _NH_SystemIPAddressDidChange(self, notification):
-        self._nat_detect_channel.send(Command('detect_nat'))
+        if self.running:
+            self._nat_detect_channel.send(Command('detect_nat'))
+
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
+        if self.running and self._wakeup_timer is None:
+            def wakeup_action():
+                if self.running:
+                    self._nat_detect_channel.send(Command('detect_nat'))
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
     def _NH_SIPEngineDetectedNATType(self, notification):
         self._nat_detect_channel.send(Command('process_nat_detection', data=notification.data))
