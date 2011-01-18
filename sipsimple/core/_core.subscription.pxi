@@ -386,7 +386,7 @@ cdef class IncomingSubscription:
             self._send_initial_response(code)
             pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
             with nogil:
-                pjsip_evsub_terminate(self._obj, 1)
+                pjsip_evsub_terminate(self._obj, 0)
             self._obj = NULL
             self._set_state("terminated")
             _add_event("SIPIncomingSubscriptionDidEnd", dict(obj=self))
