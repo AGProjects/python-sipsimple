@@ -81,7 +81,7 @@ def check_state(required_states):
     return state_checker
 
 
-class ConferenceSubscriptionHandler(object):
+class ConferenceHandler(object):
     implements(IObserver)
 
     def __init__(self, session):
@@ -338,8 +338,8 @@ class Session(object):
         self.local_focus = False
         self.remote_focus = False
         self.greenlet = None
+        self.conference = None
         self._channel = queue()
-        self._conference_subscription_handler = None
         self._hold_in_progress = False
         self._invitation = None
         self._local_identity = None
@@ -369,7 +369,7 @@ class Session(object):
             self.state = 'incoming'
             self.transport = invitation.transport
             self._invitation = invitation
-            self._conference_subscription_handler = ConferenceSubscriptionHandler(self)
+            self.conference = ConferenceHandler(self)
             notification_center.add_observer(self, sender=invitation)
             notification_center.post_notification('SIPSessionNewIncoming', self, TimestampedNotificationData(streams=self.proposed_streams))
         else:
@@ -395,7 +395,7 @@ class Session(object):
         self._invitation = Invitation()
         self._local_identity = FromHeader(self.account.uri, self.account.display_name)
         self._remote_identity = to_header
-        self._conference_subscription_handler = ConferenceSubscriptionHandler(self)
+        self.conference = ConferenceHandler(self)
         notification_center.add_observer(self, sender=self._invitation)
         notification_center.post_notification('SIPSessionNewOutgoing', self, TimestampedNotificationData(streams=streams))
         for stream in self.proposed_streams:
