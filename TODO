@@ -20,3 +20,4 @@
 - Use an ordered dict for keeping accounts in the AccountManager ?!?
   see http://code.activestate.com/recipes/576693/
 
+- Implement Timeout for hold requests
