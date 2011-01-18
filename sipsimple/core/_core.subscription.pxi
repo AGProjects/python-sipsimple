@@ -632,6 +632,18 @@ cdef class IncomingSubscription:
                     # PJSIP will terminate the subscription and the dialog will be destroyed
                     self._terminate(ua, None, 1)
         elif (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY" and
+            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_TERMINATED):
+            event_dict = dict(obj=self)
+            status_code = event.body.tsx_state.tsx.status_code
+            if status_code == 408:
+                # Local timeout, PJSIP will terminate the subscription and the dialog will be destroyed
+                event_dict["code"] = status_code
+                event_dict["reason"] = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
+                _add_event("SIPIncomingSubscriptionNotifyDidFail", event_dict)
+                self._terminate(ua, None, 1)
+        elif (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
             event.body.tsx_state.tsx.role == PJSIP_ROLE_UAS and
             _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
             event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED and
