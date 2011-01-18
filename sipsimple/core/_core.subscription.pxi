@@ -603,6 +603,7 @@ cdef class IncomingSubscription:
         # PJSIP holds the dialog lock when this callback is entered
         cdef pjsip_rx_data *rdata
         cdef dict event_dict
+        cdef int status_code
 
         if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
             event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
@@ -616,17 +617,20 @@ cdef class IncomingSubscription:
                 else:
                     self.peer_address.ip = rdata.pkt_info.src_name
                     self.peer_address.port = rdata.pkt_info.src_port
-            if (event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and
-                event.body.tsx_state.tsx.status_code / 100 == 2):
+            status_code = event.body.tsx_state.tsx.status_code
+            if event.body.tsx_state.type==PJSIP_EVENT_RX_MSG and status_code/100==2:
                 _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
                 _add_event("SIPIncomingSubscriptionNotifyDidSucceed", event_dict)
             else:
                 if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG:
                     _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
                 else:
-                    event_dict["code"] = event.body.tsx_state.tsx.status_code
+                    event_dict["code"] = status_code
                     event_dict["reason"] = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
                 _add_event("SIPIncomingSubscriptionNotifyDidFail", event_dict)
+                if status_code in (408, 481) or status_code/100==7:
+                    # PJSIP will terminate the subscription and the dialog will be destroyed
+                    self._terminate(ua, None, 1)
         elif (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
             event.body.tsx_state.tsx.role == PJSIP_ROLE_UAS and
             _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE" and
