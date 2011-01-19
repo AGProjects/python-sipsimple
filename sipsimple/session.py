@@ -94,29 +94,12 @@ class ConferenceHandler(object):
         self._subscription = None
         self._subscription_timer = None
         self._wakeup_timer = None
-        self._start()
-
-    def _start(self):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.session)
         notification_center.add_observer(self, name='DNSNameserversDidChange')
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc = proc.spawn(self._run)
-
-    def _stop(self):
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=self.session)
-        notification_center.remove_observer(self, name='DNSNameserversDidChange')
-        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
-        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
-        self.active = False
-        self._command_proc.kill(InterruptCommand)
-        command = Command('unsubscribe')
-        self._command_channel.send(command)
-        command.wait()
-        self._command_proc.kill()
-        self.session = None
 
     def _run(self):
         while True:
@@ -126,6 +109,32 @@ class ConferenceHandler(object):
                 handler(command)
             except InterruptCommand:
                 pass
+
+    def _activate(self):
+        self.active = True
+        command = Command('subscribe')
+        self._command_channel.send(command)
+        return command
+
+    def _deactivate(self):
+        self.active = False
+        self._command_proc.kill(InterruptCommand)
+        command = Command('unsubscribe')
+        self._command_channel.send(command)
+        return command
+
+    def _resubscribe(self):
+        self._command_channel.send(Command('subscribe'))
+
+    def _terminate(self):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=self.session)
+        notification_center.remove_observer(self, name='DNSNameserversDidChange')
+        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
+        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+        self._deactivate().wait()
+        self._command_proc.kill()
+        self.session = None
 
     def _CH_subscribe(self, command):
         notification_center = NotificationCenter()
@@ -267,7 +276,7 @@ class ConferenceHandler(object):
         if self._subscription is None:
             self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
         else:
-            self._command_channel.send(Command('subscribe'))
+            self._resubscribe()
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
         if self._subscription is None:
@@ -283,38 +292,35 @@ class ConferenceHandler(object):
 
     def _NH_SIPSessionDidStart(self, notification):
         if self.session.remote_focus:
-            self._command_channel.send(Command('subscribe'))
-            self.active = True
+            self._activate()
 
     @run_in_green_thread
     def _NH_SIPSessionDidEnd(self, notification):
-        self._stop()
+        self._terminate()
 
     @run_in_green_thread
     def _NH_SIPSessionDidFail(self, notification):
-        self._stop()
+        self._terminate()
 
     def _NH_SIPSessionDidRenegotiateStreams(self, notification):
         if self.session.remote_focus and not self.active:
-            self._command_channel.send(Command('subscribe'))
-            self.active = True
+            self._activate()
         elif not self.session.remote_focus and self.active:
-            self._command_channel.send(Command('unsubscribe'))
-            self.active = False
+            self._deactivate()
 
     def _NH_DNSNameserversDidChange(self, notification):
         if self.active:
-            self._command_channel.send(Command('subscribe'))
+            self._resubscribe()
 
     def _NH_SystemIPAddressDidChange(self, notification):
         if self.active:
-            self._command_channel.send(Command('subscribe'))
+            self._resubscribe()
 
     def _NH_SystemDidWakeUpFromSleep(self, notification):
         if self._wakeup_timer is None:
             def wakeup_action():
                 if self.active:
-                    self._command_channel.send(Command('subscribe'))
+                    self._resubscribe()
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
