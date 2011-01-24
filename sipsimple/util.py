@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 
 from application.notification import NotificationData
 from application.python.util import Singleton
+from dateutil.tz import tzlocal
 
 
 # Descriptors and decorators
@@ -159,8 +160,8 @@ class Timestamp(datetime):
             secfrac = 0
         dt = datetime(int(dct['year']), month=int(dct['month']), day=int(dct['day']),
                       hour=int(dct['hour']), minute=int(dct['minute']), second=int(dct['second']),
-                      microsecond=secfrac)
-        return cls(dt - timedelta(seconds=secoffset) + timedelta(seconds=cls.utc_offset()*60))
+                      microsecond=secfrac, tzinfo=tzlocal())
+        return cls(dt)
 
     @classmethod
     def format(cls, dt):
@@ -186,7 +187,7 @@ class Timestamp(datetime):
         elif isinstance(value, datetime):
             return cls(value.year, month=value.month, day=value.day,
                        hour=value.hour, minute=value.minute, second=value.second,
-                       microsecond=value.microsecond)
+                       microsecond=value.microsecond, tzinfo=value.tzinfo)
         elif isinstance(value, basestring):
             return cls.parse(value)
         else:
