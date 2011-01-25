@@ -21,8 +21,11 @@ class Command(object):
         self.timestamp = timestamp or datetime.utcnow()
         self.__dict__.update(kwargs)
 
-    def signal(self):
-        self.event.send()
+    def signal(self, result=None):
+        if isinstance(result, BaseException):
+            self.event.send_exception(result)
+        else:
+            self.event.send(result)
 
     def wait(self):
         return self.event.wait()
