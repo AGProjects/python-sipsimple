@@ -1,3 +1,45 @@
+python-sipsimple (0.17.0) unstable; urgency=low
+
+  * Added blocking API to WavePlayer
+  * Added peer_address attribute to all request objects
+  * Do not enforce transport on request URI from route
+  * Fixed crash on IncomingRequest deallocation
+  * Simplified and made account contact management consistent
+  * Fixed conference payload to accept multiple Media elements
+  * Build PJSIP with debugging symbols, if specified
+  * Fixed parsing conference-info payload
+  * Removed handling of impossible invitation state transition
+  * Wait for things to stabilize for bonjour after returning from sleep
+  * Don't send SIPSessionDidFail in end if state is None
+  * Only handle records in the local. domain for bonjour
+  * Added ability to compute a FileSelector's file hash later
+  * Added AudioStreamDidTimeout notification
+  * Make request_uri the first argument for Request object
+  * Added remote_contact_header attribute to Invitation
+  * Added generation of -dbg debian package
+  * Fixed exception when an empty SEND is received in the MSRP stream
+  * Added request_uri attribute to Invitation and Subscription
+  * Added conference event support to Session
+  * Added recipients to ChatStreamGotComposingIndication notification
+  * Added remote_media attribute to MSRP streams
+  * Fixed private chat message detection
+  * Send 500 response if we fail to create incoming invitation
+  * Added lock to IncomingSubscription and released GIL where appropriate
+  * Terminate incoming subscription if NOTIFY got 408, 481 or 7xx
+  * Handle local timeout for outgoing NOTIFY requests in IncomingSubscription
+  * Interrupt commands instead of killing and restarting greenlets
+  * Only refresh subscription on events if we already have one
+  * Properly schedule events after system is stable when waking up from sleep
+  * Added missing notification handlers in XCAPManager for system events
+  * Properly perform NAT detection considering all system event triggers
+  * Allow Command to send specific results and also propagate exceptions
+  * Fixed UTC offset in Timestamp class
+  * If the received chat doesn't have a timestamp, build it offset-aware
+  * Added python-dateutil dependency
+  * Added build time dependency on cython-dbg
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 26 Jan 2011 17:35:50 +0100
+
 python-sipsimple (0.16.5) unstable; urgency=low
 
   * Fixed matching of media codecs on incoming calls
