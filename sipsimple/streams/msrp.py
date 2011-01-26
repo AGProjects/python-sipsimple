@@ -22,6 +22,7 @@ from datetime import datetime
 
 from application.notification import NotificationCenter, NotificationData, IObserver
 from application.system import host
+from dateutil.tz import tzlocal
 from functools import partial
 from itertools import chain
 from twisted.internet.error import ConnectionDone
@@ -367,11 +368,11 @@ class ChatStream(MSRPStreamBase):
                 return
             else:
                 if message.timestamp is None:
-                    message.timestamp = datetime.now()
+                    message.timestamp = datetime.now(tzlocal())
                 if message.sender is None:
                     message.sender = self.remote_identity
         else:
-            message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, datetime.now())
+            message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, datetime.now(tzlocal()))
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report/responsd with negative code if it's invalid
         notification_center = NotificationCenter()
