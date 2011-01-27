@@ -694,7 +694,7 @@ class XCAPSubscriber(object):
                             else:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout)
                         elif e.code in (405, 406, 489):
-                            timeout = 3600
+                            timeout = random.uniform(60, 120)
                             raise SubscriptionError(error='Subscription error', timeout=timeout)
                         else:
                             # Otherwise just try the next route
