@@ -629,6 +629,8 @@ class FileTransferStream(MSRPStreamBase):
         notification_center = NotificationCenter()
         if self.direction=='sendonly':
             return # should we just ignore this? -Dan
+        if not chunk.data:
+            return
         if chunk.content_type.lower() == 'message/cpim':
             # In order to properly support the CPIM wrapper, msrplib needs to be refactored. -Luci
             e = MSRPStreamError("CPIM wrapper is not supported")
