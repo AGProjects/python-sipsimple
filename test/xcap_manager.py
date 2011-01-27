@@ -27,71 +27,65 @@ from application.python.util import Null, Singleton
 from threading import Event
 from zope.interface import implements
 
-from sipsimple.account import Account
+from sipsimple.account import Account, AccountManager, XCAPSettings
 from sipsimple.application import SIPApplication
 from sipsimple.configuration import Setting, SettingsObjectExtension
 from sipsimple.configuration.backend.file import FileBackend
-from sipsimple.configuration.datatypes import Path
-from sipsimple.configuration.settings import XCAPSettings, SIPSimpleSettings
-from sipsimple.xcap import All, CatchAllCondition, Class, Contact, DeviceID, DialoginfoPolicy, DomainCondition, DomainException, OccurenceID, OfflineStatus, PresencePolicy, ServiceURI, ServiceURIScheme, UserException
+from sipsimple.threading.green import run_in_green_thread
+from sipsimple.util import Timestamp
+from sipsimple.xcap import All, CatchAllCondition, Class, Contact, DeviceID, DialoginfoPolicy, DomainCondition, DomainException, OccurenceID, OfflineStatus, PresencePolicy, ServiceURI, ServiceURIScheme, UserException, XCAPManager
 
 
 class XCAPSettingsExtension(XCAPSettings):
-    cache_directory = Setting(type=Path, default=Path(os.path.abspath('xcap-cache')), nillable=False)
+    enabled = Setting(type=bool, default=True)
 
-class SIPSimpleSettingsExtension(SettingsObjectExtension):
+class AccountExtension(SettingsObjectExtension):
     xcap = XCAPSettingsExtension
 
 
 class XCAPApplication(object):
     __metaclass__ = Singleton
+
     implements(IObserver)
 
     def __init__(self):
-        SIPSimpleSettings.register_extension(SIPSimpleSettingsExtension)
         self.application = SIPApplication()
-        self.account = None
         self.xcap_manager = None
-
         self.quit_event = Event()
-
+        Account.register_extension(AccountExtension)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.application)
-        notification_center.add_observer(self, name='SIPAccountDidActivate')
-        notification_center.add_observer(self, name='XCAPManagerDidChangeState')
-        notification_center.add_observer(self, name='XCAPManagerWillStart')
-        notification_center.add_observer(self, name='XCAPManagerDidStart')
-        notification_center.add_observer(self, name='XCAPManagerDidDiscoverServerCapabilities')
-        notification_center.add_observer(self, name='XCAPManagerWillEnd')
-        notification_center.add_observer(self, name='XCAPManagerDidEnd')
-        notification_center.add_observer(self, name='XCAPManagerDidReloadData')
 
     def start(self):
         self.application.start(FileBackend(os.path.realpath('test-config')))
 
+    @run_in_green_thread
     def stop(self):
+        self.xcap_manager.stop()
         self.application.stop()
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
+    @run_in_green_thread
     def _NH_SIPApplicationDidStart(self, notification):
-        if not self.account.xcap.enabled:
+        account_manager = AccountManager()
+        self.xcap_manager = XCAPManager(account_manager.default_account)
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=self.xcap_manager)
+        self.xcap_manager.load(os.path.realpath('xcap-cache'))
+        self.xcap_manager.start()
+        if not account_manager.default_account.xcap.enabled:
             print 'XCAP support is not enabled'
 
     def _NH_SIPApplicationDidEnd(self, notification):
         self.quit_event.set()
 
-    def _NH_SIPAccountDidActivate(self, notification):
-        if isinstance(notification.sender, Account):
-            self.account = notification.sender
-
     def _NH_XCAPManagerDidChangeState(self, notification):
         print 'XCAP Manager state %s -> %s' % (notification.data.prev_state, notification.data.state)
 
     def _NH_XCAPManagerWillStart(self, notification):
-        self.xcap_manager = notification.sender
         print 'XCAP Manager will start'
 
     def _NH_XCAPManagerDidStart(self, notification):
