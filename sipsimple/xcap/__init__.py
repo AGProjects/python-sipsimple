@@ -36,7 +36,7 @@ from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
 from sipsimple.payloads import dialogrules, extensions, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
 from sipsimple.threading import run_in_twisted_thread
-from sipsimple.threading.green import Command, InterruptCommand
+from sipsimple.threading.green import Command
 from sipsimple.util import All, Any, TimestampedNotificationData, limit, makedirs
 from sipsimple.xcap.uri import XCAPURI
 
@@ -1054,12 +1054,9 @@ class XCAPManager(object):
 
     def _run(self):
         while True:
-            try:
-                command = self.command_channel.wait()
-                handler = getattr(self, '_CH_%s' % command.name)
-                handler(command)
-            except InterruptCommand:
-                pass
+            command = self.command_channel.wait()
+            handler = getattr(self, '_CH_%s' % command.name)
+            handler(command)
 
     # command handlers
     #
