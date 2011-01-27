@@ -54,6 +54,9 @@ class SIPSubscriptionDidFail(Exception):
     def __init__(self, data):
         self.__dict__.update(data)
 
+class InterruptSubscription(Exception): pass
+class TerminateSubscription(Exception): pass
+
 
 class Document(object):
     name            = None
@@ -550,6 +553,245 @@ class SetOfflineStatusOperation(Operation):
     params = ['status']
 
 
+class XCAPSubscriber(object):
+    implements(IObserver)
+
+    def __init__(self, account, documents):
+        self.account = account
+        self.documents = documents
+        self.active = False
+        self.subscribed = False
+        self._command_proc = None
+        self._command_channel = coros.queue()
+        self._data_channel = coros.queue()
+        self._subscription = None
+        self._subscription_proc = None
+        self._subscription_timer = None
+        self._wakeup_timer = None
+
+    def start(self):
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='DNSNameserversDidChange')
+        notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+        self._command_proc = proc.spawn(self._run)
+
+    def stop(self):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, name='DNSNameserversDidChange')
+        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
+        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+        self._command_proc.kill()
+        self._command_proc = None
+
+    def activate(self):
+        self.active = True
+        command = Command('subscribe')
+        self._command_channel.send(command)
+
+    def deactivate(self):
+        self.active = False
+        command = Command('unsubscribe')
+        self._command_channel.send(command)
+        command.wait()
+
+    def resubscribe(self):
+        command = Command('subscribe')
+        self._command_channel.send(command)
+
+    def _run(self):
+        while True:
+            command = self._command_channel.wait()
+            handler = getattr(self, '_CH_%s' % command.name)
+            handler(command)
+
+    def _CH_subscribe(self, command):
+        if self._subscription_timer is not None and self._subscription_timer.active():
+            self._subscription_timer.cancel()
+        self._subscription_timer = None
+        if self._subscription_proc is not None:
+            subscription_proc = self._subscription_proc
+            subscription_proc.kill(InterruptSubscription)
+            subscription_proc.wait()
+        self._subscription_proc = proc.spawn(self._subscription_handler, command)
+
+    def _CH_unsubscribe(self, command):
+        # Cancel any timer which would restart the subscription process
+        if self._subscription_timer is not None and self._subscription_timer.active():
+            self._subscription_timer.cancel()
+        self._subscription_timer = None
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
+        if self._subscription_proc is not None:
+            subscription_proc = self._subscription_proc
+            subscription_proc.kill(TerminateSubscription)
+            subscription_proc.wait()
+            self._subscription_proc = None
+        command.signal()
+
+    def _subscription_handler(self, command):
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+
+        refresh_interval =  getattr(command, 'refresh_interval', None) or self.account.sip.subscribe_interval
+
+        try:
+            if self.account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=self.account.sip.outbound_proxy.host,
+                             port=self.account.sip.outbound_proxy.port,
+                             parameters={'transport': self.account.sip.outbound_proxy.transport})
+            else:
+                uri = SIPURI(host=self.account.id.domain)
+            lookup = DNSLookup()
+            try:
+                routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+            except DNSLookupError, e:
+                timeout = random.uniform(15, 30)
+                raise SubscriptionError(error='DNS lookup failed: %s' % e, timeout=timeout)
+
+            rlist = resourcelists.List()
+            for document in (doc for doc in self.documents if doc.supported):
+                rlist.append(resourcelists.Entry(document.relative_uri))
+            body = resourcelists.ResourceLists([rlist]).toxml()
+            content_type = resourcelists.ResourceLists.content_type
+            timeout = time() + 30
+            for route in routes:
+                remaining_time = timeout - time()
+                if remaining_time > 0:
+                    subscription = Subscription(self.account.uri, FromHeader(self.account.uri, self.account.display_name),
+                                                ToHeader(self.account.uri, self.account.display_name),
+                                                ContactHeader(self.account.contact[route]),
+                                                'xcap-diff',
+                                                RouteHeader(route.get_uri()),
+                                                credentials=self.account.credentials,
+                                                refresh=refresh_interval)
+                    notification_center.add_observer(self, sender=subscription)
+                    try:
+                        subscription.subscribe(body=body, content_type=content_type, timeout=limit(remaining_time, min=1, max=5))
+                    except (PJSIPError, SIPCoreError):
+                        notification_center.remove_observer(self, sender=subscription)
+                        timeout = 5
+                        raise SubscriptionError(error='Internal error', timeout=timeout)
+                    self._subscription = subscription
+                    try:
+                        while True:
+                            notification = self._data_channel.wait()
+                            if notification.sender is subscription and notification.name == 'SIPSubscriptionDidStart':
+                                break
+                    except SIPSubscriptionDidFail, e:
+                        notification_center.remove_observer(self, sender=subscription)
+                        self._subscription = None
+                        if e.code == 407:
+                            # Authentication failed, so retry the subscription in some time
+                            timeout = random.uniform(60, 120)
+                            raise SubscriptionError(error='authentication failed', timeout=timeout)
+                        elif e.code == 423:
+                            # Get the value of the Min-Expires header
+                            timeout = random.uniform(60, 120)
+                            if e.min_expires is not None and e.min_expires > refresh_interval:
+                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
+                            else:
+                                raise SubscriptionError(error='Interval too short', timeout=timeout)
+                        elif e.code in (405, 406, 489):
+                            timeout = 3600
+                            raise SubscriptionError(error='Subscription error', timeout=timeout)
+                        else:
+                            # Otherwise just try the next route
+                            continue
+                    else:
+                        self.subscribed = True
+                        command.signal()
+                        break
+            else:
+                # No more routes to try, reschedule the subscription
+                timeout = random.uniform(60, 180)
+                raise SubscriptionError(error='no more routes to try', timeout=timeout)
+            # At this point it is subscribed. Handle notifications and ending/failures.
+            notification_center.post_notification('XCAPSubscriptionDidStart', sender=self, data=TimestampedNotificationData())
+            try:
+                while True:
+                    notification = self._data_channel.wait()
+                    if notification.sender is not self._subscription:
+                        continue
+                    if notification.name == 'SIPSubscriptionGotNotify':
+                        notification_center.post_notification('XCAPSubscriptionGotNotify', sender=self, data=notification.data)
+                    elif notification.name == 'SIPSubscriptionDidEnd':
+                        break
+            except SIPSubscriptionDidFail, e:
+                notification_center.post_notification('XCAPSubscriptionDidFail', sender=self, data=TimestampedNotificationData())
+                self._command_channel.send(Command('subscribe'))
+            notification_center.remove_observer(self, sender=self._subscription)
+        except InterruptSubscription, e:
+            if not self.subscribed:
+                command.signal(e)
+            if self._subscription is not None:
+                notification_center.remove_observer(self, sender=self._subscription)
+                try:
+                    self._subscription.end(timeout=2)
+                except SIPCoreError:
+                    pass
+        except TerminateSubscription, e:
+            if not self.subscribed:
+                command.signal(e)
+            if self._subscription is not None:
+                try:
+                    self._subscription.end(timeout=2)
+                except SIPCoreError:
+                    pass
+                else:
+                    try:
+                        while True:
+                            notification = self._data_channel.wait()
+                            if notification.sender is self._subscription and notification.name == 'SIPSubscriptionDidEnd':
+                                break
+                    except SIPSubscriptionDidFail:
+                        pass
+                finally:
+                    notification_center.remove_observer(self, sender=self._subscription)
+        except SubscriptionError, e:
+            notification_center.post_notification('XCAPSubscriptionDidFail', sender=self, data=TimestampedNotificationData())
+            self._subscription_timer = self._schedule_command(e.timeout, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
+        finally:
+            self.subscribed = False
+            self._subscription = None
+            self._subscription_proc = None
+
+    @run_in_twisted_thread
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_SIPSubscriptionDidStart(self, notification):
+        self._data_channel.send(notification)
+
+    def _NH_SIPSubscriptionDidEnd(self, notification):
+        self._data_channel.send(notification)
+
+    def _NH_SIPSubscriptionDidFail(self, notification):
+        self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
+
+    def _NH_SIPSubscriptionGotNotify(self, notification):
+        self._data_channel.send(notification)
+
+    def _NH_DNSNameserversDidChange(self, notification):
+        if self.active:
+            self.resubscribe()
+
+    def _NH_SystemIPAddressDidChange(self, notification):
+        if self.active:
+            self.resubscribe()
+
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
+        if self._wakeup_timer is None:
+            from twisted.internet import reactor
+            def wakeup_action():
+                if self.active:
+                    self.resubscribe()
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
+
+
 class XCAPManager(object):
     __metaclass__ = Singleton
 
@@ -561,18 +803,14 @@ class XCAPManager(object):
         self.client = None
         self.command_proc = None
         self.command_channel = coros.queue()
-        self.data_channel = coros.queue()
         self.journal = []
         self.last_fetch_time = datetime.fromtimestamp(0)
         self.not_executed_fetch = None
         self.oma_compliant = False
         self.state = 'stopped'
-        self.subscribe_interval = 0
-        self.subscription = None
-        self.subscription_timer = None
         self.timer = None
         self.transaction_level = 0
-        self.wakeup_timer = None
+        self.xcap_subscriber = None
 
         self.server_caps = XCAPCapsDocument()
         self.dialog_rules = DialogRulesDocument()
@@ -670,13 +908,13 @@ class XCAPManager(object):
         """
         if self.state not in ('stopping', 'stopped'):
             return
+        self.xcap_subscriber = XCAPSubscriber(self.account, self.documents)
         notification_center = NotificationCenter()
         notification_center.post_notification('XCAPManagerWillStart', sender=self, data=TimestampedNotificationData())
         notification_center.add_observer(self, sender=self.account)
+        notification_center.add_observer(self, sender=self.xcap_subscriber)
         notification_center.add_observer(self, sender=SIPSimpleSettings())
-        notification_center.add_observer(self, name='DNSNameserversDidChange')
-        notification_center.add_observer(self, name='SystemIPAddressDidChange')
-        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+        self.xcap_subscriber.start()
         self.command_channel.send(Command('initialize'))
         notification_center.post_notification('XCAPManagerDidStart', sender=self, data=TimestampedNotificationData())
 
@@ -691,29 +929,20 @@ class XCAPManager(object):
         notification_center.post_notification('XCAPManagerWillEnd', sender=self, data=TimestampedNotificationData())
         self.state = 'stopping'
         notification_center.remove_observer(self, sender=self.account)
+        notification_center.remove_observer(self, sender=self.xcap_subscriber)
         notification_center.remove_observer(self, sender=SIPSimpleSettings())
-        notification_center.remove_observer(self, name='DNSNameserversDidChange')
-        notification_center.remove_observer(self, name='SystemIPAddressDidChange')
-        notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         if self.timer is not None and self.timer.active():
             self.timer.cancel()
         self.timer = None
-        if self.subscription_timer is not None and self.subscription_timer.active():
-            self.subscription_timer.cancel()
-        self.subscription_timer = None
-        if self.wakeup_timer is not None and self.wakeup_timer.active():
-            self.wakeup_timer.cancel()
-        self.wakeup_timer = None
-        self.command_proc.kill(InterruptCommand)
-        command = Command('unsubscribe')
-        self.command_channel.send(command)
-        command.wait()
+        xcap_subscriber = self.xcap_subscriber
+        xcap_subscriber.deactivate()
+        xcap_subscriber.stop()
         if self.state == 'stopping':
             self.client = None
+            self.xcap_subscriber = None
             self.state = 'stopped'
             self._save_journal()
             notification_center.post_notification('XCAPManagerDidEnd', sender=self, data=TimestampedNotificationData())
-        self.command_channel.send_exception(api.GreenletExit)
 
     @run_in_twisted_thread
     def start_transaction(self):
@@ -875,35 +1104,30 @@ class XCAPManager(object):
 
         notification_center = NotificationCenter()
         notification_center.post_notification('XCAPManagerDidDiscoverServerCapabilities', sender=self,
-                                              data=TimestampedNotificationData(contactlist_supported            = self.contactlist_supported,
-                                                                               presence_policies_supported      = self.presence_policies_supported,
-                                                                               dialoginfo_policies_supported    = self.dialoginfo_policies_supported,
-                                                                               status_icon_supported            = self.status_icon_supported,
-                                                                               offline_status_supported         = self.offline_status_supported))
+                                              data=TimestampedNotificationData(contactlist_supported         = self.contactlist_supported,
+                                                                               presence_policies_supported   = self.presence_policies_supported,
+                                                                               dialoginfo_policies_supported = self.dialoginfo_policies_supported,
+                                                                               status_icon_supported         = self.status_icon_supported,
+                                                                               offline_status_supported      = self.offline_status_supported))
 
-        self.subscribe_interval = limit(self.account.sip.subscribe_interval, min=60)
         self.state = 'fetching'
         self.command_channel.send(Command('fetch', documents=self.document_names))
-        self.command_channel.send(Command('subscribe', command.event))
+        self.xcap_subscriber.activate()
 
     def _CH_reload(self, command):
         if self.state in ('stopping', 'stopped'):
+            command.signal()
             return
         if set(['id', 'xcap.xcap_root']).intersection(command.modified):
             for document in self.documents:
                 document.cache_directory = os.path.join(self.cache_directory, self.account.id)
                 document.reset()
-        if 'sip.subscribe_interval' in command.modified:
-            self.subscribe_interval = limit(self.account.sip.subscribe_interval, min=60)
-        if set(['id', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
+        if set(['id', 'auth.username', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
             self.state = 'initializing'
             self.command_channel.send(Command('initialize', command.event))
-        elif self.subscription is None:
-            self.command_channel.send(Command('subscribe', command.event))
-        elif set(['sip.subscribe_interval', 'sip.transport_list']).intersection(command.modified):
-            self.command_channel.send(Command('subscribe', command.event))
-        else:
-            command.signal()
+        elif self.xcap_subscriber.active:
+            self.xcap_subscriber.resubscribe()
+        command.signal()
 
     def _CH_fetch(self, command):
         if self.state not in ('insync', 'fetching'):
@@ -979,114 +1203,6 @@ class XCAPManager(object):
                 self.command_channel.send(self.not_executed_fetch)
                 self.not_executed_fetch = None
         self._save_journal()
-
-    def _CH_subscribe(self, command):
-        if self.state in ('stopping', 'stopped'):
-            return
-        notification_center = NotificationCenter()
-        settings = SIPSimpleSettings()
-
-        if getattr(command, 'refresh_interval', None) is not None:
-            refresh_interval = command.refresh_interval
-        else:
-            refresh_interval = self.subscribe_interval
-
-        if self.subscription_timer is not None and self.subscription_timer.active():
-            self.subscription_timer.cancel()
-        self.subscription_timer = None
-        if self.subscription is not None:
-            notification_center.remove_observer(self, sender=self.subscription)
-            self.subscription.end(timeout=2)
-            self.subscription = None
-        try:
-            if self.account.sip.outbound_proxy is not None:
-                uri = SIPURI(host=self.account.sip.outbound_proxy.host,
-                             port=self.account.sip.outbound_proxy.port,
-                             parameters={'transport': self.account.sip.outbound_proxy.transport})
-            else:
-                uri = SIPURI(host=self.account.id.domain)
-            lookup = DNSLookup()
-            try:
-                routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
-            except DNSLookupError, e:
-                timeout = random.uniform(15, 30)
-                raise SubscriptionError(error='DNS lookup failed: %s' % e, timeout=timeout)
-
-            rlist = resourcelists.List()
-            for document in (doc for doc in self.documents if doc.supported):
-                rlist.append(resourcelists.Entry(document.relative_uri))
-            body = resourcelists.ResourceLists([rlist]).toxml()
-            content_type = resourcelists.ResourceLists.content_type
-            timeout = time() + 30
-            for route in routes:
-                remaining_time = timeout - time()
-                if remaining_time > 0:
-                    subscription = Subscription(self.account.uri, FromHeader(self.account.uri, self.account.display_name),
-                                                ToHeader(self.account.uri, self.account.display_name),
-                                                ContactHeader(self.account.contact[route]),
-                                                'xcap-diff',
-                                                RouteHeader(route.get_uri()),
-                                                credentials=self.account.credentials,
-                                                refresh=refresh_interval)
-                    notification_center.add_observer(self, sender=subscription)
-                    try:
-                        subscription.subscribe(body=body, content_type=content_type, timeout=limit(remaining_time, min=1, max=5))
-                    except (PJSIPError, SIPCoreError):
-                        timeout = 5
-                        raise SubscriptionError(error='Internal error', timeout=timeout)
-                    try:
-                        while True:
-                            notification = self.data_channel.wait()
-                            if notification.sender is subscription and notification.name == 'SIPSubscriptionDidStart':
-                                break
-                    except SIPCoreError:
-                        continue
-                    except SIPSubscriptionDidFail, e:
-                        notification_center.remove_observer(self, sender=subscription)
-                        if e.code == 407:
-                            # Authentication failed, so retry the subscription in some time
-                            timeout = random.uniform(60, 120)
-                            raise SubscriptionError(error='authentication failed', timeout=timeout)
-                        elif e.code == 423:
-                            # Get the value of the Min-Expires header
-                            timeout = random.uniform(60, 120)
-                            if e.min_expires is not None and e.min_expires > refresh_interval:
-                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
-                            else:
-                                raise SubscriptionError(error='Interval too short', timeout=timeout)
-                        elif e.code in (405, 406, 489):
-                            timeout = random.uniform(60, 120)
-                            raise SubscriptionError(error='Subscription error', timeout=timeout)
-                        else:
-                            # Otherwise just try the next route
-                            continue
-                    else:
-                        self.subscription = subscription
-                        command.signal()
-                        break
-            else:
-                # No more routes to try, reschedule the subscription
-                timeout = random.uniform(60, 180)
-                raise SubscriptionError(error='no more routes to try', timeout=timeout)
-        except SubscriptionError, e:
-            # There was an error, so do a fetch instead
-            self.command_channel.send(Command('fetch', documents=self.document_names))
-            self.subscription_timer = self._schedule_command(e.timeout, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
-
-    def _CH_unsubscribe(self, command):
-        if self.subscription is not None:
-            subscription = self.subscription
-            self.subscription = None
-            subscription.end(timeout=2)
-            try:
-                while True:
-                    notification = self.data_channel.wait()
-                    if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
-                        break
-            except SIPSubscriptionDidFail:
-                pass
-            NotificationCenter().remove_observer(self, sender=subscription)
-        command.signal()
 
     # operation handlers
     #
@@ -2944,21 +3060,13 @@ class XCAPManager(object):
         if set(['xcap.xcap_root', 'id', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
             self.command_channel.send(Command('reload', modified=notification.data.modified))
 
-    def _NH_SIPSubscriptionDidStart(self, notification):
-        self.data_channel.send(notification)
+    def _NH_XCAPSubscriptionDidStart(self, notification):
+        self.command_channel.send(Command('fetch', documents=self.document_names))
 
-    def _NH_SIPSubscriptionDidEnd(self, notification):
-        self.data_channel.send(notification)
+    def _NH_XCAPSubscriptionDidFail(self, notification):
+        self.command_channel.send(Command('fetch', documents=self.document_names))
 
-    def _NH_SIPSubscriptionDidFail(self, notification):
-        if self.subscription is None:
-            self.data_channel.send_exception(SIPSubscriptionDidFail(notification.data.__dict__))
-        else:
-            # The server terminated the subscription without us asking, fetch in case we missed a NOTIFY
-            self.command_channel.send(Command('fetch', documents=self.document_names))
-            self.command_channel.send(Command('subscribe'))
-
-    def _NH_SIPSubscriptionGotNotify(self, notification):
+    def _NH_XCAPSubscriptionGotNotify(self, notification):
         if notification.data.content_type == xcapdiff.XCAPDiff.content_type:
             try:
                 xcap_diff = xcapdiff.XCAPDiff.parse(notification.data.body)
@@ -2968,23 +3076,6 @@ class XCAPManager(object):
                 applications = set(child.selector.auid for child in xcap_diff if isinstance(child, xcapdiff.Document))
                 documents = [document.name for document in self.documents if document.application in applications]
                 self.command_channel.send(Command('fetch', documents=documents))
-
-    def _NH_DNSNameserversDidChange(self, notification):
-        if self.active:
-            self.command_channel.send(Command('subscribe'))
-
-    def _NH_SystemIPAddressDidChange(self, notification):
-        if self.active:
-            self.command_channel.send(Command('subscribe'))
-
-    def _NH_SystemDidWakeUpFromSleep(self, notification):
-        if self._wakeup_timer is None:
-            from twisted.internet import reactor
-            def wakeup_action():
-                if self.active:
-                    self.command_channel.send(Command('subscribe'))
-                self._wakeup_timer = None
-            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
     def _load_data(self):
         if not self.resource_lists.supported:

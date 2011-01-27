@@ -88,6 +88,10 @@ class SIPSubscriptionDidFail(Exception):
     def __init__(self, data):
         self.__dict__.update(data.__dict__)
 
+class InterruptSubscription(Exception): pass
+
+class TerminateSubscription(Exception): pass
+
 class RestartSelect(Exception): pass
 
 class AccountExists(ValueError): pass
@@ -330,6 +334,7 @@ class AccountMWISubscriber(object):
         self._command_channel = coros.queue()
         self._data_channel = coros.queue()
         self._subscription = None
+        self._subscription_proc = None
         self._subscription_timer = None
         self._wakeup_timer = None
 
@@ -348,47 +353,56 @@ class AccountMWISubscriber(object):
         self._command_proc.kill()
 
     def activate(self):
+        self.active = True
         command = Command('subscribe')
         self._command_channel.send(command)
-        self.active = True
 
     def deactivate(self):
         self.active = False
         self.server_advertised_uri = None
-        self._command_proc.kill(InterruptCommand)
         command = Command('unsubscribe')
         self._command_channel.send(command)
         command.wait()
 
     def reactivate(self):
-        self._command_channel.send(Command('unsubscribe'))
         self._command_channel.send(Command('subscribe'))
 
     def _run(self):
         while True:
-            try:
-                command = self._command_channel.wait()
-                handler = getattr(self, '_CH_%s' % command.name)
-                handler(command)
-            except InterruptCommand:
-                pass
+            command = self._command_channel.wait()
+            handler = getattr(self, '_CH_%s' % command.name)
+            handler(command)
 
     def _CH_subscribe(self, command):
-        notification_center = NotificationCenter()
-        settings = SIPSimpleSettings()
-
-        if getattr(command, 'refresh_interval', None) is not None:
-            refresh_interval = command.refresh_interval
-        else:
-            refresh_interval = self.account.sip.subscribe_interval
-
         if self._subscription_timer is not None and self._subscription_timer.active():
             self._subscription_timer.cancel()
         self._subscription_timer = None
-        if self._subscription is not None:
-            notification_center.remove_observer(self, sender=self._subscription)
-            self._subscription.end(timeout=2)
-            self._subscription = None
+        if self._subscription_proc is not None:
+            subscription_proc = self._subscription_proc
+            subscription_proc.kill(InterruptSubscription)
+            subscription_proc.wait()
+        self._subscription_proc = proc.spawn(self._subscription_handler, command)
+
+    def _CH_unsubscribe(self, command):
+        # Cancel any timer which would restart the subscription process
+        if self._subscription_timer is not None and self._subscription_timer.active():
+            self._subscription_timer.cancel()
+        self._subscription_timer = None
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
+        if self._subscription_proc is not None:
+            subscription_proc = self._subscription_proc
+            subscription_proc.kill(TerminateSubscription)
+            subscription_proc.wait()
+            self._subscription_proc = None
+        command.signal()
+
+    def _subscription_handler(self, command):
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+
+        refresh_interval =  getattr(command, 'refresh_interval', None) or self.account.sip.subscribe_interval
 
         try:
             # Lookup routes
@@ -426,8 +440,10 @@ class AccountMWISubscriber(object):
                     try:
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
                     except (PJSIPError, SIPCoreError):
+                        notification_center.remove_observer(self, sender=subscription)
                         timeout = 5
                         raise SubscriptionError(error='Internal error', timeout=timeout)
+                    self._subscription = subscription
                     try:
                         while True:
                             notification = self._data_channel.wait()
@@ -435,6 +451,7 @@ class AccountMWISubscriber(object):
                                 break
                     except SIPSubscriptionDidFail, e:
                         notification_center.remove_observer(self, sender=subscription)
+                        self._subscription = None
                         if e.code == 407:
                             # Authentication failed, so retry the subscription in some time
                             timeout = random.uniform(60, 120)
@@ -445,32 +462,14 @@ class AccountMWISubscriber(object):
                             if e.min_expires is not None and e.min_expires > refresh_interval:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
                             else:
-                                timeout = 10800     # 3 hours
-                                raise SubscriptionError(error='Incorrect Min-Expires header value', timeout=timeout)
+                                raise SubscriptionError(error='Interval too short', timeout=timeout)
                         elif e.code in (405, 406, 489):
-                            timeout = 10800     # 3 hours
+                            timeout = 3600
                             raise SubscriptionError(error='Method or event not supported', timeout=timeout)
                         else:
                             # Otherwise just try the next route
                             continue
                     else:
-                        try:
-                            with api.timeout(5):
-                                while True:
-                                    notification = self._data_channel.wait()
-                                    if notification.sender is subscription and notification.name == 'SIPSubscriptionGotNotify':
-                                        if notification.data.event == 'message-summary' and notification.data.body:
-                                            try:
-                                                message_summary = MessageSummary.parse(notification.data.body)
-                                            except ValidationError:
-                                                pass
-                                            else:
-                                                self.server_advertised_uri = message_summary.message_account and message_summary.message_account.replace('sip:', '', 1) or None
-                                                notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
-                                        break
-                        except api.TimeoutError:
-                            pass
-                        self._subscription = subscription
                         self.subscribed = True
                         command.signal()
                         break
@@ -478,32 +477,59 @@ class AccountMWISubscriber(object):
                 # There are no more routes to try, reschedule the subscription
                 timeout = random.uniform(60, 180)
                 raise SubscriptionError(error='No more routes to try', timeout=timeout)
-        except SubscriptionError, e:
-            self.subscribed = False
-            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
-
-    def _CH_unsubscribe(self, command):
-        # Cancel any timer which would restart the subscription process
-        if self._subscription_timer is not None and self._subscription_timer.active():
-            self._subscription_timer.cancel()
-        self._subscription_timer = None
-        if self._wakeup_timer is not None and self._wakeup_timer.active():
-            self._wakeup_timer.cancel()
-        self._wakeup_timer = None
-        self.subscribed = False
-        if self._subscription is not None:
-            subscription = self._subscription
-            self._subscription = None
-            subscription.end(timeout=2)
+            # At this point it is subscribed. Handle notifications and ending/failures.
             try:
                 while True:
                     notification = self._data_channel.wait()
-                    if notification.sender is subscription and notification.name == 'SIPSubscriptionDidEnd':
+                    if notification.sender is not self._subscription:
+                        continue
+                    if notification.name == 'SIPSubscriptionGotNotify':
+                        if notification.data.event == 'message-summary' and notification.data.body:
+                            try:
+                                message_summary = MessageSummary.parse(notification.data.body)
+                            except ValidationError:
+                                pass
+                            else:
+                                self.server_advertised_uri = message_summary.message_account and message_summary.message_account.replace('sip:', '', 1) or None
+                                notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
+                    elif notification.name == 'SIPSubscriptionDidEnd':
                         break
-            except SIPSubscriptionDidFail:
-                pass
-            NotificationCenter().remove_observer(self, sender=subscription)
-        command.signal()
+            except SIPSubscriptionDidFail, e:
+                self._command_channel.send(Command('subscribe'))
+            notification_center.remove_observer(self, sender=self._subscription)
+        except InterruptSubscription, e:
+            if not self.subscribed:
+                command.signal(e)
+            if self._subscription is not None:
+                notification_center.remove_observer(self, sender=self._subscription)
+                try:
+                    self._subscription.end(timeout=2)
+                except SIPCoreError:
+                    pass
+        except TerminateSubscription, e:
+            if not self.subscribed:
+                command.signal(e)
+            if self._subscription is not None:
+                try:
+                    self._subscription.end(timeout=2)
+                except SIPCoreError:
+                    pass
+                else:
+                    try:
+                        while True:
+                            notification = self._data_channel.wait()
+                            if notification.sender is self._subscription and notification.name == 'SIPSubscriptionDidEnd':
+                                break
+                    except SIPSubscriptionDidFail:
+                        pass
+                finally:
+                    notification_center.remove_observer(self, sender=self._subscription)
+        except SubscriptionError, e:
+            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
+        finally:
+            self.subscribed = False
+            self._subscription = None
+            self._subscription_proc = None
 
     @run_in_twisted_thread
     def handle_notification(self, notification):
@@ -517,22 +543,10 @@ class AccountMWISubscriber(object):
         self._data_channel.send(notification)
 
     def _NH_SIPSubscriptionDidFail(self, notification):
-        if self._subscription is None:
-            self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
-        else:
-            self._command_channel.send(Command('subscribe'))
+        self._data_channel.send_exception(SIPSubscriptionDidFail(notification.data))
 
     def _NH_SIPSubscriptionGotNotify(self, notification):
-        if self._subscription is None:
-            self._data_channel.send(notification)
-        elif notification.data.event == 'message-summary' and notification.data.body:
-            try:
-                message_summary = MessageSummary.parse(notification.data.body)
-            except ValidationError:
-                pass
-            else:
-                self.server_advertised_uri = message_summary.message_account and message_summary.message_account.replace('sip:', '', 1) or None
-                NotificationCenter().post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
+        self._data_channel.send(notification)
 
     def _NH_DNSNameserversDidChange(self, notification):
         if self.active:
