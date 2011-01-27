@@ -12,7 +12,7 @@ import os
 import platform
 import re
 import socket
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from application.notification import NotificationData
 from application.python.util import Singleton
