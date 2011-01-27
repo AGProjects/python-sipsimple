@@ -21,7 +21,7 @@ from time import time
 from urllib2 import URLError
 
 from application.notification import IObserver, NotificationCenter
-from application.python.util import Null, Singleton
+from application.python.util import Null
 from application.system import unlink
 from eventlet import api, coros, proc
 from eventlet.green.httplib import BadStatusLine
