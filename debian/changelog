@@ -43,8 +43,9 @@ python-sipsimple (0.17.0) unstable; urgency=low
     forever
   * Terminate session conference subscription on SIPSessionWillEnd
   * Reduced subscription retry interval on fatal failures
+  * Fixed receiving empty SEND in file transfer stream
 
- -- Saul Ibarra <saul@ag-projects.com>  Thu, 27 Jan 2011 12:24:33 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 27 Jan 2011 13:56:55 +0100
 
 python-sipsimple (0.16.5) unstable; urgency=low
 
