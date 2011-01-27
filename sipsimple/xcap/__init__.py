@@ -793,8 +793,6 @@ class XCAPSubscriber(object):
 
 
 class XCAPManager(object):
-    __metaclass__ = Singleton
-
     implements(IObserver)
 
     def __init__(self, account):
