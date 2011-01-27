@@ -37,8 +37,14 @@ python-sipsimple (0.17.0) unstable; urgency=low
   * If the received chat doesn't have a timestamp, build it offset-aware
   * Added python-dateutil dependency
   * Added build time dependency on cython-dbg
+  * Reverted wrong changes and made xcap manager test script work again
+  * Fixed race conditions in subscription handlers
+  * Don't have XCAPManager as a singleton to avoid retaining the account
+    forever
+  * Terminate session conference subscription on SIPSessionWillEnd
+  * Reduced subscription retry interval on fatal failures
 
- -- Saul Ibarra <saul@ag-projects.com>  Wed, 26 Jan 2011 17:35:50 +0100
+ -- Saul Ibarra <saul@ag-projects.com>  Thu, 27 Jan 2011 12:24:33 +0100
 
 python-sipsimple (0.16.5) unstable; urgency=low
 
