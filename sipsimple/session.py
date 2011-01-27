@@ -325,11 +325,11 @@ class ConferenceHandler(object):
             self._activate()
 
     @run_in_green_thread
-    def _NH_SIPSessionDidEnd(self, notification):
+    def _NH_SIPSessionDidFail(self, notification):
         self._terminate()
 
     @run_in_green_thread
-    def _NH_SIPSessionDidFail(self, notification):
+    def _NH_SIPSessionWillEnd(self, notification):
         self._terminate()
 
     def _NH_SIPSessionDidRenegotiateStreams(self, notification):
