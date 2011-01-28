@@ -6,11 +6,6 @@
 
 + Make middleware unicode friendly http://sipsimpleclient.com/ticket/121
 
-- Allow the FileSelector to compute the hash later, with a specific method
-  which will be execute in another thread and which will notify the caller
-  using notifications about the progress and when it's done, allowing the
-  caller to continue
-
 - End a session while in accepting state (requires session serialization
   http://sipsimpleclient.com/ticket/107
 
