@@ -167,6 +167,8 @@ class Timestamp(datetime):
     def format(cls, dt):
         if dt is None:
             return None
+        if dt.tzinfo is not None:
+            return dt.replace(microsecond=0).isoformat()
         minutes = cls.utc_offset()
         if minutes == 0:
             tzspec = 'Z'
