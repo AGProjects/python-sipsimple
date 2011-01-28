@@ -490,6 +490,8 @@ class ChatStream(MSRPStreamBase):
 # File transfer
 #
 
+class ComputeHash: pass
+
 class FileSelector(object):
     class __metaclass__(type):
         _name_re = re.compile('name:"([^"]+)"')
@@ -499,13 +501,32 @@ class FileSelector(object):
         _byte_re = re.compile('..')
 
     def __init__(self, name=None, type=None, size=None, hash=None, fd=None):
-        ## if present, hash should be in the form: hash:sha-1:72:24:5F:E8:65:3D:DA:F3:71:36:2F:86:D4:71:91:3E:E4:A2:CE:2E
-        ## according to the specification, only sha-1 is supported ATM.
+        ## If present, hash should be a sha1 object or a string in the form: sha-1:72:24:5F:E8:65:3D:DA:F3:71:36:2F:86:D4:71:91:3E:E4:A2:CE:2E
+        ## According to the specification, only sha1 is supported ATM.
         self.name = name
         self.type = type
         self.size = size
         self.hash = hash
         self.fd = fd
+
+    def _get_hash(self):
+        return self.__dict__['hash']
+
+    def _set_hash(self, value):
+        if value is None:
+            self.__dict__['hash'] = value
+        elif isinstance(value, str) and value.startswith('sha1:'):
+            self.__dict__['hash'] = value
+        elif hasattr(value, 'hexdigest') and hasattr(value, 'name'):
+            if value.name != 'sha1':
+                raise TypeError("Invalid hash type: '%s'. Only sha1 hashes are supported" % value.name)
+            # unexpected as it may be, using a regular expression is the fastest method to do this
+            self.__dict__['hash'] = 'sha1:' + ':'.join(self.__class__._byte_re.findall(value.hexdigest().upper()))
+        else:
+            raise ValueError("Invalid hash value")
+
+    hash = property(_get_hash, _set_hash)
+    del _get_hash, _set_hash
 
     @classmethod
     def parse(cls, string):
@@ -520,11 +541,11 @@ class FileSelector(object):
         return cls(name, type, size, hash)
 
     @classmethod
-    def for_file(cls, path, content_type=None, compute_hash=True):
+    def for_file(cls, path, type=None, hash=ComputeHash):
         fd = open(path, 'r')
         name = os.path.basename(path)
         size = os.fstat(fd.fileno()).st_size
-        if content_type is None:
+        if type is None:
             mime_type, encoding = mimetypes.guess_type(name)
             if encoding is not None:
                 type = 'application/x-%s' % encoding
@@ -532,40 +553,22 @@ class FileSelector(object):
                 type = mime_type
             else:
                 type = 'application/octet-stream'
-        else:
-            type = content_type
-        if compute_hash:
+        if hash is ComputeHash:
             sha1 = hashlib.sha1()
             while True:
                 content = fd.read(65536)
                 if not content:
                     break
                 sha1.update(content)
+            fd.seek(0)
             # unexpected as it may be, using a regular expression is the fastest method to do this
             hash = 'sha1:' + ':'.join(cls._byte_re.findall(sha1.hexdigest().upper()))
-            fd.seek(0)
-        else:
-            hash = None
         return cls(name, type, size, hash, fd)
 
     @property
     def sdp_repr(self):
         items = [('name', self.name and '"%s"' % self.name), ('type', self.type), ('size', self.size), ('hash', self.hash)]
         return ' '.join('%s:%s' % (name, value) for name, value in items if value is not None)
-
-    def compute_hash(self):
-        if self.fd is None:
-            return
-        sha1 = hashlib.sha1()
-        self.fd.seek(0)
-        while True:
-            content = self.fd.read(65536)
-            if not content:
-                break
-            sha1.update(content)
-        # unexpected as it may be, using a regular expression is the fastest method to do this
-        self.hash = 'sha1:' + ':'.join(self.__class__._byte_re.findall(sha1.hexdigest().upper()))
-        self.fd.seek(0)
 
 
 class FileTransferStream(MSRPStreamBase):
