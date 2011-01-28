@@ -901,7 +901,7 @@ class DesktopSharingStream(MSRPStreamBase):
 
     def _set_handler(self, handler):
         if handler is None:
-            raise TypeError("handler cannot be None")
+            raise ValueError("handler cannot be None")
         if 'handler' in self.__dict__ and self.handler.type != handler.type:
             raise TypeError("cannot replace the handler with one with a different type")
         self.__dict__['handler'] = handler
