@@ -16,3 +16,6 @@
   see http://code.activestate.com/recipes/576693/
 
 - Implement Timeout for hold requests
+
+- Allow resume of failed file transfers (a=file-range SDP attribute)
+
