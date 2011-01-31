@@ -1146,14 +1146,14 @@ cdef class BaseContactHeader(object):
 cdef class ContactHeader(BaseContactHeader):
     # attributes
     cdef SIPURI _uri
-    cdef str _display_name
+    cdef unicode _display_name
     cdef dict _parameters
 
 cdef class FrozenContactHeader(BaseContactHeader):
     # attributes
     cdef int initialized
     cdef readonly FrozenSIPURI uri
-    cdef readonly str display_name
+    cdef readonly unicode display_name
     cdef readonly frozendict parameters
 
 cdef class BaseIdentityHeader(object):
@@ -1162,14 +1162,14 @@ cdef class BaseIdentityHeader(object):
 cdef class IdentityHeader(BaseIdentityHeader):
     # attributes
     cdef SIPURI _uri
-    cdef public str display_name
+    cdef public unicode display_name
     cdef dict _parameters
 
 cdef class FrozenIdentityHeader(BaseIdentityHeader):
     # attributes
     cdef int initialized
     cdef readonly FrozenSIPURI uri
-    cdef readonly str display_name
+    cdef readonly unicode display_name
     cdef readonly frozendict parameters
 
 cdef class FromHeader(IdentityHeader):

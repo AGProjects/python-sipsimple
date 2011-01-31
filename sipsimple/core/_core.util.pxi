@@ -360,7 +360,7 @@ cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_ro
     _BaseSIPURI_to_pjsip_sip_uri(header.uri, sip_uri, pool)
     pj_header.name_addr.uri = <pjsip_uri *> sip_uri
     if header.display_name:
-        _str_to_pj_str(header.display_name, &pj_header.name_addr.display)
+        _str_to_pj_str(header.display_name.encode('utf-8'), &pj_header.name_addr.display)
     _dict_to_pjsip_param(header.parameters, &pj_header.other_param, pool)
     return 0
 

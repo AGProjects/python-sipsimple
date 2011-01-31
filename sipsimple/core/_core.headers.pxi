@@ -118,6 +118,9 @@ cdef class BaseContactHeader:
     def __str__(self):
         return "%s: %s" % (self.name, self.body)
 
+    def __unicode__(self):
+        return unicode(self.__str__(), encoding='utf-8')
+
     def __richcmp__(self, other, op):
         return BaseContactHeader_richcmp(self, other, op)
 
@@ -136,7 +139,7 @@ cdef class BaseContactHeader:
             else:
                 parameters = ""
             if self.display_name:
-                return '"%s" <%s>%s' % (self.display_name, self.uri, parameters)
+                return '"%s" <%s>%s' % (self.display_name.encode('utf-8'), self.uri, parameters)
             else:
                 return '<%s>%s' % (self.uri, parameters)
 
@@ -144,7 +147,7 @@ def ContactHeader_new(cls, BaseContactHeader header):
     return cls(SIPURI.new(header.uri), header.display_name, dict(header.parameters))
 
 cdef class ContactHeader(BaseContactHeader):
-    def __init__(self, SIPURI uri, str display_name=None, dict parameters=None):
+    def __init__(self, SIPURI uri, unicode display_name=None, dict parameters=None):
         if uri is None and (display_name is not None or parameters not in (None, {})):
             raise ValueError("uri cannot be None if display_name or parameters are specified")
         self.uri = uri
@@ -166,7 +169,7 @@ cdef class ContactHeader(BaseContactHeader):
         def __get__(self):
             return self._display_name
 
-        def __set__(self, str display_name):
+        def __set__(self, unicode display_name):
             if self.uri is None and display_name is not None:
                 raise ValueError("display_name cannot be specified if uri is None")
             self._display_name = display_name
@@ -223,7 +226,7 @@ def FrozenContactHeader_new(cls, BaseContactHeader header):
     return cls(FrozenSIPURI.new(header.uri), header.display_name, frozendict(header.parameters))
 
 cdef class FrozenContactHeader(BaseContactHeader):
-    def __init__(self, FrozenSIPURI uri, str display_name=None, frozendict parameters not None=frozendict()):
+    def __init__(self, FrozenSIPURI uri, unicode display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             if uri is None and (display_name is not None or parameters not in (None, {})):
                 raise ValueError("uri cannot be None if display_name or parameters are specified")
@@ -279,6 +282,9 @@ cdef class BaseIdentityHeader:
     def __str__(self):
         return "%s: %s" % (self.name, self.body)
 
+    def __unicode__(self):
+        return unicode(self.__str__(), encoding='utf-8')
+
     def __richcmp__(self, other, op):
         return BaseIdentityHeader_richcmp(self, other, op)
 
@@ -290,7 +296,7 @@ cdef class BaseIdentityHeader:
             else:
                 parameters = ""
             if self.display_name:
-                return '"%s" <%s>%s' % (self.display_name, self.uri, parameters)
+                return '"%s" <%s>%s' % (self.display_name.encode('utf-8'), self.uri, parameters)
             else:
                 return '<%s>%s' % (self.uri, parameters)
 
@@ -339,7 +345,7 @@ cdef class FromHeader(IdentityHeader):
     normal_type = FromHeader
     frozen_type = FrozenFromHeader
 
-    def __init__(self, SIPURI uri not None, str display_name=None, dict parameters=None):
+    def __init__(self, SIPURI uri not None, unicode display_name=None, dict parameters=None):
         self.uri = uri
         self.display_name = display_name
         self.parameters = parameters if parameters is not None else {}
@@ -364,7 +370,7 @@ cdef class FrozenFromHeader(FrozenIdentityHeader):
     normal_type = FromHeader
     frozen_type = FrozenFromHeader
 
-    def __init__(self, FrozenSIPURI uri not None, str display_name=None, frozendict parameters not None=frozendict()):
+    def __init__(self, FrozenSIPURI uri not None, unicode display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.uri = uri
             self.display_name = display_name
@@ -386,7 +392,7 @@ cdef class ToHeader(IdentityHeader):
     normal_type = ToHeader
     frozen_type = FrozenToHeader
 
-    def __init__(self, SIPURI uri not None, str display_name=None, dict parameters=None):
+    def __init__(self, SIPURI uri not None, unicode display_name=None, dict parameters=None):
         self.uri = uri
         self.display_name = display_name
         self.parameters = parameters if parameters is not None else {}
@@ -411,7 +417,7 @@ cdef class FrozenToHeader(FrozenIdentityHeader):
     normal_type = ToHeader
     frozen_type = FrozenToHeader
 
-    def __init__(self, FrozenSIPURI uri not None, str display_name=None, frozendict parameters not None=frozendict()):
+    def __init__(self, FrozenSIPURI uri not None, unicode display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.uri = uri
             self.display_name = display_name
@@ -433,7 +439,7 @@ cdef class RouteHeader(IdentityHeader):
     normal_type = RouteHeader
     frozen_type = FrozenRouteHeader
 
-    def __init__(self, SIPURI uri not None, str display_name=None, dict parameters=None):
+    def __init__(self, SIPURI uri not None, unicode display_name=None, dict parameters=None):
         self.uri = uri
         self.display_name = display_name
         self.parameters = parameters if parameters is not None else {}
@@ -447,7 +453,7 @@ cdef class FrozenRouteHeader(FrozenIdentityHeader):
     normal_type = RouteHeader
     frozen_type = FrozenRouteHeader
 
-    def __init__(self, FrozenSIPURI uri not None, str display_name=None, frozendict parameters not None=frozendict()):
+    def __init__(self, FrozenSIPURI uri not None, unicode display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.uri = uri
             self.display_name = display_name
@@ -464,7 +470,7 @@ cdef class RecordRouteHeader(IdentityHeader):
     normal_type = RecordRouteHeader
     frozen_type = FrozenRecordRouteHeader
 
-    def __init__(self, SIPURI uri not None, str display_name=None, dict parameters=None):
+    def __init__(self, SIPURI uri not None, unicode display_name=None, dict parameters=None):
         self.uri = uri
         self.display_name = display_name
         self.parameters = parameters if parameters is not None else {}
@@ -478,7 +484,7 @@ cdef class FrozenRecordRouteHeader(FrozenIdentityHeader):
     normal_type = RecordRouteHeader
     frozen_type = FrozenRecordRouteHeader
 
-    def __init__(self, FrozenSIPURI uri not None, str display_name=None, frozendict parameters not None=frozendict()):
+    def __init__(self, FrozenSIPURI uri not None, unicode display_name=None, frozendict parameters not None=frozendict()):
         if not self.initialized:
             self.uri = uri
             self.display_name = display_name
@@ -1301,7 +1307,7 @@ cdef ContactHeader ContactHeader_create(pjsip_contact_hdr *header):
         uri = SIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(header.uri))
         name_addr = <pjsip_name_addr*> header.uri
         if name_addr.display.slen > 0:
-            display_name = _pj_str_to_str(name_addr.display)
+            display_name = unicode(_pj_str_to_str(name_addr.display), encoding='utf-8')
         else:
             display_name = None
         parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1319,7 +1325,7 @@ cdef FrozenContactHeader FrozenContactHeader_create(pjsip_contact_hdr *header):
         uri = FrozenSIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(header.uri))
         name_addr = <pjsip_name_addr*> header.uri
         if name_addr.display.slen > 0:
-            display_name = _pj_str_to_str(name_addr.display)
+            display_name = unicode(_pj_str_to_str(name_addr.display), encoding='utf-8')
         else:
             display_name = None
         parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1334,7 +1340,7 @@ cdef FromHeader FromHeader_create(pjsip_fromto_hdr *header):
     uri = SIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(header.uri))
     name_addr = <pjsip_name_addr*> header.uri
     if name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(name_addr.display)
+        display_name = unicode(_pj_str_to_str(name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1347,7 +1353,7 @@ cdef FrozenFromHeader FrozenFromHeader_create(pjsip_fromto_hdr *header):
     uri = FrozenSIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(header.uri))
     name_addr = <pjsip_name_addr*> header.uri
     if name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(name_addr.display)
+        display_name = unicode(_pj_str_to_str(name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1360,7 +1366,7 @@ cdef ToHeader ToHeader_create(pjsip_fromto_hdr *header):
     uri = SIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(header.uri))
     name_addr = <pjsip_name_addr*> header.uri
     if name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(name_addr.display)
+        display_name = unicode(_pj_str_to_str(name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1373,7 +1379,7 @@ cdef FrozenToHeader FrozenToHeader_create(pjsip_fromto_hdr *header):
     uri = FrozenSIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(header.uri))
     name_addr = <pjsip_name_addr*> header.uri
     if name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(name_addr.display)
+        display_name = unicode(_pj_str_to_str(name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1384,7 +1390,7 @@ cdef FrozenToHeader FrozenToHeader_create(pjsip_fromto_hdr *header):
 cdef RouteHeader RouteHeader_create(pjsip_routing_hdr *header):
     uri = SIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(<pjsip_uri *>&header.name_addr))
     if header.name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(header.name_addr.display)
+        display_name = unicode(_pj_str_to_str(header.name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1393,7 +1399,7 @@ cdef RouteHeader RouteHeader_create(pjsip_routing_hdr *header):
 cdef FrozenRouteHeader FrozenRouteHeader_create(pjsip_routing_hdr *header):
     uri = FrozenSIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(<pjsip_uri *>&header.name_addr))
     if header.name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(header.name_addr.display)
+        display_name = unicode(_pj_str_to_str(header.name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = frozendict(_pjsip_param_to_dict(&header.other_param))
@@ -1402,7 +1408,7 @@ cdef FrozenRouteHeader FrozenRouteHeader_create(pjsip_routing_hdr *header):
 cdef RecordRouteHeader RecordRouteHeader_create(pjsip_routing_hdr *header):
     uri = SIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(<pjsip_uri *>&header.name_addr))
     if header.name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(header.name_addr.display)
+        display_name = unicode(_pj_str_to_str(header.name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = _pjsip_param_to_dict(&header.other_param)
@@ -1411,7 +1417,7 @@ cdef RecordRouteHeader RecordRouteHeader_create(pjsip_routing_hdr *header):
 cdef FrozenRecordRouteHeader FrozenRecordRouteHeader_create(pjsip_routing_hdr *header):
     uri = FrozenSIPURI_create(<pjsip_sip_uri*>pjsip_uri_get_uri(<pjsip_uri *>&header.name_addr))
     if header.name_addr.display.slen > 0:
-        display_name = _pj_str_to_str(header.name_addr.display)
+        display_name = unicode(_pj_str_to_str(header.name_addr.display), encoding='utf-8')
     else:
         display_name = None
     parameters = frozendict(_pjsip_param_to_dict(&header.other_param))
