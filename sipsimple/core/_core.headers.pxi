@@ -7,8 +7,7 @@
 
 
 cdef object BaseHeader_richcmp(object self, object other, int op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseHeader):
         return NotImplemented
@@ -97,8 +96,7 @@ class ContentType(str):
 
 
 cdef object BaseContactHeader_richcmp(object self, object other, object op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseContactHeader):
         return NotImplemented
@@ -262,8 +260,7 @@ del FrozenContactHeader_new
 
 
 cdef object BaseIdentityHeader_richcmp(object self, object other, int op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseIdentityHeader):
         return NotImplemented
@@ -495,8 +492,7 @@ cdef class FrozenRecordRouteHeader(FrozenIdentityHeader):
 
 
 cdef object BaseRetryAfterHeader_richcmp(object self, object other, int op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseRetryAfterHeader):
         return NotImplemented
@@ -604,8 +600,7 @@ del FrozenRetryAfterHeader_new
 
 
 cdef object BaseViaHeader_richcmp(object self, object other, int op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseViaHeader):
         return NotImplemented
@@ -827,8 +822,7 @@ del FrozenViaHeader_new
 
 
 cdef object BaseWarningHeader_richcmp(object self, object other, int op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseWarningHeader):
         return NotImplemented
@@ -929,8 +923,7 @@ del FrozenWarningHeader_new
 
 
 cdef object BaseEventHeader_richcmp(object self, object other, object op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseEventHeader):
         return NotImplemented
@@ -1030,8 +1023,7 @@ del FrozenEventHeader_new
 
 
 cdef object BaseSubscriptionStateHeader_richcmp(object self, object other, object op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseSubscriptionStateHeader):
         return NotImplemented
@@ -1167,8 +1159,7 @@ del FrozenSubscriptionStateHeader_new
 
 
 cdef object BaseReasonHeader_richcmp(object self, object other, object op) with gil:
-    cdef int eq = 1
-    if op not in [2,3]:
+    if op not in (2, 3):
         return NotImplemented
     if not isinstance(other, BaseSubscriptionStateHeader):
         return NotImplemented
