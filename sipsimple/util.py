@@ -12,6 +12,7 @@ import os
 import platform
 import re
 import socket
+import sys
 from datetime import datetime
 
 from application.notification import NotificationData
@@ -264,18 +265,20 @@ class UserInfo(object):
     @property
     def username(self):
         if platform.system() == 'Windows':
-            return os.getenv('USERNAME')
+            name = os.getenv('USERNAME')
         else:
             import pwd
-            return pwd.getpwuid(os.getuid()).pw_name
+            name = pwd.getpwuid(os.getuid()).pw_name
+        return name.decode(sys.getfilesystemencoding())
 
     @property
     def fullname(self):
         if platform.system() == 'Windows':
-            return os.getenv('USERNAME')
+            name = os.getenv('USERNAME')
         else:
             import pwd
-            return pwd.getpwuid(os.getuid()).pw_gecos.split(',', 1)[0] or pwd.getpwuid(os.getuid()).pw_name
+            name = pwd.getpwuid(os.getuid()).pw_gecos.split(',', 1)[0] or pwd.getpwuid(os.getuid()).pw_name
+        return name.decode(sys.getfilesystemencoding())
 
 user_info = UserInfo()
 del UserInfo
