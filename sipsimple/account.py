@@ -840,8 +840,7 @@ class BonjourServices(object):
         for transport in missing_transports:
             notification_center.post_notification('BonjourAccountWillRegister', sender=self.account, data=TimestampedNotificationData(transport=transport))
             contact = self.account.contact[transport]
-            # When account.display_name will be a unicode object, an encode('utf-8') is required here. -Luci
-            txtdata = dict(txtvers=1, name=self.account.display_name, contact="<%s>" % str(contact))
+            txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
             try:
                 file = bonjour.DNSServiceRegister(name=str(contact),
                                                   regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'),
@@ -878,8 +877,7 @@ class BonjourServices(object):
         update_failure = False
         for file in (f for f in self._files if isinstance(f, BonjourRegistrationFile)):
             contact = self.account.contact[file.transport]
-            # When account.display_name will be a unicode object, an encode('utf-8') is required here. -Luci
-            txtdata = dict(txtvers=1, name=self.account.display_name, contact="<%s>" % str(contact))
+            txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
             try:
                 bonjour.DNSServiceUpdateRecord(file.file, None, flags=0, rdata=bonjour.TXTRecord(items=txtdata), ttl=0)
             except bonjour.BonjourError, e:
@@ -1072,7 +1070,7 @@ class Account(SettingsObject):
 
     id = __id__
     enabled = Setting(type=bool, default=False)
-    display_name = Setting(type=str, default=None, nillable=True)
+    display_name = Setting(type=unicode, default=None, nillable=True)
 
     auth = AuthSettings
     sip = SIPSettings
@@ -1302,7 +1300,7 @@ class BonjourAccount(SettingsObject):
 
     id = property(lambda self: self.__id__)
     enabled = BonjourAccountEnabledSetting(type=bool, default=True)
-    display_name = Setting(type=str, default=user_info.fullname, nillable=False)
+    display_name = Setting(type=unicode, default=user_info.fullname, nillable=False)
 
     rtp = RTPSettings
     msrp = BonjourMSRPSettings
