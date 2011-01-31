@@ -27,7 +27,7 @@ class MessageSummary(object):
         self.optional_headers = optional_headers
 
     @staticmethod
-    def parse(content):                                                                                                                                 
+    def parse(content):
         message = StringIO(content)
         summary = MessageSummary()
         tmp_header = []
