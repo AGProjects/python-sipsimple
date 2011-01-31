@@ -89,7 +89,7 @@ class CPIMHeader(object):
 
 
 class CPIMIdentity(ChatIdentity):
-    _re_format = re.compile(r'^("?(?P<display_name>[^<]*[^"\s])"?)?\s*<(?P<uri>.+)>$')
+    _re_format = re.compile(r'^("?(?P<display_name>[^<]*[^"\s])"?)?\s*<(?P<uri>sips?:.+)>$')
 
     @classmethod
     def parse(cls, value):
@@ -99,9 +99,6 @@ class CPIMIdentity(ChatIdentity):
         groupdict =  match.groupdict()
         display_name = groupdict['display_name']
         uri = groupdict['uri']
-        # FIXME: silly hack for sip-chatserver which sends incorrect URIs. -Luci
-        if not uri.startswith(u'sip:') and not uri.startswith(u'sips:'):
-            uri = u'sip:' + uri
         # FIXME: SIPURI is not unicode friendly and expects a str. -Luci
         uri = SIPURI.parse(str(uri))
         return cls(uri, display_name)
