@@ -93,13 +93,15 @@ class CPIMIdentity(ChatIdentity):
 
     @classmethod
     def parse(cls, value):
+        if isinstance(value, str):
+            value = value.decode('cpim-headers')
         match = cls._re_format.match(value)
         if not match:
             raise ValueError('Cannot parse message/cpim identity header value: %r' % value)
         groupdict =  match.groupdict()
-        display_name = groupdict['display_name'].decode('utf-8')
-        uri = groupdict['uri'] # .decode('utf-8') # FIXME: SIPURI is not unicode friendly and expects a str. -Luci
-        uri = SIPURI.parse(uri)
+        display_name = groupdict['display_name']
+        uri = groupdict['uri']
+        uri = SIPURI.parse(str(uri)) # FIXME: SIPURI is not unicode friendly and expects a str. -Luci
         return cls(uri, display_name)
 
 
