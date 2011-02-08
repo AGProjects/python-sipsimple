@@ -1,6 +1,9 @@
 # Copyright (C) 2008-2009 AG Projects. See LICENSE for details.
 #
 
+import sys
+
+
 # classes
 
 cdef class PJLIB:
@@ -76,11 +79,11 @@ cdef class PJSIPEndpoint:
             raise ValueError("Unknown TLS protocol: %s" % tls_protocol)
         self._tls_verify_server = int(tls_verify_server)
         if tls_ca_file is not None:
-            self._tls_ca_file = PJSTR(tls_ca_file)
+            self._tls_ca_file = PJSTR(tls_ca_file.encode(sys.getfilesystemencoding()))
         if tls_cert_file is not None:
-            self._tls_cert_file = PJSTR(tls_cert_file)
+            self._tls_cert_file = PJSTR(tls_cert_file.encode(sys.getfilesystemencoding()))
         if tls_privkey_file is not None:
-            self._tls_privkey_file = PJSTR(tls_privkey_file)
+            self._tls_privkey_file = PJSTR(tls_privkey_file.encode(sys.getfilesystemencoding()))
         if tls_timeout < 0:
             raise ValueError("Invalid TLS timeout value: %d" % tls_timeout)
         self._tls_timeout = tls_timeout

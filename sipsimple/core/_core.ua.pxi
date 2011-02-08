@@ -526,15 +526,15 @@ cdef class PJSIPUA:
             if ca_file is None:
                 self._pjsip_endpoint._tls_ca_file = None
             else:
-                self._pjsip_endpoint._tls_ca_file = PJSTR(ca_file)
+                self._pjsip_endpoint._tls_ca_file = PJSTR(ca_file.encode(sys.getfilesystemencoding()))
             if cert_file is None:
                 self._pjsip_endpoint._tls_cert_file = None
             else:
-                self._pjsip_endpoint._tls_cert_file = PJSTR(cert_file)
+                self._pjsip_endpoint._tls_cert_file = PJSTR(cert_file.encode(sys.getfilesystemencoding()))
             if privkey_file is None:
                 self._pjsip_endpoint._tls_privkey_file = None
             else:
-                self._pjsip_endpoint._tls_privkey_file = PJSTR(privkey_file)
+                self._pjsip_endpoint._tls_privkey_file = PJSTR(privkey_file.encode(sys.getfilesystemencoding()))
             self._pjsip_endpoint._tls_timeout = timeout
             self._pjsip_endpoint._start_tls_transport(c_port)
 

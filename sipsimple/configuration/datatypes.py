@@ -541,9 +541,9 @@ class TLSProtocol(str):
 
 ## Path datatypes
 
-class Path(str):
+class Path(unicode):
     def __new__(cls, path):
-        return str.__new__(cls, os.path.normpath(path))
+        return unicode.__new__(cls, os.path.normpath(path))
 
     @property
     def normalized(self):
