@@ -1251,7 +1251,7 @@ class Session(object):
                 streams.remove(stream)
             else:
                 stream.deactivate()
-        cancelling = self._invitation.state != 'connected'
+        cancelling = self._invitation.state != 'connected' and self.direction == 'outgoing'
         try:
             self._invitation.end(timeout=1)
             while True:
