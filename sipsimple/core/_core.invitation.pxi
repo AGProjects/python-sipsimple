@@ -558,7 +558,7 @@ cdef class Invitation:
         ua._handle_exception(0)
         self._invite_session.mod_data[ua._module.id] = NULL
         if self.state != "disconnected":
-            event_dict = dict(obj=self, prev_state=self.state, state="disconnected", originator="local", disconnect_reason="internal exception occured")
+            event_dict = dict(obj=self, prev_state=self.state, state="disconnected", originator="local", disconnect_reason="internal error")
             if self.state == "connected":
                 event_dict["prev_sub_state"] = self.sub_state
             self.state = "disconnected"
