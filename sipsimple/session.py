@@ -1260,7 +1260,12 @@ class Session(object):
                 except MediaStreamDidFailError:
                     continue
                 if notification.name == 'SIPInvitationChangedState' and notification.data.state == 'disconnected':
-                    if cancelling:
+                    if notification.data.disconnect_reason in ('internal error', 'missing ACK'):
+                        pass
+                    elif notification.data.disconnect_reason == 'timeout':
+                        notification_center.post_notification('SIPSessionDidProcessTransaction', self,
+                                                              TimestampedNotificationData(originator='local' if self.direction=='outgoing' else 'remote', method='INVITE', code=408, reason='Timeout'))
+                    elif cancelling:
                         notification_center.post_notification('SIPSessionDidProcessTransaction', self,
                                                               TimestampedNotificationData(originator='local', method='INVITE', code=notification.data.code, reason=notification.data.reason))
                     elif hasattr(notification.data, 'method'):
