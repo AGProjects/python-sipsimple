@@ -144,7 +144,7 @@ cdef class AudioMixer:
         self._output_volume = 100
         pj_mutex_create_recursive(_get_ua()._pjsip_endpoint._pool, "audio_mixer_lock", &self._lock)
 
-    def __init__(self, str input_device, str output_device, int sample_rate,
+    def __init__(self, unicode input_device, unicode output_device, int sample_rate,
                  int ec_tail_length=200, int slot_count=254):
         global _dealloc_handler_queue
         cdef int status
@@ -215,7 +215,7 @@ cdef class AudioMixer:
 
         pj_mutex_destroy(self._lock)
 
-    def set_sound_devices(self, str input_device, str output_device, int ec_tail_length):
+    def set_sound_devices(self, unicode input_device, unicode output_device, int ec_tail_length):
         cdef int status
         cdef pj_mutex_t *lock = self._lock
         cdef PJSIPUA ua
@@ -304,8 +304,9 @@ cdef class AudioMixer:
 
     # private methods
 
-    cdef int _start_sound_device(self, PJSIPUA ua, str input_device, str output_device,
+    cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device,
                                  int ec_tail_length, int revert_to_default) except -1:
+        global device_name_encoding
         cdef int i
         cdef int input_device_i = -2
         cdef int output_device_i = -2
@@ -339,19 +340,19 @@ cdef class AudioMixer:
             if pjmedia_snd_get_dev_count() == 0:
                 input_device = None
                 output_device = None
-            if input_device == "system_default":
+            if input_device == u"system_default":
                 input_device_i = -1
-            if output_device == "system_default":
+            if output_device == u"system_default":
                 output_device_i = -1
             if ((input_device_i == -2 and input_device is not None) or
                 (output_device_i == -2 and output_device is not None)):
                 for i from 0 <= i < pjmedia_snd_get_dev_count():
                     dev_info = pjmedia_snd_get_dev_info(i)
                     if (input_device is not None and input_device_i == -2 and
-                        dev_info.input_count > 0 and dev_info.name == input_device):
+                        dev_info.input_count > 0 and dev_info.name.decode(device_name_encoding) == input_device):
                         input_device_i = i
                     if (output_device is not None and output_device_i == -2 and
-                        dev_info.output_count > 0 and dev_info.name == output_device):
+                        dev_info.output_count > 0 and dev_info.name.decode(device_name_encoding) == output_device):
                         output_device_i = i
                 if input_device_i == -2 and input_device is not None:
                     if revert_to_default:
@@ -429,11 +430,11 @@ cdef class AudioMixer:
                     if input_device_i == -1:
                         with nogil:
                             dev_info = pjmedia_snd_get_dev_info(snd_info.rec_id)
-                        self.real_input_device = dev_info.name
+                        self.real_input_device = dev_info.name.decode(device_name_encoding)
                     if output_device_i == -1:
                         with nogil:
                             dev_info = pjmedia_snd_get_dev_info(snd_info.play_id)
-                        self.real_output_device = dev_info.name
+                        self.real_output_device = dev_info.name.decode(device_name_encoding)
             if input_device_i != -1:
                 self.real_input_device = input_device
             if output_device_i != -1:

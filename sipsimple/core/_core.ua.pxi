@@ -256,6 +256,7 @@ cdef class PJSIPUA:
         self._incoming_requests.discard(method)
 
     cdef object _get_sound_devices(self, int is_output):
+        global device_name_encoding
         cdef int i
         cdef int count
         cdef pjmedia_snd_dev_info_ptr_const info
@@ -275,7 +276,7 @@ cdef class PJSIPUA:
                 else:
                     count = info.input_count
                 if count:
-                    retval.append(info.name)
+                    retval.append(info.name.decode(device_name_encoding))
             return retval
         finally:
             pj_rwmutex_unlock_read(self.audio_change_rwlock)
@@ -296,6 +297,7 @@ cdef class PJSIPUA:
 
         def __get__(self):
             self._check_self()
+            global device_name_encoding
             cdef int i
             cdef int count
             cdef pjmedia_snd_dev_info_ptr_const info
@@ -311,7 +313,7 @@ cdef class PJSIPUA:
                     with nogil:
                         info = pjmedia_snd_get_dev_info(i)
                     if info != NULL:
-                        retval.append(info.name)
+                        retval.append(info.name.decode(device_name_encoding))
                 return retval
             finally:
                 pj_rwmutex_unlock_read(self.audio_change_rwlock)

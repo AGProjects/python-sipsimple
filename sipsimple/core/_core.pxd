@@ -1417,13 +1417,13 @@ cdef class AudioMixer(object):
     cdef readonly int sample_rate
     cdef readonly int slot_count
     cdef readonly int used_slot_count
-    cdef readonly str input_device
-    cdef readonly str output_device
-    cdef readonly str real_input_device
-    cdef readonly str real_output_device
+    cdef readonly unicode input_device
+    cdef readonly unicode output_device
+    cdef readonly unicode real_input_device
+    cdef readonly unicode real_output_device
 
     # private methods
-    cdef int _start_sound_device(self, PJSIPUA ua, str input_device, str output_device,
+    cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device,
                                 int ec_tail_length, int revert_to_default) except -1
     cdef int _stop_sound_device(self, PJSIPUA ua) except -1
     cdef int _add_port(self, PJSIPUA ua, pj_pool_t *pool, pjmedia_port *port) except -1 with gil

@@ -21,9 +21,9 @@ __all__ = ['SIPSimpleSettings']
 
 
 class AudioSettings(SettingsGroup):
-    alert_device = Setting(type=str, default='system_default', nillable=True)
-    input_device = Setting(type=str, default='system_default', nillable=True)
-    output_device = Setting(type=str, default='system_default', nillable=True)
+    alert_device = Setting(type=unicode, default=u'system_default', nillable=True)
+    input_device = Setting(type=unicode, default=u'system_default', nillable=True)
+    output_device = Setting(type=unicode, default=u'system_default', nillable=True)
     tail_length = Setting(type=NonNegativeInteger, default=200)
     sample_rate = Setting(type=SampleRate, default=44100)
     silent = Setting(type=bool, default=False)

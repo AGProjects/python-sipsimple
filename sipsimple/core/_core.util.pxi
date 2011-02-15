@@ -3,7 +3,11 @@
 
 # python imports
 
+import platform
 import re
+import sys
+
+from application.version import Version
 
 # classes
 
@@ -364,8 +368,19 @@ cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_ro
     _dict_to_pjsip_param(header.parameters, &pj_header.other_param, pool)
     return 0
 
+def _get_device_name_encoding():
+    if sys.platform == 'win32':
+        encoding = 'mbcs'
+    elif sys.platform.startswith('linux2') and Version.parse(platform.release()) < Version(2,6,31):
+        encoding = 'latin1'
+    else:
+        encoding = 'utf-8'
+    return encoding
+
 # globals
 
 cdef object _re_pj_status_str_def = re.compile("^.*\((.*)\)$")
 cdef object _re_warning_hdr = re.compile('(?P<code>[0-9]{3}) (?P<agent>.*?) "(?P<text>.*?)"')
+device_name_encoding = _get_device_name_encoding()
 sip_status_messages = SIPStatusMessages()
+
