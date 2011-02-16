@@ -1,3 +1,20 @@
+python-sipsimple (0.17.1) unstable; urgency=low
+
+  * Simplified FileSelector interface and interaction with the application
+  * Fixed Timestamp formatting with offset-aware datetime objects
+  * Return unicode for username and fullname from sipsimple.util.user_info
+  * Made display_name on accounts support unicode
+  * Fixed CPIMIdentity parsing to be unicode aware
+  * Changed SIP headers to handle unicode display names
+  * Made Path datatype inherit from unicode
+  * Simplified disconnect reason on failures
+  * Fixed exception when the session is ended on error conditions
+  * Fixed support for audio devices containing unicode symbols in their name
+  * Fixed detecting backslash in regex
+  * Added request_uri attribute to Invitation
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 16 Feb 2011 14:25:28 +0100
+
 python-sipsimple (0.17.0) unstable; urgency=low
 
   * Added blocking API to WavePlayer
