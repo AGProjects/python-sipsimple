@@ -44,6 +44,7 @@ cdef class Invitation:
         self._timer = None
         self.from_header = None
         self.to_header = None
+        self.request_uri = None
         self.route_header = None
         self.local_contact_header = None
         self.remote_contact_header = None
@@ -77,12 +78,12 @@ cdef class Invitation:
 
             self.direction = "incoming"
             self.transport = rdata.tp_info.transport.type_name.lower()
-            request_uri = FrozenSIPURI_create(<pjsip_sip_uri *> pjsip_uri_get_uri(rdata.msg_info.msg.line.req.uri))
-            if _is_valid_ip(pj_AF_INET(), request_uri.host):
-                self.local_contact_header = FrozenContactHeader(request_uri)
+            self.request_uri = FrozenSIPURI_create(<pjsip_sip_uri *> pjsip_uri_get_uri(rdata.msg_info.msg.line.req.uri))
+            if _is_valid_ip(pj_AF_INET(), self.request_uri.host):
+                self.local_contact_header = FrozenContactHeader(self.request_uri)
             else:
                 self.local_contact_header = FrozenContactHeader(FrozenSIPURI(host=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
-                                                                             user=request_uri.user, port=rdata.tp_info.transport.local_name.port,
+                                                                             user=self.request_uri.user, port=rdata.tp_info.transport.local_name.port,
                                                                              parameters=(frozendict(transport=self.transport) if self.transport != "udp" else frozendict())))
             contact_header = PJSTR(self.local_contact_header.body)
             with nogil:
@@ -185,6 +186,7 @@ cdef class Invitation:
             self.transport = route_header.uri.transport
             self.direction = "outgoing"
             self.credentials = FrozenCredentials.new(credentials) if credentials is not None else None
+            self.request_uri = FrozenSIPURI.new(request_uri)
             self.route_header = FrozenRouteHeader.new(route_header)
             self.route_header.uri.parameters.dict["lr"] = None # always send lr parameter in Route header
             self.route_header.uri.parameters.dict["hide"] = None # always hide Route header

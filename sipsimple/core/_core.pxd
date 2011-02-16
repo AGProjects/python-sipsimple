@@ -1804,6 +1804,7 @@ cdef class Invitation(object):
     cdef readonly FrozenContactHeader remote_contact_header
     cdef readonly FrozenFromHeader from_header
     cdef readonly FrozenToHeader to_header
+    cdef readonly FrozenSIPURI request_uri
     cdef readonly FrozenRouteHeader route_header
     cdef readonly SDPPayloads sdp
 
