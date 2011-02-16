@@ -44,7 +44,7 @@ class FileBackend(object):
 
     implements(IConfigurationBackend)
 
-    escape_characters_re = re.compile(u"""[,"'=: #\\\\\t\x0b\x0c\n\r]""")
+    escape_characters_re = re.compile(ur"""[,"'=: #\\\t\x0b\x0c\n\r]""")
 
     def __init__(self, filename, encoding='utf-8'):
         """
