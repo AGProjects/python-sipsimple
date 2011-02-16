@@ -1316,10 +1316,6 @@ class Session(object):
     def remote_user_agent(self):
         return self._invitation.remote_user_agent if self._invitation is not None else None
 
-    @property
-    def request_uri(self):
-        return self._invitation.request_uri if self._invitation is not None else None
-
     def _send_hold(self):
         self.state = 'sending_proposal'
         self.greenlet = api.getcurrent()
