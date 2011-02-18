@@ -427,11 +427,11 @@ cdef class IncomingSubscription:
                 content_type_match = _re_content_type.match(content_type)
                 if content_type_match is None:
                     raise ValueError("content_type parameter is not properly formatted")
+                self._content_type = PJSTR(content_type_match.group(1))
+                self._content_subtype = PJSTR(content_type_match.group(2))
+                self._content = PJSTR(content)
             if self.state == "incoming":
                 self._send_initial_response(200)
-            self._content_type = PJSTR(content_type_match.group(1))
-            self._content_subtype = PJSTR(content_type_match.group(2))
-            self._content = PJSTR(content)
             self._set_state("active")
             self._send_notify()
         finally:
@@ -539,7 +539,7 @@ cdef class IncomingSubscription:
             status = pjsip_evsub_notify(self._obj, state, NULL, reason_p, &tdata)
         if status != 0:
             raise PJSIPError("Could not create NOTIFY request", status)
-        if self.state == "active":
+        if self.state == "active" and self._content_type is not None and self._content_subtype is not None and self._content is not None:
             tdata.msg.body = pjsip_msg_body_create(tdata.pool, &self._content_type.pj_str,
                                                    &self._content_subtype.pj_str, &self._content.pj_str)
         with nogil:
