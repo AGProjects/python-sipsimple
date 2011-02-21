@@ -539,7 +539,7 @@ cdef class IncomingSubscription:
             status = pjsip_evsub_notify(self._obj, state, NULL, reason_p, &tdata)
         if status != 0:
             raise PJSIPError("Could not create NOTIFY request", status)
-        if self.state == "active" and self._content_type is not None and self._content_subtype is not None and self._content is not None:
+        if self.state == "active" and None not in (self._content_type, self._content_subtype, self._content):
             tdata.msg.body = pjsip_msg_body_create(tdata.pool, &self._content_type.pj_str,
                                                    &self._content_subtype.pj_str, &self._content.pj_str)
         with nogil:
