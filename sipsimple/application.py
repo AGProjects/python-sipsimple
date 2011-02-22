@@ -24,7 +24,7 @@ from sipsimple.account import Account, AccountManager
 from sipsimple.audio import AudioDevice, RootAudioBridge
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
-from sipsimple.core import AudioMixer, Engine, SIPCoreError, SIPURI
+from sipsimple.core import AudioMixer, Engine, PJSIPError, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup, DNSLookupError, DNSManager
 from sipsimple.session import SessionManager
 from sipsimple.threading import ThreadManager, run_in_twisted_thread
@@ -493,7 +493,10 @@ class SIPApplication(object):
                         continue
                 for stun_server, stun_port in stun_servers:
                     serial += 1
-                    engine.detect_nat_type(stun_server, stun_port, user_data=serial)
+                    try:
+                        engine.detect_nat_type(stun_server, stun_port, user_data=serial)
+                    except PJSIPError:
+                        continue
                     command = self._nat_detect_channel.wait()
                     if command.name == 'process_nat_detection' and command.data.user_data == serial and command.data.succeeded:
                         self.local_nat_type = command.data.nat_type.lower()
