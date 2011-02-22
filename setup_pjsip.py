@@ -200,7 +200,7 @@ class PJSIP_build_ext(build_ext):
 
     def set_portaudio_revision(self):
         log.info("Setting PortAudio revision to %s" % self.portaudio_svn_revision)
-        self.portaudio_dir = os.path.join(self.svn_dir, "third_party", "portaudio");
+        self.portaudio_dir = os.path.join(self.svn_dir, "third_party", "portaudio")
         third_party_dir = os.path.join(self.svn_dir, "third_party");
         with open(os.path.join(self.portaudio_dir, 'svn_externals'), 'w+') as f:
             f.write("portaudio -r%s https://www.portaudio.com/repos/portaudio/trunk\n" % self.portaudio_svn_revision)
