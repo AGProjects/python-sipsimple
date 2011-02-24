@@ -30,7 +30,7 @@ from sipsimple.core import Engine, Invitation, Subscription, PJSIPError, SIPCore
 from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
-from sipsimple.account import AccountManager
+from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
@@ -183,7 +183,9 @@ class ConferenceHandler(object):
         try:
             # Lookup routes
             account = self.session.account
-            if account.sip.outbound_proxy is not None:
+            if account is BonjourAccount():
+                uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
+            elif account.sip.outbound_proxy is not None:
                 uri = SIPURI(host=account.sip.outbound_proxy.host,
                              port=account.sip.outbound_proxy.port,
                              parameters={'transport': account.sip.outbound_proxy.transport})
@@ -208,7 +210,7 @@ class ConferenceHandler(object):
                                                 'conference',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=account.credentials,
-                                                refresh=account.sip.subscribe_interval)
+                                                refresh=3600)
                     notification_center.add_observer(self, sender=subscription)
                     try:
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
