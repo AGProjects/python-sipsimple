@@ -58,6 +58,8 @@ class ContactURIFactory(object):
             ip = host.outgoing_ip_for(route.address)
         else:
             raise KeyError("key must be a transport name or Route instance")
+        if ip is None:
+            raise KeyError("could not get outgoing IP address")
         port = getattr(Engine(), '%s_port' % transport, None)
         if port is None:
             raise KeyError("unsupported transport: %s" % transport)
@@ -197,7 +199,11 @@ class AccountRegistrar(object):
             for route in routes:
                 remaining_time = register_timeout-time()
                 if remaining_time > 0:
-                    contact_header = ContactHeader(self.account.contact[route])
+                    try:
+                        contact_uri = self.account.contact[route]
+                    except KeyError:
+                        continue
+                    contact_header = ContactHeader(contact_uri)
                     route_header = RouteHeader(route.get_uri())
                     self._registration.register(contact_header, route_header, timeout=limit(remaining_time, min=1, max=10))
                     try:
@@ -425,13 +431,17 @@ class AccountMWISubscriber(object):
             for route in routes:
                 remaining_time = timeout - time()
                 if remaining_time > 0:
+                    try:
+                        contact_uri = self.account.contact[route]
+                    except KeyError:
+                        continue
                     if self.account.message_summary.voicemail_uri is not None:
                         subscription_uri = SIPURI(user=self.account.message_summary.voicemail_uri.username, host=self.account.message_summary.voicemail_uri.domain)
                     else:
                         subscription_uri = self.account.uri
                     subscription = Subscription(subscription_uri, FromHeader(self.account.uri, self.account.display_name),
                                                 ToHeader(subscription_uri),
-                                                ContactHeader(self.account.contact[route]),
+                                                ContactHeader(contact_uri),
                                                 'message-summary',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=self.account.credentials,
@@ -774,14 +784,19 @@ class BonjourServices(object):
                 service_description = file.service_description
                 transport = uri.transport
                 supported_transport = transport in settings.sip.transport_list and (transport!='tls' or self.account.tls.certificate is not None)
-                if supported_transport and uri != self.account.contact[transport]:
-                    notification_name = 'BonjourAccountDidUpdateNeighbour' if service_description in self._neighbours else 'BonjourAccountDidAddNeighbour'
-                    notification_data = TimestampedNotificationData(neighbour=service_description, display_name=display_name, host=host, uri=uri)
-                    self._neighbours[service_description] = uri
-                    notification_center.post_notification(notification_name, sender=self.account, data=notification_data)
-                elif service_description in self._neighbours:
+                if not supported_transport and service_description in self._neighbours:
                     del self._neighbours[service_description]
                     notification_center.post_notification('BonjourAccountDidRemoveNeighbour', sender=self.account, data=TimestampedNotificationData(neighbour=service_description))
+                elif supported_transport:
+                    try:
+                        contact_uri = self.account.contact[transport]
+                    except KeyError:
+                        return
+                    if uri != contact_uri:
+                        notification_name = 'BonjourAccountDidUpdateNeighbour' if service_description in self._neighbours else 'BonjourAccountDidAddNeighbour'
+                        notification_data = TimestampedNotificationData(neighbour=service_description, display_name=display_name, host=host, uri=uri)
+                        self._neighbours[service_description] = uri
+                        notification_center.post_notification(notification_name, sender=self.account, data=notification_data)
         else:
             self._files.remove(file)
             self._select_proc.kill(RestartSelect)
@@ -839,15 +854,15 @@ class BonjourServices(object):
         added_transports = set()
         for transport in missing_transports:
             notification_center.post_notification('BonjourAccountWillRegister', sender=self.account, data=TimestampedNotificationData(transport=transport))
-            contact = self.account.contact[transport]
-            txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
             try:
+                contact = self.account.contact[transport]
+                txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
                 file = bonjour.DNSServiceRegister(name=str(contact),
                                                   regtype="_sipuri._%s" % (transport if transport == 'udp' else 'tcp'),
                                                   port=contact.port,
                                                   callBack=self._register_cb,
                                                   txtRecord=bonjour.TXTRecord(items=txtdata))
-            except bonjour.BonjourError, e:
+            except (bonjour.BonjourError, KeyError), e:
                 notification_center.post_notification('BonjourAccountRegistrationDidFail', sender=self.account,
                                                       data=TimestampedNotificationData(reason=str(e), transport=transport))
             else:
@@ -876,11 +891,11 @@ class BonjourServices(object):
             file.close()
         update_failure = False
         for file in (f for f in self._files if isinstance(f, BonjourRegistrationFile)):
-            contact = self.account.contact[file.transport]
-            txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
             try:
+                contact = self.account.contact[file.transport]
+                txtdata = dict(txtvers=1, name=self.account.display_name.encode('utf-8'), contact="<%s>" % str(contact))
                 bonjour.DNSServiceUpdateRecord(file.file, None, flags=0, rdata=bonjour.TXTRecord(items=txtdata), ttl=0)
-            except bonjour.BonjourError, e:
+            except (bonjour.BonjourError, KeyError), e:
                 notification_center.post_notification('BonjourAccountRegistrationUpdateDidFail', sender=self.account,
                                                       data=TimestampedNotificationData(reason=str(e), transport=file.transport))
                 update_failure = True

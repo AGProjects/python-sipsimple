@@ -659,9 +659,13 @@ class XCAPSubscriber(object):
             for route in routes:
                 remaining_time = timeout - time()
                 if remaining_time > 0:
+                    try:
+                        contact_uri = self.account.contact[route]
+                    except KeyError:
+                        continue
                     subscription = Subscription(self.account.uri, FromHeader(self.account.uri, self.account.display_name),
                                                 ToHeader(self.account.uri, self.account.display_name),
-                                                ContactHeader(self.account.contact[route]),
+                                                ContactHeader(contact_uri),
                                                 'xcap-diff',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=self.account.credentials,

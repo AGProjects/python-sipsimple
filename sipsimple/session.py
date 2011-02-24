@@ -204,9 +204,13 @@ class ConferenceHandler(object):
             for route in routes:
                 remaining_time = timeout - time()
                 if remaining_time > 0:
+                    try:
+                        contact_uri = account.contact[route]
+                    except KeyError:
+                        continue
                     subscription = Subscription(SIPURI.new(self.session._invitation.remote_contact_header.uri), FromHeader(account.uri, account.display_name),
                                                 ToHeader(SIPURI.new(self.session.remote_identity.uri)),
-                                                ContactHeader(account.contact[route]),
+                                                ContactHeader(contact_uri),
                                                 'conference',
                                                 RouteHeader(route.get_uri()),
                                                 credentials=account.credentials,
@@ -446,8 +450,12 @@ class Session(object):
                 notification = self._channel.wait()
                 if notification.name == 'MediaStreamDidInitialize':
                     wait_count -= 1
-
-            local_ip = host.outgoing_ip_for(self.route.address)
+            try:
+                contact_uri = self.account.contact[self.route]
+            except KeyError, e:
+                self._fail(originator='local', code=480, reason=sip_status_messages[480], error=str(e))
+                return
+            local_ip = contact_uri.host
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             for index, stream in enumerate(self.proposed_streams):
@@ -459,7 +467,7 @@ class Session(object):
                 local_sdp.connection.address = stun_addresses[0]
             from_header = FromHeader(self.account.uri, self.account.display_name)
             route_header = RouteHeader(self.route.get_uri())
-            contact_header = ContactHeader(self.account.contact[self.route])
+            contact_header = ContactHeader(contact_uri)
             if is_focus:
                 contact_header.parameters['isfocus'] = None
             self._invitation.send_invite(to_header.uri, from_header, to_header, route_header, contact_header, local_sdp, self.account.credentials)
@@ -650,6 +658,13 @@ class Session(object):
 
             sdp_connection = self._invitation.sdp.proposed_remote.connection or (media.connection for media in self._invitation.sdp.proposed_remote.media if media.connection is not None).next()
             local_ip = host.outgoing_ip_for(sdp_connection.address)
+            if local_ip is None:
+                for stream in self.proposed_streams:
+                    notification_center.remove_observer(self, sender=stream)
+                    stream.deactivate()
+                    stream.end()
+                self._fail(originator='local', code=500, reason=sip_status_messages[500], error='could not get local IP address')
+                return
             local_sdp = SDPSession(local_ip, connection=SDPConnection(local_ip), name=settings.user_agent)
             stun_addresses = []
             if self._invitation.sdp.proposed_remote:
