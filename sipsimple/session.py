@@ -817,6 +817,7 @@ class Session(object):
                 notification_center.remove_observer(self, sender=stream)
                 stream.deactivate()
                 stream.end()
+            self.greenlet = None
             self.state = 'terminated'
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Cancelled', ack_received='unknown'))
             notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
@@ -860,6 +861,7 @@ class Session(object):
         except SIPCoreInvalidStateError:
             # the only reason for which this error can be thrown is if invitation.send_response was called after the INVITE session was cancelled by the remote party
             notification_center.remove_observer(self, sender=self._invitation)
+            self.greenlet = None
             self.state = 'terminated'
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=487, reason='Session Cancelled', ack_received='unknown'))
             notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='remote', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
