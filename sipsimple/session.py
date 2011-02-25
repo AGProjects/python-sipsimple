@@ -453,6 +453,10 @@ class Session(object):
             try:
                 contact_uri = self.account.contact[self.route]
             except KeyError, e:
+                for stream in self.proposed_streams:
+                    notification_center.remove_observer(self, sender=stream)
+                    stream.deactivate()
+                    stream.end()
                 self._fail(originator='local', code=480, reason=sip_status_messages[480], error=str(e))
                 return
             local_ip = contact_uri.host
