@@ -412,6 +412,8 @@ class Session(object):
             self.transport = invitation.transport
             self._invitation = invitation
             self.conference = ConferenceHandler(self)
+            if 'isfocus' in invitation.remote_contact_header.parameters:
+                self.remote_focus = True
             notification_center.add_observer(self, sender=invitation)
             notification_center.post_notification('SIPSessionNewIncoming', self, TimestampedNotificationData(streams=self.proposed_streams))
         else:
