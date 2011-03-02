@@ -135,7 +135,8 @@ cdef class BaseContactHeader:
             if self.uri is None:
                 return "*"
             if self.parameters:
-                parameters = ";" + ";".join(["%s=%s" % (name, value) for name, value in self.parameters.iteritems()])
+                parameters = ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                             for name, value in self.parameters.iteritems()])
             else:
                 parameters = ""
             if self.display_name:
@@ -292,7 +293,8 @@ cdef class BaseIdentityHeader:
 
         def __get__(self):
             if self.parameters:
-                parameters = ";" + ";".join(["%s=%s" % (name, value) for name, value in self.parameters.iteritems()])
+                parameters = ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                             for name, value in self.parameters.iteritems()])
             else:
                 parameters = ""
             if self.display_name:
@@ -535,7 +537,8 @@ cdef class BaseRetryAfterHeader:
             if self.comment is not None:
                 string += " (%s)" % self.comment
             if self.parameters:
-                string += ";" + ";".join(["%s=%s" % (name, value) for name, value in self.parameters.iteritems()])
+                string += ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                          for name, value in self.parameters.iteritems()])
             return string
 
 def RetryAfterHeader_new(cls, BaseRetryAfterHeader header):
@@ -641,7 +644,8 @@ cdef class BaseViaHeader:
         def __get__(self):
             string = "SIP/2.0/%s %s:%d" % (self.transport, self.host, self.port)
             if self.parameters:
-                string += ";" + ";".join(["%s=%s" % (name, value) for name, value in self.parameters.iteritems()])
+                string += ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                          for name, value in self.parameters.iteritems()])
             return string
 
 def ViaHeader_new(cls, BaseViaHeader header):
