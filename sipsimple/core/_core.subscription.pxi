@@ -22,9 +22,9 @@ cdef class Subscription:
     def __init__(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
                  object event, RouteHeader route_header not None, Credentials credentials=None, int refresh=300):
         global _subs_cb
-        cdef PJSTR from_header_str
-        cdef PJSTR to_header_str
-        cdef PJSTR contact_header_str
+        cdef PJSTR from_uri_str
+        cdef PJSTR to_uri_str
+        cdef PJSTR contact_uri_str
         cdef PJSTR request_uri_str
         cdef pj_str_t event_pj
         cdef pjsip_cred_info *cred_info
@@ -43,14 +43,14 @@ cdef class Subscription:
         if credentials is not None:
             self.credentials = FrozenCredentials.new(credentials)
         self.refresh = refresh
-        from_header_str = PJSTR(from_header.body)
-        to_header_str = PJSTR(to_header.body)
-        contact_header_str = PJSTR(contact_header.body)
+        from_uri_str = PJSTR(str(from_header.uri))
+        to_uri_str = PJSTR(str(to_header.uri))
+        contact_uri_str = PJSTR(str(contact_header.uri))
         request_uri_str = PJSTR(str(request_uri))
         _str_to_pj_str(self.event, &event_pj)
         with nogil:
-            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_header_str.pj_str,
-                                          &to_header_str.pj_str, &request_uri_str.pj_str, &self._dlg)
+            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_uri_str.pj_str, &contact_uri_str.pj_str,
+                                          &to_uri_str.pj_str, &request_uri_str.pj_str, &self._dlg)
         if status != 0:
             raise PJSIPError("Could not create dialog for SUBSCRIBE", status)
         # Increment dialog session count so that it's never destroyed by PJSIP
@@ -58,6 +58,10 @@ cdef class Subscription:
             status = pjsip_dlg_inc_session(self._dlg, &ua._module)
         if status != 0:
             raise PJSIPError("Could not increment dialog session count", status)
+        parameters = contact_header.parameters.copy()
+        parameters.pop("q", None)
+        parameters.pop("expires", None)
+        _dict_to_pjsip_param(contact_header.parameters, &self._dlg.local.contact.other_param, self._dlg.pool)
         self.from_header = FrozenFromHeader_create(self._dlg.local.info)
         self.to_header = FrozenToHeader.new(to_header)
         with nogil:
@@ -346,7 +350,7 @@ cdef class IncomingSubscription:
         cdef str transport
         cdef FrozenSIPURI request_uri
         cdef FrozenContactHeader contact_header
-        cdef PJSTR contact_header_str
+        cdef PJSTR contact_uri_str
         cdef dict event_dict
         cdef pjsip_expires_hdr *expires_header
 
@@ -381,9 +385,9 @@ cdef class IncomingSubscription:
             contact_header = FrozenContactHeader(FrozenSIPURI(host=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                             user=request_uri.user, port=rdata.tp_info.transport.local_name.port,
                                                             parameters=(frozendict(transport=transport) if transport != "udp" else frozendict())))
-        contact_header_str = PJSTR(contact_header.body)
+        contact_uri_str = PJSTR(str(contact_header.uri))
         with nogil:
-            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_header_str.pj_str, &self._dlg)
+            status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri_str.pj_str, &self._dlg)
         if status != 0:
             raise PJSIPError("Could not create dialog for incoming SUBSCRIBE", status)
         # Increment dialog session count so that it's never destroyed by PJSIP

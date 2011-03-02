@@ -66,7 +66,7 @@ cdef class Invitation:
         cdef pjsip_inv_session **invite_session_address
         cdef pjsip_tpselector tp_sel
         cdef pjsip_tx_data *tdata
-        cdef PJSTR contact_header
+        cdef PJSTR contact_uri_str
 
         with nogil:
             status = pj_mutex_lock(lock)
@@ -85,9 +85,9 @@ cdef class Invitation:
                 self.local_contact_header = FrozenContactHeader(FrozenSIPURI(host=_pj_str_to_str(rdata.tp_info.transport.local_name.host),
                                                                              user=self.request_uri.user, port=rdata.tp_info.transport.local_name.port,
                                                                              parameters=(frozendict(transport=self.transport) if self.transport != "udp" else frozendict())))
-            contact_header = PJSTR(self.local_contact_header.body)
+            contact_uri_str = PJSTR(str(self.local_contact_header.uri))
             with nogil:
-                status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_header.pj_str, dialog_address)
+                status = pjsip_dlg_create_uas(pjsip_ua_instance(), rdata, &contact_uri_str.pj_str, dialog_address)
             if status != 0:
                 raise PJSIPError("Could not create dialog for new INVITE session", status)
             with nogil:
@@ -162,9 +162,9 @@ cdef class Invitation:
         cdef pjsip_route_hdr *route_set
         cdef pjsip_tx_data *tdata
         cdef PJSIPUA ua
-        cdef PJSTR contact_header_str
-        cdef PJSTR from_header_str
-        cdef PJSTR to_header_str
+        cdef PJSTR contact_uri_str
+        cdef PJSTR from_uri_str
+        cdef PJSTR to_uri_str
         cdef PJSTR request_uri_str
 
         ua = _get_ua()
@@ -193,20 +193,28 @@ cdef class Invitation:
             self.local_contact_header = FrozenContactHeader.new(contact_header)
             self.sdp.proposed_local = FrozenSDPSession.new(sdp) if sdp is not None else None
 
-            from_header_str = PJSTR(from_header.body)
-            to_header_str = PJSTR(to_header.body)
-            contact_header_str = PJSTR(self.local_contact_header.body)
+            from_uri_str = PJSTR(str(from_header.uri))
+            to_uri_str = PJSTR(str(to_header.uri))
+            contact_uri_str = PJSTR(str(self.local_contact_header.uri))
             request_uri_str = PJSTR(str(request_uri))
 
             with nogil:
-                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_header_str.pj_str,
-                                              &to_header_str.pj_str, &request_uri_str.pj_str, dialog_address)
+                status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_uri_str.pj_str, &contact_uri_str.pj_str,
+                                              &to_uri_str.pj_str, &request_uri_str.pj_str, dialog_address)
             if status != 0:
                 raise PJSIPError("Could not create dialog for outgoing INVITE session", status)
 
             with nogil:
                 pjsip_dlg_inc_lock(self._dialog)
 
+            if contact_header.expires is not None:
+                self._dialog.local.contact.expires = contact_header.expires
+            if contact_header.q is not None:
+                self._dialog.local.contact.q1000 = int(contact_header.q*1000)
+            contact_parameters = contact_header.parameters.copy()
+            contact_parameters.pop("q", None)
+            contact_parameters.pop("expires", None)
+            _dict_to_pjsip_param(contact_parameters, &self._dialog.local.contact.other_param, self._dialog.pool)
             self.from_header = FrozenFromHeader_create(self._dialog.local.info)
             self.to_header = FrozenToHeader.new(to_header)
             self.call_id = _pj_str_to_str(self._dialog.call_id.id)
@@ -551,7 +559,7 @@ cdef class Invitation:
         parameters = contact_header.parameters.copy()
         parameters.pop("q", None)
         parameters.pop("expires", None)
-        _dict_to_pjsip_param(contact_header.parameters, &self._dialog.local.contact.other_param, self._dialog.pool)
+        _dict_to_pjsip_param(parameters, &self._dialog.local.contact.other_param, self._dialog.pool)
         self.local_contact_header = FrozenContactHeader.new(contact_header)
         return 0
 
