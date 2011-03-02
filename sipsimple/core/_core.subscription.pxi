@@ -40,6 +40,7 @@ cdef class Subscription:
         self.event = event
         self.route_header = FrozenRouteHeader.new(route_header)
         self.route_header.uri.parameters.dict["lr"] = None # always send lr parameter in Route header
+        self.route_header.uri.parameters.dict["hide"] = None # always hide Route header
         if credentials is not None:
             self.credentials = FrozenCredentials.new(credentials)
         self.refresh = refresh
