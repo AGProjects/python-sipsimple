@@ -58,10 +58,14 @@ cdef class Subscription:
             status = pjsip_dlg_inc_session(self._dlg, &ua._module)
         if status != 0:
             raise PJSIPError("Could not increment dialog session count", status)
-        parameters = contact_header.parameters.copy()
-        parameters.pop("q", None)
-        parameters.pop("expires", None)
-        _dict_to_pjsip_param(contact_header.parameters, &self._dlg.local.contact.other_param, self._dlg.pool)
+        if contact_header.expires is not None:
+            self._dlg.local.contact.expires = contact_header.expires
+        if contact_header.q is not None:
+            self._dlg.local.contact.q1000 = int(contact_header.q*1000)
+        contact_parameters = contact_header.parameters.copy()
+        contact_parameters.pop("q", None)
+        contact_parameters.pop("expires", None)
+        _dict_to_pjsip_param(contact_parameters, &self._dlg.local.contact.other_param, self._dlg.pool)
         self.from_header = FrozenFromHeader_create(self._dlg.local.info)
         self.to_header = FrozenToHeader.new(to_header)
         with nogil:
