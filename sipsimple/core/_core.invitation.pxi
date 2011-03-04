@@ -4,7 +4,7 @@
 # python imports
 
 import weakref
-from errno import EADDRNOTAVAIL
+from errno import EADDRNOTAVAIL, ENETUNREACH
 
 
 # classes
@@ -41,6 +41,7 @@ cdef class Invitation:
         self._dialog = NULL
         self._reinvite_transaction = NULL
         self._sdp_neg_status = -1
+        self._failed_response = 0
         self._timer = None
         self.from_header = None
         self.to_header = None
@@ -314,7 +315,11 @@ cdef class Invitation:
             with nogil:
                 status = pjsip_inv_send_msg(invite_session, tdata)
             if status != 0:
-                raise PJSIPError("Could not send %d response" % code, status)
+                exc = PJSIPError("Could not send %d response" % code, status)
+                if sdp is not None and self.sdp.proposed_remote is not None and exc.errno in (EADDRNOTAVAIL, ENETUNREACH):
+                    self._failed_response = 1
+                raise exc
+            self._failed_response = 0
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
@@ -355,6 +360,7 @@ cdef class Invitation:
                 status = pjsip_inv_send_msg(invite_session, tdata)
             if status != 0:
                 raise PJSIPError("Could not send re-INVITE", status)
+            self._failed_response = 0
             self._reinvite_transaction = self._invite_session.invite_tsx
             self.sub_state = "sent_proposal"
             event_dict = dict(obj=self, prev_state="connected", state="connected", prev_sub_state="normal", sub_state="sent_proposal", originator="local")
@@ -721,7 +727,9 @@ cdef class Invitation:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
-            self._sdp_neg_status = status
+            if self._failed_response == 1:
+                return 0
+            self._sdp_neg_status = timer.status
             self.sdp.proposed_local = None
             self.sdp.proposed_remote = None
             if timer.status == 0:

@@ -1785,6 +1785,7 @@ cdef class Invitation(object):
     cdef object __weakref__
     cdef object weakref
     cdef int _sdp_neg_status
+    cdef int _failed_response
     cdef pj_list _route_set
     cdef pj_mutex_t *_lock
     cdef pjsip_inv_session *_invite_session

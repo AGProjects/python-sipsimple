@@ -1,0 +1,15 @@
+Index: pjsip/src/pjsip-ua/sip_inv.c
+===================================================================
+--- pjsip/src/pjsip-ua/sip_inv.c	(revision 3368)
++++ pjsip/src/pjsip-ua/sip_inv.c	(working copy)
+@@ -1781,7 +1781,9 @@
+     PJ_ASSERT_RETURN(inv && p_tdata, PJ_EINVAL);
+ 
+     /* Must have INVITE transaction. */
+-    PJ_ASSERT_RETURN(inv->invite_tsx, PJ_EBUG);
++    /*PJ_ASSERT_RETURN(inv->invite_tsx, PJ_EBUG);*/
++    if (inv->invite_tsx == NULL)
++        return PJ_EBUG;
+ 
+     /* Must have created an answer before */
+     PJ_ASSERT_RETURN(inv->last_answer, PJ_EINVALIDOP);
