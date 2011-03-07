@@ -887,6 +887,7 @@ cdef extern from "pjsip.h":
         pjsip_cid_hdr *call_id
         pj_pool_t *pool
         pjsip_dlg_party local
+        pjsip_dlg_party remote
     struct pjsip_ua_init_param:
         pjsip_dialog *on_dlg_forked(pjsip_dialog *first_set, pjsip_rx_data *res) nogil
     int pjsip_ua_init_module(pjsip_endpoint *endpt, pjsip_ua_init_param *prm) nogil

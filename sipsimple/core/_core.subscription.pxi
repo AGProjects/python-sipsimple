@@ -22,8 +22,8 @@ cdef class Subscription:
     def __init__(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, ContactHeader contact_header not None,
                  object event, RouteHeader route_header not None, Credentials credentials=None, int refresh=300):
         global _subs_cb
-        cdef PJSTR from_uri_str
-        cdef PJSTR to_uri_str
+        cdef PJSTR from_header_str
+        cdef PJSTR to_header_str
         cdef PJSTR contact_uri_str
         cdef PJSTR request_uri_str
         cdef pj_str_t event_pj
@@ -44,14 +44,20 @@ cdef class Subscription:
         if credentials is not None:
             self.credentials = FrozenCredentials.new(credentials)
         self.refresh = refresh
-        from_uri_str = PJSTR(str(from_header.uri))
-        to_uri_str = PJSTR(str(to_header.uri))
+        from_header_parameters = from_header.parameters.copy()
+        from_header_parameters.pop("tag", None)
+        from_header.parameters = {}
+        from_header_str = PJSTR(from_header.body)
+        to_header_parameters = to_header.parameters.copy()
+        to_header_parameters.pop("tag", None)
+        to_header.parameters = {}
+        to_header_str = PJSTR(to_header.body)
         contact_uri_str = PJSTR(str(contact_header.uri))
         request_uri_str = PJSTR(str(request_uri))
         _str_to_pj_str(self.event, &event_pj)
         with nogil:
-            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_uri_str.pj_str, &contact_uri_str.pj_str,
-                                          &to_uri_str.pj_str, &request_uri_str.pj_str, &self._dlg)
+            status = pjsip_dlg_create_uac(pjsip_ua_instance(), &from_header_str.pj_str, &contact_uri_str.pj_str,
+                                          &to_header_str.pj_str, &request_uri_str.pj_str, &self._dlg)
         if status != 0:
             raise PJSIPError("Could not create dialog for SUBSCRIBE", status)
         # Increment dialog session count so that it's never destroyed by PJSIP
@@ -67,6 +73,8 @@ cdef class Subscription:
         contact_parameters.pop("q", None)
         contact_parameters.pop("expires", None)
         _dict_to_pjsip_param(contact_parameters, &self._dlg.local.contact.other_param, self._dlg.pool)
+        _dict_to_pjsip_param(from_header_parameters, &self._dlg.local.info.other_param, self._dlg.pool)
+        _dict_to_pjsip_param(to_header_parameters, &self._dlg.remote.info.other_param, self._dlg.pool)
         self.from_header = FrozenFromHeader_create(self._dlg.local.info)
         self.to_header = FrozenToHeader.new(to_header)
         with nogil:
