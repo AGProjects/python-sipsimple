@@ -266,6 +266,8 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1:
             header_data = FrozenEventHeader_create(<pjsip_event_hdr *> header)
         elif header_name == "Subscription-State":
             header_data = FrozenSubscriptionStateHeader_create(<pjsip_sub_state_hdr *> header)
+        elif header_name == "Refer-To":
+            header_data = FrozenReferToHeader_create(<pjsip_generic_string_hdr *> header)
         # skip the following headers:
         elif header_name not in ("Authorization", "Proxy-Authenticate", "Proxy-Authorization", "WWW-Authenticate"):
             header_data = FrozenHeader(header_name, _pj_str_to_str((<pjsip_generic_string_hdr *> header).hvalue))
@@ -320,6 +322,13 @@ cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1:
         _str_to_pj_str(header.body, &value_pj)
         hdr = <pjsip_hdr *> pjsip_generic_string_hdr_create(tdata.pool, &name_pj, &value_pj)
         pjsip_msg_add_hdr(tdata.msg, hdr)
+
+cdef int _remove_headers_from_tdata(pjsip_tx_data *tdata, object headers) except -1:
+    cdef pj_str_t header_name_pj
+    cdef pjsip_hdr *hdr
+    for header in headers:
+        _str_to_pj_str(header, &header_name_pj)
+        hdr = <pjsip_hdr *> pjsip_msg_find_remove_hdr_by_name(tdata.msg, &header_name_pj, NULL)
 
 cdef int _BaseSIPURI_to_pjsip_sip_uri(BaseSIPURI uri, pjsip_sip_uri *pj_uri, pj_pool_t *pool) except -1:
     cdef pjsip_param *param

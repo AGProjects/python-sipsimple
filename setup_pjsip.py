@@ -112,7 +112,9 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-2830-hide_route_header.patch",
                    "patches/pjsip-2830-runtime_device_change_detection_wmme.patch",
                    "patches/pjsip-2830-fix_crash_with_retry_after_header.patch",
-                   "patches/pjsip-3368-disable_assert_on_invite_answer.patch"]
+                   "patches/pjsip-3368-disable_assert_on_invite_answer.patch",
+                   "patches/pjsip-3368-evsub_timer_functions.patch",
+                   "patches/pjsip-3368-remove_hdr_by_name.patch"]
     pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
                        "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",

@@ -1,0 +1,75 @@
+Index: pjsip/src/pjsip-simple/evsub.c
+===================================================================
+--- pjsip/src/pjsip-simple/evsub.c	(revision 3368)
++++ pjsip/src/pjsip-simple/evsub.c	(working copy)
+@@ -485,7 +485,13 @@
+     sub->refresh_time.sec += interval;
+ }
+ 
++PJ_DEF(void) pjsip_evsub_update_expires( pjsip_evsub *sub, pj_uint32_t interval )
++{
++    pj_gettimeofday(&sub->refresh_time);
++    sub->refresh_time.sec += interval;
++}
+ 
++
+ /* 
+  * Schedule timer.
+  */
+@@ -518,7 +524,36 @@
+     }
+ }
+ 
++PJ_DEF(void) pjsip_evsub_set_timer( pjsip_evsub *sub, int timer_id,
++		       pj_int32_t seconds)
++{
++    if (sub->timer.id != TIMER_TYPE_NONE) {
++	PJ_LOG(5,(sub->obj_name, "%s %s timer", 
++		  (timer_id==sub->timer.id ? "Updating" : "Cancelling"),
++		  timer_names[sub->timer.id]));
++	pjsip_endpt_cancel_timer(sub->endpt, &sub->timer);
++	sub->timer.id = TIMER_TYPE_NONE;
++    }
+ 
++    if (timer_id != TIMER_TYPE_NONE) {
++	pj_time_val timeout;
++
++	PJ_ASSERT_ON_FAIL(seconds > 0, return);
++	PJ_ASSERT_ON_FAIL(timer_id>TIMER_TYPE_NONE && timer_id<TIMER_TYPE_MAX,
++			  return);
++
++	timeout.sec = seconds;
++	timeout.msec = 0;
++	sub->timer.id = timer_id;
++
++	pjsip_endpt_schedule_timer(sub->endpt, &sub->timer, &timeout);
++
++	PJ_LOG(5,(sub->obj_name, "Timer %s scheduled in %d seconds", 
++		  timer_names[sub->timer.id], timeout.sec));
++    }
++}
++
++
+ /*
+  * Destroy session.
+  */
+Index: pjsip/include/pjsip-simple/evsub.h
+===================================================================
+--- pjsip/include/pjsip-simple/evsub.h	(revision 3368)
++++ pjsip/include/pjsip-simple/evsub.h	(working copy)
+@@ -482,7 +482,15 @@
+ PJ_DECL(void*) pjsip_evsub_get_mod_data( pjsip_evsub *sub, unsigned mod_id );
+ 
+ 
++/* Update evbsub internal refresh_time with the given interval */
++PJ_DECL(void) pjsip_evsub_update_expires( pjsip_evsub *sub, pj_uint32_t interval );
+ 
++
++/* Set the specified timer (UAC or UAS) to the specified time */
++PJ_DECL(void) pjsip_evsub_set_timer( pjsip_evsub *sub, int timer_id,
++		                    pj_int32_t seconds );
++
++
+ PJ_END_DECL
+ 
+ /**

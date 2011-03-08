@@ -81,6 +81,8 @@ cdef class PJSIPUA:
         cdef list accept_types
         cdef int status
         cdef PJSTR message_method = PJSTR("MESSAGE")
+        cdef PJSTR refer_method = PJSTR("REFER")
+        cdef PJSTR str_norefersub = PJSTR("norefersub")
         self._event_handler = event_handler
         if kwargs["log_level"] < 0 or kwargs["log_level"] > PJ_LOG_MAX_LEVEL:
             raise ValueError("Log level should be between 0 and %d" % PJ_LOG_MAX_LEVEL)
@@ -113,6 +115,14 @@ cdef class PJSIPUA:
                                             PJSIP_H_ALLOW, NULL, 1, &message_method.pj_str)
         if status != 0:
             raise PJSIPError("Could not add MESSAGE method to supported methods", status)
+        status = pjsip_endpt_add_capability(self._pjsip_endpoint._obj, &self._module,
+                                            PJSIP_H_ALLOW, NULL, 1, &refer_method.pj_str)
+        if status != 0:
+            raise PJSIPError("Could not add REFER method to supported methods", status)
+        status = pjsip_endpt_add_capability(self._pjsip_endpoint._obj, NULL,
+                                            PJSIP_H_SUPPORTED, NULL, 1, &str_norefersub.pj_str)
+        if status != 0:
+            raise PJSIPError("Could not add 'norefsub' to Supported header", status)
         self._trace_sip = int(bool(kwargs["trace_sip"]))
         self._ignore_missing_ack = int(bool(kwargs["ignore_missing_ack"]))
         self._trace_module_name = PJSTR("mod-core-sip-trace")
@@ -160,7 +170,7 @@ cdef class PJSIPUA:
             self._incoming_events.add(event)
         for method in kwargs["incoming_requests"]:
             method = method.upper()
-            if method in ("ACK", "BYE", "INVITE", "SUBSCRIBE"):
+            if method in ("ACK", "BYE", "INVITE", "REFER", "SUBSCRIBE"):
                 raise ValueError('Handling incoming "%s" requests is not allowed' % method)
             self._incoming_requests.add(method)
         self.rtp_port_range = kwargs["rtp_port_range"]
@@ -243,7 +253,7 @@ cdef class PJSIPUA:
         cdef str method
         self._check_self()
         method = value.upper()
-        if method in ("ACK", "BYE", "INVITE", "SUBSCRIBE"):
+        if method in ("ACK", "BYE", "INVITE", "REFER", "SUBSCRIBE"):
             raise ValueError('Handling incoming "%s" requests is not allowed' % method)
         self._incoming_requests.add(method)
 
@@ -251,7 +261,7 @@ cdef class PJSIPUA:
         cdef str method
         self._check_self()
         method = value.upper()
-        if method in ("ACK", "BYE", "INVITE", "SUBSCRIBE"):
+        if method in ("ACK", "BYE", "INVITE", "REFER", "SUBSCRIBE"):
             raise ValueError('Handling incoming "%s" requests is not allowed' % method)
         self._incoming_requests.discard(method)
 
@@ -685,6 +695,7 @@ cdef class PJSIPUA:
         cdef IncomingRequest request
         cdef Invitation inv
         cdef IncomingSubscription sub
+        cdef IncomingReferral ref
         cdef list extra_headers
         cdef dict event_dict
         cdef dict message_params
@@ -739,6 +750,9 @@ cdef class PJSIPUA:
             else:
                 sub = IncomingSubscription()
                 sub.init(self, rdata, _pj_str_to_str(event_hdr.event_type))
+        elif method_name == "REFER":
+            ref = IncomingReferral()
+            ref.init(self, rdata)
         elif method_name == "MESSAGE":
             bad_request = 0
             extra_headers = list()

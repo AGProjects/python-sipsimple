@@ -707,6 +707,7 @@ cdef extern from "pjsip.h":
     void pjsip_msg_add_hdr(pjsip_msg *msg, pjsip_hdr *hdr) nogil
     void *pjsip_msg_find_hdr(pjsip_msg *msg, pjsip_hdr_e type, void *start) nogil
     void *pjsip_msg_find_hdr_by_name(pjsip_msg *msg, pj_str_t *name, void *start) nogil
+    void *pjsip_msg_find_remove_hdr_by_name(pjsip_msg *msg, pj_str_t *name, void *start) nogil
     pjsip_generic_string_hdr *pjsip_generic_string_hdr_create(pj_pool_t *pool, pj_str_t *hname, pj_str_t *hvalue) nogil
     pjsip_contact_hdr *pjsip_contact_hdr_create(pj_pool_t *pool) nogil
     pjsip_expires_hdr *pjsip_expires_hdr_create(pj_pool_t *pool, int value) nogil
@@ -920,6 +921,7 @@ cdef extern from "pjsip-simple/evsub_msg.h":
         int expires_param
         int retry_after
         pjsip_param other_param
+    pjsip_event_hdr *pjsip_event_hdr_create(pj_pool_t *pool) nogil
 
 cdef extern from "pjsip_simple.h":
 
@@ -953,6 +955,8 @@ cdef extern from "pjsip_simple.h":
     char *pjsip_evsub_get_state_name(pjsip_evsub *sub) nogil
     void pjsip_evsub_set_mod_data(pjsip_evsub *sub, int mod_id, void *data) nogil
     void *pjsip_evsub_get_mod_data(pjsip_evsub *sub, int mod_id) nogil
+    void pjsip_evsub_update_expires(pjsip_evsub *sub, int interval) nogil
+    void pjsip_evsub_set_timer(pjsip_evsub *sub, int timer_id, int seconds)
     pjsip_hdr *pjsip_evsub_get_allow_events_hdr(pjsip_module *m) nogil
     int pjsip_evsub_notify(pjsip_evsub *sub, pjsip_evsub_state state,
                            pj_str_t *state_str, pj_str_t *reason, pjsip_tx_data **p_tdata) nogil
@@ -1289,6 +1293,20 @@ cdef class FrozenReasonHeader(BaseReasonHeader):
     cdef readonly str protocol
     cdef readonly frozendict parameters
  
+cdef class BaseReferToHeader(object):
+    pass
+
+cdef class ReferToHeader(BaseReferToHeader):
+    # attributes
+    cdef public str uri
+    cdef dict _parameters
+
+cdef class FrozenReferToHeader(BaseReferToHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly str uri
+    cdef readonly frozendict parameters
+
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
 cdef ContactHeader ContactHeader_create(pjsip_contact_hdr *header)
@@ -1309,6 +1327,8 @@ cdef EventHeader EventHeader_create(pjsip_event_hdr *header)
 cdef FrozenEventHeader FrozenEventHeader_create(pjsip_event_hdr *header)
 cdef SubscriptionStateHeader SubscriptionStateHeader_create(pjsip_sub_state_hdr *header)
 cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_sub_state_hdr *header)
+cdef ReferToHeader ReferToHeader_create(pjsip_generic_string_hdr *header)
+cdef FrozenReferToHeader FrozenReferToHeader_create(pjsip_generic_string_hdr *header)
 
 # core.util
 
@@ -1322,6 +1342,7 @@ cdef int _pjsip_msg_to_dict(pjsip_msg *msg, dict info_dict) except -1
 cdef int _is_valid_ip(int af, object ip) except -1
 cdef int _get_ip_version(object ip) except -1
 cdef int _add_headers_to_tdata(pjsip_tx_data *tdata, object headers) except -1
+cdef int _remove_headers_from_tdata(pjsip_tx_data *tdata, object headers) except -1
 cdef int _BaseSIPURI_to_pjsip_sip_uri(BaseSIPURI uri, pjsip_sip_uri *pj_uri, pj_pool_t *pool) except -1
 cdef int _BaseRouteHeader_to_pjsip_route_hdr(BaseIdentityHeader header, pjsip_route_hdr *pj_header, pj_pool_t *pool) except -1
 
@@ -1556,6 +1577,78 @@ cdef class IncomingRequest(object):
 
 cdef void _Request_cb_tsx_state(pjsip_transaction *tsx, pjsip_event *event) with gil
 cdef void _Request_cb_timer(pj_timer_heap_t *timer_heap, pj_timer_entry *entry) with gil
+
+# core.referral
+
+cdef class Referral(object):
+    # attributes
+    cdef pjsip_evsub *_obj
+    cdef pjsip_dialog *_dlg
+    cdef pjsip_route_hdr _route_header
+    cdef pj_list _route_set
+    cdef int _create_subscription
+    cdef readonly object state
+    cdef pj_timer_entry _timeout_timer
+    cdef int _timeout_timer_active
+    cdef pj_timer_entry _refresh_timer
+    cdef int _refresh_timer_active
+    cdef readonly EndpointAddress peer_address
+    cdef readonly FrozenFromHeader from_header
+    cdef readonly FrozenToHeader to_header
+    cdef readonly FrozenReferToHeader refer_to_header
+    cdef readonly FrozenRouteHeader route_header
+    cdef readonly FrozenCredentials credentials
+    cdef readonly FrozenContactHeader local_contact_header
+    cdef readonly FrozenContactHeader remote_contact_header
+    cdef readonly int refresh
+    cdef readonly frozenlist extra_headers
+    cdef pj_time_val _request_timeout
+    cdef int _want_end
+    cdef int _term_code
+    cdef object _term_reason
+
+    # private methods
+    cdef PJSIPUA _get_ua(self)
+    cdef int _update_contact_header(self, BaseContactHeader contact_header) except -1
+    cdef int _cancel_timers(self, PJSIPUA ua, int cancel_timeout, int cancel_refresh) except -1
+    cdef int _send_refer(self, PJSIPUA ua, pj_time_val *timeout, FrozenReferToHeader refer_to_header, frozenlist extra_headers) except -1
+    cdef int _send_subscribe(self, PJSIPUA ua, int expires, pj_time_val *timeout, frozenlist extra_headers) except -1
+    cdef int _cb_state(self, PJSIPUA ua, object state, int code, str reason) except -1
+    cdef int _cb_got_response(self, PJSIPUA ua, pjsip_rx_data *rdata, str method) except -1
+    cdef int _cb_notify(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    cdef int _cb_timeout_timer(self, PJSIPUA ua)
+    cdef int _cb_refresh_timer(self, PJSIPUA ua)
+
+cdef class IncomingReferral(object):
+    cdef pjsip_evsub *_obj
+    cdef pjsip_dialog *_dlg
+    cdef pjsip_tx_data *_initial_response
+    cdef pjsip_transaction *_initial_tsx
+    cdef pj_time_val _expires_time
+    cdef int _create_subscription
+    cdef readonly str state
+    cdef readonly EndpointAddress peer_address
+    cdef readonly FrozenContactHeader local_contact_header
+    cdef readonly FrozenContactHeader remote_contact_header
+    cdef PJSTR _content
+
+    cdef int init(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    cdef PJSIPUA _get_ua(self, int raise_exception)
+    cdef int _set_content(self, int code, str reason) except -1
+    cdef int _set_state(self, str state) except -1
+    cdef int _send_initial_response(self, int code) except -1
+    cdef int _send_notify(self) except -1
+    cdef int _terminate(self, PJSIPUA ua, int do_cleanup) except -1
+    cdef int _cb_rx_refresh(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
+    cdef int _cb_server_timeout(self, PJSIPUA ua) except -1
+    cdef int _cb_tsx(self, PJSIPUA ua, pjsip_event *event) except -1
+
+cdef void _Referral_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
+cdef void _Referral_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+cdef void _Referral_cb_refresh(pjsip_evsub *sub) with gil
+cdef void _IncomingReferral_cb_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code, pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+cdef void _IncomingReferral_cb_server_timeout(pjsip_evsub *sub) with gil
+cdef void _IncomingReferral_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil
 
 # core.subscription
 

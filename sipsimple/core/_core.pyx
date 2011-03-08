@@ -16,6 +16,7 @@ include "_core.helper.pxi"
 include "_core.headers.pxi"
 include "_core.subscription.pxi"
 include "_core.invitation.pxi"
+include "_core.referral.pxi"
 include "_core.sdp.pxi"
 include "_core.mediatransport.pxi"
 
@@ -23,7 +24,7 @@ include "_core.mediatransport.pxi"
 
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-CORE_REVISION = 133
+CORE_REVISION = 134
 
 # exports
 
@@ -38,7 +39,9 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "BaseViaHeader", "ViaHeader", "FrozenViaHeader", "BaseWarningHeader", "WarningHeader", "FrozenWarningHeader",
            "BaseEventHeader", "EventHeader", "FrozenEventHeader", "BaseSubscriptionStateHeader", "SubscriptionStateHeader", "FrozenSubscriptionStateHeader",
            "BaseReasonHeader", "ReasonHeader", "FrozenReasonHeader",
+           "BaseReferToHeader", "ReferToHeader", "FrozenReferToHeader",
            "Request",
+           "Referral",
            "Subscription",
            "Invitation",
            "SDPSession", "FrozenSDPSession", "SDPMediaStream", "FrozenSDPMediaStream", "SDPConnection", "FrozenSDPConnection", "SDPAttribute", "FrozenSDPAttribute",

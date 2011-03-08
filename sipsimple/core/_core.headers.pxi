@@ -1294,6 +1294,90 @@ cdef class FrozenReasonHeader(BaseReasonHeader):
 del FrozenReasonHeader_new
 
 
+cdef object BaseReferToHeader_richcmp(object self, object other, object op) with gil:
+    if op not in (2, 3):
+        return NotImplemented
+    if not isinstance(other, BaseReferToHeader):
+        return NotImplemented
+    if op == 2:
+        return self.uri == other.uri and self.parameters == other.parameters
+    else:
+        return self.uri != other.uri or self.parameters != other.parameters
+
+cdef class BaseReferToHeader:
+    normal_type = ReferToHeader
+    frozen_type = FrozenReferToHeader
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("%s cannot be instantiated directly" % self.__class__.__name__)
+
+    def __repr__(self):
+        return "%s(%r, %r)" % (self.__class__.__name__, self.uri, self.parameters)
+
+    def __str__(self):
+        return "%s: %s" % (self.name, self.body)
+
+    def __richcmp__(self, other, op):
+        return BaseReferToHeader_richcmp(self, other, op)
+
+    property name:
+
+        def __get__(self):
+            return "Refer-To"
+
+    property body:
+
+        def __get__(self):
+            if self.parameters:
+                parameters = ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                             for name, value in self.parameters.iteritems()])
+            else:
+                parameters = ""
+            return "<%s>%s" % (self.uri, parameters)
+
+def ReferToHeader_new(cls, BaseReferToHeader header):
+    return cls(header.uri, dict(header.parameters))
+
+cdef class ReferToHeader(BaseReferToHeader):
+    def __init__(self, str uri not None, dict parameters=None):
+        self.uri = uri
+        self.parameters = parameters if parameters is not None else {}
+
+    property parameters:
+
+        def __get__(self):
+            return self._parameters
+
+        def __set__(self, dict parameters not None):
+            self._parameters = parameters
+
+    new = classmethod(ReferToHeader_new)
+
+del ReferToHeader_new
+
+def FrozenReferToHeader_new(cls, BaseReferToHeader header):
+    if isinstance(header, cls):
+        return header
+    return cls(header.uri, frozendict(header.parameters))
+
+cdef class FrozenReferToHeader(BaseReferToHeader):
+    def __init__(self, str uri not None, frozendict parameters not None=frozendict()):
+        if not self.initialized:
+            self.uri = uri
+            self.parameters = parameters
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.uri, self.parameters))
+
+    def __richcmp__(self, other, op):
+        return BaseReferToHeader_richcmp(self, other, op)
+
+    new = classmethod(FrozenReferToHeader_new)
+
+del FrozenReferToHeader_new
+
+
 # Factory functions
 #
 
@@ -1514,4 +1598,22 @@ cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_su
     if header.retry_after != -1:
         parameters["retry-after"] = str(header.retry_after)
     return FrozenSubscriptionStateHeader(_pj_str_to_str(header.sub_state), frozendict(parameters))
+
+cdef ReferToHeader ReferToHeader_create(pjsip_generic_string_hdr *header):
+    cdef dict parameters
+    cdef str value
+    value = _pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue)
+    uri, sep, params_str = value.partition('>')
+    uri = uri.strip('<')
+    parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
+    return ReferToHeader(uri, parameters)
+
+cdef FrozenReferToHeader FrozenReferToHeader_create(pjsip_generic_string_hdr *header):
+    cdef dict parameters
+    cdef str value
+    value = _pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue)
+    uri, sep, params_str = value.partition('>')
+    uri = uri.strip('<')
+    parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
+    return FrozenReferToHeader(uri, frozendict(parameters))
 
