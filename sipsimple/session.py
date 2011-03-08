@@ -12,6 +12,7 @@ from __future__ import absolute_import, with_statement
 __all__ = ['Session', 'SessionManager']
 
 import random
+import re
 
 from datetime import datetime
 from threading import RLock
@@ -26,8 +27,8 @@ from eventlet.coros import queue
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.core import Engine, Invitation, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages
-from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, RouteHeader, ToHeader, WarningHeader
+from sipsimple.core import Engine, Invitation, Referral, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages
+from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, ReferToHeader, RouteHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
 from sipsimple.account import AccountManager, BonjourAccount
@@ -67,6 +68,18 @@ class InterruptSubscription(Exception):
 class TerminateSubscription(Exception):
     pass
 
+class ReferralError(Exception):
+    def __init__(self, error, code=0):
+        self.error = error
+        self.code = code
+
+class TerminateReferral(Exception):
+    pass
+
+class SIPReferralDidFail(Exception):
+    def __init__(self, data):
+        self.data = data
+
 class IllegalStateError(RuntimeError):
     pass
 
@@ -97,6 +110,230 @@ def check_state(required_states):
     return state_checker
 
 
+class AddParticipantOperation(object):
+    pass
+
+class RemoveParticipantOperation(object):
+    pass
+
+class ReferralHandler(object):
+    implements(IObserver)
+
+    sipfrag_re = re.compile(r'^SIP/2\.0 (?P<code>\d{3}) (?P<reason>.+)')
+
+    def __init__(self, session, participant_uri, operation):
+        self.session = session
+        self.participant_uri = participant_uri
+        self.operation = operation
+        self.active = False
+        self.route = None
+        self._channel = coros.queue()
+        self._referral = None
+        self._wakeup_timer = None
+
+    def start(self):
+        notification_center = NotificationCenter()
+        if not self.session.remote_focus:
+            if self.operation is AddParticipantOperation:
+                notification_center.post_notification('SIPConferenceDidNotAddParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='remote endpoint is not a focus'))
+            else:
+                notification_center.post_notification('SIPConferenceDidNotRemoveParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='remote endpoint is not a focus'))
+            self.session = None
+            return
+        notification_center.add_observer(self, sender=self.session)
+        notification_center.add_observer(self, name='DNSNameserversDidChange')
+        notification_center.add_observer(self, name='SystemIPAddressDidChange')
+        notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
+        proc.spawn(self._run)
+
+    def _run(self):
+        notification_center = NotificationCenter()
+        settings = SIPSimpleSettings()
+
+        try:
+            # Lookup routes
+            account = self.session.account
+            if account is BonjourAccount():
+                uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
+            elif account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=account.sip.outbound_proxy.host,
+                             port=account.sip.outbound_proxy.port,
+                             parameters={'transport': account.sip.outbound_proxy.transport})
+            elif account.sip.always_use_my_proxy:
+                uri = SIPURI(host=account.id.domain)
+            else:
+                uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
+            lookup = DNSLookup()
+            try:
+                routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+            except DNSLookupError, e:
+                timeout = random.uniform(15, 30)
+                raise ReferralError(error='DNS lookup failed: %s' % e)
+
+            timeout = time() + 30
+            for route in routes:
+                self.route = route
+                remaining_time = timeout - time()
+                if remaining_time > 0:
+                    try:
+                        contact_uri = account.contact[route]
+                    except KeyError:
+                        continue
+                    refer_to_header = ReferToHeader(str(self.participant_uri))
+                    refer_to_header.parameters['method'] = 'INVITE' if self.operation is AddParticipantOperation else 'BYE'
+                    referral = Referral(SIPURI.new(self.session._invitation.remote_contact_header.uri), FromHeader(account.uri, account.display_name),
+                                        ToHeader(SIPURI.new(self.session.remote_identity.uri)),
+                                        refer_to_header,
+                                        ContactHeader(contact_uri),
+                                        RouteHeader(route.get_uri()),
+                                        account.credentials)
+                    notification_center.add_observer(self, sender=referral)
+                    try:
+                        referral.send_refer(timeout=limit(remaining_time, min=1, max=5))
+                    except SIPCoreError:
+                        notification_center.remove_observer(self, sender=referral)
+                        timeout = 5
+                        raise ReferralError(error='Internal error')
+                    self._referral = referral
+                    try:
+                        while True:
+                            notification = self._channel.wait()
+                            if notification.name == 'SIPReferralDidStart':
+                                break
+                    except SIPReferralDidFail, e:
+                        notification_center.remove_observer(self, sender=referral)
+                        self._referral = None
+                        if e.data.code in (403, 405):
+                            raise ReferralError(error=sip_status_messages[e.data.code], code=e.data.code)
+                        else:
+                            # Otherwise just try the next route
+                            continue
+                    else:
+                        break
+            else:
+                self.route = None
+                raise ReferralError(error='No more routes to try')
+            # At this point it is subscribed. Handle notifications and ending/failures.
+            try:
+                self.active = True
+                while True:
+                    notification = self._channel.wait()
+                    if notification.name == 'SIPReferralGotNotify':
+                        if notification.data.event == 'refer' and notification.data.body:
+                            match = self.sipfrag_re.match(notification.data.body)
+                            if match:
+                                code = int(match.group('code'))
+                                reason = match.group('reason')
+                                if self.operation is AddParticipantOperation:
+                                    notification_center.post_notification('SIPConferenceGotAddParticipantProgress', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=code, reason=reason))
+                                else:
+                                    notification_center.post_notification('SIPConferenceGotRemoveParticipantProgress', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=code, reason=reason))
+                    elif notification.name == 'SIPReferralDidEnd':
+                        break
+            except SIPReferralDidFail, e:
+                notification_center.remove_observer(self, sender=self._referral)
+                raise ReferralError(error=e.data.reason, code=e.data.code)
+            else:
+                notification_center.remove_observer(self, sender=self._referral)
+                if self.operation is AddParticipantOperation:
+                    notification_center.post_notification('SIPConferenceDidAddParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri))
+                else:
+                    notification_center.post_notification('SIPConferenceDidRemoveParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri))
+            finally:
+                self.active = False
+        except TerminateReferral:
+            if self._referral is not None:
+                try:
+                    self._referral.end(timeout=2)
+                except SIPCoreError:
+                    pass
+                else:
+                    try:
+                        while True:
+                            notification = self._channel.wait()
+                            if notification.name == 'SIPReferralDidEnd':
+                                break
+                    except SIPReferralDidFail:
+                        pass
+                finally:
+                    notification_center.remove_observer(self, sender=self._referral)
+            if self.operation is AddParticipantOperation:
+                notification_center.post_notification('SIPConferenceDidNotAddParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='user request'))
+            else:
+                notification_center.post_notification('SIPConferenceDidNotRemoveParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='user request'))
+        except ReferralError, e:
+            if self.operation is AddParticipantOperation:
+                notification_center.post_notification('SIPConferenceDidNotAddParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=e.code, reason=e.error))
+            else:
+                notification_center.post_notification('SIPConferenceDidNotRemoveParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=e.code, reason=e.error))
+        finally:
+            if self._wakeup_timer is not None and self._wakeup_timer.active():
+                self._wakeup_timer.cancel()
+            self._wakeup_timer = None
+            notification_center.remove_observer(self, sender=self.session)
+            notification_center.remove_observer(self, name='DNSNameserversDidChange')
+            notification_center.remove_observer(self, name='SystemIPAddressDidChange')
+            notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
+            self.session = None
+            self._referral = None
+
+    def _refresh(self):
+        try:
+            contact_header = ContactHeader(self.session.account.contact[self.route])
+        except KeyError:
+            pass
+        else:
+            try:
+                self._referral.refresh(contact_header=contact_header, timeout=2)
+            except (SIPCoreError, SIPCoreInvalidStateError):
+                pass
+
+    @run_in_twisted_thread
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_SIPReferralDidStart(self, notification):
+        self._channel.send(notification)
+
+    def _NH_SIPReferralDidEnd(self, notification):
+        self._channel.send(notification)
+
+    def _NH_SIPReferralDidFail(self, notification):
+        self._channel.send_exception(SIPReferralDidFail(notification.data))
+
+    def _NH_SIPReferralGotNotify(self, notification):
+        self._channel.send(notification)
+
+    def _NH_SIPSessionDidFail(self, notification):
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
+        self._channel.send_exception(TerminateReferral())
+
+    def _NH_SIPSessionWillEnd(self, notification):
+        if self._wakeup_timer is not None and self._wakeup_timer.active():
+            self._wakeup_timer.cancel()
+        self._wakeup_timer = None
+        self._channel.send_exception(TerminateReferral())
+
+    def _NH_DNSNameserversDidChange(self, notification):
+        if self.active:
+            self._refresh()
+
+    def _NH_SystemIPAddressDidChange(self, notification):
+        if self.active:
+            self._refresh()
+
+    def _NH_SystemDidWakeUpFromSleep(self, notification):
+        if self._wakeup_timer is None:
+            def wakeup_action():
+                if self.active:
+                    self._refresh()
+                self._wakeup_timer = None
+            self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
+
+
 class ConferenceHandler(object):
     implements(IObserver)
 
@@ -117,6 +354,16 @@ class ConferenceHandler(object):
         notification_center.add_observer(self, name='SystemIPAddressDidChange')
         notification_center.add_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc = proc.spawn(self._run)
+
+    @run_in_green_thread
+    def add_participant(self, participant_uri):
+        referral_handler = ReferralHandler(self.session, participant_uri, AddParticipantOperation)
+        referral_handler.start()
+
+    @run_in_green_thread
+    def remove_participant(self, participant_uri):
+        referral_handler = ReferralHandler(self.session, participant_uri, RemoveParticipantOperation)
+        referral_handler.start()
 
     def _run(self):
         while True:
