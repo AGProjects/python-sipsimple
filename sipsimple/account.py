@@ -69,11 +69,11 @@ class ContactURIFactory(object):
 
 class SIPRegistrationDidFail(Exception):
     def __init__(self, data):
-        self.__dict__.update(data.__dict__)
+        self.data = data
 
 class SIPRegistrationDidNotEnd(Exception):
     def __init__(self, data):
-        self.__dict__.update(data.__dict__)
+        self.data = data
 
 class SIPAccountRegistrationError(Exception):
     def __init__(self, error, timeout):
@@ -88,7 +88,7 @@ class SubscriptionError(Exception):
 
 class SIPSubscriptionDidFail(Exception):
     def __init__(self, data):
-        self.__dict__.update(data.__dict__)
+        self.data = data
 
 class InterruptSubscription(Exception): pass
 
@@ -213,11 +213,11 @@ class AccountRegistrar(object):
                                 break
                     except SIPRegistrationDidFail, e:
                         notification_center.post_notification('SIPAccountRegistrationGotAnswer', sender=self.account,
-                                                              data=TimestampedNotificationData(code=e.code,
-                                                                                               reason=e.reason,
+                                                              data=TimestampedNotificationData(code=e.data.code,
+                                                                                               reason=e.data.reason,
                                                                                                registration=self._registration,
                                                                                                registrar=route))
-                        if e.code == 401:
+                        if e.data.code == 401:
                             # Authentication failed, so retry the registration in some time
                             timeout = random.uniform(60, 120)
                             raise SIPAccountRegistrationError(error='Authentication failed', timeout=timeout)
@@ -274,8 +274,8 @@ class AccountRegistrar(object):
                             break
                 except (SIPRegistrationDidFail, SIPRegistrationDidNotEnd), e:
                     notification_center.post_notification('SIPAccountRegistrationDidNotEnd', sender=self.account,
-                                                          data=TimestampedNotificationData(code=e.code,
-                                                                                           reason=e.reason,
+                                                          data=TimestampedNotificationData(code=e.data.code,
+                                                                                           reason=e.data.reason,
                                                                                            registration=self._registration))
                 else:
                     notification_center.post_notification('SIPAccountRegistrationDidEnd', sender=self.account,
@@ -462,18 +462,18 @@ class AccountMWISubscriber(object):
                     except SIPSubscriptionDidFail, e:
                         notification_center.remove_observer(self, sender=subscription)
                         self._subscription = None
-                        if e.code == 407:
+                        if e.data.code == 407:
                             # Authentication failed, so retry the subscription in some time
                             timeout = random.uniform(60, 120)
                             raise SubscriptionError(error='Authentication failed', timeout=timeout)
-                        elif e.code == 423:
+                        elif e.data.code == 423:
                             # Get the value of the Min-Expires header
                             timeout = random.uniform(60, 120)
-                            if e.min_expires is not None and e.min_expires > refresh_interval:
-                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
+                            if e.data.min_expires is not None and e.data.min_expires > refresh_interval:
+                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.data.min_expires)
                             else:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout)
-                        elif e.code in (405, 406, 489):
+                        elif e.data.code in (405, 406, 489):
                             timeout = 3600
                             raise SubscriptionError(error='Method or event not supported', timeout=timeout)
                         else:
@@ -504,7 +504,7 @@ class AccountMWISubscriber(object):
                                 notification_center.post_notification('SIPAccountMWIDidGetSummary', sender=self.account, data=TimestampedNotificationData(message_summary=message_summary))
                     elif notification.name == 'SIPSubscriptionDidEnd':
                         break
-            except SIPSubscriptionDidFail, e:
+            except SIPSubscriptionDidFail:
                 self._command_channel.send(Command('subscribe'))
             notification_center.remove_observer(self, sender=self._subscription)
         except InterruptSubscription, e:

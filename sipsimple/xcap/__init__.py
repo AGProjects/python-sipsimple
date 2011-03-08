@@ -52,7 +52,7 @@ class SubscriptionError(Exception):
 
 class SIPSubscriptionDidFail(Exception):
     def __init__(self, data):
-        self.__dict__.update(data)
+        self.data = data
 
 class InterruptSubscription(Exception): pass
 class TerminateSubscription(Exception): pass
@@ -686,18 +686,18 @@ class XCAPSubscriber(object):
                     except SIPSubscriptionDidFail, e:
                         notification_center.remove_observer(self, sender=subscription)
                         self._subscription = None
-                        if e.code == 407:
+                        if e.data.code == 407:
                             # Authentication failed, so retry the subscription in some time
                             timeout = random.uniform(60, 120)
                             raise SubscriptionError(error='authentication failed', timeout=timeout)
-                        elif e.code == 423:
+                        elif e.data.code == 423:
                             # Get the value of the Min-Expires header
                             timeout = random.uniform(60, 120)
-                            if e.min_expires is not None and e.min_expires > refresh_interval:
-                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.min_expires)
+                            if e.data.min_expires is not None and e.data.min_expires > refresh_interval:
+                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.data.min_expires)
                             else:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout)
-                        elif e.code in (405, 406, 489):
+                        elif e.data.code in (405, 406, 489):
                             timeout = random.uniform(60, 120)
                             raise SubscriptionError(error='Subscription error', timeout=timeout)
                         else:
@@ -722,7 +722,7 @@ class XCAPSubscriber(object):
                         notification_center.post_notification('XCAPSubscriptionGotNotify', sender=self, data=notification.data)
                     elif notification.name == 'SIPSubscriptionDidEnd':
                         break
-            except SIPSubscriptionDidFail, e:
+            except SIPSubscriptionDidFail:
                 notification_center.post_notification('XCAPSubscriptionDidFail', sender=self, data=TimestampedNotificationData())
                 self._command_channel.send(Command('subscribe'))
             notification_center.remove_observer(self, sender=self._subscription)
