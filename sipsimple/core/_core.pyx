@@ -24,7 +24,7 @@ include "_core.mediatransport.pxi"
 
 PJ_VERSION = pj_get_version()
 PJ_SVN_REVISION = int(PJ_SVN_REV)
-CORE_REVISION = 134
+CORE_REVISION = 135
 
 # exports
 
@@ -40,6 +40,7 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "BaseEventHeader", "EventHeader", "FrozenEventHeader", "BaseSubscriptionStateHeader", "SubscriptionStateHeader", "FrozenSubscriptionStateHeader",
            "BaseReasonHeader", "ReasonHeader", "FrozenReasonHeader",
            "BaseReferToHeader", "ReferToHeader", "FrozenReferToHeader",
+           "BaseSubjectHeader", "SubjectHeader", "FrozenSubjectHeader",
            "Request",
            "Referral",
            "Subscription",

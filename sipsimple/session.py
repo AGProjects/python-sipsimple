@@ -28,7 +28,7 @@ from twisted.internet import reactor
 from zope.interface import implements
 
 from sipsimple.core import Engine, Invitation, Referral, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages
-from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, ReferToHeader, RouteHeader, ToHeader, WarningHeader
+from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, ReferToHeader, RouteHeader, SubjectHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
 from sipsimple.account import AccountManager, BonjourAccount
@@ -634,8 +634,9 @@ class Session(object):
         self._local_identity = None
         self._remote_identity = None
         self._lock = RLock()
+        self.__dict__['subject'] = None
 
-    def init_incoming(self, invitation):
+    def init_incoming(self, invitation, data):
         notification_center = NotificationCenter()
         remote_sdp = invitation.sdp.proposed_remote
         self.proposed_streams = []
@@ -661,6 +662,10 @@ class Session(object):
             self.conference = ConferenceHandler(self)
             if 'isfocus' in invitation.remote_contact_header.parameters:
                 self.remote_focus = True
+            try:
+                self.__dict__['subject'] = data.headers['Subject'].subject
+            except KeyError:
+                pass
             notification_center.add_observer(self, sender=invitation)
             notification_center.post_notification('SIPSessionNewIncoming', self, TimestampedNotificationData(streams=self.proposed_streams))
         else:
@@ -668,7 +673,7 @@ class Session(object):
 
     @transition_state(None, 'connecting')
     @run_in_green_thread
-    def connect(self, to_header, routes, streams, is_focus=False):
+    def connect(self, to_header, routes, streams, is_focus=False, subject=None):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
@@ -687,6 +692,7 @@ class Session(object):
         self._local_identity = FromHeader(self.account.uri, self.account.display_name)
         self._remote_identity = to_header
         self.conference = ConferenceHandler(self)
+        self.__dict__['subject'] = subject
         notification_center.add_observer(self, sender=self._invitation)
         notification_center.post_notification('SIPSessionNewOutgoing', self, TimestampedNotificationData(streams=streams))
         for stream in self.proposed_streams:
@@ -723,7 +729,10 @@ class Session(object):
             contact_header = ContactHeader(contact_uri)
             if is_focus:
                 contact_header.parameters['isfocus'] = None
-            self._invitation.send_invite(to_header.uri, from_header, to_header, route_header, contact_header, local_sdp, self.account.credentials)
+            extra_headers = []
+            if self.subject is not None:
+                extra_headers.append(SubjectHeader(self.subject))
+            self._invitation.send_invite(to_header.uri, from_header, to_header, route_header, contact_header, local_sdp, self.account.credentials, extra_headers)
             try:
                 with api.timeout(settings.sip.invite_timeout):
                     while True:
@@ -1587,6 +1596,10 @@ class Session(object):
     def remote_user_agent(self):
         return self._invitation.remote_user_agent if self._invitation is not None else None
 
+    @property
+    def subject(self):
+        return self.__dict__['subject']
+
     def _send_hold(self):
         self.state = 'sending_proposal'
         self.greenlet = api.getcurrent()
@@ -2016,7 +2029,7 @@ class SessionManager(object):
                 return
             notification.sender.send_response(100)
             session = Session(account)
-            session.init_incoming(notification.sender)
+            session.init_incoming(notification.sender, notification.data)
         elif notification.name in ('SIPSessionNewIncoming', 'SIPSessionNewOutgoing'):
             self.sessions.append(notification.sender)
         elif notification.name in ('SIPSessionDidFail', 'SIPSessionDidEnd'):

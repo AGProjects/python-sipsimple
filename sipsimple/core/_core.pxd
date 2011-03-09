@@ -1307,6 +1307,18 @@ cdef class FrozenReferToHeader(BaseReferToHeader):
     cdef readonly str uri
     cdef readonly frozendict parameters
 
+cdef class BaseSubjectHeader(object):
+    pass
+
+cdef class SubjectHeader(BaseSubjectHeader):
+    # attributes
+    cdef public unicode subject
+
+cdef class FrozenSubjectHeader(BaseSubjectHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly unicode subject
+
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
 cdef ContactHeader ContactHeader_create(pjsip_contact_hdr *header)
@@ -1329,6 +1341,8 @@ cdef SubscriptionStateHeader SubscriptionStateHeader_create(pjsip_sub_state_hdr 
 cdef FrozenSubscriptionStateHeader FrozenSubscriptionStateHeader_create(pjsip_sub_state_hdr *header)
 cdef ReferToHeader ReferToHeader_create(pjsip_generic_string_hdr *header)
 cdef FrozenReferToHeader FrozenReferToHeader_create(pjsip_generic_string_hdr *header)
+cdef SubjectHeader SubjectHeader_create(pjsip_generic_string_hdr *header)
+cdef FrozenSubjectHeader FrozenSubjectHeader_create(pjsip_generic_string_hdr *header)
 
 # core.util
 

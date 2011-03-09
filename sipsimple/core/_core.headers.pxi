@@ -1378,6 +1378,81 @@ cdef class FrozenReferToHeader(BaseReferToHeader):
 del FrozenReferToHeader_new
 
 
+cdef object BaseSubjectHeader_richcmp(object self, object other, int op) with gil:
+    if op not in (2, 3):
+        return NotImplemented
+    if not isinstance(other, BaseSubjectHeader):
+        return NotImplemented
+    if op == 2:
+        return self.subject == other.subject
+    else:
+        return self.subject != other.subject
+
+cdef class BaseSubjectHeader:
+    def __init__(self, *args, **kwargs):
+        raise TypeError("%s cannot be instantiated directly" % self.__class__.__name__)
+
+    def __repr__(self):
+        return "%s(%r)" % (self.__class__.__name__, self.subject)
+
+    def __str__(self):
+        return "%s: %s" % (self.name, self.body)
+
+    def __unicode__(self):
+        return unicode(self.__str__(), encoding='utf-8')
+
+    def __richcmp__(self, other, op):
+        return BaseSubjectHeader_richcmp(self, other, op)
+
+    property name:
+
+        def __get__(self):
+            return "Subject"
+
+    property body:
+
+        def __get__(self):
+            return self.subject.encode('utf-8')
+
+def SubjectHeader_new(cls, BaseSubjectHeader subject_header):
+    if isinstance(subject_header, cls):
+        return subject_header
+    return cls(subject_header.subject)
+
+cdef class SubjectHeader(BaseSubjectHeader):
+    def __init__(self, unicode subject=None):
+        if subject is None:
+            raise ValueError('subject must be specified')
+        self.subject = subject
+
+    new = classmethod(SubjectHeader_new)
+
+del SubjectHeader_new
+
+def FrozenSubjectHeader_new(cls, BaseSubjectHeader subject_header):
+    if isinstance(subject_header, cls):
+        return subject_header
+    return cls(subject_header.subject)
+
+cdef class FrozenSubjectHeader(BaseSubjectHeader):
+    def __init__(self, unicode subject=None):
+        if not self.initialized:
+            if subject is None:
+                raise ValueError('subject must be specified')
+            self.subject = subject
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.subject))
+
+    def __richcmp__(self, other, op):
+        return BaseSubjectHeader_richcmp(self, other, op)
+
+    new = classmethod(FrozenSubjectHeader_new)
+
+del FrozenSubjectHeader_new
+
+
 # Factory functions
 #
 
@@ -1616,4 +1691,12 @@ cdef FrozenReferToHeader FrozenReferToHeader_create(pjsip_generic_string_hdr *he
     uri = uri.strip('<')
     parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
     return FrozenReferToHeader(uri, frozendict(parameters))
+
+cdef SubjectHeader SubjectHeader_create(pjsip_generic_string_hdr *header):
+    subject = unicode(_pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue), encoding='utf-8')
+    return SubjectHeader(subject)
+
+cdef FrozenSubjectHeader FrozenSubjectHeader_create(pjsip_generic_string_hdr *header):
+    subject = unicode(_pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue), encoding='utf-8')
+    return FrozenSubjectHeader(subject)
 
