@@ -1815,7 +1815,7 @@ class Session(object):
                                 return
                         # These tests are here because some ALGs mess up the SDP and the behaviour
                         # of pjsip in these situations is unexpected (eg. loss of audio). -Luci
-                        for attr in ('user', 'net_type', 'address_type', 'address'):
+                        for attr in ('user', 'net_type', 'address_type'):
                             if getattr(proposed_remote_sdp, attr) != getattr(active_remote_sdp, attr):
                                 engine = Engine()
                                 self._invitation.send_response(488, extra_headers=[WarningHeader(399, engine.user_agent, 'Difference in contents of o= line')])
