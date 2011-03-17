@@ -956,6 +956,7 @@ class XCAPManager(object):
             return
         self.transaction_level -= 1
         if self.transaction_level == 0 and self.journal:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -963,6 +964,7 @@ class XCAPManager(object):
         operation = AddGroupOperation(group=group)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -970,6 +972,7 @@ class XCAPManager(object):
         operation = RenameGroupOperation(old_name=old_name, new_name=new_name)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -977,6 +980,7 @@ class XCAPManager(object):
         operation = RemoveGroupOperation(group=group)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -984,6 +988,7 @@ class XCAPManager(object):
         operation = AddContactOperation(contact=contact)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -991,6 +996,7 @@ class XCAPManager(object):
         operation = UpdateContactOperation(contact=contact, attributes=attributes)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -998,6 +1004,7 @@ class XCAPManager(object):
         operation = RemoveContactOperation(contact=contact)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1005,6 +1012,7 @@ class XCAPManager(object):
         operation = AddPresencePolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1012,6 +1020,7 @@ class XCAPManager(object):
         operation = UpdatePresencePolicyOperation(policy=policy, attributes=attributes)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1019,6 +1028,7 @@ class XCAPManager(object):
         operation = RemovePresencePolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1026,6 +1036,7 @@ class XCAPManager(object):
         operation = AddDialoginfoPolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1033,6 +1044,7 @@ class XCAPManager(object):
         operation = UpdateDialoginfoPolicyOperation(policy=policy, attributes=attributes)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1040,6 +1052,7 @@ class XCAPManager(object):
         operation = RemoveDialoginfoPolicyOperation(policy=policy)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1047,6 +1060,7 @@ class XCAPManager(object):
         operation = SetStatusIconOperation(icon=icon)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     @run_in_twisted_thread
@@ -1054,6 +1068,7 @@ class XCAPManager(object):
         operation = SetOfflineStatusOperation(status=status)
         self.journal.append(operation)
         if self.transaction_level == 0:
+            self._save_journal()
             self.command_channel.send(Command('update'))
 
     def _run(self):
@@ -1201,7 +1216,7 @@ class XCAPManager(object):
             if self.not_executed_fetch is not None:
                 self.command_channel.send(self.not_executed_fetch)
                 self.not_executed_fetch = None
-        self._save_journal()
+            self._save_journal()
 
     # operation handlers
     #
