@@ -1132,6 +1132,9 @@ class XCAPManager(object):
         if self.state in ('stopping', 'stopped'):
             command.signal()
             return
+        if 'id' in command.modified:
+            self.journal = []
+            self._save_journal()
         if set(['id', 'xcap.xcap_root']).intersection(command.modified):
             for document in self.documents:
                 document.cache_directory = os.path.join(self.cache_directory, self.account.id)
