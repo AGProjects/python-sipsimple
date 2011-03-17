@@ -162,13 +162,15 @@ class ReferralHandler(object):
             elif account.sip.always_use_my_proxy:
                 uri = SIPURI(host=account.id.domain)
             else:
-                uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
+                uri = SIPURI.new(self.session.remote_identity.uri)
             lookup = DNSLookup()
             try:
                 routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
             except DNSLookupError, e:
                 timeout = random.uniform(15, 30)
                 raise ReferralError(error='DNS lookup failed: %s' % e)
+
+            target_uri = SIPURI.new(self.session.remote_identity.uri)
 
             timeout = time() + 30
             for route in routes:
@@ -181,8 +183,8 @@ class ReferralHandler(object):
                         continue
                     refer_to_header = ReferToHeader(str(self.participant_uri))
                     refer_to_header.parameters['method'] = 'INVITE' if self.operation is AddParticipantOperation else 'BYE'
-                    referral = Referral(SIPURI.new(self.session._invitation.remote_contact_header.uri), FromHeader(account.uri, account.display_name),
-                                        ToHeader(SIPURI.new(self.session.remote_identity.uri)),
+                    referral = Referral(target_uri, FromHeader(account.uri, account.display_name),
+                                        ToHeader(target_uri),
                                         refer_to_header,
                                         ContactHeader(contact_uri),
                                         RouteHeader(route.get_uri()),
@@ -439,13 +441,15 @@ class ConferenceHandler(object):
             elif account.sip.always_use_my_proxy:
                 uri = SIPURI(host=account.id.domain)
             else:
-                uri = SIPURI.new(self.session._invitation.remote_contact_header.uri)
+                uri = SIPURI.new(self.session.remote_identity.uri)
             lookup = DNSLookup()
             try:
                 routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
             except DNSLookupError, e:
                 timeout = random.uniform(15, 30)
                 raise SubscriptionError(error='DNS lookup failed: %s' % e, timeout=timeout)
+
+            target_uri = SIPURI.new(self.session.remote_identity.uri)
 
             timeout = time() + 30
             for route in routes:
@@ -455,8 +459,8 @@ class ConferenceHandler(object):
                         contact_uri = account.contact[route]
                     except KeyError:
                         continue
-                    subscription = Subscription(SIPURI.new(self.session._invitation.remote_contact_header.uri), FromHeader(account.uri, account.display_name),
-                                                ToHeader(SIPURI.new(self.session.remote_identity.uri)),
+                    subscription = Subscription(target_uri, FromHeader(account.uri, account.display_name),
+                                                ToHeader(target_uri),
                                                 ContactHeader(contact_uri),
                                                 'conference',
                                                 RouteHeader(route.get_uri()),
