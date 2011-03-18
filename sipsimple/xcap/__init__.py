@@ -1,4 +1,4 @@
-# Copyright (C) 2010 AG Projects. See LICENSE for details.
+# Copyright (C) 2010-2011 AG Projects. See LICENSE for details.
 #
 
 """High-level management of XCAP documents based on OMA specifications"""

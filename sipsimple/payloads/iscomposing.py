@@ -1,4 +1,4 @@
-# Copyright (C) 2009-2010 AG Projects. See LICENSE for details.
+# Copyright (C) 2009-2011 AG Projects. See LICENSE for details.
 #
 
 """Parses and produces isComposing messages according to RFC3994."""

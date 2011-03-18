@@ -1,4 +1,4 @@
-# Copyright (C) 2007-2010 AG-Projects.
+# Copyright (C) 2007-2011 AG-Projects.
 #
 
 """XCAP URI module parsing/building support"""

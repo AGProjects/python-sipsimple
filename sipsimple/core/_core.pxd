@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2010 AG Projects. See LICENSE for details.
+# Copyright (C) 2008-2011 AG Projects. See LICENSE for details.
 #
 
 cdef extern from *:

@@ -1,4 +1,4 @@
-# Copyright (C) 2010 AG Projects. See LICENSE for details.
+# Copyright (C) 2010-2011 AG Projects. See LICENSE for details.
 #
 
 """Parses and produces conference-info messages according to RFC4575."""
