@@ -523,21 +523,33 @@ class SettingsObject(SettingsState):
         or not. If the save does fail, a CFGManagerSaveFailed notification is
         posted as well.
         """
-        id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
-        modified_id = id_descriptor.get_modified(self) if id_descriptor else None
-        modified_settings = self.get_modified()
-        if not modified_id and not modified_settings:
-            return
-
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
 
-        if modified_id:
-            configuration.rename(self.__group__, unicode(modified_id.old), unicode(modified_id.new))
-            notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
-        if modified_settings:
+        id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
+        modified_id = id_descriptor.get_modified(self) if id_descriptor else None
+        modified_settings = self.get_modified()
+        if id_descriptor:
+            id = modified_id.old if modified_id else self.__id__
+            save_required = id not in configuration.get_names(self.__group__)
+        else:
+            save_required = False
+        if not modified_id and not modified_settings and not save_required:
+            return
+
+        if save_required:
             configuration.update(self.__group__, unicode(self.__id__), self.__getstate__())
-            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+            if modified_id:
+                notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
+            if modified_settings:
+                notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+        else:
+            if modified_id:
+                configuration.rename(self.__group__, unicode(modified_id.old), unicode(modified_id.new))
+                notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
+            if modified_settings:
+                configuration.update(self.__group__, unicode(self.__id__), self.__getstate__())
+                notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
         try:
             configuration.save()
         except Exception, e:
