@@ -1,3 +1,28 @@
+python-sipsimple (0.18.0) unstable; urgency=low
+
+  * Added support for out-of-dialog REFER
+  * Added add/remove participants functionality to Session
+  * Added support for Subject header
+  * Fixed accepting incoming subscription without any initial content
+  * Fixed exception when NAT type detection is attempted without connectivity
+  * Fixed conference event subscription for Bonjour account
+  * Fixed exceptions when contact URI can't be built for the desired route
+  * Fixed subscription locking issues
+  * Set remote focus on incoming session, if applicable
+  * Fixed building header body with parameters without value
+  * Fixed building UAC and UAS dialogs when headers contain parameters
+  * Fixed setting contact header parameters for subscription
+  * Hide route header for outbound SUBSCRIBE requests
+  * Fixed crashes and increased resilience when connectivity is lost
+  * Fixed exception classes not to update their internal dict
+  * Relax check on SDP origin to increase interoperability
+  * Save XCAP journal after each commited operation to avoid loosing it
+  * Reset XCAP journal when account id changes
+  * Don't use contact URI when building conference Referral and Subscription
+  * Fixed bug where settings with dynamc IDs were not saved in some cases
+
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 18 Mar 2011 17:00:29 +0100
+
 python-sipsimple (0.17.1) unstable; urgency=low
 
   * Simplified FileSelector interface and interaction with the application
