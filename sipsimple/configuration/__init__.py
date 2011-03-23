@@ -5,8 +5,8 @@
 
 from __future__ import with_statement
 
-__all__ = ['ConfigurationError', 'ObjectNotFoundError', 'ConfigurationManager', 'DefaultValue',
-           'SettingsObjectID', 'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObject', 'SettingsObjectExtension']
+__all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DefaultValue',
+           'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObjectID', 'SettingsObject', 'SettingsObjectExtension']
 
 from itertools import chain
 from threading import Lock
