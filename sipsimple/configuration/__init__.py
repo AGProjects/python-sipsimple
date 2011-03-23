@@ -627,7 +627,7 @@ class SettingsObject(SettingsState):
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, modified=modified_settings, exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='save', modified=modified_settings, exception=e))
 
     @run_in_thread('file-io')
     def delete(self):
@@ -638,7 +638,12 @@ class SettingsObject(SettingsState):
             raise TypeError("cannot delete %s instance with default id" % self.__class__.__name__)
         configuration = ConfigurationManager()
         configuration.delete(self.__oldkey__) # we need the key that wasn't yet saved
-        configuration.save()
+        try:
+            configuration.save()
+        except Exception, e:
+            log.err()
+            notification_center = NotificationCenter()
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='delete', exception=e))
 
     def clone(self, new_id):
         """
