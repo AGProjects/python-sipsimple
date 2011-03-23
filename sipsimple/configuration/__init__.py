@@ -12,6 +12,7 @@ from itertools import chain
 from threading import Lock
 from weakref import WeakKeyDictionary
 
+from application import log
 from application.notification import NotificationCenter
 from application.python.util import Singleton
 
@@ -625,8 +626,7 @@ class SettingsObject(SettingsState):
         try:
             configuration.save()
         except Exception, e:
-            import traceback
-            traceback.print_exc()
+            log.err()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, modified=modified_settings, exception=e))
 
     @run_in_thread('file-io')
