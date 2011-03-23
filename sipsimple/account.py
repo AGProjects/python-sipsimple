@@ -1477,7 +1477,7 @@ class AccountManager(object):
         notification_center.add_observer(self, sender=bonjour_account, name='CFGSettingsObjectDidChange')
         notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=bonjour_account))
         # and the other accounts
-        names = configuration.get_names(Account.__group__)
+        names = configuration.get_names([Account.__group__])
         [Account(id) for id in names if id != bonjour_account.id]
         default_account = self.default_account
         if default_account is None or not default_account.enabled:

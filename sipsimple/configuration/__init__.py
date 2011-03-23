@@ -25,6 +25,13 @@ class ConfigurationError(Exception): pass
 class ObjectNotFoundError(ConfigurationError): pass
 
 
+class PersistentKey(unicode):
+    persistent = True
+
+    def __repr__(self):
+        return "%s(%s)" % (self.__class__.__name__, unicode.__repr__(self))
+
+
 ## ConfigurationManager
 
 class ConfigurationManager(object):
@@ -54,77 +61,73 @@ class ConfigurationManager(object):
         self.data = backend.load()
         self.backend = backend
 
-    def update(self, group, name, data):
+    def update(self, key, data):
         """
-        Save the object with an associated name in the specified group.
+        Save the object's data under the tree path specified by key (a list
+        of strings). Cannot be called before start().
+        """
+        if self.backend is None:
+            raise RuntimeError("ConfigurationManager cannot be used unless started")
+        if not key:
+            raise KeyError("key cannot be empty")
+        self._update(self.data, list(key), data)
+
+    def rename(self, old_key, new_key):
+        """
+        Rename the object identified by old_key to new_key (list of strings).
         Cannot be called before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
-        if group is not None:
-            self._update_dict(self.data.setdefault(group, {}).setdefault(name, {}), data)
-        else:
-            self._update_dict(self.data.setdefault(name, {}), data)
+        if not old_key or not new_key:
+            raise KeyError("old_key and/or new_key cannot be empty")
+        try:
+            data = self._pop(self.data, list(old_key))
+        except KeyError:
+            raise ObjectNotFoundError("object %s does not exist" % '/'.join(old_key))
+        self._insert(self.data, list(new_key), data)
 
-    def rename(self, group, old_name, new_name):
+    def delete(self, key):
         """
-        Rename the object identified by old_name within the specified group to
-        new_name. Cannot be called before start().
+        Delete the object in the tree path specified by key (list of strings).
+        Cannot be called before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
-        if group is not None:
-            group_data = self.data.get(group, {})
-            self.data.setdefault(group, {})[new_name] = group_data.pop(old_name, {})
-            if not group_data:
-                self.data.pop(group, None)
-        else:
-            self.data[new_name] = self.data.pop(old_name, {})
+        if not key:
+            raise KeyError("key cannot be empty")
+        try:
+            self._pop(self.data, list(key))
+        except KeyError:
+            pass
 
-    def delete(self, group, name):
+    def get(self, key):
         """
-        Delete an object identified by a name in the specified group. Cannot be
+        Get the object in the tree path specified by key (list of strings).
+        Raises ObjectNotFoundError if the object does not exist. Cannot be
         called before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
+        if not key:
+            raise KeyError("key cannot be empty")
         try:
-            if group is not None:
-                group_data = self.data[group]
-                del group_data[name]
-                if not group_data:
-                    del self.data[group]
-            else:
-                del self.data[name]
+            return self._get(self.data, list(key))
         except KeyError:
-            pass
+            raise ObjectNotFoundError("object %s does not exist" % '/'.join(key))
 
-    def get(self, group, name):
+    def get_names(self, key):
         """
-        Get an object identified by a name in the specified group. Raises
-        ObjectNotFoundError if such an object does not exist. Cannot be called
-        before start().
+        Get all the names under the specified key (a list of strings).
+        Returns a list containing the names. Cannot be called before start().
         """
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
+        if not key:
+            raise KeyError("key cannot be empty")
         try:
-            if group is not None:
-                return self.data[group][name]
-            else:
-                return self.data[name]
-        except KeyError:
-            object_name = "%s in %s" % (name, group) if (group is not None) else name
-            raise ObjectNotFoundError("object %s does not exist" % object_name)
-
-    def get_names(self, group):
-        """
-        Get all the names from  the specified group. Returns a list containing
-        the names. Cannot be called before start().
-        """
-        if self.backend is None:
-            raise RuntimeError("ConfigurationManager cannot be used unless started")
-        try:
-            return self.data[group].keys()
+            data = self._get(self.data, list(key))
+            return data.keys()
         except:
             return []
 
@@ -135,6 +138,45 @@ class ConfigurationManager(object):
         if self.backend is None:
             raise RuntimeError("ConfigurationManager cannot be used unless started")
         self.backend.save(self.data)
+
+    def _get(self, data_tree, key):
+        subtree_key = key.pop(0)
+        data_subtree = data_tree[subtree_key]
+        if key:
+            return self._get(data_subtree, key)
+        else:
+            return data_subtree
+
+    def _insert(self, data_tree, key, data):
+        subtree_key = key.pop(0)
+        data_subtree = data_tree.setdefault(subtree_key, {})
+        if key:
+            self._insert(data_subtree, key, data)
+        else:
+            data_subtree.update(data)
+
+    def _pop(self, data_tree, key):
+        subtree_key = key.pop(0)
+        data_subtree = data_tree[subtree_key]
+        if key:
+            data = self._pop(data_subtree, key)
+            persistent_key = getattr(subtree_key, 'persistent', False)
+            if not persistent_key and not data_subtree:
+                del data_tree[subtree_key]
+            return data
+        else:
+            return data_tree.pop(subtree_key)
+
+    def _update(self, data_tree, key, data):
+        subtree_key = key.pop(0)
+        data_subtree = data_tree.setdefault(subtree_key, {})
+        if key:
+            self._update(data_subtree, key, data)
+        else:
+            self._update_dict(data_subtree, data)
+        persistent_key = getattr(subtree_key, 'persistent', False)
+        if not persistent_key and not data_subtree:
+            del data_tree[subtree_key]
 
     def _update_dict(self, old_data, new_data):
         for key, value in new_data.iteritems():
@@ -504,12 +546,34 @@ class SettingsObject(SettingsState):
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
         try:
-            data = configuration.get(cls.__group__, unicode(id))
+            data = configuration.get(instance.__key__)
         except ObjectNotFoundError:
             pass
         else:
             instance.__setstate__(data)
         return instance
+
+    @property
+    def __key__(self):
+        if isinstance(self.__class__.__id__, SettingsObjectID):
+            id_key = PersistentKey(self.__id__)
+        else:
+            id_key = unicode(self.__id__)
+        if self.__group__ is not None:
+            return [self.__group__, id_key]
+        else:
+            return [id_key]
+
+    @property
+    def __oldkey__(self):
+        if isinstance(self.__class__.__id__, SettingsObjectID):
+            id_key = PersistentKey(self.__class__.__id__.get_old(self))
+        else:
+            id_key = unicode(self.__id__)
+        if self.__group__ is not None:
+            return [self.__group__, id_key]
+        else:
+            return [id_key]
 
     @run_in_thread('file-io')
     def save(self):
@@ -526,30 +590,38 @@ class SettingsObject(SettingsState):
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
 
+        oldkey = self.__oldkey__ # save this here as get_modified will reset it
+
         id_descriptor = self.__class__.__id__ if isinstance(self.__class__.__id__, SettingsObjectID) else None
         modified_id = id_descriptor.get_modified(self) if id_descriptor else None
         modified_settings = self.get_modified()
+
         if id_descriptor:
-            id = modified_id.old if modified_id else self.__id__
-            save_required = id not in configuration.get_names(self.__group__)
+            try:
+                configuration.get(oldkey)
+            except ObjectNotFoundError:
+                save_required = True
+            else:
+                save_required = False
         else:
             save_required = False
+
         if not modified_id and not modified_settings and not save_required:
             return
 
         if save_required:
-            configuration.update(self.__group__, unicode(self.__id__), self.__getstate__())
-            if modified_id:
-                notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
-            if modified_settings:
-                notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+            configuration.update(self.__key__, self.__getstate__())
         else:
             if modified_id:
-                configuration.rename(self.__group__, unicode(modified_id.old), unicode(modified_id.new))
-                notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
+                configuration.rename(oldkey, self.__key__)
             if modified_settings:
-                configuration.update(self.__group__, unicode(self.__id__), self.__getstate__())
-                notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+                configuration.update(self.__key__, self.__getstate__())
+
+        if modified_id:
+            notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
+        if modified_settings:
+            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+
         try:
             configuration.save()
         except Exception, e:
@@ -565,11 +637,7 @@ class SettingsObject(SettingsState):
         if self.__id__ is self.__class__.__id__:
             raise TypeError("cannot delete %s instance with default id" % self.__class__.__name__)
         configuration = ConfigurationManager()
-        if isinstance(self.__class__.__id__, SettingsObjectID):
-            id = self.__class__.__id__.get_old(self) # we need the id that wasn't yet saved
-        else:
-            id = self.__id__
-        configuration.delete(self.__group__, unicode(id))
+        configuration.delete(self.__oldkey__) # we need the key that wasn't yet saved
         configuration.save()
 
     def clone(self, new_id):
