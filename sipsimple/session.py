@@ -959,10 +959,8 @@ class Session(object):
             else:
                 self._invitation.send_response(200, sdp=local_sdp)
             notification_center.post_notification('SIPSessionWillStart', self, TimestampedNotificationData())
-            local_sdp = self._invitation.sdp.active_local
-            remote_sdp = self._invitation.sdp.active_remote
-            # while entered only if initial INVITE did not contain SDP and we are waiting for the ACK which should contain it
-            while remote_sdp is None or local_sdp is None:
+            # Local and remote SDPs will be set after the 200 OK is sent
+            while True:
                 notification = self._channel.wait()
                 if notification.name == 'SIPInvitationGotSDPUpdate':
                     if notification.data.succeeded:
