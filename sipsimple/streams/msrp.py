@@ -320,6 +320,8 @@ class ChatStream(MSRPStreamBase):
         expected_transport = 'TCP/TLS/MSRP' if isinstance(account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
+        if remote_stream.formats != ['*']:
+            raise InvalidStreamError("wrong format list specified")
         stream = cls(account)
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         if (remote_stream.direction, stream.direction) not in (('sendrecv', 'sendrecv'), ('sendonly', 'recvonly'), ('recvonly', 'sendonly')):
@@ -597,6 +599,8 @@ class FileTransferStream(MSRPStreamBase):
         expected_transport = 'TCP/TLS/MSRP' if isinstance(account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
+        if remote_stream.formats != ['*']:
+            raise InvalidStreamError("wrong format list specified")
         stream = cls(account)
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
         stream.file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
@@ -923,6 +927,8 @@ class DesktopSharingStream(MSRPStreamBase):
         expected_transport = 'TCP/TLS/MSRP' if isinstance(account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
+        if remote_stream.formats != ['*']:
+            raise InvalidStreamError("wrong format list specified")
         remote_rfbsetup = remote_stream.attributes.getfirst('rfbsetup', 'active')
         if remote_rfbsetup == 'active':
             stream = cls(account, handler=InternalVNCServerHandler())
