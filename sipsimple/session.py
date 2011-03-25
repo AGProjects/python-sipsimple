@@ -1405,6 +1405,7 @@ class Session(object):
             local_sdp = SDPSession.new(self._invitation.sdp.active_local)
             local_sdp.version += 1
             local_sdp.media[stream.index].port = 0
+            local_sdp.media[stream.index].attributes = []
             self._invitation.send_reinvite(sdp=local_sdp)
 
             received_invitation_state = False
