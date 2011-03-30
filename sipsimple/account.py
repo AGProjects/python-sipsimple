@@ -8,7 +8,7 @@ multiple SIP accounts and their properties.
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ['Account', 'BonjourAccount', 'AccountManager', 'AccountExists']
+__all__ = ['Account', 'BonjourAccount', 'AccountManager']
 
 import random
 import re
@@ -95,8 +95,6 @@ class InterruptSubscription(Exception): pass
 class TerminateSubscription(Exception): pass
 
 class RestartSelect(Exception): pass
-
-class AccountExists(ValueError): pass
 
 
 class AccountRegistrar(object):
