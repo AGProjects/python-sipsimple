@@ -5,7 +5,7 @@
 
 from __future__ import with_statement
 
-__all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DefaultValue',
+__all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError', 'DefaultValue',
            'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObjectID', 'SettingsObject', 'SettingsObjectExtension']
 
 from itertools import chain
@@ -24,6 +24,8 @@ from sipsimple.util import TimestampedNotificationData
 
 class ConfigurationError(Exception): pass
 class ObjectNotFoundError(ConfigurationError): pass
+
+class DuplicateIDError(ValueError): pass
 
 
 class PersistentKey(unicode):
@@ -249,7 +251,7 @@ class SettingsObjectID(object):
             except StopIteration:
                 pass
             else:
-                raise ValueError('SettingsObject ID already used by another %s' % other_obj.__class__.__name__)
+                raise DuplicateIDError('SettingsObject ID already used by another %s' % other_obj.__class__.__name__)
             if obj in self.values:
                 self.values[obj] = value
                 self.dirty[obj] = True
