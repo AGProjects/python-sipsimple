@@ -37,6 +37,12 @@
 
 - Allow resume of failed file transfers (a=file-range SDP attribute)
 
+- send notifications when local/remote party becomes focus
+  SIPSessionLocalPartyIsFocus, SIPSessionRemotePartyIsFocus
+
+- have higher level notifications on conference events
+
+
 To fix this exception:
 
 sip:nwpsefvl@10.0.0.1:52067 52067
