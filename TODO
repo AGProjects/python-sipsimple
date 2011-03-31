@@ -6,7 +6,25 @@
 
 + Make middleware unicode friendly http://sipsimpleclient.com/ticket/121
 
-- End a session while in accepting state (requires session serialization
++ change settings so they store changes in a thread local container
+  which is made public (accessible for all threads) when save is called.
+  This will make changes be atomic inside a thread (everything from 
+  attribute changes up to the save operation is contained in the thread
+  and will not mix with changes done in parallel from other threads).
+
++ contact policies must default to a special value: DefaultPolicies. else
+  if the default is the empty list, they will be set to exactly that: no
+  policies at all, which makes it impossible to create a contact that has
+  no explicit policies set (inherits the default account policies).
+
+- allow deleting transport on SIPURI
+
+- modify Invitation/Request/Subscription to reset transport on request_uri
+
+- in application.py it subscribes to notifications but doesn't remove them
+  when it stops
+
+- End a session while in accepting state (requires session serialization)
   http://sipsimpleclient.com/ticket/107
 
 - Model file transfer after desktop sharing (use handlers on termination)
@@ -18,4 +36,30 @@
 - Implement Timeout for hold requests
 
 - Allow resume of failed file transfers (a=file-range SDP attribute)
+
+To fix this exception:
+
+sip:nwpsefvl@10.0.0.1:52067 52067
+sip:nwpsefvl@10.0.0.1:52067 52067
+sip:nwpsefvl@10.0.0.1;transport=tcp None
+Traceback (most recent call last):
+  File "/usr/lib/python2.5/site-packages/twisted/internet/base.py", line 778, in runUntilCurrent
+    call.func(*call.args, **call.kw)
+  File "/usr/lib/pymodules/python2.5/eventlet/hubs/twistedr.py", line 158, in call_if_greenlet_alive
+    return func(*args1, **kwargs1)
+  File "/usr/lib/pymodules/python2.5/eventlet/proc.py", line 571, in _run
+    result = function(*args, **kwargs)
+  File "/home/dan/work/voip/python-sipsimple/sipsimple/account.py", line 683, in _handle_commands
+    handler(command)
+  File "/home/dan/work/voip/python-sipsimple/sipsimple/account.py", line 720, in _CH_register
+    txtRecord=bonjour.TXTRecord(items=txtdata))
+  File "/home/dan/work/voip/blink-qt/sipsimple/bonjour.py", line 1125, in DNSServiceRegister
+TypeError: an integer is required
+
+- Notification from SIPApplication when a transport is added/removed to the
+  engine.
+- SIPApplication should provide a list of supported transports that need to
+  be used instead of the ones from settings because not everything enabled
+  in settings may actually be available at runtime on the engine
+- Build contacts on above notification instead of building them on the fly
 
