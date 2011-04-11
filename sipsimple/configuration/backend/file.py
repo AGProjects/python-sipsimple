@@ -5,6 +5,7 @@
 
 __all__ = ["FileParserError", "FileBuilderError", "FileBackend"]
 
+import errno
 import os
 import re
 import platform
@@ -66,7 +67,7 @@ class FileBackend(object):
         try:
             file = open(self.filename)
         except IOError, e:
-            if e.errno == 2: # No such file or directory
+            if e.errno == errno.ENOENT:
                 return {}
             else:
                 raise
