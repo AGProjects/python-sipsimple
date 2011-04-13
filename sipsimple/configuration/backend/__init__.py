@@ -8,10 +8,8 @@ __all__ = ['ConfigurationBackendError', 'IConfigurationBackend']
 
 from zope.interface import Interface
 
-from sipsimple.configuration import ConfigurationError
 
-
-class ConfigurationBackendError(ConfigurationError):
+class ConfigurationBackendError(Exception):
     """Base error for use by backends implementing IConfigurationBackend."""
 
 
