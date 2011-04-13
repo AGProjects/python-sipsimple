@@ -546,6 +546,7 @@ class SettingsObject(SettingsState):
         if not isinstance(id, basestring):
             raise TypeError("id needs to be a string instance")
         configuration = ConfigurationManager()
+        notification_center = NotificationCenter()
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
         try:
@@ -554,6 +555,7 @@ class SettingsObject(SettingsState):
             pass
         else:
             instance.__setstate__(data)
+        notification_center.post_notification('CFGSettingsObjectWasCreated', sender=instance, data=TimestampedNotificationData())
         return instance
 
     @property
@@ -639,12 +641,13 @@ class SettingsObject(SettingsState):
         if self.__id__ is self.__class__.__id__:
             raise TypeError("cannot delete %s instance with default id" % self.__class__.__name__)
         configuration = ConfigurationManager()
+        notification_center = NotificationCenter()
         configuration.delete(self.__oldkey__) # we need the key that wasn't yet saved
+        notification_center.post_notification('CFGSettingsObjectWasDeleted', sender=self, data=TimestampedNotificationData())
         try:
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center = NotificationCenter()
             notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='delete', exception=e))
 
     def clone(self, new_id):
