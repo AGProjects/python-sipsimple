@@ -70,7 +70,7 @@ class FileBackend(object):
             if e.errno == errno.ENOENT:
                 return {}
             else:
-                raise
+                raise ConfigurationBackendError("failed to read configuration file: %s" % str(e))
 
         state_stack = deque()
         state_stack.appendleft(GroupState(-1))
@@ -196,7 +196,7 @@ class FileBackend(object):
                 unlink(self.filename)
             os.rename(tmp_filename, self.filename)
         except (IOError, OSError), e:
-            raise FileBuilderError("failed to write configuration data: %s" % str(e))
+            raise ConfigurationBackendError("failed to write configuration file: %s" % str(e))
 
     def _build_group(self, group, indentation):
         setting_lines = []
