@@ -1116,6 +1116,7 @@ class Account(SettingsObject):
         self._started = True
 
         notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChangeID', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
@@ -1136,6 +1137,7 @@ class Account(SettingsObject):
         self._registrar = None
 
         notification_center = NotificationCenter()
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChangeID', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
