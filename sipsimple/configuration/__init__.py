@@ -622,10 +622,11 @@ class SettingsObject(SettingsState):
             if modified_settings:
                 configuration.update(self.__key__, self.__getstate__())
 
+        modified_data = modified_settings or {}
         if modified_id:
-            notification_center.post_notification('CFGSettingsObjectDidChangeID', sender=self, data=TimestampedNotificationData(old_id=modified_id.old, new_id=modified_id.new))
-        if modified_settings:
-            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_settings))
+            modified_data['__id__'] = modified_id
+        if modified_data:
+            notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_data))
 
         try:
             configuration.save()

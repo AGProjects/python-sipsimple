@@ -1132,14 +1132,14 @@ class XCAPManager(object):
         if self.state in ('stopping', 'stopped'):
             command.signal()
             return
-        if 'id' in command.modified:
+        if '__id__' in command.modified:
             self.journal = []
             self._save_journal()
-        if set(['id', 'xcap.xcap_root']).intersection(command.modified):
+        if set(['__id__', 'xcap.xcap_root']).intersection(command.modified):
             for document in self.documents:
                 document.cache_directory = os.path.join(self.cache_directory, self.account.id)
                 document.reset()
-        if set(['id', 'auth.username', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
+        if set(['__id__', 'auth.username', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
             self.state = 'initializing'
             self.command_channel.send(Command('initialize', command.event))
         elif self.xcap_subscriber.active:
@@ -3074,7 +3074,7 @@ class XCAPManager(object):
         handler(notification)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        if set(['xcap.xcap_root', 'id', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
+        if set(['__id__', 'xcap.xcap_root', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
             self.command_channel.send(Command('reload', modified=notification.data.modified))
 
     def _NH_XCAPSubscriptionDidStart(self, notification):

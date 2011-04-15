@@ -1116,7 +1116,6 @@ class Account(SettingsObject):
         self._started = True
 
         notification_center = NotificationCenter()
-        notification_center.add_observer(self, name='CFGSettingsObjectDidChangeID', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
@@ -1137,7 +1136,6 @@ class Account(SettingsObject):
         self._registrar = None
 
         notification_center = NotificationCenter()
-        notification_center.remove_observer(self, name='CFGSettingsObjectDidChangeID', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
@@ -1208,8 +1206,8 @@ class Account(SettingsObject):
                 else:
                     self._deactivate()
             elif self.enabled:
-                registrar_attributes = ['auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']
-                voicemail_attributes = ['auth.password', 'auth.username', 'sip.always_use_my_proxy', 'sip.outbound_proxy', 'sip.transport_list', 'sip.subscribe_interval', 'message_summary.voicemail_uri']
+                registrar_attributes = ['__id__', 'auth.password', 'auth.username', 'sip.outbound_proxy', 'sip.transport_list', 'sip.register_interval']
+                voicemail_attributes = ['__id__', 'auth.password', 'auth.username', 'sip.always_use_my_proxy', 'sip.outbound_proxy', 'sip.transport_list', 'sip.subscribe_interval', 'message_summary.voicemail_uri']
                 if 'sip.register' in notification.data.modified:
                     if self.sip.register:
                         self._registrar.activate()
@@ -1224,14 +1222,6 @@ class Account(SettingsObject):
                         self._mwi_subscriber.deactivate()
                 elif self.message_summary.enabled and set(voicemail_attributes).intersection(notification.data.modified):
                     self._mwi_subscriber.activate()
-
-    @run_in_green_thread
-    def _NH_CFGSettingsObjectDidChangeID(self, notification):
-        if self._started and self.enabled:
-            if self.sip.register:
-                self._registrar.reload_settings()
-            if self.message_summary.enabled:
-                self._mwi_subscriber.activate()
 
     def _activate(self):
         if self._active:
@@ -1533,19 +1523,18 @@ class AccountManager(object):
         handler(notification)
 
     def _NH_CFGSettingsObjectDidChange(self, notification):
-        if isinstance(notification.sender, (Account, BonjourAccount)):
-            account = notification.sender
-            if 'enabled' in notification.data.modified:
-                if account.enabled and self.default_account is None:
-                    self.default_account = account
-                elif not account.enabled and self.default_account is account:
-                    try:
-                        self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
-                    except StopIteration:
-                        self.default_account = None
-
-    def _NH_CFGSettingsObjectDidChangeID(self, notification):
-        self.accounts[notification.data.new_id] = self.accounts.pop(notification.data.old_id)
+        account = notification.sender
+        if '__id__' in notification.data.modified:
+            modified_id = notification.data.modified['__id__']
+            self.accounts[modified_id.new] = self.accounts.pop(modified_id.old)
+        if 'enabled' in notification.data.modified:
+            if account.enabled and self.default_account is None:
+                self.default_account = account
+            elif not account.enabled and self.default_account is account:
+                try:
+                    self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+                except StopIteration:
+                    self.default_account = None
 
     def _internal_add_account(self, account):
         """
@@ -1554,7 +1543,6 @@ class AccountManager(object):
         self.accounts[account.id] = account
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-        notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChangeID')
         notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _internal_remove_account(self, account):
@@ -1564,7 +1552,6 @@ class AccountManager(object):
         del self.accounts[account.id]
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChangeID')
         notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _get_default_account(self):
