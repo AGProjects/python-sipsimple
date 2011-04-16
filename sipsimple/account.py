@@ -1113,6 +1113,8 @@ class Account(SettingsObject):
         manager = AccountManager()
         manager._internal_add_account(self)
 
+        SettingsObject.__init__(self, id)
+
         from sipsimple.application import SIPApplication
         if SIPApplication.running:
             call_in_twisted_thread(self.start)
@@ -1338,6 +1340,8 @@ class BonjourAccount(SettingsObject):
         self.nat_traversal.msrp_relay = None
         self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
+
+        SettingsObject.__init__(self)
 
         from sipsimple.application import SIPApplication
         if SIPApplication.running:

@@ -527,7 +527,10 @@ class SettingsObject(SettingsState):
 
     For SettingsObject subclasses which are meant to be used exclusively with a
     local id, the class attribute __id__ should be left to the value None; if
-    __init__ is defined, it would have to accept exactly one argument, id.
+    __init__ is defined, it would have to accept exactly one argument, id and
+    the subclass MUST call the parent's __init__ after it's done doing its own
+    initialization of the instance (SettingsObject.__init__ needs to be
+    executed last, after the instance is completely initialized).
 
     The local id takes precedence over the one specified as a class attribute.
 
@@ -546,7 +549,6 @@ class SettingsObject(SettingsState):
         if not isinstance(id, basestring):
             raise TypeError("id needs to be a string instance")
         configuration = ConfigurationManager()
-        notification_center = NotificationCenter()
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
         try:
@@ -555,8 +557,11 @@ class SettingsObject(SettingsState):
             pass
         else:
             instance.__setstate__(data)
-        notification_center.post_notification('CFGSettingsObjectWasCreated', sender=instance, data=TimestampedNotificationData())
         return instance
+
+    def __init__(self, id=None):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self, data=TimestampedNotificationData())
 
     @property
     def __key__(self):
