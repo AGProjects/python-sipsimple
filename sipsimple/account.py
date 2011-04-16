@@ -1352,10 +1352,9 @@ class BonjourAccount(SettingsObject):
             return
         self._started = True
 
-        settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
-        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=settings)
+        notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
         self._bonjour_services.start()
         if self.enabled:
@@ -1369,10 +1368,9 @@ class BonjourAccount(SettingsObject):
         self._deactivate()
         self._bonjour_services.stop()
 
-        settings = SIPSimpleSettings()
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
-        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=settings)
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
     @classproperty
     def mdns_available(cls):
