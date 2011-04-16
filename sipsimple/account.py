@@ -15,6 +15,7 @@ import re
 import string
 
 from itertools import chain
+from threading import RLock
 from time import time
 from weakref import WeakKeyDictionary
 
@@ -1452,29 +1453,36 @@ class AccountManager(object):
 
     implements(IObserver)
 
+    lock = RLock()
+
     def __init__(self):
         self.accounts = {}
+        self.load_accounts.im_func.called = False
 
     def load_accounts(self):
         """
         Load all accounts from the configuration. The accounts will not be
         started until the start method is called.
         """
-        configuration = ConfigurationManager()
-        bonjour_account = BonjourAccount()
-        notification_center = NotificationCenter()
-        self.accounts[bonjour_account.id] = bonjour_account
-        notification_center.add_observer(self, sender=bonjour_account, name='CFGSettingsObjectDidChange')
-        notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=bonjour_account))
-        # and the other accounts
-        names = configuration.get_names([Account.__group__])
-        [Account(id) for id in names if id != bonjour_account.id]
-        default_account = self.default_account
-        if default_account is None or not default_account.enabled:
-            try:
-                self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
-            except StopIteration:
-                self.default_account = None
+        with self.lock:
+            if self.load_accounts.called:
+                return
+            self.load_accounts.im_func.called = True
+            configuration = ConfigurationManager()
+            bonjour_account = BonjourAccount()
+            notification_center = NotificationCenter()
+            self.accounts[bonjour_account.id] = bonjour_account
+            notification_center.add_observer(self, sender=bonjour_account, name='CFGSettingsObjectDidChange')
+            notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=bonjour_account))
+            # and the other accounts
+            names = configuration.get_names([Account.__group__])
+            [Account(id) for id in names if id != bonjour_account.id]
+            default_account = self.default_account
+            if default_account is None or not default_account.enabled:
+                try:
+                    self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+                except StopIteration:
+                    self.default_account = None
 
     def start(self):
         """
