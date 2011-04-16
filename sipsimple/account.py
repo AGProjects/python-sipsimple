@@ -1110,9 +1110,6 @@ class Account(SettingsObject):
         self._mwi_subscriber = AccountMWISubscriber(self)
         self._started = False
 
-        manager = AccountManager()
-        manager._internal_add_account(self)
-
         SettingsObject.__init__(self, id)
 
         from sipsimple.application import SIPApplication
@@ -1151,9 +1148,6 @@ class Account(SettingsObject):
     def delete(self):
         call_in_green_thread(self.stop)
         SettingsObject.delete(self)
-
-        manager = AccountManager()
-        manager._internal_remove_account(self)
 
     @run_in_green_thread
     def reregister(self):
@@ -1472,6 +1466,8 @@ class AccountManager(object):
     def __init__(self):
         self.accounts = {}
         self.load_accounts.im_func.called = False
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='CFGSettingsObjectWasCreated')
 
     def load_accounts(self):
         """
@@ -1484,11 +1480,6 @@ class AccountManager(object):
             self.load_accounts.im_func.called = True
             configuration = ConfigurationManager()
             bonjour_account = BonjourAccount()
-            notification_center = NotificationCenter()
-            self.accounts[bonjour_account.id] = bonjour_account
-            notification_center.add_observer(self, sender=bonjour_account, name='CFGSettingsObjectDidChange')
-            notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=bonjour_account))
-            # and the other accounts
             names = configuration.get_names([Account.__group__])
             [Account(id) for id in names if id != bonjour_account.id]
             default_account = self.default_account
@@ -1544,6 +1535,23 @@ class AccountManager(object):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
+    def _NH_CFGSettingsObjectWasCreated(self, notification):
+        if isinstance(notification.sender, (Account, BonjourAccount)):
+            account = notification.sender
+            self.accounts[account.id] = account
+            notification_center = NotificationCenter()
+            notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
+            notification_center.add_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
+            notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
+
+    def _NH_CFGSettingsObjectWasDeleted(self, notification):
+        account = notification.sender
+        del self.accounts[account.id]
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
+        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
+        notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
+
     def _NH_CFGSettingsObjectDidChange(self, notification):
         account = notification.sender
         if '__id__' in notification.data.modified:
@@ -1557,24 +1565,6 @@ class AccountManager(object):
                     self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
                 except StopIteration:
                     self.default_account = None
-
-    def _internal_add_account(self, account):
-        """
-        This method must only be used by Account object when instantiated.
-        """
-        self.accounts[account.id] = account
-        notification_center = NotificationCenter()
-        notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-        notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
-
-    def _internal_remove_account(self, account):
-        """
-        This method must only be used by Account objects when deleted.
-        """
-        del self.accounts[account.id]
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, sender=account, name='CFGSettingsObjectDidChange')
-        notification_center.post_notification('SIPAccountManagerDidRemoveAccount', sender=self, data=TimestampedNotificationData(account=account))
 
     def _get_default_account(self):
         settings = SIPSimpleSettings()
