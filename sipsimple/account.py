@@ -1097,6 +1097,12 @@ class Account(SettingsObject):
     xcap = XCAPSettings
     tls = TLSSettings
 
+    def __new__(cls, id):
+        with AccountManager.lock:
+            if not AccountManager.load_accounts.called:
+                raise RuntimeError("cannot instantiate %s before calling AccountManager.load_accounts" % cls.__name__)
+        return SettingsObject.__new__(cls, id)
+
     def __init__(self, id):
         self.contact = ContactURIFactory()
         self._active = False
@@ -1311,6 +1317,12 @@ class BonjourAccount(SettingsObject):
     rtp = RTPSettings
     msrp = BonjourMSRPSettings
     tls = TLSSettings
+
+    def __new__(cls):
+        with AccountManager.lock:
+            if not AccountManager.load_accounts.called:
+                raise RuntimeError("cannot instantiate %s before calling AccountManager.load_accounts" % cls.__name__)
+        return SettingsObject.__new__(cls)
 
     def __init__(self):
         self.contact = ContactURIFactory()
