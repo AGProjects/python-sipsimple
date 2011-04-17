@@ -1145,8 +1145,9 @@ class Account(SettingsObject):
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
 
+    @run_in_green_thread
     def delete(self):
-        call_in_green_thread(self.stop)
+        self.stop()
         SettingsObject.delete(self)
 
     @run_in_green_thread
