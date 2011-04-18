@@ -879,10 +879,6 @@ class XCAPManager(object):
     def xcap_root(self):
         return self.client.root if self.client else None
 
-    @property
-    def active(self):
-        return self.state not in ('initializing', 'stopping', 'stopped')
-
     def load(self, cache_directory):
         """
         Initializes the XCAP manager, by loading any saved data from disk. Needs
