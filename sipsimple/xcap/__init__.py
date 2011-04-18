@@ -904,43 +904,17 @@ class XCAPManager(object):
         Starts the XCAP manager. This method needs to be called in a green
         thread.
         """
-        if self.state not in ('stopping', 'stopped'):
-            return
-        self.xcap_subscriber = XCAPSubscriber(self.account, self.documents)
-        notification_center = NotificationCenter()
-        notification_center.post_notification('XCAPManagerWillStart', sender=self, data=TimestampedNotificationData())
-        notification_center.add_observer(self, sender=self.account)
-        notification_center.add_observer(self, sender=self.xcap_subscriber)
-        notification_center.add_observer(self, sender=SIPSimpleSettings())
-        self.xcap_subscriber.start()
-        self.command_channel.send(Command('initialize'))
-        notification_center.post_notification('XCAPManagerDidStart', sender=self, data=TimestampedNotificationData())
+        command = Command('start')
+        self.command_channel.send(command)
 
     def stop(self):
         """
         Stops the XCAP manager. This method blocks until all the operations are
         stopped and needs to be called in a green thread.
         """
-        if self.state in ('stopping', 'stopped'):
-            return
-        notification_center = NotificationCenter()
-        notification_center.post_notification('XCAPManagerWillEnd', sender=self, data=TimestampedNotificationData())
-        self.state = 'stopping'
-        notification_center.remove_observer(self, sender=self.account)
-        notification_center.remove_observer(self, sender=self.xcap_subscriber)
-        notification_center.remove_observer(self, sender=SIPSimpleSettings())
-        if self.timer is not None and self.timer.active():
-            self.timer.cancel()
-        self.timer = None
-        xcap_subscriber = self.xcap_subscriber
-        xcap_subscriber.deactivate()
-        xcap_subscriber.stop()
-        if self.state == 'stopping':
-            self.client = None
-            self.xcap_subscriber = None
-            self.state = 'stopped'
-            self._save_journal()
-            notification_center.post_notification('XCAPManagerDidEnd', sender=self, data=TimestampedNotificationData())
+        command = Command('stop')
+        self.command_channel.send(command)
+        command.wait()
 
     @run_in_twisted_thread
     def start_transaction(self):
@@ -1076,6 +1050,41 @@ class XCAPManager(object):
     # command handlers
     #
 
+    def _CH_start(self, command):
+        if self.state != 'stopped':
+            command.signal()
+            return
+        self.state = 'initializing'
+        self.xcap_subscriber = XCAPSubscriber(self.account, self.documents)
+        notification_center = NotificationCenter()
+        notification_center.post_notification('XCAPManagerWillStart', sender=self, data=TimestampedNotificationData())
+        notification_center.add_observer(self, sender=self.xcap_subscriber)
+        notification_center.add_observer(self, sender=SIPSimpleSettings(), name='CFGSettingsObjectDidChange')
+        self.xcap_subscriber.start()
+        self.command_channel.send(Command('initialize'))
+        notification_center.post_notification('XCAPManagerDidStart', sender=self, data=TimestampedNotificationData())
+        command.signal()
+
+    def _CH_stop(self, command):
+        if self.state in ('stopped', 'terminated'):
+            command.signal()
+            return
+        notification_center = NotificationCenter()
+        notification_center.post_notification('XCAPManagerWillEnd', sender=self, data=TimestampedNotificationData())
+        notification_center.remove_observer(self, sender=self.xcap_subscriber)
+        notification_center.remove_observer(self, sender=SIPSimpleSettings(), name='CFGSettingsObjectDidChange')
+        if self.timer is not None and self.timer.active():
+            self.timer.cancel()
+        self.timer = None
+        self.xcap_subscriber.deactivate()
+        self.xcap_subscriber.stop()
+        self.xcap_subscriber = None
+        self.client = None
+        self.state = 'stopped'
+        self._save_journal()
+        notification_center.post_notification('XCAPManagerDidEnd', sender=self, data=TimestampedNotificationData())
+        command.signal()
+
     def _CH_initialize(self, command):
         self.state = 'initializing'
         if self.timer is not None and self.timer.active():
@@ -1125,7 +1134,7 @@ class XCAPManager(object):
         self.xcap_subscriber.activate()
 
     def _CH_reload(self, command):
-        if self.state in ('stopping', 'stopped'):
+        if self.state == 'stopped':
             command.signal()
             return
         if '__id__' in command.modified:
