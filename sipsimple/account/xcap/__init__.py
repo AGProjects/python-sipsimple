@@ -1200,7 +1200,8 @@ class XCAPManager(object):
             self.last_fetch_time = datetime.utcnow()
 
         self.state = 'updating'
-        self.journal.insert(0, NormalizeOperation())
+        if not self.journal or type(self.journal[0]) is not NormalizeOperation:
+            self.journal.insert(0, NormalizeOperation())
         self.command_channel.send(Command('update', command.event))
 
     def _CH_update(self, command):
