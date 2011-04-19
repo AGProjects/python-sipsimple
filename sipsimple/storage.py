@@ -10,10 +10,10 @@ import os
 from functools import partial
 from zope.interface import Attribute, Interface, implements
 
+from sipsimple.account.xcap.storage.file import FileStorage as XCAPFileStorage
+from sipsimple.account.xcap.storage.memory import MemoryStorage as XCAPMemoryStorage
 from sipsimple.configuration.backend.file import FileBackend as ConfigurationFileBackend
 from sipsimple.configuration.backend.memory import MemoryBackend as ConfigurationMemoryBackend
-from sipsimple.xcap.storage.file import FileStorage as XCAPFileStorage
-from sipsimple.xcap.storage.memory import MemoryStorage as XCAPMemoryStorage
 
 
 class ISIPSimpleStorage(Interface):

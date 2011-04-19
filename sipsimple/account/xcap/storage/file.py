@@ -13,7 +13,7 @@ import random
 from application.system import unlink
 from zope.interface import implements
 
-from sipsimple.xcap.storage import IXCAPStorage, XCAPStorageError
+from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
 from sipsimple.util import makedirs
 
 

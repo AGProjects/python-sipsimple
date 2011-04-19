@@ -6,7 +6,7 @@
 __all__ = ["MemoryStorage"]
 
 from zope.interface import implements
-from sipsimple.xcap.storage import IXCAPStorage, XCAPStorageError
+from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
 
 
 class MemoryStorage(object):

@@ -32,6 +32,8 @@ from xcaplib.green import XCAPClient
 from xcaplib.error import HTTPError
 from zope.interface import implements
 
+from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
+from sipsimple.account.xcap.uri import XCAPURI
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import ContactHeader, FromHeader, PJSIPError, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
 from sipsimple.lookup import DNSLookup, DNSLookupError
@@ -40,8 +42,6 @@ from sipsimple.payloads import dialogrules, extensions, omapolicy, policy as com
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command
 from sipsimple.util import All, Any, TimestampedNotificationData, limit
-from sipsimple.xcap.storage import IXCAPStorage, XCAPStorageError
-from sipsimple.xcap.uri import XCAPURI
 
 
 class XCAPError(Exception): pass
