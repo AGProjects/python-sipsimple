@@ -1043,8 +1043,12 @@ class XCAPManager(object):
     def _run(self):
         while True:
             command = self.command_channel.wait()
-            handler = getattr(self, '_CH_%s' % command.name)
-            handler(command)
+            try:
+                handler = getattr(self, '_CH_%s' % command.name)
+                handler(command)
+            except:
+                self.command_proc = None
+                raise
 
     # command handlers
     #
@@ -1093,10 +1097,9 @@ class XCAPManager(object):
         except XCAPStorageError:
             pass
         self.journal = []
-        self.command_proc.kill()
-        self.command_proc = None
         self.state = 'terminated'
         command.signal()
+        raise proc.ProcExit
 
     def _CH_initialize(self, command):
         self.state = 'initializing'
