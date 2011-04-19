@@ -20,6 +20,7 @@ from itertools import chain, count
 from time import time
 from urllib2 import URLError
 
+from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null
 from application.system import unlink
@@ -1199,8 +1200,7 @@ class XCAPManager(object):
                 handler(operation)
             except Exception:
                 # Error while applying operation, needs to be logged -Luci
-                import traceback
-                traceback.print_exc()
+                log.err()
                 continue
             api.sleep(0) # Operations are quite CPU intensive
         try:

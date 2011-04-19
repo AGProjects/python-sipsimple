@@ -19,6 +19,7 @@ from threading import RLock
 from time import time
 from weakref import WeakKeyDictionary
 
+from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null, Singleton
 from application.system import host
@@ -947,8 +948,7 @@ class BonjourServices(object):
                 bonjour.DNSServiceProcessResult(file.file)
             except:
                 # Should we close the file? The documentation doesn't say anything about this. -Luci
-                import traceback
-                traceback.print_exc()
+                log.err()
         for file in command.files:
             file.active = False
         self._files = [f for f in self._files if not f.closed]
