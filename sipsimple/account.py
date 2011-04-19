@@ -39,7 +39,7 @@ from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
 from sipsimple.payloads.messagesummary import MessageSummary
 from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
-from sipsimple.threading.green import Command, InterruptCommand, call_in_green_thread, run_in_green_thread
+from sipsimple.threading.green import Command, InterruptCommand, run_in_green_thread
 from sipsimple.util import Route, TimestampedNotificationData, classproperty, limit, user_info
 
 
