@@ -1221,7 +1221,7 @@ class XCAPManager(object):
             except Exception:
                 # Error while applying operation, needs to be logged -Luci
                 log.err()
-                continue
+            operation.applied = True
             api.sleep(0) # Operations are quite CPU intensive
         try:
             for document in (doc for doc in self.documents if doc.dirty and doc.supported):
