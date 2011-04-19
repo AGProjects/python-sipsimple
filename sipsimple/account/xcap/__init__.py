@@ -151,19 +151,20 @@ class Document(object):
         except HTTPError, e:
             if e.status == 412: # Precondition Failed
                 raise FetchRequiredError("document %s was modified externally" % self.name)
+            elif e.status == 404 and data is None: # attempted to delete a document that did't exist in the first place
+                pass
             else:
                 raise XCAPError("failed to update %s document: %s" % (self.name, e))
-        else:
-            self.etag = response.etag if data is not None else None
-            self.dirty = False
-            if self.cached:
-                try:
-                    if data is not None:
-                        self.manager.storage.save(self.name, self.etag + os.linesep + data)
-                    else:
-                        self.manager.storage.delete(self.name)
-                except XCAPStorageError:
-                    pass
+        self.etag = response.etag if data is not None else None
+        self.dirty = False
+        if self.cached:
+            try:
+                if data is not None:
+                    self.manager.storage.save(self.name, self.etag + os.linesep + data)
+                else:
+                    self.manager.storage.delete(self.name)
+            except XCAPStorageError:
+                pass
 
 
 class DialogRulesDocument(Document):
@@ -271,20 +272,21 @@ class StatusIconDocument(Document):
         except HTTPError, e:
             if e.status == 412: # Precondition Failed
                 raise FetchRequiredError("document %s was modified externally" % self.name)
+            elif e.status == 404 and data is None: # attempted to delete a document that did't exist in the first place
+                pass
             else:
                 raise XCAPError("failed to update %s document: %s" % (self.name, e))
-        else:
-            self.alternative_location = response.headers.get('X-AGP-Alternative-Location', None)
-            self.etag = response.etag if data is not None else None
-            self.dirty = False
-            if self.cached:
-                try:
-                    if data is not None:
-                        self.manager.storage.save(self.name, self.etag + os.linesep + data)
-                    else:
-                        self.manager.storage.delete(self.name)
-                except XCAPStorageError:
-                    pass
+        self.alternative_location = response.headers.get('X-AGP-Alternative-Location', None)
+        self.etag = response.etag if data is not None else None
+        self.dirty = False
+        if self.cached:
+            try:
+                if data is not None:
+                    self.manager.storage.save(self.name, self.etag + os.linesep + data)
+                else:
+                    self.manager.storage.delete(self.name)
+            except XCAPStorageError:
+                pass
 
     def reset(self):
         super(StatusIconDocument, self).reset()
