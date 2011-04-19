@@ -13,6 +13,8 @@ import os
 import random
 import re
 import string
+import weakref
+from cStringIO import StringIO
 from collections import deque
 from copy import deepcopy
 from datetime import datetime
@@ -23,7 +25,6 @@ from urllib2 import URLError
 from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python.util import Null
-from application.system import unlink
 from eventlet import api, coros, proc
 from eventlet.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost
@@ -38,7 +39,8 @@ from sipsimple.payloads import ParserError
 from sipsimple.payloads import dialogrules, extensions, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command
-from sipsimple.util import All, Any, TimestampedNotificationData, limit, makedirs
+from sipsimple.util import All, Any, TimestampedNotificationData, limit
+from sipsimple.xcap.storage import IXCAPStorage, XCAPStorageError
 from sipsimple.xcap.uri import XCAPURI
 
 
@@ -67,9 +69,9 @@ class Document(object):
     filename        = None
     cached          = True
 
-    def __init__(self):
+    def __init__(self, manager):
+        self.manager = weakref.proxy(manager)
         self.client = None
-        self.cache_directory = None
         self.content = None
         self.etag = None
         self.fetch_time = datetime.fromtimestamp(0)
@@ -87,16 +89,14 @@ class Document(object):
     def uri(self):
         return self.client.get_url(self.application, None, globaltree=self.global_tree, filename=self.filename)
 
-    def load_from_cache(self, cache_directory):
+    def load_from_cache(self):
         if not self.cached:
             return
-        self.cache_directory = cache_directory
-        cache_filename = os.path.join(cache_directory, '%s.xml' % self.name)
         try:
-            cache_file = open(cache_filename, 'rb')
-            self.etag = cache_file.readline().strip() or None
-            self.content = self.payload_type.parse(cache_file)
-        except (IOError, OSError, ParserError):
+            document = StringIO(self.manager.storage.load(self.name))
+            self.etag = document.readline().strip() or None
+            self.content = self.payload_type.parse(document)
+        except (XCAPStorageError, ParserError):
             self.etag = None
             self.content = None
 
@@ -120,7 +120,10 @@ class Document(object):
                 self.reset()
                 self.fetch_time = datetime.utcnow()
                 if self.cached:
-                    unlink(os.path.join(self.cache_directory, '%s.xml' % self.name))
+                    try:
+                        self.manager.storage.delete(self.name)
+                    except XCAPStorageError:
+                        pass
             elif e.status != 304: # Other than Not Modified:
                 raise XCAPError("failed to fetch %s document: %s" % (self.name, e))
         except ParserError, e:
@@ -129,12 +132,8 @@ class Document(object):
             self.fetch_time = datetime.utcnow()
             if self.cached:
                 try:
-                    makedirs(self.cache_directory)
-                    file = open(os.path.join(self.cache_directory, '%s.xml' % self.name), 'wb')
-                    file.write('%s\n' % (self.etag or ''))
-                    file.write(document)
-                    file.close()
-                except (IOError, OSError):
+                    self.manager.storage.save(self.name, (self.etag or '') + os.linesep + document)
+                except XCAPStorageError:
                     pass
 
     def update(self):
@@ -160,14 +159,10 @@ class Document(object):
             if self.cached:
                 try:
                     if data is not None:
-                        makedirs(self.cache_directory)
-                        file = open(os.path.join(self.cache_directory, '%s.xml' % self.name), 'wb')
-                        file.write('%s\n' % self.etag)
-                        file.write(data)
-                        file.close()
+                        self.manager.storage.save(self.name, self.etag + os.linesep + data)
                     else:
-                        unlink(os.path.join(self.cache_directory, '%s.xml' % self.name))
-                except (IOError, OSError):
+                        self.manager.storage.delete(self.name)
+                except XCAPStorageError:
                     pass
 
 
@@ -226,8 +221,8 @@ class StatusIconDocument(Document):
     global_tree     = False
     filename        = 'oma_status-icon/index'
 
-    def __init__(self):
-        super(StatusIconDocument, self).__init__()
+    def __init__(self, manager):
+        super(StatusIconDocument, self).__init__(manager)
         self.alternative_location = None
 
     def fetch(self):
@@ -242,7 +237,10 @@ class StatusIconDocument(Document):
                 self.reset()
                 self.fetch_time = datetime.utcnow()
                 if self.cached:
-                    unlink(os.path.join(self.cache_directory, '%s.xml' % self.name))
+                    try:
+                        self.manager.storage.delete(self.name)
+                    except XCAPStorageError:
+                        pass
             elif e.status == 304: # Not Modified:
                 self.alternative_location = e.headers.get('X-AGP-Alternative-Location', None)
             else:
@@ -254,12 +252,8 @@ class StatusIconDocument(Document):
             self.alternative_location = e.headers.get('X-AGP-Alternative-Location', None)
             if self.cached:
                 try:
-                    makedirs(self.cache_directory)
-                    file = open(os.path.join(self.cache_directory, '%s.xml' % self.name), 'wb')
-                    file.write('%s\n' % (self.etag or ''))
-                    file.write(document)
-                    file.close()
-                except (IOError, OSError):
+                    self.manager.storage.save(self.name, (self.etag or '') + os.linesep + document)
+                except XCAPStorageError:
                     pass
 
     def update(self):
@@ -286,14 +280,10 @@ class StatusIconDocument(Document):
             if self.cached:
                 try:
                     if data is not None:
-                        makedirs(self.cache_directory)
-                        file = open(os.path.join(self.cache_directory, '%s.xml' % self.name), 'wb')
-                        file.write('%s\n' % self.etag)
-                        file.write(data)
-                        file.close()
+                        self.manager.storage.save(self.name, self.etag + os.linesep + data)
                     else:
-                        unlink(os.path.join(self.cache_directory, '%s.xml' % self.name))
-                except (IOError, OSError):
+                        self.manager.storage.delete(self.name)
+                except XCAPStorageError:
                     pass
 
     def reset(self):
@@ -800,9 +790,10 @@ class XCAPSubscriber(object):
 class XCAPManager(object):
     implements(IObserver)
 
-    def __init__(self, account):
+    def __init__(self, account, storage_factory):
         self.account = account
-        self.cache_directory = None
+        self.storage = None
+        self.storage_factory = storage_factory
         self.client = None
         self.command_proc = None
         self.command_channel = coros.queue()
@@ -815,13 +806,17 @@ class XCAPManager(object):
         self.transaction_level = 0
         self.xcap_subscriber = None
 
-        self.server_caps = XCAPCapsDocument()
-        self.dialog_rules = DialogRulesDocument()
-        self.pidf_manipulation = PIDFManipulationDocument()
-        self.pres_rules = PresRulesDocument()
-        self.resource_lists = ResourceListsDocument()
-        self.rls_services = RLSServicesDocument()
-        self.status_icon = StatusIconDocument()
+        self.server_caps = XCAPCapsDocument(self)
+        self.dialog_rules = DialogRulesDocument(self)
+        self.pidf_manipulation = PIDFManipulationDocument(self)
+        self.pres_rules = PresRulesDocument(self)
+        self.resource_lists = ResourceListsDocument(self)
+        self.rls_services = RLSServicesDocument(self)
+        self.status_icon = StatusIconDocument(self)
+
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
+        notification_center.add_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
 
     def _get_state(self):
         return self.__dict__['state']
@@ -847,10 +842,6 @@ class XCAPManager(object):
     @property
     def document_names(self):
         return [document.name for document in self.documents]
-
-    @property
-    def journal_filename(self):
-        return os.path.join(self.cache_directory, self.account.id, 'journal')
 
     @property
     def contactlist_supported(self):
@@ -880,20 +871,22 @@ class XCAPManager(object):
     def xcap_root(self):
         return self.client.root if self.client else None
 
-    def load(self, cache_directory):
+    def load(self):
         """
         Initializes the XCAP manager, by loading any saved data from disk. Needs
         to be called before any other method and in a green thread.
         """
-        if not cache_directory:
-            raise RuntimeError("A cache directory for XCAP documents must me specified")
-        self.cache_directory = cache_directory
-        cache_directory = os.path.join(cache_directory, self.account.id)
+        if self.storage is not None:
+            raise RuntimeError("XCAPManager cache already loaded")
+        storage = self.storage_factory(self.account.id)
+        if not IXCAPStorage.providedBy(storage):
+            raise TypeError("storage must implement the IXCAPStorage interface")
+        self.storage = storage
         for document in self.cached_documents:
-            document.load_from_cache(cache_directory)
+            document.load_from_cache()
         try:
-            self.journal = cPickle.load(open(self.journal_filename, 'rb'))
-        except (IOError, OSError, cPickle.UnpicklingError):
+            self.journal = cPickle.loads(storage.load('journal'))
+        except (XCAPStorageError, cPickle.UnpicklingError):
             self.journal = []
         else:
             for operation in self.journal:
@@ -1086,6 +1079,20 @@ class XCAPManager(object):
         notification_center.post_notification('XCAPManagerDidEnd', sender=self, data=TimestampedNotificationData())
         command.signal()
 
+    def _CH_cleanup(self, command):
+        if self.state != 'stopped':
+            command.signal()
+            return
+        try:
+            self.storage.purge()
+        except XCAPStorageError:
+            pass
+        self.journal = []
+        self.command_proc.kill()
+        self.command_proc = None
+        self.state = 'terminated'
+        command.signal()
+
     def _CH_initialize(self, command):
         self.state = 'initializing'
         if self.timer is not None and self.timer.active():
@@ -1135,19 +1142,26 @@ class XCAPManager(object):
         self.xcap_subscriber.activate()
 
     def _CH_reload(self, command):
-        if self.state == 'stopped':
+        if self.state == 'terminated':
             command.signal()
             return
         if '__id__' in command.modified:
+            try:
+                self.storage.purge()
+            except XCAPStorageError:
+                pass
+            self.storage = self.storage_factory(self.account.id)
             self.journal = []
             self._save_journal()
         if set(['__id__', 'xcap.xcap_root']).intersection(command.modified):
             for document in self.documents:
-                document.cache_directory = os.path.join(self.cache_directory, self.account.id)
                 document.reset()
+        if self.state == 'stopped':
+            command.signal()
+            return
         if set(['__id__', 'auth.username', 'auth.password', 'xcap.xcap_root']).intersection(command.modified):
             self.state = 'initializing'
-            self.command_channel.send(Command('initialize', command.event))
+            self.command_channel.send(Command('initialize'))
         elif self.xcap_subscriber.active:
             self.xcap_subscriber.resubscribe()
         command.signal()
@@ -3082,6 +3096,13 @@ class XCAPManager(object):
         if set(['__id__', 'xcap.xcap_root', 'auth.username', 'auth.password', 'sip.subscribe_interval', 'sip.transport_list']).intersection(notification.data.modified):
             self.command_channel.send(Command('reload', modified=notification.data.modified))
 
+    def _NH_CFGSettingsObjectWasDeleted(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=self.account, name='CFGSettingsObjectDidChange')
+        notification_center.remove_observer(self, sender=self.account, name='CFGSettingsObjectWasDeleted')
+        self.command_channel.send(Command('stop'))
+        self.command_channel.send(Command('cleanup'))
+
     def _NH_XCAPSubscriptionDidStart(self, notification):
         self.command_channel.send(Command('fetch', documents=self.document_names))
 
@@ -3459,9 +3480,8 @@ class XCAPManager(object):
 
     def _save_journal(self):
         try:
-            makedirs(os.path.dirname(self.journal_filename))
-            cPickle.dump(self.journal, open(self.journal_filename, 'wb'))
-        except (IOError, OSError):
+            self.storage.save('journal', cPickle.dumps(self.journal))
+        except XCAPStorageError:
             pass
 
     @staticmethod
