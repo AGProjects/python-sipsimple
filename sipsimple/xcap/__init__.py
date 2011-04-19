@@ -790,10 +790,13 @@ class XCAPSubscriber(object):
 class XCAPManager(object):
     implements(IObserver)
 
-    def __init__(self, account, storage_factory):
+    def __init__(self, account):
+        from sipsimple.application import SIPApplication
+        if SIPApplication.storage is None:
+            raise RuntimeError("SIPApplication.storage must be defined before instantiating XCAPManager")
         self.account = account
         self.storage = None
-        self.storage_factory = storage_factory
+        self.storage_factory = SIPApplication.storage.xcap_storage_factory
         self.client = None
         self.command_proc = None
         self.command_channel = coros.queue()

@@ -49,18 +49,22 @@ class ConfigurationManager(object):
         self.backend = None
         self.data = None
 
-    def start(self, backend):
+    def start(self):
         """
         Initialize the ConfigurationManager to use the specified backend. This
         method can only be called once, with an object which provides IBackend.
         The other methods of the object cannot be used unless this method was
         called.
         """
+        from sipsimple.application import SIPApplication
         from sipsimple.configuration.backend import IConfigurationBackend
         if self.backend is not None:
             raise RuntimeError("ConfigurationManager already started")
+        if SIPApplication.storage is None:
+            raise RuntimeError("SIPApplication.storage must be defined before starting the ConfigurationManager")
+        backend = SIPApplication.storage.configuration_backend
         if not IConfigurationBackend.providedBy(backend):
-            raise TypeError("backend must implement the IConfigurationBackend interface")
+            raise TypeError("SIPApplication.storage.configuration_backend must implement the IConfigurationBackend interface")
         self.data = backend.load()
         self.backend = backend
 

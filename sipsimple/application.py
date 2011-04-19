@@ -27,6 +27,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioMixer, Engine, PJSIPError, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup, DNSLookupError, DNSManager
 from sipsimple.session import SessionManager
+from sipsimple.storage import ISIPSimpleStorage
 from sipsimple.threading import ThreadManager, run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
 from sipsimple.util import classproperty, TimestampedNotificationData
@@ -48,6 +49,8 @@ class SIPApplication(object):
     __metaclass__ = Singleton
     implements(IObserver)
 
+    storage = ApplicationAttribute(value=None)
+
     state = ApplicationAttribute(value=None)
     end_reason = ApplicationAttribute(value=None)
     alert_audio_device = ApplicationAttribute(value=None)
@@ -64,11 +67,16 @@ class SIPApplication(object):
 
     local_nat_type = ApplicationAttribute(value='unknown')
 
-    def start(self, config_backend):
+    def start(self, storage):
+        if not ISIPSimpleStorage.providedBy(storage):
+            raise TypeError("storage must implement the ISIPSimpleStorage interface")
+
         with self._lock:
             if self.state is not None:
                 raise RuntimeError("SIPApplication cannot be started from '%s' state" % self.state)
             self.state = 'starting'
+
+        self.storage = storage
 
         thread_manager = ThreadManager()
         thread_manager.start()
@@ -78,11 +86,12 @@ class SIPApplication(object):
 
         # load configuration
         try:
-            configuration_manager.start(config_backend)
+            configuration_manager.start()
             SIPSimpleSettings()
             account_manager.load_accounts()
         except:
             self.state = None
+            self.storage = None
             raise
 
         # start the reactor thread
