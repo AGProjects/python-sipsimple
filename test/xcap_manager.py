@@ -28,12 +28,12 @@ from threading import Event
 from zope.interface import implements
 
 from sipsimple.account import Account, AccountManager, XCAPSettings
+from sipsimple.account.xcap import All, CatchAllCondition, Class, Contact, DeviceID, DialoginfoPolicy, DomainCondition, DomainException, OccurenceID, OfflineStatus, PresencePolicy, ServiceURI, ServiceURIScheme, UserException, XCAPManager
 from sipsimple.application import SIPApplication
 from sipsimple.configuration import Setting, SettingsObjectExtension
-from sipsimple.configuration.backend.file import FileBackend
+from sipsimple.storage import FileStorage
 from sipsimple.threading.green import run_in_green_thread
 from sipsimple.util import Timestamp
-from sipsimple.xcap import All, CatchAllCondition, Class, Contact, DeviceID, DialoginfoPolicy, DomainCondition, DomainException, OccurenceID, OfflineStatus, PresencePolicy, ServiceURI, ServiceURIScheme, UserException, XCAPManager
 
 
 class XCAPSettingsExtension(XCAPSettings):
@@ -57,7 +57,7 @@ class XCAPApplication(object):
         notification_center.add_observer(self, sender=self.application)
 
     def start(self):
-        self.application.start(FileBackend(os.path.realpath('test-config')))
+        self.application.start(FileStorage(os.path.realpath('.')))
 
     @run_in_green_thread
     def stop(self):
@@ -74,7 +74,7 @@ class XCAPApplication(object):
         self.xcap_manager = XCAPManager(account_manager.default_account)
         notification_center = NotificationCenter()
         notification_center.add_observer(self, sender=self.xcap_manager)
-        self.xcap_manager.load(os.path.realpath('xcap-cache'))
+        self.xcap_manager.load()
         self.xcap_manager.start()
         if not account_manager.default_account.xcap.enabled:
             print 'XCAP support is not enabled'
