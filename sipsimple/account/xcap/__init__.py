@@ -905,6 +905,7 @@ class XCAPManager(object):
         """
         command = Command('start')
         self.command_channel.send(command)
+        command.wait()
 
     def stop(self):
         """
