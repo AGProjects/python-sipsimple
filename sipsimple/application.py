@@ -102,12 +102,13 @@ class SIPApplication(object):
         from eventlet.twistedutil import join_reactor
         notification_center = NotificationCenter()
 
-        reactor.callLater(0, self._initialize_subsystems)
+        self._initialize_subsystems()
         reactor.run(installSignalHandlers=False)
 
         self.state = 'stopped'
         notification_center.post_notification('SIPApplicationDidEnd', sender=self, data=TimestampedNotificationData(end_reason=self.end_reason))
 
+    @run_in_green_thread
     def _initialize_subsystems(self):
         account_manager = AccountManager()
         dns_manager = DNSManager()
