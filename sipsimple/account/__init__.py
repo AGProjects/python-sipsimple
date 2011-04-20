@@ -38,8 +38,8 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
 from sipsimple.payloads.messagesummary import MessageSummary
-from sipsimple.threading import call_in_twisted_thread, run_in_twisted_thread
-from sipsimple.threading.green import Command, InterruptCommand, run_in_green_thread
+from sipsimple.threading import run_in_twisted_thread
+from sipsimple.threading.green import Command, InterruptCommand, call_in_green_thread, run_in_green_thread
 from sipsimple.util import Route, TimestampedNotificationData, classproperty, limit, user_info
 
 
@@ -1114,7 +1114,7 @@ class Account(SettingsObject):
 
         from sipsimple.application import SIPApplication
         if SIPApplication.running:
-            call_in_twisted_thread(self.start)
+            call_in_green_thread(self.start)
 
     def start(self):
         if self._started:
@@ -1340,7 +1340,7 @@ class BonjourAccount(SettingsObject):
 
         from sipsimple.application import SIPApplication
         if SIPApplication.running:
-            call_in_twisted_thread(self.start)
+            call_in_green_thread(self.start)
 
     def start(self):
         if self._started:
