@@ -128,6 +128,7 @@ class AccountRegistrar(object):
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc.kill()
+        self._command_proc = None
 
     def activate(self):
         command = Command('register')
@@ -357,6 +358,7 @@ class AccountMWISubscriber(object):
         notification_center.remove_observer(self, name='SystemIPAddressDidChange')
         notification_center.remove_observer(self, name='SystemDidWakeUpFromSleep')
         self._command_proc.kill()
+        self._command_proc = None
 
     def activate(self):
         self.active = True
