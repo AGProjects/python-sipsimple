@@ -17,6 +17,16 @@
   policies at all, which makes it impossible to create a contact that has
   no explicit policies set (inherits the default account policies).
 
++ there is a race condition that can prevent an account to start if it is
+  created while the start method of SIPApplication runs and it passed the
+  point where it called AccountManager.start. A quick worksaround is to
+  never create an account before SIPApplicationDidStart is posted
+
++ SIPApplication.start attempts to be restartable in case of errors, but
+  there are cases where it may enter into a state where it will raise
+  exceptions perpetually, even if the condition that led to the exception
+  was fixed.
+
 - allow deleting transport on SIPURI
 
 - modify Invitation/Request/Subscription to reset transport on request_uri
