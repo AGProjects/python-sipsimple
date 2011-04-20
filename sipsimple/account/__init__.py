@@ -30,7 +30,7 @@ from gnutls.interfaces.twisted import X509Credentials
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple import bonjour
+from sipsimple.account import bonjour
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, PJSIPError, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
