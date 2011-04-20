@@ -1497,8 +1497,8 @@ class AccountManager(object):
         """
         notification_center = NotificationCenter()
         notification_center.post_notification('SIPAccountManagerWillStart', sender=self, data=TimestampedNotificationData())
-        for account in self.accounts.itervalues():
-            account.start()
+        procs = [proc.spawn(account.start) for account in self.accounts.itervalues()]
+        proc.waitall(procs)
         notification_center.post_notification('SIPAccountManagerDidStart', sender=self, data=TimestampedNotificationData())
 
     def stop(self):
