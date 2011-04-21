@@ -164,7 +164,7 @@ class MSRPStreamBase(object):
                 else:
                     if self.remote_role == 'actpass':
                         behind_nat = SIPApplication.local_nat_type != 'open'
-                        self.msrp_connector = get_connector(relay=None, logger=logger) if behind_nat else get_acceptor(relay=None, use_acm=True, logger=logger)
+                        self.msrp_connector = get_connector(relay=None, use_acm=True, logger=logger) if behind_nat else get_acceptor(relay=None, use_acm=True, logger=logger)
                         self.local_role = 'active' if behind_nat else 'passive'
                     elif self.remote_role == 'passive':
                         # Not allowed by the draft but play nice for interoperability. -Saul
