@@ -286,14 +286,15 @@ class SIPApplication(object):
             command = self._nat_detect_channel.wait()
             if command.name != 'detect_nat':
                 continue
-            for account in (account for account in account_manager.iter_accounts() if isinstance(account, Account)):
-                if account.nat_traversal.stun_server_list:
-                    stun_servers = [(server.host, server.port) for server in account.nat_traversal.stun_server_list]
-                else:
+            stun_locators = list(account.nat_traversal.stun_server_list or account.id.domain for account in account_manager.iter_accounts() if isinstance(account, Account))
+            for stun_item in stun_locators:
+                if isinstance(stun_item, basestring):
                     try:
-                        stun_servers = lookup.lookup_service(SIPURI(host=account.id.domain), 'stun').wait()
+                        stun_servers = lookup.lookup_service(SIPURI(host=stun_item), 'stun').wait()
                     except DNSLookupError:
                         continue
+                else:
+                    stun_servers = [(server.host, server.port) for server in stun_item]
                 for stun_server, stun_port in stun_servers:
                     serial += 1
                     try:
