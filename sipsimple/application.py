@@ -288,13 +288,7 @@ class SIPApplication(object):
                 continue
             for account in (account for account in account_manager.iter_accounts() if isinstance(account, Account)):
                 if account.nat_traversal.stun_server_list:
-                    stun_servers = []
-                    for server in account.nat_traversal.stun_server_list:
-                        try:
-                            servers = lookup.lookup_service(SIPURI(host=server.host, port=server.port), 'stun').wait()
-                            stun_servers.extend(servers)
-                        except DNSLookupError:
-                            continue
+                    stun_servers = [(server.host, server.port) for server in account.nat_traversal.stun_server_list]
                 else:
                     try:
                         stun_servers = lookup.lookup_service(SIPURI(host=account.id.domain), 'stun').wait()
