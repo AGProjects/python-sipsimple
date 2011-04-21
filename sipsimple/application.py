@@ -67,6 +67,10 @@ class SIPApplication(object):
 
     local_nat_type = ApplicationAttribute(value='unknown')
 
+    running           = classproperty(lambda cls: cls.state == 'started')
+    alert_audio_mixer = classproperty(lambda cls: cls.alert_audio_bridge.mixer if cls.alert_audio_bridge else None)
+    voice_audio_mixer = classproperty(lambda cls: cls.voice_audio_bridge.mixer if cls.voice_audio_bridge else None)
+
     def start(self, storage):
         if not ISIPSimpleStorage.providedBy(storage):
             raise TypeError("storage must implement the ISIPSimpleStorage interface")
@@ -97,6 +101,19 @@ class SIPApplication(object):
         # start the reactor thread
         self.thread = Thread(name='Reactor Thread', target=self._run_reactor)
         self.thread.start()
+
+    def stop(self):
+        with self._lock:
+            if self.state in (None, 'stopping', 'stopped'):
+                return
+            prev_state = self.state
+            self.state = 'stopping'
+
+        self.end_reason = 'application request'
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPApplicationWillEnd', sender=self, data=TimestampedNotificationData())
+        if prev_state != 'starting':
+            self._shutdown_subsystems()
 
     def _run_reactor(self):
         from eventlet.twistedutil import join_reactor
@@ -225,19 +242,6 @@ class SIPApplication(object):
         self._detect_nat_type()
         self._nat_detect_channel.send(Command('detect_nat'))
 
-    def stop(self):
-        with self._lock:
-            if self.state in (None, 'stopping', 'stopped'):
-                return
-            prev_state = self.state
-            self.state = 'stopping'
-
-        self.end_reason = 'application request'
-        notification_center = NotificationCenter()
-        notification_center.post_notification('SIPApplicationWillEnd', sender=self, data=TimestampedNotificationData())
-        if prev_state != 'starting':
-            self._shutdown_subsystems()
-
     @run_in_green_thread
     def _shutdown_subsystems(self):
         # cleanup internals
@@ -270,17 +274,52 @@ class SIPApplication(object):
         # stop the reactor
         reactor.stop()
 
-    @classproperty
-    def running(cls):
-        return cls.state == 'started'
+    @run_in_green_thread
+    def _detect_nat_type(self):
+        account_manager = AccountManager()
+        engine = Engine()
+        lookup = DNSLookup()
 
-    @classproperty
-    def alert_audio_mixer(cls):
-        return cls.alert_audio_bridge.mixer if cls.alert_audio_bridge else None
-
-    @classproperty
-    def voice_audio_mixer(cls):
-        return cls.voice_audio_bridge.mixer if cls.voice_audio_bridge else None
+        serial = 0
+        while True:
+            restart_detection = False
+            command = self._nat_detect_channel.wait()
+            if command.name != 'detect_nat':
+                continue
+            for account in (account for account in account_manager.iter_accounts() if isinstance(account, Account)):
+                if account.nat_traversal.stun_server_list:
+                    stun_servers = []
+                    for server in account.nat_traversal.stun_server_list:
+                        try:
+                            servers = lookup.lookup_service(SIPURI(host=server.host, port=server.port), 'stun').wait()
+                            stun_servers.extend(servers)
+                        except DNSLookupError:
+                            continue
+                else:
+                    try:
+                        stun_servers = lookup.lookup_service(SIPURI(host=account.id.domain), 'stun').wait()
+                    except DNSLookupError:
+                        continue
+                for stun_server, stun_port in stun_servers:
+                    serial += 1
+                    try:
+                        engine.detect_nat_type(stun_server, stun_port, user_data=serial)
+                    except PJSIPError:
+                        continue
+                    command = self._nat_detect_channel.wait()
+                    if command.name == 'process_nat_detection' and command.data.user_data == serial and command.data.succeeded:
+                        self.local_nat_type = command.data.nat_type.lower()
+                        restart_detection = True
+                        break
+                    elif command.name == 'detect_nat':
+                        self._nat_detect_channel.send(command)
+                        restart_detection = True
+                        break
+                if restart_detection:
+                    break
+            else:
+                self.local_nat_type = 'unknown'
+                reactor.callLater(60, self._nat_detect_channel.send, Command('detect_nat'))
 
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
@@ -474,53 +513,6 @@ class SIPApplication(object):
         settings.audio.output_device = self.voice_audio_bridge.mixer.output_device
         settings.audio.alert_device = self.alert_audio_bridge.mixer.output_device
         settings.save()
-
-    @run_in_green_thread
-    def _detect_nat_type(self):
-        account_manager = AccountManager()
-        engine = Engine()
-        lookup = DNSLookup()
-
-        serial = 0
-        while True:
-            restart_detection = False
-            command = self._nat_detect_channel.wait()
-            if command.name != 'detect_nat':
-                continue
-            for account in (account for account in account_manager.iter_accounts() if isinstance(account, Account)):
-                if account.nat_traversal.stun_server_list:
-                    stun_servers = []
-                    for server in account.nat_traversal.stun_server_list:
-                        try:
-                            servers = lookup.lookup_service(SIPURI(host=server.host, port=server.port), 'stun').wait()
-                            stun_servers.extend(servers)
-                        except DNSLookupError:
-                            continue
-                else:
-                    try:
-                        stun_servers = lookup.lookup_service(SIPURI(host=account.id.domain), 'stun').wait()
-                    except DNSLookupError:
-                        continue
-                for stun_server, stun_port in stun_servers:
-                    serial += 1
-                    try:
-                        engine.detect_nat_type(stun_server, stun_port, user_data=serial)
-                    except PJSIPError:
-                        continue
-                    command = self._nat_detect_channel.wait()
-                    if command.name == 'process_nat_detection' and command.data.user_data == serial and command.data.succeeded:
-                        self.local_nat_type = command.data.nat_type.lower()
-                        restart_detection = True
-                        break
-                    elif command.name == 'detect_nat':
-                        self._nat_detect_channel.send(command)
-                        restart_detection = True
-                        break
-                if restart_detection:
-                    break
-            else:
-                self.local_nat_type = 'unknown'
-                reactor.callLater(60, self._nat_detect_channel.send, Command('detect_nat'))
 
     def _NH_DNSNameserversDidChange(self, notification):
         if self.running:
