@@ -260,9 +260,9 @@ class ReferralHandler(object):
                 finally:
                     notification_center.remove_observer(self, sender=self._referral)
             if self.operation is AddParticipantOperation:
-                notification_center.post_notification('SIPConferenceDidNotAddParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='user request'))
+                notification_center.post_notification('SIPConferenceDidNotAddParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='error'))
             else:
-                notification_center.post_notification('SIPConferenceDidNotRemoveParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='user request'))
+                notification_center.post_notification('SIPConferenceDidNotRemoveParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='error'))
         except ReferralError, e:
             if self.operation is AddParticipantOperation:
                 notification_center.post_notification('SIPConferenceDidNotAddParticipant', sender=self.session, data=TimestampedNotificationData(participant=self.participant_uri, code=e.code, reason=e.error))
@@ -1135,13 +1135,13 @@ class Session(object):
             self.greenlet = None
             self.state = 'terminated'
             notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='remote', method='INVITE', code=code, reason=sip_status_messages[code], ack_received=False))
-            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='user request', redirect_identities=None))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='timeout', redirect_identities=None))
         else:
             notification_center.remove_observer(self, sender=self._invitation)
             self.greenlet = None
             self.state = 'terminated'
             self.proposed_streams = None
-            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='user request', redirect_identities=None))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='error', redirect_identities=None))
 
     @transition_state('received_proposal', 'accepting_proposal')
     @run_in_green_thread
@@ -1576,7 +1576,7 @@ class Session(object):
             notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
         else:
             self.end_time = datetime.now()
-            notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='user request'))
+            notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='error'))
 
     @property
     def local_identity(self):
