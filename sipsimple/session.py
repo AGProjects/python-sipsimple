@@ -1050,7 +1050,7 @@ class Session(object):
                 error = 'media stream failed: %s' % e.data.reason
                 reason_header = ReasonHeader('SIP')
                 reason_header.cause = 500
-                reason_header.text = e.data.reason
+                reason_header.text = 'media stream failed to start'
             self.start_time = datetime.now()
             if self._invitation.state in ('incoming', 'early'):
                 self._fail(originator='local', code=500, reason=sip_status_messages[500], error=error, reason_header=reason_header)
