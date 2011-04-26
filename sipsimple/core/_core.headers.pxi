@@ -1238,7 +1238,7 @@ cdef class ReasonHeader(BaseReasonHeader):
         def __get__(self):
             text = self.parameters.get("text", None)
             if text is not None:
-                text = text.strip('" ')
+                text = text.strip().strip('"')
             return text
 
         def __set__(self, str text):
@@ -1286,7 +1286,7 @@ cdef class FrozenReasonHeader(BaseReasonHeader):
         def __get__(self):
             text = self.parameters.get("text", None)
             if text is not None:
-                text = text.strip('" ')
+                text = text.strip().strip('"')
             return text
 
     new = classmethod(FrozenReasonHeader_new)
