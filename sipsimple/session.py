@@ -944,6 +944,7 @@ class Session(object):
                     else:
                         media = SDPMediaStream.new(media)
                         media.port = 0
+                        media.attributes = []
                         local_sdp.media.append(media)
             else:
                 for stream in self.proposed_streams:
@@ -1177,6 +1178,7 @@ class Session(object):
                 elif index >= len(local_sdp.media): # actually == is sufficient
                     media = SDPMediaStream.new(media)
                     media.port = 0
+                    media.attributes = []
                     local_sdp.media.append(media)
             self._invitation.send_response(200, sdp=local_sdp)
 
@@ -1866,6 +1868,7 @@ class Session(object):
                                 notification_center.remove_observer(self, sender=stream)
                                 stream.deactivate()
                                 local_sdp.media[stream.index].port = 0
+                                local_sdp.media[stream.index].attributes = []
                             for stream in self.streams:
                                 local_sdp.media[stream.index] = stream.get_local_media(for_offer=False)
                             try:
