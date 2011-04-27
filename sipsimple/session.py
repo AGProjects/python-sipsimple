@@ -1578,7 +1578,7 @@ class Session(object):
             notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
         else:
             self.end_time = datetime.now()
-            notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='error'))
+            notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='user request'))
 
     @property
     def local_identity(self):
