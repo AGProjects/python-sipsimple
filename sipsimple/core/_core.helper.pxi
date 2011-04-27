@@ -2,6 +2,7 @@
 #
 
 import re
+import urllib
 
 
 # Classes
@@ -126,10 +127,10 @@ cdef class BaseSIPURI:
             else:
                 string = "%s@%s" % (self.user, string)
         if self.parameters:
-            string += ";" + ";".join(["%s%s" % (name, ("" if val is None else "="+val))
+            string += ";" + ";".join(["%s%s" % (name, ("" if val is None else "="+urllib.quote(val, safe="()[]-_.!~*'/:&+$")))
                                       for name, val in self.parameters.iteritems()])
         if self.headers:
-            string += "?" + "&".join(["%s%s" % (name, ("" if val is None else "="+val))
+            string += "?" + "&".join(["%s%s" % (name, ("" if val is None else "="+urllib.quote(val, safe="()[]-_.!~*'/:?+$")))
                                       for name, val in self.headers.iteritems()])
         if self.secure:
             string = "sips:" + string
