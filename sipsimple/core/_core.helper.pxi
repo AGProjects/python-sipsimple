@@ -187,11 +187,13 @@ def SIPURI_new(cls, BaseSIPURI sipuri):
 def SIPURI_parse(cls, str uri_str):
     cdef pjsip_uri *uri = NULL
     cdef pj_pool_t *pool = NULL
+    cdef pj_str_t tmp
     cdef char buffer[4096]
     pool = pj_pool_create_on_buf("SIPURI_parse", buffer, sizeof(buffer))
     if pool == NULL:
         raise SIPCoreError("Could not allocate memory pool")
-    uri = pjsip_parse_uri(pool, uri_str, len(uri_str), 0)
+    pj_strdup2_with_null(pool, &tmp, uri_str)
+    uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0)
     if uri == NULL:
         raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
     return SIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
@@ -266,11 +268,13 @@ def FrozenSIPURI_new(cls, BaseSIPURI sipuri):
 def FrozenSIPURI_parse(cls, str uri_str):
     cdef pjsip_uri *uri = NULL
     cdef pj_pool_t *pool = NULL
+    cdef pj_str_t tmp
     cdef char buffer[4096]
     pool = pj_pool_create_on_buf("FrozenSIPURI_parse", buffer, sizeof(buffer))
     if pool == NULL:
         raise SIPCoreError("Could not allocate memory pool")
-    uri = pjsip_parse_uri(pool, uri_str, len(uri_str), 0)
+    pj_strdup2_with_null(pool, &tmp, uri_str)
+    uri = pjsip_parse_uri(pool, tmp.ptr, tmp.slen, 0)
     if uri == NULL:
         raise SIPCoreError("Not a valid SIP URI: %s" % uri_str)
     return FrozenSIPURI_create(<pjsip_sip_uri *>pjsip_uri_get_uri(uri))
