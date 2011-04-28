@@ -37,13 +37,14 @@ Step 2. Install Dependencies
  * python-application       http://pypi.python.org/simple/python-application  >=1.2.5
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
- * python-greenlet          http://download.ag-projects.com/SipClient         =0.4.0  
+ * python-greenlet          http://download.ag-projects.com/SipClient         =0.4.0
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
  * cython                   http://www.cython.org                             =0.12.1
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
+ * python-dateutil          http://niemeyer.net/python-dateutil               >=1.4
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
@@ -97,7 +98,7 @@ Install Python dependencies by using the easy_install tool. The software
 will be installed in /Library/Python/2.5/site-packages.
 
 sudo easy_install -U python-gnutls dnspython twisted \
-python-application PIL cython==0.12.1
+python-application PIL cython==0.12.1 python-dateutil
 
 
 Step 3. Install SIP SIMPLE client SDK

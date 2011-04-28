@@ -48,6 +48,13 @@ sudo defaults write com.apple.versioner.python Version 2.5
 The SDK setup process will detect this, will use gcc-4.0 during the build
 process and will generate 32bit binaries for i386 architecture.
 
+In order to build all libraries with only i386 architecture (and compatible with OSX 10.5)
+export the following environment variables before starting the build process:
+
+CC="gcc-4.0 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+ARCHFLAGS="-arch i386"
+LDSHARED="gcc-4.0 -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+
 
 Step 2. Install Dependencies
 ----------------------------
@@ -62,6 +69,7 @@ Step 2. Install Dependencies
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
+ * python-dateutil          http://niemeyer.net/python-dateutil               >=1.4
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
@@ -106,7 +114,7 @@ will be installed in /Library/Python/2.6/site-packages for Python 2.6 or in
 /Library/Python/2.5/site-packages for Python 2.5.
 
 sudo easy_install -U python-gnutls dnspython twisted \
-python-application PIL cython==0.12.1
+python-application PIL cython==0.12.1 python-dateutil
 
 # Install lxml python module
 STATIC_DEPS=true sudo easy_install lxml
