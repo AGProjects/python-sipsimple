@@ -115,6 +115,7 @@ version numbers:
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
+ * python-dateutil          http://niemeyer.net/python-dateutil               >=1.4
 
 Open the MSYS console.
 

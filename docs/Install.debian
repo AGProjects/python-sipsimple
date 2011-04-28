@@ -57,7 +57,7 @@ Creating Debian Packages
 Install the building dependencies:
 
 sudo apt-get install python-gnutls python-application python-lxml \
-python-dnspython python-twisted-core python-zopeinterface \
+python-dnspython python-dateutil python-twisted-core python-zopeinterface \
 python-twisted-names python-imaging cython python-setuptools \
 devscripts subversion build-essential cdbs debhelper \
 python-all-dev libasound2-dev libssl-dev

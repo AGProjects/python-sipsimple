@@ -43,12 +43,13 @@ the following packages, notice the minimum version numbers:
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
+ * python-dateutil          http://niemeyer.net/python-dateutil               >=1.4
 
 You can use the easy_install script provided by the python-setuptools
 package to install the packages:
 
 sudo easy_install -U cython==0.12.1 dnspython twisted lxml python-gnutls \
-python-application dnspython twisted PIL
+python-application dnspython twisted PIL python-dateutil
 
 
 Step 3. Install SIP SIMPLE client SDK
