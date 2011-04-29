@@ -1514,7 +1514,7 @@ class Session(object):
 
     @run_in_green_thread
     def end(self):
-        if self.state is None:
+        if self.state in (None, 'terminating', 'terminated'):
             return
         if self.greenlet is not None:
             api.kill(self.greenlet, api.GreenletExit())
@@ -1567,18 +1567,18 @@ class Session(object):
             else:
                 self.end_time = datetime.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='SIP core error: %s' % str(e)))
-            return
+        else:
+            if cancelling:
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
+            else:
+                self.end_time = datetime.now()
+                notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='user request'))
         finally:
             for stream in streams:
                 stream.end()
             notification_center.remove_observer(self, sender=self._invitation)
-        self.greenlet = None
-        self.state = 'terminated'
-        if cancelling:
-            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
-        else:
-            self.end_time = datetime.now()
-            notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='user request'))
+            self.greenlet = None
+            self.state = 'terminated'
 
     @property
     def local_identity(self):
