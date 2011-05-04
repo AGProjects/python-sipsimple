@@ -186,14 +186,14 @@ class DNSLookup(object):
             raise DNSLookupError("Unknown service: %s" % service)
 
         try:
+            # If the host part of the URI is an IP address, we will not do any lookup
+            if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
+                return [(uri.host, uri.port or service_port)]
+
             resolver = DNSResolver()
             resolver.cache = self.cache
             resolver.timeout = timeout
             resolver.lifetime = lifetime
-
-            # If the host part of the URI is an IP address, we will not do any lookup
-            if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
-                return [(uri.host, uri.port or service_port)]
 
             record_name = '%s.%s' % (service_prefix, uri.host)
             services = self._lookup_srv_records(resolver, [record_name], log_context=log_context)
@@ -241,11 +241,6 @@ class DNSLookup(object):
             raise DNSLookupError("Unknown transports: %s" % ', '.join(unknown_transports))
 
         try:
-            resolver = DNSResolver()
-            resolver.cache = self.cache
-            resolver.timeout = timeout
-            resolver.lifetime = lifetime
-
             # If the host part of the URI is an IP address, we will not do any lookup
             if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
                 transport = 'tls' if uri.secure else uri.transport.lower()
@@ -254,8 +249,13 @@ class DNSLookup(object):
                 port = uri.port or (5061 if transport=='tls' else 5060)
                 return [Route(address=uri.host, port=port, transport=transport)]
 
+            resolver = DNSResolver()
+            resolver.cache = self.cache
+            resolver.timeout = timeout
+            resolver.lifetime = lifetime
+
             # If the port is specified in the URI, we will only do an A lookup
-            elif uri.port:
+            if uri.port:
                 transport = 'tls' if uri.secure else uri.transport.lower()
                 if transport not in supported_transports:
                     raise DNSLookupError("Transport %s dictated by URI is not supported" % transport)
@@ -327,14 +327,14 @@ class DNSLookup(object):
         notification_center = NotificationCenter()
 
         try:
+            # If the host part of the URI is an IP address, we cannot not do any lookup
+            if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
+                raise DNSLookupError("Cannot perform DNS query because the host is an IP address")
+
             resolver = DNSResolver()
             resolver.cache = self.cache
             resolver.timeout = timeout
             resolver.lifetime = lifetime
-
-            # If the host part of the URI is an IP address, we cannot not do any lookup
-            if re.match("^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", uri.host):
-                raise DNSLookupError("Cannot perform DNS query because the host is an IP address")
 
             record_name = 'xcap.%s' % uri.host
             results = []
