@@ -95,6 +95,10 @@ class MSRPStreamBase(object):
         self.local_role = None
         self.remote_role = None
 
+    @property
+    def local_uri(self):
+        return URI(host=host.default_ip, port=0, use_tls=self.transport=='tls', credentials=self.account.tls_credentials)
+
     def _create_local_media(self, uri_path):
         transport = "TCP/TLS/MSRP" if uri_path[-1].use_tls else "TCP/MSRP"
         attributes = [SDPAttribute("path", " ".join(str(uri) for uri in uri_path))]
@@ -167,11 +171,7 @@ class MSRPStreamBase(object):
                             raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
                         self.msrp_connector = DirectAcceptor(logger=logger, use_sessmatch=True)
                         self.local_role = 'actpass' if outgoing else 'passive'
-            local_uri = URI(host=host.default_ip,
-                            port=0,
-                            use_tls=self.transport=='tls',
-                            credentials=self.account.tls_credentials)
-            full_local_path = self.msrp_connector.prepare(local_uri)
+            full_local_path = self.msrp_connector.prepare(self.local_uri)
             self.local_media = self._create_local_media(full_local_path)
         except api.GreenletExit:
             raise
