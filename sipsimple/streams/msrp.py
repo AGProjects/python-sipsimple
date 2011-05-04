@@ -34,12 +34,12 @@ from eventlet.coros import queue
 from eventlet.greenio import GreenSocket
 from eventlet.proc import spawn, ProcExit
 from eventlet.util import tcp_socket, set_reuse_addr
-from msrplib.connect import get_acceptor, get_connector, MSRPRelaySettings
+from msrplib.connect import DirectConnector, DirectAcceptor, RelayConnection, MSRPRelaySettings
 from msrplib.protocol import URI, FailureReportHeader, SuccessReportHeader, ContentTypeHeader, parse_uri
 from msrplib.session import MSRPSession, contains_mime_type, OutgoingFile
 from msrplib.transport import make_response, make_report
 
-from sipsimple.account import Account
+from sipsimple.account import Account, BonjourAccount
 from sipsimple.core import SDPAttribute, SDPMediaStream
 from sipsimple.payloads.iscomposing import IsComposingMessage, State, LastActive, Refresh, ContentType
 from sipsimple.streams import IMediaStream, MediaStreamRegistrar, StreamError, InvalidStreamError, UnknownStreamError
@@ -122,60 +122,55 @@ class MSRPStreamBase(object):
         notification_center.add_observer(self, sender=self)
         try:
             self.session = session
+            self.transport = self.account.msrp.transport
             outgoing = direction=='outgoing'
-            if isinstance(self.account, Account) and not self.account.msrp.connection_model == 'acm' and ((outgoing and self.account.nat_traversal.use_msrp_relay_for_outbound) or (not outgoing and self.account.nat_traversal.use_msrp_relay_for_inbound)):
-                credentials = self.account.credentials
-                if self.account.nat_traversal.msrp_relay is None:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.uri.user,
-                                              password=credentials.password if credentials else '',
-                                              use_tls=self.account.msrp.transport=='tls')
-                    self.transport = self.account.msrp.transport
-                else:
-                    relay = MSRPRelaySettings(domain=self.account.uri.host,
-                                              username=self.account.uri.user,
-                                              password=credentials.password if credentials else '',
-                                              host=self.account.nat_traversal.msrp_relay.host,
-                                              port=self.account.nat_traversal.msrp_relay.port,
-                                              use_tls=self.account.nat_traversal.msrp_relay.transport=='tls')
-                    self.transport = self.account.nat_traversal.msrp_relay.transport
-                if self.transport != self.account.msrp.transport:
-                    raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
-            else:
-                relay = None
-                self.transport = self.account.msrp.transport
-            if not outgoing and relay is None and self.transport == 'tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
-                raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
             logger = NotificationProxyLogger()
+            if self.account is BonjourAccount():
+                if outgoing:
+                    self.msrp_connector = DirectConnector(logger=logger)
+                    self.local_role = 'active'
+                else:
+                    self.msrp_connector = DirectAcceptor(logger=logger)
+                    self.local_role = 'passive'
+            else:
+                if self.account.msrp.connection_model == 'relay':
+                    if not outgoing and self.remote_role in ('actpass', 'passive'):
+                        # 'passive' not allowed by the RFC but play nice for interoperability. -Saul
+                        self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
+                        self.local_role = 'active'
+                    elif outgoing and not self.account.nat_traversal.use_msrp_relay_for_outbound:
+                        self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
+                        self.local_role = 'active'
+                    else:
+                        if self.account.nat_traversal.msrp_relay is None:
+                            relay_host = relay_port = None
+                        else:
+                            if self.transport != self.account.nat_traversal.msrp_relay.transport:
+                                raise MSRPStreamError("MSRP relay transport conflicts with MSRP transport setting")
+                            relay_host = self.account.nat_traversal.msrp_relay.host
+                            relay_port = self.account.nat_traversal.msrp_relay.port
+                        relay = MSRPRelaySettings(domain=self.account.uri.host,
+                                                    username=self.account.uri.user,
+                                                    password=self.account.credentials.password,
+                                                    host=relay_host,
+                                                    port=relay_port,
+                                                    use_tls=self.transport=='tls')
+                        self.msrp_connector = RelayConnection(relay, 'passive', logger=logger, use_sessmatch=True)
+                        self.local_role = 'actpass' if outgoing else 'passive'
+                else:
+                    if not outgoing and self.remote_role in ('actpass', 'passive'):
+                        # 'passive' not allowed by the RFC but play nice for interoperability. -Saul
+                        self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
+                        self.local_role = 'active'
+                    else:
+                        if not outgoing and self.transport=='tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
+                            raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
+                        self.msrp_connector = DirectAcceptor(logger=logger, use_sessmatch=True)
+                        self.local_role = 'actpass' if outgoing else 'passive'
             local_uri = URI(host=host.default_ip,
                             port=0,
                             use_tls=self.transport=='tls',
                             credentials=self.account.tls_credentials)
-            from sipsimple.application import SIPApplication
-            if isinstance(self.account, Account) and self.account.msrp.connection_model == 'acm':
-                if outgoing:
-                    if SIPApplication.local_nat_type == 'open':
-                        # We start the transport as passive, because we expect the other end to become active. -Saul
-                        self.msrp_connector = get_acceptor(relay=None, use_acm=True, logger=logger)
-                        self.local_role = 'actpass'
-                    else:
-                        self.msrp_connector = get_connector(relay=None, use_acm=True, logger=logger)
-                        self.local_role = 'active'
-                else:
-                    if self.remote_role == 'actpass':
-                        behind_nat = SIPApplication.local_nat_type != 'open'
-                        self.msrp_connector = get_connector(relay=None, use_acm=True, logger=logger) if behind_nat else get_acceptor(relay=None, use_acm=True, logger=logger)
-                        self.local_role = 'active' if behind_nat else 'passive'
-                    elif self.remote_role == 'passive':
-                        # Not allowed by the draft but play nice for interoperability. -Saul
-                        self.msrp_connector = get_connector(relay=None, use_acm=True, logger=logger)
-                        self.local_role = 'active'
-                    else:
-                        self.msrp_connector = get_acceptor(relay=None, use_acm=True, logger=logger)
-                        self.local_role = 'passive'
-            else:
-                self.msrp_connector = get_connector(relay=relay, logger=logger) if outgoing else get_acceptor(relay=relay, logger=logger)
-                self.local_role = 'active' if outgoing else 'passive'
             full_local_path = self.msrp_connector.prepare(local_uri)
             self.local_media = self._create_local_media(full_local_path)
         except api.GreenletExit:
@@ -209,14 +204,18 @@ class MSRPStreamBase(object):
             remote_transport = 'tls' if full_remote_path[0].use_tls else 'tcp'
             if self.transport != remote_transport:
                 raise MSRPStreamError("remote transport ('%s') different from local transport ('%s')" % (remote_transport, self.transport))
-            if isinstance(self.account, Account) and self.account.msrp.connection_model == 'acm' and self.local_role == 'actpass':
+            if isinstance(self.account, Account) and self.local_role == 'actpass':
                 remote_setup = remote_media.attributes.getfirst('setup', 'passive')
                 if remote_setup == 'passive':
-                    # Need to create a new transport, as we change fromn passive to active
-                    logger = NotificationProxyLogger()
-                    local_uri = self.msrp_connector.local_uri
-                    self.msrp_connector = get_connector(relay=None, logger=logger)
-                    self.msrp_connector.prepare(local_uri)
+                    # If actpass is offered connectors are always started as passive
+                    # We need to switch to active if the remote answers with passive
+                    if self.account.msrp.connection_model == 'relay':
+                        self.msrp_connector.mode = 'active'
+                    else:
+                        local_uri = self.msrp_connector.local_uri
+                        logger = self.msrp_connector.logger
+                        self.msrp_connector = DirectConnector(logger=logger, use_sessmatch=True)
+                        self.msrp_connector.prepare(local_uri)
             context = 'start'
             self.msrp = self.msrp_connector.complete(full_remote_path)
             if self.use_msrp_session:
