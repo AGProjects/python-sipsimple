@@ -5,6 +5,7 @@ import os
 import sys
 import urllib
 from collections import deque
+from weakref import WeakValueDictionary
 
 from lxml import etree
 
@@ -446,12 +447,12 @@ class XMLRootElement(XMLElement):
 
     def __init__(self):
         XMLElement.__init__(self)
-        self.cache = {self.element: self}
+        self.cache = WeakValueDictionary({self.element: self})
 
     @classmethod
     def from_element(cls, element, *args, **kwargs):
         obj = super(XMLRootElement, cls).from_element(element, *args, **kwargs)
-        obj.cache = {obj.element: obj}
+        obj.cache = WeakValueDictionary({obj.element: obj})
         return obj
     
     @classmethod
