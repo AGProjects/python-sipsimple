@@ -336,8 +336,11 @@ class ChatStream(MSRPStreamBase):
 
     @property
     def private_messages_allowed(self):
-        remote_chatroom_capabilities = chain(*(attr.split() for attr in self.remote_media.attributes.getall('chatroom')))
-        return self.cpim_enabled and self.session.remote_focus and 'private-messages' in remote_chatroom_capabilities
+        try:
+            remote_chatroom_capabilities = chain(*(attr.split() for attr in self.remote_media.attributes.getall('chatroom')))
+            return self.cpim_enabled and self.session.remote_focus and 'private-messages' in remote_chatroom_capabilities
+        except AttributeError:
+            return False
 
     # TODO: chatroom, recvonly/sendonly (in start)?
 
