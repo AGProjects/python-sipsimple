@@ -34,7 +34,6 @@ from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 from sipsimple.account import AccountManager, BonjourAccount
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
-from sipsimple.payloads import conferenceresources  # Register payload extension
 from sipsimple.payloads import ValidationError
 from sipsimple.payloads.conference import Conference
 from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError

@@ -38,7 +38,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import ContactHeader, FromHeader, PJSIPError, RouteHeader, ToHeader, SIPCoreError, SIPURI, Subscription
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ParserError
-from sipsimple.payloads import dialogrules, extensions, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
+from sipsimple.payloads import dialogrules, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command
 from sipsimple.util import All, Any, TimestampedNotificationData, limit
@@ -2022,7 +2022,7 @@ class XCAPManager(object):
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(extensions.FalseCondition())
+                        rule.conditions.append(common_policy.FalseCondition())
         if self.dialog_rules.supported:
             dialog_rules = self.dialog_rules.content
             for rule in dialog_rules:
@@ -2033,7 +2033,7 @@ class XCAPManager(object):
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(extensions.FalseCondition())
+                        rule.conditions.append(common_policy.FalseCondition())
         # Preferred candidates are candidates where if added, the pres-rules and rls-services document need not be modified.
         preferred_candidate_lists = presrules_lists.intersection(candidate_lists)
         if operation.contact.subscribe_to_presence:
@@ -2184,7 +2184,7 @@ class XCAPManager(object):
         # After all this trouble, we've found a list that can take our new contact: add it to the list!
         entry = resourcelists.Entry(uri=operation.contact.uri, display_name=operation.contact.name)
         if operation.contact.attributes:
-            entry.attributes = extensions.EntryAttributes((key, value) for key, value in operation.contact.attributes.iteritems() if value is not None)
+            entry.attributes = resourcelists.EntryAttributes((key, value) for key, value in operation.contact.attributes.iteritems() if value is not None)
         rlist.append(entry)
         self.resource_lists.dirty = True
 
@@ -2238,7 +2238,7 @@ class XCAPManager(object):
             if 'name' in operation.attributes:
                 entry.display_name = operation.attributes.pop('name')
             if operation.attributes and entry.attributes is None:
-                entry.attributes = extensions.EntryAttributes()
+                entry.attributes = resourcelists.EntryAttributes()
             for key, value in operation.attributes.iteritems():
                 if value is None:
                     entry.attributes.pop(key, None)
@@ -2535,7 +2535,7 @@ class XCAPManager(object):
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(extensions.FalseCondition())
+                        rule.conditions.append(common_policy.FalseCondition())
         if self.dialog_rules.supported:
             dialog_rules = self.dialog_rules.content
             for rule in dialog_rules:
@@ -2546,7 +2546,7 @@ class XCAPManager(object):
                 for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(extensions.FalseCondition())
+                        rule.conditions.append(common_policy.FalseCondition())
 
     def _OH_add_presence_policy(self, operation):
         if not self.pres_rules.supported or operation.policy.id in ('wp_prs_unlisted', 'wp_prs_allow_unlisted', 'wp_prs_grantedcontacts', 'wp_prs_blockedcontacts', 'wp_prs_block_anonymous', 'wp_prs_allow_own'):
@@ -2654,7 +2654,7 @@ class XCAPManager(object):
                         if isinstance(exception, UserException):
                             condition.append(common_policy.IdentityExcept(id=exception.uri))
             if len(identity_condition) == 0:
-                rule.conditions.append(extensions.FalseCondition())
+                rule.conditions.append(common_policy.FalseCondition())
             else:
                 rule.conditions.append(identity_condition)
         pres_rules.append(rule)
@@ -2922,7 +2922,7 @@ class XCAPManager(object):
                             condition.append(common_policy.IdentityExcept(id=exception.uri))
         # Identity condition can't be empty
         if not identity_condition:
-            rule.conditions.append(extensions.FalseCondition())
+            rule.conditions.append(common_policy.FalseCondition())
         else:
             rule.conditions.append(identity_condition)
         self.pres_rules.dirty = True
@@ -2969,7 +2969,7 @@ class XCAPManager(object):
                     if isinstance(exception, UserException):
                         condition.append(common_policy.IdentityExcept(id=exception.uri))
         if len(identity_condition) == 0:
-            rule.conditions.append(extensions.FalseCondition())
+            rule.conditions.append(common_policy.FalseCondition())
         else:
             rule.conditions.append(identity_condition)
         dialog_rules.append(rule)
@@ -3050,7 +3050,7 @@ class XCAPManager(object):
                             condition.append(common_policy.IdentityExcept(id=exception.uri))
         # Identity condition can't be empty
         if len(identity_condition) == 0:
-            rule.conditions.append(extensions.FalseCondition())
+            rule.conditions.append(common_policy.FalseCondition())
         else:
             rule.conditions.append(identity_condition)
         self.dialog_rules.dirty = True

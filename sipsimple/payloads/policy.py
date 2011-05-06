@@ -9,7 +9,7 @@ RFC4745.
 import datetime
 from lxml import etree
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementChild
+from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementChild, XMLStringElement
 from sipsimple.util import Timestamp
 
 
@@ -28,7 +28,10 @@ __all__ = ['namespace',
            'Actions',
            'Transformations',
            'Rule',
-           'RuleSet']
+           'RuleSet',
+           # Extensions
+           'FalseCondition',
+           'RuleDisplayName']
 
 
 namespace = 'urn:ietf:params:xml:ns:common-policy'
@@ -433,4 +436,27 @@ class RuleSet(XMLListRootElement):
         else:
             super(RuleSet, self).__delitem__(key)
 
+
+#
+# Extensions
+#
+
+agp_cp_namespace = 'urn:ag-projects:xml:ns:common-policy'
+CommonPolicyApplication.register_namespace(agp_cp_namespace, prefix='agp-cp')
+
+# A condition element in the AG Projects namespace, it will always be evaluated to false
+# because it's not understood by servers
+class FalseCondition(XMLElement, ConditionElement):
+    _xml_tag = 'false-condition'
+    _xml_namespace = agp_cp_namespace
+    _xml_application = CommonPolicyApplication
+
+
+class RuleDisplayName(XMLStringElement, RuleExtension):
+    _xml_tag = 'display-name'
+    _xml_namespace = agp_cp_namespace
+    _xml_application = CommonPolicyApplication
+    _xml_lang = True
+
+Rule.register_extension('display_name', RuleDisplayName)
 
