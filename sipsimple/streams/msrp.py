@@ -377,8 +377,10 @@ class ChatStream(MSRPStreamBase):
                     message.timestamp = datetime.now(tzlocal())
                 if message.sender is None:
                     message.sender = self.remote_identity
+                private = self.session.remote_focus and len(message.recipients) == 1 and message.recipients[0].uri != self.remote_identity.uri
         else:
             message = ChatMessage(chunk.data, chunk.content_type, self.remote_identity, self.local_identity, datetime.now(tzlocal()))
+            private = False
         # Note: success reports are issued by msrplib
         # TODO: check wrapped content-type and issue a report/responsd with negative code if it's invalid
         notification_center = NotificationCenter()
@@ -388,10 +390,10 @@ class ChatStream(MSRPStreamBase):
                                                 refresh=data.refresh.value if data.refresh is not None else None,
                                                 content_type=data.contenttype.value if data.contenttype is not None else None,
                                                 last_active=data.last_active.value if data.last_active is not None else None,
-                                                sender=message.sender, recipients=message.recipients)
+                                                sender=message.sender, recipients=message.recipients, private=private)
             notification_center.post_notification('ChatStreamGotComposingIndication', self, ndata)
         else:
-            notification_center.post_notification('ChatStreamGotMessage', self, TimestampedNotificationData(message=message))
+            notification_center.post_notification('ChatStreamGotMessage', self, TimestampedNotificationData(message=message, private=private))
 
     def _on_transaction_response(self, message_id, response):
         if message_id in self.sent_messages and response.code != 200:
