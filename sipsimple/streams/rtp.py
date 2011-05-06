@@ -328,7 +328,7 @@ class AudioStream(object):
                 else:
                     self.state = "ENDED"
                 self.bridge.stop()
-                self._session = None
+            self._session = None
 
     def send_dtmf(self, digit):
         with self._lock:

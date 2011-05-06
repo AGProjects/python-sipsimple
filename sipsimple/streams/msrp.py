@@ -237,6 +237,7 @@ class MSRPStreamBase(object):
     @run_in_green_thread
     def end(self):
         if self.msrp_session is None and self.msrp is None and self.msrp_connector is None:
+            self.session = None
             return
         notification_center = NotificationCenter()
         notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
@@ -255,6 +256,7 @@ class MSRPStreamBase(object):
         finally:
             notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
             notification_center.remove_observer(self, sender=self)
+            self.session = None
 
     def validate_update(self, remote_sdp, stream_index):
         return True #TODO
