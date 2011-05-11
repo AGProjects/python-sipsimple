@@ -1090,6 +1090,7 @@ class NotificationProxyLogger(object):
 
     def error(self, message, **context):
         NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.ERROR))
+    err = error
 
     def fatal(self, message, **context):
         NotificationCenter().post_notification('MSRPLibraryLog', data=TimestampedNotificationData(message=message, level=self.level.CRITICAL))
