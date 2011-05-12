@@ -589,13 +589,11 @@ class FileTransferStream(MSRPStreamBase):
     accept_types = ['*']
     accept_wrapped_types = ['*']
 
-    def __init__(self, account, file_selector=None):
-        MSRPStreamBase.__init__(self, account, direction='sendonly' if file_selector is not None else 'recvonly')
+    def __init__(self, account, file_selector, direction):
+        if direction not in ('sendonly', 'recvonly'):
+            raise ValueError("direction must be one of 'sendonly' or 'recvonly'")
+        MSRPStreamBase.__init__(self, account, direction=direction)
         self.file_selector = file_selector
-        if file_selector is not None:
-            self.outgoing_file = OutgoingFile(file_selector.fd, file_selector.size, content_type=file_selector.type)
-            self.outgoing_file.headers['Success-Report'] = SuccessReportHeader('yes')
-            self.outgoing_file.headers['Failure-Report'] = FailureReportHeader('yes')
 
     @classmethod
     def new_from_sdp(cls, account, remote_sdp, stream_index):
@@ -607,12 +605,23 @@ class FileTransferStream(MSRPStreamBase):
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
             raise InvalidStreamError("wrong format list specified")
-        stream = cls(account)
+        file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
+        if remote_stream.direction == 'sendonly':
+            stream = cls(account, file_selector, 'recvonly')
+        elif remote_stream.direction == 'recvonly':
+            stream = cls(account, file_selector, 'sendonly')
+        else:
+            raise InvalidStreamError("wrong stream direction specified")
         stream.remote_role = remote_stream.attributes.getfirst('setup', 'active')
-        stream.file_selector = FileSelector.parse(remote_stream.attributes.getfirst('file-selector'))
-        if (remote_stream.direction, stream.direction) != ('sendonly', 'recvonly'):
-            raise InvalidStreamError("mismatching directions in file transfer stream")
         return stream
+
+    def initialize(self, session, direction):
+        if self.direction == 'sendonly' and self.file_selector.fd is None:
+            ndata = TimestampedNotificationData(context='initialize', failure=None, reason='file descriptor not specified')
+            notification_center = NotificationCenter()
+            notification_center.post_notification('MediaStreamDidFail', self, ndata)
+            return
+        MSRPStreamBase.initialize(self, session, direction)
 
     def _create_local_media(self, uri_path):
         local_media = MSRPStreamBase._create_local_media(self, uri_path)
@@ -621,7 +630,10 @@ class FileTransferStream(MSRPStreamBase):
 
     def _NH_MediaStreamDidStart(self, notification):
         if self.direction == 'sendonly':
-            self.msrp_session.send_file(self.outgoing_file)
+            outgoing_file = OutgoingFile(self.file_selector.fd, self.file_selector.size, content_type=self.file_selector.type)
+            outgoing_file.headers['Success-Report'] = SuccessReportHeader('yes')
+            outgoing_file.headers['Failure-Report'] = FailureReportHeader('yes')
+            self.msrp_session.send_file(outgoing_file)
 
     def _handle_REPORT(self, chunk):
         # in theory, REPORT can come with Byte-Range which would limit the scope of the REPORT to the part of the message.
