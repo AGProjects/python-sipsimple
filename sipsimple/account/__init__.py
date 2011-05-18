@@ -33,6 +33,7 @@ from twisted.internet import reactor
 from zope.interface import implements
 
 from sipsimple.account import bonjour
+from sipsimple.account.xcap import XCAPManager
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, PJSIPError, SIPCoreError
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, SettingsSingleton
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
@@ -1040,6 +1041,7 @@ class MessageSummarySettings(SettingsGroup):
 
 class XCAPSettings(SettingsGroup):
     enabled = Setting(type=bool, default=False)
+    discovered = Setting(type=bool, default=False)
     xcap_root = Setting(type=XCAPRoot, default=None, nillable=True)
 
 
@@ -1108,6 +1110,7 @@ class Account(SettingsObject):
 
     def __init__(self, id):
         self.contact = ContactURIFactory()
+        self.xcap_manager = XCAPManager(self)
         self._active = False
         self._registrar = AccountRegistrar(self)
         self._mwi_subscriber = AccountMWISubscriber(self)
@@ -1125,9 +1128,11 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+        notification_center.add_observer(self, sender=self.xcap_manager)
 
         self._registrar.start()
         self._mwi_subscriber.start()
+        self.xcap_manager.load()
         if self.enabled:
             self._activate()
 
@@ -1136,15 +1141,17 @@ class Account(SettingsObject):
             return
         self._started = False
 
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
+        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+        notification_center.remove_observer(self, sender=self.xcap_manager)
+
         self._deactivate()
         self._mwi_subscriber.stop()
         self._mwi_subscriber = None
         self._registrar.stop()
         self._registrar = None
-
-        notification_center = NotificationCenter()
-        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
-        notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
+        self.xcap_manager = None
 
     @run_in_green_thread
     def delete(self):
@@ -1227,6 +1234,16 @@ class Account(SettingsObject):
                         self._mwi_subscriber.deactivate()
                 elif self.message_summary.enabled and set(voicemail_attributes).intersection(notification.data.modified):
                     self._mwi_subscriber.activate()
+                if 'xcap.enabled' in notification.data.modified:
+                    if self.xcap.enabled:
+                        self.xcap_manager.start()
+                    else:
+                        self.xcap_manager.stop()
+
+    def _NH_XCAPManagerDidDiscoverServerCapabilities(self, notification):
+        if self.xcap.discovered is False:
+            self.xcap.discovered = True
+            self.save()
 
     def _activate(self):
         if self._active:
@@ -1238,6 +1255,8 @@ class Account(SettingsObject):
             self._registrar.activate()
         if self.message_summary.enabled:
             self._mwi_subscriber.activate()
+        if self.xcap.enabled:
+            self.xcap_manager.start()
         notification_center.post_notification('SIPAccountDidActivate', sender=self, data=TimestampedNotificationData())
 
     def _deactivate(self):
@@ -1248,6 +1267,7 @@ class Account(SettingsObject):
         self._active = False
         self._mwi_subscriber.deactivate()
         self._registrar.deactivate()
+        self.xcap_manager.stop()
         notification_center.post_notification('SIPAccountDidDeactivate', sender=self, data=TimestampedNotificationData())
 
     def __repr__(self):
