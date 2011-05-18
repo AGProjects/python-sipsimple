@@ -572,6 +572,7 @@ class SettingsObject(SettingsState):
         configuration = ConfigurationManager()
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
+        instance.__state__ = 'alive'
         try:
             data = configuration.get(instance.__key__)
         except ObjectNotFoundError:
@@ -618,6 +619,10 @@ class SettingsObject(SettingsState):
         or not. If the save does fail, a CFGManagerSaveFailed notification is
         posted as well.
         """
+
+        if self.__state__ == 'deleted':
+            return
+
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
 
@@ -667,6 +672,10 @@ class SettingsObject(SettingsState):
         """
         if self.__id__ is self.__class__.__id__:
             raise TypeError("cannot delete %s instance with default id" % self.__class__.__name__)
+        if self.__state__ == 'deleted':
+            return
+        self.__state__ = 'deleted'
+
         configuration = ConfigurationManager()
         notification_center = NotificationCenter()
         configuration.delete(self.__oldkey__) # we need the key that wasn't yet saved
