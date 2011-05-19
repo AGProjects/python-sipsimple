@@ -1142,7 +1142,7 @@ class Session(object):
             self.greenlet = None
             self.state = 'terminated'
             self.proposed_streams = None
-            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='error', redirect_identities=None))
+            notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=code, reason=sip_status_messages[code], failure_reason='user request', redirect_identities=None))
 
     @transition_state('received_proposal', 'accepting_proposal')
     @run_in_green_thread
