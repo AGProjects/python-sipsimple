@@ -39,7 +39,7 @@ python-sipsimple (0.18.0) unstable; urgency=low
   * Fixed crashes and increased resilience when connectivity is lost
   * Fixed exception classes not to update their internal dict
   * Relax check on SDP origin to increase interoperability
-  * Save XCAP journal after each commited operation to avoid loosing it
+  * Save XCAP journal after each committed operation to avoid loosing it
   * Reset XCAP journal when account id changes
   * Don't use contact URI when building conference Referral and Subscription
   * Fixed bug where settings with dynamc IDs were not saved in some cases
