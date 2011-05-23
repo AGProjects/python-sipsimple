@@ -35,6 +35,6 @@ install/python-sipsimple-dbg::
 	find debian/python-sipsimple-dbg -type f ! -name '*_d.so' -exec rm -f {} \;
 	find debian/python-sipsimple-dbg -depth -empty -exec rmdir {} \;
 
-binary-strip/python-sipsimple-dbg::                                                                                                                                                     
+binary-strip/python-sipsimple-dbg::
 	cd debian/python-sipsimple-dbg/usr/lib/debug/usr/lib && mv pyshared pymodules
 
