@@ -1,3 +1,26 @@
+python-sipsimple (0.18.1) unstable; urgency=low
+
+  * Added push file transfers (RFC5547)
+  * Implemented support for MSRP ACM (RFC6135)
+  * Added file transfers information to conference event package
+  * Fixed string representation of SIP URIs with special characters
+  * Implemented multi-level key based access to configuration objects
+  * Log exceptions that occur while saving the configuration when deleting
+  * Fixed SDP negotiation on bogus answer
+  * Remove SDP attributes when a stream is disabled
+  * Added format list validation for MSRP streams
+  * Added DuplicateIDError to replace ValueError for duplicate ID's
+  * Post notifications when settings objects are created/deleted
+  * Protect AccountManager.load_accounts against being called multiple times
+  * Removed internal AccountManager methods for adding/removing accounts
+  * Refactored API to provide storage backends to SIPApplication
+  * Start accounts in parallel
+  * Protect Session.end against being called multiple times
+  * Don't instantiate DNS resolver if no DNS query will be done
+  * Break circular reference between streams and Session
+
+ -- Saul Ibarra <saul@ag-projects.com>  Mon, 23 May 2011 16:34:20 +0200
+
 python-sipsimple (0.18.0) unstable; urgency=low
 
   * Added support for out-of-dialog REFER
