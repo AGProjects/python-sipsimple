@@ -9,7 +9,7 @@ Homepage: http://sipsimpleclient.com
 
 Package: python-sipsimple
 Architecture: any
-Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, libavahi-compat-libdnssd1, python-application (>= 1.2.5), python-dateutil, python-dnspython (>= 1.6), python-eventlet-0.8, python-gnutls, python-lxml, python-msrplib (>= 0.13.0), python-twisted-core (>= 8.1.0), python-xcaplib (>= 1.0.15)
+Depends: ${python:Depends}, ${shlibs:Depends}, ${misc:Depends}, libavahi-compat-libdnssd1, python-application (>= 1.2.5), python-dateutil, python-dnspython (>= 1.6), python-eventlet-0.8, python-gnutls, python-lxml, python-msrplib (>= 0.14.0), python-twisted-core (>= 8.1.0), python-xcaplib (>= 1.0.15)
 Provides: ${python:Provides}
 Description: Python SDK for development of SIP end-points
  SIP SIMPLE client SDK is a Software Development Kit for easy development of
