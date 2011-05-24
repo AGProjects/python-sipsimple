@@ -1,40 +1,42 @@
 #!/usr/bin/make -f
 
-DEB_PYTHON_SYSTEM=pysupport
-DEB_COMPRESS_EXCLUDE := .py
-DEB_DH_STRIP_ARGS := --dbg-package=python-sipsimple-dbg
+#export DH_VERBOSE=1
+export PJSIP_BUILD_DIR=/tmp/build-python-sipsimple
 
-export PJSIP_SVN_REVISION=2553
-#export PJSIP_BUILD_DIR=/tmp/debuild-sipsimple
+PYVERS:=$(shell pyversions -r)
 
-include /usr/share/cdbs/1/class/python-distutils.mk
-include /usr/share/cdbs/1/rules/debhelper.mk
+%:
+	dh  $@
 
-clean::
-	-rm -rf build dist MANIFEST
+override_dh_clean:
+	dh_clean
+	rm -rf build dist MANIFEST
 
-build/python-sipsimple::
-	for i in $(cdbs_python_build_versions); do \
-	  python$$i ./setup.py build; \
+override_dh_auto_build:
+	for python in $(PYVERS); do \
+		$$python-dbg setup.py build_ext --pjsip-clean-compile; \
+		$$python setup.py build_ext --pjsip-clean-compile; \
+		$$python setup.py build; \
 	done
 
-install/python-sipsimple::
-	for i in $(cdbs_python_build_versions); do \
-	  python$$i ./setup.py install --root $(CURDIR)/debian/python-sipsimple; \
+override_dh_auto_install:
+	for python in $(PYVERS); do \
+		$$python-dbg setup.py install --force --skip-build --no-compile --prefix /usr --root $(CURDIR)/debian/tmp --install-layout deb; \
+		$$python setup.py install --force --skip-build --no-compile --prefix /usr --root $(CURDIR)/debian/tmp --install-layout deb; \
 	done
 
-build/python-sipsimple-dbg::
-	for i in $(cdbs_python_build_versions); do \
-	  python$$i-dbg ./setup.py build; \
-	done
+override_dh_install:
+	# Install everything excluding the *_d.so debug extensions
+	dh_install -X"*_d.so" "debian/tmp/*" -p python-sipsimple
+	# Install the debug extensions to -dbg package
+	dh_install "debian/tmp/usr/lib/python*/*-packages/sipsimple/core/*_d.so" -p python-sipsimple-dbg
+	# Continue with regular dh_install
+	dh_install
 
-install/python-sipsimple-dbg::
-	for i in $(cdbs_python_build_versions); do \
-	  python$$i-dbg ./setup.py install --root $(CURDIR)/debian/python-sipsimple-dbg; \
-	done
-	find debian/python-sipsimple-dbg -type f ! -name '*_d.so' -exec rm -f {} \;
-	find debian/python-sipsimple-dbg -depth -empty -exec rmdir {} \;
-
-binary-strip/python-sipsimple-dbg::
+override_dh_strip:
+	# Stripped symbols go into -dbg package
+	dh_strip --dbg-package=python-sipsimple-dbg
+	# Rename pyshared to pymodules
 	cd debian/python-sipsimple-dbg/usr/lib/debug/usr/lib && mv pyshared pymodules
 
+.PHONY: override_dh_clean override_dh_auto_build override_dh_auto_install override_dh_install override_dh_strip
