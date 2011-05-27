@@ -111,7 +111,7 @@ version numbers:
  * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
  * python-greenlet          http://download.ag-projects.com/SipClient         =0.4.0
  * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
- * cython                   http://www.cython.org                             ==0.12.1
+ * cython                   http://www.cython.org                             >=0.13.0
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
@@ -122,7 +122,7 @@ Open the MSYS console.
 You must use the easy_install script provided by the python-setuptools
 package to install the packages:
 
-easy_install --always-unzip -U cython==0.12.1 dnspython twisted lxml==2.2.4
+easy_install --always-unzip -U cython dnspython twisted lxml==2.2.4
 
 Some packages need to be installed manually:
 
