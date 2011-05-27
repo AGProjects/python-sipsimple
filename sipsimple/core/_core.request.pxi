@@ -399,6 +399,7 @@ cdef class IncomingRequest:
             self._tdata = NULL
 
     def answer(self, int code, str reason=None, object extra_headers=None):
+        cdef bytes reason_bytes
         cdef dict event_dict
         cdef int status
         cdef PJSIPUA ua = _get_ua()
@@ -411,7 +412,8 @@ cdef class IncomingRequest:
         if reason is None:
             self._tdata.msg.line.status.reason = pjsip_get_status_text(code)[0]
         else:
-            pj_strdup2_with_null(self._tdata.pool, &self._tdata.msg.line.status.reason, reason)
+            reason_bytes = reason.encode()
+            pj_strdup2_with_null(self._tdata.pool, &self._tdata.msg.line.status.reason, reason_bytes)
         if extra_headers is not None:
             _add_headers_to_tdata(self._tdata, extra_headers)
         event_dict = dict(obj=self)

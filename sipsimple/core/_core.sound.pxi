@@ -151,7 +151,7 @@ cdef class AudioMixer:
         cdef pj_pool_t *pool
         cdef pjmedia_conf **conf_bridge_address
         cdef pjsip_endpoint *endpoint
-        cdef str conf_pool_name
+        cdef bytes conf_pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
@@ -170,7 +170,7 @@ cdef class AudioMixer:
             raise ValueError("sample_rate argument should be dividable by 50")
         self.sample_rate = sample_rate
         self.slot_count = slot_count
-        conf_pool_name = "AudioMixer_%d" % id(self)
+        conf_pool_name = b"AudioMixer_%d" % id(self)
         with nogil:
             pool = pjsip_endpt_create_pool(endpoint, conf_pool_name, 4096, 4096)
         if pool == NULL:
@@ -644,14 +644,14 @@ cdef class ToneGenerator:
     def __cinit__(self, *args, **kwargs):
         cdef pj_pool_t *pool
         cdef pjsip_endpoint *endpoint
-        cdef str pool_name
+        cdef bytes pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
         endpoint = ua._pjsip_endpoint._obj
 
         pj_mutex_create_recursive(ua._pjsip_endpoint._pool, "tone_generator_lock", &self._lock)
-        pool_name = "ToneGenerator_%d" % id(self)
+        pool_name = b"ToneGenerator_%d" % id(self)
         with nogil:
             pool = pjsip_endpt_create_pool(endpoint, pool_name, 4096, 4096)
         if pool == NULL:
@@ -932,7 +932,7 @@ cdef class RecordingWaveFile:
         cdef pj_pool_t *pool
         cdef pjmedia_port **port_address
         cdef pjsip_endpoint *endpoint
-        cdef str pool_name
+        cdef bytes pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
@@ -944,7 +944,7 @@ cdef class RecordingWaveFile:
         try:
             endpoint = ua._pjsip_endpoint._obj
             filename = PyString_AsString(self.filename)
-            pool_name = "RecordingWaveFile_%d" % id(self)
+            pool_name = b"RecordingWaveFile_%d" % id(self)
             port_address = &self._port
             sample_rate = self.mixer.sample_rate
 
@@ -1113,7 +1113,7 @@ cdef class WaveFile:
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_port **port_address
         cdef pjsip_endpoint *endpoint
-        cdef str pool_name
+        cdef bytes pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
@@ -1130,7 +1130,7 @@ cdef class WaveFile:
 
             if self._port != NULL:
                 raise SIPCoreError("WAV file is already playing")
-            pool_name = "WaveFile_%d" % id(self)
+            pool_name = b"WaveFile_%d" % id(self)
             with nogil:
                 pool = pjsip_endpt_create_pool(endpoint, pool_name, 4096, 4096)
             if pool == NULL:
@@ -1283,7 +1283,7 @@ cdef class MixerPort:
         cdef pj_pool_t *pool
         cdef pjmedia_port **port_address
         cdef pjsip_endpoint *endpoint
-        cdef str pool_name
+        cdef bytes pool_name
         cdef PJSIPUA ua
 
         ua = _get_ua()
@@ -1294,7 +1294,7 @@ cdef class MixerPort:
             raise PJSIPError("failed to acquire lock", status)
         try:
             endpoint = ua._pjsip_endpoint._obj
-            pool_name = "MixerPort_%d" % id(self)
+            pool_name = b"MixerPort_%d" % id(self)
             port_address = &self._port
             sample_rate = self.mixer.sample_rate
 

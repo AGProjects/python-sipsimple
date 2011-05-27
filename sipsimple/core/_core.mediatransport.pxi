@@ -1097,7 +1097,7 @@ cdef void _RTPTransport_cb_ice_failure(pjmedia_transport *tp, char *reason) with
             if rtp_transport is None:
                 return
             _reason = reason
-            if _reason != "media stop requested":
+            if _reason != b"media stop requested":
                 rtp_transport._local_rtp_candidate_type = None
                 rtp_transport._remote_rtp_candidate_type = None
                 _add_event("RTPTransportICENegotiationDidFail", dict(obj=rtp_transport, reason=_reason))

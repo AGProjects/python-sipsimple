@@ -27,14 +27,7 @@ cdef extern from "Python.h":
     double PyFloat_AsDouble(object)
     void PyEval_InitThreads()
 
-cdef extern from "stringobject.h":
-    ctypedef class __builtin__.str [object PyStringObject]:
-        pass
-
-cdef extern from "dictobject.h":
-    ctypedef class __builtin__.dict [object PyDictObject]:
-        pass
-
+# TODO: this needs to remain because of a bug in Cython 0.14
 cdef extern from "listobject.h":
     ctypedef class __builtin__.list [object PyListObject]:
         pass

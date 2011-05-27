@@ -134,7 +134,7 @@ class PJSIP_build_ext(build_ext):
         ])
     boolean_options = build_ext.boolean_options
     boolean_options.extend(["pjsip-clean-compile", "pjsip-disable-assertions"])
-    cython_version_required = (0, 11)
+    cython_version_required = (0, 13)
 
     def initialize_options(self):
         build_ext.initialize_options(self)

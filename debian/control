@@ -3,7 +3,7 @@ Section: python
 Priority: optional
 Maintainer: Dan Pascu <dan@ag-projects.com>
 Uploaders: Adrian Georgescu <ag@ag-projects.com>, Lucian Stanescu <luci@ag-projects.com>, Saul Ibarra <saul@ag-projects.com>
-Build-Depends: debhelper (>= 7.3.5), python-all-dev (>= 2.5), python-all-dbg (>= 2.5), python-support, cython-dbg (>= 0.11.2), libasound2-dev, libssl-dev, subversion
+Build-Depends: debhelper (>= 7.3.5), python-all-dev (>= 2.5), python-all-dbg (>= 2.5), python-support, cython-dbg (>= 0.13.0), libasound2-dev, libssl-dev, subversion
 Standards-Version: 3.9.2
 Homepage: http://sipsimpleclient.com
 
