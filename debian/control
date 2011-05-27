@@ -21,7 +21,8 @@ Package: python-sipsimple-dbg
 Architecture: any
 Priority: extra
 Section: debug
-Depends: ${shlibs:Depends}, ${misc:Depends}, python-all-dbg, python-sipsimple (= ${binary:Version})
+Depends: ${shlibs:Depends}, ${misc:Depends}, python-sipsimple (= ${binary:Version})
+Recommends: python-all-dbg
 Provides: ${python:Provides}
 Description: Python SDK for development of SIP end-points (debug symbols)
  SIP SIMPLE client SDK is a Software Development Kit for easy development of
