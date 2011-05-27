@@ -77,8 +77,6 @@ cdef class frozenlist:
         return self.list.__contains__(item)
     def __getitem__(self, key):
         return self.list.__getitem__(key)
-    def __getslice__(self, i, j):
-        return self.list.__getslice__(i, j)
     def __add__(first, second):
         if isinstance(first, frozenlist):
             first = (<frozenlist>first).list
