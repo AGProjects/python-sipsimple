@@ -768,9 +768,6 @@ cdef extern from "pjsip.h":
     enum pjsip_ssl_method:
         PJSIP_SSL_UNSPECIFIED_METHOD
         PJSIP_TLSV1_METHOD
-        PJSIP_SSLV2_METHOD
-        PJSIP_SSLV3_METHOD
-        PJSIP_SSLV23_METHOD
     struct pjsip_transport:
         char *type_name
         pjsip_host_port local_name
