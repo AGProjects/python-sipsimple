@@ -15,6 +15,7 @@ from threading import RLock, Thread
 
 from application.notification import IObserver, NotificationCenter
 from application.python import Null
+from application.python.descriptor import classproperty
 from application.python.types import Singleton
 from eventlet import api, coros, proc
 from twisted.internet import reactor
@@ -31,7 +32,7 @@ from sipsimple.session import SessionManager
 from sipsimple.storage import ISIPSimpleStorage
 from sipsimple.threading import ThreadManager, run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
-from sipsimple.util import classproperty, TimestampedNotificationData
+from sipsimple.util import TimestampedNotificationData
 
 
 

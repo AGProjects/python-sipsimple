@@ -13,11 +13,10 @@ import random
 from collections import deque
 from itertools import count, izip
 
-from application.system import unlink
+from application.system import makedirs, unlink
 from zope.interface import implements
 
 from sipsimple.configuration.backend import IConfigurationBackend, ConfigurationBackendError
-from sipsimple.util import makedirs
 
 
 class FileParserError(ConfigurationBackendError):

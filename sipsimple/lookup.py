@@ -42,7 +42,7 @@ dns.query.select = select
 dns.query.socket = socket
 
 from application.notification import IObserver, NotificationCenter
-from application.python import Null
+from application.python import Null, limit
 from application.python.decorator import decorator, preserve_signature
 from application.python.types import Singleton
 from dns import exception, rdatatype
@@ -51,7 +51,7 @@ from zope.interface import implements
 
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, InterruptCommand, run_in_waitable_green_thread
-from sipsimple.util import Route, TimestampedNotificationData, limit
+from sipsimple.util import Route, TimestampedNotificationData
 
 
 def domain_iterator(domain):

@@ -5,7 +5,7 @@
 
 from __future__ import absolute_import, with_statement
 
-__all__ = ["All", "Any", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData", "classproperty", "combinations", "limit", "makedirs", "user_info"]
+__all__ = ["All", "Any", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData", "combinations", "user_info"]
 
 import errno
 import os
@@ -18,20 +18,6 @@ from datetime import datetime
 from application.notification import NotificationData
 from application.python.types import Singleton
 from dateutil.tz import tzlocal
-
-
-# Descriptors and decorators
-#
-
-def classproperty(function):
-    class Descriptor(object):
-        def __get__(self, instance, owner):
-            return function(owner)
-        def __set__(self, instance, value):
-            raise AttributeError("read-only attribute cannot be set")
-        def __delete__(self, instance):
-            raise AttributeError("read-only attribute cannot be deleted")
-    return Descriptor()
 
 
 # Utility classes
@@ -229,27 +215,6 @@ def combinations(iterable, r):
         for j in range(i+1, r):
             indices[j] = indices[j-1] + 1
         yield tuple(pool[i] for i in indices)
-
-
-try:
-    negative_infinite = float('-infinity')
-    positive_infinite = float('infinity')
-except ValueError:
-    negative_infinite = -1e300000
-    positive_infinite = 1e300000
-
-def limit(value, min=negative_infinite, max=positive_infinite):
-    from __builtin__ import min as minimum, max as maximum
-    return maximum(min, minimum(value, max))
-
-
-def makedirs(path):
-    try:
-        os.makedirs(path)
-    except OSError, e:
-        if e.errno == errno.EEXIST and os.path.isdir(path): # directory exists
-            return
-        raise
 
 
 # Utility objects

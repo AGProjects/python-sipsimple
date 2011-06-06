@@ -10,11 +10,10 @@ import os
 import platform
 import random
 
-from application.system import unlink
+from application.system import makedirs, unlink
 from zope.interface import implements
 
 from sipsimple.account.xcap.storage import IXCAPStorage, XCAPStorageError
-from sipsimple.util import makedirs
 
 
 class FileStorage(object):

@@ -7,9 +7,8 @@ import urllib
 from collections import deque
 from weakref import WeakValueDictionary
 
+from application.python.descriptor import classproperty
 from lxml import etree
-
-from sipsimple.util import classproperty
 
 __all__ = ['ParserError',
            'BuilderError',

@@ -19,7 +19,7 @@ from threading import RLock
 from time import time
 
 from application.notification import IObserver, Notification, NotificationCenter
-from application.python import Null
+from application.python import Null, limit
 from application.python.decorator import decorator, preserve_signature
 from application.python.types import Singleton
 from application.system import host
@@ -40,7 +40,7 @@ from sipsimple.payloads.conference import Conference
 from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
-from sipsimple.util import TimestampedNotificationData, limit
+from sipsimple.util import TimestampedNotificationData
 
 
 class InvitationDidFailError(Exception):

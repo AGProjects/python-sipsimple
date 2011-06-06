@@ -24,7 +24,7 @@ from urllib2 import URLError
 
 from application import log
 from application.notification import IObserver, NotificationCenter
-from application.python import Null
+from application.python import Null, limit
 from eventlet import api, coros, proc
 from eventlet.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost
@@ -41,7 +41,7 @@ from sipsimple.payloads import ParserError
 from sipsimple.payloads import dialogrules, omapolicy, policy as common_policy, prescontent, presdm, presrules, resourcelists, rlsservices, rpid, xcapcaps, xcapdiff
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command
-from sipsimple.util import All, Any, TimestampedNotificationData, limit
+from sipsimple.util import All, Any, TimestampedNotificationData
 
 
 class XCAPError(Exception): pass
