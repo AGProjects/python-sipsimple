@@ -6,7 +6,7 @@ export PJSIP_BUILD_DIR=/tmp/build-python-sipsimple
 PYVERS:=$(shell pyversions -r)
 
 %:
-	dh  $@
+	dh  $@ --with python2
 
 override_dh_clean:
 	dh_clean
@@ -36,7 +36,5 @@ override_dh_install:
 override_dh_strip:
 	# Stripped symbols go into -dbg package
 	dh_strip --dbg-package=python-sipsimple-dbg
-	# Rename pyshared to pymodules
-	cd debian/python-sipsimple-dbg/usr/lib/debug/usr/lib && mv pyshared pymodules
 
 .PHONY: override_dh_clean override_dh_auto_build override_dh_auto_install override_dh_install override_dh_strip
