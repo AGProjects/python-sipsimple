@@ -7,7 +7,7 @@ SIP SIMPLE settings.
 Definition of general (non-account related) settings.
 """
 
-from application.python.util import Singleton
+from application.python.types import Singleton
 
 from sipsimple import __version__
 from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject

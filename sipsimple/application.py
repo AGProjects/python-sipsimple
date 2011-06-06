@@ -14,7 +14,8 @@ __all__ = ["SIPApplication"]
 from threading import RLock, Thread
 
 from application.notification import IObserver, NotificationCenter
-from application.python.util import Null, Singleton
+from application.python import Null
+from application.python.types import Singleton
 from eventlet import api, coros, proc
 from twisted.internet import reactor
 from xcaplib import client as xcap_client

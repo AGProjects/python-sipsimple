@@ -13,7 +13,7 @@ __all__ = ['AudioStream']
 from threading import RLock
 
 from application.notification import IObserver, NotificationCenter, NotificationData
-from application.python.util import Null
+from application.python import Null
 from zope.interface import implements
 
 from sipsimple.account import BonjourAccount

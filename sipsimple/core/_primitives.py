@@ -12,7 +12,7 @@ from __future__ import with_statement
 from threading import RLock
 
 from application.notification import IObserver, NotificationCenter
-from application.python.util import Null
+from application.python import Null
 
 from zope.interface import implements
 

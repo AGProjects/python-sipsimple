@@ -16,7 +16,7 @@ import sys
 from datetime import datetime
 
 from application.notification import NotificationData
-from application.python.util import Singleton
+from application.python.types import Singleton
 from dateutil.tz import tzlocal
 
 

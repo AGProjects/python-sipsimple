@@ -24,7 +24,7 @@ from urllib2 import URLError
 
 from application import log
 from application.notification import IObserver, NotificationCenter
-from application.python.util import Null
+from application.python import Null
 from eventlet import api, coros, proc
 from eventlet.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost

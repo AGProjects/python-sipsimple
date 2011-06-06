@@ -8,9 +8,10 @@ from __future__ import absolute_import, with_statement
 __all__ = ["ThreadManager", "run_in_thread", "call_in_thread", "run_in_twisted_thread", "call_in_twisted_thread"]
 
 from application import log
+from application.python import Null
 from application.python.decorator import decorator, preserve_signature
 from application.python.queue import EventQueue
-from application.python.util import Singleton, Null
+from application.python.types import Singleton
 from threading import Lock, currentThread
 from twisted.python import threadable
 

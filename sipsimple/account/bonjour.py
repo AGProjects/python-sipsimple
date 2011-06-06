@@ -62,7 +62,7 @@ import re
 import socket
 import sys
 
-from application.python.util import Null
+from application.python import Null
 
 
 ################################################################################

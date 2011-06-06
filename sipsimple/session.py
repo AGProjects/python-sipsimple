@@ -19,8 +19,9 @@ from threading import RLock
 from time import time
 
 from application.notification import IObserver, Notification, NotificationCenter
+from application.python import Null
 from application.python.decorator import decorator, preserve_signature
-from application.python.util import Singleton, Null
+from application.python.types import Singleton
 from application.system import host
 from eventlet import api, coros, proc
 from eventlet.coros import queue

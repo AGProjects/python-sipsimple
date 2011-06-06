@@ -13,7 +13,7 @@ based on their respective RTP and MSRP protocols.
 
 
 from operator import attrgetter
-from application.python.util import Singleton
+from application.python.types import Singleton
 from zope.interface import Interface, Attribute
 
 

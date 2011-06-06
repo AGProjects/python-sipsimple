@@ -42,8 +42,9 @@ dns.query.select = select
 dns.query.socket = socket
 
 from application.notification import IObserver, NotificationCenter
+from application.python import Null
 from application.python.decorator import decorator, preserve_signature
-from application.python.util import Null, Singleton
+from application.python.types import Singleton
 from dns import exception, rdatatype
 from twisted.internet import reactor
 from zope.interface import implements

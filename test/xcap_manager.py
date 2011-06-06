@@ -22,8 +22,9 @@ from itertools import count, takewhile
 from StringIO import StringIO
 
 from application.notification import NotificationCenter, IObserver
+from application.python import Null
 from application.python.decorator import decorator, preserve_signature
-from application.python.util import Null, Singleton
+from application.python.types import Singleton
 from threading import Event
 from zope.interface import implements
 

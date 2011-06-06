@@ -14,7 +14,7 @@ from weakref import WeakKeyDictionary
 
 from application import log
 from application.notification import NotificationCenter
-from application.python.util import Singleton
+from application.python.types import Singleton
 
 from sipsimple.threading import run_in_thread
 from sipsimple.util import TimestampedNotificationData

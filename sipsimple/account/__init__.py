@@ -21,7 +21,8 @@ from weakref import WeakKeyDictionary
 
 from application import log
 from application.notification import IObserver, NotificationCenter
-from application.python.util import Null, Singleton
+from application.python import Null
+from application.python.types import Singleton
 from application.system import host
 from eventlet import api, coros, proc
 from eventlet.green import select
