@@ -51,9 +51,9 @@ process and will generate 32bit binaries for i386 architecture.
 In order to build all libraries with only i386 architecture (and compatible with OSX 10.5)
 export the following environment variables before starting the build process:
 
-CC="gcc-4.0 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
-ARCHFLAGS="-arch i386"
-LDSHARED="gcc-4.0 -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+export CC="gcc-4.0 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+export ARCHFLAGS="-arch i386"
+export LDSHARED="gcc-4.0 -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
 
 
 Step 2. Install Dependencies
