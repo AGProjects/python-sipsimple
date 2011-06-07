@@ -34,7 +34,7 @@ from zope.interface import implements
 
 from sipsimple.account import bonjour
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, PJSIPError, SIPCoreError
-from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
+from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, SettingsSingleton
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
@@ -1113,8 +1113,6 @@ class Account(SettingsObject):
         self._mwi_subscriber = AccountMWISubscriber(self)
         self._started = False
 
-        SettingsObject.__init__(self, id)
-
         from sipsimple.application import SIPApplication
         if SIPApplication.running:
             call_in_green_thread(self.start)
@@ -1303,7 +1301,7 @@ class BonjourAccount(SettingsObject):
      * SIPAccountDidDeactivate
     """
 
-    __metaclass__ = Singleton
+    __metaclass__ = SettingsSingleton
 
     implements(IObserver)
 
@@ -1338,8 +1336,6 @@ class BonjourAccount(SettingsObject):
         self.nat_traversal.msrp_relay = None
         self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
-
-        SettingsObject.__init__(self)
 
         from sipsimple.application import SIPApplication
         if SIPApplication.running:

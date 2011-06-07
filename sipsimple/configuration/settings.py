@@ -7,10 +7,8 @@ SIP SIMPLE settings.
 Definition of general (non-account related) settings.
 """
 
-from application.python.types import Singleton
-
 from sipsimple import __version__
-from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject
+from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject, SettingsSingleton
 from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
 from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList, TLSProtocol
@@ -70,7 +68,7 @@ class TLSSettings(SettingsGroup):
 
 
 class SIPSimpleSettings(SettingsObject):
-    __metaclass__ = Singleton
+    __metaclass__ = SettingsSingleton
 
     __id__ = 'SIPSimpleSettings'
 

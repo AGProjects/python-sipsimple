@@ -6,7 +6,8 @@
 from __future__ import with_statement
 
 __all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError', 'DefaultValue',
-           'Setting', 'CorrelatedSetting', 'SettingsGroup', 'SettingsObjectID', 'SettingsObject', 'SettingsObjectExtension']
+           'Setting', 'CorrelatedSetting', 'SettingsStateMeta', 'SettingsState', 'SettingsGroup', 'SettingsObjectID',
+           'SettingsSingleton', 'SettingsObject', 'SettingsObjectExtension']
 
 from itertools import chain
 from threading import Lock
@@ -15,6 +16,7 @@ from weakref import WeakKeyDictionary
 from application import log
 from application.notification import NotificationCenter
 from application.python.types import Singleton
+from backports.weakref import WeakSet
 
 from sipsimple.threading import run_in_thread
 from sipsimple.util import TimestampedNotificationData
@@ -421,10 +423,23 @@ class CorrelatedSetting(Setting):
             Setting.__set__(self, obj, value)
 
 
+class SettingsStateMeta(type):
+    __established__ = WeakSet()
+
+    def __call__(cls, *args, **kw):
+        instance = super(SettingsStateMeta, cls).__call__(*args, **kw)
+        if hasattr(instance, '__establish__') and instance not in cls.__established__:
+            cls.__established__.add(instance)
+            instance.__establish__()
+        return instance
+
+
 class SettingsState(object):
     """
     This class represents configuration objects which can be saved and restored.
     """
+
+    __metaclass__ = SettingsStateMeta
 
     def get_modified(self):
         """
@@ -486,12 +501,13 @@ class SettingsState(object):
                     notification_center.post_notification('CFGManagerLoadFailed', sender=configuration_manager, data=TimestampedNotificationData(attribute=name, container=self, error=e))
 
 
-class SettingsGroupMeta(type):
+class SettingsGroupMeta(SettingsStateMeta):
     """
     Metaclass for SettingsGroup and its subclasses which allows them to be used
     as descriptor instances.
     """
     def __init__(cls, name, bases, dct):
+        super(SettingsGroupMeta, cls).__init__(name, bases, dct)
         cls.values = WeakKeyDictionary()
 
     def __get__(cls, obj, objtype):
@@ -523,6 +539,10 @@ class SettingsGroup(SettingsState):
     __metaclass__ = SettingsGroupMeta
 
 
+class SettingsSingleton(SettingsStateMeta, Singleton):
+    """A metaclass to define a SettingsState subclass that is a Singleton"""
+
+
 class SettingsObject(SettingsState):
     """
     Subclass for top-level configuration objects. These objects are identifiable
@@ -531,10 +551,7 @@ class SettingsObject(SettingsState):
 
     For SettingsObject subclasses which are meant to be used exclusively with a
     local id, the class attribute __id__ should be left to the value None; if
-    __init__ is defined, it would have to accept exactly one argument, id and
-    the subclass MUST call the parent's __init__ after it's done doing its own
-    initialization of the instance (SettingsObject.__init__ needs to be
-    executed last, after the instance is completely initialized).
+    __init__ is defined, it would have to accept exactly one argument: id.
 
     The local id takes precedence over the one specified as a class attribute.
 
@@ -563,7 +580,7 @@ class SettingsObject(SettingsState):
             instance.__setstate__(data)
         return instance
 
-    def __init__(self, id=None):
+    def __establish__(self):
         notification_center = NotificationCenter()
         notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self, data=TimestampedNotificationData())
 
