@@ -1,3 +1,15 @@
+python-sipsimple (0.18.2) unstable; urgency=low
+
+  * Added compatibility with Python 2.7
+  * Adapted code for Cython >= 0.13
+  * Don't depend on the debug interpreter, recommend it
+  * Removed unused SSL methods
+  * Removed use of pysupport, use dh_python2 instead
+  * Updated import paths for Null and Singleton for latest python-application
+  * Fixed race condition that resulted in multiple bonjour accounts
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 08 Jun 2011 09:11:50 +0200
+
 python-sipsimple (0.18.1) unstable; urgency=low
 
   * Added push file transfers (RFC5547)
