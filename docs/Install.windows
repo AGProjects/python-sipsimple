@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK installation on Microsoft Windows
 -------------------------------------------------------
 
-Copyright (c) 2008-2010 AG Projects
+Copyright (c) 2008-2011 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
@@ -102,27 +102,15 @@ than .cfg is appended to the file (for example .txt).
 Step 2. Install python dependencies
 -----------------------------------
 
-The following python packages need to be installed. Notice the minimum
-version numbers:
-
- * python-gnutls            http://pypi.python.org/simple/python-gnutls       dev
- * python-application       http://pypi.python.org/simple/python-application  dev
- * python-lxml              http://codespeak.net/lxml                         ==2.2.4
- * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
- * python-greenlet          http://download.ag-projects.com/SipClient         =0.4.0
- * python-cjson             http://pypi.python.org/pypi/python-cjson/         >=1.0.5
- * cython                   http://www.cython.org                             >=0.13.0
- * dnspython                http://www.dnspython.org                          >=1.6.0
- * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
- * zope-interface           http://www.zope.org                               >=3.3.1
- * python-dateutil          http://niemeyer.net/python-dateutil               >=1.4
+See Dependencies.txt for detailed description of the required libraries and
+their minimum version number.
 
 Open the MSYS console.
 
 You must use the easy_install script provided by the python-setuptools
 package to install the packages:
 
-easy_install --always-unzip -U cython dnspython twisted lxml==2.2.4
+easy_install --always-unzip -U cython dnspython twisted lxml==2.2.4 python-dateutil
 
 Some packages need to be installed manually:
 
@@ -167,7 +155,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. Eventlet and Greenlet
+ 1. python-eventlet, python-greenlet, python-backports
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -195,6 +183,18 @@ else
         cd python-eventlet
 fi
 python setup.py install
+cd ..
+
+# Backports
+if [ -d python-backports ]; then
+        cd python-backports
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-backports
+        cd python-backports
+        sudo python setup.py install
+fi
 cd ..
 
 # XCAP library

@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK installation on Debian
 --------------------------------------------
 
-Copyright (c) 2008-2010 AG Projects
+Copyright (c) 2008-2011 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
@@ -29,8 +29,8 @@ deb	http://ag-projects.com/debian unstable main
 deb-src http://ag-projects.com/debian unstable main
 
 
-Debian Stable (Lenny)
----------------------
+Debian Stable (Squeeze)
+-----------------------
 
 deb	http://ag-projects.com/debian stable main
 deb-src http://ag-projects.com/debian stable main

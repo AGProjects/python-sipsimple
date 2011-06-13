@@ -2,7 +2,7 @@
 Installation procedure for SIP SIMPLE client SDK on MacOSX Snow Leopard
 -----------------------------------------------------------------------
 
-Copyright (c) 2008-2010 AG Projects
+Copyright (c) 2008-2011 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
@@ -59,17 +59,8 @@ export LDSHARED="gcc-4.0 -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /De
 Step 2. Install Dependencies
 ----------------------------
 
- * python-gnutls            http://pypi.python.org/simple/python-gnutls       >=1.1.9
- * python-application       http://pypi.python.org/simple/python-application  >=1.2.5
- * python-lxml              http://codespeak.net/lxml                         >=2.1.2
- * python-eventlet          http://download.ag-projects.com/SipClient         =0.8.11
- * python-greenlet          http://download.ag-projects.com/SipClient         =0.4.0  
- * cython                   http://www.cython.org                             >=0.13.0
- * dnspython                http://www.dnspython.org                          >=1.6.0
- * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
- * zope-interface           http://www.zope.org                               >=3.3.1
- * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
- * python-dateutil          http://niemeyer.net/python-dateutil               >=1.4
+See Dependencies.txt for detailed description of the required libraries and
+their minimum version number.
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
@@ -125,7 +116,7 @@ Step 3. Install SIP SIMPLE client SDK
 
 The SDK consists of four parts:
 
- 1. Eventlet and Greenlet
+ 1. python-eventlet, python-greenlet, python-backports
  2. XCAP library
  3. MSRP library
  4. SIP SIMPLE library
@@ -150,6 +141,18 @@ if [ -d python-greenlet ]; then
 else
         darcs get http://devel.ag-projects.com/repositories/python-greenlet
         cd python-greenlet
+        sudo python setup.py install
+fi
+cd ..
+
+# Backports
+if [ -d python-backports ]; then
+        cd python-backports
+        darcs pull -a
+        sudo python setup.py install
+else
+        darcs get http://devel.ag-projects.com/repositories/python-backports
+        cd python-backports
         sudo python setup.py install
 fi
 cd ..

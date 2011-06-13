@@ -2,7 +2,7 @@
 SIP SIMPLE client SDK installation on Ubuntu
 --------------------------------------------
 
-Copyright (c) 2008-2010 AG Projects
+Copyright (c) 2008-2011 AG Projects
 http://ag-projects.com
 
 Home page: http://sipsimpleclient.com
@@ -22,11 +22,18 @@ sudo apt-key add agp-debian-gpg.key
 Add these lines to /etc/apt/sources.list:
 
 
-Ubuntu Karmic (9.10)
+Ubuntu Natty (11.04)
 --------------------
 
-deb	http://ag-projects.com/ubuntu karmic main
-deb-src http://ag-projects.com/ubuntu karmic main
+deb	http://ag-projects.com/ubuntu natty main
+deb-src http://ag-projects.com/ubuntu natty main
+
+
+Ubuntu Maverick (10.10)
+-----------------------
+
+deb	http://ag-projects.com/ubuntu maverick main
+deb-src http://ag-projects.com/ubuntu maverick main
 
 
 Ubuntu Lucid (10.04)
