@@ -134,6 +134,8 @@ class MSRPStreamBase(object):
                     self.msrp_connector = DirectConnector(logger=logger)
                     self.local_role = 'active'
                 else:
+                    if self.transport=='tls' and None in (self.account.tls_credentials.cert, self.account.tls_credentials.key):
+                        raise MSRPStreamError("Cannot accept MSRP connection without a TLS certificate")
                     self.msrp_connector = DirectAcceptor(logger=logger)
                     self.local_role = 'passive'
             else:
@@ -318,7 +320,7 @@ class ChatStream(MSRPStreamBase):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message':
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if isinstance(account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
@@ -600,7 +602,7 @@ class FileTransferStream(MSRPStreamBase):
         remote_stream = remote_sdp.media[stream_index]
         if remote_stream.media != 'message' or 'file-selector' not in remote_stream.attributes:
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if isinstance(account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in file transfer stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
@@ -942,7 +944,7 @@ class DesktopSharingStream(MSRPStreamBase):
         accept_types = remote_stream.attributes.getfirst('accept-types', None)
         if accept_types is None or 'application/x-rfb' not in accept_types.split():
             raise UnknownStreamError
-        expected_transport = 'TCP/TLS/MSRP' if isinstance(account, Account) and account.msrp.transport=='tls' else 'TCP/MSRP'
+        expected_transport = 'TCP/TLS/MSRP' if account.msrp.transport=='tls' else 'TCP/MSRP'
         if remote_stream.transport != expected_transport:
             raise InvalidStreamError("expected %s transport in chat stream, got %s" % (expected_transport, remote_stream.transport))
         if remote_stream.formats != ['*']:
