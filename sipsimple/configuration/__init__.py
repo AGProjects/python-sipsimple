@@ -7,7 +7,7 @@ from __future__ import with_statement
 
 __all__ = ['ConfigurationManager', 'ConfigurationError', 'ObjectNotFoundError', 'DuplicateIDError', 'DefaultValue',
            'Setting', 'CorrelatedSetting', 'SettingsStateMeta', 'SettingsState', 'SettingsGroup', 'SettingsObjectID',
-           'SettingsSingleton', 'SettingsObject', 'SettingsObjectExtension']
+           'SettingsObject', 'SettingsObjectExtension']
 
 from itertools import chain
 from threading import Lock
@@ -15,6 +15,7 @@ from weakref import WeakKeyDictionary
 
 from application import log
 from application.notification import NotificationCenter
+from application.python.descriptor import isdescriptor
 from application.python.types import Singleton
 from backports.weakref import WeakSet
 
@@ -539,8 +540,34 @@ class SettingsGroup(SettingsState):
     __metaclass__ = SettingsGroupMeta
 
 
-class SettingsSingleton(SettingsStateMeta, Singleton):
-    """A metaclass to define a SettingsState subclass that is a Singleton"""
+class ConditionalSingleton(type):
+    """A conditional singleton based on cls.__id__ being static or not"""
+
+    lock = Lock()
+
+    def __init__(cls, name, bases, dic):
+        super(ConditionalSingleton, cls).__init__(name, bases, dic)
+        cls.__instance__ = None
+
+    def __call__(cls, *args, **kw):
+        if isinstance(cls.__id__, basestring):
+            if args or kw:
+                raise TypeError("cannot have arguments for %s because it is a singleton" % cls.__name__)
+            with cls.lock:
+                if cls.__instance__ is None:
+                    cls.__instance__ = super(ConditionalSingleton, cls).__call__(*args, **kw)
+            return cls.__instance__
+        else:
+            return super(ConditionalSingleton, cls).__call__(*args, **kw)
+
+
+class SettingsObjectMeta(SettingsStateMeta, ConditionalSingleton):
+    """Metaclass to singleton-ize SettingsObject subclasses with static ids"""
+
+    def __init__(cls, name, bases, dic):
+        if not (cls.__id__ is None or isinstance(cls.__id__, basestring) or isdescriptor(cls.__id__)):
+            raise TypeError("%s.__id__ must be None, a string instance or a descriptor" % name)
+        super(SettingsObjectMeta, cls).__init__(name, bases, dic)
 
 
 class SettingsObject(SettingsState):
@@ -559,6 +586,8 @@ class SettingsObject(SettingsState):
     created (i.e. there weren't any settings saved in the configuration), but
     also when the object is retrieved from the configuration.
     """
+
+    __metaclass__ = SettingsObjectMeta
 
     __group__ = None
     __id__ = None

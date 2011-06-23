@@ -35,7 +35,7 @@ from zope.interface import implements
 from sipsimple.account import bonjour
 from sipsimple.account.xcap import XCAPManager
 from sipsimple.core import ContactHeader, Credentials, Engine, FromHeader, FrozenSIPURI, Registration, RouteHeader, SIPURI, Subscription, ToHeader, PJSIPError, SIPCoreError
-from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID, SettingsSingleton
+from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroup, SettingsObject, SettingsObjectID
 from sipsimple.configuration.datatypes import AudioCodecList, MSRPConnectionModel, MSRPRelayAddress, MSRPTransport, NonNegativeInteger, Path, SIPAddress, SIPProxyAddress, SRTPEncryption, STUNServerAddressList, XCAPRoot
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
@@ -1320,8 +1320,6 @@ class BonjourAccount(SettingsObject):
      * SIPAccountWillDeactivate
      * SIPAccountDidDeactivate
     """
-
-    __metaclass__ = SettingsSingleton
 
     implements(IObserver)
 

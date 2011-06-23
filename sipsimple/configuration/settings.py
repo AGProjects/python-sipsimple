@@ -8,7 +8,7 @@ Definition of general (non-account related) settings.
 """
 
 from sipsimple import __version__
-from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject, SettingsSingleton
+from sipsimple.configuration import CorrelatedSetting, Setting, SettingsGroup, SettingsObject
 from sipsimple.configuration.datatypes import NonNegativeInteger, PJSIPLogLevel
 from sipsimple.configuration.datatypes import AudioCodecList, SampleRate
 from sipsimple.configuration.datatypes import Port, PortRange, SIPTransportList, TLSProtocol
@@ -68,8 +68,6 @@ class TLSSettings(SettingsGroup):
 
 
 class SIPSimpleSettings(SettingsObject):
-    __metaclass__ = SettingsSingleton
-
     __id__ = 'SIPSimpleSettings'
 
     default_account = Setting(type=str, default='bonjour@local', nillable=True)
