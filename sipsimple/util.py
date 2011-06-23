@@ -7,7 +7,6 @@ from __future__ import absolute_import, with_statement
 
 __all__ = ["All", "Any", "MultilingualText", "Route", "Timestamp", "TimestampedNotificationData", "combinations", "user_info"]
 
-import errno
 import os
 import platform
 import re
