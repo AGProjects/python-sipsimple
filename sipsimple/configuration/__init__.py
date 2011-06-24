@@ -671,6 +671,7 @@ class SettingsObject(SettingsState):
             self.__state__ = 'active'
             notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self, data=TimestampedNotificationData())
             notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self, data=TimestampedNotificationData())
+            modified_data = None
         else:
             if modified_id:
                 configuration.rename(oldkey, self.__key__)
@@ -685,7 +686,7 @@ class SettingsObject(SettingsState):
             configuration.save()
         except Exception, e:
             log.err()
-            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='save', modified=modified_settings, exception=e))
+            notification_center.post_notification('CFGManagerSaveFailed', sender=configuration, data=TimestampedNotificationData(object=self, operation='save', modified=modified_data, exception=e))
 
     @run_in_thread('file-io')
     def delete(self):
