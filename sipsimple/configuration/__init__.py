@@ -232,13 +232,12 @@ class SettingsObjectID(object):
     Simple descriptor used for SettingsObject subclasses that have dynamic IDs.
     """
 
-    lock = Lock() # need a class lock because SettingsObject IDs are correlated
-
     def __init__(self, type):
         self.type = type
         self.values = WeakKeyDictionary()
         self.oldvalues = WeakKeyDictionary()
         self.dirty = WeakKeyDictionary()
+        self.lock = Lock()
 
     def __get__(self, obj, objtype):
         return self if obj is None else self.values[obj]
