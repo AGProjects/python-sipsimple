@@ -1475,7 +1475,6 @@ class AccountManager(object):
 
     def __init__(self):
         self.accounts = {}
-        self.load_accounts.im_func.called = False
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectWasActivated')
         notification_center.add_observer(self, name='CFGSettingsObjectWasCreated')
@@ -1499,6 +1498,8 @@ class AccountManager(object):
                     self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
                 except StopIteration:
                     self.default_account = None
+
+    load_accounts.called = False
 
     def start(self):
         """
