@@ -747,8 +747,9 @@ class XCAPSubscriber(object):
                 finally:
                     notification_center.remove_observer(self, sender=self._subscription)
         except SubscriptionError, e:
+            from twisted.internet import reactor
             notification_center.post_notification('XCAPSubscriptionDidFail', sender=self, data=TimestampedNotificationData())
-            self._subscription_timer = self._schedule_command(e.timeout, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
+            self._subscription_timer = reactor.callLater(e.timeout, self._command_channel.send, Command('subscribe', command.event, refresh_interval=e.refresh_interval))
         finally:
             self.subscribed = False
             self._subscription = None
