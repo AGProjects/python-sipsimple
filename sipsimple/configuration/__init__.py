@@ -229,7 +229,7 @@ class ModifiedValue(object):
 
 class SettingsObjectID(object):
     """
-    Simple descriptor used for SettingsObject subclasses which have dynamic ids.
+    Simple descriptor used for SettingsObject subclasses that have dynamic IDs.
     """
 
     lock = Lock() # need a class lock because SettingsObject IDs are correlated
