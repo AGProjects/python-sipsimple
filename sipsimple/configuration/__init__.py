@@ -601,18 +601,21 @@ class SettingsObject(SettingsState):
         configuration = ConfigurationManager()
         instance = SettingsState.__new__(cls)
         instance.__id__ = id
-        instance.__state__ = 'alive'
+        instance.__state__ = 'new'
         try:
             data = configuration.get(instance.__key__)
         except ObjectNotFoundError:
             pass
         else:
             instance.__setstate__(data)
+            instance.__state__ = 'loaded'
         return instance
 
     def __establish__(self):
-        notification_center = NotificationCenter()
-        notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self, data=TimestampedNotificationData())
+        if self.__state__ == 'loaded' or self.__instance__ is not None:
+            self.__state__ = 'active'
+            notification_center = NotificationCenter()
+            notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self, data=TimestampedNotificationData())
 
     @property
     def __key__(self):
@@ -661,31 +664,22 @@ class SettingsObject(SettingsState):
         modified_id = id_descriptor.get_modified(self) if id_descriptor else None
         modified_settings = self.get_modified()
 
-        if id_descriptor:
-            try:
-                configuration.get(oldkey)
-            except ObjectNotFoundError:
-                save_required = True
-            else:
-                save_required = False
-        else:
-            save_required = False
-
-        if not modified_id and not modified_settings and not save_required:
+        if not modified_id and not modified_settings and self.__state__ != 'new':
             return
 
-        if save_required:
+        if self.__state__ == 'new':
             configuration.update(self.__key__, self.__getstate__())
+            self.__state__ = 'active'
+            notification_center.post_notification('CFGSettingsObjectWasActivated', sender=self, data=TimestampedNotificationData())
+            notification_center.post_notification('CFGSettingsObjectWasCreated', sender=self, data=TimestampedNotificationData())
         else:
             if modified_id:
                 configuration.rename(oldkey, self.__key__)
             if modified_settings:
                 configuration.update(self.__key__, self.__getstate__())
-
-        modified_data = modified_settings or {}
-        if modified_id:
-            modified_data['__id__'] = modified_id
-        if modified_data:
+            modified_data = modified_settings or {}
+            if modified_id:
+                modified_data['__id__'] = modified_id
             notification_center.post_notification('CFGSettingsObjectDidChange', sender=self, data=TimestampedNotificationData(modified=modified_data))
 
         try:

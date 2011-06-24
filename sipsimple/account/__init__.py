@@ -1116,10 +1116,6 @@ class Account(SettingsObject):
         self._mwi_subscriber = AccountMWISubscriber(self)
         self._started = False
 
-        from sipsimple.application import SIPApplication
-        if SIPApplication.running:
-            call_in_green_thread(self.start)
-
     def start(self):
         if self._started:
             return
@@ -1355,10 +1351,6 @@ class BonjourAccount(SettingsObject):
         self.nat_traversal.use_msrp_relay_for_inbound = False
         self.nat_traversal.use_msrp_relay_for_outbound = False
 
-        from sipsimple.application import SIPApplication
-        if SIPApplication.running:
-            call_in_green_thread(self.start)
-
     def start(self):
         if self._started:
             return
@@ -1485,6 +1477,7 @@ class AccountManager(object):
         self.accounts = {}
         self.load_accounts.im_func.called = False
         notification_center = NotificationCenter()
+        notification_center.add_observer(self, name='CFGSettingsObjectWasActivated')
         notification_center.add_observer(self, name='CFGSettingsObjectWasCreated')
 
     def load_accounts(self):
@@ -1553,7 +1546,7 @@ class AccountManager(object):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
-    def _NH_CFGSettingsObjectWasCreated(self, notification):
+    def _NH_CFGSettingsObjectWasActivated(self, notification):
         if isinstance(notification.sender, (Account, BonjourAccount)):
             account = notification.sender
             self.accounts[account.id] = account
@@ -1561,6 +1554,15 @@ class AccountManager(object):
             notification_center.add_observer(self, sender=account, name='CFGSettingsObjectDidChange')
             notification_center.add_observer(self, sender=account, name='CFGSettingsObjectWasDeleted')
             notification_center.post_notification('SIPAccountManagerDidAddAccount', sender=self, data=TimestampedNotificationData(account=account))
+            from sipsimple.application import SIPApplication
+            if SIPApplication.running:
+                call_in_green_thread(account.start)
+
+    def _NH_CFGSettingsObjectWasCreated(self, notification):
+        if isinstance(notification.sender, Account):
+            account = notification.sender
+            if account.enabled and self.default_account is None:
+                self.default_account = account
 
     def _NH_CFGSettingsObjectWasDeleted(self, notification):
         account = notification.sender
