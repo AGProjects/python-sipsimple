@@ -454,6 +454,8 @@ class SIPApplication(object):
                     notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
 
     def _NH_DefaultAudioDeviceDidChange(self, notification):
+        if None in (self.voice_audio_bridge, self.alert_audio_bridge):
+            return
         settings = SIPSimpleSettings()
         current_input_device = self.voice_audio_bridge.mixer.input_device
         current_output_device = self.voice_audio_bridge.mixer.output_device
