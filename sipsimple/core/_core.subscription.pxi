@@ -741,8 +741,8 @@ cdef void _Subscription_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
                 else:
                     reason = "Subscription has expired"
 
-                if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE":
-                    rdata = event.body.tsx_state.src.rdata
+            if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "SUBSCRIBE":
+                rdata = event.body.tsx_state.src.rdata
 
         headers_dict = dict()
         if rdata != NULL:
