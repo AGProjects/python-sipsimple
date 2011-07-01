@@ -1,0 +1,65 @@
+Index: pjmedia/include/pjmedia/sound.h
+==================================================================
+--- pjmedia/include/pjmedia/sound.h	(revision 3235)
++++ pjmedia/include/pjmedia/sound.h	(working copy)
+@@ -167,6 +167,26 @@
+ 
+ 
+ /**
++ * Get the default input device.
++ *
++ * @param channel_count	The minimum number of channels required.
++ *
++ * @return		The default input device id.
++ */
++PJ_DECL(int) pjmedia_snd_get_default_input_dev(int channel_count);
++
++
++/**
++ * Get the default output device.
++ *
++ * @param channel_count	The minimum number of channels required.
++ *
++ * @return		The default output device id.
++ */
++PJ_DECL(int) pjmedia_snd_get_default_output_dev(int channel_count);
++
++
++/**
+  * Add a set of callbacks for the audio device change events 
+  */
+ PJ_DECL(pj_status_t) pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer);
+Index: pjmedia/src/pjmedia/pasound.c
+==================================================================
+--- pjmedia/src/pjmedia/pasound.c	(revision 3235)
++++ pjmedia/src/pjmedia/pasound.c	(working copy)
+@@ -785,6 +785,29 @@
+     return -1;
+ }
+ 
++PJ_DEF(int) pjmedia_snd_get_default_input_dev(int channel_count)
++{
++    int dev;
++
++    ENTER_PA_CALL_REGION_RETURN(-1);
++
++    dev = pa_get_default_input_dev(channel_count);
++
++    LEAVE_PA_CALL_REGION();
++    return dev;
++}
++
++PJ_DEF(int) pjmedia_snd_get_default_output_dev(int channel_count)
++{
++    int dev;
++
++    ENTER_PA_CALL_REGION_RETURN(-1);
++
++    dev = pa_get_default_output_dev(channel_count);
++
++    LEAVE_PA_CALL_REGION();
++    return dev;
++}
+ 
+ /*
+  * Open stream.

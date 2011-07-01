@@ -271,14 +271,14 @@ cdef class PJSIPUA:
         cdef int count
         cdef pjmedia_snd_dev_info_ptr_const info
         cdef list retval = list()
-        cdef int status 
+        cdef int status
         
         with nogil:
             status = pj_rwmutex_lock_read(self.audio_change_rwlock)
         if status != 0:
             raise SIPCoreError('Could not acquire audio_change_rwlock', status)
         
-        try:    
+        try:
             for i from 0 <= i < pjmedia_snd_get_dev_count():
                 info = pjmedia_snd_get_dev_info(i)
                 if is_output:
@@ -290,6 +290,38 @@ cdef class PJSIPUA:
             return retval
         finally:
             pj_rwmutex_unlock_read(self.audio_change_rwlock)
+
+    cdef object _get_default_sound_device(self, int is_output):
+        global device_name_encoding
+        cdef pjmedia_snd_dev_info_ptr_const info
+        cdef int dev_id
+        cdef int status
+        with nogil:
+            status = pj_rwmutex_lock_read(self.audio_change_rwlock)
+        if status != 0:
+            raise SIPCoreError('Could not acquire audio_change_rwlock', status)
+        try:
+            if is_output:
+                dev_id = pjmedia_snd_get_default_output_dev(1)
+            else:
+                dev_id = pjmedia_snd_get_default_input_dev(1)
+            info = pjmedia_snd_get_dev_info(dev_id)
+            return info.name.decode(device_name_encoding)
+        finally:
+            pj_rwmutex_unlock_read(self.audio_change_rwlock)
+
+
+    property default_output_device:
+
+        def __get__(self):
+            self._check_self()
+            return self._get_default_sound_device(1)
+
+    property default_input_device:
+
+        def __get__(self):
+            self._check_self()
+            return self._get_default_sound_device(0)
 
     property output_devices:
 

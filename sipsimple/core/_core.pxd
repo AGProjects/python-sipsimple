@@ -266,6 +266,8 @@ cdef extern from "pjmedia.h":
     int pjmedia_add_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)    
     int pjmedia_del_audio_change_observer(pjmedia_audio_change_observer *audio_change_observer)    
     int pjmedia_snd_get_dev_count() nogil
+    int pjmedia_snd_get_default_input_dev(int channel_count) nogil
+    int pjmedia_snd_get_default_output_dev(int channel_count) nogil
     pjmedia_snd_dev_info_ptr_const pjmedia_snd_get_dev_info(int index) nogil
     int pjmedia_snd_stream_get_info(pjmedia_snd_stream *strm, pjmedia_snd_stream_info *pi) nogil
 
@@ -1406,6 +1408,7 @@ cdef class PJSIPUA(object):
 
     # private methods
     cdef object _get_sound_devices(self, int is_output)
+    cdef object _get_default_sound_device(self, int is_output)
     cdef int _poll_log(self) except -1
     cdef int _handle_exception(self, int is_fatal) except -1
     cdef int _check_self(self) except -1
