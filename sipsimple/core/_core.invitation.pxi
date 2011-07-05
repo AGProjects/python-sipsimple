@@ -950,9 +950,8 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
             elif (invitation.state in ("incoming", "early") and invitation.direction == "incoming" and
                   rdata != NULL and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG and
                   rdata.msg_info.msg.line.req.method.id == PJSIP_CANCEL_METHOD):
-                if rdata != NULL:
-                    rdata_dict = dict()
-                    _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+                rdata_dict = dict()
+                _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
                 try:
                     timer = StateCallbackTimer("disconnected", None, rdata_dict, None)
                     timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
