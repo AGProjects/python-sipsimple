@@ -1156,12 +1156,18 @@ cdef class FrozenSubscriptionStateHeader(BaseSubscriptionStateHeader):
     property expires:
 
         def __get__(self):
-            return int(self._parameters.get("expires", None))
+            expires = self.parameters.get("expires", None)
+            if expires is not None:
+                expires = int(expires)
+            return expires
 
     property retry_after:
 
         def __get__(self):
-            return int(self._parameters.get("retry-after", None))
+            retry_after = self.parameters.get("retry-after", None)
+            if retry_after is not None:
+                retry_after = int(retry_after)
+            return retry_after
 
     new = classmethod(FrozenSubscriptionStateHeader_new)
 
