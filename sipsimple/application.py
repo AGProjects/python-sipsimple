@@ -30,7 +30,7 @@ from sipsimple.core import AudioMixer, Engine, PJSIPError, SIPCoreError, SIPURI
 from sipsimple.lookup import DNSLookup, DNSLookupError, DNSManager
 from sipsimple.session import SessionManager
 from sipsimple.storage import ISIPSimpleStorage
-from sipsimple.threading import ThreadManager, run_in_twisted_thread
+from sipsimple.threading import ThreadManager, run_in_thread, run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
 from sipsimple.util import TimestampedNotificationData
 
@@ -318,11 +318,11 @@ class SIPApplication(object):
                 self.local_nat_type = 'unknown'
                 reactor.callLater(60, self._nat_detect_channel.send, Command('detect_nat'))
 
+    @run_in_twisted_thread
     def handle_notification(self, notification):
         handler = getattr(self, '_NH_%s' % notification.name, Null)
         handler(notification)
 
-    @run_in_twisted_thread
     def _NH_SIPEngineDidEnd(self, notification):
         self._channel.send(notification)
 
@@ -330,9 +330,9 @@ class SIPApplication(object):
         if not self.running:
             return
         self.end_reason = 'engine failed'
-        # this notification is always sent from the Engine's thread
-        reactor.callFromThread(reactor.stop)
+        reactor.stop()
 
+    @run_in_thread('device-io')
     def _NH_CFGSettingsObjectDidChange(self, notification):
         engine = Engine()
         settings = SIPSimpleSettings()
@@ -453,6 +453,7 @@ class SIPApplication(object):
                     notification_center = NotificationCenter()
                     notification_center.post_notification('SIPApplicationFailedToStartTLS', sender=self, data=TimestampedNotificationData(error=e))
 
+    @run_in_thread('device-io')
     def _NH_DefaultAudioDeviceDidChange(self, notification):
         if None in (self.voice_audio_bridge, self.alert_audio_bridge):
             return
@@ -477,6 +478,7 @@ class SIPApplication(object):
             except SIPCoreError:
                 self.alert_audio_bridge.mixer.set_sound_devices(None, None, 0)
 
+    @run_in_thread('device-io')
     def _NH_AudioDevicesDidChange(self, notification):
         old_devices = set(notification.data.old_devices)
         new_devices = set(notification.data.new_devices)
@@ -529,7 +531,7 @@ class SIPApplication(object):
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
-    @run_in_twisted_thread
     def _NH_SIPEngineDetectedNATType(self, notification):
         self._nat_detect_channel.send(Command('process_nat_detection', data=notification.data))
+
 
