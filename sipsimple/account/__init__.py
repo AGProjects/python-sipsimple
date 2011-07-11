@@ -456,8 +456,7 @@ class AccountMWISubscriber(object):
                         subscription.subscribe(timeout=limit(remaining_time, min=1, max=5))
                     except (PJSIPError, SIPCoreError):
                         notification_center.remove_observer(self, sender=subscription)
-                        timeout = 5
-                        raise SubscriptionError(error='Internal error', timeout=timeout)
+                        raise SubscriptionError(error='Internal error', timeout=5)
                     self._subscription = subscription
                     try:
                         while True:
@@ -469,8 +468,7 @@ class AccountMWISubscriber(object):
                         self._subscription = None
                         if e.data.code == 407:
                             # Authentication failed, so retry the subscription in some time
-                            timeout = random.uniform(60, 120)
-                            raise SubscriptionError(error='Authentication failed', timeout=timeout)
+                            raise SubscriptionError(error='Authentication failed', timeout=random.uniform(60, 120))
                         elif e.data.code == 423:
                             # Get the value of the Min-Expires header
                             timeout = random.uniform(60, 120)
@@ -479,8 +477,7 @@ class AccountMWISubscriber(object):
                             else:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout)
                         elif e.data.code in (405, 406, 489):
-                            timeout = 3600
-                            raise SubscriptionError(error='Method or event not supported', timeout=timeout)
+                            raise SubscriptionError(error='Method or event not supported', timeout=3600)
                         elif e.data.code == 1400:
                             raise SubscriptionError(error=e.data.reason, timeout=3600)
                         else:
