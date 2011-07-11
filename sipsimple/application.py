@@ -529,6 +529,7 @@ class SIPApplication(object):
                 self._wakeup_timer = None
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
+    @run_in_twisted_thread
     def _NH_SIPEngineDetectedNATType(self, notification):
         self._nat_detect_channel.send(Command('process_nat_detection', data=notification.data))
 
