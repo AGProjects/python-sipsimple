@@ -481,6 +481,8 @@ class AccountMWISubscriber(object):
                         elif e.data.code in (405, 406, 489):
                             timeout = 3600
                             raise SubscriptionError(error='Method or event not supported', timeout=timeout)
+                        elif e.data.code == 1400:
+                            raise SubscriptionError(error=e.data.reason, timeout=3600)
                         else:
                             # Otherwise just try the next route
                             continue

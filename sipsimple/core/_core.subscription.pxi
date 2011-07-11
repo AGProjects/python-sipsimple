@@ -236,10 +236,38 @@ cdef class Subscription:
     cdef int _cb_state(self, PJSIPUA ua, object state, int code, object reason, dict headers) except -1:
         # PJSIP holds the dialog lock when this callback is entered
         cdef object prev_state = self.state
+        cdef int expires
         cdef int status
+        cdef pj_time_val end_timeout
         self.state = state
         if state == "ACCEPTED" and prev_state == "SENT":
+            try:
+                contact_header = headers['Contact'][0]
+            except LookupError:
+                self._term_code = 1400
+                self._term_reason = "Contact header missing"
+                with nogil:
+                    pjsip_evsub_terminate(self._obj, 1)
+                return 0
             _add_event("SIPSubscriptionDidStart", dict(obj=self))
+            try:
+                expires = int(headers["Expires"])
+            except (KeyError, ValueError):
+                return 0
+            if expires == 0:
+                self._want_end = 1
+                self._cancel_timers(ua, 1, 1)
+                end_timeout.sec = 1
+                end_timeout.msec = 0
+                _add_event("SIPSubscriptionWillEnd", dict(obj=self))
+                try:
+                    self._send_subscribe(ua, 0, &end_timeout, [], None, None)
+                except PJSIPError, e:
+                    self._term_reason = e.args[0]
+                    if self._obj != NULL:
+                        with nogil:
+                            pjsip_evsub_terminate(self._obj, 1)
+                return 0
         elif state == "TERMINATED":
             pjsip_evsub_set_mod_data(self._obj, ua._event_module.id, NULL)
             self._cancel_timers(ua, 1, 1)
@@ -257,14 +285,23 @@ cdef class Subscription:
 
     cdef int _cb_got_response(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
         # PJSIP holds the dialog lock when this callback is entered
+        cdef dict event_dict = dict()
         cdef int expires = self._expires
-        cdef pj_time_val refresh
         cdef int status
-        cdef pjsip_generic_int_hdr *expires_hdr
+        cdef pj_time_val refresh
+        _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
         self.to_header = FrozenToHeader_create(rdata.msg_info.to_hdr)
-        expires_hdr = <pjsip_generic_int_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
-        if expires_hdr != NULL:
-            expires = expires_hdr.ivalue
+        if self.state != "TERMINATED":
+            try:
+                contact_header = event_dict["headers"]["Contact"][0]
+            except LookupError:
+                return 0
+            try:
+                expires = int(event_dict["headers"]["Expires"])
+            except (KeyError, ValueError):
+                expires = self._expires
+            if expires == 0:
+                return 0
         if self.state != "TERMINATED" and not self._want_end:
             self._cancel_timers(ua, 1, 0)
             refresh.sec = max(1, expires - self.expire_warning_time, expires/2)

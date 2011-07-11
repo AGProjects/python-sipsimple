@@ -494,7 +494,7 @@ class ConferenceHandler(object):
                                 raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.data.min_expires)
                             else:
                                 raise SubscriptionError(error='Interval too short', timeout=timeout)
-                        elif e.data.code in (405, 406, 489):
+                        elif e.data.code in (405, 406, 489, 1400):
                             command.signal(e)
                             return
                         else:
