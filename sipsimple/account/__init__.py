@@ -15,13 +15,13 @@ import re
 import string
 
 from itertools import chain
-from threading import RLock
 from time import time
 from weakref import WeakKeyDictionary
 
 from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python import Null, limit
+from application.python.decorator import execute_once
 from application.python.descriptor import classproperty
 from application.python.types import Singleton
 from application.system import host
@@ -1105,7 +1105,7 @@ class Account(SettingsObject):
     tls = TLSSettings
 
     def __new__(cls, id):
-        with AccountManager.lock:
+        with AccountManager.load_accounts.lock:
             if not AccountManager.load_accounts.called:
                 raise RuntimeError("cannot instantiate %s before calling AccountManager.load_accounts" % cls.__name__)
         return SettingsObject.__new__(cls, id)
@@ -1333,7 +1333,7 @@ class BonjourAccount(SettingsObject):
     tls = TLSSettings
 
     def __new__(cls):
-        with AccountManager.lock:
+        with AccountManager.load_accounts.lock:
             if not AccountManager.load_accounts.called:
                 raise RuntimeError("cannot instantiate %s before calling AccountManager.load_accounts" % cls.__name__)
         return SettingsObject.__new__(cls)
@@ -1455,10 +1455,9 @@ class BonjourAccount(SettingsObject):
 
 class AccountManager(object):
     """
-    This is a singleton object which manages all the SIP accounts. When its
-    start method is called, it will load all the accounts from the
-    configuration. It is also used to manage the default account (the one
-    used for outbound sessions) using the default_account attribute:
+    This is a singleton object which manages all the SIP accounts. It is
+    also used to manage the default account (the one used for outbound
+    sessions) using the default_account attribute:
 
     manager = AccountManager()
     manager.default_account = manager.get_account('alice@example.net')
@@ -1473,35 +1472,28 @@ class AccountManager(object):
 
     implements(IObserver)
 
-    lock = RLock()
-
     def __init__(self):
         self.accounts = {}
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectWasActivated')
         notification_center.add_observer(self, name='CFGSettingsObjectWasCreated')
 
+    @execute_once
     def load_accounts(self):
         """
         Load all accounts from the configuration. The accounts will not be
         started until the start method is called.
         """
-        with self.lock:
-            if self.load_accounts.called:
-                return
-            self.load_accounts.im_func.called = True
-            configuration = ConfigurationManager()
-            bonjour_account = BonjourAccount()
-            names = configuration.get_names([Account.__group__])
-            [Account(id) for id in names if id != bonjour_account.id]
-            default_account = self.default_account
-            if default_account is None or not default_account.enabled:
-                try:
-                    self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
-                except StopIteration:
-                    self.default_account = None
-
-    load_accounts.called = False
+        configuration = ConfigurationManager()
+        bonjour_account = BonjourAccount()
+        names = configuration.get_names([Account.__group__])
+        [Account(id) for id in names if id != bonjour_account.id]
+        default_account = self.default_account
+        if default_account is None or not default_account.enabled:
+            try:
+                self.default_account = (account for account in self.accounts.itervalues() if account.enabled).next()
+            except StopIteration:
+                self.default_account = None
 
     def start(self):
         """
