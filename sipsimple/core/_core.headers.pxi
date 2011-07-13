@@ -548,7 +548,7 @@ cdef class RetryAfterHeader(BaseRetryAfterHeader):
     def __init__(self, int seconds, str comment=None, dict parameters=None):
         self.seconds = seconds
         self.comment = comment
-        self.parmeters = parameters if parameters is not None else {}
+        self.parameters = parameters if parameters is not None else {}
 
     property parameters:
 
