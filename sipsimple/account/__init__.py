@@ -1146,14 +1146,14 @@ class Account(SettingsObject):
 
         self._deactivate()
         self._mwi_subscriber.stop()
-        self._mwi_subscriber = None
         self._registrar.stop()
-        self._registrar = None
-        self.xcap_manager = None
 
     @run_in_green_thread
     def delete(self):
         self.stop()
+        self._mwi_subscriber = None
+        self._registrar = None
+        self.xcap_manager = None
         SettingsObject.delete(self)
 
     @run_in_green_thread
