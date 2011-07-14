@@ -1077,6 +1077,9 @@ class Account(SettingsObject):
     the account will activate/deactivate.
 
     Notifications sent by instances of Account:
+     * CFGSettingsObjectWasCreated
+     * CFGSettingsObjectWasActivated
+     * CFGSettingsObjectWasDeleted
      * CFGSettingsObjectDidChange
      * SIPAccountWillActivate
      * SIPAccountDidActivate
@@ -1312,6 +1315,9 @@ class BonjourAccount(SettingsObject):
     the account will activate/deactivate.
 
     Notifications sent by instances of Account:
+     * CFGSettingsObjectWasCreated
+     * CFGSettingsObjectWasActivated
+     * CFGSettingsObjectWasDeleted
      * CFGSettingsObjectDidChange
      * SIPAccountWillActivate
      * SIPAccountDidActivate
