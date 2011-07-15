@@ -76,14 +76,22 @@ def run_in_thread(thread_id):
         @preserve_signature(function)
         def wrapper(*args, **kw):
             thread_manager = ThreadManager()
-            thread_manager.get_thread(thread_id).put(CallFunctionEvent(function, args, kw))
+            thread = thread_manager.get_thread(thread_id)
+            if thread is currentThread():
+                function(*args, **kw)
+            else:
+                thread.put(CallFunctionEvent(function, args, kw))
         return wrapper
     return thread_decorator
 
 
 def call_in_thread(thread_id, function, *args, **kw):
     thread_manager = ThreadManager()
-    thread_manager.get_thread(thread_id).put(CallFunctionEvent(function, args, kw))
+    thread = thread_manager.get_thread(thread_id)
+    if thread is currentThread():
+        function(*args, **kw)
+    else:
+        thread.put(CallFunctionEvent(function, args, kw))
 
 
 @decorator
