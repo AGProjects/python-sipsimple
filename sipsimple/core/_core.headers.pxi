@@ -1685,7 +1685,8 @@ cdef ReferToHeader ReferToHeader_create(pjsip_generic_string_hdr *header):
     cdef str value
     value = _pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue)
     uri, sep, params_str = value.partition('>')
-    uri = uri.strip('<')
+    if sep:
+        uri += '>'
     parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
     return ReferToHeader(uri, parameters)
 
@@ -1694,7 +1695,8 @@ cdef FrozenReferToHeader FrozenReferToHeader_create(pjsip_generic_string_hdr *he
     cdef str value
     value = _pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue)
     uri, sep, params_str = value.partition('>')
-    uri = uri.strip('<')
+    if sep:
+        uri += '>'
     parameters = dict([(name, value or None) for name, sep, value in [param.partition('=') for param in params_str.split(';') if param]])
     return FrozenReferToHeader(uri, frozendict(parameters))
 
