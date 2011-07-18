@@ -471,11 +471,11 @@ class AccountMWISubscriber(object):
                             raise SubscriptionError(error='Authentication failed', timeout=random.uniform(60, 120))
                         elif e.data.code == 423:
                             # Get the value of the Min-Expires header
-                            timeout = random.uniform(60, 120)
                             if e.data.min_expires is not None and e.data.min_expires > refresh_interval:
-                                raise SubscriptionError(error='Interval too short', timeout=timeout, refresh_interval=e.data.min_expires)
+                                interval = e.data.min_expires
                             else:
-                                raise SubscriptionError(error='Interval too short', timeout=timeout)
+                                interval = None
+                            raise SubscriptionError(error='Interval too short', timeout=random.uniform(60, 120), refresh_interval=interval)
                         elif e.data.code in (405, 406, 489):
                             raise SubscriptionError(error='Method or event not supported', timeout=3600)
                         elif e.data.code == 1400:
@@ -489,8 +489,7 @@ class AccountMWISubscriber(object):
                         break
             else:
                 # There are no more routes to try, reschedule the subscription
-                timeout = random.uniform(60, 180)
-                raise SubscriptionError(error='No more routes to try', timeout=timeout)
+                raise SubscriptionError(error='No more routes to try', timeout=random.uniform(60, 180))
             # At this point it is subscribed. Handle notifications and ending/failures.
             try:
                 while True:
