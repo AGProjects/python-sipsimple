@@ -1125,7 +1125,7 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.add_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
-        notification_center.add_observer(self, sender=self.xcap_manager)
+        notification_center.add_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
 
         self._registrar.start()
         self._mwi_subscriber.start()
@@ -1141,7 +1141,7 @@ class Account(SettingsObject):
         notification_center = NotificationCenter()
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=self)
         notification_center.remove_observer(self, name='CFGSettingsObjectDidChange', sender=SIPSimpleSettings())
-        notification_center.remove_observer(self, sender=self.xcap_manager)
+        notification_center.remove_observer(self, name='XCAPManagerDidDiscoverServerCapabilities', sender=self.xcap_manager)
 
         self._deactivate()
         self._mwi_subscriber.stop()
