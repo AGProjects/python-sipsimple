@@ -1241,6 +1241,8 @@ class Account(SettingsObject):
         if self.xcap.discovered is False:
             self.xcap.discovered = True
             self.save()
+            notification_center = NotificationCenter()
+            notification_center.post_notification('SIPAccountDidDiscoverXCAPSupport', sender=self, data=TimestampedNotificationData())
 
     def _activate(self):
         if self._active:
