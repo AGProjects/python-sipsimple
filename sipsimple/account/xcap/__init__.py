@@ -4,7 +4,7 @@
 """High-level management of XCAP documents based on OMA specifications"""
 
 __all__ = ['Contact', 'Service', 'CatchAllCondition', 'DomainCondition', 'DomainExcepton', 'UserException', 'Policy', 'Class', 'OccurenceID', 
-           'DeviceID', 'ServiceURI', 'ServiceURIScheme', 'PresencePolicy', 'DialoginfoPolicy', 'Icon', 'OfflineStatus', 'XCAPManager']
+           'DeviceID', 'ServiceURI', 'ServiceURIScheme', 'PresencePolicy', 'DialoginfoPolicy', 'Icon', 'OfflineStatus', 'XCAPManager', 'XCAPTransaction']
 
 
 import base64
@@ -916,6 +916,9 @@ class XCAPManager(object):
         command = Command('stop')
         self.command_channel.send(command)
         command.wait()
+
+    def transaction(self):
+        return XCAPTransaction(self)
 
     @run_in_twisted_thread
     def start_transaction(self):
@@ -3514,5 +3517,17 @@ class XCAPManager(object):
                     if name not in disallowed_names:
                         disallowed_names.add(name)
                         yield name
+
+
+class XCAPTransaction(object):
+    def __init__(self, xcap_manager):
+        self.xcap_manager = xcap_manager
+
+    def __enter__(self):
+        self.xcap_manager.start_transaction()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.xcap_manager.commit_transaction()
 
 
