@@ -317,7 +317,7 @@ class Contact(object):
             return (self.name == other.name and self.uri == other.uri and self.group == other.group and self.attributes == other.attributes and
                     self.presence_policies == other.presence_policies and self.dialoginfo_policies == other.dialoginfo_policies and
                     self.subscribe_to_presence == other.subscribe_to_presence and self.subscribe_to_dialoginfo == other.subscribe_to_dialoginfo)
-        return False
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.uri)
@@ -336,7 +336,7 @@ class CatchAllCondition(object):
     def __eq__(self, other):
         if isinstance(other, CatchAllCondition):
             return self.exceptions == other.exceptions
-        return False
+        return NotImplemented
 
 
 class DomainCondition(object):
@@ -347,7 +347,7 @@ class DomainCondition(object):
     def __eq__(self, other):
         if isinstance(other, DomainCondition):
             return self.domain == other.domain and self.exceptions == other.exceptions
-        return False
+        return NotImplemented
 
 
 class DomainException(object):
@@ -357,7 +357,7 @@ class DomainException(object):
     def __eq__(self, other):
         if isinstance(other, DomainException):
             return self.domain == other.domain
-        return False
+        return NotImplemented
 
 
 class UserException(object):
@@ -367,7 +367,7 @@ class UserException(object):
     def __eq__(self, other):
         if isinstance(other, UserException):
             return self.uri == other.uri
-        return False
+        return NotImplemented
 
 
 class Policy(object):
@@ -394,7 +394,7 @@ class Policy(object):
         if isinstance(other, Policy):
             return (self.id == other.id and self.action == other.action and self.name == other.name and self.validity == other.validity and
                     self.sphere == other.sphere and self.multi_identity_conditions == other.multi_identity_conditions)
-        return False
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.id)
@@ -430,15 +430,20 @@ class PresencePolicy(Policy):
         self.provide_all_attributes = True
 
     def __eq__(self, other):
-        return (super(PresencePolicy, self).__eq__(other) and self.provide_devices == other.provide_devices and
-               self.provide_persons == other.provide_persons and self.provide_services == other.provide_services and
-               self.provide_activities == other.provide_activities and self.provide_class == other.provide_class and
-               self.provide_device_id == other.provide_device_id and self.provide_mood == other.provide_mood and
-               self.provide_place_is == other.provide_place_is and self.provide_place_type == other.provide_place_type and
-               self.provide_privacy == other.provide_privacy and self.provide_relationship == other.provide_relationship and
-               self.provide_status_icon == other.provide_status_icon and self.provide_sphere == other.provide_sphere and
-               self.provide_time_offset == other.provide_time_offset and self.provide_user_input == other.provide_user_input and
-               self.provide_unknown_attributes == other.provide_unknown_attributes and self.provide_all_attributes == other.provide_all_attributes)
+        if isinstance(other, PresencePolicy):
+            return (super(PresencePolicy, self).__eq__(other) and self.provide_devices == other.provide_devices and
+                   self.provide_persons == other.provide_persons and self.provide_services == other.provide_services and
+                   self.provide_activities == other.provide_activities and self.provide_class == other.provide_class and
+                   self.provide_device_id == other.provide_device_id and self.provide_mood == other.provide_mood and
+                   self.provide_place_is == other.provide_place_is and self.provide_place_type == other.provide_place_type and
+                   self.provide_privacy == other.provide_privacy and self.provide_relationship == other.provide_relationship and
+                   self.provide_status_icon == other.provide_status_icon and self.provide_sphere == other.provide_sphere and
+                   self.provide_time_offset == other.provide_time_offset and self.provide_user_input == other.provide_user_input and
+                   self.provide_unknown_attributes == other.provide_unknown_attributes and self.provide_all_attributes == other.provide_all_attributes)
+        elif isinstance(other, Policy):
+            return super(PresencePolicy, self).__eq__(other)
+        else:
+            return NotImplemented
 
 class DialoginfoPolicy(Policy):
     pass
