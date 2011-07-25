@@ -367,6 +367,9 @@ class Setting(object):
             self.oldvalues[obj] = self.values[obj] = value
             self.dirty[obj] = False
 
+    def get_old(self, obj):
+        return self.oldvalues.get(obj, self.default)
+
     def get_modified(self, obj):
         """
         Returns a ModifiedValue instance with references to the old and new
