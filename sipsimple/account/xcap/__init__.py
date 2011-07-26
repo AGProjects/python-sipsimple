@@ -322,6 +322,7 @@ class Contact(object):
     def __hash__(self):
         return hash(self.uri)
 
+
 class Service(object):
     def __init__(self, uri, packages, entries=None):
         self.uri = uri
