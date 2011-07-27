@@ -24,6 +24,7 @@ from zope.interface import implements
 
 from sipsimple.account import Account, AccountManager
 from sipsimple.audio import AudioDevice, RootAudioBridge
+from sipsimple.contact import ContactManager, ContactGroupManager
 from sipsimple.configuration import ConfigurationManager
 from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.core import AudioMixer, Engine, PJSIPError, SIPCoreError, SIPURI
@@ -89,11 +90,15 @@ class SIPApplication(object):
 
         account_manager = AccountManager()
         configuration_manager = ConfigurationManager()
+        contact_group_manager = ContactGroupManager()
+        contact_manager = ContactManager()
 
         # load configuration
         try:
             configuration_manager.start()
             SIPSimpleSettings()
+            contact_group_manager.load_groups()
+            contact_manager.load_contacts()
             account_manager.load_accounts()
         except:
             self.state = None
@@ -130,6 +135,8 @@ class SIPApplication(object):
     @run_in_green_thread
     def _initialize_subsystems(self):
         account_manager = AccountManager()
+        contact_group_manager = ContactGroupManager()
+        contact_manager = ContactManager()
         dns_manager = DNSManager()
         engine = Engine()
         notification_center = NotificationCenter()
@@ -229,6 +236,8 @@ class SIPApplication(object):
 
         # initialize middleware components
         dns_manager.start()
+        contact_group_manager.start()
+        contact_manager.start()
         account_manager.start()
         session_manager.start()
 
@@ -254,8 +263,10 @@ class SIPApplication(object):
         # shutdown middleware components
         dns_manager = DNSManager()
         account_manager = AccountManager()
+        contact_group_manager = ContactGroupManager()
+        contact_manager = ContactManager()
         session_manager = SessionManager()
-        procs = [proc.spawn(dns_manager.stop), proc.spawn(account_manager.stop), proc.spawn(session_manager.stop)]
+        procs = [proc.spawn(dns_manager.stop), proc.spawn(account_manager.stop), proc.spawn(contact_manager.stop), proc.spawn(contact_group_manager.stop), proc.spawn(session_manager.stop)]
         proc.waitall(procs)
 
         # shutdown engine
