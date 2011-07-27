@@ -319,6 +319,10 @@ class Contact(object):
                     self.subscribe_to_presence == other.subscribe_to_presence and self.subscribe_to_dialoginfo == other.subscribe_to_dialoginfo)
         return NotImplemented
 
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
     def __hash__(self):
         return hash(self.uri)
 
@@ -339,6 +343,10 @@ class CatchAllCondition(object):
             return self.exceptions == other.exceptions
         return NotImplemented
 
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
 
 class DomainCondition(object):
     def __init__(self, domain, exceptions=None):
@@ -350,6 +358,10 @@ class DomainCondition(object):
             return self.domain == other.domain and self.exceptions == other.exceptions
         return NotImplemented
 
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
 
 class DomainException(object):
     def __init__(self, domain):
@@ -360,6 +372,10 @@ class DomainException(object):
             return self.domain == other.domain
         return NotImplemented
 
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
 
 class UserException(object):
     def __init__(self, uri):
@@ -369,6 +385,10 @@ class UserException(object):
         if isinstance(other, UserException):
             return self.uri == other.uri
         return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
 
 class Policy(object):
@@ -396,6 +416,10 @@ class Policy(object):
             return (self.id == other.id and self.action == other.action and self.name == other.name and self.validity == other.validity and
                     self.sphere == other.sphere and self.multi_identity_conditions == other.multi_identity_conditions)
         return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
 
     def __hash__(self):
         return hash(self.id)
@@ -445,6 +469,11 @@ class PresencePolicy(Policy):
             return super(PresencePolicy, self).__eq__(other)
         else:
             return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
 
 class DialoginfoPolicy(Policy):
     pass
