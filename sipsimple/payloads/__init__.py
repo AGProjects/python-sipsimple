@@ -81,6 +81,16 @@ class XMLApplication(object):
             child.register_namespace(namespace, prefix)
 
     @classmethod
+    def unregister_namespace(cls, namespace):
+        try:
+            prefix = (prefix for prefix in cls.xml_nsmap if cls.xml_nsmap[prefix]==namespace).next()
+        except StopIteration:
+            raise ValueError("namespace %s is not registered in %s" % (namespace, cls.__name__))
+        del cls.xml_nsmap[prefix]
+        for child in cls._children_applications:
+            child.unregister_namespace(namespace)
+
+    @classmethod
     def get_element(cls, qname, default=None):
         return cls._xml_classes.get(qname, default)
 
