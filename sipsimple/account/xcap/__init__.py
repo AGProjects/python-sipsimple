@@ -2223,7 +2223,7 @@ class XCAPManager(object):
         # After all this trouble, we've found a list that can take our new contact: add it to the list!
         entry = resourcelists.Entry(uri=operation.contact.uri, display_name=operation.contact.name)
         if operation.contact.attributes:
-            entry.attributes = resourcelists.EntryAttributes((key, value) for key, value in operation.contact.attributes.iteritems() if value is not None)
+            entry.attributes = resourcelists.Entry.attributes.type((key, value) for key, value in operation.contact.attributes.iteritems() if value is not None)
         rlist.append(entry)
         self.resource_lists.dirty = True
 
@@ -2277,7 +2277,7 @@ class XCAPManager(object):
             if 'name' in operation.attributes:
                 entry.display_name = operation.attributes.pop('name')
             if operation.attributes and entry.attributes is None:
-                entry.attributes = resourcelists.EntryAttributes()
+                entry.attributes = resourcelists.Entry.attributes.type()
             for key, value in operation.attributes.iteritems():
                 if value is None:
                     entry.attributes.pop(key, None)
