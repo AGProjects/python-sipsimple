@@ -88,7 +88,10 @@ class XMLApplication(object):
             raise KeyError("namespace %s is not registered in %s" % (namespace, cls.__name__))
         del cls.xml_nsmap[prefix]
         for child in cls._children_applications:
-            child.unregister_namespace(namespace)
+            try:
+                child.unregister_namespace(namespace)
+            except KeyError:
+                pass
 
     @classmethod
     def get_element(cls, qname, default=None):
