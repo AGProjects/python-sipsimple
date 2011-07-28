@@ -358,10 +358,10 @@ class EntryAttributes(XMLElement, EntryExtension):
 
     def _build_element(self, *args, **kwargs):
         self.element.clear()
-        for key in self:
+        for key, value in self.iteritems():
             child = etree.SubElement(self.element, '{%s}attribute' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
             child.attrib['name'] = key
-            child.attrib['value'] = self[key]
+            child.attrib['value'] = value
 
     def __contains__(self, key):
         return key in self._attributes
