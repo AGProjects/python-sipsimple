@@ -46,7 +46,6 @@ def parse_qname(qname):
 
 class XMLApplicationType(type):
     def __init__(cls, name, bases, dct):
-        cls._children_applications = []
         cls._xml_classes = {}
         cls.xml_nsmap = {}
         for base in reversed(bases):
@@ -54,11 +53,6 @@ class XMLApplicationType(type):
                 cls._xml_classes.update(base._xml_classes)
             if hasattr(base, 'xml_nsmap'):
                 cls.xml_nsmap.update(base.xml_nsmap)
-        # register this application as child of its basses
-        if dct['__module__'] != XMLApplicationType.__module__:
-            for base in bases:
-                if issubclass(base, XMLApplication):
-                    base.add_child(cls)
 
 
 class XMLApplication(object):
@@ -67,7 +61,7 @@ class XMLApplication(object):
     @classmethod
     def register_element(cls, xml_class):
         cls._xml_classes[xml_class.qname] = xml_class
-        for child in cls._children_applications:
+        for child in cls.__subclasses__():
             child.register_element(xml_class)
 
     @classmethod
@@ -77,7 +71,7 @@ class XMLApplication(object):
         if namespace in cls.xml_nsmap.itervalues():
             raise ValueError("namespace %s is already registered in %s" % (namespace, cls.__name__))
         cls.xml_nsmap[prefix] = namespace
-        for child in cls._children_applications:
+        for child in cls.__subclasses__():
             child.register_namespace(namespace, prefix)
 
     @classmethod
@@ -87,7 +81,7 @@ class XMLApplication(object):
         except StopIteration:
             raise KeyError("namespace %s is not registered in %s" % (namespace, cls.__name__))
         del cls.xml_nsmap[prefix]
-        for child in cls._children_applications:
+        for child in cls.__subclasses__():
             try:
                 child.unregister_namespace(namespace)
             except KeyError:
@@ -96,10 +90,6 @@ class XMLApplication(object):
     @classmethod
     def get_element(cls, qname, default=None):
         return cls._xml_classes.get(qname, default)
-
-    @classmethod
-    def add_child(cls, application):
-        cls._children_applications.append(application)
 
 
 ## Children descriptors
