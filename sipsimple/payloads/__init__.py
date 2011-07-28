@@ -351,6 +351,20 @@ class XMLElement(object):
         pass
     
     @classmethod
+    def _register_xml_attribute(cls, attribute, element):
+        cls._xml_element_children[attribute] = element
+        cls._xml_children_qname_map[element.type.qname] = (element, element.type)
+        for subclass in cls.__subclasses__():
+            subclass._register_xml_attribute(attribute, element)
+
+    @classmethod
+    def _unregister_xml_attribute(cls, attribute):
+        element = cls._xml_element_children.pop(attribute)
+        del cls._xml_children_qname_map[element.type.qname]
+        for subclass in cls.__subclasses__():
+            subclass._unregister_xml_attribute(attribute)
+
+    @classmethod
     def register_extension(cls, attribute, type, test_equal=True):
         if cls._xml_extension_type is None:
             raise ValueError("XMLElement type %s does not support extensions (requested extension type %s)" % (cls.__name__, type.__name__))
@@ -360,8 +374,14 @@ class XMLElement(object):
             raise ValueError("XMLElement type %s already has an attribute named %s (requested extension type %s)" % (cls.__name__, attribute, type.__name__))
         extension = XMLElementChild(attribute, type=type, required=False, test_equal=test_equal)
         setattr(cls, attribute, extension)
-        cls._xml_element_children[attribute] = extension
-        cls._xml_children_qname_map[type.qname] = (extension, type)
+        cls._register_xml_attribute(attribute, extension)
+
+    @classmethod
+    def unregister_extension(cls, attribute):
+        if cls._xml_extension_type is None:
+            raise ValueError("XMLElement type %s does not support extensions" % cls.__name__)
+        cls._unregister_xml_attribute(attribute)
+        delattr(cls, attribute)
 
     def _insert_element(self, element):
         if element in self.element:

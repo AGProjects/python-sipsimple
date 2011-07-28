@@ -22,7 +22,7 @@ from eventlet import coros
 
 from sipsimple.account.xcap import Contact as XCAPContact
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroupMeta, SettingsObjectID, SettingsState, ObjectNotFoundError, DuplicateIDError, ModifiedValue, PersistentKey
-from sipsimple.payloads.resourcelists import EntryAttributes, ResourceListsApplication
+from sipsimple.payloads.resourcelists import Entry, EntryAttributes, ResourceListsApplication
 from sipsimple.threading import call_in_thread, call_in_twisted_thread, run_in_thread
 from sipsimple.util import TimestampedNotificationData
 
@@ -397,9 +397,12 @@ class SharedSetting(Setting):
         if cls.__namespace__ is not None:
             raise RuntimeError("namespace already set to %s" % cls.__namespace__)
         cls.__namespace__ = namespace
+        class ApplicationEntryAttributes(EntryAttributes):
+            _xml_namespace = 'urn:%s:xml:ns:resource-lists' % namespace
         ResourceListsApplication.unregister_namespace(EntryAttributes._xml_namespace)
-        EntryAttributes._xml_namespace = 'urn:%s:xml:ns:resource-lists' % namespace
-        ResourceListsApplication.register_namespace(EntryAttributes._xml_namespace, prefix='%s-rl' % namespace.rsplit(':', 1)[-1])
+        ResourceListsApplication.register_namespace(ApplicationEntryAttributes._xml_namespace, prefix='%s-rl' % namespace.rsplit(':', 1)[-1])
+        Entry.unregister_extension('attributes')
+        Entry.register_extension('attributes', ApplicationEntryAttributes)
 
 
 class Contact(SettingsState):
