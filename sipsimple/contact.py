@@ -20,7 +20,7 @@ from application.python.decorator import execute_once
 from application.python.types import Singleton
 from eventlet import coros
 
-from sipsimple.account.xcap import Contact as XCAPContact
+from sipsimple.account import xcap
 from sipsimple.configuration import ConfigurationManager, Setting, SettingsGroupMeta, SettingsObjectID, SettingsState, ObjectNotFoundError, DuplicateIDError, ModifiedValue, PersistentKey
 from sipsimple.payloads.resourcelists import Entry, EntryAttributes, ResourceListsApplication
 from sipsimple.threading import call_in_thread, call_in_twisted_thread, run_in_thread
@@ -383,6 +383,25 @@ class GroupDescriptor(IdentityDescriptor):
         pass
 
 
+class XCAPContact(xcap.Contact):
+    """An XCAP Contact with attributes normalized to unicode"""
+
+    __attributes__ = set()
+
+    def __init__(self, name, uri, group, **attributes):
+        normalized_attributes = dict((name, unicode(value) if value is not None else None) for name, value in attributes.iteritems() if name in self.__attributes__)
+        super(XCAPContact, self).__init__(name, uri, group, **normalized_attributes)
+
+    @classmethod
+    def normalize_xcap_contact(cls, contact):
+        instance = cls(contact.name, contact.uri, contact.group, **contact.attributes)
+        instance.presence_policies = contact.presence_policies
+        instance.dialoginfo_policies = contact.dialoginfo_policies
+        instance.subscribe_to_presence = contact.subscribe_to_presence
+        instance.subscribe_to_dialoginfo = contact.subscribe_to_dialoginfo
+        return instance
+
+
 class SharedSetting(Setting):
     """A setting that is shared by being also stored remotely in XCAP"""
 
@@ -584,8 +603,10 @@ class Contact(SettingsState):
             raise TypeError("expected subclass of ContactExtension, got %r" % (extension,))
         for name in dir(extension):
             attribute = getattr(extension, name, None)
-            if isinstance(attribute, SharedSetting) and SharedSetting.__namespace__ is None:
-                raise RuntimeError("cannot use SharedSetting attributes without first calling SharedSetting.set_namespace")
+            if isinstance(attribute, SharedSetting):
+                if SharedSetting.__namespace__ is None:
+                    raise RuntimeError("cannot use SharedSetting attributes without first calling SharedSetting.set_namespace")
+                XCAPContact.__attributes__.add(name)
             if isinstance(attribute, (Setting, SettingsGroupMeta)):
                 setattr(cls, name, attribute)
 
@@ -734,6 +755,7 @@ class AccountContactManager(ContactManagerBase):
         for contact in (contact for contact in self.contacts.values() if contact.uri not in new_contact_uris):
             contact._internal_delete(update_remote=False)
         for xcap_contact in notification.data.contacts:
+            xcap_contact = XCAPContact.normalize_xcap_contact(xcap_contact)
             try:
                 contact = self.contacts[xcap_contact.uri]
             except KeyError:
@@ -760,8 +782,8 @@ class AccountContactManager(ContactManagerBase):
                         group.save()
                     contact.group = group
             contact.name = xcap_contact.name
-            for name, attribute in xcap_contact.attributes.iteritems():
-                setattr(contact, name, attribute)
+            for name, value in xcap_contact.attributes.iteritems():
+                setattr(contact, name, value)
             contact._internal_save(remote_xcap_contact=xcap_contact)
 
 
