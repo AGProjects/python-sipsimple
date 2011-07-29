@@ -2223,7 +2223,7 @@ class XCAPManager(object):
         # After all this trouble, we've found a list that can take our new contact: add it to the list!
         entry = resourcelists.Entry(uri=operation.contact.uri, display_name=operation.contact.name)
         if operation.contact.attributes:
-            entry.attributes = resourcelists.Entry.attributes.type((key, value) for key, value in operation.contact.attributes.iteritems() if value is not None)
+            entry.attributes = resourcelists.Entry.attributes.type(operation.contact.attributes)
         rlist.append(entry)
         self.resource_lists.dirty = True
 
@@ -2278,11 +2278,7 @@ class XCAPManager(object):
                 entry.display_name = operation.attributes.pop('name')
             if operation.attributes and entry.attributes is None:
                 entry.attributes = resourcelists.Entry.attributes.type()
-            for key, value in operation.attributes.iteritems():
-                if value is None:
-                    entry.attributes.pop(key, None)
-                else:
-                    entry.attributes[key] = value
+            entry.attributes.update(operation.attributes)
             self.resource_lists.dirty = True
         else:
             # We may need to move the contact to a different place; the logic would be too complicated, so first remove the contact and then add it.
@@ -2456,7 +2452,6 @@ class XCAPManager(object):
                 contact.subscribe_to_presence = operation.contact.subscribe_to_presence
             if contact.subscribe_to_dialoginfo is Null:
                 contact.subscribe_to_dialoginfo = operation.contact.subscribe_to_dialoginfo
-            contact.attributes = dict((key, value) for key, value in contact.attributes.iteritems() if value is not None)
             # Now we can delete the contact and add it again
             ops = [RemoveContactOperation(contact=operation.contact), AddContactOperation(contact=contact)]
             for op in ops:

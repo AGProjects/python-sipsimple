@@ -349,19 +349,23 @@ class EntryAttributes(XMLElement, EntryExtension):
 
     def _parse_element(self, element, *args, **kwargs):
         self._attributes = dict()
-        for child in element:
-            if child.tag == '{%s}attribute' % self._xml_namespace:
-                try:
-                    self[child.attrib['name']] = child.attrib['value']
-                except:
-                    pass
+        attribute_tag = '{%s}attribute' % self._xml_namespace
+        for child in (child for child in element if child.tag == attribute_tag):
+            if 'nil' in child.attrib:
+                self[child.attrib['name']] = None
+            else:
+                self[child.attrib['name']] = unicode(child.text or u'')
 
     def _build_element(self, *args, **kwargs):
         self.element.clear()
+        attribute_tag = '{%s}attribute' % self._xml_namespace
         for key, value in self.iteritems():
-            child = etree.SubElement(self.element, '{%s}attribute' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
+            child = etree.SubElement(self.element, attribute_tag, nsmap=self._xml_application.xml_nsmap)
             child.attrib['name'] = key
-            child.attrib['value'] = value
+            if value is None:
+                child.attrib['nil'] = 'true'
+            else:
+                child.text = value
 
     def __contains__(self, key):
         return key in self._attributes
