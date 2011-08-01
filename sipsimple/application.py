@@ -495,6 +495,9 @@ class SIPApplication(object):
         new_devices = set(notification.data.new_devices)
         removed_devices = old_devices - new_devices
 
+        if not removed_devices:
+            return
+
         input_device = self.voice_audio_bridge.mixer.input_device
         output_device = self.voice_audio_bridge.mixer.output_device
         alert_device = self.alert_audio_bridge.mixer.output_device
