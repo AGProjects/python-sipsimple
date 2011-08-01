@@ -12,7 +12,6 @@ from __future__ import absolute_import, with_statement
 __all__ = ['Session', 'SessionManager']
 
 import random
-import re
 
 from datetime import datetime
 from threading import RLock
@@ -28,8 +27,8 @@ from eventlet.coros import queue
 from twisted.internet import reactor
 from zope.interface import implements
 
-from sipsimple.core import Engine, Invitation, Referral, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages
-from sipsimple.core import ContactHeader, FromHeader, ReasonHeader, ReferToHeader, RouteHeader, SubjectHeader, ToHeader, WarningHeader
+from sipsimple.core import DialogID, Engine, Invitation, Referral, Subscription, PJSIPError, SIPCoreError, SIPCoreInvalidStateError, SIPURI, sip_status_messages, sipfrag_re
+from sipsimple.core import ContactHeader, FromHeader, Header, ReasonHeader, ReferToHeader, ReplacesHeader, RouteHeader, SubjectHeader, ToHeader, WarningHeader
 from sipsimple.core import SDPConnection, SDPMediaStream, SDPSession
 
 from sipsimple.account import AccountManager, BonjourAccount
@@ -37,7 +36,7 @@ from sipsimple.configuration.settings import SIPSimpleSettings
 from sipsimple.lookup import DNSLookup, DNSLookupError
 from sipsimple.payloads import ValidationError
 from sipsimple.payloads.conference import Conference
-from sipsimple.streams import MediaStreamRegistry, InvalidStreamError, UnknownStreamError
+from sipsimple.streams import AudioStream, MediaStreamRegistry, InvalidStreamError, UnknownStreamError
 from sipsimple.threading import run_in_twisted_thread
 from sipsimple.threading.green import Command, run_in_green_thread
 from sipsimple.util import TimestampedNotificationData
@@ -84,6 +83,13 @@ class SIPReferralDidFail(Exception):
 class IllegalStateError(RuntimeError):
     pass
 
+class IllegalDirectionError(Exception):
+    pass
+
+class SIPInvitationTransferDidFail(Exception):
+    def __init__(self, data):
+        self.data = data
+
 
 @decorator
 def transition_state(required_state, new_state):
@@ -111,6 +117,20 @@ def check_state(required_states):
     return state_checker
 
 
+@decorator
+def check_transfer_state(direction, state):
+    def state_checker(func):
+        @preserve_signature(func)
+        def wrapper(obj, *args, **kwargs):
+            if obj.transfer_handler.direction != direction:
+                raise IllegalDirectionError('cannot transfer in %s direction' % obj.transfer_handler.direction)
+            if obj.transfer_handler.state != state:
+                raise IllegalStateError('cannot transfer in %s state' % obj.transfer_handler.state)
+            return func(obj, *args, **kwargs)
+        return wrapper
+    return state_checker
+
+
 class AddParticipantOperation(object):
     pass
 
@@ -119,8 +139,6 @@ class RemoveParticipantOperation(object):
 
 class ReferralHandler(object):
     implements(IObserver)
-
-    sipfrag_re = re.compile(r'^SIP/2\.0 (?P<code>\d{3}) (?P<reason>.+)')
 
     def __init__(self, session, participant_uri, operation):
         self.session = session
@@ -223,7 +241,7 @@ class ReferralHandler(object):
                     notification = self._channel.wait()
                     if notification.name == 'SIPReferralGotNotify':
                         if notification.data.event == 'refer' and notification.data.body:
-                            match = self.sipfrag_re.match(notification.data.body)
+                            match = sipfrag_re.match(notification.data.body)
                             if match:
                                 code = int(match.group('code'))
                                 reason = match.group('reason')
@@ -613,6 +631,278 @@ class ConferenceHandler(object):
             self._wakeup_timer = reactor.callLater(5, wakeup_action) # wait for system to stabilize
 
 
+class TransferInfo(object):
+    def __init__(self, referred_by=None, replaced_dialog_id=None):
+        self.referred_by = referred_by
+        self.replaced_dialog_id = replaced_dialog_id
+
+class TransferHandler(object):
+    implements(IObserver)
+
+    def __init__(self, session):
+        self.direction = None
+        self.new_session = None
+        self.session = session
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=self.session)
+        notification_center.add_observer(self, sender=self.session._invitation)
+        self._command_channel = coros.queue()
+        self._data_channel = coros.queue()
+        self._proc = proc.spawn(self._run)
+
+    def _run(self):
+        while True:
+            command = self._command_channel.wait()
+            handler = getattr(self, '_CH_%s' % command.name)
+            handler(command)
+            self.direction = None
+            self.state = None
+
+    def _CH_incoming_transfer(self, command):
+        self.direction = 'incoming'
+        notification_center = NotificationCenter()
+        refer_to_hdr = command.data.headers.get('Refer-To')
+        target = SIPURI.parse(refer_to_hdr.uri)
+        referred_by_hdr = command.data.headers.get('Referred-By', None)
+        if referred_by_hdr is not None:
+            origin = referred_by_hdr.body
+        else:
+            origin = None
+        try:
+            while True:
+                try:
+                    notification = self._data_channel.wait()
+                except SIPInvitationTransferDidFail:
+                    self.state = 'failed'
+                    return
+                else:
+                    if notification.name == 'SIPInvitationTransferDidStart':
+                        self.state = 'starting'
+                        refer_to_uri = SIPURI.new(target)
+                        refer_to_uri.headers = {}
+                        refer_to_uri.parameters = {}
+                        notification_center.post_notification('SIPSessionTransferNewIncoming', self.session, TimestampedNotificationData(transfer_destination=refer_to_uri, transfer_source=origin))
+                    elif notification.name == 'SIPSessionTransferDidStart':
+                        break
+                    elif notification.name == 'SIPSessionTransferDidFail':
+                        self.session._invitation.notify_transfer_progress(notification.data.code)
+            self.state = 'started'
+            transfer_info = TransferInfo(referred_by=origin)
+            try:
+                replaces_hdr = target.headers.pop('Replaces')
+                call_id, rest = replaces_hdr.split(';', 1)
+                params = dict((item.split('=') for item in rest.split(';')))
+                to_tag = params.get('to-tag')
+                from_tag = params.get('from-tag')
+            except (KeyError, ValueError):
+                pass
+            else:
+                transfer_info.replaced_dialog_id = DialogID(call_id, local_tag=from_tag, remote_tag=to_tag)
+            settings = SIPSimpleSettings()
+            account = self.session.account
+            if account.sip.outbound_proxy is not None:
+                uri = SIPURI(host=account.sip.outbound_proxy.host,
+                             port=account.sip.outbound_proxy.port,
+                             parameters={'transport': account.sip.outbound_proxy.transport})
+            elif account.sip.always_use_my_proxy:
+                uri = SIPURI(host=account.id.domain)
+            else:
+                uri = target
+            lookup = DNSLookup()
+            try:
+                routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
+            except DNSLookupError:
+                try:
+                    self.session._invitation.notify_transfer_progress(480)
+                except SIPCoreError:
+                    pass
+                while True:
+                    try:
+                        notification = self._data_channel.wait()
+                    except SIPInvitationTransferDidFail, e:
+                        self.state = 'failed'
+                        notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason))
+                        return
+            account = self.session.account
+            self.new_session = Session(account)
+            notification_center = NotificationCenter()
+            notification_center.add_observer(self, sender=self.new_session)
+            self.new_session.connect(ToHeader(target), routes=routes, streams=[AudioStream(account)], transfer_info=transfer_info)
+            while True:
+                try:
+                    notification = self._data_channel.wait()
+                except SIPInvitationTransferDidFail, e:
+                    self.state = 'failed'
+                    notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason))
+                    break
+                if notification.name == 'SIPInvitationTransferDidEnd':
+                    self.state = 'ended'
+                    self.session.end()
+                    notification_center.post_notification('SIPSessionTransferDidEnd', sender=self.session, data=TimestampedNotificationData())
+                    break
+        except proc.ProcExit:
+            if self.new_session is not None:
+                notification_center.remove_observer(self, sender=self.new_session)
+                self.new_session = None
+            raise
+
+    def _CH_outgoing_transfer(self, command):
+        self.direction = 'outgoing'
+        notification_center = NotificationCenter()
+        self.state = 'starting'
+        while True:
+            try:
+                notification = self._data_channel.wait()
+            except SIPInvitationTransferDidFail, e:
+                self.state = 'failed'
+                notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason))
+                return
+            if notification.name == 'SIPInvitationTransferDidStart':
+                self.state = 'started'
+                notification_center.post_notification('SIPSessionTransferDidStart', self.session, TimestampedNotificationData())
+            elif notification.name == 'SIPInvitationTransferDidEnd':
+                self.state = 'ended'
+                self.session.end()
+                notification_center.post_notification('SIPSessionTransferDidEnd', sender=self.session, data=TimestampedNotificationData())
+                break
+
+    def _terminate(self):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=self.session._invitation)
+        notification_center.remove_observer(self, sender=self.session)
+        self._proc.kill()
+        self._proc = None
+        self._command_channel = None
+        self._data_channel = None
+        self.session = None
+
+    @run_in_twisted_thread
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_SIPInvitationTransferNewIncoming(self, notification):
+        self._command_channel.send(Command('incoming_transfer', data=notification.data))
+
+    def _NH_SIPInvitationTransferNewOutgoing(self, notification):
+        self._command_channel.send(Command('outgoing_transfer', data=notification.data))
+
+    def _NH_SIPInvitationTransferDidStart(self, notification):
+        self._data_channel.send(notification)
+
+    def _NH_SIPInvitationTransferDidFail(self, notification):
+        self._data_channel.send_exception(SIPInvitationTransferDidFail(notification.data))
+
+    def _NH_SIPInvitationTransferDidEnd(self, notification):
+        self._data_channel.send(notification)
+
+    def _NH_SIPInvitationTransferGotNotify(self, notification):
+        if notification.data.event == 'refer' and notification.data.body:
+            match = sipfrag_re.match(notification.data.body)
+            if match:
+                code = int(match.group('code'))
+                reason = match.group('reason')
+                notification_center = NotificationCenter()
+                notification_center.post_notification('SIPSessionTransferGotProgress', sender=self.session, data=TimestampedNotificationData(code=code, reason=reason))
+
+    def _NH_SIPSessionTransferDidStart(self, notification):
+        if notification.sender is self.session and self.state == 'starting':
+            self._data_channel.send(notification)
+
+    def _NH_SIPSessionTransferDidFail(self, notification):
+        if notification.sender is self.session and self.state == 'starting':
+            self._data_channel.send(notification)
+
+    def _NH_SIPSessionGotRingIndication(self, notification):
+        if notification.sender is self.new_session and self.session is not None:
+            try:
+                self.session._invitation.notify_transfer_progress(180)
+            except SIPCoreError:
+                pass
+
+    def _NH_SIPSessionGotProvisionalResponse(self, notification):
+        if notification.sender is self.new_session and self.session is not None:
+            try:
+                self.session._invitation.notify_transfer_progress(notification.data.code, notification.data.reason)
+            except SIPCoreError:
+                pass
+
+    def _NH_SIPSessionDidStart(self, notification):
+        if notification.sender is self.new_session:
+            notification_center = NotificationCenter()
+            notification_center.remove_observer(self, sender=notification.sender)
+            self.new_session = None
+            if self.session is not None:
+                if self.state == 'started':
+                    try:
+                        self.session._invitation.notify_transfer_progress(200)
+                    except SIPCoreError:
+                        pass
+                else:
+                    self.session.end()
+
+    def _NH_SIPSessionDidEnd(self, notification):
+        if notification.sender is self.new_session:
+            # If any stream fails to start we won't get SIPSessionDidFail, we'll get here instead
+            notification_center = NotificationCenter()
+            notification_center.remove_observer(self, sender=notification.sender)
+            self.new_session = None
+            if self.session is not None and self.state == 'started':
+                try:
+                    self.session._invitation.notify_transfer_progress(500)
+                except SIPCoreError:
+                    pass
+        else:
+            self._terminate()
+
+    def _NH_SIPSessionDidFail(self, notification):
+        if notification.sender is self.new_session:
+            notification_center = NotificationCenter()
+            notification_center.remove_observer(self, sender=notification.sender)
+            self.new_session = None
+            if self.session is not None and self.state == 'started':
+                try:
+                    self.session._invitation.notify_transfer_progress(notification.data.code or 500, notification.data.reason)
+                except SIPCoreError:
+                    pass
+        else:
+            self._terminate()
+
+
+class SessionReplaceHandler(object):
+    implements(IObserver)
+
+    def __init__(self, session):
+        self.session = session
+
+    def start(self):
+        notification_center = NotificationCenter()
+        notification_center.add_observer(self, sender=self.session)
+        notification_center.add_observer(self, sender=self.session.replaced_session)
+
+    def handle_notification(self, notification):
+        handler = getattr(self, '_NH_%s' % notification.name, Null)
+        handler(notification)
+
+    def _NH_SIPSessionDidStart(self, notification):
+        notification_center = NotificationCenter()
+        notification_center.remove_observer(self, sender=self.session)
+        notification_center.remove_observer(self, sender=self.session.replaced_session)
+        self.session.replaced_session.end()
+        self.session.replaced_session = None
+        self.session = None
+
+    def _NH_SIPSessionDidFail(self, notification):
+        if notification.sender is self.session:
+            notification_center = NotificationCenter()
+            notification_center.remove_observer(self, sender=self.session)
+            notification_center.remove_observer(self, sender=self.session.replaced_session)
+            self.session.replaced_session = None
+            self.session = None
+
+    _NH_SIPSessionDidEnd = _NH_SIPSessionDidFail
+
+
 class Session(object):
     implements(IObserver)
 
@@ -633,6 +923,9 @@ class Session(object):
         self.remote_focus = False
         self.greenlet = None
         self.conference = None
+        self.replaced_session = None
+        self.transfer_handler = None
+        self.transfer_info = None
         self._channel = queue()
         self._hold_in_progress = False
         self._invitation = None
@@ -665,12 +958,30 @@ class Session(object):
             self.transport = invitation.transport
             self._invitation = invitation
             self.conference = ConferenceHandler(self)
+            self.transfer_handler = TransferHandler(self)
             if 'isfocus' in invitation.remote_contact_header.parameters:
                 self.remote_focus = True
             try:
                 self.__dict__['subject'] = data.headers['Subject'].subject
             except KeyError:
                 pass
+            if 'Referred-By' in data.headers or 'Replaces' in data.headers:
+                self.transfer_info = TransferInfo()
+                if 'Referred-By' in data.headers:
+                    self.transfer_info.referred_by = data.headers['Referred-By'].body
+                if 'Replaces' in data.headers:
+                    replaces_header = data.headers.get('Replaces')
+                    replaced_dialog_id = DialogID(replaces_header.call_id, local_tag=replaces_header.to_tag, remote_tag=replaces_header.from_tag)
+                    session_manager = SessionManager()
+                    try:
+                        self.replaced_session = (session for session in session_manager.sessions if session._invitation is not None and session._invitation.dialog_id == replaced_dialog_id).next()
+                    except StopIteration:
+                        invitation.send_response(481)
+                        return
+                    else:
+                        self.transfer_info.replaced_dialog_id = replaced_dialog_id
+                        replace_handler = SessionReplaceHandler(self)
+                        replace_handler.start()
             notification_center.add_observer(self, sender=invitation)
             notification_center.post_notification('SIPSessionNewIncoming', self, TimestampedNotificationData(streams=self.proposed_streams))
         else:
@@ -678,7 +989,7 @@ class Session(object):
 
     @transition_state(None, 'connecting')
     @run_in_green_thread
-    def connect(self, to_header, routes, streams, is_focus=False, subject=None):
+    def connect(self, to_header, routes, streams, is_focus=False, subject=None, transfer_info=None):
         self.greenlet = api.getcurrent()
         notification_center = NotificationCenter()
         settings = SIPSimpleSettings()
@@ -697,7 +1008,9 @@ class Session(object):
         self._local_identity = FromHeader(self.account.uri, self.account.display_name)
         self._remote_identity = to_header
         self.conference = ConferenceHandler(self)
+        self.transfer_handler = TransferHandler(self)
         self.__dict__['subject'] = subject
+        self.transfer_info = transfer_info
         notification_center.add_observer(self, sender=self._invitation)
         notification_center.post_notification('SIPSessionNewOutgoing', self, TimestampedNotificationData(streams=streams))
         for stream in self.proposed_streams:
@@ -737,6 +1050,11 @@ class Session(object):
             extra_headers = []
             if self.subject is not None:
                 extra_headers.append(SubjectHeader(self.subject))
+            if self.transfer_info is not None:
+                extra_headers.append(Header('Referred-By', self.transfer_info.referred_by))
+                if self.transfer_info.replaced_dialog_id is not None:
+                    dialog_id = self.transfer_info.replaced_dialog_id
+                    extra_headers.append(ReplacesHeader(dialog_id.call_id, dialog_id.local_tag, dialog_id.remote_tag))
             self._invitation.send_invite(to_header.uri, from_header, to_header, route_header, contact_header, local_sdp, self.account.credentials, extra_headers)
             try:
                 with api.timeout(settings.sip.invite_timeout):
@@ -1580,6 +1898,28 @@ class Session(object):
             notification_center.remove_observer(self, sender=self._invitation)
             self.greenlet = None
             self.state = 'terminated'
+
+    @check_state(['connected'])
+    @run_in_twisted_thread
+    def transfer(self, target_uri, replaced_session=None):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPSessionTransferNewOutgoing', self, TimestampedNotificationData(transfer_destination=target_uri, transfer_source=self.local_identity.uri))
+        try:
+            self._invitation.transfer(target_uri, replaced_session._invitation.dialog_id if replaced_session is not None else None)
+        except SIPCoreError, e:
+            notification_center.post_notification('SIPSessionTransferDidFail', sender=self, data=TimestampedNotificationData(code=500, reason=str(e)))
+
+    @check_state(['connected', 'received_proposal', 'sending_proposal', 'accepting_proposal', 'rejecting_proposal', 'cancelling_proposal'])
+    @check_transfer_state('incoming', 'starting')
+    def accept_transfer(self):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPSessionTransferDidStart', self, TimestampedNotificationData())
+
+    @check_state(['connected', 'received_proposal', 'sending_proposal', 'accepting_proposal', 'rejecting_proposal', 'cancelling_proposal'])
+    @check_transfer_state('incoming', 'starting')
+    def reject_transfer(self, code=486):
+        notification_center = NotificationCenter()
+        notification_center.post_notification('SIPSessionTransferDidFail', self, TimestampedNotificationData(code=code))
 
     @property
     def local_identity(self):

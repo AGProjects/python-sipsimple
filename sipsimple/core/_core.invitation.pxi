@@ -4,7 +4,9 @@
 # python imports
 
 import weakref
+
 from errno import EADDRNOTAVAIL, ENETUNREACH
+from operator import itemgetter
 
 
 # classes
@@ -30,7 +32,39 @@ cdef class SDPCallbackTimer(Timer):
         self.status = status
 
 
+cdef class TransferStateCallbackTimer(Timer):
+    def __init__(self, state, code, reason):
+        self.state = state
+        self.code = code
+        self.reason = reason
+
+
+cdef class TransferResponseCallbackTimer(Timer):
+    def __init__(self, method, rdata):
+        self.method = method
+        self.rdata = rdata
+
+
+cdef class TransferRequestCallbackTimer(Timer):
+    def __init__(self, rdata):
+        self.rdata = rdata
+
+
+class DialogID(tuple):
+    call_id = property(itemgetter(0))
+    local_tag = property(itemgetter(1))
+    remote_tag = property(itemgetter(2))
+
+    def __new__(cls, call_id, local_tag, remote_tag):
+        return tuple.__new__(cls, (call_id, local_tag, remote_tag))
+
+    def __repr__(self):
+        return 'DialogID(call_id=%r, local_tag=%r, remote_tag=%r)' % self
+
+
 cdef class Invitation:
+    expire_warning_time = 30
+
     def __cinit__(self, *args, **kwargs):
         self.weakref = weakref.ref(self)
         Py_INCREF(self.weakref)
@@ -40,9 +74,12 @@ cdef class Invitation:
         self._invite_session = NULL
         self._dialog = NULL
         self._reinvite_transaction = NULL
+        self._transfer_usage = NULL
         self._sdp_neg_status = -1
         self._failed_response = 0
         self._timer = None
+        self._transfer_timeout_timer = None
+        self._transfer_refresh_timer = None
         self.from_header = None
         self.to_header = None
         self.request_uri = None
@@ -55,6 +92,7 @@ cdef class Invitation:
         self.state = None
         self.sub_state = None
         self.transport = None
+        self.transfer_state = None
         self.direction = None
         self.call_id = None
         self.peer_address = None
@@ -63,10 +101,11 @@ cdef class Invitation:
         cdef int status
         cdef pj_mutex_t *lock = self._lock
         cdef pjmedia_sdp_session_ptr_const sdp
+        cdef pjsip_dialog *replaced_dialog = NULL
         cdef pjsip_dialog **dialog_address
         cdef pjsip_inv_session **invite_session_address
         cdef pjsip_tpselector tp_sel
-        cdef pjsip_tx_data *tdata
+        cdef pjsip_tx_data *tdata = NULL
         cdef PJSTR contact_uri_str
 
         with nogil:
@@ -74,6 +113,18 @@ cdef class Invitation:
         if status != 0:
             raise PJSIPError("failed to acquire lock", status)
         try:
+            # Validate replaces header
+            with nogil:
+                status = pjsip_replaces_verify_request(rdata, &replaced_dialog, 0, &tdata)
+            if status != 0:
+                if tdata != NULL:
+                    with nogil:
+                        pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
+                else:
+                    with nogil:
+                        pjsip_endpt_respond_stateless(ua._pjsip_endpoint._obj, rdata, 500, NULL, NULL, NULL)
+                return 0
+
             dialog_address = &self._dialog
             invite_session_address = &self._invite_session
 
@@ -152,6 +203,95 @@ cdef class Invitation:
 
         return 0
 
+    cdef int process_incoming_transfer(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1:
+        global _incoming_transfer_cb
+        global _event_hdr_name
+        cdef int status
+        cdef dict rdata_dict = dict(obj=self)
+        cdef pjsip_tx_data *tdata
+        cdef pjsip_transaction *initial_tsx
+        cdef Timer timer
+
+        if self._transfer_usage != NULL:
+            with nogil:
+                status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 480, NULL, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create response", status)
+            with nogil:
+                status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
+            if status != 0:
+                with nogil:
+                    pjsip_tx_data_dec_ref(tdata)
+                raise PJSIPError("Could not send response", status)
+            return 0
+        _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+        try:
+            refer_to_hdr = rdata_dict["headers"]["Refer-To"]
+            SIPURI.parse(refer_to_hdr.uri)
+        except (KeyError, SIPCoreError):
+            with nogil:
+                status = pjsip_endpt_create_response(ua._pjsip_endpoint._obj, rdata, 400, NULL, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create response", status)
+            with nogil:
+                status = pjsip_endpt_send_response2(ua._pjsip_endpoint._obj, rdata, tdata, NULL, NULL)
+            if status != 0:
+                with nogil:
+                    pjsip_tx_data_dec_ref(tdata)
+                raise PJSIPError("Could not send response", status)
+            return 0
+        try:
+            self._set_transfer_state("INCOMING")
+            _add_event("SIPInvitationTransferNewIncoming", rdata_dict)
+            # PJSIP event framework needs an Event header, even if it's not needed for REFER, so we insert a fake one
+            event_header = <pjsip_event_hdr *> pjsip_msg_find_hdr_by_name(rdata.msg_info.msg, &_event_hdr_name.pj_str, NULL)
+            if event_header == NULL:
+                event_header = pjsip_event_hdr_create(rdata.tp_info.pool)
+                event_header.event_type = _refer_event.pj_str
+                pjsip_msg_add_hdr(rdata.msg_info.msg, <pjsip_hdr *> event_header)
+            initial_tsx = pjsip_rdata_get_tsx(rdata)
+            with nogil:
+                status = pjsip_evsub_create_uas(self._dialog, &_incoming_transfer_cb, rdata, 0, &self._transfer_usage)
+            if status != 0:
+                with nogil:
+                    pjsip_tsx_terminate(initial_tsx, 500)
+                raise PJSIPError("Could not create incoming REFER session", status)
+            self._transfer_usage_role = PJSIP_ROLE_UAS
+            pjsip_evsub_set_mod_data(self._transfer_usage, ua._event_module.id, <void *> self.weakref)
+            with nogil:
+                status = pjsip_dlg_create_response(self._dialog, rdata, 202, NULL, &tdata)
+            if status != 0:
+                with nogil:
+                    pjsip_tsx_terminate(initial_tsx, 500)
+                raise PJSIPError("Could not create response for incoming REFER", status)
+            pjsip_evsub_update_expires(self._transfer_usage, 90)
+            with nogil:
+                status = pjsip_dlg_send_response(self._dialog, initial_tsx, tdata)
+            if status != 0:
+                with nogil:
+                    status = pjsip_dlg_modify_response(self._dialog, tdata, 500, NULL)
+                if status != 0:
+                    raise PJSIPError("Could not modify response", status)
+                # pjsip_dlg_modify_response() increases ref count unncessarily
+                with nogil:
+                    pjsip_tx_data_dec_ref(tdata)
+                raise PJSIPError("Could not send response", status)
+        except PJSIPError, e:
+            code = 0
+            reason = e.args[0]
+            if self._transfer_usage != NULL:
+                with nogil:
+                    pjsip_evsub_terminate(self._transfer_usage, 0)
+            # Manually trigger the state callback since we handle the timeout ourselves
+            state_timer = TransferStateCallbackTimer("TERMINATED", code, reason)
+            state_timer.schedule(0, <timer_callback>self._transfer_cb_state, self)
+        else:
+            self._set_transfer_state("ACTIVE")
+            _add_event("SIPInvitationTransferDidStart", dict(obj=self))
+            timer = Timer()
+            timer.schedule(0, <timer_callback>self._start_incoming_transfer, self)
+        return 0
+
     def send_invite(self, SIPURI request_uri not None, FromHeader from_header not None, ToHeader to_header not None, RouteHeader route_header not None, ContactHeader contact_header not None,
                     SDPSession sdp not None, Credentials credentials=None, list extra_headers not None=list(), timeout=None):
         cdef int status
@@ -160,6 +300,7 @@ cdef class Invitation:
         cdef pjsip_cred_info *cred_info
         cdef pjsip_dialog **dialog_address
         cdef pjsip_inv_session **invite_session_address
+        cdef pjsip_replaces_hdr *pj_replaces_hdr
         cdef pjsip_route_hdr *route_set
         cdef pjsip_tx_data *tdata
         cdef PJSIPUA ua
@@ -249,6 +390,21 @@ cdef class Invitation:
                 status = pjsip_inv_invite(invite_session_address[0], &tdata)
             if status != 0:
                 raise PJSIPError("Could not create INVITE message", status)
+            replaces_headers = [header for header in extra_headers if isinstance(header, BaseReplacesHeader)]
+            if len(replaces_headers) > 1:
+                raise SIPCoreError("Only one Replaces header is allowed")
+            try:
+                replaces_header = replaces_headers[0]
+            except IndexError:
+                pass
+            else:
+                extra_headers.remove(replaces_header)
+                pj_replaces_hdr = pjsip_replaces_hdr_create(self._dialog.pool)
+                _str_to_pj_str(replaces_header.call_id, &pj_replaces_hdr.call_id)
+                _str_to_pj_str(replaces_header.to_tag, &pj_replaces_hdr.to_tag)
+                _str_to_pj_str(replaces_header.from_tag, &pj_replaces_hdr.from_tag)
+                _dict_to_pjsip_param(replaces_header.parameters, &pj_replaces_hdr.other_param, self._dialog.pool)
+                pjsip_msg_add_hdr(tdata.msg, <pjsip_hdr *>pj_replaces_hdr)
             _add_headers_to_tdata(tdata, extra_headers)
             with nogil:
                 status = pjsip_inv_send_msg(invite_session_address[0], tdata)
@@ -414,6 +570,82 @@ cdef class Invitation:
             with nogil:
                 pj_mutex_unlock(lock)
 
+    def transfer(self, SIPURI target_uri, object replaced_dialog_id=None, list extra_headers not None=list()):
+        global _refer_event
+        global _refer_method
+        cdef int status
+        cdef PJSIPUA ua
+        cdef pj_mutex_t *lock = self._lock
+        cdef pjsip_method refer_method
+        cdef pjsip_tx_data *tdata
+        cdef dict tdata_dict = dict(obj=self)
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self.state != "connected":
+                raise SIPCoreError('Can only start transfer in "connected" state, not "%s" state' % self.state)
+            if self._transfer_usage != NULL:
+                raise SIPCoreError('Another transfer is in progress')
+            with nogil:
+                status = pjsip_evsub_create_uac(self._dialog, &_transfer_cb, &_refer_event.pj_str, PJSIP_EVSUB_NO_EVENT_ID, &self._transfer_usage)
+            if status != 0:
+                raise PJSIPError("Could not create REFER", status)
+            self._transfer_usage_role = PJSIP_ROLE_UAC
+            pjsip_evsub_set_mod_data(self._transfer_usage, ua._event_module.id, <void *> self.weakref)
+            pjsip_method_init_np(&refer_method, &_refer_method.pj_str)
+            with nogil:
+                status = pjsip_evsub_initiate(self._transfer_usage, &refer_method, -1, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create REFER message", status)
+            if replaced_dialog_id is not None and None not in replaced_dialog_id:
+                target_uri.headers["Replaces"] = "%s;from-tag=%s;to-tag=%s" % replaced_dialog_id
+            refer_to_header = ReferToHeader(str(target_uri))
+            _add_headers_to_tdata(tdata, [refer_to_header, Header('Referred-By', str(self.from_header.uri))])
+            _add_headers_to_tdata(tdata, extra_headers)
+            # We can't remove the Event header or PJSIP will fail to match responses to this request
+            _remove_headers_from_tdata(tdata, ["Expires"])
+            with nogil:
+                status = pjsip_evsub_send_request(self._transfer_usage, tdata)
+            if status != 0:
+                raise PJSIPError("Could not send REFER message", status)
+            _pjsip_msg_to_dict(tdata.msg, tdata_dict)
+            _add_event("SIPInvitationTransferNewOutgoing", tdata_dict)
+            self._transfer_timeout_timer = Timer()
+            self._transfer_timeout_timer.schedule(90, <timer_callback>self._transfer_cb_timeout_timer, self)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
+    def notify_transfer_progress(self, int code, str reason=None):
+        cdef int status
+        cdef PJSIPUA ua
+        cdef pj_mutex_t *lock = self._lock
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self._transfer_usage == NULL:
+                raise SIPCoreError("No transfer is in progress")
+            if self._transfer_usage_role != PJSIP_ROLE_UAS:
+                raise SIPCoreError("Transfer progress can only be notified by the transfer UAS")
+            self._set_sipfrag_payload(code, reason)
+            if 200 <= code < 700:
+                self._terminate_transfer_uas()
+            else:
+                self._send_notify()
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
     def end(self, list extra_headers not None=list(), timeout=None):
         cdef int status
         cdef pj_mutex_t *lock = self._lock
@@ -443,6 +675,9 @@ cdef class Invitation:
                 raise SIPCoreError('Cannot end incoming INVITE dialog while in the "early" state')
             if timeout is not None and timeout <= 0:
                 raise ValueError("Timeout value cannot be negative")
+
+            # End ongoing transfer
+            self._terminate_transfer()
 
             with nogil:
                 status = pjsip_inv_end_session(invite_session, 0, NULL, &tdata)
@@ -493,6 +728,16 @@ cdef class Invitation:
                 return self.to_header
             else:
                 return None
+
+    property dialog_id:
+
+        def __get__(self):
+            local_tag = remote_tag = None
+            if self.local_identity is not None:
+                local_tag = self.local_identity.tag
+            if self.remote_identity is not None:
+                remote_tag = self.remote_identity.tag
+            return DialogID(self.call_id, local_tag, remote_tag)
 
     cdef PJSIPUA _check_ua(self):
         try:
@@ -580,6 +825,18 @@ cdef class Invitation:
     cdef int _fail(self, PJSIPUA ua) except -1:
         cdef Timer timer
         ua._handle_exception(0)
+        if self._transfer_usage != NULL:
+            with nogil:
+                pjsip_evsub_terminate(self._transfer_usage, 0)
+            pjsip_evsub_set_mod_data(self._transfer_usage, ua._event_module.id, NULL)
+            if self._transfer_timeout_timer is not None:
+                self._transfer_timeout_timer.cancel()
+                self._transfer_timeout_timer = None
+            if self._transfer_refresh_timer is not None:
+                self._transfer_refresh_timer.cancel()
+                self._transfer_refresh_timer = None
+            self._transfer_usage = NULL
+            _add_event("SIPInvitationTransferDidFail", dict(obj=self, code=0, reason="internal error"))
         self._invite_session.mod_data[ua._module.id] = NULL
         if self.state != "disconnected":
             event_dict = dict(obj=self, prev_state=self.state, state="disconnected", originator="local", disconnect_reason="internal error")
@@ -642,6 +899,9 @@ cdef class Invitation:
 
             if self.direction == "outgoing" and state in ('connecting', 'connected') and self.state in ('outgoing', 'early') and rdata is not None:
                 self.to_header = rdata['headers']['To']
+
+            if self.direction == "incoming" and state in ('connecting', 'connected') and self.state in ('incoming', 'early') and tdata is not None:
+                self.to_header = tdata['headers']['To']
 
             event_dict = dict(obj=self, prev_state=self.state, state=state)
             if self.state == "connected":
@@ -707,6 +967,18 @@ cdef class Invitation:
                             event_dict["disconnect_reason"] = reason
                     except (ValueError, IndexError):
                         pass
+                if self._transfer_usage != NULL:
+                    with nogil:
+                        pjsip_evsub_terminate(self._transfer_usage, 0)
+                    pjsip_evsub_set_mod_data(self._transfer_usage, ua._event_module.id, NULL)
+                    if self._transfer_timeout_timer is not None:
+                        self._transfer_timeout_timer.cancel()
+                        self._transfer_timeout_timer = None
+                    if self._transfer_refresh_timer is not None:
+                        self._transfer_refresh_timer.cancel()
+                        self._transfer_refresh_timer = None
+                    self._transfer_usage = NULL
+                    _add_event("SIPInvitationTransferDidFail", dict(obj=self, code=0, reason="invite dialog ended"))
                 self._invite_session.mod_data[ua._module.id] = NULL
                 self._invite_session = NULL
                 self._dialog = NULL
@@ -779,6 +1051,302 @@ cdef class Invitation:
 
     cdef int _cb_postpoll_fail(self, timer) except -1:
         self._do_dealloc()
+
+    cdef int _start_incoming_transfer(self, timer) except -1:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            self._set_sipfrag_payload(100, "Trying")
+            self._send_notify()
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+        return 0
+
+    cdef int _terminate_transfer(self) except -1:
+        if self._transfer_usage == NULL:
+            return 0
+        if self._transfer_usage_role == PJSIP_ROLE_UAC:
+            self._terminate_transfer_uac()
+        else:
+            self._terminate_transfer_uas()
+
+    cdef int _terminate_transfer_uac(self) except -1:
+        cdef pjsip_tx_data *tdata
+        cdef int status
+        cdef TransferStateCallbackTimer state_timer
+        try:
+            with nogil:
+                status = pjsip_evsub_initiate(self._transfer_usage, NULL, 0, &tdata)
+            if status != 0:
+                raise PJSIPError("Could not create SUBSCRIBE message", status)
+            with nogil:
+                status = pjsip_evsub_send_request(self._transfer_usage, tdata)
+            if status != 0:
+                raise PJSIPError("Could not send SUBSCRIBE message", status)
+            if self._transfer_timeout_timer is not None:
+                self._transfer_timeout_timer.cancel()
+                self._transfer_timeout_timer = None
+            if self._transfer_refresh_timer is not None:
+                self._transfer_refresh_timer.cancel()
+                self._transfer_refresh_timer = None
+            self._transfer_timeout_timer = Timer()
+            self._transfer_timeout_timer.schedule(1, <timer_callback>self._transfer_cb_timeout_timer, self)
+        except PJSIPError, e:
+            if self._transfer_usage != NULL:
+                code = 0
+                reason = e.args[0]
+                with nogil:
+                    pjsip_evsub_terminate(self._transfer_usage, 0)
+                # Manually trigger the state callback since we handle the timeout ourselves
+                state_timer = TransferStateCallbackTimer("TERMINATED", code, reason)
+                state_timer.schedule(0, <timer_callback>self._transfer_cb_state, self)
+
+    cdef int _terminate_transfer_uas(self) except -1:
+        global sipfrag_re
+        cdef int code
+        cdef TransferStateCallbackTimer state_timer
+        if self.transfer_state == "TERMINATED":
+            return 0
+        self._set_transfer_state("TERMINATED")
+        self._send_notify()
+        with nogil:
+            pjsip_evsub_terminate(self._transfer_usage, 0)
+        match = sipfrag_re.match(self._sipfrag_payload.str)
+        code = int(match.group('code'))
+        reason = match.group('reason')
+        state_timer = TransferStateCallbackTimer("TERMINATED", code, reason)
+        state_timer.schedule(0, <timer_callback>self._transfer_cb_state, self)
+
+    cdef int _set_transfer_state(self, str state) except -1:
+        cdef str prev_state
+        prev_state = self.transfer_state
+        self.transfer_state = state
+        if prev_state != state:
+            _add_event("SIPInvitationTransferChangedState", dict(obj=self, prev_state=prev_state, state=state))
+
+    cdef int _set_sipfrag_payload(self, int code, str status) except -1:
+        cdef str content
+        if status is None:
+            try:
+                status = sip_status_messages[code]
+            except IndexError:
+                status = ""
+        content = "SIP/2.0 %d %s\r\n" % (code, status)
+        self._sipfrag_payload = PJSTR(content)
+
+    cdef int _send_notify(self) except -1:
+        cdef pjsip_evsub_state state
+        cdef pj_str_t *reason_p = NULL
+        cdef pjsip_tx_data *tdata
+        cdef int status
+        cdef PJSTR _content_type = PJSTR("message")
+        cdef PJSTR _content_subtype = PJSTR("sipfrag")
+        cdef PJSTR _sipfrag_version = PJSTR(";version=2.0")
+        cdef PJSTR noresource = PJSTR("noresource")
+        cdef PJSTR content
+
+        if self.transfer_state == "ACTIVE":
+            state = PJSIP_EVSUB_STATE_ACTIVE
+        else:
+            state = PJSIP_EVSUB_STATE_TERMINATED
+            reason_p = &noresource.pj_str
+        with nogil:
+            status = pjsip_evsub_notify(self._transfer_usage, state, NULL, reason_p, &tdata)
+        if status != 0:
+            raise PJSIPError("Could not create NOTIFY request", status)
+        if self.transfer_state in ("ACTIVE", "TERMINATED"):
+            tdata.msg.body = pjsip_msg_body_create(tdata.pool, &_content_type.pj_str, &_content_subtype.pj_str, &self._sipfrag_payload.pj_str)
+            tdata.msg.body.content_type.param = _sipfrag_version.pj_str
+        with nogil:
+            status = pjsip_evsub_send_request(self._transfer_usage, tdata)
+        if status != 0:
+            with nogil:
+                pjsip_tx_data_dec_ref(tdata)
+            raise PJSIPError("Could not send NOTIFY request", status)
+        return 0
+
+    cdef int _transfer_cb_timeout_timer(self, timer) except -1:
+        global sip_status_messages
+        cdef int code
+        cdef str reason
+        cdef int status
+        cdef TransferStateCallbackTimer state_timer
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self._transfer_usage != NULL:
+                code = PJSIP_SC_TSX_TIMEOUT
+                reason = sip_status_messages[PJSIP_SC_TSX_TIMEOUT]
+                with nogil:
+                    pjsip_evsub_terminate(self._transfer_usage, 0)
+                # Manually trigger the state callback since we handle the timeout ourselves
+                state_timer = TransferStateCallbackTimer("TERMINATED", code, reason)
+                state_timer.schedule(0, <timer_callback>self._transfer_cb_state, self)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+        return 0
+
+    cdef int _transfer_cb_refresh_timer(self, timer) except -1:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            self._terminate_transfer()
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+        return 0
+
+    cdef int _transfer_cb_state(self, TransferStateCallbackTimer timer) except -1:
+        cdef int status
+        cdef str prev_state
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            prev_state = self.transfer_state
+            self._set_transfer_state(timer.state)
+            if timer.state == "ACCEPTED" and prev_state == "SENT":
+                _add_event("SIPInvitationTransferDidStart", dict(obj=self))
+            elif timer.state == "TERMINATED":
+                # If a NOTIFY is rejected with 408 or 481 PJSIP will erase the subscription
+                if self._transfer_usage != NULL:
+                    pjsip_evsub_set_mod_data(self._transfer_usage, ua._event_module.id, NULL)
+                if self._transfer_timeout_timer is not None:
+                    self._transfer_timeout_timer.cancel()
+                    self._transfer_timeout_timer = None
+                if self._transfer_refresh_timer is not None:
+                    self._transfer_refresh_timer.cancel()
+                    self._transfer_refresh_timer = None
+                self._transfer_usage = NULL
+                if timer.code/100 == 2:
+                    _add_event("SIPInvitationTransferDidEnd", dict(obj=self))
+                else:
+                    _add_event("SIPInvitationTransferDidFail", dict(obj=self, code=timer.code, reason=timer.reason))
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+        return 0
+
+    cdef int _transfer_cb_response(self, TransferResponseCallbackTimer timer) except -1:
+        cdef int expires
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self._transfer_timeout_timer is not None:
+                self._transfer_timeout_timer.cancel()
+                self._transfer_timeout_timer = None
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+        return 0
+
+    cdef int _transfer_cb_notify(self, TransferRequestCallbackTimer timer) except -1:
+        cdef pj_time_val refresh
+        cdef int expires
+        cdef dict notify_dict = dict(obj=self)
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            sub_state_hdr = timer.rdata["headers"].get("Subscription-State", None)
+            if self.transfer_state != "TERMINATED" and sub_state_hdr is not None and sub_state_hdr.expires > 0:
+                if self._transfer_refresh_timer is not None:
+                    self._transfer_refresh_timer.cancel()
+                    self._transfer_refresh_timer = None
+                expires = max(1, sub_state_hdr.expires - self.expire_warning_time, sub_state_hdr.expires/2)
+                self._transfer_refresh_timer = Timer()
+                self._transfer_refresh_timer.schedule(expires, <timer_callback>self._transfer_cb_refresh_timer, self)
+            notify_dict["request_uri"] = timer.rdata["request_uri"]
+            notify_dict["from_header"] = timer.rdata["headers"].get("From", None)
+            notify_dict["to_header"] = timer.rdata["headers"].get("To", None)
+            notify_dict["headers"] = timer.rdata["headers"]
+            notify_dict["body"] = timer.rdata["body"]
+            content_type, params = notify_dict["headers"].get("Content-Type", (None, None))
+            notify_dict["content_type"] = ContentType(content_type) if content_type else None
+            event = notify_dict["headers"].get("Event", None)
+            notify_dict["event"] = event.event if event else None
+            _add_event("SIPInvitationTransferGotNotify", notify_dict)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+        return 0
+
+    cdef int _transfer_cb_server_timeout(self, timer) except -1:
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = self._check_ua()
+        if ua is None:
+            return 0
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            self._terminate_transfer()
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+        return 0
 
 
 # Callback functions
@@ -913,6 +1481,7 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
     cdef Invitation invitation
     cdef PJSIPUA ua
     cdef StateCallbackTimer timer
+    cdef TransferRequestCallbackTimer transfer_timer
     try:
         ua = _get_ua()
     except:
@@ -957,12 +1526,223 @@ cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transac
                     timer.schedule(0, <timer_callback>invitation._cb_state, invitation)
                 except:
                     invitation._fail(ua)
+            elif (tsx.role == PJSIP_ROLE_UAS and tsx.state == PJSIP_TSX_STATE_TRYING and
+                  rdata != NULL and rdata.msg_info.msg.type == PJSIP_REQUEST_MSG and
+                  _pj_str_to_str(tsx.method.name) == "REFER"):
+                invitation.process_incoming_transfer(ua, rdata)
     except:
         ua._handle_exception(1)
 
 cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil:
     # As far as I can tell this is never actually called!
     pass
+
+cdef void _Invitation_transfer_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil:
+    cdef void *invitation_void
+    cdef Invitation invitation
+    cdef object state
+    cdef int code = 0
+    cdef dict event_dict = dict()
+    cdef str reason = None
+    cdef pjsip_rx_data *rdata = NULL
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        invitation_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if invitation_void == NULL:
+            return
+        invitation = (<object> invitation_void)()
+        if invitation is None:
+            return
+        state = pjsip_evsub_get_state_name(sub)
+        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            (event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED or
+             event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_TERMINATED)):
+            if state == "TERMINATED":
+                if event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC:
+                    code = event.body.tsx_state.tsx.status_code
+                    reason = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
+                else:
+                    reason = "Referral has expired"
+                if event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY":
+                    # Extract code and reason from the sipfrag payload
+                    rdata = event.body.tsx_state.src.rdata
+                    if rdata != NULL:
+                        _pjsip_msg_to_dict(rdata.msg_info.msg, event_dict)
+                        if event_dict.get('body', None) is not None:
+                            match = sipfrag_re.match(event_dict['body'])
+                            if match:
+                                code = int(match.group('code'))
+                                reason = match.group('reason')
+        try:
+            timer = TransferStateCallbackTimer(state, code, reason)
+            timer.schedule(0, <timer_callback>invitation._transfer_cb_state, invitation)
+        except:
+            invitation._fail(ua)
+    except:
+        ua._handle_exception(1)
+
+cdef void _Invitation_transfer_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil:
+    cdef void *invitation_void
+    cdef Invitation invitation
+    cdef pjsip_rx_data *rdata
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        invitation_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if invitation_void == NULL:
+            return
+        invitation = (<object> invitation_void)()
+        if invitation is None:
+            return
+        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and
+            event.body.tsx_state.type == PJSIP_EVENT_RX_MSG and
+            event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
+            event.body.tsx_state.tsx.state == PJSIP_TSX_STATE_COMPLETED and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) in ("REFER", "SUBSCRIBE") and
+            event.body.tsx_state.tsx.status_code/100 == 2):
+            rdata = event.body.tsx_state.src.rdata
+            if rdata != NULL:
+                rdata_dict = dict()
+                _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+                try:
+                    timer = TransferResponseCallbackTimer(_pj_str_to_str(event.body.tsx_state.tsx.method.name), rdata_dict)
+                    timer.schedule(0, <timer_callback>invitation._transfer_cb_response, invitation)
+                except:
+                    invitation._fail(ua)
+    except:
+        ua._handle_exception(1)
+
+cdef void _Invitation_transfer_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+                                    pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
+    cdef void *invitation_void
+    cdef Invitation invitation
+    cdef TransferRequestCallbackTimer timer
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        invitation_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if invitation_void == NULL:
+            return
+        invitation = (<object> invitation_void)()
+        if invitation is None:
+            return
+        if rdata != NULL:
+            rdata_dict = dict()
+            _pjsip_msg_to_dict(rdata.msg_info.msg, rdata_dict)
+            try:
+                timer = TransferRequestCallbackTimer(rdata_dict)
+                timer.schedule(0, <timer_callback>invitation._transfer_cb_notify, invitation)
+            except:
+                invitation._fail(ua)
+    except:
+        ua._handle_exception(1)
+
+cdef void _Invitation_transfer_cb_refresh(pjsip_evsub *sub) with gil:
+    # We want to handle the refresh timer oursevles, ignore the PJSIP provided timer
+    pass
+
+cdef void _Invitation_transfer_in_cb_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+                                            pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil:
+    cdef void *invitation_void
+    cdef dict rdata_dict
+    cdef pjsip_expires_hdr *expires_header
+    cdef Invitation invitation
+    cdef Timer timer
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        invitation_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if invitation_void == NULL:
+            p_st_code[0] = 481
+            return
+        invitation = (<object> invitation_void)()
+        if invitation is None:
+            p_st_code[0] = 481
+            return
+        expires_header = <pjsip_expires_hdr *> pjsip_msg_find_hdr(rdata.msg_info.msg, PJSIP_H_EXPIRES, NULL)
+        if expires_header != NULL and expires_header.ivalue == 0:
+            try:
+                timer = Timer()
+                timer.schedule(0, <timer_callback>invitation._terminate_transfer, invitation)
+            except:
+                invitation._fail(ua)
+            p_st_code[0] = 200
+            return
+        p_st_code[0] = 501
+    except:
+        ua._handle_exception(1)
+
+cdef void _Invitation_transfer_in_cb_server_timeout(pjsip_evsub *sub) with gil:
+    cdef void *invitation_void
+    cdef Invitation invitation
+    cdef Timer timer
+    cdef PJSIPUA ua
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        invitation_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if invitation_void == NULL:
+            return
+        invitation = (<object> invitation_void)()
+        if invitation is None:
+            return
+        try:
+            timer = Timer()
+            timer.schedule(0, <timer_callback>invitation._transfer_cb_server_timeout, invitation)
+        except:
+            invitation._fail(ua)
+    except:
+        ua._handle_exception(1)
+
+cdef void _Invitation_transfer_in_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil:
+    cdef void *invitation_void
+    cdef Invitation invitation
+    cdef PJSIPUA ua
+    cdef pjsip_rx_data *rdata
+    cdef dict event_dict
+    cdef int code
+    cdef str reason
+    cdef TransferStateCallbackTimer timer
+
+    try:
+        ua = _get_ua()
+    except:
+        return
+    try:
+        invitation_void = pjsip_evsub_get_mod_data(sub, ua._event_module.id)
+        if invitation_void == NULL:
+            return
+        invitation = (<object> invitation_void)()
+        if invitation is None:
+            return
+        if (event != NULL and event.type == PJSIP_EVENT_TSX_STATE and event.body.tsx_state.tsx.role == PJSIP_ROLE_UAC and
+            _pj_str_to_str(event.body.tsx_state.tsx.method.name) == "NOTIFY" and
+            event.body.tsx_state.tsx.state in (PJSIP_TSX_STATE_COMPLETED, PJSIP_TSX_STATE_TERMINATED)):
+
+            code = event.body.tsx_state.tsx.status_code
+            reason = _pj_str_to_str(event.body.tsx_state.tsx.status_text)
+
+            if code in (408, 481) or code/100==7:
+                # Be careful! PJSIP will erase the subscription
+                timer = TransferStateCallbackTimer("TERMINATED", code, reason)
+                timer.schedule(0, <timer_callback>invitation._transfer_cb_state, invitation)
+    except:
+        ua._handle_exception(1)
 
 
 # Globals
@@ -975,4 +1755,14 @@ _inv_cb.on_rx_reinvite = _Invitation_cb_rx_reinvite
 _inv_cb.on_tsx_state_changed = _Invitation_cb_tsx_state_changed
 _inv_cb.on_new_session = _Invitation_cb_new
 
+cdef pjsip_evsub_user _transfer_cb
+_transfer_cb.on_evsub_state = _Invitation_transfer_cb_state
+_transfer_cb.on_tsx_state = _Invitation_transfer_cb_tsx
+_transfer_cb.on_rx_notify = _Invitation_transfer_cb_notify
+_transfer_cb.on_client_refresh = _Invitation_transfer_cb_refresh
+
+cdef pjsip_evsub_user _incoming_transfer_cb
+_incoming_transfer_cb.on_rx_refresh = _Invitation_transfer_in_cb_rx_refresh
+_incoming_transfer_cb.on_server_timeout = _Invitation_transfer_in_cb_server_timeout
+_incoming_transfer_cb.on_tsx_state = _Invitation_transfer_in_cb_tsx
 

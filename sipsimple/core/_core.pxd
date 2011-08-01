@@ -759,6 +759,8 @@ cdef extern from "pjsip.h":
                                     int st_code, pj_str_t *st_text, pjsip_tx_data **p_tdata) nogil
     int pjsip_endpt_send_response2(pjsip_endpoint *endpt, pjsip_rx_data *rdata,
                                    pjsip_tx_data *tdata, void *token, void *cb) nogil
+    int pjsip_endpt_respond_stateless(pjsip_endpoint *endpt, pjsip_rx_data *rdata,
+                                      int st_code, pj_str_t *st_text, pjsip_hdr *hdr_list, pjsip_msg_body *body) nogil
     int pjsip_endpt_create_request(pjsip_endpoint *endpt, pjsip_method *method, pj_str_t *target, pj_str_t *frm,
                                    pj_str_t *to, pj_str_t *contact, pj_str_t *call_id,
                                    int cseq,pj_str_t *text, pjsip_tx_data **p_tdata) nogil
@@ -805,6 +807,7 @@ cdef extern from "pjsip.h":
         PJSIP_ROLE_UAC
         PJSIP_ROLE_UAS
     enum pjsip_tsx_state_e:
+        PJSIP_TSX_STATE_TRYING
         PJSIP_TSX_STATE_PROCEEDING
         PJSIP_TSX_STATE_COMPLETED
         PJSIP_TSX_STATE_TERMINATED
@@ -1001,6 +1004,18 @@ cdef extern from "pjsip_ua.h":
     char *pjsip_inv_state_name(pjsip_inv_state state) nogil
     int pjsip_inv_reinvite(pjsip_inv_session *inv, pj_str_t *new_contact,
                            pjmedia_sdp_session *new_offer, pjsip_tx_data **p_tdata) nogil
+
+    # Replaces
+    struct pjsip_replaces_hdr:
+        pj_str_t call_id
+        pj_str_t to_tag
+        pj_str_t from_tag
+        int early_only
+        pjsip_param other_param
+    pjsip_replaces_hdr *pjsip_replaces_hdr_create(pj_pool_t *pool) nogil
+    int pjsip_replaces_verify_request(pjsip_rx_data *rdata, pjsip_dialog **p_dlg, int lock_dlg, pjsip_tx_data **p_tdata) nogil
+    int pjsip_replaces_init_module(pjsip_endpoint *endpt) nogil
+
 
 # declarations
 
@@ -1311,6 +1326,26 @@ cdef class FrozenSubjectHeader(BaseSubjectHeader):
     cdef int initialized
     cdef readonly unicode subject
 
+cdef class BaseReplacesHeader(object):
+    pass
+
+cdef class ReplacesHeader(BaseReplacesHeader):
+    # attributes
+    cdef public str call_id
+    cdef public str from_tag
+    cdef public str to_tag
+    cdef public int early_only
+    cdef dict _parameters
+
+cdef class FrozenReplacesHeader(BaseReplacesHeader):
+    # attributes
+    cdef int initialized
+    cdef readonly str call_id
+    cdef readonly str from_tag
+    cdef readonly str to_tag
+    cdef readonly int early_only
+    cdef readonly frozendict parameters
+
 cdef Header Header_create(pjsip_generic_string_hdr *header)
 cdef FrozenHeader FrozenHeader_create(pjsip_generic_string_hdr *header)
 cdef ContactHeader ContactHeader_create(pjsip_contact_hdr *header)
@@ -1335,6 +1370,8 @@ cdef ReferToHeader ReferToHeader_create(pjsip_generic_string_hdr *header)
 cdef FrozenReferToHeader FrozenReferToHeader_create(pjsip_generic_string_hdr *header)
 cdef SubjectHeader SubjectHeader_create(pjsip_generic_string_hdr *header)
 cdef FrozenSubjectHeader FrozenSubjectHeader_create(pjsip_generic_string_hdr *header)
+cdef ReplacesHeader ReplacesHeader_create(pjsip_replaces_hdr *header)
+cdef FrozenReplacesHeader FrozenReplacesHeader_create(pjsip_replaces_hdr *header)
 
 # core.util
 
@@ -1864,22 +1901,31 @@ cdef FrozenSDPAttribute FrozenSDPAttribute_create(pjmedia_sdp_attr *pj_attr)
 # core.invitation
 
 cdef class SDPPayloads:
-    # attributes
     cdef readonly FrozenSDPSession proposed_local
     cdef readonly FrozenSDPSession proposed_remote
     cdef readonly FrozenSDPSession active_local
     cdef readonly FrozenSDPSession active_remote
 
 cdef class StateCallbackTimer(Timer):
-    # attributes
     cdef object state
     cdef object sub_state
     cdef object rdata
     cdef object tdata
 
 cdef class SDPCallbackTimer(Timer):
-    # attributes
     cdef int status
+
+cdef class TransferStateCallbackTimer(Timer):
+    cdef object state
+    cdef object code
+    cdef object reason
+
+cdef class TransferResponseCallbackTimer(Timer):
+    cdef object method
+    cdef object rdata
+
+cdef class TransferRequestCallbackTimer(Timer):
+    cdef object rdata
 
 cdef class Invitation(object):
     # attributes
@@ -1890,16 +1936,22 @@ cdef class Invitation(object):
     cdef pj_list _route_set
     cdef pj_mutex_t *_lock
     cdef pjsip_inv_session *_invite_session
+    cdef pjsip_evsub *_transfer_usage
+    cdef pjsip_role_e _transfer_usage_role
     cdef pjsip_dialog *_dialog
     cdef pjsip_route_hdr _route_header
     cdef pjsip_transaction *_reinvite_transaction
+    cdef PJSTR _sipfrag_payload
     cdef Timer _timer
+    cdef Timer _transfer_timeout_timer
+    cdef Timer _transfer_refresh_timer
     cdef readonly str call_id
     cdef readonly str direction
     cdef readonly str remote_user_agent
     cdef readonly str state
     cdef readonly str sub_state
     cdef readonly str transport
+    cdef readonly str transfer_state
     cdef readonly EndpointAddress peer_address
     cdef readonly FrozenCredentials credentials
     cdef readonly FrozenContactHeader local_contact_header
@@ -1912,6 +1964,7 @@ cdef class Invitation(object):
 
     # private methods
     cdef int init_incoming(self, PJSIPUA ua, pjsip_rx_data *rdata, unsigned int inv_options) except -1
+    cdef int process_incoming_transfer(self, PJSIPUA ua, pjsip_rx_data *rdata) except -1
     cdef PJSIPUA _check_ua(self)
     cdef int _do_dealloc(self) except -1
     cdef int _update_contact_header(self, BaseContactHeader contact_header) except -1
@@ -1920,6 +1973,19 @@ cdef class Invitation(object):
     cdef int _cb_sdp_done(self, SDPCallbackTimer timer) except -1
     cdef int _cb_timer_disconnect(self, timer) except -1
     cdef int _cb_postpoll_fail(self, timer) except -1
+    cdef int _start_incoming_transfer(self, timer) except -1
+    cdef int _terminate_transfer(self) except -1
+    cdef int _terminate_transfer_uac(self) except -1
+    cdef int _terminate_transfer_uas(self) except -1
+    cdef int _set_transfer_state(self, str state) except -1
+    cdef int _set_sipfrag_payload(self, int code, str reason) except -1
+    cdef int _send_notify(self) except -1
+    cdef int _transfer_cb_timeout_timer(self, timer) except -1
+    cdef int _transfer_cb_refresh_timer(self, timer) except -1
+    cdef int _transfer_cb_state(self, TransferStateCallbackTimer timer) except -1
+    cdef int _transfer_cb_response(self, TransferResponseCallbackTimer timer) except -1
+    cdef int _transfer_cb_notify(self, TransferRequestCallbackTimer timer) except -1
+    cdef int _transfer_cb_server_timeout(self, timer) except -1
 
 cdef void _Invitation_cb_state(pjsip_inv_session *inv, pjsip_event *e) with gil
 cdef void _Invitation_cb_sdp_done(pjsip_inv_session *inv, int status) with gil
@@ -1927,6 +1993,14 @@ cdef void _Invitation_cb_rx_reinvite(pjsip_inv_session *inv,
                                      pjmedia_sdp_session_ptr_const offer, pjsip_rx_data *rdata) with gil
 cdef void _Invitation_cb_tsx_state_changed(pjsip_inv_session *inv, pjsip_transaction *tsx, pjsip_event *e) with gil
 cdef void _Invitation_cb_new(pjsip_inv_session *inv, pjsip_event *e) with gil
+cdef void _Invitation_transfer_cb_state(pjsip_evsub *sub, pjsip_event *event) with gil
+cdef void _Invitation_transfer_cb_tsx(pjsip_evsub *sub, pjsip_transaction *tsx, pjsip_event *event) with gil
+cdef void _Invitation_transfer_cb_notify(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+                                         pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+cdef void _Invitation_transfer_cb_refresh(pjsip_evsub *sub) with gil
+cdef void _Invitation_transfer_in_cb_rx_refresh(pjsip_evsub *sub, pjsip_rx_data *rdata, int *p_st_code,
+                                                pj_str_t **p_st_text, pjsip_hdr *res_hdr, pjsip_msg_body **p_body) with gil
+cdef void _Invitation_transfer_in_cb_server_timeout(pjsip_evsub *sub) with gil
 
 # core.mediatransport
 

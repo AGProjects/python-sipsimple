@@ -61,6 +61,9 @@ cdef class PJSIPEndpoint:
         status = pjsip_100rel_init_module(self._obj)
         if status != 0:
             raise PJSIPError("Could not initialize 100rel module", status)
+        status = pjsip_replaces_init_module(self._obj)
+        if status != 0:
+            raise PJSIPError("Could not initialize replaces module", status)
         status = pjsip_inv_usage_init(self._obj, &_inv_cb)
         if status != 0:
             raise PJSIPError("Could not initialize invitation module", status)

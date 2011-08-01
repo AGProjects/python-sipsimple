@@ -1459,6 +1459,97 @@ cdef class FrozenSubjectHeader(BaseSubjectHeader):
 del FrozenSubjectHeader_new
 
 
+cdef object BaseReplacesHeader_richcmp(object self, object other, int op) with gil:
+    if op not in (2, 3):
+        return NotImplemented
+    if not isinstance(other, BaseReplacesHeader):
+        return NotImplemented
+    if op == 2:
+        return self.call_id == other.call_id and self.from_tag == other.from_tag and self.to_tag == other.to_tag and self.early_flag == other.early_only and self.parameters == other.parameters
+    else:
+        return self.call_id != other.call_id or self.from_tag != other.from_tag or self.to_tag != other.to_tag or self.early_flag != other.early_only or self.parameters != other.parameters
+
+cdef class BaseReplacesHeader:
+    normal_type = ReplacesHeader
+    frozen_type = FrozenReplacesHeader
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("BaseReplacesHeader cannot be instantiated directly")
+
+    def __repr__(self):
+        return "%s(%r, %r, %r, %r, %r)" % (self.__class__.__name__, self.call_id, self.from_tag, self.to_tag, self.early_only, self.parameters)
+
+    def __str__(self):
+        return "%s: %s" % (self.name, self.body)
+
+    def __richcmp__(self, other, op):
+        return BaseReplacesHeader_richcmp(self, other, op)
+
+    property name:
+
+        def __get__(self):
+            return "Replaces"
+
+    property body:
+
+        def __get__(self):
+            string = "%s;from-tag=%s;to-tag=%s" % (self.call_id, self.from_tag, self.to_tag)
+            if self.early_only:
+                string += ";early-only"
+            if self.parameters:
+                string += ";" + ";".join(["%s%s" % (name, "" if value is None else "=%s" % value)
+                                          for name, value in self.parameters.iteritems()])
+            return string
+
+def ReplacesHeader_new(cls, BaseReplacesHeader header):
+    return cls(header.call_id, header.from_tag, header.to_tag, header.early_only, dict(header.parameters))
+
+cdef class ReplacesHeader(BaseReplacesHeader):
+    def __init__(self, str call_id not None, str from_tag not None, str to_tag not None, int early_only=0, dict parameters=None):
+        self.call_id = call_id
+        self.from_tag = from_tag
+        self.to_tag = to_tag
+        self.early_only = early_only
+        self.parameters = parameters if parameters is not None else {}
+
+    property parameters:
+
+        def __get__(self):
+            return self._parameters
+
+        def __set__(self, dict parameters not None):
+            self._parameters = parameters
+
+    new = classmethod(ReplacesHeader_new)
+
+del ReplacesHeader_new
+
+def FrozenReplacesHeader_new(cls, BaseReplacesHeader header):
+    if isinstance(header, cls):
+        return header
+    return cls(header.call_id, header.header.from_tag, header.to_tag, header.early_only, frozendict(header.parameters))
+
+cdef class FrozenReplacesHeader(BaseReplacesHeader):
+    def __init__(self, str call_id not None, str from_tag not None, str to_tag not None, int early_only=0, frozendict parameters not None=frozendict()):
+        if not self.initialized:
+            self.call_id = call_id
+            self.from_tag = from_tag
+            self.to_tag = to_tag
+            self.early_only = early_only
+            self.parameters = parameters
+            self.initialized = 1
+
+    def __hash__(self):
+        return hash((self.call_id, self.from_tag, self.to_tag, self.early_only, self.parameters))
+
+    def __richcmp__(self, other, op):
+        return BaseReplacesHeader_richcmp(self, other, op)
+
+    new = classmethod(FrozenReplacesHeader_new)
+
+del FrozenReplacesHeader_new
+
+
 # Factory functions
 #
 
@@ -1707,4 +1798,20 @@ cdef SubjectHeader SubjectHeader_create(pjsip_generic_string_hdr *header):
 cdef FrozenSubjectHeader FrozenSubjectHeader_create(pjsip_generic_string_hdr *header):
     subject = unicode(_pj_str_to_str((<pjsip_generic_string_hdr *>header).hvalue), encoding='utf-8')
     return FrozenSubjectHeader(subject)
+
+cdef ReplacesHeader ReplacesHeader_create(pjsip_replaces_hdr *header):
+    cdef dict parameters = _pjsip_param_to_dict(&header.other_param)
+    call_id = _pj_str_to_str(header.call_id)
+    from_tag = _pj_str_to_str(header.from_tag)
+    to_tag = _pj_str_to_str(header.to_tag)
+    early_only = int(header.early_only)
+    return ReplacesHeader(call_id, from_tag, to_tag, early_only, parameters)
+
+cdef FrozenReplacesHeader FrozenReplacesHeader_create(pjsip_replaces_hdr *header):
+    cdef dict parameters = _pjsip_param_to_dict(&header.other_param)
+    call_id = _pj_str_to_str(header.call_id)
+    from_tag = _pj_str_to_str(header.from_tag)
+    to_tag = _pj_str_to_str(header.to_tag)
+    early_only = int(header.early_only)
+    return FrozenReplacesHeader(call_id, from_tag, to_tag, early_only, frozendict(parameters))
 

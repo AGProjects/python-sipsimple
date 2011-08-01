@@ -41,10 +41,13 @@ __all__ = ["PJ_VERSION", "PJ_SVN_REVISION", "CORE_REVISION",
            "BaseReasonHeader", "ReasonHeader", "FrozenReasonHeader",
            "BaseReferToHeader", "ReferToHeader", "FrozenReferToHeader",
            "BaseSubjectHeader", "SubjectHeader", "FrozenSubjectHeader",
+           "BaseReplacesHeader", "ReplacesHeader", "FrozenReplacesHeader",
            "Request",
            "Referral",
+           "sipfrag_re",
            "Subscription",
            "Invitation",
+           "DialogID",
            "SDPSession", "FrozenSDPSession", "SDPMediaStream", "FrozenSDPMediaStream", "SDPConnection", "FrozenSDPConnection", "SDPAttribute", "FrozenSDPAttribute",
            "RTPTransport", "AudioTransport"]
 

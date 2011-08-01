@@ -231,11 +231,11 @@ cdef class Referral:
             self._refresh_timer_active = 0
 
     cdef int _send_refer(self, PJSIPUA ua, pj_time_val *timeout, FrozenReferToHeader refer_to_header, frozenlist extra_headers) except -1:
-        cdef PJSTR refer_method_str = PJSTR("REFER")
+        global _refer_method
         cdef pjsip_method refer_method
         cdef pjsip_tx_data *tdata
         cdef int status
-        pjsip_method_init_np(&refer_method, &refer_method_str.pj_str)
+        pjsip_method_init_np(&refer_method, &_refer_method.pj_str)
         with nogil:
             status = pjsip_evsub_initiate(self._obj, &refer_method, -1, &tdata)
         if status != 0:
@@ -975,7 +975,8 @@ _incoming_refer_subs_cb.on_rx_refresh = _IncomingReferral_cb_rx_refresh
 _incoming_refer_subs_cb.on_server_timeout = _IncomingReferral_cb_server_timeout
 _incoming_refer_subs_cb.on_tsx_state = _IncomingReferral_cb_tsx
 
-sipfrag_re = re.compile(r'^SIP/2\.0 (?P<code>\d{3}) (?P<reason>.+)')
+sipfrag_re = re.compile(r'^SIP/2\.0 (?P<code>\d{3}) (?P<reason>.+)\r\n')
+cdef PJSTR _refer_method = PJSTR("REFER")
 cdef PJSTR _refer_event = PJSTR("refer")
 cdef PJSTR _refer_to_hdr_name = PJSTR("Refer-To")
 cdef PJSTR _refer_sub_hdr_name = PJSTR("Refer-Sub")
