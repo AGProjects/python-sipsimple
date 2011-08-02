@@ -3,8 +3,8 @@
 
 """High-level management of XCAP documents based on OMA specifications"""
 
-__all__ = ['Contact', 'Service', 'CatchAllCondition', 'DomainCondition', 'DomainExcepton', 'UserException', 'Policy', 'Class', 'OccurenceID', 
-           'DeviceID', 'ServiceURI', 'ServiceURIScheme', 'PresencePolicy', 'DialoginfoPolicy', 'Icon', 'OfflineStatus', 'XCAPManager', 'XCAPTransaction']
+__all__ = ['Contact', 'Service', 'CatchAllCondition', 'DomainCondition', 'DomainExcepton', 'UserException', 'Policy', 'Class', 'OccurenceID', 'DeviceID',
+           'ServiceURI', 'ServiceURIScheme', 'PresencePolicy', 'DialoginfoPolicy', 'FallbackPolicies', 'Icon', 'OfflineStatus', 'XCAPManager', 'XCAPTransaction']
 
 
 import base64
@@ -25,6 +25,7 @@ from urllib2 import URLError
 from application import log
 from application.notification import IObserver, NotificationCenter
 from application.python import Null, limit
+from application.python.types import NullType
 from eventlet import api, coros, proc
 from eventlet.green.httplib import BadStatusLine
 from twisted.internet.error import ConnectionLost
@@ -477,6 +478,12 @@ class PresencePolicy(Policy):
 
 class DialoginfoPolicy(Policy):
     pass
+
+
+class FallbackPoliciesType(NullType):
+    __name__ = 'FallbackPolicies'
+
+FallbackPolicies = FallbackPoliciesType()
 
 
 class Icon(object):
@@ -1888,7 +1895,7 @@ class XCAPManager(object):
                                     remove_from_lists.update(ref_lists)
                             except ValueError:
                                 continue
-                        elif isinstance(condition, common_policy.Identity) and action is not None:
+                        elif isinstance(condition, common_policy.Identity) and action is not None and operation.contact.presence_policies is not FallbackPolicies:
                             for identity in condition:
                                 if isinstance(identity, common_policy.IdentityOne) and identity.id == operation.contact.uri:
                                     to_remove.append((identity, condition))
@@ -2000,7 +2007,7 @@ class XCAPManager(object):
                         if operation.contact.subscribe_to_dialoginfo and rlist in dialoginfo_lists:
                             add_to_dialoginfo_list = False
         # Update the dialoginfo rules
-        if self.dialog_rules.supported:
+        if self.dialog_rules.supported and operation.contact.dialoginfo_policies is not FallbackPolicies:
             dialog_rules = self.dialog_rules.content
             # Create any non-existing rules
             if operation.contact.dialoginfo_policies:
