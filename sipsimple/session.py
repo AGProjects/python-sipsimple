@@ -1843,11 +1843,12 @@ class Session(object):
             # The invitation was not yet constructed
             notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
             return
-        if self._invitation.state in ('disconnecting', 'disconnected'):
+        invitation_state = self._invitation.state
+        if invitation_state in ('disconnecting', 'disconnected'):
             return
         self.greenlet = api.getcurrent()
         self.state = 'terminating'
-        if self._invitation.state == 'connected':
+        if invitation_state == 'connected':
             notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator='local'))
         streams = (self.streams or []) + (self.proposed_streams or [])
         for stream in streams[:]:
@@ -1857,7 +1858,7 @@ class Session(object):
                 streams.remove(stream)
             else:
                 stream.deactivate()
-        cancelling = self._invitation.state != 'connected' and self.direction == 'outgoing'
+        cancelling = invitation_state != 'connected' and self.direction == 'outgoing'
         try:
             self._invitation.end(timeout=1)
             while True:
