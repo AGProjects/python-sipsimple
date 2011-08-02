@@ -308,8 +308,8 @@ class Contact(object):
         self.uri = uri
         self.group = group
         self.attributes = attributes
-        self.presence_policies = None
-        self.dialoginfo_policies = None
+        self.presence_policies = []
+        self.dialoginfo_policies = []
         self.subscribe_to_presence = True
         self.subscribe_to_dialoginfo = True
 

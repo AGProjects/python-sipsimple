@@ -453,8 +453,6 @@ class Contact(SettingsState):
             instance.__state__ = 'loaded'
             attributes = dict((name, getattr(instance, name)) for name, attr in vars(cls).iteritems() if isinstance(attr, SharedSetting))
             instance.__xcapcontact__ = XCAPContact(instance.name, uri, group.name if group is not None else None, **attributes)
-            instance.__xcapcontact__.presence_policies = []   # temporary empty until presence is implemented -Dan
-            instance.__xcapcontact__.dialoginfo_policies = []
         return instance
 
     def __establish__(self):
@@ -510,8 +508,9 @@ class Contact(SettingsState):
         old_xcapcontact = self.__xcapcontact__
         attributes = dict((name, getattr(self, name)) for name, attr in vars(self.__class__).iteritems() if isinstance(attr, SharedSetting))
         self.__xcapcontact__ = XCAPContact(self.name, self.uri, self.group.name if self.group is not None else None, **attributes)
-        self.__xcapcontact__.presence_policies = remote_xcap_contact.presence_policies if remote_xcap_contact is not None else []  # temporarily copy them over until we support policies -Dan
-        self.__xcapcontact__.dialoginfo_policies = remote_xcap_contact.dialoginfo_policies if remote_xcap_contact is not None else []
+        if remote_xcap_contact is not None: # temporarily copy them over until we support policies -Dan
+            self.__xcapcontact__.presence_policies = remote_xcap_contact.presence_policies
+            self.__xcapcontact__.dialoginfo_policies = remote_xcap_contact.dialoginfo_policies
 
         configuration = ConfigurationManager()
 
