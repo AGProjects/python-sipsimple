@@ -1837,7 +1837,7 @@ class Session(object):
             return
         if self.greenlet is not None:
             api.kill(self.greenlet, api.GreenletExit())
-        self.greenlet = api.getcurrent()
+        self.greenlet = None
         notification_center = NotificationCenter()
         if self._invitation is None or self._invitation.state is None:
             # The invitation was not yet constructed
@@ -1845,6 +1845,7 @@ class Session(object):
             return
         if self._invitation.state in ('disconnecting', 'disconnected'):
             return
+        self.greenlet = api.getcurrent()
         self.state = 'terminating'
         if self._invitation.state == 'connected':
             notification_center.post_notification('SIPSessionWillEnd', self, TimestampedNotificationData(originator='local'))
