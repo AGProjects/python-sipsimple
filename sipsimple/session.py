@@ -1889,11 +1889,31 @@ class Session(object):
                 self.end_time = datetime.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator='local', end_reason='SIP core error: %s' % str(e)))
         except InvitationDisconnectedError, e:
-            if cancelling:
-                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
-            else:
+            # As it weird as it may sound, PJSIP accepts a BYE even without receiving a final response to the INVITE
+            if e.data.prev_state == 'connected':
+                if e.data.originator == 'remote':
+                    notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator=e.data.originator, method=e.data.method, code=200, reason=sip_status_messages[200]))
                 self.end_time = datetime.now()
                 notification_center.post_notification('SIPSessionDidEnd', self, TimestampedNotificationData(originator=e.data.originator, end_reason=e.data.disconnect_reason))
+            elif getattr(e.data, 'method', None) == 'BYE' and e.data.originator == 'remote':
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator=e.data.originator, method=e.data.method, code=200, reason=sip_status_messages[200]))
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator=e.data.originator, code=0, reason=None, failure_reason=e.data.disconnect_reason, redirect_identities=None))
+            else:
+                if e.data.originator == 'remote':
+                    code = e.data.code
+                    reason = e.data.reason
+                elif e.data.disconnect_reason == 'timeout':
+                    code = 408
+                    reason = 'timeout'
+                else:
+                    code = 0
+                    reason = None
+                if e.data.originator == 'remote' and code // 100 == 3:
+                    redirect_identities = e.data.headers.get('Contact', [])
+                else:
+                    redirect_identities = None
+                notification_center.post_notification('SIPSessionDidProcessTransaction', self, TimestampedNotificationData(originator='local', method='INVITE', code=code, reason=reason))
+                notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator=e.data.originator, code=code, reason=reason, failure_reason=e.data.disconnect_reason, redirect_identities=redirect_identities))
         else:
             if cancelling:
                 notification_center.post_notification('SIPSessionDidFail', self, TimestampedNotificationData(originator='local', code=487, reason='Session Cancelled', failure_reason='user request', redirect_identities=None))
