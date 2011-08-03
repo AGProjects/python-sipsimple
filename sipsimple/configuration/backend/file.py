@@ -85,7 +85,8 @@ class FileBackend(object):
             name = u''
             value = u''
             quote_char = None
-            quoted = False
+            quoted_name = False
+            quoted_value = False
             separator = None
             spaces = u''
             stage = READ_NAME
@@ -94,7 +95,10 @@ class FileBackend(object):
                 if char in (u"'", u'"'):
                     if quote_char is None:
                         quote_char = char
-                        quoted = True
+                        if stage is READ_NAME:
+                            quoted_name = True
+                        else:
+                            quoted_value = True
                         continue
                     elif char == quote_char:
                         quote_char = None
@@ -137,7 +141,7 @@ class FileBackend(object):
                         if not value:
                             raise FileParserError("unexpected `,' at line %d" % lineno)
                         value = [value, u'']
-                    quoted = False
+                    quoted_value = False
                     spaces = u''
                     continue
 
@@ -165,10 +169,10 @@ class FileBackend(object):
                 state_stack[0].data[name] = new_group_state.data
                 state_stack.appendleft(new_group_state)
             elif separator == u'=':
-                if not value:
+                if not value and not quoted_value:
                     value = None
                 elif isinstance(value, list):
-                    if not value[-1] and not quoted:
+                    if not value[-1] and not quoted_value:
                         value = value[:-1]
                 state_stack[0].data[name] = value
 
