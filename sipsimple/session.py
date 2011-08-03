@@ -700,7 +700,9 @@ class TransferHandler(object):
                 transfer_info.replaced_dialog_id = DialogID(call_id, local_tag=from_tag, remote_tag=to_tag)
             settings = SIPSimpleSettings()
             account = self.session.account
-            if account.sip.outbound_proxy is not None:
+            if account is BonjourAccount():
+                uri = target
+            elif account.sip.outbound_proxy is not None:
                 uri = SIPURI(host=account.sip.outbound_proxy.host,
                              port=account.sip.outbound_proxy.port,
                              parameters={'transport': account.sip.outbound_proxy.transport})
