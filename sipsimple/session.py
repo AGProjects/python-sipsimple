@@ -685,7 +685,12 @@ class TransferHandler(object):
                     elif notification.name == 'SIPSessionTransferDidStart':
                         break
                     elif notification.name == 'SIPSessionTransferDidFail':
-                        self.session._invitation.notify_transfer_progress(notification.data.code)
+                        self.state = 'failed'
+                        try:
+                            self.session._invitation.notify_transfer_progress(notification.data.code)
+                        except SIPCoreError:
+                            pass
+                        return
             self.state = 'started'
             transfer_info = TransferInfo(referred_by=origin)
             try:
@@ -714,6 +719,8 @@ class TransferHandler(object):
             try:
                 routes = lookup.lookup_sip_proxy(uri, settings.sip.transport_list).wait()
             except DNSLookupError:
+                self.state = 'failed'
+                notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason))
                 try:
                     self.session._invitation.notify_transfer_progress(480)
                 except SIPCoreError:
@@ -721,9 +728,7 @@ class TransferHandler(object):
                 while True:
                     try:
                         notification = self._data_channel.wait()
-                    except SIPInvitationTransferDidFail, e:
-                        self.state = 'failed'
-                        notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason))
+                    except SIPInvitationTransferDidFail:
                         return
             account = self.session.account
             self.new_session = Session(account)
@@ -733,15 +738,10 @@ class TransferHandler(object):
             while True:
                 try:
                     notification = self._data_channel.wait()
-                except SIPInvitationTransferDidFail, e:
-                    self.state = 'failed'
-                    notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=e.data.code, reason=e.data.reason))
-                    break
+                except SIPInvitationTransferDidFail:
+                    return
                 if notification.name == 'SIPInvitationTransferDidEnd':
-                    self.state = 'ended'
-                    self.session.end()
-                    notification_center.post_notification('SIPSessionTransferDidEnd', sender=self.session, data=TimestampedNotificationData())
-                    break
+                    return
         except proc.ProcExit:
             if self.new_session is not None:
                 notification_center.remove_observer(self, sender=self.new_session)
@@ -766,7 +766,7 @@ class TransferHandler(object):
                 self.state = 'ended'
                 self.session.end()
                 notification_center.post_notification('SIPSessionTransferDidEnd', sender=self.session, data=TimestampedNotificationData())
-                break
+                return
 
     def _terminate(self):
         notification_center = NotificationCenter()
@@ -835,13 +835,14 @@ class TransferHandler(object):
             notification_center.remove_observer(self, sender=notification.sender)
             self.new_session = None
             if self.session is not None:
+                notification_center.post_notification('SIPSessionTransferDidEnd', sender=self.session, data=TimestampedNotificationData())
                 if self.state == 'started':
                     try:
                         self.session._invitation.notify_transfer_progress(200)
                     except SIPCoreError:
                         pass
-                else:
-                    self.session.end()
+                self.state = 'ended'
+                self.session.end()
 
     def _NH_SIPSessionDidEnd(self, notification):
         if notification.sender is self.new_session:
@@ -849,11 +850,14 @@ class TransferHandler(object):
             notification_center = NotificationCenter()
             notification_center.remove_observer(self, sender=notification.sender)
             self.new_session = None
-            if self.session is not None and self.state == 'started':
-                try:
-                    self.session._invitation.notify_transfer_progress(500)
-                except SIPCoreError:
-                    pass
+            if self.session is not None:
+                notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=500, reason='internal error'))
+                if self.state == 'started':
+                    try:
+                        self.session._invitation.notify_transfer_progress(500)
+                    except SIPCoreError:
+                        pass
+                self.state = 'failed'
         else:
             self._terminate()
 
@@ -862,11 +866,14 @@ class TransferHandler(object):
             notification_center = NotificationCenter()
             notification_center.remove_observer(self, sender=notification.sender)
             self.new_session = None
-            if self.session is not None and self.state == 'started':
-                try:
-                    self.session._invitation.notify_transfer_progress(notification.data.code or 500, notification.data.reason)
-                except SIPCoreError:
-                    pass
+            if self.session is not None:
+                notification_center.post_notification('SIPSessionTransferDidFail', sender=self.session, data=TimestampedNotificationData(code=notification.data.code or 500, reason=notification.data.reason))
+                if self.state == 'started':
+                    try:
+                        self.session._invitation.notify_transfer_progress(notification.data.code or 500, notification.data.reason)
+                    except SIPCoreError:
+                        pass
+                self.state = 'failed'
         else:
             self._terminate()
 
