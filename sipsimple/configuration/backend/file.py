@@ -84,7 +84,7 @@ class FileBackend(object):
 
             name = u''
             value = u''
-            quote_type = None
+            quote_char = None
             quoted = False
             separator = None
             spaces = u''
@@ -92,12 +92,12 @@ class FileBackend(object):
             while line:
                 char = line.popleft()
                 if char in (u"'", u'"'):
-                    if quote_type is None:
-                        quote_type = char
+                    if quote_char is None:
+                        quote_char = char
                         quoted = True
                         continue
-                    elif char == quote_type:
-                        quote_type = None
+                    elif char == quote_char:
+                        quote_char = None
                         continue
                 elif char == u'\\':
                     if not line:
@@ -105,14 +105,14 @@ class FileBackend(object):
                     char = line.popleft()
                     if char in (u'n', u'r'):
                         char = ('\\%s' % char).decode('string-escape')
-                elif quote_type is None and char.isspace():
+                elif quote_char is None and char.isspace():
                     if value and (not isinstance(value, list) or value[-1]):
                         spaces += char
                     continue
-                elif quote_type is None and char == u'#':
+                elif quote_char is None and char == u'#':
                     line.clear()
                     continue
-                elif quote_type is None and char == u':':
+                elif quote_char is None and char == u':':
                     if stage is READ_NAME:
                         stage = READ_VALUE
                         while line and line[0].isspace():
@@ -122,13 +122,13 @@ class FileBackend(object):
                         separator = char
                         spaces = u''
                         break
-                elif quote_type is None and char == u'=':
+                elif quote_char is None and char == u'=':
                     if stage is READ_NAME:
                         stage = READ_VALUE
                         separator = char
                         spaces = u''
                         continue
-                elif quote_type is None and char == u',':
+                elif quote_char is None and char == u',':
                     if stage is READ_NAME:
                         raise FileParserError("unexpected `,' in setting/setting group name at line %d" % lineno)
                     if isinstance(value, list):
@@ -149,7 +149,7 @@ class FileBackend(object):
                     value += spaces + char
                 spaces = u''
 
-            if quote_type is not None:
+            if quote_char is not None:
                 raise FileParserError("missing ending quote at line %d" % lineno)
 
             # find the container for this declaration
