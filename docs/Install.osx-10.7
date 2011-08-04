@@ -20,7 +20,7 @@ Step 1. Prerequisites
 ---------------------
 
  * MacOSX 10.7 (Lion)
- * Intel 64bit architectures
+ * Intel 32bit or 64bit architectures
  * Apple Developer tools >=4.1 (XCode)
  * darcs version control tool from http://www.darcs.net
 
@@ -32,6 +32,37 @@ provided by Fink or Darwin Ports distributions.
 To change the default python interpreter, to version 2.5 for example:
 
 sudo defaults write com.apple.versioner.python Version 2.5
+
+
+Architecture
+------------
+
+The SIPSIMPLE build process will use the Python interpreter's architecture to
+build the executable files. This can be overridden by setting the following
+environment variable:
+
+export SIPSIMPLE_OSX_ARCH="i386"
+
+
+SDK Version
+-----------
+
+By default the system version SDK will be used to build SIPSIMPLE SDK. That is,
+if you are running Mac OSX 10.7 the 10.7 SDK will be used. This can be overridden
+by setting the following environment variable:
+
+export SIPSIMPLE_OSX_SDK="10.6"
+
+
+Building other dependencies
+---------------------------
+
+In order to build all libraries with only i386 architecture (and compatible with OSX 10.6)
+export the following environment variables before starting the build process:
+
+export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
+export ARCHFLAGS="-arch i386"
+export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
 
 
 Step 2. Install Dependencies

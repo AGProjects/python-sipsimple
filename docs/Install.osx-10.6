@@ -22,7 +22,7 @@ Step 1. Prerequisites
 
  * MacOSX 10.6 (Snow Leopard)
  * Intel 32bit or 64bit architectures
- * Apple Developer tools (XCode) including 10.5 SDK
+ * Apple Developer tools (XCode)
  * darcs version control tool from http://www.darcs.net
 
 The procedure below relies on the standard available Python interpreter that
@@ -30,30 +30,40 @@ comes with MacOSX Snow Leopard (version 2.6). Make sure that during the
 building process you are not involving external tools or libraries like the
 ones provided by Fink or Darwin Ports distributions.
 
-
-64bit
-----
-
-64bit architecture is supported and works with Python 2.6 and GCC compiler
-version 4.2, which are the default options on Snow Leopard.
-
-
-32bit
------
-
-Set the default Python interpreter to version 2.5:
+To change the default python interpreter, to version 2.5 for example:
 
 sudo defaults write com.apple.versioner.python Version 2.5
 
-The SDK setup process will detect this, will use gcc-4.0 during the build
-process and will generate 32bit binaries for i386 architecture.
+
+Architecture
+------------
+
+The SIPSIMPLE build process will use the Python interpreter's architecture to
+build the executable files. This can be overridden by setting the following
+environment variable:
+
+export SIPSIMPLE_OSX_ARCH="i386"
+
+
+SDK Version
+-----------
+
+By default the system version SDK will be used to build SIPSIMPLE SDK. That is,
+if you are running Mac OSX 10.6 the 10.6 SDK will be used. This can be overridden
+by setting the following environment variable:
+
+export SIPSIMPLE_OSX_SDK="10.5"
+
+
+Building other dependencies
+---------------------------
 
 In order to build all libraries with only i386 architecture (and compatible with OSX 10.5)
 export the following environment variables before starting the build process:
 
-export CC="gcc-4.0 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+export CC="gcc -isysroot /Developer/SDKs/MacOSX10.5.sdk"
 export ARCHFLAGS="-arch i386"
-export LDSHARED="gcc-4.0 -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
 
 
 Step 2. Install Dependencies
@@ -207,9 +217,4 @@ else
 fi
 sudo python setup.py install
 cd ..
-
-If Python 2.5 was used for installation, set the default Python interpreter
-of the user that runs the software to version 2.5:
-
-defaults write com.apple.versioner.python Version 2.5
 
