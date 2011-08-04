@@ -1,20 +1,23 @@
 from __future__ import with_statement
 
-import subprocess
-import re
+import ctypes
 import itertools
-import sys
 import os
 import platform
+import re
+import subprocess
+import sys
 
 # Hack to set environment variables before importing distutils
 # modules that will fetch them and set the compiler and linker
 # to be used. -Saul
 
-if sys.platform == "darwin" and platform.python_version().startswith('2.5'):
-    os.environ['CC'] = "gcc-4.0 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
-    os.environ['ARCHFLAGS'] = "-arch i386"
-    os.environ['LDSHARED'] = "gcc-4.0 -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+if sys.platform == "darwin":
+    sipsimple_osx_arch = os.environ.get('SIPSIMPLE_OSX_ARCH', {4: 'i386', 8: 'x86_64'}[ctypes.sizeof(ctypes.c_size_t)])
+    sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', '.'.join(platform.mac_ver()[0].split('.')[:-1]))
+    os.environ['CC'] = "gcc -isysroot /Developer/SDKs/MacOSX%s.sdk" % sipsimple_osx_sdk
+    os.environ['ARCHFLAGS'] = "-arch "+" -arch ".join(sipsimple_osx_arch.split())
+    os.environ['LDSHARED'] = "gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX%s.sdk" % sipsimple_osx_sdk
 
 from distutils.errors import DistutilsError
 from distutils import log
@@ -229,19 +232,13 @@ class PJSIP_build_ext(build_ext):
         else:
             cflags = "-O3 -fPIC"
         if sys.platform == "darwin":
-            if platform.mac_ver()[0].startswith('10.6') and not platform.python_version().startswith('2.5'):
-                cflags += " -arch i386 -arch x86_64"
-            else:
-                cflags += " -arch i386 -mmacosx-version-min=10.5 -isysroot /Developer/SDKs/MacOSX10.5.sdk"
+            cflags += " %s -mmacosx-version-min=%s -isysroot /Developer/SDKs/MacOSX%s.sdk " % (os.environ['ARCHFLAGS'], sipsimple_osx_sdk, sipsimple_osx_sdk)
         if self.pjsip_disable_assertions:
             cflags += " -DNDEBUG"
         env = os.environ.copy()
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
-        if sys.platform == "darwin" and platform.python_version().startswith('2.5'):
-            env['LDFLAGS'] = "-arch i386 -L/Developer/SDKs/MacOSX10.5.sdk/usr/lib"
-            with open(os.path.join(self.svn_dir, "user.mak"), "w") as f:
-                f.write("export CC=gcc-4.0 -c\n")
-                f.write("export LD=gcc-4.0\n")
+        if sys.platform == "darwin":
+            env['LDFLAGS'] = "%s -L/Developer/SDKs/MacOSX%s.sdk/usr/lib" % (os.environ['ARCHFLAGS'], sipsimple_osx_sdk)
             distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
         elif sys.platform == "win32":
             # TODO: add support for building with other compilers like Visual Studio. -Saul
@@ -268,11 +265,11 @@ class PJSIP_build_ext(build_ext):
         extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
         extension.extra_compile_args = ["-Wno-unused-variable"]
 
-        if sys.platform == "darwin" and platform.python_version().startswith('2.5'):
-            extension.extra_link_args.append("-mmacosx-version-min=10.5")
-            extension.extra_compile_args.append("-mmacosx-version-min=10.5")
-            extension.library_dirs.append("/Developer/SDKs/MacOSX10.5.sdk/usr/lib")
-            extension.include_dirs.append("/Developer/SDKs/MacOSX10.5.sdk/usr/include")
+        if sys.platform == "darwin":
+            extension.extra_link_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
+            extension.extra_compile_args.append("-mmacosx-version-min=%s" % sipsimple_osx_sdk)
+            extension.library_dirs.append("/Developer/SDKs/MacOSX%s.sdk/usr/lib" % sipsimple_osx_sdk)
+            extension.include_dirs.append("/Developer/SDKs/MacOSX%s.sdk/usr/include" % sipsimple_osx_sdk)
 
         extension.depends = build_mak_vars["PJ_LIB_FILES"].split()
         self.libraries = extension.depends[:]
