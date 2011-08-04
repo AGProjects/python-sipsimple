@@ -14,7 +14,7 @@ import sys
 
 if sys.platform == "darwin":
     sipsimple_osx_arch = os.environ.get('SIPSIMPLE_OSX_ARCH', {4: 'i386', 8: 'x86_64'}[ctypes.sizeof(ctypes.c_size_t)])
-    sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', '.'.join(platform.mac_ver()[0].split('.')[:-1]))
+    sipsimple_osx_sdk = os.environ.get('SIPSIMPLE_OSX_SDK', re.match("(?P<major>\d+.\d+)(?P<minor>.\d+)?", platform.mac_ver()[0]).groupdict()['major'])
     os.environ['CC'] = "gcc -isysroot /Developer/SDKs/MacOSX%s.sdk" % sipsimple_osx_sdk
     os.environ['ARCHFLAGS'] = "-arch "+" -arch ".join(sipsimple_osx_arch.split())
     os.environ['LDSHARED'] = "gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX%s.sdk" % sipsimple_osx_sdk
