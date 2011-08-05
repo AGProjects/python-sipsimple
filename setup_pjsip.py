@@ -1,12 +1,16 @@
 from __future__ import with_statement
 
+import errno
 import ctypes
 import itertools
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
+import urllib2
 
 # Hack to set environment variables before importing distutils
 # modules that will fetch them and set the compiler and linker
@@ -23,59 +27,12 @@ from distutils.errors import DistutilsError
 from distutils import log
 from Cython.Distutils import build_ext
 
-def get_make_cmd():
-    if sys.platform.startswith("freebsd"):
-        return "gmake"
-    else:
-        return "make"
-
-def get_opts_from_string(line, prefix):
-    """Returns all options that have a particular prefix on a commandline"""
-    return re.findall("%s(\S+)(?:\s|$)" % prefix, line)
-
-def exec_process(cmdline, silent, input=None, **kwargs):
-    """Execute a subprocess and returns the returncode, stdout buffer and stderr buffer.
-       Optionally prints stdout and stderr while running."""
-    sub = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
-    stdout, stderr = sub.communicate(input=input)
-    if not silent:
-        sys.stdout.write(stdout)
-        sys.stderr.write(stderr)
-    return sub.returncode, stdout, stderr
-
-def distutils_exec_process(cmdline, silent, input=None, **kwargs):
-    try:
-        returncode, stdout, stderr = exec_process(cmdline, silent, input, **kwargs)
-    except OSError,e:
-        if e.errno == 2:
-            raise DistutilsError('"%s" is not present on this system' % cmdline[0])
-        else:
-            raise
-    if returncode != 0:
-        raise DistutilsError('Got return value %d while executing "%s", stderr output was:\n%s' % (returncode, " ".join(cmdline), stderr.rstrip("\n")))
-    return stdout
-
-def get_makefile_variables(makefile):
-    """Returns all variables in a makefile as a dict"""
-    stdout = distutils_exec_process([get_make_cmd(), "-f", makefile, "-pR", makefile], True)
-    return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
-
-def get_svn_repo_url(svn_dir):
-    environment = dict((name, value) for name, value in os.environ.iteritems() if name!='LANG' and not name.startswith('LC_'))
-    environment['LC_ALL'] = 'C'
-    svn_info = distutils_exec_process(["svn", "info", svn_dir], True, env=environment)
-    return re.search("URL: (.*)", svn_info).group(1).strip()
-
-def get_svn_revision(svn_dir, max_revision=None):
-    environment = dict((name, value) for name, value in os.environ.iteritems() if name!='LANG' and not name.startswith('LC_'))
-    environment['LC_ALL'] = 'C'
-    if max_revision is None:
-        svn_info = distutils_exec_process(["svn", "info", svn_dir], True, env=environment)
-    else:
-        svn_info = distutils_exec_process(["svn", "-r", str(max_revision), "info", svn_dir], True, env=environment)
-    return int(re.search("Last Changed Rev: (\d+)", svn_info).group(1))
 
 class PJSIP_build_ext(build_ext):
+    pjsip_source_file     = "pjsip-1.0-r3687.tar.gz"
+    portaudio_source_file = "portaudio-trunk-r1412.tar.gz"
+    source_files_base_url = "http://download.ag-projects.com/SipClient/pjsip"
+
     config_site = ["#define PJ_SCANNER_USE_BITWISE 0",
                    "#define PJSIP_SAFE_MODULE 0",
                    "#define PJSIP_MAX_PKT_LEN 65536",
@@ -84,6 +41,7 @@ class PJSIP_build_ext(build_ext):
                    "#define PJ_ICE_MAX_CHECKS 256",
                    "#define PJ_LOG_MAX_LEVEL 6",
                    "#define PJ_IOQUEUE_MAX_HANDLES 1024"]
+
     patch_files = ["patches/sdp_neg_cancel_remote_offer_r2669.patch",
                    "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
                    "patches/pjsip-2553-sip_inv-cancel_sdp_neg_on_sending_negative_reply_to_reinvite.patch",
@@ -123,18 +81,14 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-3198-do_not_copy_attrs_on_deactivated_media.patch",
                    "patches/pjsip-2830-remove_unused_ssl_methods.patch",
                    "patches/pjsip-2830-pjmedia_get_default_device_functions.patch"]
-    pjsip_svn_repos = {"trunk": "http://svn.pjsip.org/repos/pjproject/trunk",
-                       "1.0": "http://svn.pjsip.org/repos/pjproject/branches/1.0"}
-    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
-                    "patches/portaudio-1420-compile_snow_leopard.patch",
-                    "patches/portaudio-1420-pa_mac_core_x64_assert_fix.patch",
-                    "patches/portaudio-1420-runtime_device_change_detection_wmme.patch"]
 
-    trunk_overrides = []
+    portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
+                             "patches/portaudio-1420-compile_snow_leopard.patch",
+                             "patches/portaudio-1420-pa_mac_core_x64_assert_fix.patch",
+                             "patches/portaudio-1420-runtime_device_change_detection_wmme.patch"]
 
     user_options = build_ext.user_options
     user_options.extend([
-        ("pjsip-svn-revision=", None, "PJSIP SVN revision to fetch"),
         ("pjsip-clean-compile", None, "Clean PJSIP tree before compilation"),
         ("pjsip-disable-assertions", None, "Disable assertion checks within PJSIP, most will revert to exceptions instead")
         ])
@@ -142,87 +96,112 @@ class PJSIP_build_ext(build_ext):
     boolean_options.extend(["pjsip-clean-compile", "pjsip-disable-assertions"])
     cython_version_required = (0, 13)
 
+    @staticmethod
+    def distutils_exec_process(cmdline, silent, input=None, **kwargs):
+        """Execute a subprocess and returns the returncode, stdout buffer and stderr buffer.
+        Optionally prints stdout and stderr while running."""
+        try:
+            sub = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+            stdout, stderr = sub.communicate(input=input)
+            returncode = sub.returncode
+            if not silent:
+                sys.stdout.write(stdout)
+                sys.stderr.write(stderr)
+        except OSError, e:
+            if e.errno == errno.ENOENT:
+                raise RuntimeError('"%s" is not present on this system' % cmdline[0])
+            else:
+                raise
+        if returncode != 0:
+            raise RuntimeError('Got return value %d while executing "%s", stderr output was:\n%s' % (returncode, " ".join(cmdline), stderr.rstrip("\n")))
+        return stdout
+
+    @staticmethod
+    def get_make_cmd():
+        if sys.platform.startswith("freebsd"):
+            return "gmake"
+        else:
+            return "make"
+
+    @staticmethod
+    def get_opts_from_string(line, prefix):
+        """Returns all options that have a particular prefix on a commandline"""
+        return re.findall("%s(\S+)(?:\s|$)" % prefix, line)
+
+    @classmethod
+    def check_cython_version(cls):
+        from Cython.Compiler.Version import version as cython_version
+        if tuple(int(x) for x in cython_version.split(".")) < cls.cython_version_required:
+            raise DistutilsError("Cython version %s or higher needed" % ".".join(str(i) for i in cls.cython_version_required))
+
+    @classmethod
+    def download_file(cls, filename):
+        try:
+            file = urllib2.urlopen("%s/%s" % (cls.source_files_base_url, filename))
+            dest = os.path.join("pjsip", filename)
+            with open(dest, 'wb') as f:
+                f.write(file.read())
+        except Exception, e:
+            raise DistutilsError("Error downloading file %s: %s" % (filename, e))
+
+    @classmethod
+    def get_makefile_variables(cls, makefile):
+        """Returns all variables in a makefile as a dict"""
+        stdout = cls.distutils_exec_process([cls.get_make_cmd(), "-f", makefile, "-pR", makefile], True)
+        return dict(tup for tup in re.findall("(^[a-zA-Z]\w+)\s*:?=\s*(.*)$", stdout, re.MULTILINE))
+
+    @classmethod
+    def makedirs(cls, path):
+        try:
+            os.makedirs(path)
+        except OSError, e:
+            if e.errno==errno.EEXIST and os.path.isdir(path) and os.access(path, os.R_OK | os.W_OK | os.X_OK):
+                return
+            raise
+
     def initialize_options(self):
         build_ext.initialize_options(self)
         self.pjsip_clean_compile = 0
         self.pjsip_disable_assertions = int(os.environ.get("PJSIP_NO_ASSERT", 0))
-        self.pjsip_svn_revision = os.environ.get("PJSIP_SVN_REVISION", "HEAD")
         self.pjsip_build_dir = os.environ.get("PJSIP_BUILD_DIR", None)
-        self.pjsip_svn_repo = self.pjsip_svn_repos["1.0"]
-        self.portaudio_svn_revision = os.environ.get("PORTAUDIO_SVN_REVISION", "1412")
 
-    def check_cython_version(self):
-        from Cython.Compiler.Version import version as cython_version
-        if tuple(int(x) for x in cython_version.split(".")) < self.cython_version_required:
-            raise DistutilsError("Cython version %s or higher needed" % ".".join(str(i) for i in self.cython_version_required))
-
-    def fetch_pjsip_from_svn(self):
-        self.svn_dir = os.path.join(self.pjsip_build_dir or self.build_temp, "pjsip")
-        if not os.path.exists(self.svn_dir):
-            log.info("Fetching PJSIP from SVN repository")
-            distutils_exec_process(["svn", "co", "-r", self.pjsip_svn_revision, self.pjsip_svn_repo, self.svn_dir], True, input='t'+os.linesep)
-            new_svn_rev = get_svn_revision(self.svn_dir)
-            svn_updated = True
-        else:
-            try:
-                old_svn_rev = get_svn_revision(self.svn_dir)
-            except:
-                old_svn_rev = -1
-            local_svn_repo = get_svn_repo_url(self.svn_dir)
-            if local_svn_repo != self.pjsip_svn_repo:
-                raise DistutilsError("Local build dir PJSIP SVN repository (%s) does not not match the one provided (%s)" % (local_svn_repo, self.pjsip_svn_repo))
-            log.info("PJSIP SVN tree found, checking SVN repository for updates")
-            try:
-                new_svn_rev = get_svn_revision(local_svn_repo, self.pjsip_svn_revision)
-            except DistutilsError, e:
-                if self.pjsip_clean_compile:
-                    raise
-                log.info("Could not contact SVN repository, continuing with existing tree:")
-                log.info(str(e))
-                new_svn_rev = old_svn_rev
-                svn_updated = False
-            else:
-                svn_updated = self.pjsip_clean_compile or new_svn_rev != old_svn_rev
-                if svn_updated:
-                    distutils_exec_process(["svn", "revert", "-R", self.svn_dir], True)
-                    if sys.platform == "win32":
-                        distutils_exec_process("bash svn status \"%s\" | grep ^\?| awk '{print $2}' | xargs -I '{}' rm '{}'" % (self.svn_dir,), True, shell=True)
-                    else:
-                        distutils_exec_process("svn status \"%s\" | grep ^\?| awk '{print $2}' | xargs -I '{}' rm '{}'" % (self.svn_dir,), True, shell=True)
-                    self.update_from_svn()
-                    if self.pjsip_svn_repo == self.pjsip_svn_repos["1.0"]:
-                        for override_file, override_revision in self.trunk_overrides:
-                            distutils_exec_process(["svn", "merge", "-r", "%d:%d" % (new_svn_rev, override_revision), "/".join([self.pjsip_svn_repos["trunk"], override_file]), os.path.join(self.svn_dir, override_file)], True)
-                else:
-                    log.info("No updates in PJSIP SVN")
-        print "Using SVN revision %d" % new_svn_rev
-        return svn_updated
-
-    def update_from_svn(self):
-        log.info("Fetching updates from PJSIP SVN repository")
-        distutils_exec_process(["svn", "up", "-r", self.pjsip_svn_revision, self.svn_dir], True, input='t'+os.linesep)
+    def fetch_pjsip(self):
+        if os.path.exists(self.build_dir):
+            return
+        log.info("Fetching PJSIP")
+        pjsip_sources_dir = "pjsip"
+        self.makedirs(pjsip_sources_dir)
+        if not os.path.exists(os.path.join(pjsip_sources_dir, self.pjsip_source_file)):
+            self.download_file(self.pjsip_source_file)
+        if not os.path.exists(os.path.join(pjsip_sources_dir, self.portaudio_source_file)):
+            self.download_file(self.portaudio_source_file)
+        extract_dir = os.path.join(self.pjsip_build_dir or self.build_temp)
+        try:
+            t = tarfile.open(os.path.join(pjsip_sources_dir, self.pjsip_source_file), 'r')
+            t.extractall(extract_dir)
+        except tarfile.TarError, e:
+            raise DistutilsError("Error uncompressing file %s: %s" % (self.pjsip_source_file, e))
+        shutil.rmtree(os.path.join(self.build_dir, 'third_party', 'portaudio'))
+        extract_dir = os.path.join(self.build_dir, 'third_party')
+        try:
+            t = tarfile.open(os.path.join(pjsip_sources_dir, self.portaudio_source_file), 'r')
+            t.extractall(extract_dir)
+        except tarfile.TarError, e:
+            raise DistutilsError("Error uncompressing file %s: %s" % (self.portaudio_source_file, e))
+        self.patch_pjsip()
+        self.patch_portaudio()
 
     def patch_pjsip(self):
         log.info("Patching PJSIP")
-        open(os.path.join(self.svn_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
+        open(os.path.join(self.build_dir, "pjlib", "include", "pj", "config_site.h"), "wb").write("\n".join(self.config_site+[""]))
         for patch_file in self.patch_files:
-            distutils_exec_process(["patch", "--forward", "-d", self.svn_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
-        self.set_portaudio_revision()
-
-    def set_portaudio_revision(self):
-        log.info("Setting PortAudio revision to %s" % self.portaudio_svn_revision)
-        self.portaudio_dir = os.path.join(self.svn_dir, "third_party", "portaudio")
-        third_party_dir = os.path.join(self.svn_dir, "third_party");
-        with open(os.path.join(self.portaudio_dir, 'svn_externals'), 'w+') as f:
-            f.write("portaudio -r%s https://www.portaudio.com/repos/portaudio/trunk\n" % self.portaudio_svn_revision)
-        distutils_exec_process(["svn", "propset", "svn:externals", third_party_dir, "-F", os.path.join(self.portaudio_dir, "svn_externals")], True)
-        self.update_from_svn()
+            self.distutils_exec_process(["patch", "--forward", "-d", self.build_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
 
     def patch_portaudio(self):
         log.info("Patching PortAudio")
-        distutils_exec_process(["svn", "revert", "-R", self.portaudio_dir], True)
+        portaudio_dir = os.path.join(self.build_dir, 'third_party', 'portaudio')
         for patch_file in self.portaudio_patch_files:
-            distutils_exec_process(["patch", "--forward", "-d", self.portaudio_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
+            self.distutils_exec_process(["patch", "--forward", "-d", portaudio_dir, "-p0", "-i", os.path.abspath(patch_file)], True)
 
     def configure_pjsip(self):
         log.info("Configuring PJSIP")
@@ -239,30 +218,39 @@ class PJSIP_build_ext(build_ext):
         env['CFLAGS'] = ' '.join(x for x in (cflags, env.get('CFLAGS', None)) if x)
         if sys.platform == "darwin":
             env['LDFLAGS'] = "%s -L/Developer/SDKs/MacOSX%s.sdk/usr/lib" % (os.environ['ARCHFLAGS'], sipsimple_osx_sdk)
-            distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
+            self.distutils_exec_process(["./configure"], True, cwd=self.build_dir, env=env)
         elif sys.platform == "win32":
             # TODO: add support for building with other compilers like Visual Studio. -Saul
             env['CFLAGS'] += " -Ic:/openssl/include"
             env['LDFLAGS'] = "-Lc:/openssl/lib/MinGW"
-            distutils_exec_process(["bash", "configure"], True, cwd=self.svn_dir, env=env)
+            self.distutils_exec_process(["bash", "configure"], True, cwd=self.build_dir, env=env)
         else:
-            distutils_exec_process(["./configure"], True, cwd=self.svn_dir, env=env)
-        if "#define PJSIP_HAS_TLS_TRANSPORT 1\n" not in open(os.path.join(self.svn_dir, "pjsip", "include", "pjsip", "sip_autoconf.h")).readlines():
-            os.remove(os.path.join(self.svn_dir, "build.mak"))
+            self.distutils_exec_process(["./configure"], True, cwd=self.build_dir, env=env)
+        if "#define PJSIP_HAS_TLS_TRANSPORT 1\n" not in open(os.path.join(self.build_dir, "pjsip", "include", "pjsip", "sip_autoconf.h")).readlines():
+            os.remove(os.path.join(self.build_dir, "build.mak"))
             raise DistutilsError("PJSIP TLS support was disabled, OpenSSL development files probably not present on this system")
+
+    def compile_pjsip(self):
+        log.info("Compiling PJSIP")
+        self.distutils_exec_process([self.get_make_cmd()], True, cwd=self.build_dir)
 
     def clean_pjsip(self):
         log.info("Cleaning PJSIP")
-        distutils_exec_process([get_make_cmd(), "realclean"], True, cwd=self.svn_dir)
+        try:
+            shutil.rmtree(self.build_dir)
+        except OSError, e:
+            if e.errno == errno.ENOENT:
+                return
+            raise
 
     def update_extension(self, extension):
-        build_mak_vars = get_makefile_variables(os.path.join(self.svn_dir, "build.mak"))
-        extension.include_dirs = get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-I")
-        extension.library_dirs = get_opts_from_string(build_mak_vars["PJ_LDFLAGS"], "-L")
-        extension.libraries = get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-l")
-        extension.define_macros = [tuple(define.split("=", 1)) for define in get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-D")]
-        extension.define_macros.append((("PJ_SVN_REVISION"), str(get_svn_revision(self.svn_dir))))
-        extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
+        build_mak_vars = self.get_makefile_variables(os.path.join(self.build_dir, "build.mak"))
+        extension.include_dirs = self.get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-I")
+        extension.library_dirs = self.get_opts_from_string(build_mak_vars["PJ_LDFLAGS"], "-L")
+        extension.libraries = self.get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-l")
+        extension.define_macros = [tuple(define.split("=", 1)) for define in self.get_opts_from_string(build_mak_vars["PJ_CFLAGS"], "-D")]
+        extension.define_macros.append((("PJ_SVN_REVISION"), re.match(".*-r(?P<revision>\d+).tar.gz", self.pjsip_source_file).groupdict()["revision"]))
+        extension.extra_link_args = list(itertools.chain(*[["-framework", val] for val in self.get_opts_from_string(build_mak_vars["PJ_LDLIBS"], "-framework ")]))
         extension.extra_compile_args = ["-Wno-unused-variable"]
 
         if sys.platform == "darwin":
@@ -275,34 +263,22 @@ class PJSIP_build_ext(build_ext):
         self.libraries = extension.depends[:]
         self.libraries.append(("%(PJ_DIR)s/pjmedia/lib/libpjsdp-%(LIB_SUFFIX)s" % build_mak_vars).replace("$(TARGET_NAME)", build_mak_vars["TARGET_NAME"]))
 
-    def remove_libs(self):
-        for lib in self.libraries:
-            try:
-                os.remove(lib)
-            except:
-                pass
-
-    def compile_pjsip(self):
-        log.info("Compiling PJSIP")
-        distutils_exec_process([get_make_cmd()], True, cwd=self.svn_dir)
-
     def cython_sources(self, sources, extension):
         if extension.name == "sipsimple.core._core":
+            self.build_dir = os.path.join(self.pjsip_build_dir or self.build_temp, "pjsip")
             self.check_cython_version()
-            svn_updated = self.fetch_pjsip_from_svn()
-            if svn_updated:
-                self.patch_pjsip()
-                self.patch_portaudio()
-            compile_needed = svn_updated
-            if not os.path.exists(os.path.join(self.svn_dir, "build.mak")) or self.pjsip_clean_compile:
-                self.configure_pjsip()
-                compile_needed = True
-                self.pjsip_clean_compile = 1
             if self.pjsip_clean_compile:
                 self.clean_pjsip()
+            self.fetch_pjsip()
+            if self.pjsip_clean_compile or not os.path.exists(os.path.join(self.build_dir, "build.mak")):
+                self.configure_pjsip()
             self.update_extension(extension)
-            if compile_needed or not all(map(lambda x: os.path.exists(x), self.libraries)):
-                self.remove_libs()
+            if self.pjsip_clean_compile or not all(map(lambda x: os.path.exists(x), self.libraries)):
+                for lib in self.libraries:
+                    try:
+                        os.remove(lib)
+                    except OSError:
+                        pass
                 self.compile_pjsip()
         return build_ext.cython_sources(self, sources, extension)
 
