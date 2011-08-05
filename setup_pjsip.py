@@ -23,8 +23,9 @@ if sys.platform == "darwin":
     os.environ['ARCHFLAGS'] = "-arch "+" -arch ".join(sipsimple_osx_arch.split())
     os.environ['LDSHARED'] = "gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX%s.sdk" % sipsimple_osx_sdk
 
-from distutils.errors import DistutilsError
 from distutils import log
+from distutils.errors import DistutilsError
+from distutils.command.sdist import sdist
 from Cython.Distutils import build_ext
 
 
@@ -281,4 +282,24 @@ class PJSIP_build_ext(build_ext):
                         pass
                 self.compile_pjsip()
         return build_ext.cython_sources(self, sources, extension)
+
+
+class PJSIP_sdist(sdist):
+    pjsip_source_file     = PJSIP_build_ext.pjsip_source_file
+    portaudio_source_file = PJSIP_build_ext.portaudio_source_file
+    source_files_base_url = PJSIP_build_ext.source_files_base_url
+
+    download_file = PJSIP_build_ext.download_file
+    makedirs      = PJSIP_build_ext.makedirs
+
+    def initialize_options(self):
+        sdist.initialize_options(self)
+        pjsip_sources_dir = "pjsip"
+        self.makedirs(pjsip_sources_dir)
+        if not os.path.exists(os.path.join(pjsip_sources_dir, self.pjsip_source_file)):
+            log.info("Downloading PJSIP source")
+            self.download_file(self.pjsip_source_file)
+        if not os.path.exists(os.path.join(pjsip_sources_dir, self.portaudio_source_file)):
+            log.info("Downloading PortAudio source")
+            self.download_file(self.portaudio_source_file)
 

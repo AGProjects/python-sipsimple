@@ -5,7 +5,7 @@ from distutils.extension import Extension
 import os
 import glob
 
-from setup_pjsip import PJSIP_build_ext
+from setup_pjsip import PJSIP_build_ext, PJSIP_sdist
 import sipsimple
 
 def find_packages(toplevel):
@@ -34,5 +34,8 @@ setup(name         = "python-sipsimple",
             Extension(name = "sipsimple.core._core",
             sources = ["sipsimple/core/_core.pyx", "sipsimple/core/_core.pxd"] + glob.glob(os.path.join("sipsimple", "core", "_core.*.pxi")))
             ],
-      cmdclass = { 'build_ext': PJSIP_build_ext }
+      cmdclass = {
+            'build_ext': PJSIP_build_ext,
+            'sdist'    : PJSIP_sdist
+      }
 )

@@ -6,5 +6,6 @@ recursive-include debian  dirs docs
 recursive-include debian/source format
 recursive-include docs    *.txt Install* 
 recursive-include patches *.patch
+recursive-include pjsip   *.tar.gz
 prune debian/tmp
 prune debian/python-sipsimple
