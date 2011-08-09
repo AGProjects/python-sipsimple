@@ -1,3 +1,49 @@
+python-sipsimple (0.19.0) unstable; urgency=low
+
+  * Added contact management
+  * Integrated XCAP manager into Account
+  * Added call transfer support
+  * Refactored PJSIP build process to avoid using svn
+  * Allow TLS MSRP transport also for Bonjour accounts
+  * Allow account to be restartable
+  * Added ability to query the system default device name
+  * Added the ability to get the old value of a setting
+  * Added the ability for an XMLApplication to unregister a namespace
+  * Added XCAPTransaction context manager for XCAPManager transactions
+  * Workaround lxml exception when unicode strings contain encoding
+    declaration
+  * Automatically singleton-ize SettingsObject subclasses with static IDs
+  * Avoid processing notification if audio bridges are not created yet
+  * Fixed passing headers dictionary to subscription callback
+  * Fixed getting Subscription-State header parameters
+  * Fixed handling bogus responses to SUBSCRIBE requests
+  * Call the notification handlers in the appropriate threads in
+    application.py
+  * Execute function immediately if already in the requested thread
+  * Fixed parsing Refer-To header
+  * Fixed __eq__ methods to properly compare with unknown type objects
+  * Added the missing __ne__ methods to all the classes defining __eq__
+  * Avoid setting sound devices if none was removed
+  * Handle error if remote ends session while we try to end it as well
+  * Fixed race condition when reading/using the invitation state in
+    Session.end
+  * Added the ability to specify fallback policies when adding an XCAP contact
+  * Fixed bug that changed empty strings into None when loading configuration
+
+ -- Saul Ibarra <saul@ag-projects.com>  Tue, 09 Aug 2011 13:06:57 +0200
+
+python-sipsimple (0.18.2) unstable; urgency=low
+
+  * Added compatibility with Python 2.7
+  * Adapted code for Cython >= 0.13
+  * Don't depend on the debug interpreter, recommend it
+  * Removed unused SSL methods
+  * Removed use of pysupport, use dh_python2 instead
+  * Updated import paths for Null and Singleton for latest python-application
+  * Fixed race condition that resulted in multiple bonjour accounts
+
+ -- Saul Ibarra <saul@ag-projects.com>  Wed, 08 Jun 2011 09:11:50 +0200
+
 python-sipsimple (0.18.1) unstable; urgency=low
 
   * Added push file transfers (RFC5547)
