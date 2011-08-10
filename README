@@ -22,7 +22,7 @@ Background
 ----------
 
 SIP stands for 'Sessions Initiation Protocol', an IETF standard described by
-RFC3261. SIP is an application-layer control protocol that can establish,
+RFC 3261. SIP is an application-layer control protocol that can establish,
 modify and terminate multimedia sessions such as Internet telephony calls
 (VoIP). Media can be added to (and removed from) an existing session.
 
@@ -81,41 +81,47 @@ Normative References
 
 SIP Signaling
 
- * Session Initiation Protocol (RFC3261) 
- * Session Description Protocol (RFC4566)
- * An Offer/Answer Model with Session Description Protocol (RFC4566)
+ * SIP, Session Initiation Protocol (RFC 3261)
+ * SDP, Session Description Protocol (RFC 4566)
+ * An Offer/Answer Model with Session Description Protocol (SDP) (RFC 3264)
+ * Reliability of Provisional Responses in Session Initiation Protocol (RFC 3262)
+ * HTTP Authentication: Basic and Digest Access Authentication (RFC 2617)
+ * The Reason Header Field for the Session Initiation Protocol (RFC 3326)
+ * The Session Initiation Protocol (SIP) Refer Method (RFC 3515)
+ * The Session Initiation Protocol (SIP) "Replaces" Header (RFC 3891)
+ * Session Initiation Protocol (SIP) Call Control - Transfer  (RFC 5589)
 
 Address Resolution
 
- * RFC3263 next hop resolution lookup
+ * RFC 3263 next hop resolution lookup
  * Bonjour multicast DNS draft-lee-sip-dns-sd-uri-03
 
 NAT Traversal
 
- * SIP Signaling: Symmetric Response Routing Symmetric media (RFC3581)
+ * SIP Signaling: Symmetric Response Routing Symmetric media (RFC 3581)
  * RTP media (Audio and Video): ICE, Interactive Connectivity Establishment
    (draft-ietf-mmusic-ice-19)
  * MSRP media (Instant Messaging and File Transfer): MSRP protocol relay
-   extension (RFC4976)
+   extension (RFC 4976)
   
 Voice over IP
 
- * RTP, A Transport Protocol for Real-Time Applications (RFC3550)
+ * RTP, A Transport Protocol for Real-Time Applications (RFC 3550)
  * Real Time Control Protocol (RTCP) attribute in Session Description
-   Protocol (SDP) (RFC3605)
- * SRTP, The Secure Real-time Transport Protocol (RFC3711)
+   Protocol (SDP) (RFC 3605)
+ * SRTP, The Secure Real-time Transport Protocol (RFC 3711)
  * Generation and parsing of telephone-events payload in both RTP and SDP
-   (RFC2833)
+   (RFC 2833)
 
 Instant Messaging
 
- * CPIM, Common Presence and Instant Messaging: (RFC3862)
+ * CPIM, Common Presence and Instant Messaging: (RFC 3862)
  * Session Initiation Protocol (SIP) Extension for Instant Messaging
-   (RFC3428)
- * MSRP Protocol (RFC4975)
- * Indication of Message Composition for Instant Messaging (RFC3994)
- * Message Summary Event Package (RFC3842)
- * File Transfer (RFC5547)
+   (RFC 3428)
+ * MSRP Protocol (RFC 4975)
+ * Indication of Message Composition for Instant Messaging (RFC 3994)
+ * Message Summary Event Package (RFC 3842)
+ * File Transfer (RFC 5547)
 
 Desktop Sharing
 
@@ -123,27 +129,27 @@ Desktop Sharing
 
 Conferencing
 
- * Conference Event Package (RFC4575)
- * A Framework for Conferencing with the Session Initiation Protocol (RFC4353)
- * SIP Call Control - Conferencing for User Agents (RFC4579)
- * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat-07)
+ * Conference Event Package (RFC 4575)
+ * A Framework for Conferencing with the Session Initiation Protocol (RFC 4353)
+ * SIP Call Control - Conferencing for User Agents (RFC 4579)
+ * MSRP ad-hoc multi-party chat sessions (draft-ietf-simple-chat)
 
 Presence
 
- * SIP Specific Event Notification (RFC3265)
- * SIP Extension for Event State Publication (RFC3903) 
- * PIDF: Presence Data Model (RFC3863, RFC3379, RFC4479)
- * Watcher-info Event Package (RFC3857, RFC3858)
- * Rich Presence Extensions to PIDF (RFC4480)
- * Contact Information Extension to PIDF (RFC4482)
- * User Agent Capability Extension to PIDF (RFC5196) 
- * XCAP Protocol (RFC4825)
- * Common Policy (RFC4745)
- * Presence Rules (RFC5025)
- * Resource Lists (RFC4826)
- * RLS Services (RFC4826)
- * PIDF manipulation (RFC4827)
- * XCAP Diff (RFC5874)
+ * SIP Specific Event Notification (RFC 3265)
+ * SIP Extension for Event State Publication (RFC 3903) 
+ * PIDF: Presence Data Model (RFC 3863, RFC 3379, RFC 4479)
+ * Watcher-info Event Package (RFC 3857, RFC 3858)
+ * Rich Presence Extensions to PIDF (RFC 4480)
+ * Contact Information Extension to PIDF (RFC 4482)
+ * User Agent Capability Extension to PIDF (RFC 5196) 
+ * XCAP Protocol (RFC 4825)
+ * Common Policy (RFC 4745)
+ * Presence Rules (RFC 5025)
+ * Resource Lists (RFC 4826)
+ * RLS Services (RFC 4826)
+ * PIDF manipulation (RFC 4827)
+ * XCAP Diff (RFC 5874)
  * OMA Reference Release Definition for XDM v1.1 and Presence SIMPLE v1.1
    Implementation Guidelines
  * OMA XML  Document Management V1.1
