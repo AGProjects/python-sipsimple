@@ -77,7 +77,7 @@ class Engine(Thread):
             raise SIPCoreError("Worker thread was already started once")
         init_options = Engine.default_start_options.copy()
         init_options.update(kwargs)
-        self._post_notification("SIPEngineWillStart")
+        self._post_notification('SIPEngineWillStart')
         with self._lock:
             try:
                 self._thread_started = True
@@ -88,10 +88,10 @@ class Engine(Thread):
                 if hasattr(self, "_ua"):
                     self._ua.dealloc()
                     del self._ua
-                self._post_notification("SIPEngineDidFail")
+                self._post_notification('SIPEngineDidFail')
                 raise
             else:
-                self._post_notification("SIPEngineDidStart")
+                self._post_notification('SIPEngineDidStart')
 
     def stop(self):
         if self._thread_stopping:
@@ -108,16 +108,16 @@ class Engine(Thread):
                 failed = self._ua.poll()
             except:
                 exc_type, exc_val, exc_tb = sys.exc_info()
-                self._post_notification("SIPEngineGotException", type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
+                self._post_notification('SIPEngineGotException', type=exc_type, value=exc_val, traceback="".join(traceback.format_exception(exc_type, exc_val, exc_tb)))
                 failed = True
             if failed:
-                self._post_notification("SIPEngineDidFail")
+                self._post_notification('SIPEngineDidFail')
                 break
         if not failed:
-            self._post_notification("SIPEngineWillEnd")
+            self._post_notification('SIPEngineWillEnd')
         self._ua.dealloc()
         del self._ua
-        self._post_notification("SIPEngineDidEnd")
+        self._post_notification('SIPEngineDidEnd')
 
     def _handle_event(self, event_name, **kwargs):
         sender = kwargs.pop("obj", None)
