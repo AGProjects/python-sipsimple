@@ -55,22 +55,22 @@ by setting the following environment variable:
 export SIPSIMPLE_OSX_SDK="10.5"
 
 
-Building other dependencies
----------------------------
+Step 2. Install Dependencies
+----------------------------
 
-In order to build all libraries with only i386 architecture (and compatible with OSX 10.5)
+See Dependencies.txt for detailed description of the required libraries and
+their minimum version number.
+
+In order to build all libraries with i386 architecture compatible with OSX 10.5
 export the following environment variables before starting the build process:
 
 export CC="gcc -isysroot /Developer/SDKs/MacOSX10.5.sdk"
 export ARCHFLAGS="-arch i386"
 export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.5.sdk"
 
-
-Step 2. Install Dependencies
-----------------------------
-
-See Dependencies.txt for detailed description of the required libraries and
-their minimum version number.
+It is recommended that you do not have fink or darwin ports installed on the
+build machine, otherwise the software may be linked against libraries that 
+are not present on other systems.  
 
 Build and install C dependencies, the software will be installed under
 /usr/local folder:
@@ -79,7 +79,7 @@ Build and install C dependencies, the software will be installed under
 curl -O ftp://ftp.gnupg.org/gcrypt/libgpg-error/libgpg-error-1.7.tar.bz2
 tar -xjvf libgpg-error-1.7.tar.bz2
 cd libgpg-error-1.7
-CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..
@@ -87,7 +87,7 @@ cd ..
 curl -O http://ftp.gnu.org/pub/gnu/libtasn1/libtasn1-2.2.tar.gz
 tar zxvf libtasn1-2.2.tar.gz 
 cd libtasn1-2.2
-CFLAGS="-arch i386 -arch x86_64" ./configure --disable-dependency-tracking
+CFLAGS="-arch i386" ./configure --disable-dependency-tracking
 make
 sudo make install
 cd ..
@@ -95,7 +95,7 @@ cd ..
 curl -O ftp://ftp.gnupg.org/gcrypt/libgcrypt/libgcrypt-1.4.5.tar.bz2
 tar -xjvf libgcrypt-1.4.5.tar.bz2
 cd libgcrypt-1.4.5
-CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-gpg-error-prefix=/usr/local --disable-static --disable-dependency-tracking --disable-asm
 make
 sudo make install
 cd ..
@@ -104,7 +104,7 @@ cd ..
 curl -O http://ftp.gnu.org/pub/gnu/gnutls/gnutls-2.8.6.tar.bz2
 tar -xjvf gnutls-2.8.6.tar.bz2
 cd gnutls-2.8.6
-CFLAGS="-arch i386 -arch x86_64" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
+CFLAGS="-arch i386" ./configure --prefix=/usr/local --with-libgcrypt-prefix=/usr/local --disable-static --disable-dependency-tracking
 make
 sudo make install
 cd ..

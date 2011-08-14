@@ -29,9 +29,9 @@ comes with MacOSX Lion (version 2.7).  Make sure that during the building
 process you are not involving external tools or libraries like the ones
 provided by Fink or Darwin Ports distributions.
 
-To change the default python interpreter, to version 2.5 for example:
+To change the default python interpreter, to version 2.6 for example:
 
-sudo defaults write com.apple.versioner.python Version 2.5
+sudo defaults write com.apple.versioner.python Version 2.6
 
 
 Architecture
@@ -41,7 +41,7 @@ The SIPSIMPLE build process will use the Python interpreter's architecture to
 build the executable files. This can be overridden by setting the following
 environment variable:
 
-export SIPSIMPLE_OSX_ARCH="i386"
+export SIPSIMPLE_OSX_ARCH="i386 x86_64"
 
 
 SDK Version
@@ -54,24 +54,25 @@ by setting the following environment variable:
 export SIPSIMPLE_OSX_SDK="10.6"
 
 
-Building other dependencies
----------------------------
-
-In order to build all libraries with only i386 architecture (and compatible with OSX 10.6)
-export the following environment variables before starting the build process:
-
-export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-export ARCHFLAGS="-arch i386"
-export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
-
-
 Step 2. Install Dependencies
 ----------------------------
 
 See Dependencies.txt for detailed description of the required libraries and
 their minimum version number.
 
-Build and install C dependencies, the software will be installed under
+In order to build all libraries with both i386 and x86_64 architectures
+compatible with OSX 10.6 export the following environment variables before
+starting the build process:
+
+export CC="gcc -isysroot /Developer/SDKs/MacOSX10.6.sdk"
+export ARCHFLAGS="-arch i386 -arch x86_64"
+export LDSHARED="gcc -Wl,-F. -bundle -undefined dynamic_lookup -isysroot /Developer/SDKs/MacOSX10.6.sdk"
+
+It is recommended that you do not have fink or darwin ports installed on the
+build machine, otherwise the software may be linked against libraries that
+are not present on other systems.
+
+Build and install first C dependencies, the software will be installed under
 /usr/local folder:
 
 # Install GNUTLS dependencies

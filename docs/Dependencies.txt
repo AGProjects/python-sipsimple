@@ -23,3 +23,4 @@ Home page: http://sipsimpleclient.com
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
  * Python Imaging Library   http://pypi.python.org/pypi/PIL/                  >=1.1.6
+
