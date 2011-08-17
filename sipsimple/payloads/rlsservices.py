@@ -102,7 +102,7 @@ class ResourceList(XMLElement):
     del _get_value, _set_value
 
 
-# This is identical to the list element in resourcelists, accept for the
+# This is identical to the list element in resourcelists, except for the
 # namespace. We'll redefine the xml tag just for readability purposes.
 class RLSList(List):
     _xml_tag = 'list'
