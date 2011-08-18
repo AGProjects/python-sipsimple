@@ -387,14 +387,14 @@ class SIPApplication(object):
                 settings.audio.alert_device = alert_mixer.output_device
                 settings.save()
             else:
-                if 'audio.input_device' in notification.data.modified or 'audio.output_device' in notification.data.modified or 'audio.tail_length' in notification.data.modified:
+                if set(['audio.input_device', 'audio.output_device', 'audio.alert_device', 'audio.tail_length']).intersection(notification.data.modified):
                     input_device = settings.audio.input_device
                     if input_device not in (None, u'system_default') and input_device not in engine.input_devices:
                         input_device = u'system_default'
                     output_device = settings.audio.output_device
                     if output_device not in (None, u'system_default') and output_device not in engine.output_devices:
                         output_device = u'system_default'
-                    if input_device != self.voice_audio_bridge.mixer.input_device or output_device != self.voice_audio_bridge.mixer.output_device:
+                    if input_device != self.voice_audio_bridge.mixer.input_device or output_device != self.voice_audio_bridge.mixer.output_device or 'audio.tail_length' in notification.data.modified:
                         try:
                             self.voice_audio_bridge.mixer.set_sound_devices(input_device, output_device, settings.audio.tail_length)
                         except SIPCoreError:
@@ -405,7 +405,6 @@ class SIPApplication(object):
                         settings.audio.input_device = self.voice_audio_bridge.mixer.input_device
                         settings.audio.output_device = self.voice_audio_bridge.mixer.output_device
                         settings.save()
-                if 'audio.alert_device' in notification.data.modified or 'audio.tail_length' in notification.data.modified:
                     alert_device = settings.audio.alert_device
                     if alert_device not in (None, u'system_default') and alert_device not in engine.output_devices:
                         alert_device = u'system_default'
