@@ -81,7 +81,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-3187-sdp_neg_fix_on_bogus_answer.patch",
                    "patches/pjsip-3198-do_not_copy_attrs_on_deactivated_media.patch",
                    "patches/pjsip-2830-remove_unused_ssl_methods.patch",
-                   "patches/pjsip-2830-pjmedia_get_default_device_functions.patch"]
+                   "patches/pjsip-2830-pjmedia_get_default_device_functions.patch",
+                   "patches/pjsip-3115-aec_latency_fixes.patch"]
 
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
                              "patches/portaudio-1420-compile_snow_leopard.patch",
