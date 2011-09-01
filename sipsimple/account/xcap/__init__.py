@@ -1420,8 +1420,8 @@ class XCAPManager(object):
             if self.oma_compliant and self.resource_lists.supported:
                 pres_rules = self.pres_rules.content
                 resource_lists = self.resource_lists.content
+                path = self.resource_lists.uri + '/~~/resource-lists/list[@name="oma_grantedcontacts"]'
                 try:
-                    path = self.resource_lists.uri + '/~~/resource-lists/list[@name="oma_grantedcontacts"]'
                     wp_prs_grantedcontacts = (child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id=='wp_prs_grantedcontacts').next()
                 except StopIteration:
                     wp_prs_grantedcontacts = common_policy.Rule('wp_prs_grantedcontacts', conditions=[omapolicy.ExternalList([path])], actions=[presrules.SubHandling('allow')])
@@ -1435,8 +1435,8 @@ class XCAPManager(object):
                     if wp_prs_grantedcontacts.actions != common_policy.Actions([presrules.SubHandling('allow')]):
                         wp_prs_grantedcontacts.actions = [presrules.SubHandling('allow')]
                         self.pres_rules.dirty = True
+                path = self.resource_lists.uri + '/~~/resource-lists/list[@name="oma_blockedcontacts"]'
                 try:
-                    path = self.resource_lists.uri + '/~~/resource-lists/list[@name="oma_blockedcontacts"]'
                     wp_prs_blockedcontacts = (child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id=='wp_prs_blockedcontacts').next()
                 except StopIteration:
                     wp_prs_blockedcontacts = common_policy.Rule('wp_prs_blockedcontacts', conditions=[omapolicy.ExternalList([path])], actions=[presrules.SubHandling('polite-block')])
