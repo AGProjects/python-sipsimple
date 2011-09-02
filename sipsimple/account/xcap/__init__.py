@@ -72,7 +72,6 @@ class Document(object):
 
     def __init__(self, manager):
         self.manager = weakref.proxy(manager)
-        self.client = None
         self.content = None
         self.etag = None
         self.fetch_time = datetime.fromtimestamp(0)
@@ -81,14 +80,14 @@ class Document(object):
 
     @property
     def relative_uri(self):
-        uri = self.uri[len(self.client.root):]
+        uri = self.uri[len(self.manager.xcap_root):]
         if uri.startswith('/'):
             uri = uri[1:]
         return uri
 
     @property
     def uri(self):
-        return self.client.get_url(self.application, None, globaltree=self.global_tree, filename=self.filename)
+        return self.manager.client.get_url(self.application, None, globaltree=self.global_tree, filename=self.filename)
 
     def load_from_cache(self):
         if not self.cached:
@@ -101,8 +100,7 @@ class Document(object):
             self.etag = None
             self.content = None
 
-    def initialize(self, client, server_caps):
-        self.client = client
+    def initialize(self, server_caps):
         self.supported = self.application in server_caps.auids
 
     def reset(self):
@@ -111,7 +109,7 @@ class Document(object):
 
     def fetch(self):
         try:
-            document = self.client.get(self.application, etagnot=self.etag, globaltree=self.global_tree, headers={'Accept': self.payload_type.content_type}, filename=self.filename)
+            document = self.manager.client.get(self.application, etagnot=self.etag, globaltree=self.global_tree, headers={'Accept': self.payload_type.content_type}, filename=self.filename)
             self.content = self.payload_type.parse(document)
             self.etag = document.etag
         except (BadStatusLine, ConnectionLost, URLError), e:
@@ -144,9 +142,9 @@ class Document(object):
         try:
             kw = dict(etag=self.etag) if self.etag is not None else dict(etagnot='*')
             if data is not None:
-                response = self.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
+                response = self.manager.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
             else:
-                response = self.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
+                response = self.manager.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
         except (BadStatusLine, ConnectionLost, URLError), e:
             raise XCAPError("failed to update %s document: %s" % (self.name, e))
         except HTTPError, e:
@@ -183,9 +181,9 @@ class PresRulesDocument(Document):
     global_tree     = False
     filename        = 'index'
 
-    def initialize(self, client, server_caps):
+    def initialize(self, server_caps):
         self.application = 'org.openmobilealliance.pres-rules' if 'org.openmobilealliance.pres-rules' in server_caps.auids else 'pres-rules'
-        super(PresRulesDocument, self).initialize(client, server_caps)
+        super(PresRulesDocument, self).initialize(server_caps)
 
 
 class ResourceListsDocument(Document):
@@ -212,8 +210,8 @@ class XCAPCapsDocument(Document):
     filename        = 'index'
     cached          = False
 
-    def initialize(self, client):
-        self.client = client
+    def initialize(self):
+        pass
 
 
 class StatusIconDocument(Document):
@@ -229,7 +227,7 @@ class StatusIconDocument(Document):
 
     def fetch(self):
         try:
-            document = self.client.get(self.application, etagnot=self.etag, globaltree=self.global_tree, headers={'Accept': self.payload_type.content_type}, filename=self.filename)
+            document = self.manager.client.get(self.application, etagnot=self.etag, globaltree=self.global_tree, headers={'Accept': self.payload_type.content_type}, filename=self.filename)
             self.content = self.payload_type.parse(document)
             self.etag = document.etag
         except (BadStatusLine, ConnectionLost, URLError), e:
@@ -265,9 +263,9 @@ class StatusIconDocument(Document):
         try:
             kw = dict(etag=self.etag) if self.etag is not None else dict(etagnot='*')
             if data is not None:
-                response = self.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
+                response = self.manager.client.put(self.application, data, globaltree=self.global_tree, filename=self.filename, headers={'Content-Type': self.payload_type.content_type}, **kw)
             else:
-                response = self.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
+                response = self.manager.client.delete(self.application, data, globaltree=self.global_tree, filename=self.filename, **kw)
         except (BadStatusLine, ConnectionLost, URLError), e:
             raise XCAPError("failed to update %s document: %s" % (self.name, e))
         except HTTPError, e:
@@ -1165,7 +1163,7 @@ class XCAPManager(object):
             else:
                 self.client = XCAPClient(uri, self.account.id, password=self.account.auth.password, auth=None)
 
-        self.server_caps.initialize(self.client)
+        self.server_caps.initialize()
         try:
             self.server_caps.fetch()
         except XCAPError:
@@ -1182,7 +1180,7 @@ class XCAPManager(object):
                 return
         self.oma_compliant = 'org.openmobilealliance.pres-rules' in self.server_caps.content.auids
         for document in self.documents:
-            document.initialize(self.client, self.server_caps.content)
+            document.initialize(self.server_caps.content)
 
         notification_center = NotificationCenter()
         notification_center.post_notification('XCAPManagerDidDiscoverServerCapabilities', sender=self,
