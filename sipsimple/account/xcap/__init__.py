@@ -76,7 +76,7 @@ class Document(object):
         self.etag = None
         self.fetch_time = datetime.fromtimestamp(0)
         self.dirty = False
-        self.supported = True
+        self.supported = False
 
     @property
     def relative_uri(self):
@@ -211,7 +211,7 @@ class XCAPCapsDocument(Document):
     cached          = False
 
     def initialize(self):
-        pass
+        self.supported = True
 
 
 class StatusIconDocument(Document):
@@ -1163,7 +1163,6 @@ class XCAPManager(object):
             else:
                 self.client = XCAPClient(uri, self.account.id, password=self.account.auth.password, auth=None)
 
-        self.server_caps.initialize()
         try:
             self.server_caps.fetch()
         except XCAPError:
@@ -1179,6 +1178,7 @@ class XCAPManager(object):
                 self.timer = self._schedule_command(60,  Command('initialize', command.event))
                 return
         self.oma_compliant = 'org.openmobilealliance.pres-rules' in self.server_caps.content.auids
+        self.server_caps.initialize()
         for document in self.documents:
             document.initialize(self.server_caps.content)
 
