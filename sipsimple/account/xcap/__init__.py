@@ -1349,7 +1349,7 @@ class XCAPManager(object):
                 self.resource_lists.dirty = True
             else:
                 # Make sure there are no references to oma_buddylist (like OMA suggests)
-                for child in oma_grantedcontacts:
+                for child in list(oma_grantedcontacts):
                     if isinstance(child, resourcelists.External):
                         try:
                             if oma_buddylist in self._follow_rl_external(resource_lists, child):
