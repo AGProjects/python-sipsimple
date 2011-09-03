@@ -1489,8 +1489,8 @@ class XCAPManager(object):
                     if wp_prs_block_anonymous.transformations:
                         wp_prs_block_anonymous.transformations = None
                         self.pres_rules.dirty = True
+                identity = 'sip:'+self.account.id
                 try:
-                    identity = 'sip:'+self.account.id
                     wp_prs_allow_own = (child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id=='wp_prs_allow_own').next()
                 except StopIteration:
                     wp_prs_allow_own = common_policy.Rule('wp_prs_allow_own', conditions=[common_policy.Identity([common_policy.IdentityOne(identity)])], actions=[presrules.SubHandling('allow')])
