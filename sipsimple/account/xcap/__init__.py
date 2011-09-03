@@ -2734,8 +2734,8 @@ class XCAPManager(object):
             handler(op)
             return
         rule = pres_rules[operation.policy.id]
-        if operation.attributes.get('multi_identity_conditions', None) and (rule.id.startswith('wp_prs_allow_onelist_') or \
-                rule.id.startswith('wp_prs_onelist') or any(isinstance(condition, omapolicy.ExternalList) for condition in (rule.conditions or []))):
+        if (operation.attributes.get('multi_identity_conditions', None) and (rule.id.startswith('wp_prs_allow_onelist_') or
+            rule.id.startswith('wp_prs_onelist') or any(isinstance(condition, omapolicy.ExternalList) for condition in (rule.conditions or [])))):
             # We canot add multi identity conditions to this rule, so create a new one using whatever data from the old one
             try:
                 action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
@@ -3490,8 +3490,8 @@ class XCAPManager(object):
             try:
                 uri = XCAPURI(self.xcap_root, relative_uri, self.namespaces)
                 # Only follow references to default resource-lists document which belongs to ourselves
-                if uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and \
-                   uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain):
+                if (uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and
+                    uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain)):
                     result.extend(l for l in resource_lists.xpath(uri.node_selector.normalized, uri.node_selector.nsmap) if isinstance(l, resourcelists.List))
             except ValueError:
                 pass
@@ -3501,24 +3501,24 @@ class XCAPManager(object):
         if external.anchor.startswith(self.xcap_root):
             uri = XCAPURI(self.xcap_root, external.anchor[len(self.xcap_root):], self.namespaces)
             # Only follow references to default resource-lists document which belongs to ourselves
-            if uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and \
-               uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain):
+            if (uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and
+                uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain)):
                 return [l for l in resource_lists.xpath(uri.node_selector.normalized, uri.node_selector.nsmap) if isinstance(l, resourcelists.List)]
         raise ValueError("XCAP URI does not point to default resource-lists document")
 
     def _follow_rl_entry_ref(self, resource_lists, entry_ref):
         uri = XCAPURI(self.xcap_root, entry_ref.ref, self.namespaces)
         # Only follow references to default resource-lists document which belongs to ourselves
-        if uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and \
-           uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain):
+        if (uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and
+            uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain)):
             return [e for e in resource_lists.xpath(uri.node_selector.normalized, uri.node_selector.nsmap) if isinstance(e, resourcelists.Entry)]
 
     def _follow_rls_resource_list(self, resource_lists, resource_list):
         if resource_list.value.startswith(self.xcap_root):
             uri = XCAPURI(self.xcap_root, resource_list.value[len(self.xcap_root):], self.namespaces)
             # Only follow references to default resource-lists document which belongs to ourselves
-            if uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and \
-               uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain):
+            if (uri.application_id == self.resource_lists.application and uri.document_selector.document_path == self.resource_lists.filename and
+                uri.user is not None and (uri.user.username, uri.user.domain) == (self.account.id.username, self.account.id.domain)):
                 return [l for l in resource_lists.xpath(uri.node_selector.normalized, uri.node_selector.nsmap) if isinstance(l, resourcelists.List)]
         raise ValueError("XCAP URI does not point to default resource-lists document")
 
