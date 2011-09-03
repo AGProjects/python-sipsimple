@@ -587,7 +587,7 @@ class XMLListMixin(list):
             list.__setitem__(self, key, values)
         else:
             old_value = self.__getitem__(key)
-            self._del_item(value)
+            self._del_item(old_value)
             # items is actually only one item
             try:
                 value = self._add_item(items)
