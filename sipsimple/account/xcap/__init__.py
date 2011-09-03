@@ -1331,6 +1331,7 @@ class XCAPManager(object):
                     for rlist in (child for child in resource_lists if isinstance(child, resourcelists.List)):
                         path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
                         oma_buddylist.append(resourcelists.External(path))
+                        buddy_lists.append(rlist)
                 resource_lists.append(oma_buddylist)
                 self.resource_lists.dirty = True
             else:
