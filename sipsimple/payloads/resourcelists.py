@@ -184,14 +184,13 @@ class List(XMLListElement, ListElement):
     def _add_item(self, value):
         for basetype in (List, Entry, EntryRef, External):
             if isinstance(value, basetype):
+                for elem in self:
+                    if isinstance(elem, basetype) and value._xml_id == elem._xml_id:
+                        raise ValueError("cannot have more than one %s with the same id attribute at this level: %r" % (basetype.__name__, value._xml_id))
                 break
         else:
-            if isinstance(value, ListElement):
-                return value
-            raise TypeError("cannot add element type %s to List" % value.__class__.__name__)
-        for elem in self:
-            if isinstance(elem, basetype) and value._xml_id == elem._xml_id:
-                raise ValueError("cannot have more than one %s with the same id attribute at this level: %r" % (basetype.__name__, value._xml_id))
+            if not isinstance(value, ListElement):
+                raise TypeError("cannot add element type %s to List" % value.__class__.__name__)
         self._insert_element(value.element)
         return value
 
