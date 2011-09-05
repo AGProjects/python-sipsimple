@@ -878,10 +878,6 @@ class XCAPManager(object):
     del _get_state, _set_state
 
     @property
-    def cached_documents(self):
-        return [document for document in self.dialog_rules, self.pidf_manipulation, self.pres_rules, self.resource_lists, self.rls_services, self.status_icon, self.server_caps if document.cached]
-
-    @property
     def documents(self):
         return [self.dialog_rules, self.pidf_manipulation, self.pres_rules, self.resource_lists, self.rls_services, self.status_icon]
 
@@ -928,7 +924,7 @@ class XCAPManager(object):
         if not IXCAPStorage.providedBy(storage):
             raise TypeError("storage must implement the IXCAPStorage interface")
         self.storage = storage
-        for document in self.cached_documents:
+        for document in self.documents:
             document.load_from_cache()
         try:
             self.journal = cPickle.loads(storage.load('journal'))
