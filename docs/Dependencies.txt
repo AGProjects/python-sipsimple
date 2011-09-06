@@ -18,7 +18,7 @@ Home page: http://sipsimpleclient.com
  * python-lxml              http://codespeak.net/lxml                         >=2.1.2
  * python-msrplib           http://download.ag-projects.com/MSRP              >=0.14.0
  * python-xcaplib           http://download.ag-projects.com/XCAP              >=1.0.15
- * cython                   http://www.cython.org                             >=0.13.0
+ * cython                   http://www.cython.org                             >=0.13.0 & <0.15
  * dnspython                http://www.dnspython.org                          >=1.6.0
  * twisted                  http://twistedmatrix.com/trac                     >=8.1.0
  * zope-interface           http://www.zope.org                               >=3.3.1
