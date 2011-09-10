@@ -1011,7 +1011,7 @@ class SIPSettings(SettingsGroup):
     always_use_my_proxy = Setting(type=bool, default=False)
     outbound_proxy = Setting(type=SIPProxyAddress, default=None, nillable=True)
     register = Setting(type=bool, default=True)
-    register_interval = Setting(type=NonNegativeInteger, default=600)
+    register_interval = Setting(type=NonNegativeInteger, default=3600)
     subscribe_interval = Setting(type=NonNegativeInteger, default=3600)
     publish_interval = Setting(type=NonNegativeInteger, default=3600)
 
