@@ -414,8 +414,11 @@ cdef class AudioMixer:
                     with nogil:
                         status = pjmedia_snd_port_set_ec(snd_port_address[0], snd_pool, ec_tail_length, 0)
                     if status != 0:
-                        self._stop_sound_device(ua)
-                        raise PJSIPError("Could not set echo cancellation", status)
+                        with nogil:
+                            status = pjmedia_snd_port_set_ec(snd_port_address[0], snd_pool, 0, 0)
+                        if status != 0:
+                            self._stop_sound_device(ua)
+                            raise PJSIPError("Could not set echo cancellation", status)
                 with nogil:
                     status = pjmedia_snd_port_connect(snd_port_address[0], pjmedia_conf_get_master_port(conf_bridge))
                 if status != 0:
