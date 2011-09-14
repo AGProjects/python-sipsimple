@@ -302,6 +302,25 @@ cdef class AudioMixer:
             with nogil:
                 pj_mutex_unlock(lock)
 
+    def reset_ec(self):
+        cdef int status
+        cdef pj_mutex_t *lock = self._lock
+        cdef PJSIPUA ua
+
+        ua = _get_ua()
+
+        with nogil:
+            status = pj_mutex_lock(lock)
+        if status != 0:
+            raise PJSIPError("failed to acquire lock", status)
+        try:
+            if self._snd != NULL:
+                with nogil:
+                    pjmedia_snd_port_reset_ec_state(self._snd)
+        finally:
+            with nogil:
+                pj_mutex_unlock(lock)
+
     # private methods
 
     cdef int _start_sound_device(self, PJSIPUA ua, unicode input_device, unicode output_device,

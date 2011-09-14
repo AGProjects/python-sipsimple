@@ -855,6 +855,7 @@ cdef class AudioTransport:
             if no_media_timeout > 0:
                 self._timer = MediaCheckTimer(media_check_interval)
                 self._timer.schedule(no_media_timeout, <timer_callback>self._cb_check_rtp, self)
+            self.mixer.reset_ec()
         finally:
             with nogil:
                 pj_mutex_unlock(lock)
@@ -909,6 +910,7 @@ cdef class AudioTransport:
                 raise SIPCoreError("Stream is not active")
             if direction not in ["sendrecv", "sendonly", "recvonly", "inactive"]:
                 raise SIPCoreError("Unknown direction: %s" % direction)
+            self.mixer.reset_ec()
             if direction == self.direction:
                 return
             self.direction = direction

@@ -286,6 +286,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_snd_port_connect(pjmedia_snd_port *snd_port, pjmedia_port *port) nogil
     int pjmedia_snd_port_disconnect(pjmedia_snd_port *snd_port) nogil
     int pjmedia_snd_port_set_ec(pjmedia_snd_port *snd_port, pj_pool_t *pool, unsigned int tail_ms, int options) nogil
+    int pjmedia_snd_port_reset_ec_state(pjmedia_snd_port *snd_port) nogil
     int pjmedia_snd_port_destroy(pjmedia_snd_port *snd_port) nogil
     pjmedia_snd_stream *pjmedia_snd_port_get_snd_stream(pjmedia_snd_port *snd_port) nogil
     int pjmedia_null_port_create(pj_pool_t *pool, unsigned int sampling_rate, unsigned int channel_count,
