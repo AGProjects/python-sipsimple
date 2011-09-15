@@ -483,6 +483,7 @@ cdef extern from "pjmedia.h":
     int pjmedia_stream_pause(pjmedia_stream *stream, pjmedia_dir dir) nogil
     int pjmedia_stream_resume(pjmedia_stream *stream, pjmedia_dir dir) nogil
     int pjmedia_stream_get_stat(pjmedia_stream *stream, pjmedia_rtcp_stat *stat) nogil
+    int pjmedia_stream_reset_stat(pjmedia_stream *stream) nogil
 
     # wav player
     enum:

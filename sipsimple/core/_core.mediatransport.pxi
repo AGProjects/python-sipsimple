@@ -662,6 +662,10 @@ cdef class AudioTransport:
                     status = pjmedia_stream_get_stat(stream, &stat)
                 if status != 0:
                     raise PJSIPError("Could not get RTP statistics", status)
+                with nogil:
+                    status = pjmedia_stream_reset_stat(stream)
+                if status != 0:
+                    raise PJSIPError("Could not reset RTP statistics", status)
                 statistics["rtt"] = _pj_math_stat_to_dict(&stat.rtt)
                 statistics["rx"] = _pjmedia_rtcp_stream_stat_to_dict(&stat.rx)
                 statistics["tx"] = _pjmedia_rtcp_stream_stat_to_dict(&stat.tx)
