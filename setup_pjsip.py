@@ -32,6 +32,7 @@ from Cython.Distutils import build_ext
 class PJSIP_build_ext(build_ext):
     pjsip_source_file     = "pjsip-1.0-r3687.tar.gz"
     portaudio_source_file = "portaudio-trunk-r1412.tar.gz"
+    webrtc_source_file    = "webrtc-r588.tar.gz"
     source_files_base_url = "http://download.ag-projects.com/SipClient/pjsip"
 
     config_site = ["#define PJ_SCANNER_USE_BITWISE 0",
@@ -41,7 +42,9 @@ class PJSIP_build_ext(build_ext):
                    "#define PJMEDIA_HAS_L16_CODEC 0",
                    "#define PJ_ICE_MAX_CHECKS 256",
                    "#define PJ_LOG_MAX_LEVEL 6",
-                   "#define PJ_IOQUEUE_MAX_HANDLES 1024"]
+                   "#define PJ_IOQUEUE_MAX_HANDLES 1024",
+                   "#define PJMEDIA_HAS_SPEEX_AEC %d" % (0 if sys.platform=="darwin" else 1),
+                   "#define PJMEDIA_HAS_WEBRTC_AEC %d" % (1 if sys.platform=="darwin" else 0)]
 
     patch_files = ["patches/sdp_neg_cancel_remote_offer_r2669.patch",
                    "patches/pjsip-2371-sip_inv-on_rx_reinvite.patch",
@@ -85,7 +88,8 @@ class PJSIP_build_ext(build_ext):
                    "patches/pjsip-3717-reset_rtcp_stats.patch",
                    "patches/pjsip-disable_mutex_unlock_assert.patch",
                    "patches/pjsip-3115-aec_latency_fixes.patch",
-                   "patches/pjsip-echo_reset.patch"]
+                   "patches/pjsip-echo_reset.patch",
+                   "patches/pjsip-webrtc_aec.patch"]
 
     portaudio_patch_files = ["patches/portaudio-1420-runtime_device_change_detection.patch",
                              "patches/portaudio-1420-compile_snow_leopard.patch",
@@ -193,6 +197,11 @@ class PJSIP_build_ext(build_ext):
             t.extractall(extract_dir)
         except tarfile.TarError, e:
             raise DistutilsError("Error uncompressing file %s: %s" % (self.portaudio_source_file, e))
+        try:
+            t = tarfile.open(os.path.join(pjsip_sources_dir, self.webrtc_source_file), 'r')
+            t.extractall(extract_dir)
+        except tarfile.TarError, e:
+            raise DistutilsError("Error uncompressing file %s: %s" % (self.webrtc_source_file, e))
         self.patch_pjsip()
         self.patch_portaudio()
 
@@ -291,6 +300,7 @@ class PJSIP_build_ext(build_ext):
 class PJSIP_sdist(sdist):
     pjsip_source_file     = PJSIP_build_ext.pjsip_source_file
     portaudio_source_file = PJSIP_build_ext.portaudio_source_file
+    webrtc_source_file    = PJSIP_build_ext.webrtc_source_file
     source_files_base_url = PJSIP_build_ext.source_files_base_url
 
     download_file = PJSIP_build_ext.download_file
@@ -306,4 +316,7 @@ class PJSIP_sdist(sdist):
         if not os.path.exists(os.path.join(pjsip_sources_dir, self.portaudio_source_file)):
             log.info("Downloading PortAudio source")
             self.download_file(self.portaudio_source_file)
+        if not os.path.exists(os.path.join(pjsip_sources_dir, self.webrtc_source_file)):
+            log.info("Downloading WebRTC source")
+            self.download_file(self.webrtc_source_file)
 
