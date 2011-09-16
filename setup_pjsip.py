@@ -184,6 +184,8 @@ class PJSIP_build_ext(build_ext):
             self.download_file(self.pjsip_source_file)
         if not os.path.exists(os.path.join(pjsip_sources_dir, self.portaudio_source_file)):
             self.download_file(self.portaudio_source_file)
+        if not os.path.exists(os.path.join(pjsip_sources_dir, self.webrtc_source_file)):
+            self.download_file(self.webrtc_source_file)
         extract_dir = os.path.join(self.pjsip_build_dir or self.build_temp)
         try:
             t = tarfile.open(os.path.join(pjsip_sources_dir, self.pjsip_source_file), 'r')
