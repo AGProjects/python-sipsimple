@@ -1,8 +1,9 @@
 python-sipsimple (0.19.0) unstable; urgency=low
 
-  * Added contact management
+  * Added Contact Management API
   * Integrated XCAP manager into Account
-  * Added call transfer support
+  * Added WebRTC AEC
+  * Added Call Transfer support
   * Refactored PJSIP build process to avoid using svn
   * Allow TLS MSRP transport also for Bonjour accounts
   * Allow account to be restartable
@@ -29,8 +30,15 @@ python-sipsimple (0.19.0) unstable; urgency=low
     Session.end
   * Added the ability to specify fallback policies when adding an XCAP contact
   * Fixed bug that changed empty strings into None when loading configuration
+  * Terminate conference subscription at the same stage if session failed or
+    ended
+  * Consider XCAP applications unsupported until proven otherwise
+  * Set default register interval to 3600
+  * Apply changes to audio tail_length in realtime
+  * Don't fail to start audio device if starting the EC fails
+  * Reset stream statistics after retrieving them
 
- -- Saul Ibarra <saul@ag-projects.com>  Tue, 09 Aug 2011 13:06:57 +0200
+ -- Saul Ibarra <saul@ag-projects.com>  Fri, 16 Sep 2011 10:52:41 +0200
 
 python-sipsimple (0.18.2) unstable; urgency=low
 
