@@ -1,10 +1,10 @@
-+ Contacts manager http://sipsimpleclient.com/ticket/123
++ Implement Timeout for hold requests
+
++ Allow resume of failed file transfers (a=file-range SDP attribute)
 
 + Inbound Presence http://sipsimpleclient.com/ticket/130
 
 + Outbound Presence http://sipsimpleclient.com/ticket/118
-
-+ Make middleware unicode friendly http://sipsimpleclient.com/ticket/121
 
 + change settings so they store changes in a thread local container
   which is made public (accessible for all threads) when save is called.
@@ -43,9 +43,6 @@
 - Use an ordered dict for keeping accounts in the AccountManager ?!?
   see http://code.activestate.com/recipes/576693/
 
-- Implement Timeout for hold requests
-
-- Allow resume of failed file transfers (a=file-range SDP attribute)
 
 - send notifications when local/remote party becomes focus
   SIPSessionLocalPartyIsFocus, SIPSessionRemotePartyIsFocus
