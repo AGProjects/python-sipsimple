@@ -1,5 +1,7 @@
 + Implement Timeout for hold requests
 
+- Fallback to alternative routes in case of 408 for session.connect
+
 + Allow resume of failed file transfers (a=file-range SDP attribute)
 
 + Inbound Presence http://sipsimpleclient.com/ticket/130
