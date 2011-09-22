@@ -141,8 +141,20 @@ class ReferralHandler(object):
     implements(IObserver)
 
     def __init__(self, session, participant_uri, operation):
-        self.session = session
         self.participant_uri = participant_uri
+        if not isinstance(self.participant_uri, SIPURI):
+            if not self.participant_uri.startswith(('sip:', 'sips:')):
+                self.participant_uri = 'sip:%s' % self.participant_uri
+            try:
+                self.participant_uri = SIPURI.parse(self.participant_uri)
+            except SIPCoreError:
+                notification_center = NotificationCenter()
+                if operation is AddParticipantOperation:
+                    notification_center.post_notification('SIPConferenceDidNotAddParticipant', sender=session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='invalid participant URI'))
+                else:
+                    notification_center.post_notification('SIPConferenceDidNotRemoveParticipant', sender=session, data=TimestampedNotificationData(participant=self.participant_uri, code=0, reason='invalid participant URI'))
+                return
+        self.session = session
         self.operation = operation
         self.active = False
         self.route = None
