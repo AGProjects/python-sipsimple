@@ -146,7 +146,7 @@ class IdentityMany(XMLListElement):
 
     def matches(self, uri):
         if self.domain is not None:
-            if [self.domain] != uri.split('@', 1)[1:]:
+            if self.domain != uri.partition('@')[2]:
                 return False
         for child in self:
             if not child.matches(uri):
