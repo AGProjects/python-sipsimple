@@ -7,7 +7,6 @@ RFC4745.
 """
 
 import datetime
-from lxml import etree
 
 from sipsimple.payloads import ValidationError, XMLApplication, XMLElement, XMLListElement, XMLListRootElement, XMLAttribute, XMLElementChild, XMLStringElement
 from sipsimple.util import Timestamp
