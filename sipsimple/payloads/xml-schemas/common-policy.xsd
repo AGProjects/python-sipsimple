@@ -106,7 +106,7 @@
     <xs:complexType name="validityType">
         <xs:complexContent>
             <xs:restriction base="xs:anyType">
-                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:sequence maxOccurs="unbounded">
                     <xs:element name="from" type="xs:dateTime"/>
                     <xs:element name="until" type="xs:dateTime"/>
                 </xs:sequence>
