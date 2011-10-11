@@ -21,7 +21,7 @@ __all__ = ['rpid_namespace',
            'PlaceTypeElement',
            'PrivacyElement',
            'SphereElement',
-           'RPIDNote',
+           'Note',
            'Activities',
            'Mood',
            'PlaceIs',
@@ -87,22 +87,23 @@ class UserInputValue(str):
 
 ## Elements
 
-class RPIDNote(Note):
+class Note(XMLStringElement):
     _xml_tag = 'note'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
+    _xml_lang = True
+
 
 class Other(Note):
-    _xml_tag = 'note'
-    _xml_namespace = rpid_namespace
-    _xml_application = PIDFApplication
+    _xml_tag = 'other'
+
 
 class Activities(XMLListElement, PersonExtension):
     _xml_tag = 'activities'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = ActivityElement
-    _xml_children_order = {RPIDNote.qname: 0}
+    _xml_children_order = {Note.qname: 0}
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
@@ -126,8 +127,8 @@ class Activities(XMLListElement, PersonExtension):
 
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            if child.tag == RPIDNote.qname:
-                self.notes.add(RPIDNote.from_element(child, *args, **kwargs), with_element=False)
+            if child.tag == Note.qname:
+                self.notes.add(Note.from_element(child, *args, **kwargs), with_element=False)
             elif child.tag == '{%s}other' % self._xml_namespace:
                 value = child.text
                 if value not in self:
@@ -185,7 +186,7 @@ class Mood(XMLListElement, PersonExtension):
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = MoodElement
-    _xml_children_order = {RPIDNote.qname: 0}
+    _xml_children_order = {Note.qname: 0}
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
@@ -215,8 +216,8 @@ class Mood(XMLListElement, PersonExtension):
 
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            if child.tag == RPIDNote.qname:
-                self.notes.add(RPIDNote.from_element(child, *args, **kwargs), with_element=False)
+            if child.tag == Note.qname:
+                self.notes.add(Note.from_element(child, *args, **kwargs), with_element=False)
             elif child.tag == '{%s}other' % self._xml_namespace:
                 value = child.text
                 if value not in self:
@@ -294,7 +295,7 @@ class PlaceIs(XMLElement, PersonExtension):
     _xml_tag = 'place-is'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {RPIDNote.qname: 0,
+    _xml_children_order = {Note.qname: 0,
                            AudioPlaceInformation.qname: 1,
                            VideoPlaceInformation.qname: 2,
                            TextPlaceInformation.qname: 3}
@@ -320,8 +321,8 @@ class PlaceIs(XMLElement, PersonExtension):
     
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            if child.tag == RPIDNote.qname:
-                self.notes.add(RPIDNote.from_element(child, *args, **kwargs))
+            if child.tag == Note.qname:
+                self.notes.add(Note.from_element(child, *args, **kwargs))
     
     def _build_element(self, *args, **kwargs):
         for note in self.notes:
@@ -339,7 +340,7 @@ class PlaceType(XMLListElement, PersonExtension):
     _xml_tag = 'place-type'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {RPIDNote.qname: 0}
+    _xml_children_order = {Note.qname: 0}
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
@@ -363,8 +364,8 @@ class PlaceType(XMLListElement, PersonExtension):
 
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            if child.tag == RPIDNote.qname:
-                self.notes.append(RPIDNote.from_element(child, *args, **kwargs))
+            if child.tag == Note.qname:
+                self.notes.append(Note.from_element(child, *args, **kwargs))
             else:
                 child_cls = self._xml_application.get_element(child.tag)
                 if child_cls is not None and issubclass(child_cls, PlaceTypeElement):
@@ -440,7 +441,7 @@ class Privacy(XMLListElement, PersonExtension):
     _xml_tag = 'privacy'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {RPIDNote.qname: 0,
+    _xml_children_order = {Note.qname: 0,
                            AudioPrivacy.qname: 1,
                            TextPrivacy.qname: 2,
                            VideoPrivacy.qname: 3}
@@ -469,8 +470,8 @@ class Privacy(XMLListElement, PersonExtension):
 
     def _parse_element(self, element, *args, **kwargs):
         for child in element:
-            if child.tag == RPIDNote.qname:
-                self.notes.append(RPIDNote.from_element(child, *args, **kwargs))
+            if child.tag == Note.qname:
+                self.notes.append(Note.from_element(child, *args, **kwargs))
             elif child.tag == '{%s}unknown' % self._xml_namespace:
                 pass
             else:
@@ -512,7 +513,7 @@ class Relationship(XMLElement, ServiceExtension):
     _xml_tag = 'relationship'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {RPIDNote: 0}
+    _xml_children_order = {Note: 0}
     
     values = set(('assistant', 'associate', 'family', 'friend', 'self',
                   'supervisor', 'unknown'))
@@ -529,8 +530,8 @@ class Relationship(XMLElement, ServiceExtension):
     def _parse_element(self, element, *args, **kwargs):
         self._value = None
         for child in element:
-            if child.tag == RPIDNote.qname:
-                self.notes.append(RPIDNote.from_element(child, *args, **kwargs))
+            if child.tag == Note.qname:
+                self.notes.append(Note.from_element(child, *args, **kwargs))
             elif child.tag == '{%s}other' % self._xml_namespace:
                 value = child.text
                 if value not in self:
@@ -590,8 +591,8 @@ class ServiceClass(XMLElement, ServiceExtension):
     def _parse_element(self, element, *args, **kwargs):
         self.value = None
         for child in element:
-            if child.tag == RPIDNote.qname:
-                self.notes.append(RPIDNote.from_element(child, *args, **kwargs))
+            if child.tag == Note.qname:
+                self.notes.append(Note.from_element(child, *args, **kwargs))
             elif child.tag == '{%s}other' % self._xml_namespace:
                 value = child.text
                 if value not in self:
