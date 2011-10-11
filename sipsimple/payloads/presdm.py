@@ -100,9 +100,6 @@ class Note(XMLStringElement):
     _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_lang = True
-    
-    since = XMLAttribute('since', xmlname='from', type=util.Timestamp, required=False, test_equal=True)
-    until = XMLAttribute('until', type=util.Timestamp, required=False, test_equal=True)
 
 
 class NoteList(object):
