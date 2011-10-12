@@ -397,12 +397,7 @@ class XMLElement(object):
         self.element.insert(position, element)
     
     def __eq__(self, other):
-        if not isinstance(other, XMLElement):
-            if self.__class__._xml_id is None:
-                return False
-            else:
-                return self._xml_id == other
-        else:
+        if isinstance(other, XMLElement):
             for name, attribute in self._xml_attributes.items():
                 if attribute.test_equal:
                     if not hasattr(other, name) or getattr(self, name) != getattr(other, name):
@@ -412,9 +407,15 @@ class XMLElement(object):
                     if not hasattr(other, name) or getattr(self, name) != getattr(other, name):
                         return False
             try:
-                return super(XMLElement, self).__eq__(other)
+                __eq__ = super(XMLElement, self).__eq__
             except AttributeError:
                 return True
+            else:
+                return __eq__(other)
+        elif self.__class__._xml_id is not None:
+            return self._xml_id == other
+        else:
+            return NotImplemented
 
     def __ne__(self, other):
         equal = self.__eq__(other)
@@ -708,9 +709,12 @@ class XMLStringElement(XMLElement):
         return unicode(self.value)
 
     def __eq__(self, other):
-        if self._xml_lang and not (hasattr(other, 'lang') and self.lang == other.lang):
-            return False
-        return self.value == unicode(other)
+        if isinstance(other, XMLStringElement):
+            return self.lang == other.lang and self.value == other.value
+        elif isinstance(other, basestring):
+            return self.lang is None and self.value == other
+        else:
+            return NotImplemented
 
     def __hash__(self):
         return hash(self.value)
@@ -722,7 +726,7 @@ class XMLEmptyElement(XMLElement):
     def __repr__(self):
         return '%s()' % self.__class__.__name__
     def __eq__(self, other):
-        return type(self) is type(other)
+        return type(self) is type(other) or NotImplemented
     def __hash__(self):
         return hash(type(self))
 
