@@ -416,6 +416,10 @@ class XMLElement(object):
             except AttributeError:
                 return True
 
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
     def __hash__(self):
         if self.__class__._xml_id is not None:
             return hash(self._xml_id)
