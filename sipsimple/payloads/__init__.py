@@ -718,7 +718,7 @@ class XMLEmptyElement(XMLElement):
     def __repr__(self):
         return '%s()' % self.__class__.__name__
     def __eq__(self, obj):
-        return type(self) == type(obj)
+        return type(self) is type(obj)
     def __hash__(self):
         return hash(type(self))
 
