@@ -2,7 +2,7 @@
 #
 
 """
-PIDF handling according to RFC3863 and RFC3379
+PIDF handling according to RFC3863 and RFC4479
 """
 
 import datetime
