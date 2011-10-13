@@ -146,7 +146,7 @@ class ReferralHandler(object):
             if not self.participant_uri.startswith(('sip:', 'sips:')):
                 self.participant_uri = 'sip:%s' % self.participant_uri
             try:
-                self.participant_uri = SIPURI.parse(self.participant_uri)
+                self.participant_uri = SIPURI.parse(str(self.participant_uri)) # FIXME: SIPURI is not unicode friendly and expects a str.
             except SIPCoreError:
                 notification_center = NotificationCenter()
                 if operation is AddParticipantOperation:
