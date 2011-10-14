@@ -56,7 +56,7 @@ class DialogEventValue(str):
 
 class DialogStateValue(str):
     def __new__(cls, value):
-        if value not in ('tying', 'proceeding', 'early', 'confirmed', 'terminated'):
+        if value not in ('trying', 'proceeding', 'early', 'confirmed', 'terminated'):
             raise ValueError("illegal value for dialog state")
         return str.__new__(cls, value)
 
