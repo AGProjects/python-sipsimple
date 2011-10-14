@@ -2,7 +2,7 @@
 #
 
 """
-Conditions extension handling according to OMA-TS-XDM_Core-V1_1
+Conditions extension handling according to OMA-TS-Presence_SIMPLE_XDM-V1_1
 
 This module provides an extension to RFC4745 (Common Policy) to
 support condition extensions defined by OMA.
