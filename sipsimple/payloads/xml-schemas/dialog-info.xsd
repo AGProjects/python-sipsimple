@@ -110,7 +110,7 @@
   <xs:complexType name="nameaddr">
     <xs:simpleContent>
       <xs:extension base="xs:anyURI">
-        <xs:attribute name="display-name" type="xs:string" use="optional"/>
+        <xs:attribute name="display" type="xs:string" use="optional"/>
       </xs:extension>
     </xs:simpleContent>
   </xs:complexType>

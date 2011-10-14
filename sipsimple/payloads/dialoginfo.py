@@ -118,14 +118,14 @@ class ReferredBy(XMLStringElement):
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
 
-    display_name = XMLAttribute('display_name', xmlname='display-name', type=str, required=False, test_equal=True)
+    display = XMLAttribute('display', type=str, required=False, test_equal=True)
 
 class Identity(XMLStringElement):
     _xml_tag = 'identity'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
 
-    display_name = XMLAttribute('display_name', xmlname='display-name', type=str, required=False, test_equal=True)
+    display = XMLAttribute('display', type=str, required=False, test_equal=True)
 
 class Param(XMLEmptyElement):
     _xml_tag = 'param'
