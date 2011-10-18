@@ -424,7 +424,7 @@ class TextPrivacy(XMLEmptyElement):
 
 
 class VideoPrivacy(XMLEmptyElement):
-    _xml_tag = 'audio'
+    _xml_tag = 'video'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
 
