@@ -253,7 +253,7 @@ class XMLElementType(type):
                 cls._xml_children_qname_map[value.type.qname] = (value, value.type)
             elif isinstance(value, XMLElementChoiceChild):
                 cls._xml_element_children[value.name] = value
-                for type in value.types:
+                for type in (type for type in value.types if issubclass(type, XMLElement)):
                     cls._xml_children_qname_map[type.qname] = (value, type)
 
         # register class in its XMLApplication
