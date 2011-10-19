@@ -206,7 +206,7 @@ class XMLElementChoiceChild(object):
 
     def __set__(self, obj, value):
         if value is not None and not isinstance(value, self.types):
-            value = self.types[0](value)
+            raise TypeError("%s is not an acceptable type for %s" % (value.__class__.__name__, obj.__class__.__name__))
         old_value = self.values.get(id(obj), None)
         if old_value is not None:
             obj.element.remove(old_value.element)
