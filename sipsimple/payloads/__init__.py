@@ -233,6 +233,8 @@ fakeroot = etree.Element('fakeroot')
 
 class XMLElementType(type):
     def __init__(cls, name, bases, dct):
+        super(XMLElementType, cls).__init__(name, bases, dct)
+
         # set dictionary of xml attributes and xml child elements
         cls._xml_attributes = {}
         cls._xml_element_children = {}
@@ -445,7 +447,7 @@ class XMLElement(object):
 
 class XMLRootElementType(XMLElementType):
     def __init__(cls, name, bases, dct):
-        XMLElementType.__init__(cls, name, bases, dct)
+        super(XMLRootElementType, cls).__init__(name, bases, dct)
         if cls._xml_schema is None and cls._xml_schema_file is not None:
             cls._xml_schema = etree.XMLSchema(etree.parse(open(os.path.join(cls._xml_schema_dir, cls._xml_schema_file), 'r')))
         if cls._xml_parser is None:
