@@ -707,6 +707,9 @@ class XMLStringElement(XMLElement):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.value, self.lang)
 
+    def __str__(self):
+        return str(self.value)
+
     def __unicode__(self):
         return unicode(self.value)
 
