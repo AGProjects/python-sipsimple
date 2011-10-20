@@ -716,8 +716,8 @@ class XMLStringElement(XMLElement):
     def __eq__(self, other):
         if isinstance(other, XMLStringElement):
             return self.lang == other.lang and self.value == other.value
-        elif isinstance(other, basestring):
-            return self.lang is None and self.value == other
+        elif isinstance(other, basestring) and (self._xml_lang is False or self.lang is None):
+            return self.value == other
         else:
             return NotImplemented
 
