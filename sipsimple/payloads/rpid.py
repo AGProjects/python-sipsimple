@@ -147,6 +147,7 @@ class Activities(XMLListElement, PersonExtension):
     def check_validity(self):
         if not self:
             raise ValidationError("Activity element must have at least one value")
+        super(Activities, self).check_validity()
 
     def _add_item(self, value):
         if value in self:
@@ -236,6 +237,7 @@ class Mood(XMLListElement, PersonExtension):
     def check_validity(self):
         if not self:
             raise ValidationError("Mood element must have at least one value")
+        super(Mood, self).check_validity()
 
     def _add_item(self, value):
         if value in self:

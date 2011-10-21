@@ -176,6 +176,7 @@ class Status(XMLElement):
     def check_validity(self):
         if len(self.element) == 0:
             raise ValidationError("Status objects must have at least one child")
+        super(Status, self).check_validity()
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.basic)
