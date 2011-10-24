@@ -243,9 +243,9 @@ class MSRPStreamBase(object):
             return
         notification_center = NotificationCenter()
         notification_center.post_notification('MediaStreamWillEnd', self, data=TimestampedNotificationData())
-        msrp, self.msrp = self.msrp, None
-        msrp_session, self.msrp_session = self.msrp_session, None
-        msrp_connector, self.msrp_connector = self.msrp_connector, None
+        msrp = self.msrp
+        msrp_session = self.msrp_session
+        msrp_connector = self.msrp_connector
         try:
             if self.greenlet is not None:
                 api.kill(self.greenlet)
@@ -258,6 +258,9 @@ class MSRPStreamBase(object):
         finally:
             notification_center.post_notification('MediaStreamDidEnd', self, data=TimestampedNotificationData())
             notification_center.remove_observer(self, sender=self)
+            self.msrp = None
+            self.msrp_session = None
+            self.msrp_connector = None
             self.session = None
 
     def validate_update(self, remote_sdp, stream_index):
