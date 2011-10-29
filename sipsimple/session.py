@@ -1968,7 +1968,7 @@ class Session(object):
     @check_transfer_state('incoming', 'starting')
     def reject_transfer(self, code=486):
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPSessionTransferDidFail', self, TimestampedNotificationData(code=code))
+        notification_center.post_notification('SIPSessionTransferDidFail', self, TimestampedNotificationData(code=code, reason='Busy'))
 
     @property
     def local_identity(self):
