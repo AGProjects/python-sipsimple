@@ -275,7 +275,7 @@ class ResourceLists(XMLListRootElement):
 
     def find_parent(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External)):
-            raise ValueError('can obly find parent for List, Entry, EntryRef or External elements')
+            raise ValueError('can only find parent for List, Entry, EntryRef or External elements')
         if element is self:
             return None
         notexpanded = deque([self])
