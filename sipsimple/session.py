@@ -1966,9 +1966,9 @@ class Session(object):
 
     @check_state(['connected', 'received_proposal', 'sending_proposal', 'accepting_proposal', 'rejecting_proposal', 'cancelling_proposal'])
     @check_transfer_state('incoming', 'starting')
-    def reject_transfer(self, code=486):
+    def reject_transfer(self, code=486, reason=None):
         notification_center = NotificationCenter()
-        notification_center.post_notification('SIPSessionTransferDidFail', self, TimestampedNotificationData(code=code, reason='Busy'))
+        notification_center.post_notification('SIPSessionTransferDidFail', self, TimestampedNotificationData(code=code, reason=reason or sip_status_messages[code]))
 
     @property
     def local_identity(self):
