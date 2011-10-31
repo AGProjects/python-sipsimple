@@ -701,8 +701,12 @@ class TransferHandler(object):
                         try:
                             self.session._invitation.notify_transfer_progress(notification.data.code)
                         except SIPCoreError:
-                            pass
-                        return
+                            return
+                        while True:
+                            try:
+                                notification = self._data_channel.wait()
+                            except SIPInvitationTransferDidFail:
+                                return
             self.state = 'started'
             transfer_info = TransferInfo(referred_by=origin)
             try:
