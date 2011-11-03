@@ -17,5 +17,5 @@
      <xs:element name="icon" type="xs:anyURI"/>
      <xs:element name="map" type="xs:anyURI"/>
      <xs:element name="sound" type="xs:anyURI"/>
-</xs:schema>
+   </xs:schema>
 
