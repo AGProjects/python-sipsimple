@@ -230,9 +230,6 @@ class XMLElementChoiceChild(object):
 
 ## XMLElement base classes
 
-# This is needed for the hack employed in XMLElement.__del__ because of a bug in
-# libxml2. Please see XMLElement.__del__ for more information.
-fakeroot = etree.Element('fakeroot')
 
 class XMLElementType(type):
     def __init__(cls, name, bases, dct):
@@ -436,14 +433,6 @@ class XMLElement(object):
             return sum(hashes)
 
     def __del__(self):
-        # Ugly hack needed because of bug in libxml2. It seems that libxml2
-        # keeps a reference to the XML tree an element belongs to even after
-        # the element is removed from its parent. This causes a problem when
-        # the element is about to be freed. So we simply change the XML tree
-        # an element belongs to by explicitly adding it to a fake root, and
-        # then removing it.
-        fakeroot.append(self.element)
-        fakeroot.remove(self.element)
         for name in self._xml_attributes.keys() + self._xml_element_children.keys():
             delattr(self, name)
 
