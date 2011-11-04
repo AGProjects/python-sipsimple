@@ -116,6 +116,7 @@ class XCAPDiff(XMLListRootElement):
     _xml_tag = 'xcap-diff'
     _xml_namespace = namespace
     _xml_application = XCAPDiffApplication
+    _xml_item_type = (Document, Element, Attribute)
 
     xcap_root = XMLAttribute('xcap_root', xmlname='xcap-root', type=str, required=True, test_equal=True)
     _xml_id = xcap_root
@@ -123,33 +124,9 @@ class XCAPDiff(XMLListRootElement):
     def __init__(self, xcap_root, children=[]):
         XMLListRootElement.__init__(self)
         self.xcap_root = xcap_root
-        self[:] = children
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Document.qname:
-                list.append(self, Document.from_element(child, *args, **kwargs))
-            elif child.tag == Element.qname:
-                list.append(self, Element.from_element(child, *args, **kwargs))
-            elif child.tag == Attribute.qname:
-                list.append(self, Attribute.from_element(child, *args, **kwargs))
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, (Document, Element, Attribute)):
-            raise TypeError("XCAPDiff can only contain Document, Element or Attribute children")
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+        self.update(children)
 
     def __repr__(self):
-        return '%s(%r, [%s])' % (self.__class__.__name__, self.xcap_root, ', '.join('%r' % child for child in self))
-
-    __str__ = __repr__
+        return '%s(%r, %r)' % (self.__class__.__name__, self.xcap_root, list(self))
 
 

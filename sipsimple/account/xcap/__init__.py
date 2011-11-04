@@ -685,7 +685,7 @@ class XCAPSubscriber(object):
 
             rlist = resourcelists.List()
             for document in (doc for doc in self.documents if doc.supported):
-                rlist.append(resourcelists.Entry(document.relative_uri))
+                rlist.add(resourcelists.Entry(document.relative_uri))
             body = resourcelists.ResourceLists([rlist]).toxml()
             content_type = resourcelists.ResourceLists.content_type
             timeout = time() + 30
@@ -1326,9 +1326,9 @@ class XCAPManager(object):
                 if (oma_grantedcontacts, oma_blockedcontacts, oma_allcontacts) == (None, None, None):
                     for rlist in (child for child in resource_lists if isinstance(child, resourcelists.List)):
                         path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-                        oma_buddylist.append(resourcelists.External(path))
+                        oma_buddylist.add(resourcelists.External(path))
                         buddy_lists.append(rlist)
-                resource_lists.append(oma_buddylist)
+                resource_lists.add(oma_buddylist)
                 self.resource_lists.dirty = True
             else:
                 for child in oma_buddylist:
@@ -1341,7 +1341,7 @@ class XCAPManager(object):
                             continue
             if oma_grantedcontacts is None:
                 oma_grantedcontacts = resourcelists.List(name='oma_grantedcontacts')
-                resource_lists.append(oma_grantedcontacts)
+                resource_lists.add(oma_grantedcontacts)
                 self.resource_lists.dirty = True
             else:
                 # Make sure there are no references to oma_buddylist (like OMA suggests)
@@ -1350,21 +1350,21 @@ class XCAPManager(object):
                         try:
                             if oma_buddylist in self._follow_rl_external(resource_lists, child):
                                 oma_grantedcontacts.remove(child)
-                                oma_grantedcontacts.extend(resourcelists.External(self.resource_lists.uri+'/~~'+resource_lists.get_xpath(blist)) for blist in buddy_lists)
+                                oma_grantedcontacts.update(resourcelists.External(self.resource_lists.uri+'/~~'+resource_lists.get_xpath(blist)) for blist in buddy_lists)
                                 self.resource_lists.dirty = True
                                 break
                         except ValueError:
                             continue
             if oma_blockedcontacts is None:
                 oma_blockedcontacts = resourcelists.List(name='oma_blockedcontacts')
-                resource_lists.append(oma_blockedcontacts)
+                resource_lists.add(oma_blockedcontacts)
                 self.resource_lists.dirty = True
             if oma_allcontacts is None:
                 oma_allcontacts = resourcelists.List(name='oma_allcontacts')
                 for rlist in (oma_buddylist, oma_grantedcontacts, oma_blockedcontacts):
                     path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-                    oma_allcontacts.append(resourcelists.External(path))
-                resource_lists.append(oma_allcontacts)
+                    oma_allcontacts.add(resourcelists.External(path))
+                resource_lists.add(oma_allcontacts)
                 self.resource_lists.dirty = True
             # Remove any external references which don't point to anything
             notexpanded = deque([resource_lists])
@@ -1399,8 +1399,8 @@ class XCAPManager(object):
                 service = rlsservices.Service('sip:buddies@%s' % self.account.id.domain, list=rlist, packages=rlsservices.Packages(['presence', 'dialog']))
                 for blist in buddy_lists:
                     path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(blist)
-                    rlist.append(resourcelists.External(path))
-                rls_services.append(service)
+                    rlist.add(resourcelists.External(path))
+                rls_services.add(service)
                 self.rls_services.dirty = True
 
         # Normalize pres-rules document:
@@ -1421,7 +1421,7 @@ class XCAPManager(object):
                 except StopIteration:
                     wp_prs_grantedcontacts = common_policy.Rule('wp_prs_grantedcontacts', conditions=[omapolicy.ExternalList([path])], actions=[presrules.SubHandling('allow')])
                     #wp_prs_grantedcontacts.display_name = 'Allow' # Rule display-name extension
-                    pres_rules.append(wp_prs_grantedcontacts)
+                    pres_rules.add(wp_prs_grantedcontacts)
                     self.pres_rules.dirty = True
                 else:
                     if wp_prs_grantedcontacts.conditions != common_policy.Conditions([omapolicy.ExternalList([path])]):
@@ -1436,7 +1436,7 @@ class XCAPManager(object):
                 except StopIteration:
                     wp_prs_blockedcontacts = common_policy.Rule('wp_prs_blockedcontacts', conditions=[omapolicy.ExternalList([path])], actions=[presrules.SubHandling('polite-block')])
                     #wp_prs_blockedcontacts.display_name = 'Block' # Rule display-name extension
-                    pres_rules.append(wp_prs_blockedcontacts)
+                    pres_rules.add(wp_prs_blockedcontacts)
                     self.pres_rules.dirty = True
                 else:
                     if wp_prs_blockedcontacts.conditions != common_policy.Conditions([omapolicy.ExternalList([path])]):
@@ -1451,7 +1451,7 @@ class XCAPManager(object):
                 wp_prs_unlisted = [child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id in ('wp_prs_unlisted', 'wp_prs_allow_unlisted')]
                 if len(wp_prs_unlisted) == 0:
                     wp_prs_unlisted = common_policy.Rule('wp_prs_unlisted', conditions=[omapolicy.OtherIdentity()], actions=[presrules.SubHandling('confirm')])
-                    pres_rules.append(wp_prs_unlisted)
+                    pres_rules.add(wp_prs_unlisted)
                     self.pres_rules.dirty = True
                 else:
                     for rule in wp_prs_unlisted[1:]:
@@ -1473,7 +1473,7 @@ class XCAPManager(object):
                     wp_prs_block_anonymous = (child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id=='wp_prs_block_anonymous').next()
                 except StopIteration:
                     wp_prs_block_anonymous = common_policy.Rule('wp_prs_block_anonymous', conditions=[omapolicy.AnonymousRequest()], actions=[presrules.SubHandling('block')])
-                    pres_rules.append(wp_prs_block_anonymous)
+                    pres_rules.add(wp_prs_block_anonymous)
                     self.pres_rules.dirty = True
                 else:
                     if wp_prs_block_anonymous.conditions != common_policy.Conditions([omapolicy.AnonymousRequest()]):
@@ -1490,7 +1490,7 @@ class XCAPManager(object):
                     wp_prs_allow_own = (child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id=='wp_prs_allow_own').next()
                 except StopIteration:
                     wp_prs_allow_own = common_policy.Rule('wp_prs_allow_own', conditions=[common_policy.Identity([common_policy.IdentityOne(identity)])], actions=[presrules.SubHandling('allow')])
-                    pres_rules.append(wp_prs_allow_own)
+                    pres_rules.add(wp_prs_allow_own)
                     self.pres_rules.dirty = True
                 else:
                     if wp_prs_allow_own.conditions != common_policy.Conditions([common_policy.Identity([common_policy.IdentityOne(identity)])]):
@@ -1503,18 +1503,18 @@ class XCAPManager(object):
                 for rule in (child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id.startswith('wp_prs_allow_one_')):
                     # Create a new list just for this identity
                     rlist = resourcelists.List(name=self.unique_name('presrules_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
-                    resource_lists.append(rlist)
+                    resource_lists.add(rlist)
                     # Change the name to wp_prs_allow_onelist_<group name>
                     rule.id = self.unique_name('wp_prs_allow_onelist_'+rlist.name, (rule.id for rule in pres_rules)).next()
                     # Change the condition
                     for condition in (rule.conditions or []):
                         if isinstance(condition, common_policy.Identity):
                             for identity in (identity_condition for identity_condition in condition if isinstance(identity_condition, common_policy.IdentityOne)):
-                                rlist.append(resourcelists.Entry(uri=identity.id))
+                                rlist.add(resourcelists.Entry(uri=identity.id))
                         elif isinstance(condition, omapolicy.ExternalList):
                             # This shouldn't happen but accept it anyway
                             for uri in condition:
-                                rlist.append(resourcelists.External(uri))
+                                rlist.add(resourcelists.External(uri))
                     path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
                     rule.conditions = [omapolicy.ExternalList([path])]
                     # Make sure the action is allow
@@ -1530,18 +1530,18 @@ class XCAPManager(object):
                 for rule in (child for child in pres_rules if isinstance(child, common_policy.Rule) and child.id.startswith('wp_prs_one_')):
                     # Create a new list just for this identity
                     rlist = resourcelists.List(name=self.unique_name('presrules_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
-                    resource_lists.append(rlist)
+                    resource_lists.add(rlist)
                     # Change the name to wp_prs_onelist_<group name>
                     rule.id = self.unique_name('wp_prs_onelist_'+rlist.name, (rule.id for rule in pres_rules)).next()
                     # Change the condition
                     for condition in (rule.conditions or []):
                         if isinstance(condition, common_policy.Identity):
                             for identity in (identity_condition for identity_condition in condition if isinstance(identity_condition, common_policy.IdentityOne)):
-                                rlist.append(resourcelists.Entry(uri=identity.id))
+                                rlist.add(resourcelists.Entry(uri=identity.id))
                         elif isinstance(condition, omapolicy.ExternalList):
                             # This shouldn't happen but accept it anyway
                             for uri in condition:
-                                rlist.append(resourcelists.External(uri))
+                                rlist.add(resourcelists.External(uri))
                     path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
                     rule.conditions = [omapolicy.ExternalList([path])]
                     # Make sure the action is one of confirm, block or polite-block
@@ -1574,7 +1574,7 @@ class XCAPManager(object):
                 except StopIteration:
                     name = self.unique_name('dialog_%s' % action, (rule.id for rule in dialog_rules)).next()
                     rule = common_policy.Rule(name, conditions=[], actions=[dialogrules.SubHandling(action)])
-                    dialog_rules.append(rule)
+                    dialog_rules.add(rule)
                     self.dialog_rules.dirty = True
 
     def _OH_add_group(self, operation):
@@ -1613,9 +1613,9 @@ class XCAPManager(object):
         # A list with the specified name was not found, create it
         name = self.unique_name('group', (list.name for list in resource_lists), skip_preferred_name=True).next()
         rlist = resourcelists.List(name=name, display_name=operation.group)
-        resource_lists.append(rlist)
+        resource_lists.add(rlist)
         path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-        oma_buddylist.append(resourcelists.External(path))
+        oma_buddylist.add(resourcelists.External(path))
         self.resource_lists.dirty = True
 
     def _OH_rename_group(self, operation):
@@ -1826,7 +1826,7 @@ class XCAPManager(object):
         fallback_candidate = resourcelists.List(name=self.unique_name('group', (l.name for l in resource_lists), skip_preferred_name=True).next(), display_name=operation.contact.group)
         candidate_lists.append(fallback_candidate)
         # We may need the XPath to this list
-        resource_lists.append(fallback_candidate)
+        resource_lists.add(fallback_candidate)
         presence_lists = set() # Lists to which, if added, the rls services document need not be modified for presence subscription
         dialoginfo_lists = set() # Lists to which, if added, the rls services document need not be modified for dialoginfo subscription
         presrules_lists = set() # Lists to which, if added, the presrules document need not be modified
@@ -1896,7 +1896,7 @@ class XCAPManager(object):
                                     to_remove.append((identity, condition))
                                     self.pres_rules.dirty = True
                                 elif isinstance(identity, common_policy.IdentityMany) and identity.matches(operation.contact.uri):
-                                    identity.append(common_policy.IdentityExcept(operation.contact.uri))
+                                    identity.add(common_policy.IdentityExcept(operation.contact.uri))
                                     self.pres_rules.dirty = True
                 elif operation.contact.presence_policies and action is not None:
                     # This is one of the rules we want to add the contact to
@@ -2020,7 +2020,7 @@ class XCAPManager(object):
                                     to_remove.append((identity, condition))
                                     self.dialog_rules.dirty = True
                                 elif isinstance(identity, common_policy.IdentityMany) and identity.matches(operation.contact.uri):
-                                    identity.append(common_policy.IdentityExcept(operation.contact.uri))
+                                    identity.add(common_policy.IdentityExcept(operation.contact.uri))
                                     self.dialog_rules.dirty = True
                 elif operation.contact.dialoginfo_policies:
                     # This is one of the rules we want to add the contact to
@@ -2042,12 +2042,12 @@ class XCAPManager(object):
                                             break
                                 else:
                                     # Otherwise just add a identity one
-                                    condition.append(common_policy.IdentityOne(operation.contact.uri))
+                                    condition.add(common_policy.IdentityOne(operation.contact.uri))
                                     self.dialog_rules.dirty = True
                             break
                     else:
                         # No identity condition found, add it
-                        rule.conditions.append(common_policy.Identity([common_policy.IdentityOne(operation.contact.uri)]))
+                        rule.conditions.add(common_policy.Identity([common_policy.IdentityOne(operation.contact.uri)]))
                         self.dialog_rules.dirty = True
         # Remove the elements we wanted to remove
         for child, parent in to_remove:
@@ -2060,10 +2060,10 @@ class XCAPManager(object):
                     action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
-                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                for condition in (condition for condition in list(rule.conditions or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(common_policy.FalseCondition())
+                        rule.conditions.add(common_policy.FalseCondition())
         if self.dialog_rules.supported:
             dialog_rules = self.dialog_rules.content
             for rule in dialog_rules:
@@ -2071,10 +2071,10 @@ class XCAPManager(object):
                     action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
-                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                for condition in (condition for condition in list(rule.conditions or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(common_policy.FalseCondition())
+                        rule.conditions.add(common_policy.FalseCondition())
         # Preferred candidates are candidates where if added, the pres-rules and rls-services document need not be modified.
         preferred_candidate_lists = presrules_lists.intersection(candidate_lists)
         if operation.contact.subscribe_to_presence:
@@ -2119,7 +2119,7 @@ class XCAPManager(object):
                                     break
                         else:
                             # Otherwise just add a identity one
-                            identity_conditions[0].append(common_policy.IdentityOne(operation.contact.uri))
+                            identity_conditions[0].add(common_policy.IdentityOne(operation.contact.uri))
                     elif self.oma_compliant:
                         external_lists = [condition for condition in rule.conditions if isinstance(condition, omapolicy.ExternalList)]
                         if external_lists or len(rlist) > 0 or rule.id in ('wp_prs_grantedcontacts', 'wp_prs_blockedcontacts'):
@@ -2136,7 +2136,7 @@ class XCAPManager(object):
                                     # The user wants to add this contact to one of these rules, but the lists referenced by them are not 
                                     # good because they are referenced from other places; create a new rule, similar to this one
                                     container_list = resourcelists.List(name=self.unique_name('presrules_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
-                                    resource_lists.append(container_list)
+                                    resource_lists.add(container_list)
                                     new_policy = deepcopy(policy)
                                     new_policy.id = self.unique_name(('wp_prs_allow_onelist_' if new_policy.action=='allow' else 'wp_prs_onelist_')+container_list.name, (rule.id for rule in pres_rules)).next()
                                     op = AddPresencePolicyOperation(policy=new_policy)
@@ -2144,25 +2144,25 @@ class XCAPManager(object):
                                     handler(op)
                                     rule = pres_rules[new_policy.id]
                                     path = self.resource_lists.uri + '/~~/resource-lists/list[@name="%s"]' % container_list.name
-                                    rule.conditions.append(omapolicy.ExternalList([path]))
+                                    rule.conditions.add(omapolicy.ExternalList([path]))
                                 else:
                                     for external_list in external_lists:
                                         rule.conditions.remove(external_list)
                                     container_list = resourcelists.List(name=self.unique_name('presrules_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
-                                    container_list.extend(resourcelists.External(uri) for uri in chain(*external_lists))
-                                    resource_lists.append(container_list)
+                                    container_list.update(resourcelists.External(uri) for uri in chain(*external_lists))
+                                    resource_lists.add(container_list)
                                     path = self.resource_lists.uri + '/~~/resource-lists/list[@name="%s"]' % container_list.name
-                                    rule.conditions.append(omapolicy.ExternalList([path]))
+                                    rule.conditions.add(omapolicy.ExternalList([path]))
                             if len(rlist) == 0:
                                 path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-                                container_list.append(resourcelists.External(path))
+                                container_list.add(resourcelists.External(path))
                             else:
-                                container_list.append(resourcelists.Entry(operation.contact.uri))
+                                container_list.add(resourcelists.Entry(operation.contact.uri))
                         else:
                             path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-                            rule.conditions.append(omapolicy.ExternalList([path]))
+                            rule.conditions.add(omapolicy.ExternalList([path]))
                     else:
-                        rule.conditions.append(common_policy.Identity([common_policy.IdentityOne(operation.contact.uri)]))
+                        rule.conditions.add(common_policy.Identity([common_policy.IdentityOne(operation.contact.uri)]))
                 self.pres_rules.dirty = True
             if self.rls_services.supported and (add_to_presence_list or add_to_dialoginfo_list):
                 if operation.contact.subscribe_to_presence and not operation.contact.subscribe_to_dialoginfo:
@@ -2185,7 +2185,7 @@ class XCAPManager(object):
                             except StopIteration:
                                 # Too bad, we have to create a new service
                                 service_list = resourcelists.List(name=self.unique_name('subscribe_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
-                                resource_lists.append(service_list)
+                                resource_lists.add(service_list)
                                 path = self.resource_lists.uri + '/~~/resource-lists/list[@name="%s"]' % service_list.name
                                 # Find a new uri
                                 uri_re = re.compile(r'sip:(buddies_.*)@%s' % self.account.id.domain)
@@ -2193,7 +2193,7 @@ class XCAPManager(object):
                                 uri = 'sip:%s@%s' % (self.unique_name('buddies', taken_names, skip_preferred_name=True).next(), self.account.id.domain)
                                 # We'll also make it a dialog service just so that it can also be used as a container for dialog
                                 service = rlsservices.Service(uri=uri, list=rlsservices.ResourceList(path), packages=['presence', 'dialog'] if add_to_dialoginfo_list and rlist not in dialoginfo_lists else ['presence'])
-                                rls_services.append(service)
+                                rls_services.add(service)
                                 container_lists.append(service_list)
                                 add_to_dialoginfo_list = False
                         if add_to_dialoginfo_list:
@@ -2202,7 +2202,7 @@ class XCAPManager(object):
                             except StopIteration:
                                 # Too bad, we have to create a new service
                                 service_list = resourcelists.List(name=self.unique_name('subscribe_group', (list.name for list in resource_lists), skip_preferred_name=True).next())
-                                resource_lists.append(service_list)
+                                resource_lists.add(service_list)
                                 path = self.resource_lists.uri + '/~~/resource-lists/list[@name="%s"]' % service_list.name
                                 # Find a new uri
                                 uri_re = re.compile(r'sip:(buddies_.*)@%s' % self.account.id.domain)
@@ -2210,7 +2210,7 @@ class XCAPManager(object):
                                 uri = 'sip:%s@%s' % (self.unique_name('buddies', taken_names, skip_preferred_name=True).next(), self.account.id.domain)
                                 # We'll also make it a presence service just so that it can also be used as a container for presence
                                 service = rlsservices.Service(uri=uri, list=rlsservices.ResourceList(path), packages=['presence', 'dialog'] if operation.contact.subscribe_to_presence and rlist not in presence_lists else ['dialog'])
-                                rls_services.append(service)
+                                rls_services.add(service)
                                 container_lists = [service_list] # Don't use the previously determined presence service
                     for container_list in container_lists:
                         if container_list is rlist:
@@ -2221,12 +2221,12 @@ class XCAPManager(object):
             resource_lists.remove(fallback_candidate)
         elif operation.contact.group is not None:
             path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-            oma_buddylist.append(resourcelists.External(path))
+            oma_buddylist.add(resourcelists.External(path))
         # After all this trouble, we've found a list that can take our new contact: add it to the list!
         entry = resourcelists.Entry(uri=operation.contact.uri, display_name=operation.contact.name)
         if operation.contact.attributes:
             entry.attributes = resourcelists.Entry.attributes.type(operation.contact.attributes)
-        rlist.append(entry)
+        rlist.add(entry)
         self.resource_lists.dirty = True
 
     def _OH_update_contact(self, operation):
@@ -2273,9 +2273,9 @@ class XCAPManager(object):
                 # This contact might be referenced only from a rls-services, pres-rules or dialog-rules document; create a list
                 # for any additional information we want to store about the contact
                 rlist = resourcelists.List(name=self.unique_name('group', (list.name for list in resource_lists), skip_preferred_name=True).next())
-                resource_lists.append(rlist)
+                resource_lists.add(rlist)
                 entry = resourcelists.Entry(uri=operation.contact.uri, display_name=operation.contact.name)
-                rlist.append(entry)
+                rlist.add(entry)
             if 'name' in operation.attributes:
                 entry.display_name = operation.attributes.pop('name')
             if operation.attributes and entry.attributes is None:
@@ -2509,7 +2509,7 @@ class XCAPManager(object):
                                 to_remove.append((identity, condition))
                                 self.pres_rules.dirty = True
                             elif isinstance(identity, common_policy.IdentityMany) and identity.matches(operation.contact.uri):
-                                identity.append(common_policy.IdentityExcept(operation.contact.uri))
+                                identity.add(common_policy.IdentityExcept(operation.contact.uri))
                                 self.pres_rules.dirty = True
         # Update the dialoginfo rules
         if self.dialog_rules.supported:
@@ -2527,7 +2527,7 @@ class XCAPManager(object):
                                 to_remove.append((identity, condition))
                                 self.dialog_rules.dirty = True
                             elif isinstance(identity, common_policy.IdentityMany) and identity.matches(operation.contact.uri):
-                                identity.append(common_policy.IdentityExcept(operation.contact.uri))
+                                identity.add(common_policy.IdentityExcept(operation.contact.uri))
                                 self.dialog_rules.dirty = True
         notexpanded = deque(lists)
         visited = set(notexpanded)
@@ -2568,10 +2568,10 @@ class XCAPManager(object):
                     action = (action.value for action in (rule.actions or []) if isinstance(action, presrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
-                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                for condition in (condition for condition in list(rule.conditions or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(common_policy.FalseCondition())
+                        rule.conditions.add(common_policy.FalseCondition())
         if self.dialog_rules.supported:
             dialog_rules = self.dialog_rules.content
             for rule in dialog_rules:
@@ -2579,10 +2579,10 @@ class XCAPManager(object):
                     action = (action.value for action in (rule.actions or []) if isinstance(action, dialogrules.SubHandling)).next()
                 except StopIteration:
                     continue # Ignore rules whose actions we don't understand
-                for condition in (condition for condition in (rule.conditions[:] or []) if isinstance(condition, common_policy.Identity)):
+                for condition in (condition for condition in list(rule.conditions or []) if isinstance(condition, common_policy.Identity)):
                     if len(condition) == 0:
                         rule.conditions.remove(condition)
-                        rule.conditions.append(common_policy.FalseCondition())
+                        rule.conditions.add(common_policy.FalseCondition())
 
     def _OH_add_presence_policy(self, operation):
         if not self.pres_rules.supported or operation.policy.id in ('wp_prs_unlisted', 'wp_prs_allow_unlisted', 'wp_prs_grantedcontacts', 'wp_prs_blockedcontacts', 'wp_prs_block_anonymous', 'wp_prs_allow_own'):
@@ -2602,50 +2602,50 @@ class XCAPManager(object):
             operation.policy.id = self.unique_name('rule', (rule.id for rule in pres_rules), skip_preferred_name=True).next()
         rule = common_policy.Rule(operation.policy.id, conditions=[], actions=[], transformations=[])
         #rule.display_name = operation.policy.name # Rule display-name extension
-        rule.actions.append(presrules.SubHandling(operation.policy.action))
+        rule.actions.add(presrules.SubHandling(operation.policy.action))
         if operation.policy.sphere:
-            rule.conditions.append(common_policy.Sphere(operation.policy.sphere))
+            rule.conditions.add(common_policy.Sphere(operation.policy.sphere))
         if operation.policy.validity:
-            rule.conditions.append(common_policy.Validity(operation.policy.validity))
+            rule.conditions.add(common_policy.Validity(operation.policy.validity))
         if operation.policy.action == 'allow':
             if operation.policy.provide_devices is All:
-                rule.transformations.append(presrules.ProvideDevices(all=True))
+                rule.transformations.add(presrules.ProvideDevices(all=True))
             elif operation.policy.provide_devices:
                 provide_devices = presrules.ProvideDevices()
                 for component in provide_devices:
                     if isinstance(component, Class):
-                        provide_devices.append(presrules.Class(component))
+                        provide_devices.add(presrules.Class(component))
                     elif isinstance(component, OccurenceID):
-                        provide_devices.append(presrules.OccurenceID(component))
+                        provide_devices.add(presrules.OccurenceID(component))
                     elif isinstance(component, DeviceID):
-                        provide_devices.append(presrules.DeviceID(component))
-                rule.transformations.append(provide_devices)
+                        provide_devices.add(presrules.DeviceID(component))
+                rule.transformations.add(provide_devices)
             if operation.policy.provide_persons is All:
-                rule.transformations.append(presrules.ProvidePersons(all=True))
+                rule.transformations.add(presrules.ProvidePersons(all=True))
             elif operation.policy.provide_persons:
                 provide_persons = presrules.ProvidePersons()
                 for component in provide_persons:
                     if isinstance(component, Class):
-                        provide_persons.append(presrules.Class(component))
+                        provide_persons.add(presrules.Class(component))
                     elif isinstance(component, OccurenceID):
-                        provide_persons.append(presrules.OccurenceID(component))
-                rule.transformations.append(provide_persons)
+                        provide_persons.add(presrules.OccurenceID(component))
+                rule.transformations.add(provide_persons)
             if operation.policy.provide_services is All:
-                rule.transformations.append(presrules.ProvideServices(all=True))
+                rule.transformations.add(presrules.ProvideServices(all=True))
             else:
                 provide_services = presrules.ProvideServices()
                 for component in provide_services:
                     if isinstance(component, Class):
-                        provide_services.append(presrules.Class(component))
+                        provide_services.add(presrules.Class(component))
                     elif isinstance(component, OccurenceID):
-                        provide_services.append(presrules.OccurenceID(component))
+                        provide_services.add(presrules.OccurenceID(component))
                     elif isinstance(component, ServiceURI):
-                        provide_services.append(presrules.ServiceURI(component))
+                        provide_services.add(presrules.ServiceURI(component))
                     elif isinstance(component, ServiceURIScheme):
-                        provide_services.append(presrules.ServiceURIScheme(component))
-                rule.transformations.append(provide_services)
+                        provide_services.add(presrules.ServiceURIScheme(component))
+                rule.transformations.add(provide_services)
             if operation.policy.provide_all_attributes:
-                rule.transformations.append(presrules.ProvideAllAttributes())
+                rule.transformations.add(presrules.ProvideAllAttributes())
             else:
                 attribute_class = {'provide_activities':            presrules.ProvideActivities,
                                    'provide_class':                 presrules.ProvideClass,
@@ -2663,37 +2663,37 @@ class XCAPManager(object):
                 for attribute, cls in attribute_class.iteritems():
                     value = getattr(operation.policy, attribute)
                     if value is not None:
-                        rule.transformations.append(cls(value))
+                        rule.transformations.add(cls(value))
         if self.oma_compliant and self.resource_lists.supported and (rule.id.startswith('wp_prs_allow_onelist_') or rule.id.startswith('wp_prs_onelist_')):
             resource_lists = self.resource_lists.content
             preferred_name = rule.id[len('wp_prs_allow_onelist_'):] if rule.id.startswith('wp_prs_allow_onelist') else rule.id[len('wp_prs_onelist_'):]
             rlist = resourcelists.List(name=self.unique_name(preferred_name, (list.name for list in resource_lists)).next())
-            resource_lists.append(rlist)
+            resource_lists.add(rlist)
             path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-            rule.conditions.append(omapolicy.ExternalList([path]))
+            rule.conditions.add(omapolicy.ExternalList([path]))
             self.resource_lists.dirty = True
         else:
             identity_condition = common_policy.Identity()
             for multi_identity_condition in (operation.policy.multi_identity_conditions or []):
                 if isinstance(multi_identity_condition, CatchAllCondition):
                     condition = common_policy.IdentityMany()
-                    identity_condition.append(condition)
+                    identity_condition.add(condition)
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, DomainException):
-                            condition.append(common_policy.IdentityExcept(domain=exception.domain))
+                            condition.add(common_policy.IdentityExcept(domain=exception.domain))
                         elif isinstance(exception, UserException):
-                            condition.append(common_policy.IdentityExcept(id=exception.uri))
+                            condition.add(common_policy.IdentityExcept(id=exception.uri))
                 elif isinstance(multi_identity_condition, DomainCondition):
                     condition = common_policy.IdentityMany(domain=multi_identity_condition.domain)
-                    identity_condition.append(condition)
+                    identity_condition.add(condition)
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, UserException):
-                            condition.append(common_policy.IdentityExcept(id=exception.uri))
+                            condition.add(common_policy.IdentityExcept(id=exception.uri))
             if len(identity_condition) == 0:
-                rule.conditions.append(common_policy.FalseCondition())
+                rule.conditions.add(common_policy.FalseCondition())
             else:
-                rule.conditions.append(identity_condition)
-        pres_rules.append(rule)
+                rule.conditions.add(identity_condition)
+        pres_rules.add(rule)
         self.pres_rules.dirty = True
 
     def _OH_update_presence_policy(self, operation):
@@ -2769,7 +2769,7 @@ class XCAPManager(object):
                 elif isinstance(transformation, presrules.ProvideAllAttributes):
                     policy.provide_all_attributes = True
                 elif isinstance(transformation, presrules.ProvideDevices):
-                    if transformation.all:
+                    if All in transformation:
                         policy.provide_devices = All
                     else:
                         policy.provide_devices = []
@@ -2781,7 +2781,7 @@ class XCAPManager(object):
                             elif isinstance(component, presrules.DeviceID):
                                 policy.provide_devices.append(DeviceID(component.value))
                 elif isinstance(transformation, presrules.ProvidePersons):
-                    if transformation.all:
+                    if All in transformation:
                         policy.provide_persons = All
                     else:
                         policy.provide_persons = []
@@ -2791,7 +2791,7 @@ class XCAPManager(object):
                             elif isinstance(component, presrules.OccurenceID):
                                 policy.provide_persons.append(OccurenceID(component.value))
                 elif isinstance(transformation, presrules.ProvideServices):
-                    if transformation.all:
+                    if All in transformation:
                         policy.provide_services = All
                     else:
                         policy.provide_services = []
@@ -2832,7 +2832,7 @@ class XCAPManager(object):
                 condition = (condition for condition in rule.conditions if isinstance(condition, common_policy.Sphere)).next()
             except StopIteration:
                 if sphere is not None:
-                    rule.conditions.append(common_policy.Sphere(sphere))
+                    rule.conditions.add(common_policy.Sphere(sphere))
             else:
                 if sphere is not None:
                     condition.value = sphere
@@ -2844,10 +2844,11 @@ class XCAPManager(object):
                 condition = (condition for condition in rule.conditions if isinstance(condition, common_policy.Validity)).next()
             except StopIteration:
                 if validity is not None:
-                    rule.conditions.append(common_policy.Validity(validity))
+                    rule.conditions.add(common_policy.Validity(validity))
             else:
                 if validity is not None:
-                    condition[:] = validity
+                    condition.clear()
+                    condition.add(validity)
                 else:
                     rule.conditions.remove(condition)
         try:
@@ -2866,31 +2867,31 @@ class XCAPManager(object):
                     transformation = (transformation for transformation in rule.transformations if isinstance(transformation, cls)).next()
                 except StopIteration:
                     if value is All:
-                        rule.transformations.append(cls(all=True))
+                        rule.transformations.add(cls([All]))
                     elif value is not None:
-                        rule.transformations.append(cls(value))
+                        rule.transformations.add(cls(value))
                 else:
                     if value is All:
-                        transformation.all = True
+                        transformation.add(All)
                     elif value is not None:
-                        del transformation[:]
+                        transformation.clear()
                         for component in value:
                             if isinstance(component, Class):
-                                transformation.append(presrules.Class(component))
+                                transformation.add(presrules.Class(component))
                             elif isinstance(component, OccurenceID):
-                                transformation.append(presrules.OccurenceID(component))
+                                transformation.add(presrules.OccurenceID(component))
                             elif isinstance(component, DeviceID) and attribute == 'provide_devices':
-                                transformation.append(presrules.DeviceID(component))
+                                transformation.add(presrules.DeviceID(component))
                             elif isinstance(component, ServiceURI) and attribute == 'provide_services':
-                                transformation.append(presrules.ServiceURI(component))
+                                transformation.add(presrules.ServiceURI(component))
                             elif isinstance(component, ServiceURIScheme) and attribute == 'provide_services':
-                                transformation.append(presrules.ServiceURIScheme(component))
+                                transformation.add(presrules.ServiceURIScheme(component))
                     else:
                         rule.transformations.remove(transformation)
             provide_all_attributes = operation.attributes.pop('provide_all_attributes', Null)
             if provide_all_attributes is True:
                 rule.transformations.clear()
-                rule.transformations.append(presrules.ProvideAllAttributes())
+                rule.transformations.add(presrules.ProvideAllAttributes())
             elif not (provide_all_attributes is Null and any(isinstance(transformation, presrules.ProvideAllAttributes) for transformation in rule.transformations)):
                 if provide_all_attributes is False:
                     for transformation in [t for t in rule.transformations if isinstance(t, presrules.ProvideAllAttributes)]:
@@ -2916,7 +2917,7 @@ class XCAPManager(object):
                         transformation = (transformation for transformation in rule.transformations if isinstance(transformation, cls)).next()
                     except StopIteration:
                         if value is not None:
-                            rule.transformations.append(cls(value))
+                            rule.transformations.add(cls(value))
                     else:
                         if value is not None:
                             transformation.value = value
@@ -2930,9 +2931,9 @@ class XCAPManager(object):
                 resource_lists = self.resource_lists.content
                 preferred_name = rule.id[len('wp_prs_allow_onelist_'):] if rule.id.startswith('wp_prs_allow_onelist') else rule.id[len('wp_prs_onelist_'):]
                 rlist = resourcelists.List(name=self.unique_name(preferred_name, (list.name for list in resource_lists)).next())
-                resource_lists.append(rlist)
+                resource_lists.add(rlist)
                 path = self.resource_lists.uri + '/~~' + resource_lists.get_xpath(rlist)
-                rule.conditions.append(omapolicy.ExternalList([path]))
+                rule.conditions.add(omapolicy.ExternalList([path]))
                 self.resource_lists.dirty = True
         try:
             identity_condition = (condition for condition in rule.conditions if isinstance(condition, common_policy.Identity)).next()
@@ -2944,23 +2945,23 @@ class XCAPManager(object):
             for multi_identity_condition in (operation.attributes.pop('multi_identity_conditions') or []):
                 if isinstance(multi_identity_condition, CatchAllCondition):
                     condition = common_policy.IdentityMany()
-                    identity_condition.append(condition)
+                    identity_condition.add(condition)
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, DomainException):
-                            condition.append(common_policy.IdentityExcept(domain=exception.domain))
+                            condition.add(common_policy.IdentityExcept(domain=exception.domain))
                         elif isinstance(exception, UserException):
-                            condition.append(common_policy.IdentityExcept(id=exception.uri))
+                            condition.add(common_policy.IdentityExcept(id=exception.uri))
                 elif isinstance(multi_identity_condition, DomainCondition):
                     condition = common_policy.IdentityMany(domain=multi_identity_condition.domain)
-                    identity_condition.append(condition)
+                    identity_condition.add(condition)
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, UserException):
-                            condition.append(common_policy.IdentityExcept(id=exception.uri))
+                            condition.add(common_policy.IdentityExcept(id=exception.uri))
         # Identity condition can't be empty
         if not identity_condition:
-            rule.conditions.append(common_policy.FalseCondition())
+            rule.conditions.add(common_policy.FalseCondition())
         else:
-            rule.conditions.append(identity_condition)
+            rule.conditions.add(identity_condition)
         self.pres_rules.dirty = True
 
     def _OH_remove_presence_policy(self, operation):
@@ -2983,32 +2984,32 @@ class XCAPManager(object):
             return
         rule = common_policy.Rule(operation.policy.id, conditions=[], actions=[])
         #rule.display_name = operation.policy.name # Rule display-name extension
-        rule.actions.append(dialogrules.SubHandling(operation.policy.action))
+        rule.actions.add(dialogrules.SubHandling(operation.policy.action))
         if operation.policy.sphere:
-            rule.conditions.append(common_policy.Sphere(operation.policy.sphere))
+            rule.conditions.add(common_policy.Sphere(operation.policy.sphere))
         if operation.policy.validity:
-            rule.conditions.append(common_policy.Validity(operation.policy.validity))
+            rule.conditions.add(common_policy.Validity(operation.policy.validity))
         identity_condition = common_policy.Identity()
         for multi_identity_condition in (operation.policy.multi_identity_conditions or []):
             if isinstance(multi_identity_condition, CatchAllCondition):
                 condition = common_policy.IdentityMany()
-                identity_condition.append(condition)
+                identity_condition.add(condition)
                 for exception in multi_identity_condition.exceptions:
                     if isinstance(exception, DomainException):
-                        condition.append(common_policy.IdentityExcept(domain=exception.domain))
+                        condition.add(common_policy.IdentityExcept(domain=exception.domain))
                     elif isinstance(exception, UserException):
-                        condition.append(common_policy.IdentityExcept(id=exception.uri))
+                        condition.add(common_policy.IdentityExcept(id=exception.uri))
             elif isinstance(multi_identity_condition, DomainCondition):
                 condition = common_policy.IdentityMany(domain=multi_identity_condition.domain)
-                identity_condition.append(condition)
+                identity_condition.add(condition)
                 for exception in multi_identity_condition.exceptions:
                     if isinstance(exception, UserException):
-                        condition.append(common_policy.IdentityExcept(id=exception.uri))
+                        condition.add(common_policy.IdentityExcept(id=exception.uri))
         if len(identity_condition) == 0:
-            rule.conditions.append(common_policy.FalseCondition())
+            rule.conditions.add(common_policy.FalseCondition())
         else:
-            rule.conditions.append(identity_condition)
-        dialog_rules.append(rule)
+            rule.conditions.add(identity_condition)
+        dialog_rules.add(rule)
         self.dialog_rules.dirty = True
 
     def _OH_update_dialoginfo_policy(self, operation):
@@ -3044,7 +3045,7 @@ class XCAPManager(object):
                 condition = (condition for condition in rule.conditions if isinstance(condition, common_policy.Sphere)).next()
             except StopIteration:
                 if sphere is not None:
-                    rule.conditions.append(common_policy.Sphere(sphere))
+                    rule.conditions.add(common_policy.Sphere(sphere))
             else:
                 if sphere is not None:
                     condition.value = sphere
@@ -3056,10 +3057,11 @@ class XCAPManager(object):
                 condition = (condition for condition in rule.conditions if isinstance(condition, common_policy.Validity)).next()
             except StopIteration:
                 if validity is not None:
-                    rule.conditions.append(common_policy.Validity(validity))
+                    rule.conditions.add(common_policy.Validity(validity))
             else:
                 if validity is not None:
-                    condition[:] = validity
+                    condition.clear()
+                    condition.add(validity)
                 else:
                     rule.conditions.remove(condition)
         try:
@@ -3072,23 +3074,23 @@ class XCAPManager(object):
             for multi_identity_condition in (operation.attributes.pop('multi_identity_conditions') or []):
                 if isinstance(multi_identity_condition, CatchAllCondition):
                     condition = common_policy.IdentityMany()
-                    identity_condition.append(condition)
+                    identity_condition.add(condition)
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, DomainException):
-                            condition.append(common_policy.IdentityExcept(domain=exception.domain))
+                            condition.add(common_policy.IdentityExcept(domain=exception.domain))
                         elif isinstance(exception, UserException):
-                            condition.append(common_policy.IdentityExcept(id=exception.uri))
+                            condition.add(common_policy.IdentityExcept(id=exception.uri))
                 elif isinstance(multi_identity_condition, DomainCondition):
                     condition = common_policy.IdentityMany(domain=multi_identity_condition.domain)
-                    identity_condition.append(condition)
+                    identity_condition.add(condition)
                     for exception in multi_identity_condition.exceptions:
                         if isinstance(exception, UserException):
-                            condition.append(common_policy.IdentityExcept(id=exception.uri))
+                            condition.add(common_policy.IdentityExcept(id=exception.uri))
         # Identity condition can't be empty
         if len(identity_condition) == 0:
-            rule.conditions.append(common_policy.FalseCondition())
+            rule.conditions.add(common_policy.FalseCondition())
         else:
-            rule.conditions.append(identity_condition)
+            rule.conditions.add(identity_condition)
         self.dialog_rules.dirty = True
 
     def _OH_remove_dialoginfo_policy(self, operation):
@@ -3122,11 +3124,11 @@ class XCAPManager(object):
             person = presdm.Person('offline_status')
             person.timestamp = presdm.PersonTimestamp()
             if operation.status.note:
-                person.notes.add(presdm.PersonNote(operation.status.note))
+                person.notes.add(presdm.Note(operation.status.note))
             if operation.status.activity:
                 person.activities = rpid.Activities()
-                person.activities.append(operation.status.activity)
-            self.pidf_manipulation.content.append(person)
+                person.activities.add(operation.status.activity)
+            self.pidf_manipulation.content.add(person)
         self.pidf_manipulation.dirty = True
 
 
@@ -3188,7 +3190,7 @@ class XCAPManager(object):
         if self.rls_services.supported:
             rls_services = self.rls_services.content
             for service_element in rls_services:
-                packages = set(package.value for package in (service_element.packages or []))
+                packages = set(service_element.packages or [])
                 service = Service(service_element.uri, list(packages))
                 service.entries = set()
                 services.append(service)
@@ -3264,7 +3266,7 @@ class XCAPManager(object):
                     elif isinstance(transformation, presrules.ProvideAllAttributes):
                         policy.provide_all_attributes = True
                     elif isinstance(transformation, presrules.ProvideDevices):
-                        if transformation.all:
+                        if All in transformation:
                             policy.provide_devices = All
                         else:
                             policy.provide_devices = []
@@ -3276,7 +3278,7 @@ class XCAPManager(object):
                                 elif isinstance(component, presrules.DeviceID):
                                     policy.provide_devices.append(DeviceID(component.value))
                     elif isinstance(transformation, presrules.ProvidePersons):
-                        if transformation.all:
+                        if All in transformation:
                             policy.provide_persons = All
                         else:
                             policy.provide_persons = []
@@ -3286,7 +3288,7 @@ class XCAPManager(object):
                                 elif isinstance(component, presrules.OccurenceID):
                                     policy.provide_persons.append(OccurenceID(component.value))
                     elif isinstance(transformation, presrules.ProvideServices):
-                        if transformation.all:
+                        if All in transformation:
                             policy.provide_services = All
                         else:
                             policy.provide_services = []

@@ -1,6 +1,33 @@
 # Copyright (C) 2010-2011 AG Projects. See LICENSE for details.
 #
 
+# This module is currently broken. It breaks the core assumption of the
+# payloads infrastructure, that there is only one element with a given qname
+# for every given application.
+# Currently this module defines at least 2 different elements with the same
+# qname (tag=entry) which are used inside list elements. As a result, when
+# the list element tries to lookup the class to use for a given qname, only
+# one list element will get the class right, the other will get a wrong class
+# because the list element uses the application qname map to determine the
+# class and that mapping can only contain 1 mapping from a given qname to a
+# class. Since the class it obtains is not the right one, it will be ignored
+# as it doesn't match the known item types for that list element and the
+# corresponding xml data will also be ignored.
+#
+# To make matters even worse, this module subclasses XMLElement classes
+# without changing their qname, which in turn generates even more overlapping
+# classes for a given qname. At least according to the xml schema, all these
+# subclasses (which seem to be defined in order to impose some restrictions
+# in different cases), seem to be unnecessary. The schema only defines one
+# type with a string element that has no resctrictions and is to be used
+# in all the places. The code however tries to use a variation of the type
+# with restrictions in different places and fails as the correct class cannot
+# be identified anymore (see for example all the UrisType subclasses or the
+# multiple classes to define purpose elements).
+#
+# -Dan
+#
+
 """Parses and produces conference-info messages according to RFC4575."""
 
 
@@ -144,37 +171,6 @@ class UrisTypeEntry(XMLElement):
         self.purpose = purpose
         self.modified = modified
 
-class UrisTypeList(XMLListElement):
-    _xml_tag = None     # Needs to be specified in a subclass
-    _xml_namespace = namespace
-    _xml_application = ConferenceApplication
-
-    def __init__(self, entries=[]):
-        XMLListElement.__init__(self)
-        self[0:0] = entries
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is UrisTypeEntry:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (UrisTypeEntry)):
-            raise TypeError("Element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
 class Subject(XMLStringElement):
     _xml_tag = 'subject'
     _xml_namespace = namespace
@@ -202,23 +198,15 @@ class ConfUrisPurpose(UrisTypePurpose):
 class ConfUrisEntry(UrisTypeEntry):
     purpose = XMLElementChild('purpose', type=ConfUrisPurpose, required=False, test_equal=True)
 
-class ConfUris(UrisTypeList):
+class ConfUris(XMLListElement):
     _xml_tag = 'conf-uris'
+    _xml_namespace = namespace
+    _xml_application = ConferenceApplication
+    _xml_item_type = ConfUrisEntry
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is ConfUrisEntry:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (ConfUrisEntry)):
-            raise TypeError("Conf URIs element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+    def __init__(self, entries=[]):
+        XMLListElement.__init__(self)
+        self.update(entries)
 
 class ServiceUrisPurposeValue(str):
     def __new__(cls, value):
@@ -232,23 +220,15 @@ class ServiceUrisPurpose(UrisTypePurpose):
 class ServiceUrisEntry(UrisTypeEntry):
     purpose = XMLElementChild('purpose', type=ServiceUrisPurpose, required=False, test_equal=True)
 
-class ServiceUris(UrisTypeList):
+class ServiceUris(XMLListElement):
     _xml_tag = 'service-uris'
+    _xml_namespace = namespace
+    _xml_application = ConferenceApplication
+    _xml_item_type = ServiceUrisEntry
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is ServiceUrisEntry:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (ServiceUrisEntry)):
-            raise TypeError("Service URIs element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+    def __init__(self, entries=[]):
+        XMLListElement.__init__(self)
+        self.update(entries)
 
 class MaximumUserCount(XMLStringElement):
     _xml_tag = 'maximum-user-count'
@@ -306,32 +286,11 @@ class AvailableMedia(XMLListElement):
     _xml_tag = 'available-media'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+    _xml_item_type = AvailableMediaEntry
 
     def __init__(self, entries=[]):
         XMLListElement.__init__(self)
-        self[0:0] = entries
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is AvailableMediaEntry:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (AvailableMediaEntry)):
-            raise TypeError("Available media element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+        self.update(entries)
 
 class ConferenceDescription(XMLElement):
     _xml_tag = 'conference-description'
@@ -364,8 +323,16 @@ class WebPage(XMLStringElement):
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
 
-class HostInfoUris(UrisTypeList):
+class HostInfoUris(XMLListElement):
     _xml_tag = 'uris'
+    _xml_namespace = namespace
+    _xml_application = ConferenceApplication
+    _xml_item_type = UrisTypeEntry
+
+    def __init__(self, entries=[]):
+        XMLListElement.__init__(self)
+        self.update(entries)
+
 
 class HostInfo(XMLElement):
     _xml_tag = 'host-info'
@@ -415,8 +382,16 @@ class ConferenceState(XMLElement):
         self.active = active
         self.locked = locked
 
-class AssociatedAors(UrisTypeList):
+class AssociatedAors(XMLListElement):
     _xml_tag = 'associated-aors'
+    _xml_namespace = namespace
+    _xml_application = ConferenceApplication
+    _xml_item_type = UrisTypeEntry
+
+    def __init__(self, entries=[]):
+        XMLListElement.__init__(self)
+        self.update(entries)
+
 
 class Role(XMLStringElement):
     _xml_tag = 'entry'
@@ -427,32 +402,11 @@ class Roles(XMLListElement):
     _xml_tag = 'roles'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+    _xml_item_type = Role
 
     def __init__(self, roles=[]):
         XMLListElement.__init__(self)
-        self[0:0] = roles
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is Role:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (Role)):
-            raise TypeError("Roles element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+        self.update(roles)
 
 class Languages(XMLStringElement):
     _xml_tag = 'languages'
@@ -588,6 +542,7 @@ class Endpoint(XMLListElement):
     _xml_tag = 'endpoint'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+    _xml_item_type = Media
 
     entity = XMLAttribute('entity', type=str, required=True, test_equal=False)
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
@@ -613,34 +568,17 @@ class Endpoint(XMLListElement):
         self.disconnection_method = disconnection_method
         self.disconnection_info = disconnection_info
         self.call_info = call_info
-        self[0:0] = media
+        self.update(media)
 
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is Media:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (Media)):
-            raise TypeError("User element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+    def __repr__(self):
+        args = ('entity', 'state', 'display_text', 'referred', 'status', 'joining_method', 'joining_info', 'disconnection_method', 'disconnection_info', 'call_info')
+        return "%s(%s, media=%r)" % (self.__class__.__name__, ', '.join("%s=%r" % (name, getattr(self, name)) for name in args), list(self))
 
 class User(XMLListElement):
     _xml_tag = 'user'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+    _xml_item_type = Endpoint
 
     entity = XMLAttribute('entity', type=str, required=True, test_equal=False)
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
@@ -660,100 +598,53 @@ class User(XMLListElement):
         self.roles = roles
         self.languages = languages
         self.cascaded_focus = cascaded_focus
-        self[0:0] = endpoints
+        self.update(endpoints)
 
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is Endpoint:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (Endpoint)):
-            raise TypeError("User element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+    def __repr__(self):
+        args = ('entity', 'state', 'display_text', 'associated_aors', 'roles', 'languages', 'cascaded_focus')
+        return "%s(%s, endpoints=%r)" % (self.__class__.__name__, ', '.join("%s=%r" % (name, getattr(self, name)) for name in args), list(self))
 
 class Users(XMLListElement):
     _xml_tag = 'users'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+    _xml_item_type = User
 
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
 
-    def __init__(self, state='full', entries=[]):
+    def __init__(self, state='full', users=[]):
         XMLListElement.__init__(self)
         self.state = state
-        self[0:0] = entries
+        self.update(users)
 
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
+    def __repr__(self):
+        return "%s(state=%r, users=%r)" % (self.__class__.__name__, self.state, list(self))
 
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is User:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (User)):
-            raise TypeError("Users element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-class SidebarsByRef(UrisTypeList):
+class SidebarsByRef(XMLListElement):
     _xml_tag = 'sidebars-by-ref'
+    _xml_namespace = namespace
+    _xml_application = ConferenceApplication
+    _xml_item_type = UrisTypeEntry
+
+    def __init__(self, entries=[]):
+        XMLListElement.__init__(self)
+        self.update(entries)
 
 class SidebarsByVal(XMLListElement):
     _xml_tag = 'sidebars-by-val'
     _xml_namespace = namespace
     _xml_application = ConferenceApplication
+    _xml_item_type = None # will be set later, after the item type is defined below
 
     state = XMLAttribute('state', type=State, required=False, test_equal=False)
 
     def __init__(self, state='full', entries=[]):
         XMLListElement.__init__(self)
         self.state = state
-        self[0:0] = entries
+        self.update(entries)
 
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and child_cls is SidebarsByValEntry:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (SidebarsByValEntry)):
-            raise TypeError("Sidebars-by-val element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+    def __repr__(self):
+        return "%s(state=%r, entries=%r)" % (self.__class__.__name__, self.state, list(self))
 
 class SidebarsByValEntry(XMLElement):
     _xml_tag = 'entry'
@@ -783,6 +674,8 @@ class SidebarsByValEntry(XMLElement):
         self.sidebars_by_val = sidebars_by_val
         if self.state == "full" and (self.conference_description is None or self.users is None):
             raise ValidationError("A full conference document must at least include the <conference-description> and <users> child elements.")
+
+SidebarsByVal._xml_item_type = SidebarsByValEntry
 
 class Conference(XMLRootElement):
     content_type = "application/conference-info+xml"
@@ -855,32 +748,11 @@ class FileResources(XMLListElement):
     _xml_tag = 'files'
     _xml_namespace = agp_conf_namespace
     _xml_application = ConferenceApplication
+    _xml_item_type = FileResource
 
     def __init__(self, files=[]):
         XMLListElement.__init__(self)
-        self[0:0] = files
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is FileResource:
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, FileResource):
-            raise TypeError("Element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+        self.update(files)
 
 class Resources(XMLElement, ConferenceDescriptionExtension):
     _xml_tag = 'resources'

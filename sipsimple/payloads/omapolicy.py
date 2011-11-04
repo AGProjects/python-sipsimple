@@ -8,11 +8,7 @@ This module provides an extension to RFC4745 (Common Policy) to
 support condition extensions defined by OMA.
 """
 
-import urllib
-
-from lxml import etree
-
-from sipsimple.payloads import XMLEmptyElement, XMLListElement
+from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLListElement, XMLAttribute, uri_attribute_builder, uri_attribute_parser
 from sipsimple.payloads.policy import ConditionElement
 from sipsimple.payloads.presrules import PresRulesApplication
 
@@ -30,31 +26,53 @@ class OtherIdentity(XMLEmptyElement, ConditionElement):
     _xml_application = PresRulesApplication
 
 
+class Entry(XMLElement):
+    _xml_tag = 'entry'
+    _xml_namespace = oma_cp_namespace
+    _xml_application = PresRulesApplication
+
+    uri = XMLAttribute('uri', xmlname='anc', type=unicode, required=True, test_equal=True, parser=uri_attribute_parser, builder=uri_attribute_builder)
+    _xml_id = uri
+
+    def __init__(self, uri):
+        XMLElement.__init__(self)
+        self.uri = uri
+
+    def __unicode__(self):
+        return self.uri
+
+    def __str__(self):
+        return str(self.uri)
+
+
 class ExternalList(XMLListElement, ConditionElement):
     _xml_tag = 'external-list'
     _xml_namespace = oma_cp_namespace
     _xml_application = PresRulesApplication
+    _xml_item_type = Entry
 
     def __init__(self, entries=[]):
         XMLListElement.__init__(self)
-        self[0:0] = entries
+        self.update(entries)
 
-    def _parse_element(self, element, *args, **kw):
-        for child in element:
-            if child.tag == '{%s}entry' % self._xml_namespace:
-                try:
-                    self.append(urllib.unquote(child.attrib['anc']).decode('utf-8'))
-                except:
-                    pass
+    def __iter__(self):
+        return (unicode(item) for item in super(ExternalList, self).__iter__())
 
-    def _build_element(self, *args, **kw):
-        self.element.clear()
-        for entry in self:
-            child = etree.SubElement(self.element, '{%s}entry' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-            child.attrib['anc'] = urllib.quote(entry.encode('utf-8'))
+    def __repr__(self):
+        return '%s(%r)' % (self.__class__.__name__, list(self))
 
-    def _add_item(self, entry):
-        return unicode(entry)
+    def add(self, item):
+        if isinstance(item, basestring):
+            item = Entry(item)
+        super(ExternalList, self).add(item)
+
+    def remove(self, item):
+        if isinstance(item, basestring):
+            try:
+                item = (entry for entry in super(ExternalList, self).__iter__() if entry == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(ExternalList, self).remove(item)
 
 
 class AnonymousRequest(XMLEmptyElement, ConditionElement):

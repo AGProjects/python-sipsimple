@@ -8,7 +8,7 @@ RFC4826.
 
 import urllib
 
-from sipsimple.payloads import ValidationError, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
+from sipsimple.payloads import XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, XMLElementChoiceChild
 from sipsimple.payloads.resourcelists import namespace as rl_namespace, List, ResourceListsApplication
 
 __all__ = ['rl_namespace',
@@ -35,11 +35,10 @@ class PackagesElement(object): pass
 
 ## Elements
 
-class Package(XMLStringElement, PackagesElement):
+class Package(XMLStringElement):
     _xml_tag = 'package'
     _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
-    _xml_lang = False
 
 
 class Packages(XMLListElement):
@@ -47,34 +46,28 @@ class Packages(XMLListElement):
     _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
     _xml_children_order = {Package.qname: 0}
+    _xml_item_type = (Package, PackagesElement)
 
     def __init__(self, packages=[]):
         XMLListElement.__init__(self)
-        self[:] = packages
+        self.update(packages)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag, None)
-            if child_cls is not None and issubclass(child_cls, PackagesElement):
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-    
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
+    def __iter__(self):
+        return (unicode(item) if type(item) is Package else item for item in super(Packages, self).__iter__())
 
-    def _add_item(self, value):
-        if not isinstance(value, PackagesElement):
-            if isinstance(value, XMLElement):
-                raise TypeError("expected PackagesElement instace, got %s instead" % value.__class__.__name__)
-            value = Package(value)
-        self._insert_element(value.element)
-        return value
+    def add(self, item):
+        if isinstance(item, basestring):
+            item = Package(item)
+        super(Packages, self).add(item)
 
-    def _del_item(self, value):
-        self.element.remove(value.element)
+    def remove(self, item):
+        if isinstance(item, basestring):
+            package = Package(item)
+            try:
+                item = (entry for entry in super(Packages, self).__iter__() if entry == package).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(Packages, self).remove(item)
 
 
 class ResourceList(XMLElement):
@@ -132,8 +125,6 @@ class Service(XMLElement):
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.uri, self.list, self.packages)
 
-    __str__ = __repr__
-
 
 class RLSServices(XMLListRootElement):
     content_type = 'application/rls-services+xml'
@@ -141,57 +132,18 @@ class RLSServices(XMLListRootElement):
     _xml_tag = 'rls-services'
     _xml_namespace = rls_namespace
     _xml_application = RLSServicesApplication
-    _xml_children_order = {Service.qname: 0}
     _xml_schema_file = 'rlsservices.xsd'
+    _xml_children_order = {Service.qname: 0}
+    _xml_item_type = Service
 
     def __init__(self, services=[]):
         XMLListRootElement.__init__(self)
-        self._services = {}
-        self[:] = services
+        self.update(services)
 
-    def _parse_element(self, element, *args, **kwargs):
-        self._services = {}
-        for child in element:
-            if child.tag == Service.qname:
-                try:
-                    service = Service.from_element(child, *args, **kwargs)
-                except ValidationError:
-                    pass
-                else:
-                    if service in self:
-                        element.remove(child)
-                        continue
-                    self._services[service.uri] = service
-                    list.append(self, service)
-    
-    def _build_element(self, *args, **kwargs):
-        for service in self:
-            service.to_element(*args, **kwargs)
-
-    def _add_item(self, service):
-        if not isinstance(service, Service):
-            raise TypeError("found %s, expected %s" % (service.__class__.__name__, Service.__name__))
-        if service.uri in self._services:
-            raise ValueError("cannot have more than one service with the same uri: %s" % service.uri)
-        self._services[service.uri] = service
-        self._insert_element(service.element)
-        return service
-    
-    def _del_item(self, service):
-        del self._services[service.uri]
-        self.element.remove(service.element)
-
-    # it also makes sense to be able to get a Service by its uri
     def __getitem__(self, key):
-        if isinstance(key, basestring):
-            return self._services[key]
-        else:
-            return super(RLSServices, self).__getitem__(key)
+        return self._xmlid_map[Service][key]
 
     def __delitem__(self, key):
-        if isinstance(key, basestring):
-            del self[self.index(self[key])]
-        else:
-            super(RLSServices, self).__delitem__(key)
+        self.remove(self._xmlid_map[Service][key])
 
 

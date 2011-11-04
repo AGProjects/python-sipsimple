@@ -4,7 +4,7 @@
 import os
 import sys
 import urllib
-from collections import deque
+from collections import defaultdict, deque
 from weakref import WeakValueDictionary
 
 from application.python.descriptor import classproperty
@@ -18,12 +18,15 @@ __all__ = ['ParserError',
            'XMLAttribute',
            'XMLElementChild',
            'XMLElementChoiceChild',
+           'XMLStringChoiceChild',
            'XMLElement',
            'XMLRootElement',
            'XMLStringElement',
            'XMLEmptyElement',
+           'XMLEmptyElementRegistryType',
            'XMLListElement',
            'XMLListRootElement',
+           'XMLStringListElement',
            'uri_attribute_builder',
            'uri_attribute_parser']
 
@@ -228,8 +231,40 @@ class XMLElementChoiceChild(object):
             self.ondel(obj, self)
 
 
-## XMLElement base classes
+class XMLStringChoiceChild(XMLElementChoiceChild):
+    """
+    A choice between keyword strings from a registry, custom strings from the
+    other type and custom extensions. This descriptor will accept and return
+    strings instead of requiring XMLElement instances for the values in the
+    registry and the other type. Check XMLEmptyElementRegistryType for a
+    metaclass for building registries of XMLEmptyElement classes for keywords.
+    """
 
+    def __init__(self, name, registry=None, other_type=None, extension_type=None):
+        self.registry = registry
+        self.other_type = other_type
+        self.extension_type = extension_type
+        types = registry.classes if registry is not None else ()
+        types += tuple(type for type in (other_type, extension_type) if type is not None)
+        super(XMLStringChoiceChild, self).__init__(name, types, required=True, test_equal=True)
+
+    def __get__(self, obj, objtype):
+        value = super(XMLStringChoiceChild, self).__get__(obj, objtype)
+        if obj is None or value is None or isinstance(value, self.extension_type or ()):
+            return value
+        else:
+            return unicode(value)
+
+    def __set__(self, obj, value):
+        if isinstance(value, basestring):
+            if self.registry is not None and value in self.registry.names:
+                value = self.registry.class_map[value]()
+            elif self.other_type is not None:
+                value = self.other_type.from_string(value)
+        super(XMLStringChoiceChild, self).__set__(obj, value)
+
+
+## XMLElement base classes
 
 class XMLElementType(type):
     def __init__(cls, name, bases, dct):
@@ -309,7 +344,12 @@ class XMLElement(object):
     
     # To be defined in subclass
     def _build_element(self, *args, **kwargs):
-        pass
+        try:
+            build_element = super(XMLElement, self)._build_element
+        except AttributeError:
+            pass
+        else:
+            build_element(*args, **kwargs)
 
     @classmethod
     def from_element(cls, element, *args, **kwargs):
@@ -350,7 +390,12 @@ class XMLElement(object):
     
     # To be defined in subclass
     def _parse_element(self, element, *args, **kwargs):
-        pass
+        try:
+            parse_element = super(XMLElement, self)._parse_element
+        except AttributeError:
+            pass
+        else:
+            parse_element(element, *args, **kwargs)
     
     @classmethod
     def _register_xml_attribute(cls, attribute, element):
@@ -547,114 +592,111 @@ class XMLRootElement(XMLElement):
 
 ## Mixin classes
 
-class XMLListMixin(list):
-    """A mixin representing a list of other XML elements
-    that allows to setup hooks on element insertion/removal
+class ThisClass(object):
+    """
+    Special marker class that is used to indicate that an XMLListElement
+    subclass can be an item of itself. This is necessary because a class
+    cannot reference itself when defining _xml_item_type
     """
 
-    def _add_item(self, value):
-        """Called for every value that is about to be inserted into the list.
-        The returned value will be inserted into the list"""
-        return value
 
-#    def _get_item(self, value):
-#        """Called for every value that is about to be get from the list.
-#        The returned value will be the one returned
-#        
-#        Must not throw!
-#        """
-#        return value
+class XMLListMixinType(type):
+    def __init__(cls, name, bases, dct):
+        super(XMLListMixinType, cls).__init__(name, bases, dct)
+        if '_xml_item_type' in dct:
+            cls._xml_item_type = cls._xml_item_type # trigger __setattr__
 
-    def _del_item(self, value):
-        """Called for every value that is about to be removed from the list."""
-
-    def __setitem__(self, key, items):
-        if isinstance(key, slice):
-            for value in self.__getitem__(key):
-                self._del_item(value)
-            values = []
-            count = 0
-            for value in items:
-                try:
-                    values.append(self._add_item(value))
-                    count += 1
-                except:
-                    exc = sys.exc_info()
-                    for value in items[:count]:
-                        self._del_item(value)
-                    raise exc[0], exc[1], exc[2]
-            list.__setitem__(self, key, values)
-        else:
-            old_value = self.__getitem__(key)
-            self._del_item(old_value)
-            # items is actually only one item
-            try:
-                value = self._add_item(items)
-            except:
-                self._add_item(old_value)
-                raise
+    def __setattr__(cls, name, value):
+        if name == '_xml_item_type':
+            if value is ThisClass:
+                value = cls
+            elif isinstance(value, tuple) and ThisClass in value:
+                value = tuple(cls if type is ThisClass else type for type in value)
+            if value is None:
+                cls._xml_item_element_types = ()
+                cls._xml_item_extension_types = ()
             else:
-                list.__setitem__(self, key, value)
+                item_types = value if isinstance(value, tuple) else (value,)
+                cls._xml_item_element_types = tuple(type for type in item_types if issubclass(type, XMLElement))
+                cls._xml_item_extension_types = tuple(type for type in item_types if not issubclass(type, XMLElement))
+        super(XMLListMixinType, cls).__setattr__(name, value)
 
-    def __setslice__(self, start, stop, sequence):
-        return self.__setitem__(slice(start, stop), sequence)
 
-#    def __getitem__(self, key):
-#        if isinstance(key, slice):
-#            values = []
-#            for value in list.__getitem__(self, key):
-#                values.append(self._get_item(value))
-#            return values
-#        else:
-#            return self._get_item(list.__getitem__(self, key))
-#
-#    def __getslice__(self, start, stop):
-#        return self.__getitem__(slice(start, stop))
+class XMLListMixin(object):
+    """A mixin representing a list of other XML elements"""
 
-    def __delitem__(self, key):
-        if isinstance(key, slice):
-            for value in self.__getitem__(key):
-                self._del_item(value)
-        else:
-            self._del_item(self.__getitem__(key))
-        list.__delitem__(self, key)
+    __metaclass__ = XMLListMixinType
 
-    def __delslice__(self, start, stop):
-        return self.__delitem__(slice(start, stop))
+    _xml_item_type = None
 
-    def append(self, item):
-        self[len(self):len(self)] = [item]
+    def __new__(cls, *args, **kw):
+        if cls._xml_item_type is None:
+            raise TypeError("The %s class cannot be instantiated because it doesn't define the _xml_item_type attribute" % cls.__name__)
+        instance = super(XMLListMixin, cls).__new__(cls)
+        instance._element_map = {}
+        instance._xmlid_map = defaultdict(dict)
+        return instance
 
-    def extend(self, sequence):
-        self[len(self):len(self)] = sequence
+    def __contains__(self, item):
+        return item in self._element_map.itervalues()
 
-    def insert(self, index, value):
-        self[index:index] = [value]
+    def __iter__(self):
+        return (self._element_map[element] for element in self.element if element in self._element_map)
 
-    def pop(self, index = -1):
-        value = self[index];
-        del self[index];
-        return value
+    def __len__(self):
+        return len(self._element_map)
 
-    def remove(self, value):
-        del self[self.index(value)]
-
-    def clear(self):
-        self[:] = []
-
-    def __iadd__(self, sequence):
-        self.extend(sequence)
-        return self
-    
-    def __imul__(self, n):
-        values = self[:]
-        for i in xrange(n):
-            self += values
+    def __nonzero__(self):
+        return bool(self._element_map)
 
     def __repr__(self):
-        return '%s(%s)' % (self.__class__.__name__, list.__repr__(self))
+        return '%s(%r)' % (self.__class__.__name__, list(self))
 
-    __str__ = __repr__
+    def _parse_element(self, element, *args, **kwargs):
+        self._element_map.clear()
+        self._xmlid_map.clear()
+        for child in element[:]:
+            child_class = self._xml_application.get_element(child.tag, type(None))
+            if child_class in self._xml_item_element_types or issubclass(child_class, self._xml_item_extension_types):
+                try:
+                    value = child_class.from_element(child, *args, **kwargs)
+                except ValidationError:
+                    pass
+                else:
+                    if value._xml_id is not None and value._xml_id in self._xmlid_map[child_class]:
+                        element.remove(child)
+                    else:
+                        if value._xml_id is not None:
+                            self._xmlid_map[child_class][value._xml_id] = value
+                        self._element_map[value.element] = value
+
+    def _build_element(self, *args, **kwargs):
+        for child in self._element_map.itervalues():
+            child.to_element(*args, **kwargs)
+
+    def add(self, item):
+        if not (item.__class__ in self._xml_item_element_types or isinstance(item, self._xml_item_extension_types)):
+            raise TypeError("%s cannot add items of type %s" % (self.__class__.__name__, item.__class__.__name__))
+        if item._xml_id is not None and item._xml_id in self._xmlid_map[item.__class__]:
+            self.remove(self._xmlid_map[item.__class__][item._xml_id])
+        self._insert_element(item.element)
+        if item._xml_id is not None:
+            self._xmlid_map[item.__class__][item._xml_id] = item
+        self._element_map[item.element] = item
+
+    def remove(self, item):
+        self.element.remove(item.element)
+        if item._xml_id is not None:
+            del self._xmlid_map[item.__class__][item._xml_id]
+        del self._element_map[item.element]
+
+    def update(self, sequence):
+        for item in sequence:
+            self.add(item)
+
+    def clear(self):
+        for item in self._element_map.values():
+            self.remove(item)
 
 
 ## Element types
@@ -728,10 +770,93 @@ class XMLEmptyElement(XMLElement):
         return hash(type(self))
 
 
+class XMLEmptyElementRegistryType(type):
+    """A metaclass for building registries of XMLEmptyElement subclasses from names"""
+
+    def __init__(cls, name, bases, dct):
+        super(XMLEmptyElementRegistryType, cls).__init__(name, bases, dct)
+        typename = getattr(cls, '__typename__', name.partition('Registry')[0]).capitalize()
+        class BaseElementType(XMLEmptyElement):
+            def __str__(self): return self._xml_tag
+            def __unicode__(self): return unicode(self._xml_tag)
+        cls.__basetype__ = BaseElementType
+        cls.__basetype__.__name__ = 'Base%sType' % typename
+        cls.class_map = {}
+        for name in cls.names:
+            class ElementType(BaseElementType):
+                _xml_tag = name
+                _xml_namespace = cls._xml_namespace
+                _xml_application = cls._xml_application
+                _xml_id = name
+            ElementType.__name__ = typename + name.title().translate(None, '-_')
+            cls.class_map[name] = ElementType
+        cls.classes = tuple(cls.class_map[name] for name in cls.names)
+
+
 ## Created using mixins
 
-class XMLListElement(XMLElement, XMLListMixin): pass
-class XMLListRootElement(XMLRootElement, XMLListMixin): pass
+class XMLListElementType(XMLElementType, XMLListMixinType): pass
+
+class XMLListRootElementType(XMLRootElementType, XMLListMixinType): pass
+
+class XMLListElement(XMLElement, XMLListMixin):
+    __metaclass__ = XMLListElementType
+
+class XMLListRootElement(XMLRootElement, XMLListMixin):
+    __metaclass__ = XMLListRootElementType
+
+
+class XMLStringListElementType(XMLListElementType):
+    def __init__(cls, name, bases, dct):
+        if cls._xml_item_type is not None:
+            raise TypeError("The %s class should not define _xml_item_type, but define _xml_item_registry, _xml_item_other_type and _xml_item_extension_type instead" % cls.__name__)
+        types = cls._xml_item_registry.classes if cls._xml_item_registry is not None else ()
+        types += tuple(type for type in (cls._xml_item_other_type, cls._xml_item_extension_type) if type is not None)
+        cls._xml_item_type = types or None
+        super(XMLStringListElementType, cls).__init__(name, bases, dct)
+
+
+class XMLStringListElement(XMLListElement):
+    __metaclass__ = XMLStringListElementType
+
+    _xml_item_registry = None
+    _xml_item_other_type = None
+    _xml_item_extension_type = None
+
+    def __contains__(self, item):
+        if isinstance(item, basestring):
+            if self._xml_item_registry is not None and item in self._xml_item_registry.names:
+                item = self._xml_item_registry.class_map[item]()
+            elif self._xml_item_other_type is not None:
+                item = self._xml_item_other_type.from_string(item)
+        return item in self._element_map.itervalues()
+
+    def __iter__(self):
+        return (item if isinstance(item, self._xml_item_extension_types) else unicode(item) for item in super(XMLStringListElement, self).__iter__())
+
+    def add(self, item):
+        if isinstance(item, basestring):
+            if self._xml_item_registry is not None and item in self._xml_item_registry.names:
+                item = self._xml_item_registry.class_map[item]()
+            elif self._xml_item_other_type is not None:
+                item = self._xml_item_other_type.from_string(item)
+        super(XMLStringListElement, self).add(item)
+
+    def remove(self, item):
+        if isinstance(item, basestring):
+            if self._xml_item_registry is not None and item in self._xml_item_registry.names:
+                xmlitem = self._xml_item_registry.class_map[item]()
+                try:
+                    item = (entry for entry in super(XMLStringListElement, self).__iter__() if entry == xmlitem).next()
+                except StopIteration:
+                    raise KeyError(item)
+            elif self._xml_item_other_type is not None:
+                xmlitem = self._xml_item_other_type.from_string(item)
+                try:
+                    item = (entry for entry in super(XMLStringListElement, self).__iter__() if entry == xmlitem).next()
+                except StopIteration:
+                    raise KeyError(item)
+        super(XMLStringListElement, self).remove(item)
 
 
 ## Useful attribute builders/parser

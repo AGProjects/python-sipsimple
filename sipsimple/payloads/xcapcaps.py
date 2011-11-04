@@ -1,15 +1,14 @@
 # Copyright (C) 2010-2011 AG Projects. See LICENSE for details
 #
 
-"""
-Support for parsing and building xcap-caps documents, as defined by RFC4825.
-"""
+
+"""Support for parsing and building xcap-caps documents, as defined by RFC4825."""
+
 
 __all__ = ['XCAPCapabilitiesApplication', 'AUIDS', 'Extensions', 'Namespaces', 'XCAPCapabilities']
 
-from lxml import etree
 
-from sipsimple.payloads import XMLApplication, XMLElementChild, XMLListElement, XMLRootElement
+from sipsimple.payloads import XMLApplication, XMLElementChild, XMLListElement, XMLRootElement, XMLStringElement
 
 
 namespace = 'urn:ietf:params:xml:ns:xcap-caps'
@@ -21,85 +20,103 @@ XCAPCapabilitiesApplication.register_namespace(namespace, prefix=None)
 
 ## Elements
 
+class AUID(XMLStringElement):
+    _xml_tag = 'auid'
+    _xml_namespace = namespace
+    _xml_application = XCAPCapabilitiesApplication
+
+
 class AUIDS(XMLListElement):
     _xml_tag = 'auids'
     _xml_namespace = namespace
     _xml_application = XCAPCapabilitiesApplication
+    _xml_item_type = AUID
 
     def __init__(self, children=[]):
         XMLListElement.__init__(self)
-        self[0:0] = children
+        self.update(children)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == '{%s}auid' % self._xml_namespace:
-                try:
-                    self.append(child.text)
-                except:
-                    pass
+    def __iter__(self):
+        return (unicode(item) for item in super(AUIDS, self).__iter__())
 
-    def _build_element(self, *args, **kwargs):
-        self.element.clear()
-        for auid in self:
-            child = etree.SubElement(self.element, '{%s}auid' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-            child.text = auid
+    def add(self, item):
+        if isinstance(item, basestring):
+            item = AUID(item)
+        super(AUIDS, self).add(item)
 
-    def _add_item(self, auid):
-        return unicode(auid)
+    def remove(self, item):
+        if isinstance(item, basestring):
+            try:
+                item = (entry for entry in super(AUIDS, self).__iter__() if entry == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(AUIDS, self).remove(item)
+
+
+class Extension(XMLStringElement):
+    _xml_tag = 'extension'
+    _xml_namespace = namespace
+    _xml_application = XCAPCapabilitiesApplication
 
 
 class Extensions(XMLListElement):
     _xml_tag = 'extensions'
     _xml_namespace = namespace
     _xml_application = XCAPCapabilitiesApplication
+    _xml_item_type = Extension
 
     def __init__(self, children=[]):
         XMLListElement.__init__(self)
-        self[0:0] = children
+        self.update(children)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == '{%s}extension' % self._xml_namespace:
-                try:
-                    self.append(child.text)
-                except:
-                    pass
+    def __iter__(self):
+        return (unicode(item) for item in super(Extensions, self).__iter__())
 
-    def _build_element(self, *args, **kwargs):
-        self.element.clear()
-        for extension in self:
-            child = etree.SubElement(self.element, '{%s}extension' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-            child.text = extension
+    def add(self, item):
+        if isinstance(item, basestring):
+            item = Extension(item)
+        super(Extensions, self).add(item)
 
-    def _add_item(self, extension):
-        return unicode(extension)
+    def remove(self, item):
+        if isinstance(item, basestring):
+            try:
+                item = (entry for entry in super(Extensions, self).__iter__() if entry == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(Extensions, self).remove(item)
+
+
+class Namespace(XMLStringElement):
+    _xml_tag = 'extension'
+    _xml_namespace = namespace
+    _xml_application = XCAPCapabilitiesApplication
 
 
 class Namespaces(XMLListElement):
     _xml_tag = 'namespaces'
     _xml_namespace = namespace
     _xml_application = XCAPCapabilitiesApplication
+    _xml_item_type = Namespace
 
     def __init__(self, children=[]):
         XMLListElement.__init__(self)
-        self[:] = children
+        self.update(children)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == '{%s}namespace' % self._xml_namespace:
-                try:
-                    self.append(child.text)
-                except:
-                    pass
+    def __iter__(self):
+        return (unicode(item) for item in super(Namespaces, self).__iter__())
 
-    def _build_element(self, *args, **kwargs):
-        self.element.clear()
-        for namespace in self:
-            child = etree.SubElement(self.element, '{%s}namespace' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-            child.text = namespace
+    def add(self, item):
+        if isinstance(item, basestring):
+            item = Namespace(item)
+        super(Namespaces, self).add(item)
 
-    def _add_item(self, namespace):
-        return unicode(namespace)
+    def remove(self, item):
+        if isinstance(item, basestring):
+            try:
+                item = (entry for entry in super(Namespaces, self).__iter__() if entry == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(Namespaces, self).remove(item)
 
 
 class XCAPCapabilities(XMLRootElement):
@@ -125,6 +142,5 @@ class XCAPCapabilities(XMLRootElement):
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.auids, self.extensions, self.namespaces)
 
-    __str__ = __repr__
 
 

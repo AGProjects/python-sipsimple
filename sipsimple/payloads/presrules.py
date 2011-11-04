@@ -6,8 +6,9 @@ Parses and produces Presence Authorization Rules documents according to
 RFC5025.
 """
 
-from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLAttribute, XMLElementChild
+from sipsimple.payloads import XMLElement, XMLListElement, XMLStringElement, XMLEmptyElement, XMLAttribute
 from sipsimple.payloads.policy import namespace as cp_namespace, CommonPolicyApplication, ActionElement, TransformationElement, RuleSet
+from sipsimple.util import All
 
 __all__ = ['cp_namespace',
            'pr_namespace',
@@ -15,6 +16,7 @@ __all__ = ['cp_namespace',
            'SubHandling',
            'DeviceID',
            'Class',
+           'All',
            'AllDevices',
            'ProvideDevices',
            'OccurenceID',
@@ -77,20 +79,18 @@ class SubHandling(XMLStringElement, ActionElement):
     _xml_tag = 'sub-handling'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
-    _xml_lang = False
     _xml_value_type = SubHandlingValue
 
 
 ## Transformation Elements
 
-class Class(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, ProvideServiceElement):
+class Class(XMLStringElement):
     _xml_tag = 'class'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
-    _xml_lang = False
 
 
-class OccurenceID(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, ProvideServiceElement):
+class OccurenceID(XMLStringElement):
     _xml_tag = 'occurence-id'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
@@ -99,73 +99,55 @@ class OccurenceID(XMLStringElement, ProvideDeviceElement, ProvidePersonElement, 
 ## Devices element
 
 
-class DeviceID(XMLStringElement, ProvideDeviceElement):
+class DeviceID(XMLStringElement):
     _xml_tag = 'deviceID'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
-    _xml_lang = False
+
 
 class AllDevices(XMLEmptyElement):
     _xml_tag = 'all-devices'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
-    
-    def __init__(self, provide_all=True):
-        XMLEmptyElement.__init__(self)
-    
-    def __new__(cls, provide_all=True):
-        if not provide_all:
-            return None
-        return XMLEmptyElement.__new__(cls)
 
 
 class ProvideDevices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-devices'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
+    _xml_item_type = (DeviceID, OccurenceID, Class, AllDevices, ProvideDeviceElement)
 
-    def _onset_all(self, attribute, value):
-        if value is not None:
-            self.clear()
-    all = XMLElementChild('all', type=AllDevices, required=False, test_equal=True, onset=_onset_all)
-    del _onset_all
-
-    def __init__(self, all=False, provides=[]):
+    def __init__(self, provides=[]):
         XMLListElement.__init__(self)
-        self.all = all
-        self[0:0] = provides
-    
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == AllDevices.qname:
-                continue
-            elif self.all:
-                element.remove(child)
-            else:
-                child_cls = self._xml_application.get_element(child.tag)
-                if child_cls is not None and issubclass(child_cls, ProvideDeviceElement):
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
+        self.update(provides)
 
-    def _build_element(self, *args, **kwargs):
-        if self.all:
+    def __contains__(self, item):
+        if item == All:
+            item = AllDevices()
+        return super(ProvideDevices, self).__contains__(item)
+
+    def __iter__(self):
+        return (All if type(item) is AllDevices else item for item in super(ProvideDevices, self).__iter__())
+
+    def add(self, item):
+        if item == All:
+            item = AllDevices()
+        if type(item) is AllDevices:
             self.clear()
         else:
-            for child in self:
-                child.to_element(*args, **kwargs)
+            try:
+                self.remove(All)
+            except KeyError:
+                pass
+        super(ProvideDevices, self).add(item)
 
-    def _add_item(self, value):
-        if not isinstance(value, ProvideDeviceElement):
-            raise TypeError("ProvideDevices elements can only have ProvideDeviceElement instances as children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def __repr__(self):
-        return '%s(%r, %s)' % (self.__class__.__name__, self.all, list.__repr__(self))
-
-    __str__ = __repr__
+    def remove(self, item):
+        if item == All:
+            try:
+                item = (item for item in super(ProvideDevices, self).__iter__() if type(item) is AllDevices).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(ProvideDevices, self).remove(item)
 
 
 ## Persons elmeent
@@ -174,74 +156,56 @@ class AllPersons(XMLEmptyElement):
     _xml_tag = 'all-persons'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
-    
-    def __init__(self, provide_all=True):
-        XMLEmptyElement.__init__(self)
-    
-    def __new__(cls, provide_all=True):
-        if not provide_all:
-            return None
-        return XMLEmptyElement.__new__(cls)
 
 
 class ProvidePersons(XMLListElement, TransformationElement):
     _xml_tag = 'provide-persons'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
-    
-    def _onset_all(self, attribute, value):
-        if value is not None:
-            self.clear()
-    all = XMLElementChild('all', type=AllPersons, required=False, test_equal=True, onset=_onset_all)
-    del _onset_all
+    _xml_item_type = (OccurenceID, Class, AllPersons, ProvidePersonElement)
 
-    def __init__(self, all=False, provides=[]):
+    def __init__(self, provides=[]):
         XMLListElement.__init__(self)
-        self.all = all
-        self[0:0] = provides
-    
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == AllPersons.qname:
-                continue
-            elif self.all:
-                element.remove(child)
-            else:
-                child_cls = self._xml_application.get_element(child.tag)
-                if child_cls is not None and issubclass(child_cls, ProvidePersonElement):
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
+        self.update(provides)
 
-    def _build_element(self, *args, **kwargs):
-        if self.all:
+    def __contains__(self, item):
+        if item == All:
+            item = AllPersons()
+        return super(ProvidePersons, self).__contains__(item)
+
+    def __iter__(self):
+        return (All if type(item) is AllPersons else item for item in super(ProvidePersons, self).__iter__())
+
+    def add(self, item):
+        if item == All:
+            item = AllPersons()
+        if type(item) is AllPersons:
             self.clear()
         else:
-            for child in self:
-                child.to_element(*args, **kwargs)
+            try:
+                self.remove(All)
+            except KeyError:
+                pass
+        super(ProvidePersons, self).add(item)
 
-    def _add_item(self, value):
-        if not isinstance(value, ProvidePersonElement):
-            raise TypeError("ProvidePersons elements can only have ProvidePersonElement instances as children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def __repr__(self):
-        return '%s(%r, %s)' % (self.__class__.__name__, self.all, list.__repr__(self))
-
-    __str__ = __repr__
+    def remove(self, item):
+        if item == All:
+            try:
+                item = (item for item in super(ProvidePersons, self).__iter__() if type(item) is AllPersons).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(ProvidePersons, self).remove(item)
 
 
 ## Service elements
 
-class ServiceURI(XMLStringElement, ProvideServiceElement):
+class ServiceURI(XMLStringElement):
     _xml_tag = 'service-uri'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
 
 
-class ServiceURIScheme(XMLStringElement, ProvideServiceElement):
+class ServiceURIScheme(XMLStringElement):
     _xml_tag = 'service-uri-scheme'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
@@ -251,63 +215,45 @@ class AllServices(XMLEmptyElement):
     _xml_tag = 'all-services'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
-    
-    def __init__(self, provide_all=True):
-        XMLEmptyElement.__init__(self)
-    
-    def __new__(cls, provide_all=True):
-        if not provide_all:
-            return None
-        return XMLEmptyElement.__new__(cls)
 
 
 class ProvideServices(XMLListElement, TransformationElement):
     _xml_tag = 'provide-services'
     _xml_namespace = pr_namespace
     _xml_application = PresRulesApplication
+    _xml_item_type = (ServiceURI, ServiceURIScheme, OccurenceID, Class, AllServices, ProvideServiceElement)
 
-    def _onset_all(self, attribute, value):
-        if value is not None:
-            self.clear()
-    all = XMLElementChild('all', type=AllServices, required=False, test_equal=True, onset=_onset_all)
-    del _onset_all
-
-    def __init__(self, all=False, provides=[]):
+    def __init__(self, provides=[]):
         XMLListElement.__init__(self)
-        self.all = all
-        self[0:0] = provides
-    
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == AllServices.qname:
-                continue
-            elif self.all:
-                element.remove(child)
-            else:
-                child_cls = self._xml_application.get_element(child.tag)
-                if child_cls is not None and issubclass(child_cls, ProvideServiceElement):
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
+        self.update(provides)
 
-    def _build_element(self, *args, **kwargs):
-        if self.all:
+    def __contains__(self, item):
+        if item == All:
+            item = AllServices()
+        return super(ProvideServices, self).__contains__(item)
+
+    def __iter__(self):
+        return (All if type(item) is AllServices else item for item in super(ProvideServices, self).__iter__())
+
+    def add(self, item):
+        if item == All:
+            item = AllServices()
+        if type(item) is AllServices:
             self.clear()
         else:
-            for child in self:
-                child.to_element(*args, **kwargs)
+            try:
+                self.remove(All)
+            except KeyError:
+                pass
+        super(ProvideServices, self).add(item)
 
-    def _add_item(self, value):
-        if not isinstance(value, ProvideServiceElement):
-            raise TypeError("ProvideServices elements can only have ProvideServiceElement instances as children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def __repr__(self):
-        return '%s(%r, %s)' % (self.__class__.__name__, self.all, list.__repr__(self))
-
-    __str__ = __repr__
+    def remove(self, item):
+        if item == All:
+            try:
+                item = (item for item in super(ProvideServices, self).__iter__() if type(item) is AllServices).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(ProvideServices, self).remove(item)
 
 
 ## Transformation elements

@@ -9,7 +9,7 @@ from collections import deque
 from lxml import etree
 from xml.sax.saxutils import quoteattr
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, uri_attribute_builder, uri_attribute_parser
+from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLElement, XMLListElement, XMLStringElement, XMLAttribute, XMLElementChild, ThisClass, uri_attribute_builder, uri_attribute_parser
 
 __all__ = ['namespace',
            'ResourceListsApplication',
@@ -67,7 +67,7 @@ class DisplayName(XMLStringElement):
     _xml_lang = True
 
 
-class Entry(XMLElement, ListElement):
+class Entry(XMLElement):
     _xml_tag = 'entry'
     _xml_namespace = namespace
     _xml_extension_type = EntryExtension
@@ -90,7 +90,7 @@ class Entry(XMLElement, ListElement):
         return '%s(%r, %r)' % (self.__class__.__name__, self.uri, self.display_name)
 
 
-class EntryRef(XMLElement, ListElement):
+class EntryRef(XMLElement):
     _xml_tag = 'entry-ref'
     _xml_namespace = namespace
     _xml_application = ResourceListsApplication
@@ -112,7 +112,7 @@ class EntryRef(XMLElement, ListElement):
         return '%s(%r, %r)' % (self.__class__.__name__, self.ref, self.display_name)
 
 
-class External(XMLElement, ListElement):
+class External(XMLElement):
     _xml_tag = 'external'
     _xml_namespace = namespace
     _xml_application = ResourceListsApplication
@@ -134,7 +134,9 @@ class External(XMLElement, ListElement):
         return '%s(%r, %r)' % (self.__class__.__name__, self.anchor, self.display_name)
 
 
-class List(XMLListElement, ListElement):
+List = ThisClass # a List can contain items of its own kind
+
+class List(XMLListElement):
     _xml_tag = 'list'
     _xml_namespace = namespace
     _xml_application = ResourceListsApplication
@@ -142,6 +144,7 @@ class List(XMLListElement, ListElement):
                            Entry.qname: 1,
                            EntryRef.qname: 1,
                            External.qname: 1}
+    _xml_item_type = (Entry, EntryRef, External, List, ListElement)
 
     name = XMLAttribute('name', type=unicode, required=False, test_equal=True)
     display_name = XMLElementChild('display_name', type=DisplayName, required=False, test_equal=False)
@@ -151,51 +154,10 @@ class List(XMLListElement, ListElement):
         XMLListElement.__init__(self)
         self.name = name
         self.display_name = display_name
-        self[0:0] = entries
+        self.update(entries)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag, None)
-            if child_cls is not None and issubclass(child_cls, ListElement):
-                try:
-                    value = child_cls.from_element(child, *args, **kwargs)
-                except ValidationError:
-                    pass
-                else:
-                    for basetype in (List, Entry, EntryRef, External):
-                        if isinstance(value, basetype):
-                            break
-                    else:
-                        list.append(self, value)
-                        continue
-                    for elem in self:
-                        if isinstance(elem, basetype) and value._xml_id == elem._xml_id:
-                            element.remove(child)
-                            break
-                    else:
-                        list.append(self, value)
-
-    
-    def _build_element(self, *args, **kwargs):
-        # build children
-        for child in self:
-            child.to_element(*args, **kwargs)
-    
-    def _add_item(self, value):
-        for basetype in (List, Entry, EntryRef, External):
-            if isinstance(value, basetype):
-                for elem in self:
-                    if isinstance(elem, basetype) and value._xml_id == elem._xml_id:
-                        raise ValueError("cannot have more than one %s with the same id attribute at this level: %r" % (basetype.__name__, value._xml_id))
-                break
-        else:
-            if not isinstance(value, ListElement):
-                raise TypeError("cannot add element type %s to List" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+    def __repr__(self):
+        return '%s(%s, %r, %r)' % (self.__class__.__name__, list(self), self.name, self.display_name)
 
     def __unicode__(self):
         name = u'List element'
@@ -204,9 +166,6 @@ class List(XMLListElement, ListElement):
         if self.display_name is not None:
             name += u' (%s)' % self.display_name
         return name
-
-    def __repr__(self):
-        return '%s(%s, %r, %r)' % (self.__class__.__name__, list.__repr__(self), self.name, self.display_name)
 
 List._xml_children_order[List.qname] = 1 # cannot self reference in declaration
 
@@ -217,13 +176,19 @@ class ResourceLists(XMLListRootElement):
     _xml_tag = 'resource-lists'
     _xml_namespace = namespace
     _xml_application = ResourceListsApplication
-    _xml_children_order = {List.qname: 0}
     _xml_schema_file = 'resourcelists.xsd'
+    _xml_children_order = {List.qname: 0}
+    _xml_item_type = List
 
     def __init__(self, lists=[]):
         XMLListRootElement.__init__(self)
-        self._lists = {}
-        self[:] = lists
+        self.update(lists)
+
+    def __getitem__(self, key):
+        return self._xmlid_map[List][key]
+
+    def __delitem__(self, key):
+        self.remove(self._xmlid_map[List][key])
 
     def get_xpath(self, element):
         if not isinstance(element, (List, Entry, EntryRef, External, ResourceLists)):
@@ -289,47 +254,6 @@ class ResourceLists(XMLListRootElement):
                     notexpanded.append(child)
                     visited.add(child)
         return None
-
-    def _parse_element(self, element, *args, **kwargs):
-        self._lists = {}
-        for child in element:
-            if child.tag == List.qname:
-                try:
-                    rlist = List.from_element(child, *args, **kwargs)
-                except ValidationError:
-                    pass
-                else:
-                    if rlist.name in self._lists:
-                        element.remove(child)
-                        continue
-                    list.append(self, rlist)
-                    self._lists[rlist.name] = rlist
-            else:
-                element.remove(child)
-
-    def _build_element(self, *args, **kwargs):
-        for rlist in self:
-            rlist.to_element(*args, **kwargs)
-
-    def _add_item(self, rlist):
-        if not isinstance(rlist, List):
-            raise TypeError("found %s, expected %s" % (rlist.__class__.__name__, List.__name__))
-        if rlist.name in self._lists:
-            raise ValueError("cannot have more than one list with the same name at this level: %s" % rlist.name)
-        self._lists[rlist.name] = rlist
-        self._insert_element(rlist.element)
-        return rlist
-
-    def _del_item(self, rlist):
-        del self._lists[rlist.name]
-        self.element.remove(rlist.element)
-
-    # it also makes sense to be able to get a List by its name
-    def __getitem__(self, key):
-        if isinstance(key, basestring):
-            return self._lists[key]
-        else:
-            return super(ResourceLists, self).__getitem__(key)
 
 
 #

@@ -18,7 +18,7 @@ __all__ = ['namespace',
         'DialogInfo']
 
 
-from sipsimple.payloads import ValidationError, XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLAttribute
+from sipsimple.payloads import XMLApplication, XMLListRootElement, XMLListElement, XMLStringElement, XMLElementChild, XMLEmptyElement, XMLElement, XMLAttribute
 
 
 namespace = 'urn:ietf:params:xml:ns:dialog-info'
@@ -144,34 +144,13 @@ class Target(XMLListElement):
     _xml_tag = 'target'
     _xml_namespace = namespace
     _xml_application = DialogInfoApplication
+    _xml_item_type = Param
 
     uri = XMLAttribute('uri', type=str, required=True, test_equal=True)
 
     def __init__(self, uri, params=[]):
         self.uri = uri
-        self[0:0] = params
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [Param]] else False):
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (Param)):
-            raise TypeError("Target element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
+        self.update(params)
 
 class Participant(XMLElement):
     _xml_tag = ''   # To be set by a subclass
@@ -210,6 +189,8 @@ class Dialog(XMLElement):
     local = XMLElementChild('local', type=Local, required=False, test_equal=True)
     remote = XMLElementChild('remote', type=Remote, required=False, test_equal=True)
 
+    _xml_id = id
+
     def __init__(self, id, state, call_id=None, local_tag=None, remote_tag=None, direction=None, duration=None, replaces=None, referred_by=None, local=None, remote=None):
         XMLElement.__init__(self)
         self.id = id
@@ -233,6 +214,7 @@ class DialogInfo(XMLListRootElement):
     _xml_schema_file = 'dialog-info.xsd'
     _xml_children_order = {Dialog.qname: 0,
                            None: 1}
+    _xml_item_type = Dialog
 
     version = XMLAttribute('version', type=VersionValue, required=True, test_equal=True)
     state = XMLAttribute('state', type=StateValue, required=True, test_equal=True)
@@ -243,27 +225,12 @@ class DialogInfo(XMLListRootElement):
         self.version = version
         self.state = state
         self.entity = entity
-        self[0:0] = dialogs
+        self.update(dialogs)
 
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
+    def __getitem__(self, key):
+        return self._xmlid_map[Dialog][key]
 
-    def _del_item(self, value):
-        self.element.remove(value.element)
+    def __delitem__(self, key):
+        self.remove(self._xmlid_map[Dialog][key])
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and (True if child_cls is [c for c in [Dialog]] else False):
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _add_item(self, value):
-        if not isinstance(value, (Dialog)):
-            raise TypeError("dialog-info element can't contain %s element" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
 

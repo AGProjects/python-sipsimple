@@ -10,8 +10,9 @@ support rich presence.
 
 from lxml import etree
 
-from sipsimple.payloads import parse_qname, ParserError, ValidationError, XMLElement, XMLListElement, XMLEmptyElement, XMLStringElement, XMLAttribute, XMLElementChild
-from sipsimple.payloads.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NotesAttribute, Service, Person, Device
+from sipsimple.payloads import ValidationError, XMLElementType, XMLEmptyElementRegistryType, XMLAttribute, XMLElementChild, XMLStringChoiceChild
+from sipsimple.payloads import XMLElement, XMLEmptyElement, XMLStringElement, XMLStringListElement
+from sipsimple.payloads.presdm import PIDFApplication, ServiceExtension, PersonExtension, DeviceExtension, Note, NoteList, Service, Person, Device
 from sipsimple.payloads.util import UnsignedLong
 from sipsimple.util import Timestamp
 
@@ -20,8 +21,11 @@ __all__ = ['rpid_namespace',
            'MoodElement',
            'PlaceTypeElement',
            'PrivacyElement',
+           'RelationshipElement',
+           'ServiceClassElement',
            'SphereElement',
            'Note',
+           'Other',
            'Activities',
            'Mood',
            'PlaceIs',
@@ -39,8 +43,7 @@ __all__ = ['rpid_namespace',
            'StatusIcon',
            'TimeOffset',
            'UserInput',
-           'Class',
-           'Other']
+           'Class']
 
 rpid_namespace = 'urn:ietf:params:xml:ns:pidf:rpid'
 PIDFApplication.register_namespace(rpid_namespace, prefix='rpid')
@@ -52,6 +55,8 @@ class ActivityElement(object): pass
 class MoodElement(object): pass
 class PlaceTypeElement(object): pass
 class PrivacyElement(object): pass
+class RelationshipElement(object): pass
+class ServiceClassElement(object): pass
 class SphereElement(object): pass
 
 
@@ -87,187 +92,188 @@ class UserInputValue(str):
 
 ## Elements
 
-class Note(XMLStringElement):
+class RPIDNote(XMLStringElement):
     _xml_tag = 'note'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_lang = True
 
+    def __unicode__(self):
+        return Note(self.value, self.lang)
 
-class Other(Note):
+    @classmethod
+    def from_string(cls, value):
+        if isinstance(value, Note):
+            return cls(value, value.lang)
+        elif isinstance(value, basestring):
+            return cls(value)
+        else:
+            raise ValueError("expected str/unicode instance, got %s instead" % value.__class__.__name__)
+
+
+class RPIDOther(XMLStringElement):
     _xml_tag = 'other'
+    _xml_namespace = rpid_namespace
+    _xml_application = PIDFApplication
+    _xml_lang = True
+
+    def __unicode__(self):
+        return Other(self.value, self.lang)
+
+    @classmethod
+    def from_string(cls, value):
+        if isinstance(value, Other):
+            return cls(value, value.lang)
+        elif isinstance(value, basestring):
+            return cls(value)
+        else:
+            raise ValueError("expected str/unicode instance, got %s instead" % value.__class__.__name__)
 
 
-class Activities(XMLListElement, PersonExtension):
+class Other(Note): pass
+
+
+class ActivityRegistry(object):
+    __metaclass__ = XMLEmptyElementRegistryType
+
+    _xml_namespace = rpid_namespace
+    _xml_application = PIDFApplication
+
+    names = ('appointment', 'away', 'breakfast', 'busy', 'dinner',
+             'holiday', 'in-transit', 'looking-for-work', 'meal', 'meeting',
+             'on-the-phone', 'performance', 'permanent-absence', 'playing',
+             'presentation', 'shopping', 'sleeping', 'spectator', 'steering',
+             'travel', 'tv', 'vacation', 'working', 'worship', 'unknown')
+
+
+class Activities(XMLStringListElement, PersonExtension):
     _xml_tag = 'activities'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_extension_type = ActivityElement
-    _xml_children_order = {Note.qname: 0}
-    
+    _xml_children_order = {RPIDNote.qname: 0}
+    _xml_item_registry = ActivityRegistry
+    _xml_item_other_type = RPIDOther
+    _xml_item_extension_type = ActivityElement
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
-    notes = NotesAttribute()
 
-    values = set(('appointment', 'away', 'breakfast', 'busy', 'dinner',
-                  'holiday', 'in-transit', 'looking-for-work', 'meal', 'meeting',
-                  'on-the-phone', 'performance', 'permanent-absence', 'playing',
-                  'presentation', 'shopping', 'sleeping', 'spectator', 'steering',
-                  'travel', 'tv', 'vacation', 'working', 'worship', 'unknown'))
-
-    def __init__(self, id=None, since=None, until=None, notes=[], activities=[]):
+    def __init__(self, id=None, since=None, until=None, activities=[], notes=[]):
         XMLElement.__init__(self)
+        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
-        for note in notes:
-            self.notes.add(note)
-        self[:] = activities
+        self.update(activities)
+        self.notes.update(notes)
+
+    @property
+    def notes(self):
+        return NoteList(self, RPIDNote)
+
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self), list(self.notes))
 
     def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.add(Note.from_element(child, *args, **kwargs), with_element=False)
-            elif child.tag == '{%s}other' % self._xml_namespace:
-                value = child.text
-                if value not in self:
-                    list.append(self, value)
-            else:
-                value = parse_qname(child.tag)[1]
-                if value in self.values and value not in self:
-                    list.append(self, value)
-        if 'unknown' in self and len(self) > 1:
-            self.remove('unknown')
+        super(Activities, self)._parse_element(element, *args, **kwargs)
+        self.notes._parse_element(element, *args, **kwargs)
 
     def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
+        super(Activities, self)._build_element(*args, **kwargs)
+        self.notes._build_element(*args, **kwargs)
+
+    def add(self, activity):
+        if isinstance(activity, basestring):
+            if activity in self._xml_item_registry.names:
+                activity = self._xml_item_registry.class_map[activity]()
+            else:
+                activity = self._xml_item_other_type.from_string(activity)
+        unknown_activity = self._xml_item_registry.class_map['unknown']()
+        if activity == unknown_activity or unknown_activity in self._element_map.itervalues():
+            self.clear()
+        super(Activities, self).add(activity)
 
     def check_validity(self):
         if not self:
             raise ValidationError("Activity element must have at least one value")
         super(Activities, self).check_validity()
 
-    def _add_item(self, value):
-        if value in self:
-            raise ValueError("cannot add the same activity twice")
-        if value == 'unknown' and len(self) > 0:
-            raise ValueError("cannot add 'unknown' value in non-empty Activities element")
-        if self[:] == ['unknown']:
-            raise ValueError("cannot add activity if Activities element contains 'unknown'")
-        if value in self.values:
-            self._insert_element(etree.Element('{%s}%s' % (self._xml_namespace, value)))
-        else:
-            element = etree.Element('{%s}other' % (self._xml_namespace,))
-            element.text = value
-            self._insert_element(element)
-        return value
-
-    def _del_item(self, value):
-        if value in self.values:
-            self.element.remove(self.element.find('{%s}%s' % (self._xml_namespace, value)))
-        else:
-            tag = '{%s}other' % self._xml_namespace
-            for child in self.element:
-                if child.tag == tag and child.text == value:
-                    self.element.remove(child)
-                    break
-
-    def __repr__(self):
-        return '%s(%r, %r, %r, [%s], %s)' % (self.__class__.__name__, self.id, self.since, self.until, ', '.join('%r' % note for note in self.notes), list.__repr__(self))
-
-    __str__ = __repr__
-
 Person.register_extension('activities', type=Activities)
 
 
-class Mood(XMLListElement, PersonExtension):
+class MoodRegistry(object):
+    __metaclass__ = XMLEmptyElementRegistryType
+
+    _xml_namespace = rpid_namespace
+    _xml_application = PIDFApplication
+
+    names = ('afraid', 'amazed', 'angry', 'annoyed', 'anxious', 'ashamed',
+             'bored', 'brave', 'calm', 'cold', 'confused', 'contended',
+             'cranky', 'curious', 'depressed', 'disappointed', 'disgusted',
+             'distracted', 'embarrassed', 'excited', 'flirtatious',
+             'frustrated', 'grumpy', 'guilty', 'happy', 'hot', 'humbled',
+             'humiliated', 'hungry', 'hurt', 'impressed', 'in_awe', 'in_love',
+             'indignant', 'interested', 'invisible', 'jealous', 'lonely',
+             'mean', 'moody', 'nervous', 'neutral', 'offended', 'playful',
+             'proud', 'relieved', 'remorseful', 'restless', 'sad',
+             'sarcastic', 'serious', 'shocked', 'shy', 'sick', 'sleepy',
+             'stressed', 'surprised', 'thirsty', 'worried', 'unknown')
+
+
+class Mood(XMLStringListElement, PersonExtension):
     _xml_tag = 'mood'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     _xml_extension_type = MoodElement
-    _xml_children_order = {Note.qname: 0}
+    _xml_children_order = {RPIDNote.qname: 0}
+    _xml_item_registry = MoodRegistry
+    _xml_item_other_type = RPIDOther
+    _xml_item_extension_type = MoodElement
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
-    notes = NotesAttribute()
     
-    values = set(('afraid', 'amazed', 'angry', 'annoyed', 'anxious', 'ashamed',
-                  'bored', 'brave', 'calm', 'cold', 'confused', 'contended',
-                  'cranky', 'curious', 'depressed', 'disappointed', 'disgusted',
-                  'distracted', 'embarrassed', 'excited', 'flirtatious',
-                  'frustrated', 'grumpy', 'guilty', 'happy', 'hot', 'humbled',
-                  'humiliated', 'hungry', 'hurt', 'impressed', 'in_awe',
-                  'in_love', 'indignant', 'interested', 'invisible', 'jealous',
-                  'lonely', 'mean', 'moody', 'nervous', 'neutral', 'offended',
-                  'playful', 'proud', 'relieved', 'remorseful', 'restless',
-                  'sad', 'sarcastic', 'serious', 'shocked', 'shy', 'sick',
-                  'sleepy', 'stressed', 'surprised', 'thirsty', 'worried', 'unknown'))
-
-    def __init__(self, id=None, since=None, until=None, notes=[], moods=[]):
+    def __init__(self, id=None, since=None, until=None, moods=[], notes=[]):
         XMLElement.__init__(self)
+        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
-        for note in notes:
-            self.notes.add(note)
-        self[:] = moods
+        self.update(moods)
+        self.notes.update(notes)
+
+    @property
+    def notes(self):
+        return NoteList(self, RPIDNote)
+
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self), list(self.notes))
 
     def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.add(Note.from_element(child, *args, **kwargs), with_element=False)
-            elif child.tag == '{%s}other' % self._xml_namespace:
-                value = child.text
-                if value not in self:
-                    list.append(self, value)
-            else:
-                value = parse_qname(child.tag)[1]
-                if value in self.values  and value not in self:
-                    list.append(self, value)
-        if 'unknown' in self and len(self) > 1:
-            self.remove('unknown')
+        super(Mood, self)._parse_element(element, *args, **kwargs)
+        self.notes._parse_element(element, *args, **kwargs)
 
     def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
+        super(Mood, self)._build_element(*args, **kwargs)
+        self.notes._build_element(*args, **kwargs)
+
+    def add(self, mood):
+        if isinstance(mood, basestring):
+            if mood in self._xml_item_registry.names:
+                mood = self._xml_item_registry.class_map[mood]()
+            else:
+                mood = self._xml_item_other_type.from_string(mood)
+        unknown_mood = self._xml_item_registry.class_map['unknown']()
+        if mood == unknown_mood or unknown_mood in self._element_map.itervalues():
+            self.clear()
+        super(Mood, self).add(mood)
 
     def check_validity(self):
         if not self:
             raise ValidationError("Mood element must have at least one value")
         super(Mood, self).check_validity()
-
-    def _add_item(self, value):
-        if value in self:
-            raise ValueError("cannot add the same mood twice")
-        if value == 'unknown' and len(self) > 0:
-            raise ValueError("cannot add 'unknown' value in non-empty Mood element")
-        if self[:] == ['unknown']:
-            raise ValueError("cannot add mood if Mood element contains 'unknown'")
-        if value in self.values:
-            self._insert_element(etree.Element('{%s}%s' % (self._xml_namespace, value)))
-        else:
-            element = etree.Element('{%s}other' % (self._xml_namespace,))
-            element.text = value
-            self._insert_element(element)
-        return value
-
-    def _del_item(self, value):
-        if value in self.values:
-            self.element.remove(self.element.find('{%s}%s' % (self._xml_namespace, value)))
-        else:
-            tag = '{%s}other' % self._xml_namespace
-            for child in self.element:
-                if child.tag == tag and child.text == value:
-                    self.element.remove(child)
-                    break
-
-    def __repr__(self):
-        return '%s(%r, %r, %r, [%s], %s)' % (self.__class__.__name__, self.id, self.since, self.until, ', '.join('%r' % note for note in self.notes), list.__repr__(self))
-
-    __str__ = __repr__
 
 Person.register_extension('mood', type=Mood)
 
@@ -297,102 +303,77 @@ class PlaceIs(XMLElement, PersonExtension):
     _xml_tag = 'place-is'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {Note.qname: 0,
+    _xml_children_order = {RPIDNote.qname: 0,
                            AudioPlaceInformation.qname: 1,
                            VideoPlaceInformation.qname: 2,
                            TextPlaceInformation.qname: 3}
-    
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
     audio = XMLElementChild('audio', type=AudioPlaceInformation, required=False, test_equal=True)
     video = XMLElementChild('video', type=VideoPlaceInformation, required=False, test_equal=True)
     text = XMLElementChild('text', type=TextPlaceInformation, required=False, test_equal=True)
-    notes = NotesAttribute()
 
     def __init__(self, id=None, since=None, until=None, audio=None, video=None, text=None, notes=[]):
         XMLElement.__init__(self)
+        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
         self.audio = audio
         self.video = video
         self.text = text
-        for note in notes:
-            self.notes.add(note)
-    
+        self.notes.update(notes)
+
+    @property
+    def notes(self):
+        return NoteList(self, RPIDNote)
+
     def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.add(Note.from_element(child, *args, **kwargs))
-    
+        self.notes._parse_element(element, *args, **kwargs)
+
     def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
+        self.notes._build_element(*args, **kwargs)
 
     def __repr__(self):
-        return '%s(%r, %r, %r, %r, %r, %r, [%s])' % (self.__class__.__name__, self.id, self.since, self.until, self.audio, self.video, self.text, ', '.join('%r' % note for note in self.notes))
-
-    __str__ = __repr__
+        return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.audio, self.video, self.text, list(self.notes))
 
 Person.register_extension('place_is', type=PlaceIs)
 
 
-class PlaceType(XMLListElement, PersonExtension):
+class PlaceType(XMLElement, PersonExtension):
     _xml_tag = 'place-type'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {Note.qname: 0}
+    _xml_children_order = {RPIDNote.qname: 0}
     
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
-    notes = NotesAttribute()
-    
-    def _onset_value(self, attribute, value):
-        if value is None:
-            self.clear()
-    value = XMLElementChild('value', type=Other, required=False, test_equal=True, onset=_onset_value)
-    del _onset_value
+    value = XMLStringChoiceChild('value', other_type=RPIDOther, extension_type=PlaceTypeElement)
 
-    def __init__(self, id=None, since=None, until=None, notes=[], placetypes=[]):
-        XMLListElement.__init__(self)
+    def __init__(self, id=None, since=None, until=None, placetype=None, notes=[]):
+        super(PlaceType, self).__init__()
+        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
-        for note in notes:
-            self.notes.add(note)
-        self[0:0] = placetypes
+        self.value = placetype
+        self.notes.update(notes)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.append(Note.from_element(child, *args, **kwargs))
-            else:
-                child_cls = self._xml_application.get_element(child.tag)
-                if child_cls is not None and issubclass(child_cls, PlaceTypeElement):
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-
-    def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, PlaceTypeElement):
-            raise TypeError("PlaceType elements can only contain PlaceTypeElement children, got %s instead" % value.__class__.__name__)
-        self.value = None
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+    @property
+    def notes(self):
+        return NoteList(self, RPIDNote)
 
     def __repr__(self):
-        return '%s(%r, %r, %r, [%s], %s)' % (self.__class__.__name__, self.id, self.since, self.until, ', '.join('%r' % note for note in self.notes), list.__repr__(self))
+        return '%s(%r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, self.value, list(self.notes))
 
-    __str__ = __repr__
+    def _parse_element(self, element, *args, **kwargs):
+        self.notes._parse_element(element, *args, **kwargs)
+
+    def _build_element(self, *args, **kwargs):
+        self.notes._build_element(*args, **kwargs)
 
 Person.register_extension('place_type', type=PlaceType)
 
@@ -439,51 +420,54 @@ class VideoPrivacy(XMLEmptyElement):
         return XMLEmptyElement.__new__(cls)
 
 
-class Privacy(XMLListElement, PersonExtension):
+class PrivacyType(XMLElementType):
+    def __init__(cls, name, bases, dct):
+        super(PrivacyType, cls).__init__(name, bases, dct)
+        child_attributes = (getattr(cls, name) for name in dir(cls) if type(getattr(cls, name)) is XMLElementChild)
+        cls._privacy_attributes = tuple(attr.name for attr in child_attributes if attr.name in ('audio', 'text', 'video') or issubclass(attr.type, PrivacyElement))
+
+class Privacy(XMLElement, PersonExtension):
+    __metaclass__ = PrivacyType
+
     _xml_tag = 'privacy'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {Note.qname: 0,
+    _xml_children_order = {RPIDNote.qname: 0,
                            AudioPrivacy.qname: 1,
                            TextPrivacy.qname: 2,
                            VideoPrivacy.qname: 3}
-    
+
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
-    notes = NotesAttribute()
 
     audio = XMLElementChild('audio', type=AudioPrivacy, required=False, test_equal=True)
     text = XMLElementChild('text', type=TextPrivacy, required=False, test_equal=True)
     video = XMLElementChild('video', type=VideoPrivacy, required=False, test_equal=True)
-    unknown = property(lambda self: len(self) == 0 and not self.audio and not self.text and not self.video)
+    unknown = property(lambda self: all(getattr(self, name) is None for name in self._privacy_attributes))
 
-    def __init__(self, id=None, since=None, until=None, notes=[], audio=False, text=False, video=False, privacy=[]):
-        XMLListElement.__init__(self)
+    def __init__(self, id=None, since=None, until=None, notes=[], audio=False, text=False, video=False):
+        super(Privacy, self).__init__()
+        self._note_map = {}
         self.id = id
         self.since = since
         self.until = until
-        for note in notes:
-            self.notes.add(note)
         self.audio = audio
         self.text = text
         self.video = video
-        self[0:0] = privacy
+        self.notes.update(notes)
+
+    @property
+    def notes(self):
+        return NoteList(self, RPIDNote)
+
+    def __repr__(self):
+        return '%s(%r, %r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.since, self.until, list(self.notes), self.audio, self.text, self.video)
 
     def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.append(Note.from_element(child, *args, **kwargs))
-            elif child.tag == '{%s}unknown' % self._xml_namespace:
-                pass
-            else:
-                child_cls = self._xml_application.get_element(child.tag)
-                if child_cls is not None and issubclass(child_cls, PrivacyElement):
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
+        self.notes._parse_element(element, *args, **kwargs)
 
     def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
         if self.unknown:
             if self.element.find('{%s}unknown' % self._xml_namespace) is None:
                 etree.SubElement(self.element, '{%s}unknown' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
@@ -491,88 +475,57 @@ class Privacy(XMLListElement, PersonExtension):
             unknown_element = self.element.find('{%s}unknown' % self._xml_namespace)
             if unknown_element is not None:
                 self.element.remove(unknown_element)
-            for child in self:
-                child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, PrivacyElement):
-            raise TypeError("Privacy elements can only contain PrivacyElement children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
-
-    def __repr__(self):
-        return '%s(%r, %r, %r, [%s], %r, %r, %r, %s)' % (self.__class__.__name__, self.id, self.since, self.until, ', '.join('%r' % note for note in self.notes), self.audio, self.text, self.video, list.__repr__(self))
-
-    __str__ = __repr__
+        self.notes._build_element(*args, **kwargs)
 
 Person.register_extension('privacy', type=Privacy)
+
+
+class RelationshipRegistry(object):
+    __metaclass__ = XMLEmptyElementRegistryType
+
+    _xml_namespace = rpid_namespace
+    _xml_application = PIDFApplication
+
+    names = ('assistant', 'associate', 'family', 'friend', 'self', 'supervisor', 'unknown')
 
 
 class Relationship(XMLElement, ServiceExtension):
     _xml_tag = 'relationship'
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
-    _xml_children_order = {Note: 0}
-    
-    values = set(('assistant', 'associate', 'family', 'friend', 'self',
-                  'supervisor', 'unknown'))
-    
-    notes = NotesAttribute()
+    _xml_children_order = {RPIDNote: 0}
+
+    value = XMLStringChoiceChild('value', registry=RelationshipRegistry, other_type=RPIDOther, extension_type=RelationshipElement)
 
     def __init__(self, relationship='self', notes=[]):
         XMLElement.__init__(self)
-        self._value = None
+        self._note_map = {}
         self.value = relationship
-        for note in notes:
-            self.notes.add(note)
+        self.notes.update(notes)
 
-    def _parse_element(self, element, *args, **kwargs):
-        self._value = None
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.append(Note.from_element(child, *args, **kwargs))
-            elif child.tag == '{%s}other' % self._xml_namespace:
-                value = child.text
-                if value not in self:
-                    self._value = value
-            else:
-                value = parse_qname(child.tag)[1]
-                if value in self.values:
-                    self._value = value
-
-    def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
-
-    def _get_value(self):
-        return self._value
-
-    def _set_value(self, value):
-        for child in self.element:
-            if child.tag == '{%s}%s' % (self._xml_namespace, self._value) or (child.tag == '{%s}other' % self._xml_namespace and child.text == value):
-                self.element.remove(child)
-                break
-        self._value = value
-        if value is not None:
-            if value in self.values:
-                element = etree.Element('{%s}%s' % (self._xml_namespace, value), nsmap=self._xml_application.xml_nsmap)
-            else:
-                element = etree.Element('{%s}other' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-                element.text = value
-            self._insert_element(element)
-
-    value = property(_get_value, _set_value)
-    del _get_value, _set_value
+    @property
+    def notes(self):
+        return NoteList(self, RPIDNote)
 
     def __repr__(self):
-        return '%s(%r, [%s])' % (self.__class__.__name__, self.value, ', '.join('%r' % note for note in self.notes))
+        return '%s(%r, %r)' % (self.__class__.__name__, self.value, list(self.notes))
 
-    __str__ = __repr__
+    def _parse_element(self, element, *args, **kwargs):
+        self.notes._parse_element(element, *args, **kwargs)
+
+    def _build_element(self, *args, **kwargs):
+        self.notes._build_element(*args, **kwargs)
 
 Service.register_extension('relationship', type=Relationship)
+
+
+class ServiceClassRegistry(object):
+    __metaclass__ = XMLEmptyElementRegistryType
+
+    _xml_namespace = rpid_namespace
+    _xml_application = PIDFApplication
+
+    names = ('courier', 'electronic', 'freight', 'in-person', 'postal', 'unknown')
 
 
 class ServiceClass(XMLElement, ServiceExtension):
@@ -580,62 +533,37 @@ class ServiceClass(XMLElement, ServiceExtension):
     _xml_namespace = rpid_namespace
     _xml_application = PIDFApplication
     
-    values = set(('courier', 'electronic', 'freight', 'in person', 'postal', 'unknown'))
+    value = XMLStringChoiceChild('value', registry=ServiceClassRegistry, extension_type=ServiceClassElement)
     
-    notes = NotesAttribute()
-
     def __init__(self, service_class=None, notes=[]):
         XMLElement.__init__(self)
+        self._note_map = {}
         self.value = service_class
-        for note in notes:
-            self.notes.add(note)
+        self.notes.update(notes)
 
-    def _parse_element(self, element, *args, **kwargs):
-        self.value = None
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.append(Note.from_element(child, *args, **kwargs))
-            elif child.tag == '{%s}other' % self._xml_namespace:
-                value = child.text
-                if value not in self:
-                    self._value = value
-            else:
-                value = parse_qname(child.tag)[1]
-                if value in self.values:
-                    self._value = value
-
-    def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
-
-    def _get_value(self):
-        return self._value
-
-    def _set_value(self, value):
-        if not hasattr(self, '_value'):
-            return
-        for child in self.element:
-            if child.tag == '{%s}%s' % (self._xml_namespace, self._value) or (child.tag == '{%s}other' % self._xml_namespace and child.text == value):
-                self.element.remove(child)
-                break
-        self._value = value
-        if value is not None:
-            if value in self.values:
-                element = etree.Element('{%s}%s' % (self._xml_namespace, value), nsmap=self._xml_application.xml_nsmap)
-            else:
-                element = etree.Element('{%s}other' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-                element.text = value
-            self._insert_element(element)
-
-    value = property(_get_value, _set_value)
-    del _get_value, _set_value
+    @property
+    def notes(self):
+        return NoteList(self, RPIDNote)
 
     def __repr__(self):
-        return '%s(%r, [%s])' % (self.__class__.__name__, self.value, ', '.join('%r' % note for note in self.notes))
+        return '%s(%r, %r)' % (self.__class__.__name__, self.value, list(self.notes))
 
-    __str__ = __repr__
+    def _parse_element(self, element, *args, **kwargs):
+        self.notes._parse_element(element, *args, **kwargs)
+
+    def _build_element(self, *args, **kwargs):
+        self.notes._build_element(*args, **kwargs)
 
 Service.register_extension('service_class', type=ServiceClass)
+
+
+class SphereRegistry(object):
+    __metaclass__ = XMLEmptyElementRegistryType
+
+    _xml_namespace = rpid_namespace
+    _xml_application = PIDFApplication
+
+    names = ('home', 'work', 'unknown')
 
 
 class Sphere(XMLElement, PersonExtension):
@@ -646,58 +574,17 @@ class Sphere(XMLElement, PersonExtension):
     id = XMLAttribute('id', type=str, required=False, test_equal=True)
     since = XMLAttribute('since', xmlname='from', type=Timestamp, required=False, test_equal=True)
     until = XMLAttribute('until', type=Timestamp, required=False, test_equal=True)
+    value = XMLStringChoiceChild('value', registry=SphereRegistry, extension_type=SphereElement)
 
     def __init__(self, value=None, id=None, since=None, until=None):
         XMLElement.__init__(self)
-        self.__value = None
         self.id = id
         self.since = since
         self.until = until
         self.value = value
 
-    def _parse_element(self, element, *args, **kwargs):
-        self.__value = None
-        for child in element:
-            value = parse_qname(child.tag)[1]
-            if value in ('home', 'work', 'unknown'):
-                self.__value = value
-                break
-            else:
-                child_cls = self._xml_application.get_element(child.tag)
-                if child_cls is not None and issubclass(child_cls, SphereElement):
-                    self.__value = child_cls.from_element(child, xml_meta=self._xml_meta)
-                    break
-        else:
-            self.value = element.text
-
-    def _set_value(self, value):
-        if value is not None and not isinstance(value, str) and not isinstance(value, SphereElement):
-            raise ParserError("Sphere elements can only have SphereElement children, got %s instead" % value.__class__.__name__)
-        if self.__value is not None:
-            for child in self.element:
-                if (parse_qname(child.tag)[1] == self.__value and self.__value in ('home', 'work', 'unknown')) or \
-                        (isinstance(self.__value, SphereElement) and self.__value.element == child):
-                    self.element.remove(child)
-                    break
-            else:
-                self.element.text = None
-        if isinstance(value, SphereElement):
-            self._insert_element(value.element)
-        elif value in ('home', 'work', 'unknown') or value is None:
-            if value is None:
-                value = 'unknown'
-            element = etree.Element('{%s}%s' % (self._xml_namespace, value))
-            self._insert_element(element)
-        else:
-            self.element.text = value
-        self.__value = value
-    
-    value = property(lambda self: self.__value, _set_value)
-
     def __repr__(self):
         return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.value, self.id, self.since, self.until)
-
-    __str__ = __repr__
 
 Person.register_extension('sphere', type=Sphere)
 

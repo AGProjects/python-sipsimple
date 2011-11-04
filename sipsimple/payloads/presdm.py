@@ -17,19 +17,17 @@ __all__ = ['pidf_namespace',
            'DeviceExtension',
            'PersonExtension',
            'Note',
+           'PIDFNote',
+           'DMNote',
            'NoteList',
-           'NotesAttribute',
            'DeviceID',
            'Status',
            'Basic',
            'Contact',
-           'ServiceNote',
            'ServiceTimestamp',
            'Service',
-           'DeviceNote',
            'DeviceTimestamp',
            'Device',
-           'PersonNote',
            'PersonTimestamp',
            'Person',
            'PIDF']
@@ -95,53 +93,117 @@ class Timestamp(XMLElement):
         return str(self.value)
 
 
-class Note(XMLStringElement):
+class Note(unicode):
+    def __new__(cls, value, lang=None):
+        instance = unicode.__new__(cls, value)
+        instance.lang = lang
+        return instance
+
+    def __repr__(self):
+        return "%s(%s, lang=%r)" % (self.__class__.__name__, unicode.__repr__(self), self.lang)
+
+    def __eq__(self, other):
+        if isinstance(other, Note):
+            return unicode.__eq__(self, other) and self.lang == other.lang
+        elif isinstance(other, basestring):
+            return self.lang is None and unicode.__eq__(self, other)
+        else:
+            return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        return NotImplemented if equal is NotImplemented else not equal
+
+
+class PIDFNote(XMLStringElement):
     _xml_tag = 'note'
     _xml_namespace = pidf_namespace
     _xml_application = PIDFApplication
     _xml_lang = True
 
+    def __unicode__(self):
+        return Note(self.value, self.lang)
+
+
+class DMNote(XMLStringElement):
+    _xml_tag = 'note'
+    _xml_namespace = dm_namespace
+    _xml_application = PIDFApplication
+    _xml_lang = True
+
+    def __unicode__(self):
+        return Note(self.value, self.lang)
+
 
 class NoteList(object):
-    def __init__(self, xml_element):
-        self._notes = {}
+    def __init__(self, xml_element, note_type):
         self.xml_element = xml_element
+        self.note_type = note_type
 
-    def __getitem__(self, key):
-        return self._notes[key]
-
-    def __delitem__(self, key):
-        self.xml_element.element.remove(self._notes[key].element)
-        del self._notes[key]
+    def __contains__(self, item):
+        if isinstance(item, Note):
+            item = self.note_type(item, item.lang)
+        elif isinstance(item, basestring):
+            item = self.note_type(item)
+        return item in self.xml_element._note_map.itervalues()
 
     def __iter__(self):
-        return self._notes.itervalues()
+        return (unicode(self.xml_element._note_map[element]) for element in self.xml_element.element if element in self.xml_element._note_map)
 
     def __len__(self):
-        return len(self._notes)
+        return len(self.xml_element._note_map)
 
-    def add(self, note, with_element=True):
-        self._notes[note.lang] = note
-        if with_element:
-            self.xml_element._insert_element(note.element)
+    def __nonzero__(self):
+        return bool(self.xml_element._note_map)
 
+    def _parse_element(self, element, *args, **kwargs):
+        self.xml_element._note_map.clear()
+        for child in element:
+            if child.tag == self.note_type.qname:
+                try:
+                    note = self.note_type.from_element(child, *args, **kwargs)
+                except ValidationError:
+                    pass
+                else:
+                    self.xml_element._note_map[note.element] = note
 
-class NotesAttribute(object):
-    def __init__(self):
-        self.note_lists = {}
+    def _build_element(self, *args, **kwargs):
+        for note in self.xml_element._note_map.itervalues():
+            note.to_element(*args, **kwargs)
 
-    def __get__(self, obj, objtype):
-        if obj is None:
-            return self
-        return self.note_lists.setdefault(id(obj), NoteList(obj))
+    def add(self, item):
+        if isinstance(item, Note):
+            item = self.note_type(item, item.lang)
+        elif isinstance(item, basestring):
+            item = self.note_type(item)
+        if type(item) is not self.note_type:
+            raise TypeError("%s cannot add notes of type %s" % (self.xml_element.__class__.__name__, item.__class__.__name__))
+        self.xml_element._insert_element(item.element)
+        self.xml_element._note_map[item.element] = item
 
-    def __set__(self, obj, value):
-        if not isinstance(value, NoteList):
-            raise AttributeError("cannot overwrite NotesAttribute with non NoteList instance")
-        self.note_lists[id(obj)] = value
+    def remove(self, item):
+        if isinstance(item, Note):
+            try:
+                item = (entry for entry in self.xml_element._note_map.itervalues() if unicode(entry) == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        elif isinstance(item, basestring):
+            try:
+                item = (entry for entry in self.xml_element._note_map.itervalues() if entry == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        if type(item) is not self.note_type:
+            raise KeyError(item)
+        self.xml_element.element.remove(item.element)
+        del self.xml_element._note_map[item.element]
 
-    def __delete__(self, obj):
-        raise AttributeError("cannot delete NotesAttribute")
+    def update(self, sequence):
+        for item in sequence:
+            self.add(item)
+
+    def clear(self):
+        for item in self.xml_element._note_map.values():
+            self.remove(item)
 
 
 class DeviceID(XMLStringElement):
@@ -192,7 +254,6 @@ class Contact(XMLStringElement):
     priority = XMLAttribute('priority', type=float, required=False, test_equal=False)
 
 
-class ServiceNote(Note): pass
 class ServiceTimestamp(Timestamp): pass
 
 
@@ -204,7 +265,7 @@ class Service(XMLElement):
     _xml_children_order = {Status.qname: 0,
                            None: 1,
                            Contact.qname: 2,
-                           ServiceNote.qname: 3,
+                           PIDFNote.qname: 3,
                            ServiceTimestamp.qname: 4}
 
     id = XMLAttribute('id', type=str, required=True, test_equal=True)
@@ -212,38 +273,32 @@ class Service(XMLElement):
     contact = XMLElementChild('contact', type=Contact, required=False, test_equal=True)
     timestamp = XMLElementChild('timestamp', type=ServiceTimestamp, required=False, test_equal=True)
     device_id = XMLElementChild('device_id', type=DeviceID, required=False, test_equal=True)
-    notes = NotesAttribute()
     _xml_id = id
-    
+
     def __init__(self, id, notes=[], status=None, contact=None, timestamp=None, device_id=None):
         XMLElement.__init__(self)
+        self._note_map = {}
         self.id = id
-        for note in notes:
-            self.notes.add(note)
         self.status = status
         self.contact = contact
         self.timestamp = timestamp
         self.device_id = device_id
-    
+        self.notes.update(notes)
+
+    @property
+    def notes(self):
+        return NoteList(self, PIDFNote)
+
     def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.add(Note.from_element(child, *args, **kwargs), with_element=False)
+        super(Service, self)._parse_element(element, *args, **kwargs)
+        self.notes._parse_element(element, *args, **kwargs)
 
     def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
+        super(Service, self)._build_element(*args, **kwargs)
+        self.notes._build_element(*args, **kwargs)
 
     def __repr__(self):
-        return '%s(%r, [%s], %r, %r, %r, %r)' % (self.__class__.__name__, self.id, ', '.join('%r' % note for note in self.notes), self.status, self.contact, self.timestamp, self.device_id)
-
-    __str__ = __repr__
-
-
-class DeviceNote(Note):
-    _xml_tag = 'note'
-    _xml_namespace = dm_namespace
-    _xml_application = PIDFApplication
+        return '%s(%r, %r, %r, %r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.status, self.contact, self.timestamp, self.device_id)
 
 
 class DeviceTimestamp(Timestamp):
@@ -259,42 +314,36 @@ class Device(XMLElement):
     _xml_extension_type = DeviceExtension
     _xml_children_order = {None: 0,
                            DeviceID.qname: 1,
-                           DeviceNote.qname: 2,
+                           DMNote.qname: 2,
                            DeviceTimestamp.qname: 3}
-    
+
     id = XMLAttribute('id', type=str, required=True, test_equal=True)
     device_id = XMLElementChild('device_id', type=DeviceID, required=False, test_equal=True)
     timestamp = XMLElementChild('timestamp', type=DeviceTimestamp, required=False, test_equal=True)
-    notes = NotesAttribute()
     _xml_id = id
 
     def __init__(self, id, device_id=None, notes=[], timestamp=None):
         XMLElement.__init__(self)
+        self._note_map = {}
         self.id = id
         self.device_id = device_id
-        for note in notes:
-            self.notes.add(note)
         self.timestamp = timestamp
+        self.notes.update(notes)
+
+    @property
+    def notes(self):
+        return NoteList(self, DMNote)
 
     def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == DeviceNote.qname:
-                self.notes.add(DeviceNote.from_element(child, *args, **kwargs))
+        super(Device, self)._parse_element(element, *args, **kwargs)
+        self.notes._parse_element(element, *args, **kwargs)
 
     def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
+        super(Device, self)._build_element(*args, **kwargs)
+        self.notes._build_element(*args, **kwargs)
 
     def __repr__(self):
-        return '%s(%r, %r, [%s], %r)' % (self.__class__.__name__, self.id, self.device_id, ', '.join('%r' % note for note in self.notes), self.timestamp)
-
-    __str__ = __repr__
-
-
-class PersonNote(Note):
-    _xml_tag = 'note'
-    _xml_namespace = dm_namespace
-    _xml_application = PIDFApplication
+        return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.device_id, list(self.notes), self.timestamp)
 
 
 class PersonTimestamp(Timestamp):
@@ -309,34 +358,34 @@ class Person(XMLElement):
     _xml_application = PIDFApplication
     _xml_extension_type = PersonExtension
     _xml_children_order = {None: 0,
-                           PersonNote.qname: 1,
+                           DMNote.qname: 1,
                            PersonTimestamp.qname: 2}
-    
+
     id = XMLAttribute('id', type=str, required=True, test_equal=True)
     timestamp = XMLElementChild('timestamp', type=PersonTimestamp, required=False, test_equal=True)
-    notes = NotesAttribute()
     _xml_id = id
 
     def __init__(self, id, notes=[], timestamp=None):
         XMLElement.__init__(self)
+        self._note_map = {}
         self.id = id
-        for note in notes:
-            self.notes.add(note)
         self.timestamp = timestamp
+        self.notes.update(notes)
+
+    @property
+    def notes(self):
+        return NoteList(self, DMNote)
 
     def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == PersonNote.qname:
-                self.notes.add(PersonNote.from_element(child, *args, **kwargs))
+        super(Person, self)._parse_element(element, *args, **kwargs)
+        self.notes._parse_element(element, *args, **kwargs)
 
     def _build_element(self, *args, **kwargs):
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
-    
-    def __repr__(self):
-        return '%s(%r, [%s], %r)' % (self.__class__.__name__, self.id, ', '.join('%r' % note for note in self.notes), self.timestamp)
+        super(Person, self)._build_element(*args, **kwargs)
+        self.notes._build_element(*args, **kwargs)
 
-    __str__ = __repr__
+    def __repr__(self):
+        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.id, list(self.notes), self.timestamp)
 
 
 class PIDF(XMLListRootElement):
@@ -347,47 +396,45 @@ class PIDF(XMLListRootElement):
     _xml_application = PIDFApplication
     _xml_schema_file = 'pidf.xsd'
     _xml_children_order = {Service.qname: 0,
-                           Note.qname: 1,
+                           PIDFNote.qname: 1,
                            Person.qname: 2,
                            Device.qname: 3}
+    _xml_item_type = (Service, PIDFNote, Person, Device)
 
     entity = XMLAttribute('entity', type=str, required=True, test_equal=True)
-    notes = NotesAttribute()
 
-    def __init__(self, entity, elems=[], notes=[]):
+    services = property(lambda self: (item for item in self if type(item) is Service))
+    notes    = property(lambda self: (item for item in self if type(item) is Note))
+    persons  = property(lambda self: (item for item in self if type(item) is Person))
+    devices  = property(lambda self: (item for item in self if type(item) is Device))
+
+    def __init__(self, entity, elements=[]):
         XMLListRootElement.__init__(self)
         self.entity = entity
-        self[0:0] = elems
-        for note in notes:
-            self.notes.add(note)
+        self.update(elements)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == Note.qname:
-                self.notes.add(Note.from_element(child, *args, **kwargs))
-            else:
-                child_cls = self._xml_application.get_element(child.tag)
-                if child_cls is not None and child_cls in (Service, Device, Person):
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
+    def __contains__(self, item):
+        if isinstance(item, Note):
+            item = PIDFNote(item, item.lang)
+        return super(PIDF, self).__contains__(item)
 
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-        for note in self.notes:
-            note.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, (Service, Device, Person)):
-            raise TypeError("PIDF elements can only contain Service, Device or Person children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+    def __iter__(self):
+        return (unicode(item) if type(item) is PIDFNote else item for item in super(PIDF, self).__iter__())
 
     def __repr__(self):
-        return '%s(%r, %s, [%s])' % (self.__class__.__name__, self.entity, list.__repr__(self), ', '.join('%r' % note for note in self.notes))
+        return '%s(%r, %r)' % (self.__class__.__name__, self.entity, list(self))
 
-    __str__ = __repr__
+    def add(self, item):
+        if isinstance(item, Note):
+            item = PIDFNote(item, item.lang)
+        super(PIDF, self).add(item)
+
+    def remove(self, item):
+        if isinstance(item, Note):
+            try:
+                item = (entry for entry in super(PIDF, self).__iter__() if type(entry) is PIDFNote and unicode(entry) == item).next()
+            except StopIteration:
+                raise KeyError(item)
+        super(PIDF, self).remove(item)
 
 

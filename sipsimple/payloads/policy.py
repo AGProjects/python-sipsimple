@@ -115,34 +115,17 @@ class IdentityMany(XMLListElement):
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
     _xml_children_order = {IdentityExcept.qname: 0}
+    _xml_item_type = IdentityExcept
 
     domain = XMLAttribute('domain', type=str, required=False, test_equal=True)
 
-    def __init__(self, domain=None, excepts=[]):
+    def __init__(self, domain=None, exceptions=[]):
         XMLListElement.__init__(self)
         self.domain = domain
-        self[0:0] = excepts
+        self.update(exceptions)
 
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            if child.tag == IdentityExcept.qname:
-                try:
-                    list.append(self, IdentityExcept.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, IdentityExcept):
-            raise TypeError("Identity elements can only have IdentityExcept children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+    def __repr__(self):
+        return '%s(%r, %s)' % (self.__class__.__name__, self.domain, list(self))
 
     def matches(self, uri):
         if self.domain is not None:
@@ -153,42 +136,16 @@ class IdentityMany(XMLListElement):
                 return False
         return True
 
-    def __repr__(self):
-        return '%s(%r, %s)' % (self.__class__.__name__, self.domain, list.__repr__(self))
 
-    __str__ = __repr__
-
-
-class Identity(XMLListElement, ConditionElement):
+class Identity(XMLListElement):
     _xml_tag = 'identity'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
+    _xml_item_type = (IdentityOne, IdentityMany)
 
     def __init__(self, identities=[]):
         XMLListElement.__init__(self)
-        self[0:0] = identities
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and issubclass(child_cls, (IdentityOne, IdentityMany)):
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, (IdentityOne, IdentityMany)):
-            raise TypeError("Identity elements can only have IdentityOne or IdentityMany children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+        self.update(identities)
 
     def matches(self, uri):
         for child in self:
@@ -197,7 +154,7 @@ class Identity(XMLListElement, ConditionElement):
         return False
 
 
-class Sphere(XMLElement, ConditionElement):
+class Sphere(XMLElement):
     _xml_tag = 'sphere'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
@@ -214,14 +171,66 @@ class Sphere(XMLElement, ConditionElement):
     __str__ = __repr__
 
 
-class Validity(XMLListElement, ConditionElement):
-    _xml_tag = 'validity'
+class ValidFrom(XMLElement):
+    _xml_tag = 'from'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
 
+    def __init__(self, timestamp):
+        if isinstance(timestamp, (datetime.datetime, str)):
+            timestamp = Timestamp(timestamp)
+        if not isinstance(timestamp, Timestamp):
+            raise TypeError("Validity element can only be a Timestamp, datetime or string")
+        XMLElement.__init__(self)
+        self.element.text = str(timestamp)
+
+
+class ValidUntil(XMLElement):
+    _xml_tag = 'until'
+    _xml_namespace = namespace
+    _xml_application = CommonPolicyApplication
+
+    def __init__(self, timestamp):
+        if isinstance(timestamp, (datetime.datetime, str)):
+            timestamp = Timestamp(timestamp)
+        if not isinstance(timestamp, Timestamp):
+            raise TypeError("Validity element can only be a Timestamp, datetime or string")
+        XMLElement.__init__(self)
+        self.element.text = str(timestamp)
+
+
+class ValidityInterval(object):
+    def __init__(self, from_timestamp, until_timestamp):
+        self.valid_from = ValidFrom(from_timestamp)
+        self.valid_until = ValidUntil(until_timestamp)
+
+    def __eq__(self, other):
+        if isinstance(other, ValidityInterval):
+            return self.valid_from.text==other.valid_from.text and self.valid_until.text==other.valid_until.text
+        return NotImplemented
+
+    def __ne__(self, other):
+        if isinstance(other, ValidityInterval):
+            return self.valid_from.text!=other.valid_from.text or self.valid_until.text!=other.valid_until.text
+        return NotImplemented
+
+    @classmethod
+    def from_elements(cls, from_element, until_element):
+        instance = object.__new__(cls)
+        instance.valid_from = ValidFrom.from_element(from_element)
+        instance.valid_until = ValidUntil.from_element(until_element)
+        return instance
+
+
+class Validity(XMLListElement):
+    _xml_tag = 'validity'
+    _xml_namespace = namespace
+    _xml_application = CommonPolicyApplication
+    _xml_item_type = ValidityInterval
+
     def __init__(self, children=[]):
         XMLListElement.__init__(self)
-        self[0:0] = children
+        self.update(children)
 
     def _parse_element(self, element, *args, **kwargs):
         iterator = iter(element)
@@ -229,31 +238,33 @@ class Validity(XMLListElement, ConditionElement):
             second_child = iterator.next()
             if first_child.tag == '{%s}from' % self._xml_namespace and second_child.tag == '{%s}until' % self._xml_namespace:
                 try:
-                    self.append((first_child.text, second_child.text))
+                    item = ValidityInterval.from_elements(first_child, second_child)
                 except:
                     pass
+                else:
+                    self._element_map[item.valid_from.element] = item
 
     def _build_element(self, *args, **kwargs):
-        self.element.clear()
-        for (from_valid, until_valid) in self:
-            from_elem = etree.SubElement(self.element, '{%s}from' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-            from_elem.text = str(from_valid)
-            until_elem = etree.SubElement(self.element, '{%s}until' % self._xml_namespace, nsmap=self._xml_application.xml_nsmap)
-            until_elem.text = str(until_valid)
+        for child in self:
+            child.valid_from.to_element(*args, **kwargs)
+            child.valid_until.to_element(*args, **kwargs)
+
+    def add(self, item):
+        if not isinstance(item, ValidityInterval):
+            raise TypeError("Validity element must be a ValidityInterval instance")
+        self._insert_element(item.valid_from.element)
+        self._insert_element(item.valid_until.element)
+        self._element_map[item.valid_from.element] = item
+
+    def remove(self, item):
+        self.element.remove(item.valid_from.element)
+        self.element.remove(item.valid_until.element)
+        del self._element_map[item.valid_from.element]
 
     def check_validity(self):
         if not self:
             raise ValidationError("cannot have Validity element without any children")
         XMLListElement.check_validity(self)
-
-    def _add_item(self, (from_valid, until_valid)):
-        if isinstance(from_valid, (datetime.datetime, str)):
-            from_valid = Timestamp(from_valid)
-        if isinstance(until_valid, (datetime.datetime, str)):
-            until_valid = Timestamp(until_valid)
-        if not isinstance(from_valid, Timestamp) or not isinstance(until_valid, Timestamp):
-            raise TypeError("Validity element can only contain Timestamp 2-tuples")
-        return (from_valid, until_valid)
 
 
 class Conditions(XMLListElement):
@@ -263,96 +274,33 @@ class Conditions(XMLListElement):
     _xml_children_order = {Identity.qname: 0,
                            Sphere.qname: 1,
                            Validity.qname: 2}
+    _xml_item_type = (Identity, Sphere, Validity, ConditionElement)
 
     def __init__(self, conditions=[]):
         XMLListElement.__init__(self)
-        self[0:0] = conditions
-    
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and issubclass(child_cls, ConditionElement):
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, ConditionElement):
-            raise TypeError("Conditions element can only contain ConditionElement children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+        self.update(conditions)
 
 
 class Actions(XMLListElement):
     _xml_tag = 'actions'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
+    _xml_item_type = ActionElement
 
     def __init__(self, actions=[]):
         XMLListElement.__init__(self)
-        self[0:0] = actions
-
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and issubclass(child_cls, ActionElement):
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, ActionElement):
-            raise TypeError("Actions element can only contain ActionElement children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+        self.update(actions)
 
 
 class Transformations(XMLListElement):
     _xml_tag = 'transformations'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
+    _xml_item_type = TransformationElement
 
     def __init__(self, transformations=[]):
         XMLListElement.__init__(self)
-        self[0:0] = transformations
-    
-    def _parse_element(self, element, *args, **kwargs):
-        for child in element:
-            child_cls = self._xml_application.get_element(child.tag)
-            if child_cls is not None and issubclass(child_cls, TransformationElement):
-                try:
-                    list.append(self, child_cls.from_element(child, *args, **kwargs))
-                except ValidationError:
-                    pass
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, value):
-        if not isinstance(value, TransformationElement):
-            raise TypeError("Transformations element can only contain TransformationElement children, got %s instead" % value.__class__.__name__)
-        self._insert_element(value.element)
-        return value
-
-    def _del_item(self, value):
-        self.element.remove(value.element)
+        self.update(transformations)
 
 
 class Rule(XMLElement):
@@ -385,55 +333,22 @@ class Rule(XMLElement):
 
 class RuleSet(XMLListRootElement):
     content_type = 'application/auth-policy+xml'
-    
+
     _xml_tag = 'ruleset'
     _xml_namespace = namespace
     _xml_application = CommonPolicyApplication
     _xml_schema_file = 'common-policy.xsd'
+    _xml_item_type = Rule
 
     def __init__(self, rules=[]):
         XMLListRootElement.__init__(self)
-        self._rules = {}
-        self[0:0] = rules
+        self.update(rules)
 
-    def _parse_element(self, element, *args, **kwargs):
-        self._rules = {}
-        for child in element:
-            if child.tag == Rule.qname:
-                rule =  Rule.from_element(child, *args, **kwargs)
-                list.append(self, rule)
-                if not rule.id in self._rules:
-                    self._rules[rule.id] = rule
-
-    def _build_element(self, *args, **kwargs):
-        for child in self:
-            child.to_element(*args, **kwargs)
-
-    def _add_item(self, rule):
-        if not isinstance(rule, Rule):
-            raise TypeError("found %s, expected %s" % (rule.__class__.__name__, Rule.__name__))
-        if rule.id in self._rules:
-            raise ValueError("Cannot have more than one Rule with the same id: %s" % rule.id)
-        self._rules[rule.id] = rule
-        self._insert_element(rule.element)
-        return rule
-
-    def _del_item(self, rule):
-        del self._rules[rule.id]
-        self.element.remove(rule.element)
-
-    # it also makes sense to be able to get a Rule by its id
     def __getitem__(self, key):
-        if isinstance(key, basestring):
-            return self._rules[key]
-        else:
-            return super(RuleSet, self).__getitem__(key)
+        return self._xmlid_map[Rule][key]
 
     def __delitem__(self, key):
-        if isinstance(key, basestring):
-            del self[self.index(self[key])]
-        else:
-            super(RuleSet, self).__delitem__(key)
+        self.remove(self._xmlid_map[Rule][key])
 
 
 #

@@ -123,10 +123,12 @@ class WatcherList(XMLListElement):
     It also provides the properties pending, active and terminated which are
     generators returning Watcher objects with the corresponding status.
     """
+
     _xml_tag = 'watcher-list'
     _xml_namespace = namespace
     _xml_application = WatcherInfoApplication
     _xml_children_order = {Watcher.qname: 0}
+    _xml_item_type = Watcher
 
     resource = XMLAttribute('resource', type=SIPURI, required=True, test_equal=True)
     package  = XMLAttribute('package', type=str, required=True, test_equal=True)
@@ -136,67 +138,16 @@ class WatcherList(XMLListElement):
         XMLListElement.__init__(self)
         self.resource = resource
         self.package = package
-        self._watchers = {}
-        self[:] = watchers
+        self.update(watchers)
 
-    def _parse_element(self, element, *args, **kwargs):
-        self._watchers = {}
-        for child in element:
-            if child.tag == Watcher.qname:
-                try:
-                    watcher = Watcher.from_element(child, *args, **kwargs)
-                except ValidationError:
-                    pass
-                else:
-                    if watcher.id in self._watchers:
-                        element.remove(child)
-                        continue
-                    self._watchers[watcher.id] = watcher
-                    list.append(self, watcher)
-
-    def _build_element(self, *args, **kwargs):
-        for watcher in self:
-            watcher.to_element(*args, **kwargs)
-
-    def update(self, watcherlist):
-        updated = []
-        for watcher in watcherlist:
-            old = self._watchers.get(watcher.id, None)
-            if old is not None:
-                self.remove(old)
-            self.append(watcher)
-            if old is None or old != watcher:
-                updated.append(watcher)
-        return updated
-
-    def _add_item(self, watcher):
-        if not isinstance(watcher, Watcher):
-            raise TypeError("WatcherList can only contain Watcher elements")
-        old_watcher = self._watchers.get(watcher.id)
-        if old_watcher is not None:
-            self.remove(old_watcher)
-        self._watchers[watcher.id] = watcher
-        self._insert_element(watcher.element)
-        return watcher
-
-    def _del_item(self, watcher):
-        del self._watchers[watcher.id]
-        self.element.remove(watcher.element)
-    
-    def get(self, id, default=None):
-        return self._watchers.get(id, default)
-    
-    # it also makes sense to be able to get a watcher by its id
     def __getitem__(self, key):
-        if isinstance(key, basestring):
-            return self._watchers[key]
-        else:
-            return super(WatcherList, self).__getitem__(key)
+        return self._xmlid_map[Watcher][key]
+
+    def __delitem__(self, key):
+        self.remove(self._xmlid_map[Watcher][key])
 
     def __repr__(self):
-        return '%s(%r, %r, [%s])' % (self.__class__.__name__, self.resource, self.package, ', '.join('%r' % watcher for watcher in self._watchers.itervalues()))
-
-    __str__ = __repr__
+        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.resource, self.package, list(self))
 
     pending = property(lambda self: (watcher for watcher in self if watcher.status == 'pending'))
     waiting = property(lambda self: (watcher for watcher in self if watcher.status == 'waiting'))
@@ -226,105 +177,32 @@ class WatcherInfo(XMLListRootElement):
     _xml_tag = 'watcherinfo'
     _xml_namespace = namespace
     _xml_application = WatcherInfoApplication
-    _xml_children_order = {WatcherList.qname: 0}
     _xml_schema_file = 'watcherinfo.xsd'
+    _xml_children_order = {WatcherList.qname: 0}
+    _xml_item_type = WatcherList
 
     version = XMLAttribute('version', type=int, required=True, test_equal=True)
     state   = XMLAttribute('state', type=WatcherInfoState, required=True, test_equal=True)
-    
+
     def __init__(self, version=-1, state='full', wlists=[]):
         XMLListRootElement.__init__(self)
         self.version = version
         self.state = state
-        self._wlists = {}
-        self[:] = wlists
-
-    def _parse_element(self, element, *args, **kwargs):
-        self._wlists = {}
-        for child in element:
-            if child.tag == WatcherList.qname:
-                try:
-                    wlist = WatcherList.from_element(child, *args, **kwargs)
-                except ValidationError:
-                    pass
-                else:
-                    if wlist.resource in self._wlists:
-                        element.remove(child)
-                        continue
-                    self._wlists[wlist.resource] = wlist
-                    list.append(self, wlist)
-
-    def _build_element(self, *args, **kwargs):
-        for wlist in self:
-            wlist.to_element(*args, **kwargs)
-    
-    def update(self, document):
-        """
-        Updates the state of this WatcherInfo object with data from an
-        application/watcherinfo+xml document, passed as a string. 
-        
-        Will throw a NeedFullUpdateError if the current document is a partial
-        update and the previous version wasn't received.
-        """
-        winfo = WatcherInfo.parse(document)
-        
-        if winfo.version <= self.version:
-            return {}
-        if winfo.state == 'partial' and winfo.version != self.version + 1:
-            raise NeedFullUpdateError("cannot update with version %d since last version received is %d" % (winfo.version, self.version))
-        self.version = winfo.version
-
-        updated_lists = {}
-        if winfo.state == 'full':
-            self.clear()
-            for new_wlist in winfo:
-                self.append(new_wlist)
-                updated_lists[new_wlist] = list(new_wlist)
-        elif winfo.state == 'partial':
-            for new_wlist in winfo:
-                if new_wlist.resource in self._wlists:
-                    wlist = self._wlists.get(new_wlist.resource, None)
-                    updated = wlist.update(new_wlist)
-                    if updated:
-                        updated_lists[wlist] = updated
-                else:
-                    self.append(new_wlist)
-                    updated_lists[new_wlist] = list(new_wlist)
-        
-        return updated_lists
-
-    def _add_item(self, wlist):
-        if not isinstance(wlist, WatcherList):
-            raise TypeError("WatcherInfo can only contain WatcherList elements")
-        old_wlist = self._wlists.get(wlist.resource, None)
-        if old_wlist is not None:
-            self.remove(old_wlist)
-        self._wlists[wlist.resource] = wlist
-        self._insert_element(wlist.element)
-        return wlist
-
-    def _del_item(self, wlist):
-        del self._wlists[wlist.resource]
-        self.element.remove(wlist.element)
-
-    def get(self, id, default=None):
-        return self._wlists.get(id, default)
+        self.update(wlists)
 
     def __getitem__(self, key):
-        if isinstance(key, basestring):
-            return self._wlists[key]
-        else:
-            return super(WatcherInfo, self).__getitem__(key)
+        return self._xmlid_map[WatcherList][key]
+
+    def __delitem__(self, key):
+        self.remove(self._xmlid_map[WatcherList][key])
 
     def __repr__(self):
-        return '%s(%r, %r, %s)' % (self.__class__.__name__, self.version, self.state, list.__repr__(self))
+        return '%s(%r, %r, %r)' % (self.__class__.__name__, self.version, self.state, list(self))
 
-    __str__ = __repr__
-
-    wlists = property(lambda self: self._wlists.values())
-    pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self))
-    waiting = property(lambda self: dict((wlist, list(wlist.waiting)) for wlist in self))
-    active = property(lambda self: dict((wlist, list(wlist.active)) for wlist in self))
-    terminated = property(lambda self: dict((wlist, list(wlist.terminated)) for wlist in self))
+    wlists = property(lambda self: self._element_map.values())
+    pending = property(lambda self: dict((wlist, list(wlist.pending)) for wlist in self._element_map.itervalues()))
+    waiting = property(lambda self: dict((wlist, list(wlist.waiting)) for wlist in self._element_map.itervalues()))
+    active = property(lambda self: dict((wlist, list(wlist.active)) for wlist in self._element_map.itervalues()))
+    terminated = property(lambda self: dict((wlist, list(wlist.terminated)) for wlist in self._element_map.itervalues()))
 
 
