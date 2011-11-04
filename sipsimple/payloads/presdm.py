@@ -242,8 +242,7 @@ class Status(XMLElement):
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.basic)
-    
-    __str__ = __repr__
+
 
 class Contact(XMLStringElement):
     _xml_tag = 'contact'

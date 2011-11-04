@@ -1278,7 +1278,6 @@ class Account(SettingsObject):
 
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.id)
-    __str__ = __repr__
 
     def __setstate__(self, data):
         # This restores the password from its previous location as a top level setting
@@ -1461,7 +1460,6 @@ class BonjourAccount(SettingsObject):
 
     def __repr__(self):
         return '%s()' % self.__class__.__name__
-    __str__ = __repr__
 
 
 class AccountManager(object):

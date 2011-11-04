@@ -168,8 +168,6 @@ class Sphere(XMLElement):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    __str__ = __repr__
-
 
 class ValidFrom(XMLElement):
     _xml_tag = 'from'
@@ -327,8 +325,6 @@ class Rule(XMLElement):
 
     def __repr__(self):
         return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.id, self.conditions, self.actions, self.transformations)
-
-    __str__ = __repr__
 
 
 class RuleSet(XMLListRootElement):

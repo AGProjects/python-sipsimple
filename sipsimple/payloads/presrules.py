@@ -278,8 +278,6 @@ class BooleanProvideElement(XMLElement):
     def __repr__(self):
         return '%s(%r)' % (self.__class__.__name__, self.value)
 
-    __str__ = __repr__
-
 
 class ProvideActivities(BooleanProvideElement, TransformationElement):
     _xml_tag = 'provide-activities'
@@ -370,8 +368,6 @@ class ProvideUnknownAttribute(BooleanProvideElement, TransformationElement):
 
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.ns, self.name, self.value)
-
-    __str__ = __repr__
 
 
 class ProvideAllAttributes(XMLEmptyElement, TransformationElement):

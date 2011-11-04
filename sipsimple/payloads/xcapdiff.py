@@ -50,8 +50,6 @@ class Document(XMLElement):
     def __repr__(self):
         return '%s(%r, %r, %r)' % (self.__class__.__name__, self.selector, self.new_etag, self.previous_etag)
 
-    __str__ = __repr__
-
     def _get_empty_body(self):
         return self.body_not_changed is not None
 
@@ -87,8 +85,6 @@ class Element(XMLElement):
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.selector, self.exists)
 
-    __str__ = __repr__
-
 
 class Attribute(XMLStringElement):
     _xml_tag = 'attribute'
@@ -106,8 +102,6 @@ class Attribute(XMLStringElement):
 
     def __repr__(self):
         return '%s(%r, %r)' % (self.__class__.__name__, self.selector, self.exists)
-
-    __str__ = __repr__
 
 
 class XCAPDiff(XMLListRootElement):
