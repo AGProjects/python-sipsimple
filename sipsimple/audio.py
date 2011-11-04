@@ -122,13 +122,13 @@ class AudioBridge(object):
     implements(IAudioPort, IObserver)
 
     def __init__(self, mixer):
+        self._lock = RLock()
+        self.ports = set()
         self.mixer = mixer
         self.multiplexer = MixerPort(mixer)
-        self.multiplexer.start()
         self.demultiplexer = MixerPort(mixer)
+        self.multiplexer.start()
         self.demultiplexer.start()
-        self.ports = set()
-        self._lock = RLock()
         notification_center = NotificationCenter()
         notification_center.add_observer(ObserverWeakrefProxy(self), name='AudioPortDidChangeSlots')
 
